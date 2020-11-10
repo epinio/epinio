@@ -7,13 +7,10 @@ echo -n Docker Registry Password:
 read -s registry_password
 echo
 
-# install nginx
-./ingress/install
-./ingress/wait
-
 # get a public IP
-external_ip=$(kubectl get svc -n ingress-nginx  ingress-nginx-controller -o json | jq -r .status.loadBalancer.ingress[0].ip)
-echo "Will use public IP address ${external_ip}"
+echo -n External IP:
+read -s external_ip
+echo
 
 # install quarks
 ./quarks/install
