@@ -1,0 +1,17 @@
+#!/bin/bash
+
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+function say() {
+  >&2 echo -e "${CYAN}$1${NC}" 
+}
+
+function apps() {
+  app_name="$1"
+  say "Getting app list"
+
+  kubectl get namespaces -l managed-by=carrier
+}
+
+apps

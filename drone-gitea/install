@@ -1,0 +1,42 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mdrone-config> \e[32m$1\e[39m"
+}
+
+public_ip="$1"
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+log "Waiting for gitea to come online."
+retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n gitea --selector=app=gitea pod' >> "$HOME/.carrier.log" 2>&1
+
+log "Waiting for drone to come online."
+retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n drone --selector=app.kubernetes.io/name=drone pod' >> "$HOME/.carrier.log" 2>&1
+
+log "Getting drone app client id from gitea."
+app_client=$(kubectl get configmap -n drone drone -o yaml | grep "DRONE_GITEA_CLIENT_ID" | awk '{print $2}')
+
+log "Getting state cookie."
+cookie_jar=`mktemp --tmpdir drone-cookies.XXX`
+state=$(curl -sSLi "http://drone.$public_ip.nip.io/login" \
+  --cookie-jar "$cookie_jar" | grep "_oauth_state_" | sed -e "s/[=;]/ /g" | awk '{print $3}')
+
+log "Getting csrf token."
+csrf_token=$(curl -sSL "http://gitea.$public_ip.nip.io/user/login" \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --data-raw 'user_name=dev&password=changeme' \
+  --cookie-jar "$cookie_jar" \
+  --cookie "$cookie_jar" | grep csrf | grep -v content | awk '{print $2}' | sed -e "s/[',]//g")
+
+csrf_token=$(cat "$cookie_jar" | grep _csrf | awk '{print $7}')
+
+log "Authorizing drone in gitea using cookie jar."
+curl -vvv -sSL "http://gitea.$public_ip.nip.io/login/oauth/grant" \
+  -H 'Content-Type: application/x-www-form-urlencoded' \
+  --cookie-jar "$cookie_jar" \
+  --cookie "$cookie_jar" \
+  --data-urlencode "_csrf=${csrf_token}" \
+  --data-urlencode "state=${state}" \
+  --data-urlencode "client_id=${app_client}" \
+  --data-urlencode "redirect_uri=http://drone.$public_ip.nip.io/login" >> "$HOME/.carrier.log" 2>&1

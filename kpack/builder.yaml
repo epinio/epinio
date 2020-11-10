@@ -1,0 +1,22 @@
+apiVersion: kpack.io/v1alpha1
+kind: ClusterBuilder
+metadata:
+  name: carrier-builder
+spec:
+  tag: viovanov/carrier-builder
+  stack:
+    name: base
+    kind: ClusterStack
+  store:
+    name: default
+    kind: ClusterStore
+  serviceAccountRef:
+    name: builder
+    namespace: default
+  order:
+  - group:
+    - id: paketo-buildpacks/java
+  - group:
+    - id: paketo-buildpacks/nodejs
+  - group:
+    - id: paketo-buildpacks/php

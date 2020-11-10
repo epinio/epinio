@@ -1,0 +1,12 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eirini-event-reporter
+  namespace: eirini-core
+data:
+  events.yml: |
+    enable_multi_namespace_support: false
+    app_namespace: eirini-workloads
+    cc_internal_api: "http://cc-wiremock.eirini-core.svc.cluster.local"
+    cc_tls_disabled: true

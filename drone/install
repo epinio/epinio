@@ -1,0 +1,47 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mdrone> \e[32m$1\e[39m"
+}
+
+public_ip="$1"
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+log "Waiting for gitea to come online."
+retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n gitea --selector=app=gitea pod' >> "$HOME/.carrier.log" 2>&1
+retry 60 "curl --fail http://gitea.$public_ip.nip.io" >> "$HOME/.carrier.log" 2>&1
+
+log "Setting up a gitea app."
+app_token=$(curl -sb -X POST "http://dev:changeme@gitea.$public_ip.nip.io/api/v1/user/applications/oauth2" \
+                -H "accept: application/json" \
+                -H "Content-Type: application/json" \
+                -d "{  \"name\": \"drone\",  \"redirect_uris\": [\"http://drone.$public_ip.nip.io/login\" ]}")
+app_client=$(echo $app_token | jq -r .client_id)
+app_secret=$(echo $app_token | jq -r .client_secret)
+
+log "Adding drone helm repo."
+helm repo add drone https://charts.drone.io >> "$HOME/.carrier.log"
+
+log "Creating drone namespace."
+kubectl create ns drone >> "$HOME/.carrier.log"
+
+log "Setting up drone."
+helm install drone drone/drone --namespace drone --values "$dir/drone-values.yaml" \
+  --set "env.DRONE_SERVER_HOST=drone.$public_ip.nip.io" \
+  --set "env.DRONE_GITEA_SERVER=http://gitea.$public_ip.nip.io" \
+  --set "env.DRONE_GITEA_CLIENT_ID=$app_client" \
+  --set "env.DRONE_GITEA_CLIENT_SECRET=$app_secret" >> "$HOME/.carrier.log"
+
+log "Setting up ingress for drone."
+template=`cat "$dir/ingress.yaml" | sed "s/{{PUBLIC_IP}}/$public_ip/g"`
+echo "$template" | kubectl apply -f - >> "$HOME/.carrier.log"
+
+log "Creating drone runner namespace."
+kubectl create ns drone-runner-kube >> "$HOME/.carrier.log"
+
+log "Installing drone runner."
+helm install drone-runner-kube drone/drone-runner-kube --namespace drone --values "$dir/runner-values.yaml" >> "$HOME/.carrier.log"
+
+log "Setting up drone runner service account."
+kubectl apply -f "$dir/drone-runner-service-account.yaml" >> "$HOME/.carrier.log"

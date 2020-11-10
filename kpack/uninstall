@@ -1,0 +1,25 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mkpack> \e[32m$1\e[39m"
+}
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+log "Removing dockerhub credentials for kpack."
+kubectl delete -f "$dir/dockerhub-creds.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Removing kpack service account."
+kubectl delete -f "$dir/service-account.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Removing kpack."
+kubectl delete -f "$dir/release-0.1.2.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Removing the kpack store."
+kubectl delete -f "$dir/store.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Removing the kpack stack."
+kubectl delete -f "$dir/stack.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Removing the kpack builder."
+kubectl delete -f "$dir/builder.yaml" >> "$HOME/.carrier.log" 2>&1

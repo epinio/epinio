@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: instance-index-env-injector
+  namespace: eirini-core
+spec:
+  selector:
+    matchLabels:
+      name: instance-index-env-injector
+  template:
+    metadata:
+      labels:
+        name: instance-index-env-injector
+      annotations:
+        sidecar.istio.io/inject: "false"
+    spec:
+      serviceAccountName: eirini-instance-index-env-injector
+      volumes:
+        - name: config-map-volume
+          configMap:
+            name: instance-index-env-injector
+            items:
+            - key: instance-index-env-injector.yml
+              path: instance-index-env-injector.yml
+      securityContext:
+        runAsNonRoot: true
+      containers:
+      - name: instance-index-env-injector
+        image: eirini/instance-index-env-injector@sha256:e57a0c1461ba8f28ec1ea7bef892cde0011593dd142f0f0049f26c8473aaa9a5
+        imagePullPolicy: Always
+        volumeMounts:
+        - name: config-map-volume
+          mountPath: /etc/eirini/config
+        ports:
+        - containerPort: 8443
+          name: https
+        resources:
+          requests:
+            cpu: 20m
+            memory: 20Mi
+          limits:
+            cpu: 100m
+            memory: 100Mi
+

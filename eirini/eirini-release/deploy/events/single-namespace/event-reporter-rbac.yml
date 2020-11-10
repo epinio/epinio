@@ -1,0 +1,31 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: eirini-event-reporter-namespaced
+  namespace: eirini-workloads
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - events
+  verbs:
+  - get
+  - list
+  - watch
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: eirini-event-reporter-namespaced
+  namespace: eirini-workloads
+roleRef:
+  kind: Role
+  name: eirini-event-reporter-namespaced
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: eirini-event-reporter
+  namespace: eirini-core

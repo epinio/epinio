@@ -1,0 +1,22 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eirini
+  namespace: eirini-core
+data:
+  opi.yml: |
+    opi:
+      enable_multi_namespace_support: false
+      app_namespace: eirini-workloads
+      tls_port: 8085
+
+      cc_tls_disabled: true
+      cc_internal_api: "http://cc-wiremock.eirini-core.svc.cluster.local"
+
+
+      rootfs_version: v75.0.0
+      application_service_account: eirini
+      allow_run_image_as_root: false
+      unsafe_allow_automount_service_account_token: false
+      serve_plaintext: false

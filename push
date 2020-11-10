@@ -1,0 +1,305 @@
+#!/bin/bash
+
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+trap "exit" INT TERM ERR
+trap "kill 0" EXIT
+
+function say() {
+  >&2 echo -e "${CYAN}$1${NC}" 
+}
+
+function create_repo() {
+  target="$1"
+  user="$2"
+  pass="$3"
+  app_name="$4"
+
+  say "Creating application ..."
+
+  curl -sSL -X POST "http://$user:$pass@gitea.$target/api/v1/user/repos" \
+    -H  "accept: application/json" \
+    -H "Content-Type: application/json" \
+    -d "
+    {
+      \"auto_init\": true,
+      \"default_branch\": \"main\",
+      \"description\": \"automatically deployed app\",
+      \"name\": \"$app_name\",
+      \"private\": true,
+      \"trust_model\": \"default\"
+    }" > /dev/null
+}
+
+function enable_drone() {
+  target="$1"
+  user="$2"
+  pass="$3"
+  app_name="$4"
+
+  say "Enabling application build pipeline ..."
+
+  drone_token=$(drone_api_token $target $user $pass)
+
+  curl -sSL "http://drone.$target/api/user/repos" \
+    -X "POST" \
+    -H "Connection: keep-alive" \
+    -H "Content-Length: 0" \
+    -H "Accept: */*" \
+    -H "Authorization: Bearer $drone_token" > /dev/null
+
+  curl -sSL -X POST "http://drone.$target/api/repos/$user/$app_name" \
+    -H "Authorization: Bearer $drone_token" \
+    -H  "accept: application/json" \
+    -H "Content-Type: application/json" > /dev/null
+}
+
+function prepare_code() {
+  target="$1"
+  user="$2"
+  pass="$3"
+  app_name="$4"
+  app_dir="$5"
+
+  say "Preparing code ..."
+
+  image_user=$(registry_user)
+  image_password=$(registry_password)
+
+  temp_dir=`mktemp -d`
+  cp -a "$app_dir/." "$temp_dir"
+
+  cat <<EOF >> "$temp_dir/.drone.yml"
+kind: pipeline
+type: kubernetes
+name: $app_name
+
+steps:
+- name: kpack
+  image: bitnami/kubectl
+  commands:
+  - kubectl apply -f .kube/*
+EOF
+
+  mkdir "$temp_dir/.kube"
+
+  cat <<EOF >> "$temp_dir/.kube/app.yml"
+---
+# NAMESPACE
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: $app_name
+    labels:
+      managed-by: carrier
+---
+apiVersion: v1
+kind: Secret
+metadata:
+ name: dockerhub-creds
+ namespace: $app_name
+ annotations:
+   kpack.io/docker: https://index.docker.io/v1/
+type: kubernetes.io/basic-auth
+stringData:
+ username: $image_user
+ password: $image_password
+---
+# BUILD
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-creds
+  namespace: $app_name
+  annotations:
+    kpack.io/git: http://gitea.$target
+type: kubernetes.io/basic-auth
+stringData:
+  username: $user
+  password: $pass
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-serviceaccount
+  namespace: $app_name
+secrets:
+  - name: dockerhub-creds
+  - name: git-creds
+imagePullSecrets:
+  - name: dockerhub-creds
+---
+apiVersion: kpack.io/v1alpha1
+kind: Image
+metadata:
+  name: app-image
+  namespace: $app_name
+spec:
+  tag: $image_user/carrier-$app_name
+  serviceAccount: app-serviceaccount
+  builder:
+    name: carrier-builder
+    kind: ClusterBuilder
+  source:
+    git:
+      url: http://gitea.$target/$user/$app_name
+      revision: main
+---
+# DEPLOYMENT
+apiVersion: eirini.cloudfoundry.org/v1
+kind: LRP
+metadata:
+  name: testapp
+  namespace: $app_name
+spec:
+  GUID: "$app_name"
+  version: "version-1"
+  instances: 1
+  lastUpdated: "never"
+  diskMB: 100
+  runsAsRoot: true
+  env:
+    PORT: "8080"
+  ports:
+  - 8080
+  image: "$image_user/carrier-$app_name"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eirini
+  namespace: $app_name
+
+# INGRESS
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+  namespace: $app_name
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    cloudfoundry.org/guid: $app_name
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  name: route
+  namespace: $app_name
+spec:
+  rules:
+    - host: $app_name.$target
+      http:
+        paths:
+          - backend:
+              serviceName: app
+              servicePort: 8080
+            path: /
+EOF
+
+  echo $temp_dir
+}
+
+function git_push() {
+  target="$1"
+  user="$2"
+  pass="$3"
+  app_name="$4"
+  tmp_dir="$5"
+
+  say "Pushing application code ..."
+
+  cd "$tmp_dir" 
+  git init
+  git remote add carrier "http://$user:$pass@gitea.$target/$user/$app_name"
+  git fetch --all
+  git reset --soft carrier/main
+  git add --all
+  git commit -m "pushed at `date`"
+  git push carrier master:main
+}
+
+function delete() {
+  echo "push"
+}
+
+function logs() {
+  app_name="$1"
+
+  say "Tailing logs ..."
+
+  stern --namespace "$app_name" ".*" &
+  #stern --namespace drone --selector "label=io.drone.repo.name=$app_name" ".*" &
+} 
+
+function wait_for_app() {
+  app_name="$1"
+  target="$2"
+
+  say "Waiting for app to come online ..."
+
+  retry 60 "kubectl wait --for=condition=Ready --timeout=5s -n $app_name --selector=cloudfoundry.org/guid=$app_name pod"
+
+  say "https://${app_name}.${target} is online"
+}
+
+function get_target() {
+  gitea_url=$(kubectl get configmap -n gitea config -o yaml | grep DOMAIN | head -n1 | awk '{print $3}')
+  echo ${gitea_url:6}
+}
+
+function registry_user() {
+  kubectl get secret -n default dockerhub-creds -o jsonpath="{.data.\.dockerconfigjson}" | base64 -d | jq -r 'first(.auths[] | .username)'
+}
+
+function registry_password() {
+  kubectl get secret -n default dockerhub-creds -o jsonpath="{.data.\.dockerconfigjson}" | base64 -d | jq -r 'first(.auths[] | .password)'
+}
+
+function drone_api_token() {
+  target="$1"
+  gitea_user="$2"
+  gitea_password="$3"
+
+  # Login to gitea
+  cookie_jar=`mktemp --tmpdir drone-cookies.XXX`
+  state=$(curl -sSLi "http://drone.$target/login" \
+    --cookie-jar "$cookie_jar" | grep "_oauth_state_" | sed -e "s/[=;]/ /g" | awk '{print $3}')
+  csrf_token=$(curl -sSL "http://gitea.$target/user/login" \
+    -H 'Content-Type: application/x-www-form-urlencoded' \
+    --data-raw "user_name=${gitea_user}&password=${gitea_password}" \
+    --cookie-jar "$cookie_jar" \
+    --cookie "$cookie_jar" | grep csrf | grep -v content | awk '{print $2}' | sed -e "s/[',]//g")
+
+  csrf_token=$(cat "$cookie_jar" | grep _csrf | awk '{print $7}')
+
+  # Get token
+  curl -sSL "http://drone.$target/api/user/token" \
+    -X 'POST' \
+    -H 'Accept: */*' \
+    --cookie "$cookie_jar" | jq -r ".token"
+}
+
+app_name="$1"
+app_path="$2"
+target=$(get_target)
+
+# This is a one-user setup, with these credentials hardcoded
+user="dev"
+pass="changeme"
+
+create_repo "$target" "$user" "$pass" "$app_name"
+enable_drone "$target" "$user" "$pass" "$app_name"
+tmp_dir=$(prepare_code "$target" "$user" "$pass" "$app_name" "$app_path")
+git_push "$target" "$user" "$pass" "$app_name" "$tmp_dir"
+logs "$app_name"
+wait_for_app "$app_name" "$target"

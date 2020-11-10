@@ -1,0 +1,17 @@
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: nginx
+  name: gitea
+  namespace: gitea
+spec:
+  rules:
+    - host: "gitea.{{PUBLIC_IP}}.nip.io"
+      http:
+        paths:
+          - backend:
+              serviceName: gitea-svc
+              servicePort: 10080
+            path: /

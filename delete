@@ -1,0 +1,21 @@
+#!/bin/bash
+
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+trap "exit" INT TERM ERR
+trap "kill 0" EXIT
+
+function say() {
+  >&2 echo -e "${CYAN}$1${NC}" 
+}
+
+function delete() {
+  app_name="$1"
+  say "Deleting app ${app_name}"
+
+  kubectl delete namespace "${app_name}"
+}
+
+app_name="$1"
+delete "$app_name"

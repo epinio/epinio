@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# uninstall nginx
+./ingress/uninstall &
+
+# uninstall quarks
+./quarks/uninstall &
+
+# uninstall gitea
+./gitea/uninstall &
+
+# uninstall kpack
+./kpack/uninstall &
+
+# uninstall drone
+./drone/uninstall &
+
+# uninstall eirini
+./eirini/uninstall &
+
+wait

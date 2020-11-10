@@ -1,0 +1,12 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35meirini> \e[32m$1\e[39m"
+}
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+log "Installing eirini."
+
+cd "$dir/eirini-release"
+./deploy/scripts/deploy.sh >> "$HOME/.carrier.log" 2>&1
