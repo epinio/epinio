@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: eirini-ingress
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eirini-ingress
+  namespace: eirini-ingress
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: eirini-ingress
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - ingresses
+  - services
+  verbs:
+  - get
+  - list
+  - delete
+  - create
+  - update
+  - patch
+- apiGroups:
+  - "extensions"
+  resources:
+  - ingresses
+  verbs:
+  - get
+  - list
+  - delete
+  - create
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: watch-eirini-1
+  namespace: eirini-workloads
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: eirini-ingress
+subjects:
+- kind: ServiceAccount
+  name: eirini-ingress
+  namespace: eirini-ingress
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eirini-ingress
+  namespace: eirini-ingress
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: eirini-ingress
+  template:
+    metadata:
+      labels:
+        name: eirini-ingress
+    spec:
+      serviceAccountName: eirini-ingress
+      containers:
+        - name: eirini-ingress
+          imagePullPolicy: Always
+          image: "quay.io/mudler/eirinix-ingress"
+          env:
+            - name: NAMESPACE
+              value: "eirini-workloads"
+            - name: LABELS
+              value: '{ "eirinix-ingress": "true", "kubernetes.io/ingress.class": "nginx" }'

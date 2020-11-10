@@ -170,40 +170,6 @@ kind: ServiceAccount
 metadata:
   name: eirini
   namespace: $app_name
-
-# INGRESS
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: app
-  namespace: $app_name
-spec:
-  ports:
-  - name: http
-    port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    cloudfoundry.org/guid: $app_name
-  type: ClusterIP
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  annotations:
-    kubernetes.io/ingress.class: nginx
-  name: route
-  namespace: $app_name
-spec:
-  rules:
-    - host: $app_name.$target
-      http:
-        paths:
-          - backend:
-              serviceName: app
-              servicePort: 8080
-            path: /
 EOF
 
   echo $temp_dir
