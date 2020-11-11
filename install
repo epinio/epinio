@@ -1,11 +1,16 @@
 #!/bin/bash
 
-echo -n Docker Registry Username: 
-read registry_username
-echo
-echo -n Docker Registry Password: 
-read -s registry_password
-echo
+if [ -z ${REGISTRY_USERNAME+x} ]; then
+  echo -n Docker Registry Username: 
+  read REGISTRY_USERNAME
+  echo
+fi
+
+if [ -z ${REGISTRY_PASSWORD+x} ]; then
+  echo -n Docker Registry Password: 
+  read -s REGISTRY_PASSWORD
+  echo
+fi
 
 # install traefik
 ./traefik/install
@@ -22,13 +27,13 @@ echo "Will use public IP address ${external_ip}"
 ./gitea/install "$external_ip"
 
 # install kpack
-./kpack/install "$registry_username" "$registry_password"
+./kpack/install "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD"
 
 # install drone
 ./drone/install "$external_ip"
 
 # install eirini
-./eirini/install "${external_ip}" "$registry_username" "$registry_password"
+./eirini/install "${external_ip}" "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD"
 
 # configure drone
 ./drone-gitea/install "$external_ip"
