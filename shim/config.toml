@@ -1,0 +1,8 @@
+env = "dev"
+
+[dev]
+	log_level = "debug"
+
+  [dev.cf.server]
+    listen_interface = "127.0.0.1"
+    port = 9292
