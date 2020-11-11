@@ -1,0 +1,13 @@
+*~
+\#*
+password
+*.pem
+.vagrant
+.bash_history
+*.box
+*.vmdk
+personal-setup
+.envrc
+/*values.yaml
+/output
+/tmp
