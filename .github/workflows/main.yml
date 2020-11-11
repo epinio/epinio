@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: K3S with Calico and Helm
+        uses: manics/action-k3s-helm@v0.2.1
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+      - name: Install Tools
+        run: make tools-install
+      - name: Read configuration
+        uses: hashicorp/vault-action@v2.0.1
+        with:
+          url: https://volt.cap.explore.suse.dev/
+          token: ${{ secrets.VAULT_TOKEN }}
+          secrets: |
+            secret/data/carrier "docker_registry_username"     | REGISTRY_USERNAME;
+            secret/data/carrier "docker_registry_password"     | REGISTRY_PASSWORD;
+      - name: Install
+        run: |
+          ./carrier install
+      - name: Push an app
+        run: |
+          ./carrier push "ci${GITHUB_RUN_NUMBER}" ./sample-app
+      - name: Test app
+        run: |
+          external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
+          curl --fail http://"ci${GITHUB_RUN_NUMBER}.${external_ip}.nip.io"
+      - name: Uninstall
+        run: |
+          ./carrier uninstall
+
