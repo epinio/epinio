@@ -85,4 +85,4 @@ spec:
             - name: NAMESPACE
               value: "eirini-workloads"
             - name: LABELS
-              value: '{ "eirinix-ingress": "true", "kubernetes.io/ingress.class": "nginx" }'
+              value: '{ "eirinix-ingress": "true", "kubernetes.io/ingress.class": "traefik" }'

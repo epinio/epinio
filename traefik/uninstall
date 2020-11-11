@@ -1,0 +1,11 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mingress> \e[32m$1\e[39m"
+}
+
+log "Removing traefik."
+helm delete traefik -n traefik >> "$HOME/.carrier.log" 2>&1
+
+log "Removing traefik namespace."
+kubectl delete namespace traefik >> "$HOME/.carrier.log" 2>&1

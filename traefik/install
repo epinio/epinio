@@ -1,0 +1,19 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mingress> \e[32m$1\e[39m"
+}
+
+if ! kubectl get service --all-namespaces --field-selector='metadata.name=traefik' 2>&1 | grep -q -i 'no resources found'; then
+  log "Traefik already installed."
+  exit 0
+fi
+
+log "Creating namespace for traefik."
+kubectl create namespace traefik
+
+log "Adding helm repo for traefik."
+helm repo add traefik https://helm.traefik.io/traefik
+
+log "Installing traefik."
+helm install traefik traefik/traefik -n traefik >> "$HOME/.carrier.log"

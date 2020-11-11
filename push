@@ -86,55 +86,11 @@ EOF
 
   cat <<EOF >> "$temp_dir/.kube/app.yml"
 ---
-# NAMESPACE
-apiVersion: v1
-kind: Namespace
-metadata:
-    name: $app_name
-    labels:
-      managed-by: carrier
----
-apiVersion: v1
-kind: Secret
-metadata:
- name: dockerhub-creds
- namespace: $app_name
- annotations:
-   kpack.io/docker: https://index.docker.io/v1/
-type: kubernetes.io/basic-auth
-stringData:
- username: $image_user
- password: $image_password
----
-# BUILD
-apiVersion: v1
-kind: Secret
-metadata:
-  name: git-creds
-  namespace: $app_name
-  annotations:
-    kpack.io/git: http://gitea.$target
-type: kubernetes.io/basic-auth
-stringData:
-  username: $user
-  password: $pass
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: app-serviceaccount
-  namespace: $app_name
-secrets:
-  - name: dockerhub-creds
-  - name: git-creds
-imagePullSecrets:
-  - name: dockerhub-creds
----
 apiVersion: kpack.io/v1alpha1
 kind: Image
 metadata:
-  name: app-image
-  namespace: $app_name
+  name: $app_name
+  namespace: eirini-workloads
 spec:
   tag: $image_user/carrier-$app_name
   serviceAccount: app-serviceaccount
@@ -150,8 +106,8 @@ spec:
 apiVersion: eirini.cloudfoundry.org/v1
 kind: LRP
 metadata:
-  name: testapp
-  namespace: $app_name
+  name: $app_name
+  namespace: eirini-workloads
 spec:
   GUID: "$app_name"
   version: "version-1"
@@ -164,12 +120,42 @@ spec:
   ports:
   - 8080
   image: "$image_user/carrier-$app_name"
+
+# INGRESS
 ---
 apiVersion: v1
-kind: ServiceAccount
+kind: Service
 metadata:
-  name: eirini
-  namespace: $app_name
+  name: $app_name
+  namespace: eirini-workloads
+spec:
+  ports:
+  - name: http
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    cloudfoundry.org/guid: $app_name
+  type: ClusterIP
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  name: $app_name
+  namespace: eirini-workloads
+spec:
+  rules:
+    - host: $app_name.$target
+      http:
+        paths:
+          - backend:
+              serviceName: $app_name
+              servicePort: 8080
+            path: /
 EOF
 
   echo $temp_dir
@@ -213,9 +199,9 @@ function wait_for_app() {
 
   say "Waiting for app to come online ..."
 
-  retry 60 "kubectl wait --for=condition=Ready --timeout=5s -n $app_name --selector=cloudfoundry.org/guid=$app_name pod"
+  retry 300 "kubectl wait --for=condition=Ready --timeout=5s -n $app_name --selector=cloudfoundry.org/guid=$app_name pod"
 
-  say "https://${app_name}.${target} is online"
+  say "http://${app_name}.${target} is online"
 }
 
 function get_target() {

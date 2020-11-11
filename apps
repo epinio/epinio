@@ -11,7 +11,7 @@ function apps() {
   app_name="$1"
   say "Getting app list"
 
-  kubectl get namespaces -l managed-by=carrier
+  kubectl get pod -n eirini-workloads
 }
 
 apps

@@ -1,0 +1,48 @@
+---
+# NAMESPACE
+apiVersion: v1
+kind: Namespace
+metadata:
+    name: eirini-workloads
+---
+apiVersion: v1
+kind: Secret
+metadata:
+ name: dockerhub-creds
+ namespace: eirini-workloads
+ annotations:
+   kpack.io/docker: https://index.docker.io/v1/
+type: kubernetes.io/basic-auth
+stringData:
+ username: "{{REGISTRY_USER}}"
+ password: "{{REGISTRY_PASSWORD}}"
+---
+# BUILD
+apiVersion: v1
+kind: Secret
+metadata:
+  name: git-creds
+  namespace: eirini-workloads
+  annotations:
+    kpack.io/git: "http://gitea.{{PUBLIC_IP}}.nip.io"
+type: kubernetes.io/basic-auth
+stringData:
+  username: dev
+  password: changeme
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-serviceaccount
+  namespace: eirini-workloads
+secrets:
+  - name: dockerhub-creds
+  - name: git-creds
+imagePullSecrets:
+  - name: dockerhub-creds
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eirini
+  namespace: eirini-workloads
