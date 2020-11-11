@@ -10,3 +10,6 @@ log "Removing eirini."
 
 cd "$dir/eirini-release"
 ./deploy/scripts/cleanup.sh >> "$HOME/.carrier.log" 2>&1
+
+log "Cleaning up app namespace."
+kubectl delete -f "$dir/app-namespace.yaml" >> "$HOME/.carrier.log" 2>&1

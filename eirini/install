@@ -4,9 +4,17 @@ function log() {
   echo -e "\e[35meirini> \e[32m$1\e[39m"
 }
 
+public_ip="$1"
+registry_user="$2"
+registry_password="$3"
+
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 log "Installing eirini."
 
 cd "$dir/eirini-release"
 ./deploy/scripts/deploy.sh >> "$HOME/.carrier.log" 2>&1
+
+log "Configuring eirini app namespace."
+template=`cat "$dir/app-namespace.yaml" | sed "s/{{PUBLIC_IP}}/$public_ip/g" | sed "s/{{REGISTRY_USER}}/$registry_user/g" | sed "s/{{REGISTRY_PASSWORD}}/$registry_password/g"`
+echo "$template" | kubectl apply -f - >> "$HOME/.carrier.log"

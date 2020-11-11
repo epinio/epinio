@@ -15,7 +15,7 @@ log "Waiting for drone to come online."
 retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n drone --selector=app.kubernetes.io/name=drone pod' >> "$HOME/.carrier.log" 2>&1
 
 log "Getting drone app client id from gitea."
-app_client=$(kubectl get configmap -n drone drone -o yaml | grep "DRONE_GITEA_CLIENT_ID" | awk '{print $2}')
+app_client=$(kubectl get configmap -n drone drone -o json | jq -r .data.DRONE_GITEA_CLIENT_ID)
 
 log "Getting state cookie."
 cookie_jar=`mktemp --tmpdir drone-cookies.XXX`
@@ -30,6 +30,10 @@ csrf_token=$(curl -sSL "http://gitea.$public_ip.nip.io/user/login" \
   --cookie "$cookie_jar" | grep csrf | grep -v content | awk '{print $2}' | sed -e "s/[',]//g")
 
 csrf_token=$(cat "$cookie_jar" | grep _csrf | awk '{print $7}')
+
+echo "App client id: ${app_client}" >> "$HOME/.carrier.log" 2>&1
+echo "CSRF token: ${csrf_token}" >> "$HOME/.carrier.log" 2>&1
+echo "State: ${state}" >> "$HOME/.carrier.log" 2>&1
 
 log "Authorizing drone in gitea using cookie jar."
 curl -vvv -sSL "http://gitea.$public_ip.nip.io/login/oauth/grant" \

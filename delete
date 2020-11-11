@@ -14,7 +14,10 @@ function delete() {
   app_name="$1"
   say "Deleting app ${app_name}"
 
-  kubectl delete namespace "${app_name}"
+  kubectl delete image -n eirini-workloads $app_name
+  kubectl delete lrp -n eirini-workloads $app_name
+  kubectl delete service -n eirini-workloads $app_name
+  kubectl delete ingress -n eirini-workloads $app_name
 }
 
 app_name="$1"

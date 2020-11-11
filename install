@@ -7,12 +7,12 @@ echo -n Docker Registry Password:
 read -s registry_password
 echo
 
-# install nginx
-./ingress/install
-./ingress/wait
+# install traefik
+./traefik/install
+./traefik/wait
 
 # get a public IP
-external_ip=$(kubectl get svc -n ingress-nginx  ingress-nginx-controller -o json | jq -r .status.loadBalancer.ingress[0].ip)
+external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
 echo "Will use public IP address ${external_ip}"
 
 # install quarks
@@ -28,9 +28,7 @@ echo "Will use public IP address ${external_ip}"
 ./drone/install "$external_ip"
 
 # install eirini
-./eirini/install
+./eirini/install "${external_ip}" "$registry_username" "$registry_password"
 
 # configure drone
 ./drone-gitea/install "$external_ip"
-
-# wait
