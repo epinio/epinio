@@ -30,17 +30,26 @@ jobs:
           secrets: |
             secret/data/carrier "docker_registry_username"     | REGISTRY_USERNAME;
             secret/data/carrier "docker_registry_password"     | REGISTRY_PASSWORD;
-      - name: Install
+      - name: Add Tools to PATH
+        run: |
+          path="${{ github.workspace }}/carrier/output/bin"
+          echo "::add-path::${path}"
+      - name: Install Carrier
         run: |
           ./carrier install
-      - name: Push an app
+      - name: Push an App
         run: |
+          git config --global user.email "ci@suse.dev"
+          git config --global user.name "cibot"
           ./carrier push "ci${GITHUB_RUN_NUMBER}" ./sample-app
-      - name: Test app
+      - name: Test App
         run: |
           external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
           curl --fail http://"ci${GITHUB_RUN_NUMBER}.${external_ip}.nip.io"
-      - name: Uninstall
+      - name: Uninstall Carrier
         run: |
           ./carrier uninstall
-
+      - name: Log
+        if: ${{ failure() || cancelled() }}
+        run: |
+          cat "$HOME/.carrier.log"
