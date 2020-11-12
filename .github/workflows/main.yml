@@ -32,8 +32,7 @@ jobs:
             secret/data/carrier "docker_registry_password"     | REGISTRY_PASSWORD;
       - name: Add Tools to PATH
         run: |
-          path="${{ github.workspace }}/carrier/output/bin"
-          echo "{PATH}={$path:$PATH}" >> $GITHUB_ENV
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
       - name: Install Carrier
         run: |
           ./carrier install
@@ -53,3 +52,4 @@ jobs:
         if: ${{ always() }}
         run: |
           cat "$HOME/.carrier.log"
+          kubectl get all -A -o wide
