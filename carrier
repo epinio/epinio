@@ -14,14 +14,15 @@ retry() {
     do
         if (( attempt_num == max_attempts ))
         then
-            echo "Attempt $attempt_num failed and there are no more attempts left!"
+            echo -n "Attempt $attempt_num failed and there are no more attempts left!"
             return 1
         else
-            echo "Attempt $attempt_num failed! Trying again in 1 second..."
+            echo -n "."
             attempt_num=$(( attempt_num+1 ))
             sleep 1
         fi
     done
+    echo
 }
 
 export -f retry

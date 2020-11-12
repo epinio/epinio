@@ -3,9 +3,6 @@
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-trap "exit" INT TERM ERR
-trap "kill 0" EXIT
-
 function say() {
   >&2 echo -e "${CYAN}$1${NC}" 
 }
@@ -188,9 +185,7 @@ function logs() {
   app_name="$1"
 
   say "Tailing logs ..."
-
-  stern --namespace "$app_name" ".*" &
-  #stern --namespace drone --selector "label=io.drone.repo.name=$app_name" ".*" &
+  stern --namespace "eirini-workloads" ".*$app_name.*" &
 } 
 
 function wait_for_app() {
@@ -199,9 +194,11 @@ function wait_for_app() {
 
   say "Waiting for app to come online ..."
 
-  retry 300 "kubectl wait --for=condition=Ready --timeout=5s -n $app_name --selector=cloudfoundry.org/guid=$app_name pod"
+  retry 600 "kubectl wait --for=condition=Ready --timeout=5s -n eirini-workloads --selector=cloudfoundry.org/guid=$app_name pod > /dev/null 2>&1"
 
   say "http://${app_name}.${target} is online"
+
+  kill $!
 }
 
 function get_target() {
