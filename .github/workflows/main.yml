@@ -33,7 +33,7 @@ jobs:
       - name: Add Tools to PATH
         run: |
           path="${{ github.workspace }}/carrier/output/bin"
-          echo "::add-path::${path}"
+          echo "{PATH}={$path:$PATH}" >> $GITHUB_ENV
       - name: Install Carrier
         run: |
           ./carrier install
