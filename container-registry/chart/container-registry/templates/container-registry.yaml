@@ -1,0 +1,153 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-registry
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    {{- include "container-registry.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: registry
+    port: 443
+    targetPort: registry
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-registry-nginx
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    upstream registry {
+      server 127.0.0.1:5000;
+    }
+
+    server {
+      listen                443 ssl;
+      server_name           {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc;
+      client_max_body_size  0;
+
+      ssl_certificate           /etc/nginx/certs/cert.pem;
+      ssl_certificate_key       /etc/nginx/certs/key.pem;
+
+      ssl_session_cache         builtin:1000  shared:SSL:10m;
+      ssl_protocols             TLSv1 TLSv1.1 TLSv1.2;
+      ssl_ciphers               HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+      ssl_prefer_server_ciphers on;
+
+      access_log  /var/log/nginx/registry.access.log;
+
+      location / {
+        proxy_set_header  Host $host;
+        proxy_set_header  X-Real-IP $remote_addr;
+        proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header  X-Forwarded-Proto $scheme;
+
+        proxy_pass          http://registry;
+        proxy_read_timeout  90;
+      }
+    }
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: {{ .Release.Name }}-registry-tls
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+spec:
+  request:
+    certificate:
+      alternativeNames:
+      - {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc
+      commonName: registry
+      isCA: false
+      signerType: cluster
+  secretName: {{ .Release.Name }}-registry-tls
+  type: certificate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-registry
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "container-registry.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "container-registry.labels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: registry
+        image: {{ .Values.registry.image }}
+        imagePullPolicy: {{ .Values.registry.imagePullPolicy }}
+        volumeMounts:
+        - name: registry
+          mountPath: /var/lib/registry
+          readOnly: false
+        securityContext:
+          runAsUser: 1000
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+        livenessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          tcpSocket:
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      - name: nginx
+        image: {{ .Values.nginx.image }}
+        imagePullPolicy: {{ .Values.nginx.imagePullPolicy }}
+        ports:
+        - name: registry
+          containerPort: 443
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: default.conf
+          readOnly: true
+        - name: tls
+          mountPath: /etc/nginx/certs
+          readOnly: true
+        livenessProbe:
+          tcpSocket:
+            port: 443
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          tcpSocket:
+            port: 443
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: registry
+        emptyDir: {}
+      - name: config
+        configMap:
+          name: {{ .Release.Name }}-registry-nginx
+      - name: tls
+        secret:
+          secretName: {{ .Release.Name }}-registry-tls
+          items:
+          - key: certificate
+            path: cert.pem
+          - key: private_key
+            path: key.pem
