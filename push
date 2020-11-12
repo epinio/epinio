@@ -3,9 +3,6 @@
 CYAN='\033[0;36m'
 NC='\033[0m'
 
-trap "exit" INT TERM ERR
-trap "kill 0" EXIT
-
 function say() {
   >&2 echo -e "${CYAN}$1${NC}" 
 }
@@ -200,6 +197,8 @@ function wait_for_app() {
   retry 600 "kubectl wait --for=condition=Ready --timeout=5s -n eirini-workloads --selector=cloudfoundry.org/guid=$app_name pod > /dev/null 2>&1"
 
   say "http://${app_name}.${target} is online"
+
+  kill $!
 }
 
 function get_target() {
