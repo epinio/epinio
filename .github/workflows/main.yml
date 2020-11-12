@@ -50,6 +50,6 @@ jobs:
         run: |
           ./carrier uninstall
       - name: Log
-        if: ${{ failure() || cancelled() }}
+        if: ${{ always() }}
         run: |
           cat "$HOME/.carrier.log"

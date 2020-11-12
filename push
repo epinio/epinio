@@ -199,7 +199,7 @@ function wait_for_app() {
 
   say "Waiting for app to come online ..."
 
-  retry 300 "kubectl wait --for=condition=Ready --timeout=5s -n $app_name --selector=cloudfoundry.org/guid=$app_name pod"
+  retry 600 "kubectl wait --for=condition=Ready --timeout=5s -n $app_name --selector=cloudfoundry.org/guid=$app_name pod"
 
   say "http://${app_name}.${target} is online"
 }
