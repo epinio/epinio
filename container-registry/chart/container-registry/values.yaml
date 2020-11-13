@@ -1,0 +1,7 @@
+registry:
+  image: registry:2.7.1
+  imagePullPolicy: IfNotPresent
+
+nginx:
+  image: nginx:1.19.3
+  imagePullPolicy: IfNotPresent
