@@ -1,19 +1,13 @@
 ---
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: gitea
----
-apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: gitea-pv-claim
-  namespace: gitea
+  namespace: {{ .Release.Namespace }}
   labels:
-    app: gitea
+    {{- include "gitea.labels" . | nindent 4 }}
 spec:
-  accessModes:
-    - ReadWriteOnce
+  accessModes: [ReadWriteOnce]
   resources:
     requests:
       storage: 2Gi
@@ -22,14 +16,16 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: config
-  namespace: gitea
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gitea.labels" . | nindent 4 }}
 data:
   app.ini: |
     APP_NAME = carrier
     RUN_MODE = prod
     [server]
-    DOMAIN = gitea.{{PUBLIC_IP}}.nip.io
-    ROOT_URL  = http://gitea.{{PUBLIC_IP}}.nip.io/
+    DOMAIN = {{ .Values.domain | trimSuffix "/" }}
+    ROOT_URL  = http://{{ .Values.domain | trimSuffix "/" }}/
     [repository]
     ROOT = /data/git/gitea-repositories
     [database]
@@ -48,27 +44,26 @@ data:
     ENABLE = true
     JWT_SECRET = HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
 ---
-# apiVersion: extensions/v1beta1
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gitea
-  namespace: gitea
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gitea.labels" . | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: gitea
+      {{- include "gitea.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: gitea
-        istio-injection: enabled
-        version: v1
+        {{- include "gitea.selectorLabels" . | nindent 8 }}
     spec:
       initContainers:
       - name: migrate
-        image: gitea/gitea:1.12.5
+        image: {{ .Values.image }}
         command:
         - sh
         - -c
@@ -83,7 +78,7 @@ spec:
           mountPath: /data/gitea/conf/app.ini
           subPath: app.ini 
       - name: create-admin
-        image: gitea/gitea:1.12.5
+        image: {{ .Values.image }}
         command:
         - sh
         - -c
@@ -99,7 +94,7 @@ spec:
           subPath: app.ini 
       containers:
       - name: gitea
-        image: gitea/gitea:1.12.5
+        image: {{ .Values.image }}
         ports:
         - containerPort: 22
           name: ssh
@@ -121,26 +116,48 @@ spec:
       - name: config-volume
         configMap:
           name: config
-
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: gitea-svc
-  namespace: gitea
+  name: gitea
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gitea.labels" . | nindent 4 }}
 spec:
   type: NodePort
   selector:
-    app: gitea
+    {{- include "gitea.selectorLabels" . | nindent 4 }}
   ports:
   - name: ssh
     protocol: TCP
     port: 10022
-    targetPort: 22
+    targetPort: ssh
     nodePort: 30022
   - name: http
     protocol: TCP
     port: 10080
-    targetPort: 3000
+    targetPort: http
     nodePort: 30080
-
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gitea
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "gitea.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  rules:
+  - host: {{ .Values.domain | trimSuffix "/" | quote }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: gitea
+            port:
+              number: 10080
+        path: /
+        pathType: ImplementationSpecific

@@ -5,13 +5,18 @@ function log() {
 }
 
 public_ip="$1"
+
+if [ -z "${public_ip}" ]; then
+  >&2 log "Failed to install gitea: missing public IP"
+  exit 1
+fi
+
+domain="gitea.${public_ip}.nip.io"
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-log "Installing gitea on public IP ${public_ip}."
-template=`cat "$dir/gitea.yaml" | sed "s/{{PUBLIC_IP}}/$public_ip/g"`
-echo "$template" | kubectl apply -f - >> "$HOME/.carrier.log"
+log "Installing gitea on public IP ${public_ip}, using domain ${domain}."
 
-log "Setting up ingress for gitea."
-template=`cat "$dir/ingress.yaml" | sed "s/{{PUBLIC_IP}}/$public_ip/g"`
-echo "$template" | kubectl apply -f - >> "$HOME/.carrier.log"
-
+helm install gitea "${dir}/chart/gitea" \
+  --create-namespace \
+  --namespace "gitea" \
+  --set "domain=${domain}"
