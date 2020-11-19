@@ -108,6 +108,7 @@ metadata:
 spec:
   GUID: "$app_name"
   version: "version-1"
+  appName: "$app_name"
   instances: 1
   lastUpdated: "never"
   diskMB: 100
@@ -117,42 +118,9 @@ spec:
   ports:
   - 8080
   image: "$image_user/carrier-$app_name"
-
-# INGRESS
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: $app_name
-  namespace: eirini-workloads
-spec:
-  ports:
-  - name: http
+  appRoutes:
+  - hostname: $app_name.$target
     port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    cloudfoundry.org/guid: $app_name
-  type: ClusterIP
----
-apiVersion: extensions/v1beta1
-kind: Ingress
-metadata:
-  annotations:
-    kubernetes.io/ingress.class: traefik
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
-  name: $app_name
-  namespace: eirini-workloads
-spec:
-  rules:
-    - host: $app_name.$target
-      http:
-        paths:
-          - backend:
-              serviceName: $app_name
-              servicePort: 8080
-            path: /
 EOF
 
   echo $temp_dir
