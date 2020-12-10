@@ -23,7 +23,7 @@ jobs:
       - name: Install Tools
         run: make tools-install
       - name: Read configuration
-        uses: hashicorp/vault-action@v2.0.1
+        uses: hashicorp/vault-action@v2.1.0
         with:
           url: https://volt.cap.explore.suse.dev/
           token: ${{ secrets.VAULT_TOKEN }}
