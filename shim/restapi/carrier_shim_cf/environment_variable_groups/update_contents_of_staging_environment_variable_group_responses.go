@@ -25,7 +25,7 @@ type UpdateContentsOfStagingEnvironmentVariableGroupOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateContentsOfStagingEnvironmentVariableGroupResponse `json:"body,omitempty"`
+	Payload *models.UpdateContentsOfStagingEnvironmentVariableGroupResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateContentsOfStagingEnvironmentVariableGroupOK creates UpdateContentsOfStagingEnvironmentVariableGroupOK with default headers values
@@ -35,13 +35,13 @@ func NewUpdateContentsOfStagingEnvironmentVariableGroupOK() *UpdateContentsOfSta
 }
 
 // WithPayload adds the payload to the update contents of staging environment variable group o k response
-func (o *UpdateContentsOfStagingEnvironmentVariableGroupOK) WithPayload(payload *models.UpdateContentsOfStagingEnvironmentVariableGroupResponse) *UpdateContentsOfStagingEnvironmentVariableGroupOK {
+func (o *UpdateContentsOfStagingEnvironmentVariableGroupOK) WithPayload(payload *models.UpdateContentsOfStagingEnvironmentVariableGroupResponseResource) *UpdateContentsOfStagingEnvironmentVariableGroupOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update contents of staging environment variable group o k response
-func (o *UpdateContentsOfStagingEnvironmentVariableGroupOK) SetPayload(payload *models.UpdateContentsOfStagingEnvironmentVariableGroupResponse) {
+func (o *UpdateContentsOfStagingEnvironmentVariableGroupOK) SetPayload(payload *models.UpdateContentsOfStagingEnvironmentVariableGroupResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type CreatesAdminBuildpackCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreatesAdminBuildpackResponse `json:"body,omitempty"`
+	Payload *models.CreatesAdminBuildpackResponseResource `json:"body,omitempty"`
 }
 
 // NewCreatesAdminBuildpackCreated creates CreatesAdminBuildpackCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreatesAdminBuildpackCreated() *CreatesAdminBuildpackCreated {
 }
 
 // WithPayload adds the payload to the creates admin buildpack created response
-func (o *CreatesAdminBuildpackCreated) WithPayload(payload *models.CreatesAdminBuildpackResponse) *CreatesAdminBuildpackCreated {
+func (o *CreatesAdminBuildpackCreated) WithPayload(payload *models.CreatesAdminBuildpackResponseResource) *CreatesAdminBuildpackCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the creates admin buildpack created response
-func (o *CreatesAdminBuildpackCreated) SetPayload(payload *models.CreatesAdminBuildpackResponse) {
+func (o *CreatesAdminBuildpackCreated) SetPayload(payload *models.CreatesAdminBuildpackResponseResource) {
 	o.Payload = payload
 }
 

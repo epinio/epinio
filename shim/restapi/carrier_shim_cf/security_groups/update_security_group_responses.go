@@ -25,7 +25,7 @@ type UpdateSecurityGroupCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateSecurityGroupResponse `json:"body,omitempty"`
+	Payload *models.UpdateSecurityGroupResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateSecurityGroupCreated creates UpdateSecurityGroupCreated with default headers values
@@ -35,13 +35,13 @@ func NewUpdateSecurityGroupCreated() *UpdateSecurityGroupCreated {
 }
 
 // WithPayload adds the payload to the update security group created response
-func (o *UpdateSecurityGroupCreated) WithPayload(payload *models.UpdateSecurityGroupResponse) *UpdateSecurityGroupCreated {
+func (o *UpdateSecurityGroupCreated) WithPayload(payload *models.UpdateSecurityGroupResponseResource) *UpdateSecurityGroupCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update security group created response
-func (o *UpdateSecurityGroupCreated) SetPayload(payload *models.UpdateSecurityGroupResponse) {
+func (o *UpdateSecurityGroupCreated) SetPayload(payload *models.UpdateSecurityGroupResponseResource) {
 	o.Payload = payload
 }
 

@@ -12,7 +12,7 @@ import (
 // GenericObject generic object
 //
 // swagger:model genericObject
-type GenericObject map[string]string
+type GenericObject map[string]interface{}
 
 // Validate validates this generic object
 func (m GenericObject) Validate(formats strfmt.Registry) error {

@@ -25,7 +25,7 @@ type RetrieveAppUsageEventOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveAppUsageEventResponse `json:"body,omitempty"`
+	Payload *models.RetrieveAppUsageEventResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveAppUsageEventOK creates RetrieveAppUsageEventOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveAppUsageEventOK() *RetrieveAppUsageEventOK {
 }
 
 // WithPayload adds the payload to the retrieve app usage event o k response
-func (o *RetrieveAppUsageEventOK) WithPayload(payload *models.RetrieveAppUsageEventResponse) *RetrieveAppUsageEventOK {
+func (o *RetrieveAppUsageEventOK) WithPayload(payload *models.RetrieveAppUsageEventResponseResource) *RetrieveAppUsageEventOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve app usage event o k response
-func (o *RetrieveAppUsageEventOK) SetPayload(payload *models.RetrieveAppUsageEventResponse) {
+func (o *RetrieveAppUsageEventOK) SetPayload(payload *models.RetrieveAppUsageEventResponseResource) {
 	o.Payload = payload
 }
 

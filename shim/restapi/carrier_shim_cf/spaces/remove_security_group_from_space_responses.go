@@ -25,7 +25,7 @@ type RemoveSecurityGroupFromSpaceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveSecurityGroupFromSpaceResponse `json:"body,omitempty"`
+	Payload *models.RemoveSecurityGroupFromSpaceResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveSecurityGroupFromSpaceCreated creates RemoveSecurityGroupFromSpaceCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveSecurityGroupFromSpaceCreated() *RemoveSecurityGroupFromSpaceCreat
 }
 
 // WithPayload adds the payload to the remove security group from space created response
-func (o *RemoveSecurityGroupFromSpaceCreated) WithPayload(payload *models.RemoveSecurityGroupFromSpaceResponse) *RemoveSecurityGroupFromSpaceCreated {
+func (o *RemoveSecurityGroupFromSpaceCreated) WithPayload(payload *models.RemoveSecurityGroupFromSpaceResponseResource) *RemoveSecurityGroupFromSpaceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove security group from space created response
-func (o *RemoveSecurityGroupFromSpaceCreated) SetPayload(payload *models.RemoveSecurityGroupFromSpaceResponse) {
+func (o *RemoveSecurityGroupFromSpaceCreated) SetPayload(payload *models.RemoveSecurityGroupFromSpaceResponseResource) {
 	o.Payload = payload
 }
 

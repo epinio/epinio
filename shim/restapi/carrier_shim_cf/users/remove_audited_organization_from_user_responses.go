@@ -25,7 +25,7 @@ type RemoveAuditedOrganizationFromUserCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveAuditedOrganizationFromUserResponse `json:"body,omitempty"`
+	Payload *models.RemoveAuditedOrganizationFromUserResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveAuditedOrganizationFromUserCreated creates RemoveAuditedOrganizationFromUserCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveAuditedOrganizationFromUserCreated() *RemoveAuditedOrganizationFro
 }
 
 // WithPayload adds the payload to the remove audited organization from user created response
-func (o *RemoveAuditedOrganizationFromUserCreated) WithPayload(payload *models.RemoveAuditedOrganizationFromUserResponse) *RemoveAuditedOrganizationFromUserCreated {
+func (o *RemoveAuditedOrganizationFromUserCreated) WithPayload(payload *models.RemoveAuditedOrganizationFromUserResponseResource) *RemoveAuditedOrganizationFromUserCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove audited organization from user created response
-func (o *RemoveAuditedOrganizationFromUserCreated) SetPayload(payload *models.RemoveAuditedOrganizationFromUserResponse) {
+func (o *RemoveAuditedOrganizationFromUserCreated) SetPayload(payload *models.RemoveAuditedOrganizationFromUserResponseResource) {
 	o.Payload = payload
 }
 

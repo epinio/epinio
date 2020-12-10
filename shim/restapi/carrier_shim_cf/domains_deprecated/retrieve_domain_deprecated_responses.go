@@ -25,7 +25,7 @@ type RetrieveDomainDeprecatedOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveDomainDeprecatedResponse `json:"body,omitempty"`
+	Payload *models.RetrieveDomainDeprecatedResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveDomainDeprecatedOK creates RetrieveDomainDeprecatedOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveDomainDeprecatedOK() *RetrieveDomainDeprecatedOK {
 }
 
 // WithPayload adds the payload to the retrieve domain deprecated o k response
-func (o *RetrieveDomainDeprecatedOK) WithPayload(payload *models.RetrieveDomainDeprecatedResponse) *RetrieveDomainDeprecatedOK {
+func (o *RetrieveDomainDeprecatedOK) WithPayload(payload *models.RetrieveDomainDeprecatedResponseResource) *RetrieveDomainDeprecatedOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve domain deprecated o k response
-func (o *RetrieveDomainDeprecatedOK) SetPayload(payload *models.RetrieveDomainDeprecatedResponse) {
+func (o *RetrieveDomainDeprecatedOK) SetPayload(payload *models.RetrieveDomainDeprecatedResponseResource) {
 	o.Payload = payload
 }
 

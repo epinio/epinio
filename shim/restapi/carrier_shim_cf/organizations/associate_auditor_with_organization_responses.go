@@ -25,7 +25,7 @@ type AssociateAuditorWithOrganizationCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateAuditorWithOrganizationResponse `json:"body,omitempty"`
+	Payload *models.AssociateAuditorWithOrganizationResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateAuditorWithOrganizationCreated creates AssociateAuditorWithOrganizationCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateAuditorWithOrganizationCreated() *AssociateAuditorWithOrganizat
 }
 
 // WithPayload adds the payload to the associate auditor with organization created response
-func (o *AssociateAuditorWithOrganizationCreated) WithPayload(payload *models.AssociateAuditorWithOrganizationResponse) *AssociateAuditorWithOrganizationCreated {
+func (o *AssociateAuditorWithOrganizationCreated) WithPayload(payload *models.AssociateAuditorWithOrganizationResponseResource) *AssociateAuditorWithOrganizationCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate auditor with organization created response
-func (o *AssociateAuditorWithOrganizationCreated) SetPayload(payload *models.AssociateAuditorWithOrganizationResponse) {
+func (o *AssociateAuditorWithOrganizationCreated) SetPayload(payload *models.AssociateAuditorWithOrganizationResponseResource) {
 	o.Payload = payload
 }
 

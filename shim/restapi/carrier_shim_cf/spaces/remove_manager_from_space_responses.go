@@ -25,7 +25,7 @@ type RemoveManagerFromSpaceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveManagerFromSpaceResponse `json:"body,omitempty"`
+	Payload *models.RemoveManagerFromSpaceResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveManagerFromSpaceCreated creates RemoveManagerFromSpaceCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveManagerFromSpaceCreated() *RemoveManagerFromSpaceCreated {
 }
 
 // WithPayload adds the payload to the remove manager from space created response
-func (o *RemoveManagerFromSpaceCreated) WithPayload(payload *models.RemoveManagerFromSpaceResponse) *RemoveManagerFromSpaceCreated {
+func (o *RemoveManagerFromSpaceCreated) WithPayload(payload *models.RemoveManagerFromSpaceResponseResource) *RemoveManagerFromSpaceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove manager from space created response
-func (o *RemoveManagerFromSpaceCreated) SetPayload(payload *models.RemoveManagerFromSpaceResponse) {
+func (o *RemoveManagerFromSpaceCreated) SetPayload(payload *models.RemoveManagerFromSpaceResponseResource) {
 	o.Payload = payload
 }
 

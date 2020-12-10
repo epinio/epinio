@@ -8,89 +8,33 @@ package models
 import (
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/strfmt"
-	"github.com/go-openapi/swag"
+	"github.com/go-openapi/validate"
 )
 
 // GetDetailedStatsForStartedAppResponseResource get detailed stats for started app response resource
 //
 // swagger:model getDetailedStatsForStartedAppResponseResource
-type GetDetailedStatsForStartedAppResponseResource struct {
-
-	// entity
-	Entity *GetDetailedStatsForStartedAppResponse `json:"entity,omitempty"`
-
-	// metadata
-	Metadata *EntityMetadata `json:"metadata,omitempty"`
-}
+type GetDetailedStatsForStartedAppResponseResource map[string]GetDetailedStatsForStartedAppResponse
 
 // Validate validates this get detailed stats for started app response resource
-func (m *GetDetailedStatsForStartedAppResponseResource) Validate(formats strfmt.Registry) error {
+func (m GetDetailedStatsForStartedAppResponseResource) Validate(formats strfmt.Registry) error {
 	var res []error
 
-	if err := m.validateEntity(formats); err != nil {
-		res = append(res, err)
-	}
+	for k := range m {
 
-	if err := m.validateMetadata(formats); err != nil {
-		res = append(res, err)
+		if err := validate.Required(k, "body", m[k]); err != nil {
+			return err
+		}
+		if val, ok := m[k]; ok {
+			if err := val.Validate(formats); err != nil {
+				return err
+			}
+		}
+
 	}
 
 	if len(res) > 0 {
 		return errors.CompositeValidationError(res...)
 	}
-	return nil
-}
-
-func (m *GetDetailedStatsForStartedAppResponseResource) validateEntity(formats strfmt.Registry) error {
-
-	if swag.IsZero(m.Entity) { // not required
-		return nil
-	}
-
-	if m.Entity != nil {
-		if err := m.Entity.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("entity")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (m *GetDetailedStatsForStartedAppResponseResource) validateMetadata(formats strfmt.Registry) error {
-
-	if swag.IsZero(m.Metadata) { // not required
-		return nil
-	}
-
-	if m.Metadata != nil {
-		if err := m.Metadata.Validate(formats); err != nil {
-			if ve, ok := err.(*errors.Validation); ok {
-				return ve.ValidateName("metadata")
-			}
-			return err
-		}
-	}
-
-	return nil
-}
-
-// MarshalBinary interface implementation
-func (m *GetDetailedStatsForStartedAppResponseResource) MarshalBinary() ([]byte, error) {
-	if m == nil {
-		return nil, nil
-	}
-	return swag.WriteJSON(m)
-}
-
-// UnmarshalBinary interface implementation
-func (m *GetDetailedStatsForStartedAppResponseResource) UnmarshalBinary(b []byte) error {
-	var res GetDetailedStatsForStartedAppResponseResource
-	if err := swag.ReadJSON(b, &res); err != nil {
-		return err
-	}
-	*m = res
 	return nil
 }

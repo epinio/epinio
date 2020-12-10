@@ -25,7 +25,7 @@ type GetUserOrgCreationFeatureFlagOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetUserOrgCreationFeatureFlagResponse `json:"body,omitempty"`
+	Payload *models.GetUserOrgCreationFeatureFlagResponseResource `json:"body,omitempty"`
 }
 
 // NewGetUserOrgCreationFeatureFlagOK creates GetUserOrgCreationFeatureFlagOK with default headers values
@@ -35,13 +35,13 @@ func NewGetUserOrgCreationFeatureFlagOK() *GetUserOrgCreationFeatureFlagOK {
 }
 
 // WithPayload adds the payload to the get user org creation feature flag o k response
-func (o *GetUserOrgCreationFeatureFlagOK) WithPayload(payload *models.GetUserOrgCreationFeatureFlagResponse) *GetUserOrgCreationFeatureFlagOK {
+func (o *GetUserOrgCreationFeatureFlagOK) WithPayload(payload *models.GetUserOrgCreationFeatureFlagResponseResource) *GetUserOrgCreationFeatureFlagOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get user org creation feature flag o k response
-func (o *GetUserOrgCreationFeatureFlagOK) SetPayload(payload *models.GetUserOrgCreationFeatureFlagResponse) {
+func (o *GetUserOrgCreationFeatureFlagOK) SetPayload(payload *models.GetUserOrgCreationFeatureFlagResponseResource) {
 	o.Payload = payload
 }
 

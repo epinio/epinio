@@ -25,7 +25,7 @@ type RetrieveAppOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveAppResponse `json:"body,omitempty"`
+	Payload *models.RetrieveAppResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveAppOK creates RetrieveAppOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveAppOK() *RetrieveAppOK {
 }
 
 // WithPayload adds the payload to the retrieve app o k response
-func (o *RetrieveAppOK) WithPayload(payload *models.RetrieveAppResponse) *RetrieveAppOK {
+func (o *RetrieveAppOK) WithPayload(payload *models.RetrieveAppResponseResource) *RetrieveAppOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve app o k response
-func (o *RetrieveAppOK) SetPayload(payload *models.RetrieveAppResponse) {
+func (o *RetrieveAppOK) SetPayload(payload *models.RetrieveAppResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type AssociateOrganizationWithUserCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateOrganizationWithUserResponse `json:"body,omitempty"`
+	Payload *models.AssociateOrganizationWithUserResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateOrganizationWithUserCreated creates AssociateOrganizationWithUserCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateOrganizationWithUserCreated() *AssociateOrganizationWithUserCre
 }
 
 // WithPayload adds the payload to the associate organization with user created response
-func (o *AssociateOrganizationWithUserCreated) WithPayload(payload *models.AssociateOrganizationWithUserResponse) *AssociateOrganizationWithUserCreated {
+func (o *AssociateOrganizationWithUserCreated) WithPayload(payload *models.AssociateOrganizationWithUserResponseResource) *AssociateOrganizationWithUserCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate organization with user created response
-func (o *AssociateOrganizationWithUserCreated) SetPayload(payload *models.AssociateOrganizationWithUserResponse) {
+func (o *AssociateOrganizationWithUserCreated) SetPayload(payload *models.AssociateOrganizationWithUserResponseResource) {
 	o.Payload = payload
 }
 

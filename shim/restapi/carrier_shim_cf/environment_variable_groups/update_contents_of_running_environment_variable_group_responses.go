@@ -25,7 +25,7 @@ type UpdateContentsOfRunningEnvironmentVariableGroupOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateContentsOfRunningEnvironmentVariableGroupResponse `json:"body,omitempty"`
+	Payload *models.UpdateContentsOfRunningEnvironmentVariableGroupResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateContentsOfRunningEnvironmentVariableGroupOK creates UpdateContentsOfRunningEnvironmentVariableGroupOK with default headers values
@@ -35,13 +35,13 @@ func NewUpdateContentsOfRunningEnvironmentVariableGroupOK() *UpdateContentsOfRun
 }
 
 // WithPayload adds the payload to the update contents of running environment variable group o k response
-func (o *UpdateContentsOfRunningEnvironmentVariableGroupOK) WithPayload(payload *models.UpdateContentsOfRunningEnvironmentVariableGroupResponse) *UpdateContentsOfRunningEnvironmentVariableGroupOK {
+func (o *UpdateContentsOfRunningEnvironmentVariableGroupOK) WithPayload(payload *models.UpdateContentsOfRunningEnvironmentVariableGroupResponseResource) *UpdateContentsOfRunningEnvironmentVariableGroupOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update contents of running environment variable group o k response
-func (o *UpdateContentsOfRunningEnvironmentVariableGroupOK) SetPayload(payload *models.UpdateContentsOfRunningEnvironmentVariableGroupResponse) {
+func (o *UpdateContentsOfRunningEnvironmentVariableGroupOK) SetPayload(payload *models.UpdateContentsOfRunningEnvironmentVariableGroupResponseResource) {
 	o.Payload = payload
 }
 

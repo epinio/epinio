@@ -25,7 +25,7 @@ type UpdateRouteCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateRouteResponse `json:"body,omitempty"`
+	Payload *models.UpdateRouteResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateRouteCreated creates UpdateRouteCreated with default headers values
@@ -35,13 +35,13 @@ func NewUpdateRouteCreated() *UpdateRouteCreated {
 }
 
 // WithPayload adds the payload to the update route created response
-func (o *UpdateRouteCreated) WithPayload(payload *models.UpdateRouteResponse) *UpdateRouteCreated {
+func (o *UpdateRouteCreated) WithPayload(payload *models.UpdateRouteResponseResource) *UpdateRouteCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update route created response
-func (o *UpdateRouteCreated) SetPayload(payload *models.UpdateRouteResponse) {
+func (o *UpdateRouteCreated) SetPayload(payload *models.UpdateRouteResponseResource) {
 	o.Payload = payload
 }
 

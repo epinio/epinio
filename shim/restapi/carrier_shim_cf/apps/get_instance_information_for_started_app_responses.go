@@ -25,7 +25,7 @@ type GetInstanceInformationForStartedAppOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetInstanceInformationForStartedAppResponse `json:"body,omitempty"`
+	Payload models.GetInstanceInformationForStartedAppResponseResource `json:"body,omitempty"`
 }
 
 // NewGetInstanceInformationForStartedAppOK creates GetInstanceInformationForStartedAppOK with default headers values
@@ -35,13 +35,13 @@ func NewGetInstanceInformationForStartedAppOK() *GetInstanceInformationForStarte
 }
 
 // WithPayload adds the payload to the get instance information for started app o k response
-func (o *GetInstanceInformationForStartedAppOK) WithPayload(payload *models.GetInstanceInformationForStartedAppResponse) *GetInstanceInformationForStartedAppOK {
+func (o *GetInstanceInformationForStartedAppOK) WithPayload(payload models.GetInstanceInformationForStartedAppResponseResource) *GetInstanceInformationForStartedAppOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get instance information for started app o k response
-func (o *GetInstanceInformationForStartedAppOK) SetPayload(payload *models.GetInstanceInformationForStartedAppResponse) {
+func (o *GetInstanceInformationForStartedAppOK) SetPayload(payload models.GetInstanceInformationForStartedAppResponseResource) {
 	o.Payload = payload
 }
 
@@ -49,10 +49,13 @@ func (o *GetInstanceInformationForStartedAppOK) SetPayload(payload *models.GetIn
 func (o *GetInstanceInformationForStartedAppOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
+	payload := o.Payload
+	if payload == nil {
+		// return empty map
+		payload = models.GetInstanceInformationForStartedAppResponseResource{}
+	}
+
+	if err := producer.Produce(rw, payload); err != nil {
+		panic(err) // let the recovery middleware deal with this
 	}
 }

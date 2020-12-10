@@ -25,7 +25,7 @@ type CreateRouteCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateRouteResponse `json:"body,omitempty"`
+	Payload *models.CreateRouteResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateRouteCreated creates CreateRouteCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateRouteCreated() *CreateRouteCreated {
 }
 
 // WithPayload adds the payload to the create route created response
-func (o *CreateRouteCreated) WithPayload(payload *models.CreateRouteResponse) *CreateRouteCreated {
+func (o *CreateRouteCreated) WithPayload(payload *models.CreateRouteResponseResource) *CreateRouteCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create route created response
-func (o *CreateRouteCreated) SetPayload(payload *models.CreateRouteResponse) {
+func (o *CreateRouteCreated) SetPayload(payload *models.CreateRouteResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type GetUserSummaryOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetUserSummaryResponse `json:"body,omitempty"`
+	Payload *models.GetUserSummaryResponseResource `json:"body,omitempty"`
 }
 
 // NewGetUserSummaryOK creates GetUserSummaryOK with default headers values
@@ -35,13 +35,13 @@ func NewGetUserSummaryOK() *GetUserSummaryOK {
 }
 
 // WithPayload adds the payload to the get user summary o k response
-func (o *GetUserSummaryOK) WithPayload(payload *models.GetUserSummaryResponse) *GetUserSummaryOK {
+func (o *GetUserSummaryOK) WithPayload(payload *models.GetUserSummaryResponseResource) *GetUserSummaryOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get user summary o k response
-func (o *GetUserSummaryOK) SetPayload(payload *models.GetUserSummaryResponse) {
+func (o *GetUserSummaryOK) SetPayload(payload *models.GetUserSummaryResponseResource) {
 	o.Payload = payload
 }
 

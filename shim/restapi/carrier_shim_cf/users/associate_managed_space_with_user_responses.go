@@ -25,7 +25,7 @@ type AssociateManagedSpaceWithUserCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateManagedSpaceWithUserResponse `json:"body,omitempty"`
+	Payload *models.AssociateManagedSpaceWithUserResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateManagedSpaceWithUserCreated creates AssociateManagedSpaceWithUserCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateManagedSpaceWithUserCreated() *AssociateManagedSpaceWithUserCre
 }
 
 // WithPayload adds the payload to the associate managed space with user created response
-func (o *AssociateManagedSpaceWithUserCreated) WithPayload(payload *models.AssociateManagedSpaceWithUserResponse) *AssociateManagedSpaceWithUserCreated {
+func (o *AssociateManagedSpaceWithUserCreated) WithPayload(payload *models.AssociateManagedSpaceWithUserResponseResource) *AssociateManagedSpaceWithUserCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate managed space with user created response
-func (o *AssociateManagedSpaceWithUserCreated) SetPayload(payload *models.AssociateManagedSpaceWithUserResponse) {
+func (o *AssociateManagedSpaceWithUserCreated) SetPayload(payload *models.AssociateManagedSpaceWithUserResponseResource) {
 	o.Payload = payload
 }
 

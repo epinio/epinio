@@ -25,7 +25,7 @@ type RemoveSpaceFromUserCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveSpaceFromUserResponse `json:"body,omitempty"`
+	Payload *models.RemoveSpaceFromUserResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveSpaceFromUserCreated creates RemoveSpaceFromUserCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveSpaceFromUserCreated() *RemoveSpaceFromUserCreated {
 }
 
 // WithPayload adds the payload to the remove space from user created response
-func (o *RemoveSpaceFromUserCreated) WithPayload(payload *models.RemoveSpaceFromUserResponse) *RemoveSpaceFromUserCreated {
+func (o *RemoveSpaceFromUserCreated) WithPayload(payload *models.RemoveSpaceFromUserResponseResource) *RemoveSpaceFromUserCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove space from user created response
-func (o *RemoveSpaceFromUserCreated) SetPayload(payload *models.RemoveSpaceFromUserResponse) {
+func (o *RemoveSpaceFromUserCreated) SetPayload(payload *models.RemoveSpaceFromUserResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type AssociateBillingManagedOrganizationWithUserCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateBillingManagedOrganizationWithUserResponse `json:"body,omitempty"`
+	Payload *models.AssociateBillingManagedOrganizationWithUserResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateBillingManagedOrganizationWithUserCreated creates AssociateBillingManagedOrganizationWithUserCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateBillingManagedOrganizationWithUserCreated() *AssociateBillingMa
 }
 
 // WithPayload adds the payload to the associate billing managed organization with user created response
-func (o *AssociateBillingManagedOrganizationWithUserCreated) WithPayload(payload *models.AssociateBillingManagedOrganizationWithUserResponse) *AssociateBillingManagedOrganizationWithUserCreated {
+func (o *AssociateBillingManagedOrganizationWithUserCreated) WithPayload(payload *models.AssociateBillingManagedOrganizationWithUserResponseResource) *AssociateBillingManagedOrganizationWithUserCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate billing managed organization with user created response
-func (o *AssociateBillingManagedOrganizationWithUserCreated) SetPayload(payload *models.AssociateBillingManagedOrganizationWithUserResponse) {
+func (o *AssociateBillingManagedOrganizationWithUserCreated) SetPayload(payload *models.AssociateBillingManagedOrganizationWithUserResponseResource) {
 	o.Payload = payload
 }
 

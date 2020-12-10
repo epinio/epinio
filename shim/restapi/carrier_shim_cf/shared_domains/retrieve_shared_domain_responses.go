@@ -25,7 +25,7 @@ type RetrieveSharedDomainOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveSharedDomainResponse `json:"body,omitempty"`
+	Payload *models.RetrieveSharedDomainResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveSharedDomainOK creates RetrieveSharedDomainOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveSharedDomainOK() *RetrieveSharedDomainOK {
 }
 
 // WithPayload adds the payload to the retrieve shared domain o k response
-func (o *RetrieveSharedDomainOK) WithPayload(payload *models.RetrieveSharedDomainResponse) *RetrieveSharedDomainOK {
+func (o *RetrieveSharedDomainOK) WithPayload(payload *models.RetrieveSharedDomainResponseResource) *RetrieveSharedDomainOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve shared domain o k response
-func (o *RetrieveSharedDomainOK) SetPayload(payload *models.RetrieveSharedDomainResponse) {
+func (o *RetrieveSharedDomainOK) SetPayload(payload *models.RetrieveSharedDomainResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type CreateSpaceQuotaDefinitionCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateSpaceQuotaDefinitionResponse `json:"body,omitempty"`
+	Payload *models.CreateSpaceQuotaDefinitionResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateSpaceQuotaDefinitionCreated creates CreateSpaceQuotaDefinitionCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateSpaceQuotaDefinitionCreated() *CreateSpaceQuotaDefinitionCreated {
 }
 
 // WithPayload adds the payload to the create space quota definition created response
-func (o *CreateSpaceQuotaDefinitionCreated) WithPayload(payload *models.CreateSpaceQuotaDefinitionResponse) *CreateSpaceQuotaDefinitionCreated {
+func (o *CreateSpaceQuotaDefinitionCreated) WithPayload(payload *models.CreateSpaceQuotaDefinitionResponseResource) *CreateSpaceQuotaDefinitionCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create space quota definition created response
-func (o *CreateSpaceQuotaDefinitionCreated) SetPayload(payload *models.CreateSpaceQuotaDefinitionResponse) {
+func (o *CreateSpaceQuotaDefinitionCreated) SetPayload(payload *models.CreateSpaceQuotaDefinitionResponseResource) {
 	o.Payload = payload
 }
 

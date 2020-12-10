@@ -25,7 +25,7 @@ type ListAllMatchingResourcesOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.ListAllMatchingResourcesResponse `json:"body,omitempty"`
+	Payload []*models.ListAllMatchingResourcesResponse `json:"body,omitempty"`
 }
 
 // NewListAllMatchingResourcesOK creates ListAllMatchingResourcesOK with default headers values
@@ -35,13 +35,13 @@ func NewListAllMatchingResourcesOK() *ListAllMatchingResourcesOK {
 }
 
 // WithPayload adds the payload to the list all matching resources o k response
-func (o *ListAllMatchingResourcesOK) WithPayload(payload *models.ListAllMatchingResourcesResponse) *ListAllMatchingResourcesOK {
+func (o *ListAllMatchingResourcesOK) WithPayload(payload []*models.ListAllMatchingResourcesResponse) *ListAllMatchingResourcesOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the list all matching resources o k response
-func (o *ListAllMatchingResourcesOK) SetPayload(payload *models.ListAllMatchingResourcesResponse) {
+func (o *ListAllMatchingResourcesOK) SetPayload(payload []*models.ListAllMatchingResourcesResponse) {
 	o.Payload = payload
 }
 
@@ -49,10 +49,13 @@ func (o *ListAllMatchingResourcesOK) SetPayload(payload *models.ListAllMatchingR
 func (o *ListAllMatchingResourcesOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
+	payload := o.Payload
+	if payload == nil {
+		// return empty array
+		payload = make([]*models.ListAllMatchingResourcesResponse, 0, 50)
+	}
+
+	if err := producer.Produce(rw, payload); err != nil {
+		panic(err) // let the recovery middleware deal with this
 	}
 }

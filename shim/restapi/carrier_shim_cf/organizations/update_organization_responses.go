@@ -25,7 +25,7 @@ type UpdateOrganizationCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateOrganizationResponse `json:"body,omitempty"`
+	Payload *models.UpdateOrganizationResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateOrganizationCreated creates UpdateOrganizationCreated with default headers values
@@ -35,13 +35,13 @@ func NewUpdateOrganizationCreated() *UpdateOrganizationCreated {
 }
 
 // WithPayload adds the payload to the update organization created response
-func (o *UpdateOrganizationCreated) WithPayload(payload *models.UpdateOrganizationResponse) *UpdateOrganizationCreated {
+func (o *UpdateOrganizationCreated) WithPayload(payload *models.UpdateOrganizationResponseResource) *UpdateOrganizationCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update organization created response
-func (o *UpdateOrganizationCreated) SetPayload(payload *models.UpdateOrganizationResponse) {
+func (o *UpdateOrganizationCreated) SetPayload(payload *models.UpdateOrganizationResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type RetrieveServicePlanOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveServicePlanResponse `json:"body,omitempty"`
+	Payload *models.RetrieveServicePlanResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveServicePlanOK creates RetrieveServicePlanOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveServicePlanOK() *RetrieveServicePlanOK {
 }
 
 // WithPayload adds the payload to the retrieve service plan o k response
-func (o *RetrieveServicePlanOK) WithPayload(payload *models.RetrieveServicePlanResponse) *RetrieveServicePlanOK {
+func (o *RetrieveServicePlanOK) WithPayload(payload *models.RetrieveServicePlanResponseResource) *RetrieveServicePlanOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve service plan o k response
-func (o *RetrieveServicePlanOK) SetPayload(payload *models.RetrieveServicePlanResponse) {
+func (o *RetrieveServicePlanOK) SetPayload(payload *models.RetrieveServicePlanResponseResource) {
 	o.Payload = payload
 }
 

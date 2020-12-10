@@ -25,7 +25,7 @@ type RemoveAppFromRouteCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveAppFromRouteResponse `json:"body,omitempty"`
+	Payload *models.RemoveAppFromRouteResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveAppFromRouteCreated creates RemoveAppFromRouteCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveAppFromRouteCreated() *RemoveAppFromRouteCreated {
 }
 
 // WithPayload adds the payload to the remove app from route created response
-func (o *RemoveAppFromRouteCreated) WithPayload(payload *models.RemoveAppFromRouteResponse) *RemoveAppFromRouteCreated {
+func (o *RemoveAppFromRouteCreated) WithPayload(payload *models.RemoveAppFromRouteResponseResource) *RemoveAppFromRouteCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove app from route created response
-func (o *RemoveAppFromRouteCreated) SetPayload(payload *models.RemoveAppFromRouteResponse) {
+func (o *RemoveAppFromRouteCreated) SetPayload(payload *models.RemoveAppFromRouteResponseResource) {
 	o.Payload = payload
 }
 

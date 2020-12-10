@@ -25,7 +25,7 @@ type RetrieveOrganizationOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveOrganizationResponse `json:"body,omitempty"`
+	Payload *models.RetrieveOrganizationResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveOrganizationOK creates RetrieveOrganizationOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveOrganizationOK() *RetrieveOrganizationOK {
 }
 
 // WithPayload adds the payload to the retrieve organization o k response
-func (o *RetrieveOrganizationOK) WithPayload(payload *models.RetrieveOrganizationResponse) *RetrieveOrganizationOK {
+func (o *RetrieveOrganizationOK) WithPayload(payload *models.RetrieveOrganizationResponseResource) *RetrieveOrganizationOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve organization o k response
-func (o *RetrieveOrganizationOK) SetPayload(payload *models.RetrieveOrganizationResponse) {
+func (o *RetrieveOrganizationOK) SetPayload(payload *models.RetrieveOrganizationResponseResource) {
 	o.Payload = payload
 }
 

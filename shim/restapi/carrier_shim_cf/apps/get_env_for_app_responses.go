@@ -25,7 +25,7 @@ type GetEnvForAppOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetEnvForAppResponse `json:"body,omitempty"`
+	Payload *models.GetEnvForAppResponseResource `json:"body,omitempty"`
 }
 
 // NewGetEnvForAppOK creates GetEnvForAppOK with default headers values
@@ -35,13 +35,13 @@ func NewGetEnvForAppOK() *GetEnvForAppOK {
 }
 
 // WithPayload adds the payload to the get env for app o k response
-func (o *GetEnvForAppOK) WithPayload(payload *models.GetEnvForAppResponse) *GetEnvForAppOK {
+func (o *GetEnvForAppOK) WithPayload(payload *models.GetEnvForAppResponseResource) *GetEnvForAppOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get env for app o k response
-func (o *GetEnvForAppOK) SetPayload(payload *models.GetEnvForAppResponse) {
+func (o *GetEnvForAppOK) SetPayload(payload *models.GetEnvForAppResponseResource) {
 	o.Payload = payload
 }
 

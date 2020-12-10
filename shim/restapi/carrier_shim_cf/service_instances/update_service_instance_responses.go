@@ -25,7 +25,7 @@ type UpdateServiceInstanceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateServiceInstanceResponse `json:"body,omitempty"`
+	Payload *models.UpdateServiceInstanceResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateServiceInstanceCreated creates UpdateServiceInstanceCreated with default headers values
@@ -35,13 +35,13 @@ func NewUpdateServiceInstanceCreated() *UpdateServiceInstanceCreated {
 }
 
 // WithPayload adds the payload to the update service instance created response
-func (o *UpdateServiceInstanceCreated) WithPayload(payload *models.UpdateServiceInstanceResponse) *UpdateServiceInstanceCreated {
+func (o *UpdateServiceInstanceCreated) WithPayload(payload *models.UpdateServiceInstanceResponseResource) *UpdateServiceInstanceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update service instance created response
-func (o *UpdateServiceInstanceCreated) SetPayload(payload *models.UpdateServiceInstanceResponse) {
+func (o *UpdateServiceInstanceCreated) SetPayload(payload *models.UpdateServiceInstanceResponseResource) {
 	o.Payload = payload
 }
 

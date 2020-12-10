@@ -25,7 +25,7 @@ type AssociateAuditorWithSpaceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateAuditorWithSpaceResponse `json:"body,omitempty"`
+	Payload *models.AssociateAuditorWithSpaceResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateAuditorWithSpaceCreated creates AssociateAuditorWithSpaceCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateAuditorWithSpaceCreated() *AssociateAuditorWithSpaceCreated {
 }
 
 // WithPayload adds the payload to the associate auditor with space created response
-func (o *AssociateAuditorWithSpaceCreated) WithPayload(payload *models.AssociateAuditorWithSpaceResponse) *AssociateAuditorWithSpaceCreated {
+func (o *AssociateAuditorWithSpaceCreated) WithPayload(payload *models.AssociateAuditorWithSpaceResponseResource) *AssociateAuditorWithSpaceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate auditor with space created response
-func (o *AssociateAuditorWithSpaceCreated) SetPayload(payload *models.AssociateAuditorWithSpaceResponse) {
+func (o *AssociateAuditorWithSpaceCreated) SetPayload(payload *models.AssociateAuditorWithSpaceResponseResource) {
 	o.Payload = payload
 }
 

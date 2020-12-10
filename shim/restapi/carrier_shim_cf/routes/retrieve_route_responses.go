@@ -25,7 +25,7 @@ type RetrieveRouteOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveRouteResponse `json:"body,omitempty"`
+	Payload *models.RetrieveRouteResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveRouteOK creates RetrieveRouteOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveRouteOK() *RetrieveRouteOK {
 }
 
 // WithPayload adds the payload to the retrieve route o k response
-func (o *RetrieveRouteOK) WithPayload(payload *models.RetrieveRouteResponse) *RetrieveRouteOK {
+func (o *RetrieveRouteOK) WithPayload(payload *models.RetrieveRouteResponseResource) *RetrieveRouteOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve route o k response
-func (o *RetrieveRouteOK) SetPayload(payload *models.RetrieveRouteResponse) {
+func (o *RetrieveRouteOK) SetPayload(payload *models.RetrieveRouteResponseResource) {
 	o.Payload = payload
 }
 

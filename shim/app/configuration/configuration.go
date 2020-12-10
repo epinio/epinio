@@ -19,6 +19,10 @@ type Struct struct {
 			Port            int    `toml:"port" mapstructure:"port"`
 		} `toml:"server" mapstructure:"server"`
 	} `toml:"cf" mapstructure:"cf"`
+
+	Gitea struct {
+		URL string `toml:"url" mapstructure:"url"`
+	} `toml:"gitea" mapstructure:"gitea"`
 }
 
 // NewConfig creates the configuration by reading env & files

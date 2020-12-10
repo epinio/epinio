@@ -25,7 +25,7 @@ type LockOrUnlockBuildpackCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.LockOrUnlockBuildpackResponse `json:"body,omitempty"`
+	Payload *models.LockOrUnlockBuildpackResponseResource `json:"body,omitempty"`
 }
 
 // NewLockOrUnlockBuildpackCreated creates LockOrUnlockBuildpackCreated with default headers values
@@ -35,13 +35,13 @@ func NewLockOrUnlockBuildpackCreated() *LockOrUnlockBuildpackCreated {
 }
 
 // WithPayload adds the payload to the lock or unlock buildpack created response
-func (o *LockOrUnlockBuildpackCreated) WithPayload(payload *models.LockOrUnlockBuildpackResponse) *LockOrUnlockBuildpackCreated {
+func (o *LockOrUnlockBuildpackCreated) WithPayload(payload *models.LockOrUnlockBuildpackResponseResource) *LockOrUnlockBuildpackCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the lock or unlock buildpack created response
-func (o *LockOrUnlockBuildpackCreated) SetPayload(payload *models.LockOrUnlockBuildpackResponse) {
+func (o *LockOrUnlockBuildpackCreated) SetPayload(payload *models.LockOrUnlockBuildpackResponseResource) {
 	o.Payload = payload
 }
 

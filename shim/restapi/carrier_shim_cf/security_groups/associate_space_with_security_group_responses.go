@@ -25,7 +25,7 @@ type AssociateSpaceWithSecurityGroupCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateSpaceWithSecurityGroupResponse `json:"body,omitempty"`
+	Payload *models.AssociateSpaceWithSecurityGroupResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateSpaceWithSecurityGroupCreated creates AssociateSpaceWithSecurityGroupCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateSpaceWithSecurityGroupCreated() *AssociateSpaceWithSecurityGrou
 }
 
 // WithPayload adds the payload to the associate space with security group created response
-func (o *AssociateSpaceWithSecurityGroupCreated) WithPayload(payload *models.AssociateSpaceWithSecurityGroupResponse) *AssociateSpaceWithSecurityGroupCreated {
+func (o *AssociateSpaceWithSecurityGroupCreated) WithPayload(payload *models.AssociateSpaceWithSecurityGroupResponseResource) *AssociateSpaceWithSecurityGroupCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate space with security group created response
-func (o *AssociateSpaceWithSecurityGroupCreated) SetPayload(payload *models.AssociateSpaceWithSecurityGroupResponse) {
+func (o *AssociateSpaceWithSecurityGroupCreated) SetPayload(payload *models.AssociateSpaceWithSecurityGroupResponseResource) {
 	o.Payload = payload
 }
 

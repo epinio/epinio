@@ -25,7 +25,7 @@ type RetrieveJobThatWasSuccessfulOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveJobThatWasSuccessfulResponse `json:"body,omitempty"`
+	Payload *models.RetrieveJobThatWasSuccessfulResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveJobThatWasSuccessfulOK creates RetrieveJobThatWasSuccessfulOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveJobThatWasSuccessfulOK() *RetrieveJobThatWasSuccessfulOK {
 }
 
 // WithPayload adds the payload to the retrieve job that was successful o k response
-func (o *RetrieveJobThatWasSuccessfulOK) WithPayload(payload *models.RetrieveJobThatWasSuccessfulResponse) *RetrieveJobThatWasSuccessfulOK {
+func (o *RetrieveJobThatWasSuccessfulOK) WithPayload(payload *models.RetrieveJobThatWasSuccessfulResponseResource) *RetrieveJobThatWasSuccessfulOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve job that was successful o k response
-func (o *RetrieveJobThatWasSuccessfulOK) SetPayload(payload *models.RetrieveJobThatWasSuccessfulResponse) {
+func (o *RetrieveJobThatWasSuccessfulOK) SetPayload(payload *models.RetrieveJobThatWasSuccessfulResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type UploadsBitsForAppCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UploadsBitsForAppResponse `json:"body,omitempty"`
+	Payload *models.UploadsBitsForAppResponseResource `json:"body,omitempty"`
 }
 
 // NewUploadsBitsForAppCreated creates UploadsBitsForAppCreated with default headers values
@@ -35,13 +35,13 @@ func NewUploadsBitsForAppCreated() *UploadsBitsForAppCreated {
 }
 
 // WithPayload adds the payload to the uploads bits for app created response
-func (o *UploadsBitsForAppCreated) WithPayload(payload *models.UploadsBitsForAppResponse) *UploadsBitsForAppCreated {
+func (o *UploadsBitsForAppCreated) WithPayload(payload *models.UploadsBitsForAppResponseResource) *UploadsBitsForAppCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the uploads bits for app created response
-func (o *UploadsBitsForAppCreated) SetPayload(payload *models.UploadsBitsForAppResponse) {
+func (o *UploadsBitsForAppCreated) SetPayload(payload *models.UploadsBitsForAppResponseResource) {
 	o.Payload = payload
 }
 

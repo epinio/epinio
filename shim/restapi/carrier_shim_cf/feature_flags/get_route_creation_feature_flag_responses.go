@@ -25,7 +25,7 @@ type GetRouteCreationFeatureFlagOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetRouteCreationFeatureFlagResponse `json:"body,omitempty"`
+	Payload *models.GetRouteCreationFeatureFlagResponseResource `json:"body,omitempty"`
 }
 
 // NewGetRouteCreationFeatureFlagOK creates GetRouteCreationFeatureFlagOK with default headers values
@@ -35,13 +35,13 @@ func NewGetRouteCreationFeatureFlagOK() *GetRouteCreationFeatureFlagOK {
 }
 
 // WithPayload adds the payload to the get route creation feature flag o k response
-func (o *GetRouteCreationFeatureFlagOK) WithPayload(payload *models.GetRouteCreationFeatureFlagResponse) *GetRouteCreationFeatureFlagOK {
+func (o *GetRouteCreationFeatureFlagOK) WithPayload(payload *models.GetRouteCreationFeatureFlagResponseResource) *GetRouteCreationFeatureFlagOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get route creation feature flag o k response
-func (o *GetRouteCreationFeatureFlagOK) SetPayload(payload *models.GetRouteCreationFeatureFlagResponse) {
+func (o *GetRouteCreationFeatureFlagOK) SetPayload(payload *models.GetRouteCreationFeatureFlagResponseResource) {
 	o.Payload = payload
 }
 

@@ -17,6 +17,74 @@ securityDefinitions:
     type: basic
     description: HTTP Basic Authentication. Works over `HTTP` and `HTTPS`
 paths:
+  # Additions for dealing with authentication (compatible with UAA)
+  /auth/login:
+    get:
+      tags: [auth]
+      summary: "Supports both JSON and HTML output. The HTML output is intended for browser user agents to display a login page."
+      parameters:
+        - in: query
+          name: origin
+          description: "Use the configured prompts of the OpenID Connect Provider with the given origin key in the response. Fallback to zone values if no prompts are configured or origin is invalid."
+          required: false
+          type: string
+      responses:
+        "200":
+          description: successful response
+          schema:
+            $ref: "#/definitions/retrieveAuthLogin"
+  /auth/oauth/token:
+    post:
+      tags: [auth]
+      summary: "The /oauth/token endpoint requires client authentication to be accessed. Client Authentication can be passed as as part of the request authorization header, using basic authentication, or as part of the request parameters, using the client_id and client_secret parameter names."
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: "Authorization"
+          description: "Client ID and secret may be passed as a basic authorization header, per RFC 6749 or as request parameters."
+          required: false
+          type: string
+        - in: formData
+          name: client_id
+          type: string
+          required: false
+          description: A unique string representing the registration information provided by the client, the recipient of the token. Optional if it is passed as part of the Basic Authorization header.
+        - in: formData
+          name: redirect_uri
+          type: string
+          required: false
+          description: Redirection URI to which the authorization server will send the user-agent back once access is granted (or denied)
+        - in: formData
+          name: code
+          type: string
+          required: false
+          description: The authorization code, obtained from /oauth/authorize, issued for the user
+        - in: formData
+          name: grant_type
+          type: string
+          required: true
+          description: The type of authentication being used to obtain the token, in this case authorization_code
+        - in: formData
+          name: client_secret
+          type: string
+          required: false
+          description: The secret passphrase configured for the OAuth client. Optional if it is passed as part of the Basic Authorization header.
+        - in: formData
+          name: token_format
+          type: string
+          required: false
+          description: Can be set to opaque to retrieve an opaque and revocable token or to jwt to retrieve a JWT token. If not set the zone setting config.tokenPolicy.jwtRevocable is used.
+      responses:
+        "200":
+          description: successful response
+          schema:
+            $ref: "#/definitions/createsOAuthTokenResponse"
+
+
+  # Cloud Foundry v2 API
   /stacks/{guid}:
     delete:
       tags: [stacks]
@@ -53,7 +121,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveStackResponse"
+            $ref: "#/definitions/retrieveStackResponseResource"
   /stacks:
     get:
       tags: [stacks]
@@ -111,7 +179,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServiceUsageEventResponse"
+            $ref: "#/definitions/retrieveServiceUsageEventResponseResource"
   /domains:
     post:
       tags: [domainsDeprecated]
@@ -133,7 +201,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createsSharedDomainDeprecatedResponse"
+            $ref: "#/definitions/createsSharedDomainDeprecatedResponseResource"
     post:
       tags: [domainsDeprecated]
       summary: "creates a domain owned by the given organization (deprecated)"
@@ -154,7 +222,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createsDomainOwnedByGivenOrganizationDeprecatedResponse"
+            $ref: "#/definitions/createsDomainOwnedByGivenOrganizationDeprecatedResponseResource"
     get:
       tags: [domainsDeprecated]
       summary: "List all Domains (deprecated)"
@@ -185,7 +253,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveDomainDeprecatedResponse"
+            $ref: "#/definitions/retrieveDomainDeprecatedResponseResource"
     delete:
       tags: [domainsDeprecated]
       summary: "Delete a Particular Domain (deprecated)"
@@ -271,7 +339,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/updateContentsOfStagingEnvironmentVariableGroupResponse"
+            $ref: "#/definitions/updateContentsOfStagingEnvironmentVariableGroupResponseResource"
     get:
       tags: [environmentVariableGroups]
       summary: "Getting the contents of the staging environment variable group"
@@ -283,7 +351,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/gettingContentsOfStagingEnvironmentVariableGroupResponse"
+            $ref: "#/definitions/gettingContentsOfStagingEnvironmentVariableGroupResponseResource"
   /config/environment_variable_groups/running:
     get:
       tags: [environmentVariableGroups]
@@ -296,7 +364,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/gettingContentsOfRunningEnvironmentVariableGroupResponse"
+            $ref: "#/definitions/gettingContentsOfRunningEnvironmentVariableGroupResponseResource"
     put:
       tags: [environmentVariableGroups]
       summary: "Updating the contents of the running environment variable group"
@@ -317,7 +385,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/updateContentsOfRunningEnvironmentVariableGroupResponse"
+            $ref: "#/definitions/updateContentsOfRunningEnvironmentVariableGroupResponseResource"
   /config/staging_security_groups/{guid}:
     put:
       tags: [securityGroupStagingDefaults]
@@ -338,7 +406,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/setSecurityGroupAsDefaultForStagingResponse"
+            $ref: "#/definitions/setSecurityGroupAsDefaultForStagingResponseResource"
     delete:
       tags: [securityGroupStagingDefaults]
       summary: "Removing a Security Group as a default for staging"
@@ -761,7 +829,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveEventResponse"
+            $ref: "#/definitions/retrieveEventResponseResource"
   /info:
     get:
       tags: [info]
@@ -795,7 +863,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/setSecurityGroupAsDefaultForRunningAppsResponse"
+            $ref: "#/definitions/setSecurityGroupAsDefaultForRunningAppsResponseResource"
     delete:
       tags: [securityGroupRunningDefaults]
       summary: "Removing a Security Group as a default for running Apps"
@@ -871,7 +939,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeSpaceFromSpaceQuotaDefinitionResponse"
+            $ref: "#/definitions/removeSpaceFromSpaceQuotaDefinitionResponseResource"
     put:
       tags: [spaceQuotaDefinitions]
       summary: "Associate Space with the Space Quota Definition"
@@ -896,7 +964,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateSpaceWithSpaceQuotaDefinitionResponse"
+            $ref: "#/definitions/associateSpaceWithSpaceQuotaDefinitionResponseResource"
   /space_quota_definitions:
     post:
       tags: [spaceQuotaDefinitions]
@@ -918,7 +986,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createSpaceQuotaDefinitionResponse"
+            $ref: "#/definitions/createSpaceQuotaDefinitionResponseResource"
     get:
       tags: [spaceQuotaDefinitions]
       summary: "List all Space Quota Definitions"
@@ -949,7 +1017,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveSpaceQuotaDefinitionResponse"
+            $ref: "#/definitions/retrieveSpaceQuotaDefinitionResponseResource"
     delete:
       tags: [spaceQuotaDefinitions]
       summary: "Delete a Particular Space Quota Definition"
@@ -993,7 +1061,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateSpaceQuotaDefinitionResponse"
+            $ref: "#/definitions/updateSpaceQuotaDefinitionResponseResource"
   /jobs/{guid}:
     get:
       tags: [jobs]
@@ -1012,7 +1080,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveJobWithUnknownFailureResponse"
+            $ref: "#/definitions/retrieveJobWithUnknownFailureResponseResource"
     get:
       tags: [jobs]
       summary: "Retrieve Job with known failure"
@@ -1030,7 +1098,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveJobWithKnownFailureResponse"
+            $ref: "#/definitions/retrieveJobWithKnownFailureResponseResource"
     get:
       tags: [jobs]
       summary: "Retrieve Job that is queued"
@@ -1048,7 +1116,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveJobThatIsQueuedResponse"
+            $ref: "#/definitions/retrieveJobThatIsQueuedResponseResource"
     get:
       tags: [jobs]
       summary: "Retrieve Job that was successful"
@@ -1066,7 +1134,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveJobThatWasSuccessfulResponse"
+            $ref: "#/definitions/retrieveJobThatWasSuccessfulResponseResource"
   /app_usage_events:
     get:
       tags: [appUsageEvents]
@@ -1111,7 +1179,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveAppUsageEventResponse"
+            $ref: "#/definitions/retrieveAppUsageEventResponseResource"
   /shared_domains/{guid}:
     get:
       tags: [sharedDomains]
@@ -1130,7 +1198,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveSharedDomainResponse"
+            $ref: "#/definitions/retrieveSharedDomainResponseResource"
     delete:
       tags: [sharedDomains]
       summary: "Delete a Particular Shared Domain"
@@ -1170,7 +1238,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createSharedDomainResponse"
+            $ref: "#/definitions/createSharedDomainResponseResource"
     get:
       tags: [sharedDomains]
       summary: "Filtering Shared Domains by name"
@@ -1218,7 +1286,9 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/listAllMatchingResourcesResponse"
+            type: array
+            items:
+              $ref: "#/definitions/listAllMatchingResourcesResponse"
   /organizations/{guid}/spaces:
     get:
       tags: [organizations]
@@ -1339,7 +1409,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateOrganizationResponse"
+            $ref: "#/definitions/updateOrganizationResponseResource"
     get:
       tags: [organizations]
       summary: "Retrieve a Particular Organization"
@@ -1357,7 +1427,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveOrganizationResponse"
+            $ref: "#/definitions/retrieveOrganizationResponseResource"
   /organizations/{guid}/space_quota_definitions:
     get:
       tags: [organizations]
@@ -1421,7 +1491,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateManagerWithOrganizationResponse"
+            $ref: "#/definitions/associateManagerWithOrganizationResponseResource"
     delete:
       tags: [organizations]
       summary: "Remove Manager from the Organization"
@@ -1446,7 +1516,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeManagerFromOrganizationResponse"
+            $ref: "#/definitions/removeManagerFromOrganizationResponseResource"
   /organizations/{guid}/users:
     get:
       tags: [organizations]
@@ -1484,7 +1554,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrievingOrganizationMemoryUsageResponse"
+            $ref: "#/definitions/retrievingOrganizationMemoryUsageResponseResource"
   /organizations/{guid}/billing_managers/{billing_manager_guid}:
     put:
       tags: [organizations]
@@ -1510,7 +1580,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateBillingManagerWithOrganizationResponse"
+            $ref: "#/definitions/associateBillingManagerWithOrganizationResponseResource"
     delete:
       tags: [organizations]
       summary: "Remove Billing Manager from the Organization"
@@ -1535,7 +1605,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeBillingManagerFromOrganizationResponse"
+            $ref: "#/definitions/removeBillingManagerFromOrganizationResponseResource"
   /organizations/{guid}/auditors/{auditor_guid}:
     put:
       tags: [organizations]
@@ -1561,7 +1631,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateAuditorWithOrganizationResponse"
+            $ref: "#/definitions/associateAuditorWithOrganizationResponseResource"
     delete:
       tags: [organizations]
       summary: "Remove Auditor from the Organization"
@@ -1586,7 +1656,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeAuditorFromOrganizationResponse"
+            $ref: "#/definitions/removeAuditorFromOrganizationResponseResource"
   /organizations/{guid}/billing_managers:
     get:
       tags: [organizations]
@@ -1658,7 +1728,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createOrganizationResponse"
+            $ref: "#/definitions/createOrganizationResponseResource"
   /organizations/{guid}/summary:
     get:
       tags: [organizations]
@@ -1677,7 +1747,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getOrganizationSummaryResponse"
+            $ref: "#/definitions/getOrganizationSummaryResponseResource"
   /organizations/{guid}/users/{user_guid}:
     put:
       tags: [organizations]
@@ -1703,7 +1773,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateUserWithOrganizationResponse"
+            $ref: "#/definitions/associateUserWithOrganizationResponseResource"
     delete:
       tags: [organizations]
       summary: "Remove User from the Organization"
@@ -1728,7 +1798,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeUserFromOrganizationResponse"
+            $ref: "#/definitions/removeUserFromOrganizationResponseResource"
   /service_plan_visibilities:
     post:
       tags: [servicePlanVisibilities]
@@ -1750,7 +1820,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createServicePlanVisibilityResponse"
+            $ref: "#/definitions/createServicePlanVisibilityResponseResource"
     get:
       tags: [servicePlanVisibilities]
       summary: "List all Service Plan Visibilities"
@@ -1781,7 +1851,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServicePlanVisibilityResponse"
+            $ref: "#/definitions/retrieveServicePlanVisibilityResponseResource"
     put:
       tags: [servicePlanVisibilities]
       summary: "Updating a Service Plan Visibility"
@@ -1807,7 +1877,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateServicePlanVisibilityResponse"
+            $ref: "#/definitions/updateServicePlanVisibilityResponseResource"
     delete:
       tags: [servicePlanVisibilities]
       summary: "Delete a Particular Service Plan Visibilities"
@@ -1899,7 +1969,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServiceAuthTokenDeprecatedResponse"
+            $ref: "#/definitions/retrieveServiceAuthTokenDeprecatedResponseResource"
   /services:
     get:
       tags: [services]
@@ -1933,7 +2003,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createServiceDeprecatedResponse"
+            $ref: "#/definitions/createServiceDeprecatedResponseResource"
     put:
       tags: [services]
       summary: "Updating a Service (deprecated)"
@@ -1954,7 +2024,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateServiceDeprecatedResponse"
+            $ref: "#/definitions/updateServiceDeprecatedResponseResource"
   /services/{guid}:
     delete:
       tags: [services]
@@ -1991,7 +2061,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServiceResponse"
+            $ref: "#/definitions/retrieveServiceResponseResource"
   /services/{guid}/service_plans:
     get:
       tags: [services]
@@ -2055,7 +2125,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateSecurityGroupResponse"
+            $ref: "#/definitions/updateSecurityGroupResponseResource"
     get:
       tags: [securityGroups]
       summary: "Retrieve a Particular Security Group"
@@ -2073,7 +2143,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveSecurityGroupResponse"
+            $ref: "#/definitions/retrieveSecurityGroupResponseResource"
   /security_groups/{guid}/spaces/{space_guid}:
     put:
       tags: [securityGroups]
@@ -2099,7 +2169,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateSpaceWithSecurityGroupResponse"
+            $ref: "#/definitions/associateSpaceWithSecurityGroupResponseResource"
     delete:
       tags: [securityGroups]
       summary: "Remove Space from the Security Group"
@@ -2124,7 +2194,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeSpaceFromSecurityGroupResponse"
+            $ref: "#/definitions/removeSpaceFromSecurityGroupResponseResource"
   /security_groups:
     post:
       tags: [securityGroups]
@@ -2146,7 +2216,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createSecurityGroupResponse"
+            $ref: "#/definitions/createSecurityGroupResponseResource"
     get:
       tags: [securityGroups]
       summary: "List all Security Groups"
@@ -2223,7 +2293,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createPrivateDomainOwnedByGivenOrganizationResponse"
+            $ref: "#/definitions/createPrivateDomainOwnedByGivenOrganizationResponseResource"
   /private_domains/{guid}:
     get:
       tags: [privateDomains]
@@ -2242,7 +2312,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrievePrivateDomainResponse"
+            $ref: "#/definitions/retrievePrivateDomainResponseResource"
     delete:
       tags: [privateDomains]
       summary: "Delete a Particular Private Domain"
@@ -2282,7 +2352,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateServicePlanDeprecatedResponse"
+            $ref: "#/definitions/updateServicePlanDeprecatedResponseResource"
     post:
       tags: [servicePlans]
       summary: "Creating a Service Plan (deprecated)"
@@ -2303,7 +2373,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createServicePlanDeprecatedResponse"
+            $ref: "#/definitions/createServicePlanDeprecatedResponseResource"
     get:
       tags: [servicePlans]
       summary: "List all Service Plans"
@@ -2371,7 +2441,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServicePlanResponse"
+            $ref: "#/definitions/retrieveServicePlanResponseResource"
   /service_brokers:
     post:
       tags: [serviceBrokers]
@@ -2393,7 +2463,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createServiceBrokerResponse"
+            $ref: "#/definitions/createServiceBrokerResponseResource"
     get:
       tags: [serviceBrokers]
       summary: "List all Service Brokers"
@@ -2432,7 +2502,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/updateServiceBrokerResponse"
+            $ref: "#/definitions/updateServiceBrokerResponseResource"
     delete:
       tags: [serviceBrokers]
       summary: "Delete a Particular Service Broker"
@@ -2468,7 +2538,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServiceBrokerResponse"
+            $ref: "#/definitions/retrieveServiceBrokerResponseResource"
   /buildpacks/{guid}:
     put:
       tags: [buildpacks]
@@ -2495,7 +2565,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/enableOrDisableBuildpackResponse"
+            $ref: "#/definitions/enableOrDisableBuildpackResponseResource"
     get:
       tags: [buildpacks]
       summary: "Retrieve a Particular Buildpack"
@@ -2513,7 +2583,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveBuildpackResponse"
+            $ref: "#/definitions/retrieveBuildpackResponseResource"
     put:
       tags: [buildpacks]
       summary: "Change the position of a Buildpack"
@@ -2539,7 +2609,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/changePositionOfBuildpackResponse"
+            $ref: "#/definitions/changePositionOfBuildpackResponseResource"
     delete:
       tags: [buildpacks]
       summary: "Delete a Particular Buildpack"
@@ -2583,7 +2653,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/lockOrUnlockBuildpackResponse"
+            $ref: "#/definitions/lockOrUnlockBuildpackResponseResource"
   /buildpacks:
     post:
       tags: [buildpacks]
@@ -2605,7 +2675,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createsAdminBuildpackResponse"
+            $ref: "#/definitions/createsAdminBuildpackResponseResource"
     get:
       tags: [buildpacks]
       summary: "List all Buildpacks"
@@ -2639,7 +2709,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createRouteResponse"
+            $ref: "#/definitions/createRouteResponseResource"
     get:
       tags: [routes]
       summary: "List all Routes"
@@ -2689,7 +2759,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveRouteResponse"
+            $ref: "#/definitions/retrieveRouteResponseResource"
     put:
       tags: [routes]
       summary: "Update a Route"
@@ -2715,7 +2785,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateRouteResponse"
+            $ref: "#/definitions/updateRouteResponseResource"
     delete:
       tags: [routes]
       summary: "Delete a Particular Route"
@@ -2759,7 +2829,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateAppWithRouteResponse"
+            $ref: "#/definitions/associateAppWithRouteResponseResource"
     delete:
       tags: [routes]
       summary: "Remove App from the Route"
@@ -2784,7 +2854,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeAppFromRouteResponse"
+            $ref: "#/definitions/removeAppFromRouteResponseResource"
   /routes/reserved/domain/{domain_guid}/host/{host}:
     get:
       tags: [routes]
@@ -2828,7 +2898,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createServiceInstanceResponse"
+            $ref: "#/definitions/createServiceInstanceResponseResource"
     get:
       tags: [serviceInstances]
       summary: "List all Service Instances"
@@ -2877,7 +2947,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServiceInstanceResponse"
+            $ref: "#/definitions/retrieveServiceInstanceResponseResource"
     put:
       tags: [serviceInstances]
       summary: "Updating a service instance"
@@ -2903,7 +2973,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateServiceInstanceResponse"
+            $ref: "#/definitions/updateServiceInstanceResponseResource"
   /service_instances/{guid}/permissions:
     get:
       tags: [serviceInstances]
@@ -2922,7 +2992,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrievingPermissionsOnServiceInstanceResponse"
+            $ref: "#/definitions/retrievingPermissionsOnServiceInstanceResponseResource"
   /service_instances/{guid}/service_bindings:
     get:
       tags: [serviceInstances]
@@ -2968,7 +3038,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/migrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponse"
+            $ref: "#/definitions/migrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponseResource"
   /apps/{guid}/summary:
     get:
       tags: [apps]
@@ -3037,7 +3107,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeServiceBindingFromAppResponse"
+            $ref: "#/definitions/removeServiceBindingFromAppResponseResource"
   /apps:
     post:
       tags: [apps]
@@ -3059,7 +3129,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createDockerAppExperimentalResponse"
+            $ref: "#/definitions/createDockerAppExperimentalResponseResource"
     get:
       tags: [apps]
       summary: "List all Apps"
@@ -3092,7 +3162,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createAppResponse"
+            $ref: "#/definitions/createAppResponseResource"
   /apps/{guid}/routes/{route_guid}:
     put:
       tags: [apps]
@@ -3118,7 +3188,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateRouteWithAppResponse"
+            $ref: "#/definitions/associateRouteWithAppResponseResource"
     delete:
       tags: [apps]
       summary: "Remove Route from the App"
@@ -3143,7 +3213,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeRouteFromAppResponse"
+            $ref: "#/definitions/removeRouteFromAppResponseResource"
   /apps/{guid}/download:
     get:
       tags: [apps]
@@ -3206,7 +3276,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/copyAppBitsForAppResponse"
+            $ref: "#/definitions/copyAppBitsForAppResponseResource"
   /apps/{guid}:
     put:
       tags: [apps]
@@ -3233,7 +3303,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateAppResponse"
+            $ref: "#/definitions/updateAppResponseResource"
     delete:
       tags: [apps]
       summary: "Delete a Particular App"
@@ -3269,7 +3339,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveAppResponse"
+            $ref: "#/definitions/retrieveAppResponseResource"
   /apps/{guid}/routes:
     get:
       tags: [apps]
@@ -3307,7 +3377,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getEnvForAppResponse"
+            $ref: "#/definitions/getEnvForAppResponseResource"
   /apps/{guid}/bits:
     put:
       tags: [apps]
@@ -3315,7 +3385,7 @@ paths:
       description: "curl --insecure -i %s/v2/apps/{guid}/bits -X PUT -H 'Authorization: %s' -d '%s'"
       operationId: uploadsBitsForApp
       consumes:
-        - application/json
+        - multipart/form-data
       produces:
         - application/json
       parameters:
@@ -3324,17 +3394,24 @@ paths:
           description: "The guid parameter is used as a part of the request URL: '/v2/apps/:guid/bits'"
           required: true
           type: string
-        - in: body
-          name: value
-          description: "An object instance that is serialized and sent as the request body."
+        - in: formData
+          name: application
+          description: "A binary zip file containing the application bits."
           required: true
-          schema:
-            $ref: "#/definitions/genericObject"
+          type: file
+        - in: formData
+          name: async
+          description: If true, a new asynchronous job is submitted to persist the bits and the job id is included in the response. The client will need to poll the job's status until persistence is completed successfully. If false, the request will block until the bits are persisted synchronously. Defaults to false.	
+          type: boolean
+        - in: formData
+          name: resources
+          description: Fingerprints of the application bits that have previously been pushed to Cloud Foundry. Each fingerprint must include the file path, sha1 hash, and file size in bytes. Each fingerprint may include the file mode, which must be an octal string with at least read and write permissions for owners. If a mode is not provided, the default mode of 0744 will be used. Fingerprinted bits MUST exist in the Cloud Foundry resource cache or the request (or job, if async) will fail.
+          type: string
       responses:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/uploadsBitsForAppResponse"
+            $ref: "#/definitions/uploadsBitsForAppResponseResource"
   /apps/{guid}/stats:
     get:
       tags: [apps]
@@ -3353,7 +3430,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getDetailedStatsForStartedAppResponse"
+            $ref: "#/definitions/getDetailedStatsForStartedAppResponseResource"
   /apps/{guid}/restage:
     post:
       tags: [apps]
@@ -3374,7 +3451,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/restageAppResponse"
+            $ref: "#/definitions/restageAppResponseResource"
   /apps/{guid}/instances:
     get:
       tags: [apps]
@@ -3393,7 +3470,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getInstanceInformationForStartedAppResponse"
+            $ref: "#/definitions/getInstanceInformationForStartedAppResponseResource"
   /config/feature_flags:
     get:
       tags: [featureFlags]
@@ -3406,7 +3483,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getAllFeatureFlagsResponse"
+            $ref: "#/definitions/getAllFeatureFlagsResponseResource"
   /config/feature_flags/user_org_creation:
     get:
       tags: [featureFlags]
@@ -3419,7 +3496,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getUserOrgCreationFeatureFlagResponse"
+            $ref: "#/definitions/getUserOrgCreationFeatureFlagResponseResource"
   /config/feature_flags/route_creation:
     get:
       tags: [featureFlags]
@@ -3432,7 +3509,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getRouteCreationFeatureFlagResponse"
+            $ref: "#/definitions/getRouteCreationFeatureFlagResponseResource"
   /config/feature_flags/{name}:
     put:
       tags: [featureFlags]
@@ -3459,7 +3536,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/setFeatureFlagResponse"
+            $ref: "#/definitions/setFeatureFlagResponseResource"
   /config/feature_flags/app_bits_upload:
     get:
       tags: [featureFlags]
@@ -3472,7 +3549,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getAppBitsUploadFeatureFlagResponse"
+            $ref: "#/definitions/getAppBitsUploadFeatureFlagResponseResource"
   /config/feature_flags/app_scaling:
     get:
       tags: [featureFlags]
@@ -3485,7 +3562,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getAppScalingFeatureFlagResponse"
+            $ref: "#/definitions/getAppScalingFeatureFlagResponseResource"
   /config/feature_flags/private_domain_creation:
     get:
       tags: [featureFlags]
@@ -3498,7 +3575,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getPrivateDomainCreationFeatureFlagResponse"
+            $ref: "#/definitions/getPrivateDomainCreationFeatureFlagResponseResource"
   /config/feature_flags/service_instance_creation:
     get:
       tags: [featureFlags]
@@ -3511,7 +3588,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getServiceInstanceCreationFeatureFlagResponse"
+            $ref: "#/definitions/getServiceInstanceCreationFeatureFlagResponseResource"
   /spaces/{guid}/managers/{manager_guid}:
     put:
       tags: [spaces]
@@ -3537,7 +3614,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateManagerWithSpaceResponse"
+            $ref: "#/definitions/associateManagerWithSpaceResponseResource"
     delete:
       tags: [spaces]
       summary: "Remove Manager from the Space"
@@ -3562,7 +3639,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeManagerFromSpaceResponse"
+            $ref: "#/definitions/removeManagerFromSpaceResponseResource"
   /spaces/{guid}/domains:
     get:
       tags: [spaces]
@@ -3607,7 +3684,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeDeveloperFromSpaceResponse"
+            $ref: "#/definitions/removeDeveloperFromSpaceResponseResource"
     put:
       tags: [spaces]
       summary: "Associate Developer with the Space"
@@ -3632,7 +3709,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateDeveloperWithSpaceResponse"
+            $ref: "#/definitions/associateDeveloperWithSpaceResponseResource"
   /spaces/{guid}:
     put:
       tags: [spaces]
@@ -3659,7 +3736,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateSpaceResponse"
+            $ref: "#/definitions/updateSpaceResponseResource"
     get:
       tags: [spaces]
       summary: "Retrieve a Particular Space"
@@ -3677,7 +3754,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveSpaceResponse"
+            $ref: "#/definitions/retrieveSpaceResponseResource"
     delete:
       tags: [spaces]
       summary: "Delete a Particular Space"
@@ -3759,7 +3836,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateSecurityGroupWithSpaceResponse"
+            $ref: "#/definitions/associateSecurityGroupWithSpaceResponseResource"
     delete:
       tags: [spaces]
       summary: "Remove Security Group from the Space"
@@ -3784,7 +3861,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeSecurityGroupFromSpaceResponse"
+            $ref: "#/definitions/removeSecurityGroupFromSpaceResponseResource"
   /spaces/{guid}/summary:
     get:
       tags: [spaces]
@@ -3803,7 +3880,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getSpaceSummaryResponse"
+            $ref: "#/definitions/getSpaceSummaryResponseResource"
   /spaces/{guid}/auditors:
     get:
       tags: [spaces]
@@ -3848,7 +3925,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateAuditorWithSpaceResponse"
+            $ref: "#/definitions/associateAuditorWithSpaceResponseResource"
     delete:
       tags: [spaces]
       summary: "Remove Auditor from the Space"
@@ -3873,7 +3950,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeAuditorFromSpaceResponse"
+            $ref: "#/definitions/removeAuditorFromSpaceResponseResource"
   /spaces/{guid}/events:
     get:
       tags: [spaces]
@@ -3945,7 +4022,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createSpaceResponse"
+            $ref: "#/definitions/createSpaceResponseResource"
   /spaces/{guid}/managers:
     get:
       tags: [spaces]
@@ -4047,7 +4124,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateOrganizationWithUserResponse"
+            $ref: "#/definitions/associateOrganizationWithUserResponseResource"
     delete:
       tags: [users]
       summary: "Remove Organization from the User"
@@ -4072,7 +4149,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeOrganizationFromUserResponse"
+            $ref: "#/definitions/removeOrganizationFromUserResponseResource"
   /users/{guid}/audited_organizations:
     get:
       tags: [users]
@@ -4137,7 +4214,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateUserResponse"
+            $ref: "#/definitions/updateUserResponseResource"
     delete:
       tags: [users]
       summary: "Delete a Particular User"
@@ -4173,7 +4250,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveUserResponse"
+            $ref: "#/definitions/retrieveUserResponseResource"
   /users/{guid}/billing_managed_organizations/{billing_managed_organization_guid}:
     put:
       tags: [users]
@@ -4199,7 +4276,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateBillingManagedOrganizationWithUserResponse"
+            $ref: "#/definitions/associateBillingManagedOrganizationWithUserResponseResource"
     delete:
       tags: [users]
       summary: "Remove Billing Managed Organization from the User"
@@ -4224,7 +4301,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeBillingManagedOrganizationFromUserResponse"
+            $ref: "#/definitions/removeBillingManagedOrganizationFromUserResponseResource"
   /users/{guid}/audited_spaces/{audited_space_guid}:
     put:
       tags: [users]
@@ -4250,7 +4327,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateAuditedSpaceWithUserResponse"
+            $ref: "#/definitions/associateAuditedSpaceWithUserResponseResource"
     delete:
       tags: [users]
       summary: "Remove Audited Space from the User"
@@ -4275,7 +4352,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeAuditedSpaceFromUserResponse"
+            $ref: "#/definitions/removeAuditedSpaceFromUserResponseResource"
   /users/{guid}/organizations:
     get:
       tags: [users]
@@ -4339,7 +4416,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateManagedSpaceWithUserResponse"
+            $ref: "#/definitions/associateManagedSpaceWithUserResponseResource"
     delete:
       tags: [users]
       summary: "Remove Managed Space from the User"
@@ -4364,7 +4441,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeManagedSpaceFromUserResponse"
+            $ref: "#/definitions/removeManagedSpaceFromUserResponseResource"
   /users/{guid}/managed_organizations:
     get:
       tags: [users]
@@ -4402,7 +4479,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/getUserSummaryResponse"
+            $ref: "#/definitions/getUserSummaryResponseResource"
   /users/{guid}/managed_organizations/{managed_organization_guid}:
     delete:
       tags: [users]
@@ -4428,7 +4505,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeManagedOrganizationFromUserResponse"
+            $ref: "#/definitions/removeManagedOrganizationFromUserResponseResource"
     put:
       tags: [users]
       summary: "Associate Managed Organization with the User"
@@ -4453,7 +4530,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateManagedOrganizationWithUserResponse"
+            $ref: "#/definitions/associateManagedOrganizationWithUserResponseResource"
   /users/{guid}/managed_spaces:
     get:
       tags: [users]
@@ -4498,7 +4575,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeAuditedOrganizationFromUserResponse"
+            $ref: "#/definitions/removeAuditedOrganizationFromUserResponseResource"
     put:
       tags: [users]
       summary: "Associate Audited Organization with the User"
@@ -4523,7 +4600,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateAuditedOrganizationWithUserResponse"
+            $ref: "#/definitions/associateAuditedOrganizationWithUserResponseResource"
   /users/{guid}/spaces:
     get:
       tags: [users]
@@ -4564,7 +4641,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createUserResponse"
+            $ref: "#/definitions/createUserResponseResource"
     get:
       tags: [users]
       summary: "List all Users"
@@ -4602,7 +4679,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/associateSpaceWithUserResponse"
+            $ref: "#/definitions/associateSpaceWithUserResponseResource"
     delete:
       tags: [users]
       summary: "Remove Space from the User"
@@ -4627,7 +4704,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/removeSpaceFromUserResponse"
+            $ref: "#/definitions/removeSpaceFromUserResponseResource"
   /quota_definitions/{guid}:
     delete:
       tags: [organizationQuotaDefinitions]
@@ -4664,7 +4741,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveOrganizationQuotaDefinitionResponse"
+            $ref: "#/definitions/retrieveOrganizationQuotaDefinitionResponseResource"
     put:
       tags: [organizationQuotaDefinitions]
       summary: "Updating a Organization Quota Definition"
@@ -4690,7 +4767,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateOrganizationQuotaDefinitionResponse"
+            $ref: "#/definitions/updateOrganizationQuotaDefinitionResponseResource"
   /quota_definitions:
     get:
       tags: [organizationQuotaDefinitions]
@@ -4724,7 +4801,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createOrganizationQuotaDefinitionResponse"
+            $ref: "#/definitions/createOrganizationQuotaDefinitionResponseResource"
   /service_bindings:
     post:
       tags: [serviceBindings]
@@ -4746,7 +4823,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createServiceBindingResponse"
+            $ref: "#/definitions/createServiceBindingResponseResource"
     get:
       tags: [serviceBindings]
       summary: "List all Service Bindings"
@@ -4777,7 +4854,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveServiceBindingResponse"
+            $ref: "#/definitions/retrieveServiceBindingResponseResource"
     delete:
       tags: [serviceBindings]
       summary: "Delete a Particular Service Binding"
@@ -4833,7 +4910,7 @@ paths:
         "200":
           description: successful response
           schema:
-            $ref: "#/definitions/retrieveUserProvidedServiceInstanceResponse"
+            $ref: "#/definitions/retrieveUserProvidedServiceInstanceResponseResource"
     put:
       tags: [userProvidedServiceInstances]
       summary: "Updating a User Provided Service Instance"
@@ -4859,7 +4936,7 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/updateUserProvidedServiceInstanceResponse"
+            $ref: "#/definitions/updateUserProvidedServiceInstanceResponseResource"
     delete:
       tags: [userProvidedServiceInstances]
       summary: "Delete a Particular User Provided Service Instance"
@@ -4911,9 +4988,100 @@ paths:
         "201":
           description: successful response
           schema:
-            $ref: "#/definitions/createUserProvidedServiceInstanceResponse"
+            $ref: "#/definitions/createUserProvidedServiceInstanceResponseResource"
 
 definitions:
+  # Additions for dealing with authentication (compatible with UAA)
+  retrieveAuthLogin:
+    properties:
+      app:
+        type: object
+        properties:
+          version:
+            type: string
+            description: "The version of the auth server"
+      commit_id:
+        type: string
+        description: The GIT sha for the UAA version
+      timestamp:
+        type: string
+        description: JSON timestamp for the commit of the UAA version
+      idpDefinitions:
+        type: object
+        description: Object  A list of alias/url pairs of SAML IDP providers configured. Each url is the starting point to initiate the authentication process for the SAML identity provider.
+      links:
+        type: object
+        description: A list of alias/url pairs of configured action URLs for the UAA
+        properties:
+          login:
+            type: string
+            description: The link to the login host alias of the UAA
+          uaa:
+            type: string
+            description: The link to the uaa alias host of the UAA
+          passwd:
+            type: string
+            description: The link to the 'Forgot Password' functionality. Can be external or internal to the UAA
+          register:
+            type: string
+            description: The link to the 'Create Account' functionality. Can be external or internal to the UAA
+      entityID:
+        type: string
+        description: The UAA is always a SAML service provider. This field contains the configured entityID
+      prompts:
+        type: object
+        description: A list of name/value pairs of configured prompts that the UAA will login a user. Format for each prompt is [type, display name] where type can be 'text' or 'password'
+        properties:
+          username:
+            type: array
+            x-omitempty: true
+            items:
+              type: object
+            description: Information about the username prompt.
+          password:
+            type: array
+            x-omitempty: true
+            items:
+              type: object
+            description: Information about the password prompt.
+          passcode:
+            type: array
+            x-omitempty: true
+            items:
+              type: object
+            description: If a SAML identity provider is configured, this prompt contains a URL to where the user can initiate the SAML authentication flow.
+      zone_name:
+        type: string
+        description: The name of the zone invoked
+      showLoginLinks:
+        type: boolean
+        description: Set to true if there are SAML or OAUTH/OIDC providers with a visible link on the login page.
+  createsOAuthTokenResponse:
+    properties:
+      access_token:
+        type: string
+        description: An OAuth2 access token. When token_format=opaque is requested this value will be a random string that can only be validated using the UAA's /check_token or /introspect endpoints. When token_format=jwt is requested, this token will be a JSON Web Token suitable for offline validation by OAuth2 Resource Servers.
+      id_token:
+        type: string
+        description: An OpenID Connect ID token. This portion of the token response is only returned when clients are configured with the scope openid, the response_type includes id_token, and the user has granted approval to the client for the openid scope.
+      token_type:
+        type: string
+        description: The type of the access token issued. This field is mandated in RFC 6749. In the UAA, the only supported token_type is bearer.
+      expires_in:
+        type: integer
+        description: The number of seconds until the access token expires.
+      scope:
+        type: string
+        description: "A space-delimited list of scopes authorized by the user for this client. This list is the intersection of the scopes configured on the client, the group memberships of the user, and the user's approvals (when autoapprove: true is not configured on the client)."
+      refresh_token:
+        type: string
+        description: An OAuth2 refresh token. Clients typically use the refresh token to obtain a new access token without the need for the user to authenticate again. They do this by calling /oauth/token with grant_type=refresh_token. See here for more information. A refresh token will only be issued to clients that have refresh_token in their list of authorized_grant_types.
+      jti:
+        type: string
+        description: A globally unique identifier for this access token. This identifier is used when revoking tokens.
+
+
+  # Cloud Foundry v2 API
   createDockerAppExperimentalRequest:
     properties:
       name:
@@ -7010,11 +7178,10 @@ definitions:
         type: string
         description: "The organization Guid"
   getDetailedStatsForStartedAppResponseResource:
-    properties:
-      metadata:
-        $ref: "#/definitions/entityMetadata"
-      entity:
-        $ref: "#/definitions/getDetailedStatsForStartedAppResponse"
+    type: object
+    additionalProperties:
+      $ref: "#/definitions/getDetailedStatsForStartedAppResponse"
+
   getDetailedStatsForStartedAppResponse:
     properties:
       state:
@@ -10210,11 +10377,10 @@ definitions:
         type: string
         description: "The doreme"
   getInstanceInformationForStartedAppResponseResource:
-    properties:
-      metadata:
-        $ref: "#/definitions/entityMetadata"
-      entity:
-        $ref: "#/definitions/getInstanceInformationForStartedAppResponse"
+    type: object
+    additionalProperties:
+      $ref: "#/definitions/getInstanceInformationForStartedAppResponse"
+    
   getInstanceInformationForStartedAppResponse:
     properties:
       state:
@@ -15538,7 +15704,7 @@ definitions:
   genericObject:
     type: object
     additionalProperties:
-      type: string
+      type: object
   entityMetadata:
     properties:
       guid:

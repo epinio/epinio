@@ -25,7 +25,7 @@ type RemoveAuditorFromSpaceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveAuditorFromSpaceResponse `json:"body,omitempty"`
+	Payload *models.RemoveAuditorFromSpaceResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveAuditorFromSpaceCreated creates RemoveAuditorFromSpaceCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveAuditorFromSpaceCreated() *RemoveAuditorFromSpaceCreated {
 }
 
 // WithPayload adds the payload to the remove auditor from space created response
-func (o *RemoveAuditorFromSpaceCreated) WithPayload(payload *models.RemoveAuditorFromSpaceResponse) *RemoveAuditorFromSpaceCreated {
+func (o *RemoveAuditorFromSpaceCreated) WithPayload(payload *models.RemoveAuditorFromSpaceResponseResource) *RemoveAuditorFromSpaceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove auditor from space created response
-func (o *RemoveAuditorFromSpaceCreated) SetPayload(payload *models.RemoveAuditorFromSpaceResponse) {
+func (o *RemoveAuditorFromSpaceCreated) SetPayload(payload *models.RemoveAuditorFromSpaceResponseResource) {
 	o.Payload = payload
 }
 

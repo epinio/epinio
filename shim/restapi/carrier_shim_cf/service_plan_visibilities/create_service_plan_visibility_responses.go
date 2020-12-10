@@ -25,7 +25,7 @@ type CreateServicePlanVisibilityCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateServicePlanVisibilityResponse `json:"body,omitempty"`
+	Payload *models.CreateServicePlanVisibilityResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateServicePlanVisibilityCreated creates CreateServicePlanVisibilityCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateServicePlanVisibilityCreated() *CreateServicePlanVisibilityCreated
 }
 
 // WithPayload adds the payload to the create service plan visibility created response
-func (o *CreateServicePlanVisibilityCreated) WithPayload(payload *models.CreateServicePlanVisibilityResponse) *CreateServicePlanVisibilityCreated {
+func (o *CreateServicePlanVisibilityCreated) WithPayload(payload *models.CreateServicePlanVisibilityResponseResource) *CreateServicePlanVisibilityCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create service plan visibility created response
-func (o *CreateServicePlanVisibilityCreated) SetPayload(payload *models.CreateServicePlanVisibilityResponse) {
+func (o *CreateServicePlanVisibilityCreated) SetPayload(payload *models.CreateServicePlanVisibilityResponseResource) {
 	o.Payload = payload
 }
 

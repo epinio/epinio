@@ -25,7 +25,7 @@ type GetDetailedStatsForStartedAppOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetDetailedStatsForStartedAppResponse `json:"body,omitempty"`
+	Payload models.GetDetailedStatsForStartedAppResponseResource `json:"body,omitempty"`
 }
 
 // NewGetDetailedStatsForStartedAppOK creates GetDetailedStatsForStartedAppOK with default headers values
@@ -35,13 +35,13 @@ func NewGetDetailedStatsForStartedAppOK() *GetDetailedStatsForStartedAppOK {
 }
 
 // WithPayload adds the payload to the get detailed stats for started app o k response
-func (o *GetDetailedStatsForStartedAppOK) WithPayload(payload *models.GetDetailedStatsForStartedAppResponse) *GetDetailedStatsForStartedAppOK {
+func (o *GetDetailedStatsForStartedAppOK) WithPayload(payload models.GetDetailedStatsForStartedAppResponseResource) *GetDetailedStatsForStartedAppOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get detailed stats for started app o k response
-func (o *GetDetailedStatsForStartedAppOK) SetPayload(payload *models.GetDetailedStatsForStartedAppResponse) {
+func (o *GetDetailedStatsForStartedAppOK) SetPayload(payload models.GetDetailedStatsForStartedAppResponseResource) {
 	o.Payload = payload
 }
 
@@ -49,10 +49,13 @@ func (o *GetDetailedStatsForStartedAppOK) SetPayload(payload *models.GetDetailed
 func (o *GetDetailedStatsForStartedAppOK) WriteResponse(rw http.ResponseWriter, producer runtime.Producer) {
 
 	rw.WriteHeader(200)
-	if o.Payload != nil {
-		payload := o.Payload
-		if err := producer.Produce(rw, payload); err != nil {
-			panic(err) // let the recovery middleware deal with this
-		}
+	payload := o.Payload
+	if payload == nil {
+		// return empty map
+		payload = models.GetDetailedStatsForStartedAppResponseResource{}
+	}
+
+	if err := producer.Produce(rw, payload); err != nil {
+		panic(err) // let the recovery middleware deal with this
 	}
 }

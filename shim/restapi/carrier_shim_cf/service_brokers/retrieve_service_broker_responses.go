@@ -25,7 +25,7 @@ type RetrieveServiceBrokerOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveServiceBrokerResponse `json:"body,omitempty"`
+	Payload *models.RetrieveServiceBrokerResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveServiceBrokerOK creates RetrieveServiceBrokerOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveServiceBrokerOK() *RetrieveServiceBrokerOK {
 }
 
 // WithPayload adds the payload to the retrieve service broker o k response
-func (o *RetrieveServiceBrokerOK) WithPayload(payload *models.RetrieveServiceBrokerResponse) *RetrieveServiceBrokerOK {
+func (o *RetrieveServiceBrokerOK) WithPayload(payload *models.RetrieveServiceBrokerResponseResource) *RetrieveServiceBrokerOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve service broker o k response
-func (o *RetrieveServiceBrokerOK) SetPayload(payload *models.RetrieveServiceBrokerResponse) {
+func (o *RetrieveServiceBrokerOK) SetPayload(payload *models.RetrieveServiceBrokerResponseResource) {
 	o.Payload = payload
 }
 

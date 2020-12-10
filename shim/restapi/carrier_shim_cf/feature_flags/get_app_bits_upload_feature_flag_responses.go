@@ -25,7 +25,7 @@ type GetAppBitsUploadFeatureFlagOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetAppBitsUploadFeatureFlagResponse `json:"body,omitempty"`
+	Payload *models.GetAppBitsUploadFeatureFlagResponseResource `json:"body,omitempty"`
 }
 
 // NewGetAppBitsUploadFeatureFlagOK creates GetAppBitsUploadFeatureFlagOK with default headers values
@@ -35,13 +35,13 @@ func NewGetAppBitsUploadFeatureFlagOK() *GetAppBitsUploadFeatureFlagOK {
 }
 
 // WithPayload adds the payload to the get app bits upload feature flag o k response
-func (o *GetAppBitsUploadFeatureFlagOK) WithPayload(payload *models.GetAppBitsUploadFeatureFlagResponse) *GetAppBitsUploadFeatureFlagOK {
+func (o *GetAppBitsUploadFeatureFlagOK) WithPayload(payload *models.GetAppBitsUploadFeatureFlagResponseResource) *GetAppBitsUploadFeatureFlagOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get app bits upload feature flag o k response
-func (o *GetAppBitsUploadFeatureFlagOK) SetPayload(payload *models.GetAppBitsUploadFeatureFlagResponse) {
+func (o *GetAppBitsUploadFeatureFlagOK) SetPayload(payload *models.GetAppBitsUploadFeatureFlagResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type AssociateSpaceWithSpaceQuotaDefinitionCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateSpaceWithSpaceQuotaDefinitionResponse `json:"body,omitempty"`
+	Payload *models.AssociateSpaceWithSpaceQuotaDefinitionResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateSpaceWithSpaceQuotaDefinitionCreated creates AssociateSpaceWithSpaceQuotaDefinitionCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateSpaceWithSpaceQuotaDefinitionCreated() *AssociateSpaceWithSpace
 }
 
 // WithPayload adds the payload to the associate space with space quota definition created response
-func (o *AssociateSpaceWithSpaceQuotaDefinitionCreated) WithPayload(payload *models.AssociateSpaceWithSpaceQuotaDefinitionResponse) *AssociateSpaceWithSpaceQuotaDefinitionCreated {
+func (o *AssociateSpaceWithSpaceQuotaDefinitionCreated) WithPayload(payload *models.AssociateSpaceWithSpaceQuotaDefinitionResponseResource) *AssociateSpaceWithSpaceQuotaDefinitionCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate space with space quota definition created response
-func (o *AssociateSpaceWithSpaceQuotaDefinitionCreated) SetPayload(payload *models.AssociateSpaceWithSpaceQuotaDefinitionResponse) {
+func (o *AssociateSpaceWithSpaceQuotaDefinitionCreated) SetPayload(payload *models.AssociateSpaceWithSpaceQuotaDefinitionResponseResource) {
 	o.Payload = payload
 }
 

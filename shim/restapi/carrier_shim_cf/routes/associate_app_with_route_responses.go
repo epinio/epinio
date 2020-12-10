@@ -25,7 +25,7 @@ type AssociateAppWithRouteCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.AssociateAppWithRouteResponse `json:"body,omitempty"`
+	Payload *models.AssociateAppWithRouteResponseResource `json:"body,omitempty"`
 }
 
 // NewAssociateAppWithRouteCreated creates AssociateAppWithRouteCreated with default headers values
@@ -35,13 +35,13 @@ func NewAssociateAppWithRouteCreated() *AssociateAppWithRouteCreated {
 }
 
 // WithPayload adds the payload to the associate app with route created response
-func (o *AssociateAppWithRouteCreated) WithPayload(payload *models.AssociateAppWithRouteResponse) *AssociateAppWithRouteCreated {
+func (o *AssociateAppWithRouteCreated) WithPayload(payload *models.AssociateAppWithRouteResponseResource) *AssociateAppWithRouteCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the associate app with route created response
-func (o *AssociateAppWithRouteCreated) SetPayload(payload *models.AssociateAppWithRouteResponse) {
+func (o *AssociateAppWithRouteCreated) SetPayload(payload *models.AssociateAppWithRouteResponseResource) {
 	o.Payload = payload
 }
 

@@ -25,7 +25,7 @@ type UpdateOrganizationQuotaDefinitionCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateOrganizationQuotaDefinitionResponse `json:"body,omitempty"`
+	Payload *models.UpdateOrganizationQuotaDefinitionResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateOrganizationQuotaDefinitionCreated creates UpdateOrganizationQuotaDefinitionCreated with default headers values
@@ -35,13 +35,13 @@ func NewUpdateOrganizationQuotaDefinitionCreated() *UpdateOrganizationQuotaDefin
 }
 
 // WithPayload adds the payload to the update organization quota definition created response
-func (o *UpdateOrganizationQuotaDefinitionCreated) WithPayload(payload *models.UpdateOrganizationQuotaDefinitionResponse) *UpdateOrganizationQuotaDefinitionCreated {
+func (o *UpdateOrganizationQuotaDefinitionCreated) WithPayload(payload *models.UpdateOrganizationQuotaDefinitionResponseResource) *UpdateOrganizationQuotaDefinitionCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update organization quota definition created response
-func (o *UpdateOrganizationQuotaDefinitionCreated) SetPayload(payload *models.UpdateOrganizationQuotaDefinitionResponse) {
+func (o *UpdateOrganizationQuotaDefinitionCreated) SetPayload(payload *models.UpdateOrganizationQuotaDefinitionResponseResource) {
 	o.Payload = payload
 }
 

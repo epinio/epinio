@@ -25,7 +25,7 @@ type GetSpaceSummaryOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetSpaceSummaryResponse `json:"body,omitempty"`
+	Payload *models.GetSpaceSummaryResponseResource `json:"body,omitempty"`
 }
 
 // NewGetSpaceSummaryOK creates GetSpaceSummaryOK with default headers values
@@ -35,13 +35,13 @@ func NewGetSpaceSummaryOK() *GetSpaceSummaryOK {
 }
 
 // WithPayload adds the payload to the get space summary o k response
-func (o *GetSpaceSummaryOK) WithPayload(payload *models.GetSpaceSummaryResponse) *GetSpaceSummaryOK {
+func (o *GetSpaceSummaryOK) WithPayload(payload *models.GetSpaceSummaryResponseResource) *GetSpaceSummaryOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get space summary o k response
-func (o *GetSpaceSummaryOK) SetPayload(payload *models.GetSpaceSummaryResponse) {
+func (o *GetSpaceSummaryOK) SetPayload(payload *models.GetSpaceSummaryResponseResource) {
 	o.Payload = payload
 }
 

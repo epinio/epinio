@@ -25,7 +25,7 @@ type RetrievingOrganizationMemoryUsageOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrievingOrganizationMemoryUsageResponse `json:"body,omitempty"`
+	Payload *models.RetrievingOrganizationMemoryUsageResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrievingOrganizationMemoryUsageOK creates RetrievingOrganizationMemoryUsageOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrievingOrganizationMemoryUsageOK() *RetrievingOrganizationMemoryUsage
 }
 
 // WithPayload adds the payload to the retrieving organization memory usage o k response
-func (o *RetrievingOrganizationMemoryUsageOK) WithPayload(payload *models.RetrievingOrganizationMemoryUsageResponse) *RetrievingOrganizationMemoryUsageOK {
+func (o *RetrievingOrganizationMemoryUsageOK) WithPayload(payload *models.RetrievingOrganizationMemoryUsageResponseResource) *RetrievingOrganizationMemoryUsageOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieving organization memory usage o k response
-func (o *RetrievingOrganizationMemoryUsageOK) SetPayload(payload *models.RetrievingOrganizationMemoryUsageResponse) {
+func (o *RetrievingOrganizationMemoryUsageOK) SetPayload(payload *models.RetrievingOrganizationMemoryUsageResponseResource) {
 	o.Payload = payload
 }
 

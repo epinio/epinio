@@ -25,7 +25,7 @@ type RetrieveSecurityGroupOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveSecurityGroupResponse `json:"body,omitempty"`
+	Payload *models.RetrieveSecurityGroupResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveSecurityGroupOK creates RetrieveSecurityGroupOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveSecurityGroupOK() *RetrieveSecurityGroupOK {
 }
 
 // WithPayload adds the payload to the retrieve security group o k response
-func (o *RetrieveSecurityGroupOK) WithPayload(payload *models.RetrieveSecurityGroupResponse) *RetrieveSecurityGroupOK {
+func (o *RetrieveSecurityGroupOK) WithPayload(payload *models.RetrieveSecurityGroupResponseResource) *RetrieveSecurityGroupOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve security group o k response
-func (o *RetrieveSecurityGroupOK) SetPayload(payload *models.RetrieveSecurityGroupResponse) {
+func (o *RetrieveSecurityGroupOK) SetPayload(payload *models.RetrieveSecurityGroupResponseResource) {
 	o.Payload = payload
 }
 

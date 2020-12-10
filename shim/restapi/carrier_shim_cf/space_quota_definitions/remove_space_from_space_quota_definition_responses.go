@@ -25,7 +25,7 @@ type RemoveSpaceFromSpaceQuotaDefinitionCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveSpaceFromSpaceQuotaDefinitionResponse `json:"body,omitempty"`
+	Payload *models.RemoveSpaceFromSpaceQuotaDefinitionResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveSpaceFromSpaceQuotaDefinitionCreated creates RemoveSpaceFromSpaceQuotaDefinitionCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveSpaceFromSpaceQuotaDefinitionCreated() *RemoveSpaceFromSpaceQuotaD
 }
 
 // WithPayload adds the payload to the remove space from space quota definition created response
-func (o *RemoveSpaceFromSpaceQuotaDefinitionCreated) WithPayload(payload *models.RemoveSpaceFromSpaceQuotaDefinitionResponse) *RemoveSpaceFromSpaceQuotaDefinitionCreated {
+func (o *RemoveSpaceFromSpaceQuotaDefinitionCreated) WithPayload(payload *models.RemoveSpaceFromSpaceQuotaDefinitionResponseResource) *RemoveSpaceFromSpaceQuotaDefinitionCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove space from space quota definition created response
-func (o *RemoveSpaceFromSpaceQuotaDefinitionCreated) SetPayload(payload *models.RemoveSpaceFromSpaceQuotaDefinitionResponse) {
+func (o *RemoveSpaceFromSpaceQuotaDefinitionCreated) SetPayload(payload *models.RemoveSpaceFromSpaceQuotaDefinitionResponseResource) {
 	o.Payload = payload
 }
 
