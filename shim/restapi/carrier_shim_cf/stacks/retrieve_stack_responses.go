@@ -25,7 +25,7 @@ type RetrieveStackOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveStackResponse `json:"body,omitempty"`
+	Payload *models.RetrieveStackResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveStackOK creates RetrieveStackOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveStackOK() *RetrieveStackOK {
 }
 
 // WithPayload adds the payload to the retrieve stack o k response
-func (o *RetrieveStackOK) WithPayload(payload *models.RetrieveStackResponse) *RetrieveStackOK {
+func (o *RetrieveStackOK) WithPayload(payload *models.RetrieveStackResponseResource) *RetrieveStackOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve stack o k response
-func (o *RetrieveStackOK) SetPayload(payload *models.RetrieveStackResponse) {
+func (o *RetrieveStackOK) SetPayload(payload *models.RetrieveStackResponseResource) {
 	o.Payload = payload
 }
 

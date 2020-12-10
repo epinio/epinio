@@ -25,7 +25,7 @@ type SetSecurityGroupAsDefaultForRunningAppsOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.SetSecurityGroupAsDefaultForRunningAppsResponse `json:"body,omitempty"`
+	Payload *models.SetSecurityGroupAsDefaultForRunningAppsResponseResource `json:"body,omitempty"`
 }
 
 // NewSetSecurityGroupAsDefaultForRunningAppsOK creates SetSecurityGroupAsDefaultForRunningAppsOK with default headers values
@@ -35,13 +35,13 @@ func NewSetSecurityGroupAsDefaultForRunningAppsOK() *SetSecurityGroupAsDefaultFo
 }
 
 // WithPayload adds the payload to the set security group as default for running apps o k response
-func (o *SetSecurityGroupAsDefaultForRunningAppsOK) WithPayload(payload *models.SetSecurityGroupAsDefaultForRunningAppsResponse) *SetSecurityGroupAsDefaultForRunningAppsOK {
+func (o *SetSecurityGroupAsDefaultForRunningAppsOK) WithPayload(payload *models.SetSecurityGroupAsDefaultForRunningAppsResponseResource) *SetSecurityGroupAsDefaultForRunningAppsOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the set security group as default for running apps o k response
-func (o *SetSecurityGroupAsDefaultForRunningAppsOK) SetPayload(payload *models.SetSecurityGroupAsDefaultForRunningAppsResponse) {
+func (o *SetSecurityGroupAsDefaultForRunningAppsOK) SetPayload(payload *models.SetSecurityGroupAsDefaultForRunningAppsResponseResource) {
 	o.Payload = payload
 }
 

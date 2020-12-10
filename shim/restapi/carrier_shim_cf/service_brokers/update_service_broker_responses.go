@@ -25,7 +25,7 @@ type UpdateServiceBrokerOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateServiceBrokerResponse `json:"body,omitempty"`
+	Payload *models.UpdateServiceBrokerResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateServiceBrokerOK creates UpdateServiceBrokerOK with default headers values
@@ -35,13 +35,13 @@ func NewUpdateServiceBrokerOK() *UpdateServiceBrokerOK {
 }
 
 // WithPayload adds the payload to the update service broker o k response
-func (o *UpdateServiceBrokerOK) WithPayload(payload *models.UpdateServiceBrokerResponse) *UpdateServiceBrokerOK {
+func (o *UpdateServiceBrokerOK) WithPayload(payload *models.UpdateServiceBrokerResponseResource) *UpdateServiceBrokerOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update service broker o k response
-func (o *UpdateServiceBrokerOK) SetPayload(payload *models.UpdateServiceBrokerResponse) {
+func (o *UpdateServiceBrokerOK) SetPayload(payload *models.UpdateServiceBrokerResponseResource) {
 	o.Payload = payload
 }
 

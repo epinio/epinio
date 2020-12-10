@@ -25,7 +25,7 @@ type CreateUserProvidedServiceInstanceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateUserProvidedServiceInstanceResponse `json:"body,omitempty"`
+	Payload *models.CreateUserProvidedServiceInstanceResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateUserProvidedServiceInstanceCreated creates CreateUserProvidedServiceInstanceCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateUserProvidedServiceInstanceCreated() *CreateUserProvidedServiceIns
 }
 
 // WithPayload adds the payload to the create user provided service instance created response
-func (o *CreateUserProvidedServiceInstanceCreated) WithPayload(payload *models.CreateUserProvidedServiceInstanceResponse) *CreateUserProvidedServiceInstanceCreated {
+func (o *CreateUserProvidedServiceInstanceCreated) WithPayload(payload *models.CreateUserProvidedServiceInstanceResponseResource) *CreateUserProvidedServiceInstanceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create user provided service instance created response
-func (o *CreateUserProvidedServiceInstanceCreated) SetPayload(payload *models.CreateUserProvidedServiceInstanceResponse) {
+func (o *CreateUserProvidedServiceInstanceCreated) SetPayload(payload *models.CreateUserProvidedServiceInstanceResponseResource) {
 	o.Payload = payload
 }
 

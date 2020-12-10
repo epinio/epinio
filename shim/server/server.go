@@ -17,9 +17,11 @@ func ShimServer(logger zerolog.Logger, cfg *configuration.Struct) (*restapi.Serv
 	}
 
 	api := carrier_shim_cf.NewCloudFoundryAPI(swaggerSpec)
+
 	server := restapi.NewServer(api)
 	server.Port = cfg.CF.Server.Port
 	server.Host = cfg.CF.Server.ListenInterface
+	server.ConfigureFlags()
 
 	logger.Info().Msgf("Will be listening on '%s:%d'.", server.Host, server.Port)
 

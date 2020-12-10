@@ -25,7 +25,7 @@ type CreatePrivateDomainOwnedByGivenOrganizationCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreatePrivateDomainOwnedByGivenOrganizationResponse `json:"body,omitempty"`
+	Payload *models.CreatePrivateDomainOwnedByGivenOrganizationResponseResource `json:"body,omitempty"`
 }
 
 // NewCreatePrivateDomainOwnedByGivenOrganizationCreated creates CreatePrivateDomainOwnedByGivenOrganizationCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreatePrivateDomainOwnedByGivenOrganizationCreated() *CreatePrivateDomai
 }
 
 // WithPayload adds the payload to the create private domain owned by given organization created response
-func (o *CreatePrivateDomainOwnedByGivenOrganizationCreated) WithPayload(payload *models.CreatePrivateDomainOwnedByGivenOrganizationResponse) *CreatePrivateDomainOwnedByGivenOrganizationCreated {
+func (o *CreatePrivateDomainOwnedByGivenOrganizationCreated) WithPayload(payload *models.CreatePrivateDomainOwnedByGivenOrganizationResponseResource) *CreatePrivateDomainOwnedByGivenOrganizationCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create private domain owned by given organization created response
-func (o *CreatePrivateDomainOwnedByGivenOrganizationCreated) SetPayload(payload *models.CreatePrivateDomainOwnedByGivenOrganizationResponse) {
+func (o *CreatePrivateDomainOwnedByGivenOrganizationCreated) SetPayload(payload *models.CreatePrivateDomainOwnedByGivenOrganizationResponseResource) {
 	o.Payload = payload
 }
 

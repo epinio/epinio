@@ -25,7 +25,7 @@ type MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK
 	/*
 	  In: Body
 	*/
-	Payload *models.MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponse `json:"body,omitempty"`
+	Payload *models.MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponseResource `json:"body,omitempty"`
 }
 
 // NewMigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK creates MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK with default headers values
@@ -35,13 +35,13 @@ func NewMigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimenta
 }
 
 // WithPayload adds the payload to the migrate service instances from one service plan to another service plan experimental o k response
-func (o *MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK) WithPayload(payload *models.MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponse) *MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK {
+func (o *MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK) WithPayload(payload *models.MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponseResource) *MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the migrate service instances from one service plan to another service plan experimental o k response
-func (o *MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK) SetPayload(payload *models.MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponse) {
+func (o *MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalOK) SetPayload(payload *models.MigrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponseResource) {
 	o.Payload = payload
 }
 

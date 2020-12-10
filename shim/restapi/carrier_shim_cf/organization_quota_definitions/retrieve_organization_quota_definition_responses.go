@@ -25,7 +25,7 @@ type RetrieveOrganizationQuotaDefinitionOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveOrganizationQuotaDefinitionResponse `json:"body,omitempty"`
+	Payload *models.RetrieveOrganizationQuotaDefinitionResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveOrganizationQuotaDefinitionOK creates RetrieveOrganizationQuotaDefinitionOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveOrganizationQuotaDefinitionOK() *RetrieveOrganizationQuotaDefini
 }
 
 // WithPayload adds the payload to the retrieve organization quota definition o k response
-func (o *RetrieveOrganizationQuotaDefinitionOK) WithPayload(payload *models.RetrieveOrganizationQuotaDefinitionResponse) *RetrieveOrganizationQuotaDefinitionOK {
+func (o *RetrieveOrganizationQuotaDefinitionOK) WithPayload(payload *models.RetrieveOrganizationQuotaDefinitionResponseResource) *RetrieveOrganizationQuotaDefinitionOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve organization quota definition o k response
-func (o *RetrieveOrganizationQuotaDefinitionOK) SetPayload(payload *models.RetrieveOrganizationQuotaDefinitionResponse) {
+func (o *RetrieveOrganizationQuotaDefinitionOK) SetPayload(payload *models.RetrieveOrganizationQuotaDefinitionResponseResource) {
 	o.Payload = payload
 }
 

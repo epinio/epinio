@@ -25,7 +25,7 @@ type CopyAppBitsForAppCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CopyAppBitsForAppResponse `json:"body,omitempty"`
+	Payload *models.CopyAppBitsForAppResponseResource `json:"body,omitempty"`
 }
 
 // NewCopyAppBitsForAppCreated creates CopyAppBitsForAppCreated with default headers values
@@ -35,13 +35,13 @@ func NewCopyAppBitsForAppCreated() *CopyAppBitsForAppCreated {
 }
 
 // WithPayload adds the payload to the copy app bits for app created response
-func (o *CopyAppBitsForAppCreated) WithPayload(payload *models.CopyAppBitsForAppResponse) *CopyAppBitsForAppCreated {
+func (o *CopyAppBitsForAppCreated) WithPayload(payload *models.CopyAppBitsForAppResponseResource) *CopyAppBitsForAppCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the copy app bits for app created response
-func (o *CopyAppBitsForAppCreated) SetPayload(payload *models.CopyAppBitsForAppResponse) {
+func (o *CopyAppBitsForAppCreated) SetPayload(payload *models.CopyAppBitsForAppResponseResource) {
 	o.Payload = payload
 }
 

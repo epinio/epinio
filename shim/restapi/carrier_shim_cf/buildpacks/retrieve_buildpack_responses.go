@@ -25,7 +25,7 @@ type RetrieveBuildpackOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveBuildpackResponse `json:"body,omitempty"`
+	Payload *models.RetrieveBuildpackResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveBuildpackOK creates RetrieveBuildpackOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveBuildpackOK() *RetrieveBuildpackOK {
 }
 
 // WithPayload adds the payload to the retrieve buildpack o k response
-func (o *RetrieveBuildpackOK) WithPayload(payload *models.RetrieveBuildpackResponse) *RetrieveBuildpackOK {
+func (o *RetrieveBuildpackOK) WithPayload(payload *models.RetrieveBuildpackResponseResource) *RetrieveBuildpackOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve buildpack o k response
-func (o *RetrieveBuildpackOK) SetPayload(payload *models.RetrieveBuildpackResponse) {
+func (o *RetrieveBuildpackOK) SetPayload(payload *models.RetrieveBuildpackResponseResource) {
 	o.Payload = payload
 }
 

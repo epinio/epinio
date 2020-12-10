@@ -25,7 +25,7 @@ type CreateServiceDeprecatedCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateServiceDeprecatedResponse `json:"body,omitempty"`
+	Payload *models.CreateServiceDeprecatedResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateServiceDeprecatedCreated creates CreateServiceDeprecatedCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateServiceDeprecatedCreated() *CreateServiceDeprecatedCreated {
 }
 
 // WithPayload adds the payload to the create service deprecated created response
-func (o *CreateServiceDeprecatedCreated) WithPayload(payload *models.CreateServiceDeprecatedResponse) *CreateServiceDeprecatedCreated {
+func (o *CreateServiceDeprecatedCreated) WithPayload(payload *models.CreateServiceDeprecatedResponseResource) *CreateServiceDeprecatedCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create service deprecated created response
-func (o *CreateServiceDeprecatedCreated) SetPayload(payload *models.CreateServiceDeprecatedResponse) {
+func (o *CreateServiceDeprecatedCreated) SetPayload(payload *models.CreateServiceDeprecatedResponseResource) {
 	o.Payload = payload
 }
 

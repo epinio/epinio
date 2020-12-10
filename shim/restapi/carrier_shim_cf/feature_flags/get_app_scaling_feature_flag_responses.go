@@ -25,7 +25,7 @@ type GetAppScalingFeatureFlagOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetAppScalingFeatureFlagResponse `json:"body,omitempty"`
+	Payload *models.GetAppScalingFeatureFlagResponseResource `json:"body,omitempty"`
 }
 
 // NewGetAppScalingFeatureFlagOK creates GetAppScalingFeatureFlagOK with default headers values
@@ -35,13 +35,13 @@ func NewGetAppScalingFeatureFlagOK() *GetAppScalingFeatureFlagOK {
 }
 
 // WithPayload adds the payload to the get app scaling feature flag o k response
-func (o *GetAppScalingFeatureFlagOK) WithPayload(payload *models.GetAppScalingFeatureFlagResponse) *GetAppScalingFeatureFlagOK {
+func (o *GetAppScalingFeatureFlagOK) WithPayload(payload *models.GetAppScalingFeatureFlagResponseResource) *GetAppScalingFeatureFlagOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get app scaling feature flag o k response
-func (o *GetAppScalingFeatureFlagOK) SetPayload(payload *models.GetAppScalingFeatureFlagResponse) {
+func (o *GetAppScalingFeatureFlagOK) SetPayload(payload *models.GetAppScalingFeatureFlagResponseResource) {
 	o.Payload = payload
 }
 

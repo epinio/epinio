@@ -25,7 +25,7 @@ type RetrieveServiceUsageEventOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveServiceUsageEventResponse `json:"body,omitempty"`
+	Payload *models.RetrieveServiceUsageEventResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveServiceUsageEventOK creates RetrieveServiceUsageEventOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveServiceUsageEventOK() *RetrieveServiceUsageEventOK {
 }
 
 // WithPayload adds the payload to the retrieve service usage event o k response
-func (o *RetrieveServiceUsageEventOK) WithPayload(payload *models.RetrieveServiceUsageEventResponse) *RetrieveServiceUsageEventOK {
+func (o *RetrieveServiceUsageEventOK) WithPayload(payload *models.RetrieveServiceUsageEventResponseResource) *RetrieveServiceUsageEventOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve service usage event o k response
-func (o *RetrieveServiceUsageEventOK) SetPayload(payload *models.RetrieveServiceUsageEventResponse) {
+func (o *RetrieveServiceUsageEventOK) SetPayload(payload *models.RetrieveServiceUsageEventResponseResource) {
 	o.Payload = payload
 }
 

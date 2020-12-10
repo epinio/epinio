@@ -25,7 +25,7 @@ type GetServiceInstanceCreationFeatureFlagOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetServiceInstanceCreationFeatureFlagResponse `json:"body,omitempty"`
+	Payload *models.GetServiceInstanceCreationFeatureFlagResponseResource `json:"body,omitempty"`
 }
 
 // NewGetServiceInstanceCreationFeatureFlagOK creates GetServiceInstanceCreationFeatureFlagOK with default headers values
@@ -35,13 +35,13 @@ func NewGetServiceInstanceCreationFeatureFlagOK() *GetServiceInstanceCreationFea
 }
 
 // WithPayload adds the payload to the get service instance creation feature flag o k response
-func (o *GetServiceInstanceCreationFeatureFlagOK) WithPayload(payload *models.GetServiceInstanceCreationFeatureFlagResponse) *GetServiceInstanceCreationFeatureFlagOK {
+func (o *GetServiceInstanceCreationFeatureFlagOK) WithPayload(payload *models.GetServiceInstanceCreationFeatureFlagResponseResource) *GetServiceInstanceCreationFeatureFlagOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get service instance creation feature flag o k response
-func (o *GetServiceInstanceCreationFeatureFlagOK) SetPayload(payload *models.GetServiceInstanceCreationFeatureFlagResponse) {
+func (o *GetServiceInstanceCreationFeatureFlagOK) SetPayload(payload *models.GetServiceInstanceCreationFeatureFlagResponseResource) {
 	o.Payload = payload
 }
 

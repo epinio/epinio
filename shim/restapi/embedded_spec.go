@@ -102,7 +102,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveAppUsageEventResponse"
+              "$ref": "#/definitions/retrieveAppUsageEventResponseResource"
             }
           }
         }
@@ -156,7 +156,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createAppResponse"
+              "$ref": "#/definitions/createAppResponseResource"
             }
           }
         }
@@ -227,7 +227,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveAppResponse"
+              "$ref": "#/definitions/retrieveAppResponseResource"
             }
           }
         }
@@ -267,7 +267,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateAppResponse"
+              "$ref": "#/definitions/updateAppResponseResource"
             }
           }
         }
@@ -305,7 +305,7 @@ func init() {
       "put": {
         "description": "curl --insecure -i %s/v2/apps/{guid}/bits -X PUT -H 'Authorization: %s' -d '%s'",
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
@@ -324,20 +324,30 @@ func init() {
             "required": true
           },
           {
-            "description": "An object instance that is serialized and sent as the request body.",
-            "name": "value",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/genericObject"
-            }
+            "type": "file",
+            "description": "A binary zip file containing the application bits.",
+            "name": "application",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "If true, a new asynchronous job is submitted to persist the bits and the job id is included in the response. The client will need to poll the job's status until persistence is completed successfully. If false, the request will block until the bits are persisted synchronously. Defaults to false.",
+            "name": "async",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Fingerprints of the application bits that have previously been pushed to Cloud Foundry. Each fingerprint must include the file path, sha1 hash, and file size in bytes. Each fingerprint may include the file mode, which must be an octal string with at least read and write permissions for owners. If a mode is not provided, the default mode of 0744 will be used. Fingerprinted bits MUST exist in the Cloud Foundry resource cache or the request (or job, if async) will fail.",
+            "name": "resources",
+            "in": "formData"
           }
         ],
         "responses": {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/uploadsBitsForAppResponse"
+              "$ref": "#/definitions/uploadsBitsForAppResponseResource"
             }
           }
         }
@@ -379,7 +389,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/copyAppBitsForAppResponse"
+              "$ref": "#/definitions/copyAppBitsForAppResponseResource"
             }
           }
         }
@@ -436,7 +446,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getEnvForAppResponse"
+              "$ref": "#/definitions/getEnvForAppResponseResource"
             }
           }
         }
@@ -466,7 +476,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getInstanceInformationForStartedAppResponse"
+              "$ref": "#/definitions/getInstanceInformationForStartedAppResponseResource"
             }
           }
         }
@@ -536,7 +546,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/restageAppResponse"
+              "$ref": "#/definitions/restageAppResponseResource"
             }
           }
         }
@@ -606,7 +616,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateRouteWithAppResponse"
+              "$ref": "#/definitions/associateRouteWithAppResponseResource"
             }
           }
         }
@@ -644,7 +654,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeRouteFromAppResponse"
+              "$ref": "#/definitions/removeRouteFromAppResponseResource"
             }
           }
         }
@@ -714,7 +724,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeServiceBindingFromAppResponse"
+              "$ref": "#/definitions/removeServiceBindingFromAppResponseResource"
             }
           }
         }
@@ -744,7 +754,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getDetailedStatsForStartedAppResponse"
+              "$ref": "#/definitions/getDetailedStatsForStartedAppResponseResource"
             }
           }
         }
@@ -775,6 +785,97 @@ func init() {
             "description": "successful response",
             "schema": {
               "$ref": "#/definitions/getAppSummaryResponse"
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Supports both JSON and HTML output. The HTML output is intended for browser user agents to display a login page.",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Use the configured prompts of the OpenID Connect Provider with the given origin key in the response. Fallback to zone values if no prompts are configured or origin is invalid.",
+            "name": "origin",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful response",
+            "schema": {
+              "$ref": "#/definitions/retrieveAuthLogin"
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/token": {
+      "post": {
+        "consumes": [
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "auth"
+        ],
+        "summary": "The /oauth/token endpoint requires client authentication to be accessed. Client Authentication can be passed as as part of the request authorization header, using basic authentication, or as part of the request parameters, using the client_id and client_secret parameter names.",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Client ID and secret may be passed as a basic authorization header, per RFC 6749 or as request parameters.",
+            "name": "Authorization",
+            "in": "header"
+          },
+          {
+            "type": "string",
+            "description": "A unique string representing the registration information provided by the client, the recipient of the token. Optional if it is passed as part of the Basic Authorization header.",
+            "name": "client_id",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Redirection URI to which the authorization server will send the user-agent back once access is granted (or denied)",
+            "name": "redirect_uri",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "The authorization code, obtained from /oauth/authorize, issued for the user",
+            "name": "code",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "The type of authentication being used to obtain the token, in this case authorization_code",
+            "name": "grant_type",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The secret passphrase configured for the OAuth client. Optional if it is passed as part of the Basic Authorization header.",
+            "name": "client_secret",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Can be set to opaque to retrieve an opaque and revocable token or to jwt to retrieve a JWT token. If not set the zone setting config.tokenPolicy.jwtRevocable is used.",
+            "name": "token_format",
+            "in": "formData"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful response",
+            "schema": {
+              "$ref": "#/definitions/createsOAuthTokenResponse"
             }
           }
         }
@@ -828,7 +929,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createsAdminBuildpackResponse"
+              "$ref": "#/definitions/createsAdminBuildpackResponseResource"
             }
           }
         }
@@ -858,7 +959,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveBuildpackResponse"
+              "$ref": "#/definitions/retrieveBuildpackResponseResource"
             }
           }
         }
@@ -898,7 +999,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/lockOrUnlockBuildpackResponse"
+              "$ref": "#/definitions/lockOrUnlockBuildpackResponseResource"
             }
           }
         }
@@ -947,7 +1048,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/gettingContentsOfRunningEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/gettingContentsOfRunningEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -980,7 +1081,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateContentsOfRunningEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/updateContentsOfRunningEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -1001,7 +1102,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/gettingContentsOfStagingEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/gettingContentsOfStagingEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -1034,7 +1135,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateContentsOfStagingEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/updateContentsOfStagingEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -1055,7 +1156,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getAllFeatureFlagsResponse"
+              "$ref": "#/definitions/getAllFeatureFlagsResponseResource"
             }
           }
         }
@@ -1076,7 +1177,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getAppBitsUploadFeatureFlagResponse"
+              "$ref": "#/definitions/getAppBitsUploadFeatureFlagResponseResource"
             }
           }
         }
@@ -1097,7 +1198,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getAppScalingFeatureFlagResponse"
+              "$ref": "#/definitions/getAppScalingFeatureFlagResponseResource"
             }
           }
         }
@@ -1118,7 +1219,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getPrivateDomainCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getPrivateDomainCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -1139,7 +1240,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getRouteCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getRouteCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -1160,7 +1261,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getServiceInstanceCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getServiceInstanceCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -1181,7 +1282,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getUserOrgCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getUserOrgCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -1223,7 +1324,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/setFeatureFlagResponse"
+              "$ref": "#/definitions/setFeatureFlagResponseResource"
             }
           }
         }
@@ -1277,7 +1378,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/setSecurityGroupAsDefaultForRunningAppsResponse"
+              "$ref": "#/definitions/setSecurityGroupAsDefaultForRunningAppsResponseResource"
             }
           }
         }
@@ -1359,7 +1460,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/setSecurityGroupAsDefaultForStagingResponse"
+              "$ref": "#/definitions/setSecurityGroupAsDefaultForStagingResponseResource"
             }
           }
         }
@@ -1441,7 +1542,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createsDomainOwnedByGivenOrganizationDeprecatedResponse"
+              "$ref": "#/definitions/createsDomainOwnedByGivenOrganizationDeprecatedResponseResource"
             }
           }
         }
@@ -1471,7 +1572,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveDomainDeprecatedResponse"
+              "$ref": "#/definitions/retrieveDomainDeprecatedResponseResource"
             }
           }
         }
@@ -1580,7 +1681,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveEventResponse"
+              "$ref": "#/definitions/retrieveEventResponseResource"
             }
           }
         }
@@ -1631,7 +1732,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveJobThatWasSuccessfulResponse"
+              "$ref": "#/definitions/retrieveJobThatWasSuccessfulResponseResource"
             }
           }
         }
@@ -1685,7 +1786,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createOrganizationResponse"
+              "$ref": "#/definitions/createOrganizationResponseResource"
             }
           }
         }
@@ -1715,7 +1816,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveOrganizationResponse"
+              "$ref": "#/definitions/retrieveOrganizationResponseResource"
             }
           }
         }
@@ -1755,7 +1856,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateOrganizationResponse"
+              "$ref": "#/definitions/updateOrganizationResponseResource"
             }
           }
         }
@@ -1853,7 +1954,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditorWithOrganizationResponse"
+              "$ref": "#/definitions/associateAuditorWithOrganizationResponseResource"
             }
           }
         }
@@ -1891,7 +1992,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditorFromOrganizationResponse"
+              "$ref": "#/definitions/removeAuditorFromOrganizationResponseResource"
             }
           }
         }
@@ -1961,7 +2062,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateBillingManagerWithOrganizationResponse"
+              "$ref": "#/definitions/associateBillingManagerWithOrganizationResponseResource"
             }
           }
         }
@@ -1999,7 +2100,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeBillingManagerFromOrganizationResponse"
+              "$ref": "#/definitions/removeBillingManagerFromOrganizationResponseResource"
             }
           }
         }
@@ -2099,7 +2200,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagerWithOrganizationResponse"
+              "$ref": "#/definitions/associateManagerWithOrganizationResponseResource"
             }
           }
         }
@@ -2137,7 +2238,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagerFromOrganizationResponse"
+              "$ref": "#/definitions/removeManagerFromOrganizationResponseResource"
             }
           }
         }
@@ -2167,7 +2268,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrievingOrganizationMemoryUsageResponse"
+              "$ref": "#/definitions/retrievingOrganizationMemoryUsageResponseResource"
             }
           }
         }
@@ -2317,7 +2418,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getOrganizationSummaryResponse"
+              "$ref": "#/definitions/getOrganizationSummaryResponseResource"
             }
           }
         }
@@ -2387,7 +2488,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateUserWithOrganizationResponse"
+              "$ref": "#/definitions/associateUserWithOrganizationResponseResource"
             }
           }
         }
@@ -2425,7 +2526,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeUserFromOrganizationResponse"
+              "$ref": "#/definitions/removeUserFromOrganizationResponseResource"
             }
           }
         }
@@ -2479,7 +2580,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createPrivateDomainOwnedByGivenOrganizationResponse"
+              "$ref": "#/definitions/createPrivateDomainOwnedByGivenOrganizationResponseResource"
             }
           }
         }
@@ -2509,7 +2610,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrievePrivateDomainResponse"
+              "$ref": "#/definitions/retrievePrivateDomainResponseResource"
             }
           }
         }
@@ -2591,7 +2692,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createOrganizationQuotaDefinitionResponse"
+              "$ref": "#/definitions/createOrganizationQuotaDefinitionResponseResource"
             }
           }
         }
@@ -2621,7 +2722,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveOrganizationQuotaDefinitionResponse"
+              "$ref": "#/definitions/retrieveOrganizationQuotaDefinitionResponseResource"
             }
           }
         }
@@ -2661,7 +2762,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateOrganizationQuotaDefinitionResponse"
+              "$ref": "#/definitions/updateOrganizationQuotaDefinitionResponseResource"
             }
           }
         }
@@ -2727,7 +2828,10 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/listAllMatchingResourcesResponse"
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/listAllMatchingResourcesResponse"
+              }
             }
           }
         }
@@ -2781,7 +2885,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createRouteResponse"
+              "$ref": "#/definitions/createRouteResponseResource"
             }
           }
         }
@@ -2845,7 +2949,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveRouteResponse"
+              "$ref": "#/definitions/retrieveRouteResponseResource"
             }
           }
         }
@@ -2885,7 +2989,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateRouteResponse"
+              "$ref": "#/definitions/updateRouteResponseResource"
             }
           }
         }
@@ -2983,7 +3087,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAppWithRouteResponse"
+              "$ref": "#/definitions/associateAppWithRouteResponseResource"
             }
           }
         }
@@ -3021,7 +3125,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAppFromRouteResponse"
+              "$ref": "#/definitions/removeAppFromRouteResponseResource"
             }
           }
         }
@@ -3075,7 +3179,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSecurityGroupResponse"
+              "$ref": "#/definitions/createSecurityGroupResponseResource"
             }
           }
         }
@@ -3105,7 +3209,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSecurityGroupResponse"
+              "$ref": "#/definitions/retrieveSecurityGroupResponseResource"
             }
           }
         }
@@ -3145,7 +3249,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateSecurityGroupResponse"
+              "$ref": "#/definitions/updateSecurityGroupResponseResource"
             }
           }
         }
@@ -3243,7 +3347,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSpaceWithSecurityGroupResponse"
+              "$ref": "#/definitions/associateSpaceWithSecurityGroupResponseResource"
             }
           }
         }
@@ -3281,7 +3385,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSpaceFromSecurityGroupResponse"
+              "$ref": "#/definitions/removeSpaceFromSecurityGroupResponseResource"
             }
           }
         }
@@ -3332,7 +3436,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceAuthTokenDeprecatedResponse"
+              "$ref": "#/definitions/retrieveServiceAuthTokenDeprecatedResponseResource"
             }
           }
         }
@@ -3414,7 +3518,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceBindingResponse"
+              "$ref": "#/definitions/createServiceBindingResponseResource"
             }
           }
         }
@@ -3444,7 +3548,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceBindingResponse"
+              "$ref": "#/definitions/retrieveServiceBindingResponseResource"
             }
           }
         }
@@ -3526,7 +3630,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceBrokerResponse"
+              "$ref": "#/definitions/createServiceBrokerResponseResource"
             }
           }
         }
@@ -3556,7 +3660,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceBrokerResponse"
+              "$ref": "#/definitions/retrieveServiceBrokerResponseResource"
             }
           }
         }
@@ -3596,7 +3700,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServiceBrokerResponse"
+              "$ref": "#/definitions/updateServiceBrokerResponseResource"
             }
           }
         }
@@ -3678,7 +3782,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceInstanceResponse"
+              "$ref": "#/definitions/createServiceInstanceResponseResource"
             }
           }
         }
@@ -3708,7 +3812,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceInstanceResponse"
+              "$ref": "#/definitions/retrieveServiceInstanceResponseResource"
             }
           }
         }
@@ -3748,7 +3852,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServiceInstanceResponse"
+              "$ref": "#/definitions/updateServiceInstanceResponseResource"
             }
           }
         }
@@ -3806,7 +3910,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrievingPermissionsOnServiceInstanceResponse"
+              "$ref": "#/definitions/retrievingPermissionsOnServiceInstanceResponseResource"
             }
           }
         }
@@ -3890,7 +3994,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServicePlanVisibilityResponse"
+              "$ref": "#/definitions/createServicePlanVisibilityResponseResource"
             }
           }
         }
@@ -3920,7 +4024,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServicePlanVisibilityResponse"
+              "$ref": "#/definitions/retrieveServicePlanVisibilityResponseResource"
             }
           }
         }
@@ -3960,7 +4064,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServicePlanVisibilityResponse"
+              "$ref": "#/definitions/updateServicePlanVisibilityResponseResource"
             }
           }
         }
@@ -4042,7 +4146,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServicePlanDeprecatedResponse"
+              "$ref": "#/definitions/updateServicePlanDeprecatedResponseResource"
             }
           }
         }
@@ -4075,7 +4179,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServicePlanDeprecatedResponse"
+              "$ref": "#/definitions/createServicePlanDeprecatedResponseResource"
             }
           }
         }
@@ -4105,7 +4209,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServicePlanResponse"
+              "$ref": "#/definitions/retrieveServicePlanResponseResource"
             }
           }
         }
@@ -4175,7 +4279,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/migrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponse"
+              "$ref": "#/definitions/migrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponseResource"
             }
           }
         }
@@ -4247,7 +4351,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceUsageEventResponse"
+              "$ref": "#/definitions/retrieveServiceUsageEventResponseResource"
             }
           }
         }
@@ -4301,7 +4405,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServiceDeprecatedResponse"
+              "$ref": "#/definitions/updateServiceDeprecatedResponseResource"
             }
           }
         }
@@ -4334,7 +4438,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceDeprecatedResponse"
+              "$ref": "#/definitions/createServiceDeprecatedResponseResource"
             }
           }
         }
@@ -4364,7 +4468,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceResponse"
+              "$ref": "#/definitions/retrieveServiceResponseResource"
             }
           }
         }
@@ -4476,7 +4580,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSharedDomainResponse"
+              "$ref": "#/definitions/createSharedDomainResponseResource"
             }
           }
         }
@@ -4506,7 +4610,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSharedDomainResponse"
+              "$ref": "#/definitions/retrieveSharedDomainResponseResource"
             }
           }
         }
@@ -4588,7 +4692,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/createSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -4618,7 +4722,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/retrieveSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -4658,7 +4762,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/updateSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -4756,7 +4860,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSpaceWithSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/associateSpaceWithSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -4794,7 +4898,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSpaceFromSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/removeSpaceFromSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -4848,7 +4952,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSpaceResponse"
+              "$ref": "#/definitions/createSpaceResponseResource"
             }
           }
         }
@@ -4878,7 +4982,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSpaceResponse"
+              "$ref": "#/definitions/retrieveSpaceResponseResource"
             }
           }
         }
@@ -4918,7 +5022,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateSpaceResponse"
+              "$ref": "#/definitions/updateSpaceResponseResource"
             }
           }
         }
@@ -5046,7 +5150,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditorWithSpaceResponse"
+              "$ref": "#/definitions/associateAuditorWithSpaceResponseResource"
             }
           }
         }
@@ -5084,7 +5188,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditorFromSpaceResponse"
+              "$ref": "#/definitions/removeAuditorFromSpaceResponseResource"
             }
           }
         }
@@ -5154,7 +5258,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateDeveloperWithSpaceResponse"
+              "$ref": "#/definitions/associateDeveloperWithSpaceResponseResource"
             }
           }
         }
@@ -5192,7 +5296,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeDeveloperFromSpaceResponse"
+              "$ref": "#/definitions/removeDeveloperFromSpaceResponseResource"
             }
           }
         }
@@ -5322,7 +5426,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagerWithSpaceResponse"
+              "$ref": "#/definitions/associateManagerWithSpaceResponseResource"
             }
           }
         }
@@ -5360,7 +5464,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagerFromSpaceResponse"
+              "$ref": "#/definitions/removeManagerFromSpaceResponseResource"
             }
           }
         }
@@ -5460,7 +5564,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSecurityGroupWithSpaceResponse"
+              "$ref": "#/definitions/associateSecurityGroupWithSpaceResponseResource"
             }
           }
         }
@@ -5498,7 +5602,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSecurityGroupFromSpaceResponse"
+              "$ref": "#/definitions/removeSecurityGroupFromSpaceResponseResource"
             }
           }
         }
@@ -5588,7 +5692,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getSpaceSummaryResponse"
+              "$ref": "#/definitions/getSpaceSummaryResponseResource"
             }
           }
         }
@@ -5639,7 +5743,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveStackResponse"
+              "$ref": "#/definitions/retrieveStackResponseResource"
             }
           }
         }
@@ -5721,7 +5825,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createUserProvidedServiceInstanceResponse"
+              "$ref": "#/definitions/createUserProvidedServiceInstanceResponseResource"
             }
           }
         }
@@ -5751,7 +5855,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveUserProvidedServiceInstanceResponse"
+              "$ref": "#/definitions/retrieveUserProvidedServiceInstanceResponseResource"
             }
           }
         }
@@ -5791,7 +5895,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateUserProvidedServiceInstanceResponse"
+              "$ref": "#/definitions/updateUserProvidedServiceInstanceResponseResource"
             }
           }
         }
@@ -5903,7 +6007,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createUserResponse"
+              "$ref": "#/definitions/createUserResponseResource"
             }
           }
         }
@@ -5933,7 +6037,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveUserResponse"
+              "$ref": "#/definitions/retrieveUserResponseResource"
             }
           }
         }
@@ -5973,7 +6077,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateUserResponse"
+              "$ref": "#/definitions/updateUserResponseResource"
             }
           }
         }
@@ -6071,7 +6175,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditedOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateAuditedOrganizationWithUserResponseResource"
             }
           }
         }
@@ -6109,7 +6213,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditedOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeAuditedOrganizationFromUserResponseResource"
             }
           }
         }
@@ -6179,7 +6283,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditedSpaceWithUserResponse"
+              "$ref": "#/definitions/associateAuditedSpaceWithUserResponseResource"
             }
           }
         }
@@ -6217,7 +6321,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditedSpaceFromUserResponse"
+              "$ref": "#/definitions/removeAuditedSpaceFromUserResponseResource"
             }
           }
         }
@@ -6287,7 +6391,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateBillingManagedOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateBillingManagedOrganizationWithUserResponseResource"
             }
           }
         }
@@ -6325,7 +6429,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeBillingManagedOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeBillingManagedOrganizationFromUserResponseResource"
             }
           }
         }
@@ -6395,7 +6499,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagedOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateManagedOrganizationWithUserResponseResource"
             }
           }
         }
@@ -6433,7 +6537,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagedOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeManagedOrganizationFromUserResponseResource"
             }
           }
         }
@@ -6503,7 +6607,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagedSpaceWithUserResponse"
+              "$ref": "#/definitions/associateManagedSpaceWithUserResponseResource"
             }
           }
         }
@@ -6541,7 +6645,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagedSpaceFromUserResponse"
+              "$ref": "#/definitions/removeManagedSpaceFromUserResponseResource"
             }
           }
         }
@@ -6611,7 +6715,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateOrganizationWithUserResponseResource"
             }
           }
         }
@@ -6649,7 +6753,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeOrganizationFromUserResponseResource"
             }
           }
         }
@@ -6719,7 +6823,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSpaceWithUserResponse"
+              "$ref": "#/definitions/associateSpaceWithUserResponseResource"
             }
           }
         }
@@ -6757,7 +6861,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSpaceFromUserResponse"
+              "$ref": "#/definitions/removeSpaceFromUserResponseResource"
             }
           }
         }
@@ -6787,7 +6891,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getUserSummaryResponse"
+              "$ref": "#/definitions/getUserSummaryResponseResource"
             }
           }
         }
@@ -9756,6 +9860,38 @@ func init() {
         }
       }
     },
+    "createsOAuthTokenResponse": {
+      "properties": {
+        "access_token": {
+          "description": "An OAuth2 access token. When token_format=opaque is requested this value will be a random string that can only be validated using the UAA's /check_token or /introspect endpoints. When token_format=jwt is requested, this token will be a JSON Web Token suitable for offline validation by OAuth2 Resource Servers.",
+          "type": "string"
+        },
+        "expires_in": {
+          "description": "The number of seconds until the access token expires.",
+          "type": "integer"
+        },
+        "id_token": {
+          "description": "An OpenID Connect ID token. This portion of the token response is only returned when clients are configured with the scope openid, the response_type includes id_token, and the user has granted approval to the client for the openid scope.",
+          "type": "string"
+        },
+        "jti": {
+          "description": "A globally unique identifier for this access token. This identifier is used when revoking tokens.",
+          "type": "string"
+        },
+        "refresh_token": {
+          "description": "An OAuth2 refresh token. Clients typically use the refresh token to obtain a new access token without the need for the user to authenticate again. They do this by calling /oauth/token with grant_type=refresh_token. See here for more information. A refresh token will only be issued to clients that have refresh_token in their list of authorized_grant_types.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "A space-delimited list of scopes authorized by the user for this client. This list is the intersection of the scopes configured on the client, the group memberships of the user, and the user's approvals (when autoapprove: true is not configured on the client).",
+          "type": "string"
+        },
+        "token_type": {
+          "description": "The type of the access token issued. This field is mandated in RFC 6749. In the UAA, the only supported token_type is bearer.",
+          "type": "string"
+        }
+      }
+    },
     "createsSharedDomainDeprecatedRequest": {
       "properties": {
         "guid": {
@@ -10051,7 +10187,7 @@ func init() {
     "genericObject": {
       "type": "object",
       "additionalProperties": {
-        "type": "string"
+        "type": "object"
       }
     },
     "getAllFeatureFlagsResponse": {
@@ -10292,13 +10428,9 @@ func init() {
       }
     },
     "getDetailedStatsForStartedAppResponseResource": {
-      "properties": {
-        "entity": {
-          "$ref": "#/definitions/getDetailedStatsForStartedAppResponse"
-        },
-        "metadata": {
-          "$ref": "#/definitions/entityMetadata"
-        }
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/getDetailedStatsForStartedAppResponse"
       }
     },
     "getEnvForAppResponse": {
@@ -10414,13 +10546,9 @@ func init() {
       }
     },
     "getInstanceInformationForStartedAppResponseResource": {
-      "properties": {
-        "entity": {
-          "$ref": "#/definitions/getInstanceInformationForStartedAppResponse"
-        },
-        "metadata": {
-          "$ref": "#/definitions/entityMetadata"
-        }
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/getInstanceInformationForStartedAppResponse"
       }
     },
     "getOrganizationSummaryResponse": {
@@ -19523,6 +19651,95 @@ func init() {
         },
         "metadata": {
           "$ref": "#/definitions/entityMetadata"
+        }
+      }
+    },
+    "retrieveAuthLogin": {
+      "properties": {
+        "app": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "description": "The version of the auth server",
+              "type": "string"
+            }
+          }
+        },
+        "commit_id": {
+          "description": "The GIT sha for the UAA version",
+          "type": "string"
+        },
+        "entityID": {
+          "description": "The UAA is always a SAML service provider. This field contains the configured entityID",
+          "type": "string"
+        },
+        "idpDefinitions": {
+          "description": "Object  A list of alias/url pairs of SAML IDP providers configured. Each url is the starting point to initiate the authentication process for the SAML identity provider.",
+          "type": "object"
+        },
+        "links": {
+          "description": "A list of alias/url pairs of configured action URLs for the UAA",
+          "type": "object",
+          "properties": {
+            "login": {
+              "description": "The link to the login host alias of the UAA",
+              "type": "string"
+            },
+            "passwd": {
+              "description": "The link to the 'Forgot Password' functionality. Can be external or internal to the UAA",
+              "type": "string"
+            },
+            "register": {
+              "description": "The link to the 'Create Account' functionality. Can be external or internal to the UAA",
+              "type": "string"
+            },
+            "uaa": {
+              "description": "The link to the uaa alias host of the UAA",
+              "type": "string"
+            }
+          }
+        },
+        "prompts": {
+          "description": "A list of name/value pairs of configured prompts that the UAA will login a user. Format for each prompt is [type, display name] where type can be 'text' or 'password'",
+          "type": "object",
+          "properties": {
+            "passcode": {
+              "description": "If a SAML identity provider is configured, this prompt contains a URL to where the user can initiate the SAML authentication flow.",
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "x-omitempty": true
+            },
+            "password": {
+              "description": "Information about the password prompt.",
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "x-omitempty": true
+            },
+            "username": {
+              "description": "Information about the username prompt.",
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "x-omitempty": true
+            }
+          }
+        },
+        "showLoginLinks": {
+          "description": "Set to true if there are SAML or OAUTH/OIDC providers with a visible link on the login page.",
+          "type": "boolean"
+        },
+        "timestamp": {
+          "description": "JSON timestamp for the commit of the UAA version",
+          "type": "string"
+        },
+        "zone_name": {
+          "description": "The name of the zone invoked",
+          "type": "string"
         }
       }
     },
@@ -22228,7 +22445,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveAppUsageEventResponse"
+              "$ref": "#/definitions/retrieveAppUsageEventResponseResource"
             }
           }
         }
@@ -22282,7 +22499,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createAppResponse"
+              "$ref": "#/definitions/createAppResponseResource"
             }
           }
         }
@@ -22353,7 +22570,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveAppResponse"
+              "$ref": "#/definitions/retrieveAppResponseResource"
             }
           }
         }
@@ -22393,7 +22610,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateAppResponse"
+              "$ref": "#/definitions/updateAppResponseResource"
             }
           }
         }
@@ -22431,7 +22648,7 @@ func init() {
       "put": {
         "description": "curl --insecure -i %s/v2/apps/{guid}/bits -X PUT -H 'Authorization: %s' -d '%s'",
         "consumes": [
-          "application/json"
+          "multipart/form-data"
         ],
         "produces": [
           "application/json"
@@ -22450,20 +22667,30 @@ func init() {
             "required": true
           },
           {
-            "description": "An object instance that is serialized and sent as the request body.",
-            "name": "value",
-            "in": "body",
-            "required": true,
-            "schema": {
-              "$ref": "#/definitions/genericObject"
-            }
+            "type": "file",
+            "description": "A binary zip file containing the application bits.",
+            "name": "application",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "boolean",
+            "description": "If true, a new asynchronous job is submitted to persist the bits and the job id is included in the response. The client will need to poll the job's status until persistence is completed successfully. If false, the request will block until the bits are persisted synchronously. Defaults to false.",
+            "name": "async",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Fingerprints of the application bits that have previously been pushed to Cloud Foundry. Each fingerprint must include the file path, sha1 hash, and file size in bytes. Each fingerprint may include the file mode, which must be an octal string with at least read and write permissions for owners. If a mode is not provided, the default mode of 0744 will be used. Fingerprinted bits MUST exist in the Cloud Foundry resource cache or the request (or job, if async) will fail.",
+            "name": "resources",
+            "in": "formData"
           }
         ],
         "responses": {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/uploadsBitsForAppResponse"
+              "$ref": "#/definitions/uploadsBitsForAppResponseResource"
             }
           }
         }
@@ -22505,7 +22732,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/copyAppBitsForAppResponse"
+              "$ref": "#/definitions/copyAppBitsForAppResponseResource"
             }
           }
         }
@@ -22562,7 +22789,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getEnvForAppResponse"
+              "$ref": "#/definitions/getEnvForAppResponseResource"
             }
           }
         }
@@ -22592,7 +22819,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getInstanceInformationForStartedAppResponse"
+              "$ref": "#/definitions/getInstanceInformationForStartedAppResponseResource"
             }
           }
         }
@@ -22662,7 +22889,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/restageAppResponse"
+              "$ref": "#/definitions/restageAppResponseResource"
             }
           }
         }
@@ -22732,7 +22959,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateRouteWithAppResponse"
+              "$ref": "#/definitions/associateRouteWithAppResponseResource"
             }
           }
         }
@@ -22770,7 +22997,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeRouteFromAppResponse"
+              "$ref": "#/definitions/removeRouteFromAppResponseResource"
             }
           }
         }
@@ -22840,7 +23067,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeServiceBindingFromAppResponse"
+              "$ref": "#/definitions/removeServiceBindingFromAppResponseResource"
             }
           }
         }
@@ -22870,7 +23097,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getDetailedStatsForStartedAppResponse"
+              "$ref": "#/definitions/getDetailedStatsForStartedAppResponseResource"
             }
           }
         }
@@ -22901,6 +23128,97 @@ func init() {
             "description": "successful response",
             "schema": {
               "$ref": "#/definitions/getAppSummaryResponse"
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Supports both JSON and HTML output. The HTML output is intended for browser user agents to display a login page.",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Use the configured prompts of the OpenID Connect Provider with the given origin key in the response. Fallback to zone values if no prompts are configured or origin is invalid.",
+            "name": "origin",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful response",
+            "schema": {
+              "$ref": "#/definitions/retrieveAuthLogin"
+            }
+          }
+        }
+      }
+    },
+    "/auth/oauth/token": {
+      "post": {
+        "consumes": [
+          "application/x-www-form-urlencoded"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "auth"
+        ],
+        "summary": "The /oauth/token endpoint requires client authentication to be accessed. Client Authentication can be passed as as part of the request authorization header, using basic authentication, or as part of the request parameters, using the client_id and client_secret parameter names.",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "Client ID and secret may be passed as a basic authorization header, per RFC 6749 or as request parameters.",
+            "name": "Authorization",
+            "in": "header"
+          },
+          {
+            "type": "string",
+            "description": "A unique string representing the registration information provided by the client, the recipient of the token. Optional if it is passed as part of the Basic Authorization header.",
+            "name": "client_id",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Redirection URI to which the authorization server will send the user-agent back once access is granted (or denied)",
+            "name": "redirect_uri",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "The authorization code, obtained from /oauth/authorize, issued for the user",
+            "name": "code",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "The type of authentication being used to obtain the token, in this case authorization_code",
+            "name": "grant_type",
+            "in": "formData",
+            "required": true
+          },
+          {
+            "type": "string",
+            "description": "The secret passphrase configured for the OAuth client. Optional if it is passed as part of the Basic Authorization header.",
+            "name": "client_secret",
+            "in": "formData"
+          },
+          {
+            "type": "string",
+            "description": "Can be set to opaque to retrieve an opaque and revocable token or to jwt to retrieve a JWT token. If not set the zone setting config.tokenPolicy.jwtRevocable is used.",
+            "name": "token_format",
+            "in": "formData"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful response",
+            "schema": {
+              "$ref": "#/definitions/createsOAuthTokenResponse"
             }
           }
         }
@@ -22954,7 +23272,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createsAdminBuildpackResponse"
+              "$ref": "#/definitions/createsAdminBuildpackResponseResource"
             }
           }
         }
@@ -22984,7 +23302,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveBuildpackResponse"
+              "$ref": "#/definitions/retrieveBuildpackResponseResource"
             }
           }
         }
@@ -23024,7 +23342,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/lockOrUnlockBuildpackResponse"
+              "$ref": "#/definitions/lockOrUnlockBuildpackResponseResource"
             }
           }
         }
@@ -23073,7 +23391,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/gettingContentsOfRunningEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/gettingContentsOfRunningEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -23106,7 +23424,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateContentsOfRunningEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/updateContentsOfRunningEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -23127,7 +23445,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/gettingContentsOfStagingEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/gettingContentsOfStagingEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -23160,7 +23478,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateContentsOfStagingEnvironmentVariableGroupResponse"
+              "$ref": "#/definitions/updateContentsOfStagingEnvironmentVariableGroupResponseResource"
             }
           }
         }
@@ -23181,7 +23499,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getAllFeatureFlagsResponse"
+              "$ref": "#/definitions/getAllFeatureFlagsResponseResource"
             }
           }
         }
@@ -23202,7 +23520,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getAppBitsUploadFeatureFlagResponse"
+              "$ref": "#/definitions/getAppBitsUploadFeatureFlagResponseResource"
             }
           }
         }
@@ -23223,7 +23541,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getAppScalingFeatureFlagResponse"
+              "$ref": "#/definitions/getAppScalingFeatureFlagResponseResource"
             }
           }
         }
@@ -23244,7 +23562,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getPrivateDomainCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getPrivateDomainCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -23265,7 +23583,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getRouteCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getRouteCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -23286,7 +23604,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getServiceInstanceCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getServiceInstanceCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -23307,7 +23625,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getUserOrgCreationFeatureFlagResponse"
+              "$ref": "#/definitions/getUserOrgCreationFeatureFlagResponseResource"
             }
           }
         }
@@ -23349,7 +23667,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/setFeatureFlagResponse"
+              "$ref": "#/definitions/setFeatureFlagResponseResource"
             }
           }
         }
@@ -23403,7 +23721,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/setSecurityGroupAsDefaultForRunningAppsResponse"
+              "$ref": "#/definitions/setSecurityGroupAsDefaultForRunningAppsResponseResource"
             }
           }
         }
@@ -23485,7 +23803,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/setSecurityGroupAsDefaultForStagingResponse"
+              "$ref": "#/definitions/setSecurityGroupAsDefaultForStagingResponseResource"
             }
           }
         }
@@ -23567,7 +23885,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createsDomainOwnedByGivenOrganizationDeprecatedResponse"
+              "$ref": "#/definitions/createsDomainOwnedByGivenOrganizationDeprecatedResponseResource"
             }
           }
         }
@@ -23597,7 +23915,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveDomainDeprecatedResponse"
+              "$ref": "#/definitions/retrieveDomainDeprecatedResponseResource"
             }
           }
         }
@@ -23706,7 +24024,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveEventResponse"
+              "$ref": "#/definitions/retrieveEventResponseResource"
             }
           }
         }
@@ -23757,7 +24075,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveJobThatWasSuccessfulResponse"
+              "$ref": "#/definitions/retrieveJobThatWasSuccessfulResponseResource"
             }
           }
         }
@@ -23811,7 +24129,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createOrganizationResponse"
+              "$ref": "#/definitions/createOrganizationResponseResource"
             }
           }
         }
@@ -23841,7 +24159,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveOrganizationResponse"
+              "$ref": "#/definitions/retrieveOrganizationResponseResource"
             }
           }
         }
@@ -23881,7 +24199,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateOrganizationResponse"
+              "$ref": "#/definitions/updateOrganizationResponseResource"
             }
           }
         }
@@ -23979,7 +24297,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditorWithOrganizationResponse"
+              "$ref": "#/definitions/associateAuditorWithOrganizationResponseResource"
             }
           }
         }
@@ -24017,7 +24335,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditorFromOrganizationResponse"
+              "$ref": "#/definitions/removeAuditorFromOrganizationResponseResource"
             }
           }
         }
@@ -24087,7 +24405,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateBillingManagerWithOrganizationResponse"
+              "$ref": "#/definitions/associateBillingManagerWithOrganizationResponseResource"
             }
           }
         }
@@ -24125,7 +24443,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeBillingManagerFromOrganizationResponse"
+              "$ref": "#/definitions/removeBillingManagerFromOrganizationResponseResource"
             }
           }
         }
@@ -24225,7 +24543,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagerWithOrganizationResponse"
+              "$ref": "#/definitions/associateManagerWithOrganizationResponseResource"
             }
           }
         }
@@ -24263,7 +24581,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagerFromOrganizationResponse"
+              "$ref": "#/definitions/removeManagerFromOrganizationResponseResource"
             }
           }
         }
@@ -24293,7 +24611,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrievingOrganizationMemoryUsageResponse"
+              "$ref": "#/definitions/retrievingOrganizationMemoryUsageResponseResource"
             }
           }
         }
@@ -24443,7 +24761,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getOrganizationSummaryResponse"
+              "$ref": "#/definitions/getOrganizationSummaryResponseResource"
             }
           }
         }
@@ -24513,7 +24831,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateUserWithOrganizationResponse"
+              "$ref": "#/definitions/associateUserWithOrganizationResponseResource"
             }
           }
         }
@@ -24551,7 +24869,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeUserFromOrganizationResponse"
+              "$ref": "#/definitions/removeUserFromOrganizationResponseResource"
             }
           }
         }
@@ -24605,7 +24923,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createPrivateDomainOwnedByGivenOrganizationResponse"
+              "$ref": "#/definitions/createPrivateDomainOwnedByGivenOrganizationResponseResource"
             }
           }
         }
@@ -24635,7 +24953,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrievePrivateDomainResponse"
+              "$ref": "#/definitions/retrievePrivateDomainResponseResource"
             }
           }
         }
@@ -24717,7 +25035,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createOrganizationQuotaDefinitionResponse"
+              "$ref": "#/definitions/createOrganizationQuotaDefinitionResponseResource"
             }
           }
         }
@@ -24747,7 +25065,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveOrganizationQuotaDefinitionResponse"
+              "$ref": "#/definitions/retrieveOrganizationQuotaDefinitionResponseResource"
             }
           }
         }
@@ -24787,7 +25105,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateOrganizationQuotaDefinitionResponse"
+              "$ref": "#/definitions/updateOrganizationQuotaDefinitionResponseResource"
             }
           }
         }
@@ -24853,7 +25171,10 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/listAllMatchingResourcesResponse"
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/listAllMatchingResourcesResponse"
+              }
             }
           }
         }
@@ -24907,7 +25228,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createRouteResponse"
+              "$ref": "#/definitions/createRouteResponseResource"
             }
           }
         }
@@ -24971,7 +25292,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveRouteResponse"
+              "$ref": "#/definitions/retrieveRouteResponseResource"
             }
           }
         }
@@ -25011,7 +25332,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateRouteResponse"
+              "$ref": "#/definitions/updateRouteResponseResource"
             }
           }
         }
@@ -25109,7 +25430,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAppWithRouteResponse"
+              "$ref": "#/definitions/associateAppWithRouteResponseResource"
             }
           }
         }
@@ -25147,7 +25468,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAppFromRouteResponse"
+              "$ref": "#/definitions/removeAppFromRouteResponseResource"
             }
           }
         }
@@ -25201,7 +25522,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSecurityGroupResponse"
+              "$ref": "#/definitions/createSecurityGroupResponseResource"
             }
           }
         }
@@ -25231,7 +25552,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSecurityGroupResponse"
+              "$ref": "#/definitions/retrieveSecurityGroupResponseResource"
             }
           }
         }
@@ -25271,7 +25592,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateSecurityGroupResponse"
+              "$ref": "#/definitions/updateSecurityGroupResponseResource"
             }
           }
         }
@@ -25369,7 +25690,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSpaceWithSecurityGroupResponse"
+              "$ref": "#/definitions/associateSpaceWithSecurityGroupResponseResource"
             }
           }
         }
@@ -25407,7 +25728,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSpaceFromSecurityGroupResponse"
+              "$ref": "#/definitions/removeSpaceFromSecurityGroupResponseResource"
             }
           }
         }
@@ -25458,7 +25779,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceAuthTokenDeprecatedResponse"
+              "$ref": "#/definitions/retrieveServiceAuthTokenDeprecatedResponseResource"
             }
           }
         }
@@ -25540,7 +25861,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceBindingResponse"
+              "$ref": "#/definitions/createServiceBindingResponseResource"
             }
           }
         }
@@ -25570,7 +25891,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceBindingResponse"
+              "$ref": "#/definitions/retrieveServiceBindingResponseResource"
             }
           }
         }
@@ -25652,7 +25973,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceBrokerResponse"
+              "$ref": "#/definitions/createServiceBrokerResponseResource"
             }
           }
         }
@@ -25682,7 +26003,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceBrokerResponse"
+              "$ref": "#/definitions/retrieveServiceBrokerResponseResource"
             }
           }
         }
@@ -25722,7 +26043,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServiceBrokerResponse"
+              "$ref": "#/definitions/updateServiceBrokerResponseResource"
             }
           }
         }
@@ -25804,7 +26125,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceInstanceResponse"
+              "$ref": "#/definitions/createServiceInstanceResponseResource"
             }
           }
         }
@@ -25834,7 +26155,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceInstanceResponse"
+              "$ref": "#/definitions/retrieveServiceInstanceResponseResource"
             }
           }
         }
@@ -25874,7 +26195,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServiceInstanceResponse"
+              "$ref": "#/definitions/updateServiceInstanceResponseResource"
             }
           }
         }
@@ -25932,7 +26253,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrievingPermissionsOnServiceInstanceResponse"
+              "$ref": "#/definitions/retrievingPermissionsOnServiceInstanceResponseResource"
             }
           }
         }
@@ -26016,7 +26337,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServicePlanVisibilityResponse"
+              "$ref": "#/definitions/createServicePlanVisibilityResponseResource"
             }
           }
         }
@@ -26046,7 +26367,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServicePlanVisibilityResponse"
+              "$ref": "#/definitions/retrieveServicePlanVisibilityResponseResource"
             }
           }
         }
@@ -26086,7 +26407,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServicePlanVisibilityResponse"
+              "$ref": "#/definitions/updateServicePlanVisibilityResponseResource"
             }
           }
         }
@@ -26168,7 +26489,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServicePlanDeprecatedResponse"
+              "$ref": "#/definitions/updateServicePlanDeprecatedResponseResource"
             }
           }
         }
@@ -26201,7 +26522,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServicePlanDeprecatedResponse"
+              "$ref": "#/definitions/createServicePlanDeprecatedResponseResource"
             }
           }
         }
@@ -26231,7 +26552,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServicePlanResponse"
+              "$ref": "#/definitions/retrieveServicePlanResponseResource"
             }
           }
         }
@@ -26301,7 +26622,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/migrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponse"
+              "$ref": "#/definitions/migrateServiceInstancesFromOneServicePlanToAnotherServicePlanExperimentalResponseResource"
             }
           }
         }
@@ -26373,7 +26694,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceUsageEventResponse"
+              "$ref": "#/definitions/retrieveServiceUsageEventResponseResource"
             }
           }
         }
@@ -26427,7 +26748,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateServiceDeprecatedResponse"
+              "$ref": "#/definitions/updateServiceDeprecatedResponseResource"
             }
           }
         }
@@ -26460,7 +26781,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createServiceDeprecatedResponse"
+              "$ref": "#/definitions/createServiceDeprecatedResponseResource"
             }
           }
         }
@@ -26490,7 +26811,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveServiceResponse"
+              "$ref": "#/definitions/retrieveServiceResponseResource"
             }
           }
         }
@@ -26602,7 +26923,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSharedDomainResponse"
+              "$ref": "#/definitions/createSharedDomainResponseResource"
             }
           }
         }
@@ -26632,7 +26953,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSharedDomainResponse"
+              "$ref": "#/definitions/retrieveSharedDomainResponseResource"
             }
           }
         }
@@ -26714,7 +27035,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/createSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -26744,7 +27065,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/retrieveSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -26784,7 +27105,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/updateSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -26882,7 +27203,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSpaceWithSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/associateSpaceWithSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -26920,7 +27241,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSpaceFromSpaceQuotaDefinitionResponse"
+              "$ref": "#/definitions/removeSpaceFromSpaceQuotaDefinitionResponseResource"
             }
           }
         }
@@ -26974,7 +27295,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createSpaceResponse"
+              "$ref": "#/definitions/createSpaceResponseResource"
             }
           }
         }
@@ -27004,7 +27325,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveSpaceResponse"
+              "$ref": "#/definitions/retrieveSpaceResponseResource"
             }
           }
         }
@@ -27044,7 +27365,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateSpaceResponse"
+              "$ref": "#/definitions/updateSpaceResponseResource"
             }
           }
         }
@@ -27172,7 +27493,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditorWithSpaceResponse"
+              "$ref": "#/definitions/associateAuditorWithSpaceResponseResource"
             }
           }
         }
@@ -27210,7 +27531,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditorFromSpaceResponse"
+              "$ref": "#/definitions/removeAuditorFromSpaceResponseResource"
             }
           }
         }
@@ -27280,7 +27601,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateDeveloperWithSpaceResponse"
+              "$ref": "#/definitions/associateDeveloperWithSpaceResponseResource"
             }
           }
         }
@@ -27318,7 +27639,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeDeveloperFromSpaceResponse"
+              "$ref": "#/definitions/removeDeveloperFromSpaceResponseResource"
             }
           }
         }
@@ -27448,7 +27769,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagerWithSpaceResponse"
+              "$ref": "#/definitions/associateManagerWithSpaceResponseResource"
             }
           }
         }
@@ -27486,7 +27807,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagerFromSpaceResponse"
+              "$ref": "#/definitions/removeManagerFromSpaceResponseResource"
             }
           }
         }
@@ -27586,7 +27907,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSecurityGroupWithSpaceResponse"
+              "$ref": "#/definitions/associateSecurityGroupWithSpaceResponseResource"
             }
           }
         }
@@ -27624,7 +27945,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSecurityGroupFromSpaceResponse"
+              "$ref": "#/definitions/removeSecurityGroupFromSpaceResponseResource"
             }
           }
         }
@@ -27714,7 +28035,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getSpaceSummaryResponse"
+              "$ref": "#/definitions/getSpaceSummaryResponseResource"
             }
           }
         }
@@ -27765,7 +28086,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveStackResponse"
+              "$ref": "#/definitions/retrieveStackResponseResource"
             }
           }
         }
@@ -27847,7 +28168,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createUserProvidedServiceInstanceResponse"
+              "$ref": "#/definitions/createUserProvidedServiceInstanceResponseResource"
             }
           }
         }
@@ -27877,7 +28198,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveUserProvidedServiceInstanceResponse"
+              "$ref": "#/definitions/retrieveUserProvidedServiceInstanceResponseResource"
             }
           }
         }
@@ -27917,7 +28238,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateUserProvidedServiceInstanceResponse"
+              "$ref": "#/definitions/updateUserProvidedServiceInstanceResponseResource"
             }
           }
         }
@@ -28029,7 +28350,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/createUserResponse"
+              "$ref": "#/definitions/createUserResponseResource"
             }
           }
         }
@@ -28059,7 +28380,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/retrieveUserResponse"
+              "$ref": "#/definitions/retrieveUserResponseResource"
             }
           }
         }
@@ -28099,7 +28420,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/updateUserResponse"
+              "$ref": "#/definitions/updateUserResponseResource"
             }
           }
         }
@@ -28197,7 +28518,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditedOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateAuditedOrganizationWithUserResponseResource"
             }
           }
         }
@@ -28235,7 +28556,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditedOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeAuditedOrganizationFromUserResponseResource"
             }
           }
         }
@@ -28305,7 +28626,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateAuditedSpaceWithUserResponse"
+              "$ref": "#/definitions/associateAuditedSpaceWithUserResponseResource"
             }
           }
         }
@@ -28343,7 +28664,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeAuditedSpaceFromUserResponse"
+              "$ref": "#/definitions/removeAuditedSpaceFromUserResponseResource"
             }
           }
         }
@@ -28413,7 +28734,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateBillingManagedOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateBillingManagedOrganizationWithUserResponseResource"
             }
           }
         }
@@ -28451,7 +28772,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeBillingManagedOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeBillingManagedOrganizationFromUserResponseResource"
             }
           }
         }
@@ -28521,7 +28842,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagedOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateManagedOrganizationWithUserResponseResource"
             }
           }
         }
@@ -28559,7 +28880,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagedOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeManagedOrganizationFromUserResponseResource"
             }
           }
         }
@@ -28629,7 +28950,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateManagedSpaceWithUserResponse"
+              "$ref": "#/definitions/associateManagedSpaceWithUserResponseResource"
             }
           }
         }
@@ -28667,7 +28988,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeManagedSpaceFromUserResponse"
+              "$ref": "#/definitions/removeManagedSpaceFromUserResponseResource"
             }
           }
         }
@@ -28737,7 +29058,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateOrganizationWithUserResponse"
+              "$ref": "#/definitions/associateOrganizationWithUserResponseResource"
             }
           }
         }
@@ -28775,7 +29096,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeOrganizationFromUserResponse"
+              "$ref": "#/definitions/removeOrganizationFromUserResponseResource"
             }
           }
         }
@@ -28845,7 +29166,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/associateSpaceWithUserResponse"
+              "$ref": "#/definitions/associateSpaceWithUserResponseResource"
             }
           }
         }
@@ -28883,7 +29204,7 @@ func init() {
           "201": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/removeSpaceFromUserResponse"
+              "$ref": "#/definitions/removeSpaceFromUserResponseResource"
             }
           }
         }
@@ -28913,7 +29234,7 @@ func init() {
           "200": {
             "description": "successful response",
             "schema": {
-              "$ref": "#/definitions/getUserSummaryResponse"
+              "$ref": "#/definitions/getUserSummaryResponseResource"
             }
           }
         }
@@ -28921,6 +29242,67 @@ func init() {
     }
   },
   "definitions": {
+    "RetrieveAuthLoginApp": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "description": "The version of the auth server",
+          "type": "string"
+        }
+      }
+    },
+    "RetrieveAuthLoginLinks": {
+      "description": "A list of alias/url pairs of configured action URLs for the UAA",
+      "type": "object",
+      "properties": {
+        "login": {
+          "description": "The link to the login host alias of the UAA",
+          "type": "string"
+        },
+        "passwd": {
+          "description": "The link to the 'Forgot Password' functionality. Can be external or internal to the UAA",
+          "type": "string"
+        },
+        "register": {
+          "description": "The link to the 'Create Account' functionality. Can be external or internal to the UAA",
+          "type": "string"
+        },
+        "uaa": {
+          "description": "The link to the uaa alias host of the UAA",
+          "type": "string"
+        }
+      }
+    },
+    "RetrieveAuthLoginPrompts": {
+      "description": "A list of name/value pairs of configured prompts that the UAA will login a user. Format for each prompt is [type, display name] where type can be 'text' or 'password'",
+      "type": "object",
+      "properties": {
+        "passcode": {
+          "description": "If a SAML identity provider is configured, this prompt contains a URL to where the user can initiate the SAML authentication flow.",
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-omitempty": true
+        },
+        "password": {
+          "description": "Information about the password prompt.",
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-omitempty": true
+        },
+        "username": {
+          "description": "Information about the username prompt.",
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "x-omitempty": true
+        }
+      }
+    },
     "associateAppWithRouteResponse": {
       "properties": {
         "apps_url": {
@@ -31882,6 +32264,38 @@ func init() {
         }
       }
     },
+    "createsOAuthTokenResponse": {
+      "properties": {
+        "access_token": {
+          "description": "An OAuth2 access token. When token_format=opaque is requested this value will be a random string that can only be validated using the UAA's /check_token or /introspect endpoints. When token_format=jwt is requested, this token will be a JSON Web Token suitable for offline validation by OAuth2 Resource Servers.",
+          "type": "string"
+        },
+        "expires_in": {
+          "description": "The number of seconds until the access token expires.",
+          "type": "integer"
+        },
+        "id_token": {
+          "description": "An OpenID Connect ID token. This portion of the token response is only returned when clients are configured with the scope openid, the response_type includes id_token, and the user has granted approval to the client for the openid scope.",
+          "type": "string"
+        },
+        "jti": {
+          "description": "A globally unique identifier for this access token. This identifier is used when revoking tokens.",
+          "type": "string"
+        },
+        "refresh_token": {
+          "description": "An OAuth2 refresh token. Clients typically use the refresh token to obtain a new access token without the need for the user to authenticate again. They do this by calling /oauth/token with grant_type=refresh_token. See here for more information. A refresh token will only be issued to clients that have refresh_token in their list of authorized_grant_types.",
+          "type": "string"
+        },
+        "scope": {
+          "description": "A space-delimited list of scopes authorized by the user for this client. This list is the intersection of the scopes configured on the client, the group memberships of the user, and the user's approvals (when autoapprove: true is not configured on the client).",
+          "type": "string"
+        },
+        "token_type": {
+          "description": "The type of the access token issued. This field is mandated in RFC 6749. In the UAA, the only supported token_type is bearer.",
+          "type": "string"
+        }
+      }
+    },
     "createsSharedDomainDeprecatedRequest": {
       "properties": {
         "guid": {
@@ -32177,7 +32591,7 @@ func init() {
     "genericObject": {
       "type": "object",
       "additionalProperties": {
-        "type": "string"
+        "type": "object"
       }
     },
     "getAllFeatureFlagsResponse": {
@@ -32418,13 +32832,9 @@ func init() {
       }
     },
     "getDetailedStatsForStartedAppResponseResource": {
-      "properties": {
-        "entity": {
-          "$ref": "#/definitions/getDetailedStatsForStartedAppResponse"
-        },
-        "metadata": {
-          "$ref": "#/definitions/entityMetadata"
-        }
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/getDetailedStatsForStartedAppResponse"
       }
     },
     "getEnvForAppResponse": {
@@ -32540,13 +32950,9 @@ func init() {
       }
     },
     "getInstanceInformationForStartedAppResponseResource": {
-      "properties": {
-        "entity": {
-          "$ref": "#/definitions/getInstanceInformationForStartedAppResponse"
-        },
-        "metadata": {
-          "$ref": "#/definitions/entityMetadata"
-        }
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/getInstanceInformationForStartedAppResponse"
       }
     },
     "getOrganizationSummaryResponse": {
@@ -41649,6 +42055,95 @@ func init() {
         },
         "metadata": {
           "$ref": "#/definitions/entityMetadata"
+        }
+      }
+    },
+    "retrieveAuthLogin": {
+      "properties": {
+        "app": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "description": "The version of the auth server",
+              "type": "string"
+            }
+          }
+        },
+        "commit_id": {
+          "description": "The GIT sha for the UAA version",
+          "type": "string"
+        },
+        "entityID": {
+          "description": "The UAA is always a SAML service provider. This field contains the configured entityID",
+          "type": "string"
+        },
+        "idpDefinitions": {
+          "description": "Object  A list of alias/url pairs of SAML IDP providers configured. Each url is the starting point to initiate the authentication process for the SAML identity provider.",
+          "type": "object"
+        },
+        "links": {
+          "description": "A list of alias/url pairs of configured action URLs for the UAA",
+          "type": "object",
+          "properties": {
+            "login": {
+              "description": "The link to the login host alias of the UAA",
+              "type": "string"
+            },
+            "passwd": {
+              "description": "The link to the 'Forgot Password' functionality. Can be external or internal to the UAA",
+              "type": "string"
+            },
+            "register": {
+              "description": "The link to the 'Create Account' functionality. Can be external or internal to the UAA",
+              "type": "string"
+            },
+            "uaa": {
+              "description": "The link to the uaa alias host of the UAA",
+              "type": "string"
+            }
+          }
+        },
+        "prompts": {
+          "description": "A list of name/value pairs of configured prompts that the UAA will login a user. Format for each prompt is [type, display name] where type can be 'text' or 'password'",
+          "type": "object",
+          "properties": {
+            "passcode": {
+              "description": "If a SAML identity provider is configured, this prompt contains a URL to where the user can initiate the SAML authentication flow.",
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "x-omitempty": true
+            },
+            "password": {
+              "description": "Information about the password prompt.",
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "x-omitempty": true
+            },
+            "username": {
+              "description": "Information about the username prompt.",
+              "type": "array",
+              "items": {
+                "type": "object"
+              },
+              "x-omitempty": true
+            }
+          }
+        },
+        "showLoginLinks": {
+          "description": "Set to true if there are SAML or OAUTH/OIDC providers with a visible link on the login page.",
+          "type": "boolean"
+        },
+        "timestamp": {
+          "description": "JSON timestamp for the commit of the UAA version",
+          "type": "string"
+        },
+        "zone_name": {
+          "description": "The name of the zone invoked",
+          "type": "string"
         }
       }
     },

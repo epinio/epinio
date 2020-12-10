@@ -25,7 +25,7 @@ type RetrieveSpaceQuotaDefinitionOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveSpaceQuotaDefinitionResponse `json:"body,omitempty"`
+	Payload *models.RetrieveSpaceQuotaDefinitionResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveSpaceQuotaDefinitionOK creates RetrieveSpaceQuotaDefinitionOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveSpaceQuotaDefinitionOK() *RetrieveSpaceQuotaDefinitionOK {
 }
 
 // WithPayload adds the payload to the retrieve space quota definition o k response
-func (o *RetrieveSpaceQuotaDefinitionOK) WithPayload(payload *models.RetrieveSpaceQuotaDefinitionResponse) *RetrieveSpaceQuotaDefinitionOK {
+func (o *RetrieveSpaceQuotaDefinitionOK) WithPayload(payload *models.RetrieveSpaceQuotaDefinitionResponseResource) *RetrieveSpaceQuotaDefinitionOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve space quota definition o k response
-func (o *RetrieveSpaceQuotaDefinitionOK) SetPayload(payload *models.RetrieveSpaceQuotaDefinitionResponse) {
+func (o *RetrieveSpaceQuotaDefinitionOK) SetPayload(payload *models.RetrieveSpaceQuotaDefinitionResponseResource) {
 	o.Payload = payload
 }
 

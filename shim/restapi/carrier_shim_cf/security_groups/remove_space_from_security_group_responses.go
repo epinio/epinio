@@ -25,7 +25,7 @@ type RemoveSpaceFromSecurityGroupCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveSpaceFromSecurityGroupResponse `json:"body,omitempty"`
+	Payload *models.RemoveSpaceFromSecurityGroupResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveSpaceFromSecurityGroupCreated creates RemoveSpaceFromSecurityGroupCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveSpaceFromSecurityGroupCreated() *RemoveSpaceFromSecurityGroupCreat
 }
 
 // WithPayload adds the payload to the remove space from security group created response
-func (o *RemoveSpaceFromSecurityGroupCreated) WithPayload(payload *models.RemoveSpaceFromSecurityGroupResponse) *RemoveSpaceFromSecurityGroupCreated {
+func (o *RemoveSpaceFromSecurityGroupCreated) WithPayload(payload *models.RemoveSpaceFromSecurityGroupResponseResource) *RemoveSpaceFromSecurityGroupCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove space from security group created response
-func (o *RemoveSpaceFromSecurityGroupCreated) SetPayload(payload *models.RemoveSpaceFromSecurityGroupResponse) {
+func (o *RemoveSpaceFromSecurityGroupCreated) SetPayload(payload *models.RemoveSpaceFromSecurityGroupResponseResource) {
 	o.Payload = payload
 }
 

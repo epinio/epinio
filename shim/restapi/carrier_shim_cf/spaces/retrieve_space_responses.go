@@ -25,7 +25,7 @@ type RetrieveSpaceOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveSpaceResponse `json:"body,omitempty"`
+	Payload *models.RetrieveSpaceResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveSpaceOK creates RetrieveSpaceOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveSpaceOK() *RetrieveSpaceOK {
 }
 
 // WithPayload adds the payload to the retrieve space o k response
-func (o *RetrieveSpaceOK) WithPayload(payload *models.RetrieveSpaceResponse) *RetrieveSpaceOK {
+func (o *RetrieveSpaceOK) WithPayload(payload *models.RetrieveSpaceResponseResource) *RetrieveSpaceOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve space o k response
-func (o *RetrieveSpaceOK) SetPayload(payload *models.RetrieveSpaceResponse) {
+func (o *RetrieveSpaceOK) SetPayload(payload *models.RetrieveSpaceResponseResource) {
 	o.Payload = payload
 }
 

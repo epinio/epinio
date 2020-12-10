@@ -25,7 +25,7 @@ type SetFeatureFlagOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.SetFeatureFlagResponse `json:"body,omitempty"`
+	Payload *models.SetFeatureFlagResponseResource `json:"body,omitempty"`
 }
 
 // NewSetFeatureFlagOK creates SetFeatureFlagOK with default headers values
@@ -35,13 +35,13 @@ func NewSetFeatureFlagOK() *SetFeatureFlagOK {
 }
 
 // WithPayload adds the payload to the set feature flag o k response
-func (o *SetFeatureFlagOK) WithPayload(payload *models.SetFeatureFlagResponse) *SetFeatureFlagOK {
+func (o *SetFeatureFlagOK) WithPayload(payload *models.SetFeatureFlagResponseResource) *SetFeatureFlagOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the set feature flag o k response
-func (o *SetFeatureFlagOK) SetPayload(payload *models.SetFeatureFlagResponse) {
+func (o *SetFeatureFlagOK) SetPayload(payload *models.SetFeatureFlagResponseResource) {
 	o.Payload = payload
 }
 

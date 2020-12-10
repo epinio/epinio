@@ -25,7 +25,7 @@ type RemoveServiceBindingFromAppCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RemoveServiceBindingFromAppResponse `json:"body,omitempty"`
+	Payload *models.RemoveServiceBindingFromAppResponseResource `json:"body,omitempty"`
 }
 
 // NewRemoveServiceBindingFromAppCreated creates RemoveServiceBindingFromAppCreated with default headers values
@@ -35,13 +35,13 @@ func NewRemoveServiceBindingFromAppCreated() *RemoveServiceBindingFromAppCreated
 }
 
 // WithPayload adds the payload to the remove service binding from app created response
-func (o *RemoveServiceBindingFromAppCreated) WithPayload(payload *models.RemoveServiceBindingFromAppResponse) *RemoveServiceBindingFromAppCreated {
+func (o *RemoveServiceBindingFromAppCreated) WithPayload(payload *models.RemoveServiceBindingFromAppResponseResource) *RemoveServiceBindingFromAppCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the remove service binding from app created response
-func (o *RemoveServiceBindingFromAppCreated) SetPayload(payload *models.RemoveServiceBindingFromAppResponse) {
+func (o *RemoveServiceBindingFromAppCreated) SetPayload(payload *models.RemoveServiceBindingFromAppResponseResource) {
 	o.Payload = payload
 }
 

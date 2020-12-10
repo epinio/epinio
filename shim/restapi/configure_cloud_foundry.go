@@ -3,16 +3,28 @@
 package restapi
 
 import (
+	"archive/zip"
+	"bytes"
 	"crypto/tls"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/suse/carrier/shim/pkg/gitea"
 
 	"github.com/go-openapi/errors"
 	"github.com/go-openapi/runtime"
 	"github.com/go-openapi/runtime/middleware"
 
+	"github.com/suse/carrier/shim/models"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/app_usage_events"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/apps"
+	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/auth"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/buildpacks"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/domains_deprecated"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/environment_variable_groups"
@@ -69,6 +81,47 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 
 	api.JSONProducer = runtime.JSONProducer()
 
+	api.UrlformConsumer = runtime.DiscardConsumer
+
+	// Additions for the authentication API
+	api.AuthGetAuthLoginHandler = auth.GetAuthLoginHandlerFunc(func(params auth.GetAuthLoginParams) middleware.Responder {
+		return auth.NewGetAuthLoginOK().WithPayload(
+			&models.RetrieveAuthLogin{
+				App: &models.RetrieveAuthLoginApp{
+					Version: "0.0.0",
+				},
+				Links: &models.RetrieveAuthLoginLinks{
+					Uaa:      "http://127.0.0.1:9292/",
+					Login:    "http://127.0.0.1:9292/",
+					Register: "/create_account",
+					Passwd:   "/forgot_password",
+				},
+				ZoneName:       "carrier",
+				EntityID:       "carrier",
+				CommitID:       "deadbeef",
+				IdpDefinitions: map[string]string{},
+				Timestamp:      "2020-08-18T20:57:15+0000",
+				Prompts: &models.RetrieveAuthLoginPrompts{
+					Username: []interface{}{"text", "Email"},
+					Password: []interface{}{"password", "Password"},
+					Passcode: []interface{}{},
+				},
+			})
+	})
+	api.AuthPostAuthOauthTokenHandler = auth.PostAuthOauthTokenHandlerFunc(func(params auth.PostAuthOauthTokenParams) middleware.Responder {
+		return auth.NewPostOauthTokenOK().WithPayload(
+			&models.CreatesOAuthTokenResponse{
+				AccessToken:  "foo",
+				ExpiresIn:    36000,
+				IDToken:      "foo_id",
+				Jti:          "f183ad52-71a1-4591-947d-024b387dea70",
+				RefreshToken: "bar",
+				Scope:        "read write",
+				TokenType:    "bearer",
+			})
+	})
+
+	// Cloud Foundry v2 API
 	if api.RoutesAssociateAppWithRouteHandler == nil {
 		api.RoutesAssociateAppWithRouteHandler = routes.AssociateAppWithRouteHandlerFunc(func(params routes.AssociateAppWithRouteParams) middleware.Responder {
 			return middleware.NotImplemented("operation routes.AssociateAppWithRoute has not yet been implemented")
@@ -104,11 +157,14 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation organizations.AssociateBillingManagerWithOrganization has not yet been implemented")
 		})
 	}
+
 	if api.SpacesAssociateDeveloperWithSpaceHandler == nil {
-		api.SpacesAssociateDeveloperWithSpaceHandler = spaces.AssociateDeveloperWithSpaceHandlerFunc(func(params spaces.AssociateDeveloperWithSpaceParams) middleware.Responder {
-			return middleware.NotImplemented("operation spaces.AssociateDeveloperWithSpace has not yet been implemented")
-		})
+		api.SpacesAssociateDeveloperWithSpaceHandler =
+			spaces.AssociateDeveloperWithSpaceHandlerFunc(func(params spaces.AssociateDeveloperWithSpaceParams) middleware.Responder {
+				return middleware.NotImplemented("operation spaces.AssociateDeveloperWithSpace has not yet been implemented")
+			})
 	}
+
 	if api.UsersAssociateManagedOrganizationWithUserHandler == nil {
 		api.UsersAssociateManagedOrganizationWithUserHandler = users.AssociateManagedOrganizationWithUserHandlerFunc(func(params users.AssociateManagedOrganizationWithUserParams) middleware.Responder {
 			return middleware.NotImplemented("operation users.AssociateManagedOrganizationWithUser has not yet been implemented")
@@ -134,11 +190,20 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation users.AssociateOrganizationWithUser has not yet been implemented")
 		})
 	}
-	if api.AppsAssociateRouteWithAppHandler == nil {
-		api.AppsAssociateRouteWithAppHandler = apps.AssociateRouteWithAppHandlerFunc(func(params apps.AssociateRouteWithAppParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.AssociateRouteWithApp has not yet been implemented")
-		})
-	}
+
+	api.AppsAssociateRouteWithAppHandler = apps.AssociateRouteWithAppHandlerFunc(func(params apps.AssociateRouteWithAppParams) middleware.Responder {
+		return apps.NewAssociateRouteWithAppCreated().WithPayload(
+			&models.AssociateRouteWithAppResponseResource{
+				Metadata: &models.EntityMetadata{
+					GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+				},
+				Entity: &models.AssociateRouteWithAppResponse{
+					Name: "myapp",
+				},
+			},
+		)
+	})
+
 	if api.SpacesAssociateSecurityGroupWithSpaceHandler == nil {
 		api.SpacesAssociateSecurityGroupWithSpaceHandler = spaces.AssociateSecurityGroupWithSpaceHandlerFunc(func(params spaces.AssociateSecurityGroupWithSpaceParams) middleware.Responder {
 			return middleware.NotImplemented("operation spaces.AssociateSecurityGroupWithSpace has not yet been implemented")
@@ -269,11 +334,20 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation domains_deprecated.CreatesDomainOwnedByGivenOrganizationDeprecated has not yet been implemented")
 		})
 	}
-	if api.AppsDeleteAppHandler == nil {
-		api.AppsDeleteAppHandler = apps.DeleteAppHandlerFunc(func(params apps.DeleteAppParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.DeleteApp has not yet been implemented")
-		})
-	}
+
+	api.AppsDeleteAppHandler = apps.DeleteAppHandlerFunc(func(params apps.DeleteAppParams) middleware.Responder {
+		pushInfo := gitea.PushInfo{
+			AppName: "myapp",
+		}
+
+		err := gitea.Delete(pushInfo)
+		if err != nil {
+			return middleware.Error(504, err)
+		}
+
+		return apps.NewDeleteAppNoContent()
+	})
+
 	if api.BuildpacksDeleteBuildpackHandler == nil {
 		api.BuildpacksDeleteBuildpackHandler = buildpacks.DeleteBuildpackHandlerFunc(func(params buildpacks.DeleteBuildpackParams) middleware.Responder {
 			return middleware.NotImplemented("operation buildpacks.DeleteBuildpack has not yet been implemented")
@@ -404,31 +478,73 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation feature_flags.GetAppScalingFeatureFlag has not yet been implemented")
 		})
 	}
-	if api.AppsGetAppSummaryHandler == nil {
-		api.AppsGetAppSummaryHandler = apps.GetAppSummaryHandlerFunc(func(params apps.GetAppSummaryParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.GetAppSummary has not yet been implemented")
-		})
-	}
-	if api.AppsGetDetailedStatsForStartedAppHandler == nil {
-		api.AppsGetDetailedStatsForStartedAppHandler = apps.GetDetailedStatsForStartedAppHandlerFunc(func(params apps.GetDetailedStatsForStartedAppParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.GetDetailedStatsForStartedApp has not yet been implemented")
-		})
-	}
+
+	api.AppsGetAppSummaryHandler = apps.GetAppSummaryHandlerFunc(func(params apps.GetAppSummaryParams) middleware.Responder {
+		return apps.NewGetAppSummaryOK().WithPayload(
+			&models.GetAppSummaryResponse{
+				GUID:             "4feb778f-9d26-4332-9868-e03715fae08f",
+				Name:             "myapp",
+				Instances:        1,
+				RunningInstances: 1,
+				Routes: []models.GenericObject{
+					models.GenericObject{
+						"guid": "1a393e14-b12c-4b66-949d-0a89d72b7a74",
+						"host": "127.0.0.1",
+						"domain": models.GenericObject{
+							"guid": "ca0c81a7-c6c0-43e6-a9e7-2d09f0e85bc1",
+							"name": "myapp.127.0.0.1.nip.io",
+						},
+					},
+				},
+			},
+		)
+	})
+
+	api.AppsGetDetailedStatsForStartedAppHandler = apps.GetDetailedStatsForStartedAppHandlerFunc(func(params apps.GetDetailedStatsForStartedAppParams) middleware.Responder {
+		return apps.NewGetDetailedStatsForStartedAppOK().WithPayload(
+			models.GetDetailedStatsForStartedAppResponseResource{
+				"0": models.GetDetailedStatsForStartedAppResponse{
+					State: "RUNNING",
+					Stats: models.GenericObject{
+						"name": "myapp",
+						"usage": map[string]interface{}{
+							"disk": 66392064,
+							"mem":  29880320,
+							"cpu":  0.13511219703079957,
+							"time": "2014-06-19 22:37:58 +0000",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	if api.AppsGetEnvForAppHandler == nil {
 		api.AppsGetEnvForAppHandler = apps.GetEnvForAppHandlerFunc(func(params apps.GetEnvForAppParams) middleware.Responder {
 			return middleware.NotImplemented("operation apps.GetEnvForApp has not yet been implemented")
 		})
 	}
-	if api.InfoGetInfoHandler == nil {
-		api.InfoGetInfoHandler = info.GetInfoHandlerFunc(func(params info.GetInfoParams) middleware.Responder {
-			return middleware.NotImplemented("operation info.GetInfo has not yet been implemented")
-		})
-	}
-	if api.AppsGetInstanceInformationForStartedAppHandler == nil {
-		api.AppsGetInstanceInformationForStartedAppHandler = apps.GetInstanceInformationForStartedAppHandlerFunc(func(params apps.GetInstanceInformationForStartedAppParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.GetInstanceInformationForStartedApp has not yet been implemented")
-		})
-	}
+
+	api.InfoGetInfoHandler = info.GetInfoHandlerFunc(func(params info.GetInfoParams) middleware.Responder {
+		return info.NewGetInfoOK().WithPayload(
+			&models.GetInfoResponse{
+				AuthorizationEndpoint: "http://127.0.0.1:9292/v2/auth",
+				LoggingEndpoint:       "ws://127.0.0.1:9292/v2/logging",
+				TokenEndpoint:         "http://127.0.0.1:9292/v2/token",
+			})
+	})
+
+	api.AppsGetInstanceInformationForStartedAppHandler = apps.GetInstanceInformationForStartedAppHandlerFunc(func(params apps.GetInstanceInformationForStartedAppParams) middleware.Responder {
+		return apps.NewGetInstanceInformationForStartedAppOK().WithPayload(
+			models.GetInstanceInformationForStartedAppResponseResource{
+				"0": models.GetInstanceInformationForStartedAppResponse{
+					State: "RUNNING",
+					Since: 1403140717.984577,
+				},
+			},
+		)
+	})
+
 	if api.OrganizationsGetOrganizationSummaryHandler == nil {
 		api.OrganizationsGetOrganizationSummaryHandler = organizations.GetOrganizationSummaryHandlerFunc(func(params organizations.GetOrganizationSummaryParams) middleware.Responder {
 			return middleware.NotImplemented("operation organizations.GetOrganizationSummary has not yet been implemented")
@@ -489,11 +605,24 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation routes.ListAllAppsForRoute has not yet been implemented")
 		})
 	}
-	if api.SpacesListAllAppsForSpaceHandler == nil {
-		api.SpacesListAllAppsForSpaceHandler = spaces.ListAllAppsForSpaceHandlerFunc(func(params spaces.ListAllAppsForSpaceParams) middleware.Responder {
-			return middleware.NotImplemented("operation spaces.ListAllAppsForSpace has not yet been implemented")
-		})
-	}
+
+	api.SpacesListAllAppsForSpaceHandler = spaces.ListAllAppsForSpaceHandlerFunc(func(params spaces.ListAllAppsForSpaceParams) middleware.Responder {
+		return spaces.NewListAllAppsForSpaceOK().WithPayload(
+			&models.ListAllAppsForSpaceResponsePaged{
+				Resources: []*models.ListAllAppsForSpaceResponseResource{
+					&models.ListAllAppsForSpaceResponseResource{
+						Metadata: &models.EntityMetadata{
+							GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+						},
+						Entity: &models.ListAllAppsForSpaceResponse{
+							Name: "myapp",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	if api.UsersListAllAuditedOrganizationsForUserHandler == nil {
 		api.UsersListAllAuditedOrganizationsForUserHandler = users.ListAllAuditedOrganizationsForUserHandlerFunc(func(params users.ListAllAuditedOrganizationsForUserParams) middleware.Responder {
 			return middleware.NotImplemented("operation users.ListAllAuditedOrganizationsForUser has not yet been implemented")
@@ -534,11 +663,24 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation spaces.ListAllDevelopersForSpace has not yet been implemented")
 		})
 	}
-	if api.DomainsDeprecatedListAllDomainsDeprecatedHandler == nil {
-		api.DomainsDeprecatedListAllDomainsDeprecatedHandler = domains_deprecated.ListAllDomainsDeprecatedHandlerFunc(func(params domains_deprecated.ListAllDomainsDeprecatedParams) middleware.Responder {
-			return middleware.NotImplemented("operation domains_deprecated.ListAllDomainsDeprecated has not yet been implemented")
-		})
-	}
+
+	api.DomainsDeprecatedListAllDomainsDeprecatedHandler = domains_deprecated.ListAllDomainsDeprecatedHandlerFunc(func(params domains_deprecated.ListAllDomainsDeprecatedParams) middleware.Responder {
+		return domains_deprecated.NewListAllDomainsDeprecatedOK().WithPayload(
+			&models.ListAllDomainsDeprecatedResponsePaged{
+				Resources: []*models.ListAllDomainsDeprecatedResponseResource{
+					&models.ListAllDomainsDeprecatedResponseResource{
+						Metadata: &models.EntityMetadata{
+							GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+						},
+						Entity: &models.ListAllDomainsDeprecatedResponse{
+							Name: "mydomain",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	if api.OrganizationsListAllDomainsForOrganizationDeprecatedHandler == nil {
 		api.OrganizationsListAllDomainsForOrganizationDeprecatedHandler = organizations.ListAllDomainsForOrganizationDeprecatedHandlerFunc(func(params organizations.ListAllDomainsForOrganizationDeprecatedParams) middleware.Responder {
 			return middleware.NotImplemented("operation organizations.ListAllDomainsForOrganizationDeprecated has not yet been implemented")
@@ -574,21 +716,36 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation spaces.ListAllManagersForSpace has not yet been implemented")
 		})
 	}
-	if api.ResourceMatchListAllMatchingResourcesHandler == nil {
-		api.ResourceMatchListAllMatchingResourcesHandler = resource_match.ListAllMatchingResourcesHandlerFunc(func(params resource_match.ListAllMatchingResourcesParams) middleware.Responder {
-			return middleware.NotImplemented("operation resource_match.ListAllMatchingResources has not yet been implemented")
-		})
-	}
+
+	api.ResourceMatchListAllMatchingResourcesHandler = resource_match.ListAllMatchingResourcesHandlerFunc(func(params resource_match.ListAllMatchingResourcesParams) middleware.Responder {
+		return resource_match.NewListAllMatchingResourcesOK().WithPayload(
+			[]*models.ListAllMatchingResourcesResponse{},
+		)
+	})
+
 	if api.OrganizationQuotaDefinitionsListAllOrganizationQuotaDefinitionsHandler == nil {
 		api.OrganizationQuotaDefinitionsListAllOrganizationQuotaDefinitionsHandler = organization_quota_definitions.ListAllOrganizationQuotaDefinitionsHandlerFunc(func(params organization_quota_definitions.ListAllOrganizationQuotaDefinitionsParams) middleware.Responder {
 			return middleware.NotImplemented("operation organization_quota_definitions.ListAllOrganizationQuotaDefinitions has not yet been implemented")
 		})
 	}
-	if api.OrganizationsListAllOrganizationsHandler == nil {
-		api.OrganizationsListAllOrganizationsHandler = organizations.ListAllOrganizationsHandlerFunc(func(params organizations.ListAllOrganizationsParams) middleware.Responder {
-			return middleware.NotImplemented("operation organizations.ListAllOrganizations has not yet been implemented")
-		})
-	}
+
+	api.OrganizationsListAllOrganizationsHandler = organizations.ListAllOrganizationsHandlerFunc(func(params organizations.ListAllOrganizationsParams) middleware.Responder {
+		return organizations.NewListAllOrganizationsOK().WithPayload(
+			&models.ListAllOrganizationsResponsePaged{
+				Resources: []*models.ListAllOrganizationsResponseResource{
+					&models.ListAllOrganizationsResponseResource{
+						Metadata: &models.EntityMetadata{
+							GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+						},
+						Entity: &models.ListAllOrganizationsResponse{
+							Name: "myorg",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	if api.UsersListAllOrganizationsForUserHandler == nil {
 		api.UsersListAllOrganizationsForUserHandler = users.ListAllOrganizationsForUserHandlerFunc(func(params users.ListAllOrganizationsForUserParams) middleware.Responder {
 			return middleware.NotImplemented("operation users.ListAllOrganizationsForUser has not yet been implemented")
@@ -599,11 +756,24 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation organizations.ListAllPrivateDomainsForOrganization has not yet been implemented")
 		})
 	}
-	if api.RoutesListAllRoutesHandler == nil {
-		api.RoutesListAllRoutesHandler = routes.ListAllRoutesHandlerFunc(func(params routes.ListAllRoutesParams) middleware.Responder {
-			return middleware.NotImplemented("operation routes.ListAllRoutes has not yet been implemented")
-		})
-	}
+
+	api.RoutesListAllRoutesHandler = routes.ListAllRoutesHandlerFunc(func(params routes.ListAllRoutesParams) middleware.Responder {
+		return routes.NewListAllRoutesOK().WithPayload(
+			&models.ListAllRoutesResponsePaged{
+				Resources: []*models.ListAllRoutesResponseResource{
+					&models.ListAllRoutesResponseResource{
+						Metadata: &models.EntityMetadata{
+							GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+						},
+						Entity: &models.ListAllRoutesResponse{
+							Host: "myapp",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	if api.AppsListAllRoutesForAppHandler == nil {
 		api.AppsListAllRoutesForAppHandler = apps.ListAllRoutesForAppHandlerFunc(func(params apps.ListAllRoutesForAppParams) middleware.Responder {
 			return middleware.NotImplemented("operation apps.ListAllRoutesForApp has not yet been implemented")
@@ -714,11 +884,24 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation domains_deprecated.ListAllSpacesForDomainDeprecated has not yet been implemented")
 		})
 	}
-	if api.OrganizationsListAllSpacesForOrganizationHandler == nil {
-		api.OrganizationsListAllSpacesForOrganizationHandler = organizations.ListAllSpacesForOrganizationHandlerFunc(func(params organizations.ListAllSpacesForOrganizationParams) middleware.Responder {
-			return middleware.NotImplemented("operation organizations.ListAllSpacesForOrganization has not yet been implemented")
-		})
-	}
+
+	api.OrganizationsListAllSpacesForOrganizationHandler = organizations.ListAllSpacesForOrganizationHandlerFunc(func(params organizations.ListAllSpacesForOrganizationParams) middleware.Responder {
+		return organizations.NewListAllSpacesForOrganizationOK().WithPayload(
+			&models.ListAllSpacesForOrganizationResponsePaged{
+				Resources: []*models.ListAllSpacesForOrganizationResponseResource{
+					&models.ListAllSpacesForOrganizationResponseResource{
+						Metadata: &models.EntityMetadata{
+							GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+						},
+						Entity: &models.ListAllSpacesForOrganizationResponse{
+							Name: "myspace",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	if api.SecurityGroupsListAllSpacesForSecurityGroupHandler == nil {
 		api.SecurityGroupsListAllSpacesForSecurityGroupHandler = security_groups.ListAllSpacesForSecurityGroupHandlerFunc(func(params security_groups.ListAllSpacesForSecurityGroupParams) middleware.Responder {
 			return middleware.NotImplemented("operation security_groups.ListAllSpacesForSecurityGroup has not yet been implemented")
@@ -734,11 +917,24 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation users.ListAllSpacesForUser has not yet been implemented")
 		})
 	}
-	if api.StacksListAllStacksHandler == nil {
-		api.StacksListAllStacksHandler = stacks.ListAllStacksHandlerFunc(func(params stacks.ListAllStacksParams) middleware.Responder {
-			return middleware.NotImplemented("operation stacks.ListAllStacks has not yet been implemented")
-		})
-	}
+
+	api.StacksListAllStacksHandler = stacks.ListAllStacksHandlerFunc(func(params stacks.ListAllStacksParams) middleware.Responder {
+		return stacks.NewListAllStacksOK().WithPayload(
+			&models.ListAllStacksResponsePaged{
+				Resources: []*models.ListAllStacksResponseResource{
+					&models.ListAllStacksResponseResource{
+						Metadata: &models.EntityMetadata{
+							GUID: "f1792c5c-eb04-47d3-8af3-5139f87ebdf9",
+						},
+						Entity: &models.ListAllStacksResponse{
+							Name: "carrierstack",
+						},
+					},
+				},
+			},
+		)
+	})
+
 	if api.UserProvidedServiceInstancesListAllUserProvidedServiceInstancesHandler == nil {
 		api.UserProvidedServiceInstancesListAllUserProvidedServiceInstancesHandler = user_provided_service_instances.ListAllUserProvidedServiceInstancesHandlerFunc(func(params user_provided_service_instances.ListAllUserProvidedServiceInstancesParams) middleware.Responder {
 			return middleware.NotImplemented("operation user_provided_service_instances.ListAllUserProvidedServiceInstances has not yet been implemented")
@@ -899,11 +1095,32 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation apps.RestageApp has not yet been implemented")
 		})
 	}
-	if api.AppsRetrieveAppHandler == nil {
-		api.AppsRetrieveAppHandler = apps.RetrieveAppHandlerFunc(func(params apps.RetrieveAppParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.RetrieveApp has not yet been implemented")
-		})
-	}
+
+	api.AppsRetrieveAppHandler = apps.RetrieveAppHandlerFunc(func(params apps.RetrieveAppParams) middleware.Responder {
+		pushInfo := gitea.PushInfo{
+			AppName: "myapp",
+		}
+
+		state, err := gitea.StagingStatus(pushInfo)
+		if err != nil {
+			return middleware.Error(504, err)
+		}
+
+		return apps.NewRetrieveAppOK().WithPayload(
+			&models.RetrieveAppResponseResource{
+				Metadata: &models.EntityMetadata{
+					GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+					URL:  "/v2/apps/4feb778f-9d26-4332-9868-e03715fae08f",
+				},
+				Entity: &models.RetrieveAppResponse{
+					Name:         "foo",
+					State:        "STARTED",
+					PackageState: state,
+				},
+			},
+		)
+	})
+
 	if api.AppUsageEventsRetrieveAppUsageEventHandler == nil {
 		api.AppUsageEventsRetrieveAppUsageEventHandler = app_usage_events.RetrieveAppUsageEventHandlerFunc(func(params app_usage_events.RetrieveAppUsageEventParams) middleware.Responder {
 			return middleware.NotImplemented("operation app_usage_events.RetrieveAppUsageEvent has not yet been implemented")
@@ -1069,11 +1286,35 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation apps.TerminateRunningAppInstanceAtGivenIndex has not yet been implemented")
 		})
 	}
-	if api.AppsUpdateAppHandler == nil {
-		api.AppsUpdateAppHandler = apps.UpdateAppHandlerFunc(func(params apps.UpdateAppParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.UpdateApp has not yet been implemented")
-		})
-	}
+
+	api.AppsUpdateAppHandler = apps.UpdateAppHandlerFunc(func(params apps.UpdateAppParams) middleware.Responder {
+
+		pushInfo := gitea.PushInfo{
+			AppName:  params.Value.Name,
+			Username: "dev",
+			Password: "changeme",
+			Target:   "10.1.5.5.nip.io",
+		}
+
+		err := gitea.CreateRepo(pushInfo)
+		if err != nil {
+			fmt.Println(err)
+			return middleware.Error(504, err)
+		}
+
+		return apps.NewUpdateAppCreated().WithPayload(
+			&models.UpdateAppResponseResource{
+				Metadata: &models.EntityMetadata{
+					GUID: "1811064d-d890-410b-98f9-01aedea105d6",
+				},
+				Entity: &models.UpdateAppResponse{
+					Name:      "app1",
+					Instances: 1,
+				},
+			},
+		)
+	})
+
 	if api.EnvironmentVariableGroupsUpdateContentsOfRunningEnvironmentVariableGroupHandler == nil {
 		api.EnvironmentVariableGroupsUpdateContentsOfRunningEnvironmentVariableGroupHandler = environment_variable_groups.UpdateContentsOfRunningEnvironmentVariableGroupHandlerFunc(func(params environment_variable_groups.UpdateContentsOfRunningEnvironmentVariableGroupParams) middleware.Responder {
 			return middleware.NotImplemented("operation environment_variable_groups.UpdateContentsOfRunningEnvironmentVariableGroup has not yet been implemented")
@@ -1149,11 +1390,103 @@ func configureAPI(api *carrier_shim_cf.CloudFoundryAPI) http.Handler {
 			return middleware.NotImplemented("operation user_provided_service_instances.UpdateUserProvidedServiceInstance has not yet been implemented")
 		})
 	}
-	if api.AppsUploadsBitsForAppHandler == nil {
-		api.AppsUploadsBitsForAppHandler = apps.UploadsBitsForAppHandlerFunc(func(params apps.UploadsBitsForAppParams) middleware.Responder {
-			return middleware.NotImplemented("operation apps.UploadsBitsForApp has not yet been implemented")
-		})
-	}
+
+	api.AppsUploadsBitsForAppHandler = apps.UploadsBitsForAppHandlerFunc(func(params apps.UploadsBitsForAppParams) middleware.Responder {
+		// Unzip to a temp directory
+		dirName, err := ioutil.TempDir("", "carrier-app")
+		if err != nil {
+			return middleware.Error(503, err)
+		}
+		defer os.RemoveAll(dirName)
+
+		buff := bytes.NewBuffer([]byte{})
+		size, err := io.Copy(buff, params.Application)
+		if err != nil {
+			return middleware.Error(503, err)
+		}
+		reader := bytes.NewReader(buff.Bytes())
+		// Open a zip archive for reading.
+		zipReader, err := zip.NewReader(reader, size)
+
+		defer params.Application.Close()
+
+		for _, f := range zipReader.File {
+			// Store filename/path for returning and using later on
+			fpath := filepath.Join(dirName, f.Name)
+
+			// Check for ZipSlip. More Info: http://bit.ly/2MsjAWE
+			if !strings.HasPrefix(fpath, filepath.Clean(dirName)+string(os.PathSeparator)) {
+				return middleware.Error(504, fmt.Errorf("%s: illegal file path", fpath))
+			}
+
+			if f.FileInfo().IsDir() {
+				// Make Folder
+				os.MkdirAll(fpath, os.ModePerm)
+				continue
+			}
+
+			// Make File
+			if err = os.MkdirAll(filepath.Dir(fpath), os.ModePerm); err != nil {
+				return middleware.Error(504, err)
+			}
+
+			outFile, err := os.OpenFile(fpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return middleware.Error(504, err)
+			}
+
+			rc, err := f.Open()
+			if err != nil {
+				return middleware.Error(504, err)
+			}
+
+			_, err = io.Copy(outFile, rc)
+
+			// Close the file without defer to close before next iteration of loop
+			outFile.Close()
+			rc.Close()
+
+			if err != nil {
+				return middleware.Error(504, err)
+			}
+		}
+
+		// List files
+		files, err := ioutil.ReadDir(dirName)
+		if err != nil {
+			fmt.Println(err)
+		}
+		for _, f := range files {
+			fmt.Println(f.Name())
+		}
+
+		pushInfo := gitea.PushInfo{
+			AppDir:        dirName,
+			AppName:       "myapp",
+			Username:      "dev",
+			Password:      "changeme",
+			Target:        "10.1.5.5.nip.io",
+			ImageUser:     "viovanov",
+			ImagePassword: "password1234!",
+		}
+
+		err = gitea.Push(pushInfo)
+		if err != nil {
+			return middleware.Error(504, err)
+		}
+
+		return apps.NewUploadsBitsForAppCreated().WithPayload(
+			&models.UploadsBitsForAppResponseResource{
+				Metadata: &models.EntityMetadata{
+					GUID: "4feb778f-9d26-4332-9868-e03715fae08f",
+				},
+				Entity: &models.UploadsBitsForAppResponse{
+					GUID:   "4feb778f-9d26-4332-9868-e03715fae08f",
+					Status: "queued",
+				},
+			},
+		)
+	})
 
 	api.PreServerShutdown = func() {}
 

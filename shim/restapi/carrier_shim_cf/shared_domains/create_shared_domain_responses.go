@@ -25,7 +25,7 @@ type CreateSharedDomainCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateSharedDomainResponse `json:"body,omitempty"`
+	Payload *models.CreateSharedDomainResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateSharedDomainCreated creates CreateSharedDomainCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateSharedDomainCreated() *CreateSharedDomainCreated {
 }
 
 // WithPayload adds the payload to the create shared domain created response
-func (o *CreateSharedDomainCreated) WithPayload(payload *models.CreateSharedDomainResponse) *CreateSharedDomainCreated {
+func (o *CreateSharedDomainCreated) WithPayload(payload *models.CreateSharedDomainResponseResource) *CreateSharedDomainCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create shared domain created response
-func (o *CreateSharedDomainCreated) SetPayload(payload *models.CreateSharedDomainResponse) {
+func (o *CreateSharedDomainCreated) SetPayload(payload *models.CreateSharedDomainResponseResource) {
 	o.Payload = payload
 }
 

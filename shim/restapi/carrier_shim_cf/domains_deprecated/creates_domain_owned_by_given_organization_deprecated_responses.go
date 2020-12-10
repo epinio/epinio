@@ -25,7 +25,7 @@ type CreatesDomainOwnedByGivenOrganizationDeprecatedCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreatesDomainOwnedByGivenOrganizationDeprecatedResponse `json:"body,omitempty"`
+	Payload *models.CreatesDomainOwnedByGivenOrganizationDeprecatedResponseResource `json:"body,omitempty"`
 }
 
 // NewCreatesDomainOwnedByGivenOrganizationDeprecatedCreated creates CreatesDomainOwnedByGivenOrganizationDeprecatedCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreatesDomainOwnedByGivenOrganizationDeprecatedCreated() *CreatesDomainO
 }
 
 // WithPayload adds the payload to the creates domain owned by given organization deprecated created response
-func (o *CreatesDomainOwnedByGivenOrganizationDeprecatedCreated) WithPayload(payload *models.CreatesDomainOwnedByGivenOrganizationDeprecatedResponse) *CreatesDomainOwnedByGivenOrganizationDeprecatedCreated {
+func (o *CreatesDomainOwnedByGivenOrganizationDeprecatedCreated) WithPayload(payload *models.CreatesDomainOwnedByGivenOrganizationDeprecatedResponseResource) *CreatesDomainOwnedByGivenOrganizationDeprecatedCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the creates domain owned by given organization deprecated created response
-func (o *CreatesDomainOwnedByGivenOrganizationDeprecatedCreated) SetPayload(payload *models.CreatesDomainOwnedByGivenOrganizationDeprecatedResponse) {
+func (o *CreatesDomainOwnedByGivenOrganizationDeprecatedCreated) SetPayload(payload *models.CreatesDomainOwnedByGivenOrganizationDeprecatedResponseResource) {
 	o.Payload = payload
 }
 

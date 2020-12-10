@@ -25,7 +25,7 @@ type UpdateSpaceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateSpaceResponse `json:"body,omitempty"`
+	Payload *models.UpdateSpaceResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateSpaceCreated creates UpdateSpaceCreated with default headers values
@@ -35,13 +35,13 @@ func NewUpdateSpaceCreated() *UpdateSpaceCreated {
 }
 
 // WithPayload adds the payload to the update space created response
-func (o *UpdateSpaceCreated) WithPayload(payload *models.UpdateSpaceResponse) *UpdateSpaceCreated {
+func (o *UpdateSpaceCreated) WithPayload(payload *models.UpdateSpaceResponseResource) *UpdateSpaceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update space created response
-func (o *UpdateSpaceCreated) SetPayload(payload *models.UpdateSpaceResponse) {
+func (o *UpdateSpaceCreated) SetPayload(payload *models.UpdateSpaceResponseResource) {
 	o.Payload = payload
 }
 

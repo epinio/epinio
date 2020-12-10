@@ -25,7 +25,7 @@ type CreateServiceBindingCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateServiceBindingResponse `json:"body,omitempty"`
+	Payload *models.CreateServiceBindingResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateServiceBindingCreated creates CreateServiceBindingCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateServiceBindingCreated() *CreateServiceBindingCreated {
 }
 
 // WithPayload adds the payload to the create service binding created response
-func (o *CreateServiceBindingCreated) WithPayload(payload *models.CreateServiceBindingResponse) *CreateServiceBindingCreated {
+func (o *CreateServiceBindingCreated) WithPayload(payload *models.CreateServiceBindingResponseResource) *CreateServiceBindingCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create service binding created response
-func (o *CreateServiceBindingCreated) SetPayload(payload *models.CreateServiceBindingResponse) {
+func (o *CreateServiceBindingCreated) SetPayload(payload *models.CreateServiceBindingResponseResource) {
 	o.Payload = payload
 }
 

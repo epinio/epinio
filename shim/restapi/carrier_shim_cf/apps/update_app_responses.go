@@ -25,7 +25,7 @@ type UpdateAppCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.UpdateAppResponse `json:"body,omitempty"`
+	Payload *models.UpdateAppResponseResource `json:"body,omitempty"`
 }
 
 // NewUpdateAppCreated creates UpdateAppCreated with default headers values
@@ -35,13 +35,13 @@ func NewUpdateAppCreated() *UpdateAppCreated {
 }
 
 // WithPayload adds the payload to the update app created response
-func (o *UpdateAppCreated) WithPayload(payload *models.UpdateAppResponse) *UpdateAppCreated {
+func (o *UpdateAppCreated) WithPayload(payload *models.UpdateAppResponseResource) *UpdateAppCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the update app created response
-func (o *UpdateAppCreated) SetPayload(payload *models.UpdateAppResponse) {
+func (o *UpdateAppCreated) SetPayload(payload *models.UpdateAppResponseResource) {
 	o.Payload = payload
 }
 

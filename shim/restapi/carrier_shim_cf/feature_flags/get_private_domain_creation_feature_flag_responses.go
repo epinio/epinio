@@ -25,7 +25,7 @@ type GetPrivateDomainCreationFeatureFlagOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetPrivateDomainCreationFeatureFlagResponse `json:"body,omitempty"`
+	Payload *models.GetPrivateDomainCreationFeatureFlagResponseResource `json:"body,omitempty"`
 }
 
 // NewGetPrivateDomainCreationFeatureFlagOK creates GetPrivateDomainCreationFeatureFlagOK with default headers values
@@ -35,13 +35,13 @@ func NewGetPrivateDomainCreationFeatureFlagOK() *GetPrivateDomainCreationFeature
 }
 
 // WithPayload adds the payload to the get private domain creation feature flag o k response
-func (o *GetPrivateDomainCreationFeatureFlagOK) WithPayload(payload *models.GetPrivateDomainCreationFeatureFlagResponse) *GetPrivateDomainCreationFeatureFlagOK {
+func (o *GetPrivateDomainCreationFeatureFlagOK) WithPayload(payload *models.GetPrivateDomainCreationFeatureFlagResponseResource) *GetPrivateDomainCreationFeatureFlagOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get private domain creation feature flag o k response
-func (o *GetPrivateDomainCreationFeatureFlagOK) SetPayload(payload *models.GetPrivateDomainCreationFeatureFlagResponse) {
+func (o *GetPrivateDomainCreationFeatureFlagOK) SetPayload(payload *models.GetPrivateDomainCreationFeatureFlagResponseResource) {
 	o.Payload = payload
 }
 

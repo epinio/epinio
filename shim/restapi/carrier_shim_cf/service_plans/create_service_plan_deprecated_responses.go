@@ -25,7 +25,7 @@ type CreateServicePlanDeprecatedCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateServicePlanDeprecatedResponse `json:"body,omitempty"`
+	Payload *models.CreateServicePlanDeprecatedResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateServicePlanDeprecatedCreated creates CreateServicePlanDeprecatedCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateServicePlanDeprecatedCreated() *CreateServicePlanDeprecatedCreated
 }
 
 // WithPayload adds the payload to the create service plan deprecated created response
-func (o *CreateServicePlanDeprecatedCreated) WithPayload(payload *models.CreateServicePlanDeprecatedResponse) *CreateServicePlanDeprecatedCreated {
+func (o *CreateServicePlanDeprecatedCreated) WithPayload(payload *models.CreateServicePlanDeprecatedResponseResource) *CreateServicePlanDeprecatedCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create service plan deprecated created response
-func (o *CreateServicePlanDeprecatedCreated) SetPayload(payload *models.CreateServicePlanDeprecatedResponse) {
+func (o *CreateServicePlanDeprecatedCreated) SetPayload(payload *models.CreateServicePlanDeprecatedResponseResource) {
 	o.Payload = payload
 }
 

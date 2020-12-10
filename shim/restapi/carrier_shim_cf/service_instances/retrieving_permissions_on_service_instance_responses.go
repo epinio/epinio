@@ -25,7 +25,7 @@ type RetrievingPermissionsOnServiceInstanceOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrievingPermissionsOnServiceInstanceResponse `json:"body,omitempty"`
+	Payload *models.RetrievingPermissionsOnServiceInstanceResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrievingPermissionsOnServiceInstanceOK creates RetrievingPermissionsOnServiceInstanceOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrievingPermissionsOnServiceInstanceOK() *RetrievingPermissionsOnServi
 }
 
 // WithPayload adds the payload to the retrieving permissions on service instance o k response
-func (o *RetrievingPermissionsOnServiceInstanceOK) WithPayload(payload *models.RetrievingPermissionsOnServiceInstanceResponse) *RetrievingPermissionsOnServiceInstanceOK {
+func (o *RetrievingPermissionsOnServiceInstanceOK) WithPayload(payload *models.RetrievingPermissionsOnServiceInstanceResponseResource) *RetrievingPermissionsOnServiceInstanceOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieving permissions on service instance o k response
-func (o *RetrievingPermissionsOnServiceInstanceOK) SetPayload(payload *models.RetrievingPermissionsOnServiceInstanceResponse) {
+func (o *RetrievingPermissionsOnServiceInstanceOK) SetPayload(payload *models.RetrievingPermissionsOnServiceInstanceResponseResource) {
 	o.Payload = payload
 }
 

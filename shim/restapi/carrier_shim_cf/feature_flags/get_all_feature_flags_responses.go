@@ -25,7 +25,7 @@ type GetAllFeatureFlagsOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.GetAllFeatureFlagsResponse `json:"body,omitempty"`
+	Payload *models.GetAllFeatureFlagsResponseResource `json:"body,omitempty"`
 }
 
 // NewGetAllFeatureFlagsOK creates GetAllFeatureFlagsOK with default headers values
@@ -35,13 +35,13 @@ func NewGetAllFeatureFlagsOK() *GetAllFeatureFlagsOK {
 }
 
 // WithPayload adds the payload to the get all feature flags o k response
-func (o *GetAllFeatureFlagsOK) WithPayload(payload *models.GetAllFeatureFlagsResponse) *GetAllFeatureFlagsOK {
+func (o *GetAllFeatureFlagsOK) WithPayload(payload *models.GetAllFeatureFlagsResponseResource) *GetAllFeatureFlagsOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the get all feature flags o k response
-func (o *GetAllFeatureFlagsOK) SetPayload(payload *models.GetAllFeatureFlagsResponse) {
+func (o *GetAllFeatureFlagsOK) SetPayload(payload *models.GetAllFeatureFlagsResponseResource) {
 	o.Payload = payload
 }
 

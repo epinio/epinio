@@ -21,6 +21,7 @@ import (
 
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/app_usage_events"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/apps"
+	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/auth"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/buildpacks"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/domains_deprecated"
 	"github.com/suse/carrier/shim/restapi/carrier_shim_cf/environment_variable_groups"
@@ -71,10 +72,18 @@ func NewCloudFoundryAPI(spec *loads.Document) *CloudFoundryAPI {
 		APIKeyAuthenticator: security.APIKeyAuth,
 		BearerAuthenticator: security.BearerAuth,
 
-		JSONConsumer: runtime.JSONConsumer(),
+		JSONConsumer:          runtime.JSONConsumer(),
+		MultipartformConsumer: runtime.DiscardConsumer,
+		UrlformConsumer:       runtime.DiscardConsumer,
 
 		JSONProducer: runtime.JSONProducer(),
 
+		AuthGetAuthLoginHandler: auth.GetAuthLoginHandlerFunc(func(params auth.GetAuthLoginParams) middleware.Responder {
+			return middleware.NotImplemented("operation auth.GetAuthLogin has not yet been implemented")
+		}),
+		AuthPostAuthOauthTokenHandler: auth.PostAuthOauthTokenHandlerFunc(func(params auth.PostAuthOauthTokenParams) middleware.Responder {
+			return middleware.NotImplemented("operation auth.PostAuthOauthToken has not yet been implemented")
+		}),
 		RoutesAssociateAppWithRouteHandler: routes.AssociateAppWithRouteHandlerFunc(func(params routes.AssociateAppWithRouteParams) middleware.Responder {
 			return middleware.NotImplemented("operation routes.AssociateAppWithRoute has not yet been implemented")
 		}),
@@ -756,11 +765,21 @@ type CloudFoundryAPI struct {
 	// JSONConsumer registers a consumer for the following mime types:
 	//   - application/json
 	JSONConsumer runtime.Consumer
+	// MultipartformConsumer registers a consumer for the following mime types:
+	//   - multipart/form-data
+	MultipartformConsumer runtime.Consumer
+	// UrlformConsumer registers a consumer for the following mime types:
+	//   - application/x-www-form-urlencoded
+	UrlformConsumer runtime.Consumer
 
 	// JSONProducer registers a producer for the following mime types:
 	//   - application/json
 	JSONProducer runtime.Producer
 
+	// AuthGetAuthLoginHandler sets the operation handler for the get auth login operation
+	AuthGetAuthLoginHandler auth.GetAuthLoginHandler
+	// AuthPostAuthOauthTokenHandler sets the operation handler for the post auth oauth token operation
+	AuthPostAuthOauthTokenHandler auth.PostAuthOauthTokenHandler
 	// RoutesAssociateAppWithRouteHandler sets the operation handler for the associate app with route operation
 	RoutesAssociateAppWithRouteHandler routes.AssociateAppWithRouteHandler
 	// UsersAssociateAuditedOrganizationWithUserHandler sets the operation handler for the associate audited organization with user operation
@@ -1266,11 +1285,23 @@ func (o *CloudFoundryAPI) Validate() error {
 	if o.JSONConsumer == nil {
 		unregistered = append(unregistered, "JSONConsumer")
 	}
+	if o.MultipartformConsumer == nil {
+		unregistered = append(unregistered, "MultipartformConsumer")
+	}
+	if o.UrlformConsumer == nil {
+		unregistered = append(unregistered, "UrlformConsumer")
+	}
 
 	if o.JSONProducer == nil {
 		unregistered = append(unregistered, "JSONProducer")
 	}
 
+	if o.AuthGetAuthLoginHandler == nil {
+		unregistered = append(unregistered, "auth.GetAuthLoginHandler")
+	}
+	if o.AuthPostAuthOauthTokenHandler == nil {
+		unregistered = append(unregistered, "auth.PostAuthOauthTokenHandler")
+	}
 	if o.RoutesAssociateAppWithRouteHandler == nil {
 		unregistered = append(unregistered, "routes.AssociateAppWithRouteHandler")
 	}
@@ -1953,6 +1984,10 @@ func (o *CloudFoundryAPI) ConsumersFor(mediaTypes []string) map[string]runtime.C
 		switch mt {
 		case "application/json":
 			result["application/json"] = o.JSONConsumer
+		case "multipart/form-data":
+			result["multipart/form-data"] = o.MultipartformConsumer
+		case "application/x-www-form-urlencoded":
+			result["application/x-www-form-urlencoded"] = o.UrlformConsumer
 		}
 
 		if c, ok := o.customConsumers[mt]; ok {
@@ -2010,6 +2045,14 @@ func (o *CloudFoundryAPI) initHandlerCache() {
 		o.handlers = make(map[string]map[string]http.Handler)
 	}
 
+	if o.handlers["GET"] == nil {
+		o.handlers["GET"] = make(map[string]http.Handler)
+	}
+	o.handlers["GET"]["/auth/login"] = auth.NewGetAuthLogin(o.context, o.AuthGetAuthLoginHandler)
+	if o.handlers["POST"] == nil {
+		o.handlers["POST"] = make(map[string]http.Handler)
+	}
+	o.handlers["POST"]["/auth/oauth/token"] = auth.NewPostAuthOauthToken(o.context, o.AuthPostAuthOauthTokenHandler)
 	if o.handlers["PUT"] == nil {
 		o.handlers["PUT"] = make(map[string]http.Handler)
 	}

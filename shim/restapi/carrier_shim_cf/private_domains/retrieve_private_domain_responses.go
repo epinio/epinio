@@ -25,7 +25,7 @@ type RetrievePrivateDomainOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrievePrivateDomainResponse `json:"body,omitempty"`
+	Payload *models.RetrievePrivateDomainResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrievePrivateDomainOK creates RetrievePrivateDomainOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrievePrivateDomainOK() *RetrievePrivateDomainOK {
 }
 
 // WithPayload adds the payload to the retrieve private domain o k response
-func (o *RetrievePrivateDomainOK) WithPayload(payload *models.RetrievePrivateDomainResponse) *RetrievePrivateDomainOK {
+func (o *RetrievePrivateDomainOK) WithPayload(payload *models.RetrievePrivateDomainResponseResource) *RetrievePrivateDomainOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve private domain o k response
-func (o *RetrievePrivateDomainOK) SetPayload(payload *models.RetrievePrivateDomainResponse) {
+func (o *RetrievePrivateDomainOK) SetPayload(payload *models.RetrievePrivateDomainResponseResource) {
 	o.Payload = payload
 }
 

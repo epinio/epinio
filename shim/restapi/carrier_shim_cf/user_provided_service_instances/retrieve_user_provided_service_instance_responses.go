@@ -25,7 +25,7 @@ type RetrieveUserProvidedServiceInstanceOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RetrieveUserProvidedServiceInstanceResponse `json:"body,omitempty"`
+	Payload *models.RetrieveUserProvidedServiceInstanceResponseResource `json:"body,omitempty"`
 }
 
 // NewRetrieveUserProvidedServiceInstanceOK creates RetrieveUserProvidedServiceInstanceOK with default headers values
@@ -35,13 +35,13 @@ func NewRetrieveUserProvidedServiceInstanceOK() *RetrieveUserProvidedServiceInst
 }
 
 // WithPayload adds the payload to the retrieve user provided service instance o k response
-func (o *RetrieveUserProvidedServiceInstanceOK) WithPayload(payload *models.RetrieveUserProvidedServiceInstanceResponse) *RetrieveUserProvidedServiceInstanceOK {
+func (o *RetrieveUserProvidedServiceInstanceOK) WithPayload(payload *models.RetrieveUserProvidedServiceInstanceResponseResource) *RetrieveUserProvidedServiceInstanceOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the retrieve user provided service instance o k response
-func (o *RetrieveUserProvidedServiceInstanceOK) SetPayload(payload *models.RetrieveUserProvidedServiceInstanceResponse) {
+func (o *RetrieveUserProvidedServiceInstanceOK) SetPayload(payload *models.RetrieveUserProvidedServiceInstanceResponseResource) {
 	o.Payload = payload
 }
 

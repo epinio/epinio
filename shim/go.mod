@@ -12,6 +12,7 @@ require (
 	github.com/go-openapi/spec v0.19.12
 	github.com/go-openapi/strfmt v0.19.8
 	github.com/go-openapi/swag v0.19.11
+	github.com/go-openapi/validate v0.19.10
 	github.com/google/wire v0.4.0
 	github.com/jessevdk/go-flags v1.4.0
 	github.com/pkg/errors v0.9.1

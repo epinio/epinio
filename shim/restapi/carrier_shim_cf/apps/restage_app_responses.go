@@ -25,7 +25,7 @@ type RestageAppCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.RestageAppResponse `json:"body,omitempty"`
+	Payload *models.RestageAppResponseResource `json:"body,omitempty"`
 }
 
 // NewRestageAppCreated creates RestageAppCreated with default headers values
@@ -35,13 +35,13 @@ func NewRestageAppCreated() *RestageAppCreated {
 }
 
 // WithPayload adds the payload to the restage app created response
-func (o *RestageAppCreated) WithPayload(payload *models.RestageAppResponse) *RestageAppCreated {
+func (o *RestageAppCreated) WithPayload(payload *models.RestageAppResponseResource) *RestageAppCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the restage app created response
-func (o *RestageAppCreated) SetPayload(payload *models.RestageAppResponse) {
+func (o *RestageAppCreated) SetPayload(payload *models.RestageAppResponseResource) {
 	o.Payload = payload
 }
 

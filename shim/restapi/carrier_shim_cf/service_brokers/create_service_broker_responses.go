@@ -25,7 +25,7 @@ type CreateServiceBrokerCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateServiceBrokerResponse `json:"body,omitempty"`
+	Payload *models.CreateServiceBrokerResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateServiceBrokerCreated creates CreateServiceBrokerCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateServiceBrokerCreated() *CreateServiceBrokerCreated {
 }
 
 // WithPayload adds the payload to the create service broker created response
-func (o *CreateServiceBrokerCreated) WithPayload(payload *models.CreateServiceBrokerResponse) *CreateServiceBrokerCreated {
+func (o *CreateServiceBrokerCreated) WithPayload(payload *models.CreateServiceBrokerResponseResource) *CreateServiceBrokerCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create service broker created response
-func (o *CreateServiceBrokerCreated) SetPayload(payload *models.CreateServiceBrokerResponse) {
+func (o *CreateServiceBrokerCreated) SetPayload(payload *models.CreateServiceBrokerResponseResource) {
 	o.Payload = payload
 }
 

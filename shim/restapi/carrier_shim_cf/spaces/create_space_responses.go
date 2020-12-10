@@ -25,7 +25,7 @@ type CreateSpaceCreated struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.CreateSpaceResponse `json:"body,omitempty"`
+	Payload *models.CreateSpaceResponseResource `json:"body,omitempty"`
 }
 
 // NewCreateSpaceCreated creates CreateSpaceCreated with default headers values
@@ -35,13 +35,13 @@ func NewCreateSpaceCreated() *CreateSpaceCreated {
 }
 
 // WithPayload adds the payload to the create space created response
-func (o *CreateSpaceCreated) WithPayload(payload *models.CreateSpaceResponse) *CreateSpaceCreated {
+func (o *CreateSpaceCreated) WithPayload(payload *models.CreateSpaceResponseResource) *CreateSpaceCreated {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the create space created response
-func (o *CreateSpaceCreated) SetPayload(payload *models.CreateSpaceResponse) {
+func (o *CreateSpaceCreated) SetPayload(payload *models.CreateSpaceResponseResource) {
 	o.Payload = payload
 }
 

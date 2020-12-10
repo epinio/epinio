@@ -25,7 +25,7 @@ type SetSecurityGroupAsDefaultForStagingOK struct {
 	/*
 	  In: Body
 	*/
-	Payload *models.SetSecurityGroupAsDefaultForStagingResponse `json:"body,omitempty"`
+	Payload *models.SetSecurityGroupAsDefaultForStagingResponseResource `json:"body,omitempty"`
 }
 
 // NewSetSecurityGroupAsDefaultForStagingOK creates SetSecurityGroupAsDefaultForStagingOK with default headers values
@@ -35,13 +35,13 @@ func NewSetSecurityGroupAsDefaultForStagingOK() *SetSecurityGroupAsDefaultForSta
 }
 
 // WithPayload adds the payload to the set security group as default for staging o k response
-func (o *SetSecurityGroupAsDefaultForStagingOK) WithPayload(payload *models.SetSecurityGroupAsDefaultForStagingResponse) *SetSecurityGroupAsDefaultForStagingOK {
+func (o *SetSecurityGroupAsDefaultForStagingOK) WithPayload(payload *models.SetSecurityGroupAsDefaultForStagingResponseResource) *SetSecurityGroupAsDefaultForStagingOK {
 	o.Payload = payload
 	return o
 }
 
 // SetPayload sets the payload to the set security group as default for staging o k response
-func (o *SetSecurityGroupAsDefaultForStagingOK) SetPayload(payload *models.SetSecurityGroupAsDefaultForStagingResponse) {
+func (o *SetSecurityGroupAsDefaultForStagingOK) SetPayload(payload *models.SetSecurityGroupAsDefaultForStagingResponseResource) {
 	o.Payload = payload
 }
 
