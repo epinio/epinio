@@ -21,8 +21,24 @@ kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers
 log "Setting up admin role for tekton pipelines."
 kubectl apply --filename "$dir/admin-role.yaml" >> "$HOME/.carrier.log" 2>&1
 
-log "Wait for event listeners crd to be available."
+log "Wait for all tekton crds to be available."
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/clustertasks.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/clustertriggerbindings.triggers.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/conditions.tekton.dev' >> "$HOME/.carrier.log" 2>&1
 retry 60 'kubectl wait --for=condition=established --timeout=5s crd/eventlisteners.triggers.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/pipelineresources.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/pipelineruns.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/pipelines.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/runs.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/taskruns.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/tasks.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/triggerbindings.triggers.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/triggers.triggers.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/triggertemplates.triggers.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+
+log "Waiting for tekton kube webhook to be ready."
+retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod' >> "$HOME/.carrier.log" 2>&1
+retry 60 "curl --fail http://gitea.$public_ip.nip.io" >> "$HOME/.carrier.log" 2>&1
 
 log "Installing staging pipelines and triggers."
-kubectl apply --filename "$dir/triggers.yaml" >> "$HOME/.carrier.log" 2>&1
+retry 60 "kubectl apply --filename $dir/triggers.yaml" >> "$HOME/.carrier.log" 2>&1
