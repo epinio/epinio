@@ -42,3 +42,6 @@ retry 60 "curl --fail http://gitea.$public_ip.nip.io" >> "$HOME/.carrier.log" 2>
 
 log "Installing staging pipelines and triggers."
 retry 60 "kubectl apply --filename $dir/triggers.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Install the tekton dashboard."
+kubectl apply --filename https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml >> "$HOME/.carrier.log" 2>&1

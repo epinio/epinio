@@ -6,6 +6,9 @@ function log() {
 
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
+log "Remove the tekton dashboard."
+kubectl delete --filename https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml >> "$HOME/.carrier.log" 2>&1
+
 log "Removing staging pipelines and triggers."
 kubectl delete --filename "$dir/triggers.yaml" >> "$HOME/.carrier.log" 2>&1
 
