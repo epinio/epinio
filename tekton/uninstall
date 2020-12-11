@@ -14,3 +14,6 @@ kubectl delete --filename https://storage.googleapis.com/tekton-releases/trigger
 
 log "Removing the admin role for tekton pipelines."
 kubectl delete --filename "$dir/admin-role.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Removing staging pipelines and triggers."
+kubectl delete --filename "$dir/triggers.yaml" >> "$HOME/.carrier.log" 2>&1

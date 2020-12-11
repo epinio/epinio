@@ -29,14 +29,8 @@ echo "Will use public IP address ${external_ip}"
 # install kpack
 ./kpack/install "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD"
 
-# install drone
-./drone/install "$external_ip"
-
 # install eirini
 ./eirini/install "${external_ip}" "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD"
 
-# configure drone
-./drone-gitea/install "$external_ip"
-
-# install gitea
-./brigade/install "$external_ip"
+# install tekton
+./tekton/install "$external_ip"

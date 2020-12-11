@@ -12,14 +12,6 @@ log "Waiting for gitea to come online."
 retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n gitea --selector=app=gitea pod' >> "$HOME/.carrier.log" 2>&1
 retry 60 "curl --fail http://gitea.$public_ip.nip.io" >> "$HOME/.carrier.log" 2>&1
 
-# log "Setting up a gitea app."
-# app_token=$(curl -sb -X POST "http://dev:changeme@gitea.$public_ip.nip.io/api/v1/user/applications/oauth2" \
-#                 -H "accept: application/json" \
-#                 -H "Content-Type: application/json" \
-#                 -d "{  \"name\": \"brigade\",  \"redirect_uris\": [\"http://github-oauth-gateway.$public_ip.nip.io/login\" ]}")
-# app_client=$(echo $app_token | jq -r .client_id)
-# app_secret=$(echo $app_token | jq -r .client_secret)
-
 log "Installing tekton."
 kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml >> "$HOME/.carrier.log" 2>&1
 
@@ -28,3 +20,9 @@ kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers
 
 log "Setting up admin role for tekton pipelines."
 kubectl apply --filename "$dir/admin-role.yaml" >> "$HOME/.carrier.log" 2>&1
+
+log "Wait for event listeners crd to be available."
+retry 60 'kubectl wait --for=condition=established --timeout=5s crd/eventlisteners.triggers.tekton.dev' >> "$HOME/.carrier.log" 2>&1
+
+log "Installing staging pipelines and triggers."
+kubectl apply --filename "$dir/triggers.yaml" >> "$HOME/.carrier.log" 2>&1

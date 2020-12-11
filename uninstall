@@ -12,8 +12,8 @@
 # uninstall kpack
 ./kpack/uninstall &
 
-# uninstall drone
-./drone/uninstall &
+# uninstall tekton
+./tekton/uninstall &
 
 # uninstall eirini
 ./eirini/uninstall &

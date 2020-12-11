@@ -1,8 +1,0 @@
-
-rbac:
-  buildNamespaces:
-    - drone
-
-env:
-  DRONE_RPC_SECRET: needs-replacing-with-quarks-secret
-  DRONE_NAMESPACE_DEFAULT: drone

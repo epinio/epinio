@@ -5,4 +5,4 @@ function log() {
 }
 
 log "Removing gitea."
-helm delete gitea --namespace "gitea"
+helm delete gitea --namespace "gitea" >> "$HOME/.carrier.log" 2>&1
