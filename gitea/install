@@ -19,4 +19,4 @@ log "Installing gitea on public IP ${public_ip}, using domain ${domain}."
 helm install gitea "${dir}/chart/gitea" \
   --create-namespace \
   --namespace "gitea" \
-  --set "domain=${domain}"
+  --set "domain=${domain}" >> "$HOME/.carrier.log"

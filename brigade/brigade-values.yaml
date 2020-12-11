@@ -1,0 +1,24 @@
+# brigade-github-app:
+#   tag: v1.4.0
+#   enabled: true
+#   name: brigade-generic-gateway
+#   ingress:
+#     enabled: true
+#     annotations:
+#       kubernetes.io/ingress.class: traefik
+
+# genericGateway:
+#   enabled: true
+#   ingress:
+#     enabled: true
+#     annotations:
+#       kubernetes.io/ingress.class: traefik
+
+gw:
+  enabled: true
+brigade-github-oauth:
+  tag: v1.4.0
+  ingress:
+    enabled: true
+    annotations:
+      kubernetes.io/ingress.class: traefik

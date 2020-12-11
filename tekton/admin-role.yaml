@@ -1,0 +1,93 @@
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: tekton-triggers-admin
+rules:
+- apiGroups:
+  - triggers.tekton.dev
+  resources:
+  - clustertriggerbindings
+  verbs:
+  - get
+  - list
+  - watch
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: tekton-triggers-admin
+  namespace: eirini-workloads
+rules:
+- apiGroups:
+  - triggers.tekton.dev
+  resources:
+  - eventlisteners
+  - triggerbindings
+  - triggertemplates
+  - triggers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - tekton.dev
+  resources:
+  - pipelineruns
+  - pipelineresources
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tekton-triggers-admin
+  namespace: eirini-workloads
+secrets:
+  - name: gitea-creds
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tekton-triggers-admin-binding
+  namespace: eirini-workloads
+subjects:
+  - kind: ServiceAccount
+    name: tekton-triggers-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tekton-triggers-admin
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: tekton-triggers-admin-binding
+subjects:
+  - kind: ServiceAccount
+    name: tekton-triggers-admin
+    namespace: eirini-workloads
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: tekton-triggers-admin
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitea-creds
+  namespace: eirini-workloads
+  annotations:
+    tekton.dev/git-0: http://gitea.gitea:10080
+type: kubernetes.io/basic-auth
+stringData:
+  username: dev
+  password: changeme

@@ -37,3 +37,6 @@ echo "Will use public IP address ${external_ip}"
 
 # configure drone
 ./drone-gitea/install "$external_ip"
+
+# install gitea
+./brigade/install "$external_ip"

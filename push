@@ -29,27 +29,234 @@ function create_repo() {
     }" > /dev/null
 }
 
-function enable_drone() {
+function create_token() {
   target="$1"
   user="$2"
   pass="$3"
   app_name="$4"
 
-  say "Enabling application build pipeline ..."
+  say "Creating application ..."
 
-  drone_token=$(drone_api_token $target $user $pass)
+  old_token=$(curl -sSL "http://$user:$pass@gitea.$target/api/v1/users/$user/tokens/" | jq -r ".[] | select(.name = \"$app_name\").id")
 
-  curl -sSL "http://drone.$target/api/user/repos" \
-    -X "POST" \
-    -H "Connection: keep-alive" \
-    -H "Content-Length: 0" \
-    -H "Accept: */*" \
-    -H "Authorization: Bearer $drone_token" > /dev/null
+  curl -sSL -X DELETE "http://$user:$pass@gitea.$target/api/v1/users/$user/tokens/$old_token" \
+    -H  "accept: application/json" > /dev/null
 
-  curl -sSL -X POST "http://drone.$target/api/repos/$user/$app_name" \
-    -H "Authorization: Bearer $drone_token" \
-    -H  "accept: application/json" \
-    -H "Content-Type: application/json" > /dev/null
+  curl -sSL -X POST "http://$user:$pass@gitea.$target/api/v1/users/$user/tokens" \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json" \
+    -d "
+    {
+      \"name\": \"$app_name\"
+    }" | jq -r .sha1
+}
+
+function create_brig_project() {
+  target="$1"
+  user="$2"
+  pass="$3"
+  app_name="$4"
+
+  token=$(create_token "$target" "$user" "$pass" "$app_name") 
+
+  say "Setting up a brigade project ..."
+
+  cat <<EOF | kubectl apply -f -  > /dev/null
+  {
+    "apiVersion": "v1",
+    "kind": "Secret",
+    "metadata": {
+      "name": "brigade-$app_name",
+      "namespace": "brigade",
+      "creationTimestamp": null,
+      "labels": {
+        "app": "brigade",
+        "component": "project",
+        "heritage": "brigade"
+      },
+      "annotations": {
+        "projectName": "dev/local120"
+      }
+    },
+    "stringData": {
+      "allowHostMounts": "false",
+      "allowPrivilegedJobs": "false",
+      "brigadeConfigPath": "",
+      "brigadejsPath": "",
+      "buildStorageSize": "",
+      "cloneURL": "http://gitea.$target/$user/$app_name.git",
+      "defaultConfig": "",
+      "defaultConfigName": "",
+      "defaultScript": "",
+      "defaultScriptName": "",
+      "genericGatewaySecret": "",
+      "github.baseURL": "http://gitea.$target",
+      "github.token": "$token",
+      "github.uploadURL": "",
+      "imagePullSecrets": "",
+      "initGitSubmodules": "false",
+      "kubernetes.allowSecretKeyRef": "false",
+      "kubernetes.buildStorageClass": "",
+      "kubernetes.cacheStorageClass": "",
+      "namespace": "default",
+      "repository": "gitea.$target/$user/$app_name",
+      "secrets": "{}",
+      "serviceAccount": "",
+      "sharedSecret": "74tZTBHkhjMT5Klj6Ik6PqmM",
+      "sshCert": "",
+      "sshKey": "",
+      "vcsSidecar": "brigadecore/git-sidecar:latest",
+      "worker.name": "",
+      "worker.pullPolicy": "IfNotPresent",
+      "worker.registry": "",
+      "worker.tag": "",
+      "workerCommand": ""
+    },
+    "type": "brigade.sh/project"
+  }
+EOF
+}
+
+function create_tekton_triggers() {
+  target="$1"
+  user="$2"
+  pass="$3"
+  app_name="$4"
+
+  say "Setting up tekton triggers ..."
+
+  cat <<EOF | kubectl apply -f - > /dev/null
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerTemplate
+metadata:
+  name: $app_name-triggertemplate
+  namespace: eirini-workloads
+spec:
+  params:
+    - name: gitrevision
+      description: The git revision
+      default: main
+    - name: gitrepositoryurl
+      description: The git repository url
+    - name: namespace
+      description: The namespace to create the resources
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        name: $app_name-pipeline-run-\$(uid)
+        namespace: eirini-workloads
+      spec:
+        serviceAccountName: tekton-triggers-admin
+        pipelineRef:
+          name: $app_name-pipeline
+        resources:
+          - name: source-repo
+            resourceSpec:
+              type: git
+              params:
+              - name: revision
+                value: \$(tt.params.gitrevision)
+              - name: url
+                value: \$(tt.params.gitrepositoryurl)
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: TriggerBinding
+metadata:
+  name: $app_name-pipelinebinding
+  namespace: eirini-workloads
+spec:
+  params:
+    - name: gitrevision
+      value: \$(body.head_commit.id)
+    - name: namespace
+      value: eirini-workloads
+    - name: gitrepositoryurl
+      value: "http://gitea.gitea:10080/\$(body.repository.full_name)"
+---
+apiVersion: triggers.tekton.dev/v1alpha1
+kind: EventListener
+metadata:
+  name: $app_name-listener
+  namespace: eirini-workloads
+spec:
+  serviceAccountName: tekton-triggers-admin
+  triggers:
+    - bindings:
+      - ref: $app_name-pipelinebinding
+      template:
+        ref: $app_name-triggertemplate
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: $app_name-pipeline
+  namespace: eirini-workloads
+spec:
+  resources:
+    - name: source-repo
+      type: git
+  tasks:
+    - name: $app_name-stage
+      taskRef:
+        name: $app_name-stage
+      params:
+        - name: pathToContext
+          value: /workspace/source-repo
+      resources:
+        inputs:
+          - name: source-repo
+            resource: source-repo
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: $app_name-stage
+  namespace: eirini-workloads
+spec:
+  params:
+  - name: pathToContext
+    description:
+      The build directory used by img
+    default: /workspace/source-repo
+  resources:
+    inputs:
+      - name: source-repo
+        type: git
+  steps:
+    - name: stage
+      image: bitnami/kubectl
+      command:
+        - kubectl
+      args:
+        - -c
+        - |
+          ls -la \$(params.pathToContext)
+          env
+EOF
+}
+
+function create_repo_webhook() {
+  target="$1"
+  user="$2"
+  pass="$3"
+  app_name="$4"
+
+  say "Creating webhook in the repo ..."
+
+  curl -sSL -X POST "http://$user:$pass@gitea.$target/api/v1/repos/$user/$app_name/hooks" -H  "accept: application/json" -H  "Content-Type: application/json" \
+  -d "{  
+    \"active\": true,
+    \"branch_filter\": \"*\",  
+    \"config\": {
+          \"secret\": \"74tZTBHkhjMT5Klj6Ik6PqmM\",
+          \"http_method\": \"POST\",
+          \"payload_url\": \"http://brigade-server-brigade-github-gw.brigade:7744/events/github\",
+          \"url\": \"http://el-local120-listener.eirini-workloads:8080\",
+          \"content_type\": \"json\"
+      },
+      \"type\": \"gitea\"
+  }" > /dev/null
 }
 
 function prepare_code() {
@@ -214,9 +421,15 @@ target=$(get_target)
 user="dev"
 pass="changeme"
 
-create_repo "$target" "$user" "$pass" "$app_name"
-enable_drone "$target" "$user" "$pass" "$app_name"
-tmp_dir=$(prepare_code "$target" "$user" "$pass" "$app_name" "$app_path")
-git_push "$target" "$user" "$pass" "$app_name" "$tmp_dir"
-logs "$app_name"
-wait_for_app "$app_name" "$target"
+
+# create_repo "$target" "$user" "$pass" "$app_name"
+# enable_drone "$target" "$user" "$pass" "$app_name"
+# tmp_dir=$(prepare_code "$target" "$user" "$pass" "$app_name" "$app_path")
+# git_push "$target" "$user" "$pass" "$app_name" "$tmp_dir"
+# logs "$app_name"
+
+create_tekton_triggers "$target" "$user" "$pass" "$app_name"
+
+create_repo_webhook "$target" "$user" "$pass" "$app_name"
+
+# wait_for_app "$app_name" "$target"

@@ -1,0 +1,13 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mdrone> \e[32m$1\e[39m"
+}
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+log "Deleting argo."
+kubectl delete -n argo -f https://raw.githubusercontent.com/argoproj/argo/stable/manifests/install.yaml >> "$HOME/.carrier.log" 2>&1
+
+log "Removing argo namespace."
+kubectl delete namespace argo >> "$HOME/.carrier.log" 2>&1

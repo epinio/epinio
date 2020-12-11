@@ -1,0 +1,30 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mbrigade> \e[32m$1\e[39m"
+}
+
+public_ip="$1"
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+log "Waiting for gitea to come online."
+retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n gitea --selector=app=gitea pod' >> "$HOME/.carrier.log" 2>&1
+retry 60 "curl --fail http://gitea.$public_ip.nip.io" >> "$HOME/.carrier.log" 2>&1
+
+# log "Setting up a gitea app."
+# app_token=$(curl -sb -X POST "http://dev:changeme@gitea.$public_ip.nip.io/api/v1/user/applications/oauth2" \
+#                 -H "accept: application/json" \
+#                 -H "Content-Type: application/json" \
+#                 -d "{  \"name\": \"brigade\",  \"redirect_uris\": [\"http://github-oauth-gateway.$public_ip.nip.io/login\" ]}")
+# app_client=$(echo $app_token | jq -r .client_id)
+# app_secret=$(echo $app_token | jq -r .client_secret)
+
+log "Installing tekton."
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml >> "$HOME/.carrier.log" 2>&1
+
+log "Installing tekton triggers."
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers/previous/v0.10.1/release.yaml >> "$HOME/.carrier.log" 2>&1
+
+log "Setting up admin role for tekton pipelines."
+kubectl apply --filename "$dir/admin-role.yaml" >> "$HOME/.carrier.log" 2>&1

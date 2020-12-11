@@ -140,7 +140,7 @@ spec:
     targetPort: http
     nodePort: 30080
 ---
-apiVersion: networking.k8s.io/v1
+apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
   name: gitea
@@ -155,9 +155,6 @@ spec:
     http:
       paths:
       - backend:
-          service:
-            name: gitea
-            port:
-              number: 10080
+          serviceName: gitea
+          servicePort: 10080
         path: /
-        pathType: ImplementationSpecific

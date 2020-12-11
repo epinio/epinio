@@ -1,0 +1,16 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mtekton> \e[32m$1\e[39m"
+}
+
+dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+log "Removing tekton."
+kubectl delete --filename https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml >> "$HOME/.carrier.log" 2>&1
+
+log "Removing tekton triggers."
+kubectl delete --filename https://storage.googleapis.com/tekton-releases/triggers/previous/v0.10.1/release.yaml >> "$HOME/.carrier.log" 2>&1
+
+log "Removing the admin role for tekton pipelines."
+kubectl delete --filename "$dir/admin-role.yaml" >> "$HOME/.carrier.log" 2>&1
