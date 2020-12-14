@@ -11,13 +11,7 @@ const (
 	Version = "0.1"
 )
 
-// Build time and commit information.
-//
-// ⚠️ WARNING: should only be set by "-ldflags".
-var (
-	BuildTime   string
-	BuildCommit string
-)
+var kubeconfig string
 
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -39,8 +33,16 @@ func Execute() {
 	installCmd.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
 	rootCmd.AddCommand(installCmd)
 
+	ExitIfError(ensureKubeConfig())
+
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
+	}
+}
+
+func ensureKubeConfig() error {
+	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
+		return errors.New("KUBECONFIG environment variable not set!")
 	}
 }
