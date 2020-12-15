@@ -20,16 +20,6 @@ type FakeDeployment struct {
 	backupReturnsOnCall map[int]struct {
 		result1 error
 	}
-	CollectInputStub        func() []kubernetes.UserInput
-	collectInputMutex       sync.RWMutex
-	collectInputArgsForCall []struct {
-	}
-	collectInputReturns struct {
-		result1 []kubernetes.UserInput
-	}
-	collectInputReturnsOnCall map[int]struct {
-		result1 []kubernetes.UserInput
-	}
 	DeleteStub        func(kubernetes.Cluster) error
 	deleteMutex       sync.RWMutex
 	deleteArgsForCall []struct {
@@ -81,6 +71,26 @@ type FakeDeployment struct {
 	}
 	getVersionReturnsOnCall map[int]struct {
 		result1 string
+	}
+	IDStub        func() kubernetes.DeploymentID
+	iDMutex       sync.RWMutex
+	iDArgsForCall []struct {
+	}
+	iDReturns struct {
+		result1 kubernetes.DeploymentID
+	}
+	iDReturnsOnCall map[int]struct {
+		result1 kubernetes.DeploymentID
+	}
+	NeededUserInputStub        func() kubernetes.InstallationOptions
+	neededUserInputMutex       sync.RWMutex
+	neededUserInputArgsForCall []struct {
+	}
+	neededUserInputReturns struct {
+		result1 kubernetes.InstallationOptions
+	}
+	neededUserInputReturnsOnCall map[int]struct {
+		result1 kubernetes.InstallationOptions
 	}
 	RestoreStub        func(kubernetes.Cluster, string) error
 	restoreMutex       sync.RWMutex
@@ -173,59 +183,6 @@ func (fake *FakeDeployment) BackupReturnsOnCall(i int, result1 error) {
 	}
 	fake.backupReturnsOnCall[i] = struct {
 		result1 error
-	}{result1}
-}
-
-func (fake *FakeDeployment) CollectInput() []kubernetes.UserInput {
-	fake.collectInputMutex.Lock()
-	ret, specificReturn := fake.collectInputReturnsOnCall[len(fake.collectInputArgsForCall)]
-	fake.collectInputArgsForCall = append(fake.collectInputArgsForCall, struct {
-	}{})
-	stub := fake.CollectInputStub
-	fakeReturns := fake.collectInputReturns
-	fake.recordInvocation("CollectInput", []interface{}{})
-	fake.collectInputMutex.Unlock()
-	if stub != nil {
-		return stub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *FakeDeployment) CollectInputCallCount() int {
-	fake.collectInputMutex.RLock()
-	defer fake.collectInputMutex.RUnlock()
-	return len(fake.collectInputArgsForCall)
-}
-
-func (fake *FakeDeployment) CollectInputCalls(stub func() []kubernetes.UserInput) {
-	fake.collectInputMutex.Lock()
-	defer fake.collectInputMutex.Unlock()
-	fake.CollectInputStub = stub
-}
-
-func (fake *FakeDeployment) CollectInputReturns(result1 []kubernetes.UserInput) {
-	fake.collectInputMutex.Lock()
-	defer fake.collectInputMutex.Unlock()
-	fake.CollectInputStub = nil
-	fake.collectInputReturns = struct {
-		result1 []kubernetes.UserInput
-	}{result1}
-}
-
-func (fake *FakeDeployment) CollectInputReturnsOnCall(i int, result1 []kubernetes.UserInput) {
-	fake.collectInputMutex.Lock()
-	defer fake.collectInputMutex.Unlock()
-	fake.CollectInputStub = nil
-	if fake.collectInputReturnsOnCall == nil {
-		fake.collectInputReturnsOnCall = make(map[int]struct {
-			result1 []kubernetes.UserInput
-		})
-	}
-	fake.collectInputReturnsOnCall[i] = struct {
-		result1 []kubernetes.UserInput
 	}{result1}
 }
 
@@ -510,6 +467,112 @@ func (fake *FakeDeployment) GetVersionReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
+func (fake *FakeDeployment) ID() kubernetes.DeploymentID {
+	fake.iDMutex.Lock()
+	ret, specificReturn := fake.iDReturnsOnCall[len(fake.iDArgsForCall)]
+	fake.iDArgsForCall = append(fake.iDArgsForCall, struct {
+	}{})
+	stub := fake.IDStub
+	fakeReturns := fake.iDReturns
+	fake.recordInvocation("ID", []interface{}{})
+	fake.iDMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeDeployment) IDCallCount() int {
+	fake.iDMutex.RLock()
+	defer fake.iDMutex.RUnlock()
+	return len(fake.iDArgsForCall)
+}
+
+func (fake *FakeDeployment) IDCalls(stub func() kubernetes.DeploymentID) {
+	fake.iDMutex.Lock()
+	defer fake.iDMutex.Unlock()
+	fake.IDStub = stub
+}
+
+func (fake *FakeDeployment) IDReturns(result1 kubernetes.DeploymentID) {
+	fake.iDMutex.Lock()
+	defer fake.iDMutex.Unlock()
+	fake.IDStub = nil
+	fake.iDReturns = struct {
+		result1 kubernetes.DeploymentID
+	}{result1}
+}
+
+func (fake *FakeDeployment) IDReturnsOnCall(i int, result1 kubernetes.DeploymentID) {
+	fake.iDMutex.Lock()
+	defer fake.iDMutex.Unlock()
+	fake.IDStub = nil
+	if fake.iDReturnsOnCall == nil {
+		fake.iDReturnsOnCall = make(map[int]struct {
+			result1 kubernetes.DeploymentID
+		})
+	}
+	fake.iDReturnsOnCall[i] = struct {
+		result1 kubernetes.DeploymentID
+	}{result1}
+}
+
+func (fake *FakeDeployment) NeededUserInput() kubernetes.InstallationOptions {
+	fake.neededUserInputMutex.Lock()
+	ret, specificReturn := fake.neededUserInputReturnsOnCall[len(fake.neededUserInputArgsForCall)]
+	fake.neededUserInputArgsForCall = append(fake.neededUserInputArgsForCall, struct {
+	}{})
+	stub := fake.NeededUserInputStub
+	fakeReturns := fake.neededUserInputReturns
+	fake.recordInvocation("NeededUserInput", []interface{}{})
+	fake.neededUserInputMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeDeployment) NeededUserInputCallCount() int {
+	fake.neededUserInputMutex.RLock()
+	defer fake.neededUserInputMutex.RUnlock()
+	return len(fake.neededUserInputArgsForCall)
+}
+
+func (fake *FakeDeployment) NeededUserInputCalls(stub func() kubernetes.InstallationOptions) {
+	fake.neededUserInputMutex.Lock()
+	defer fake.neededUserInputMutex.Unlock()
+	fake.NeededUserInputStub = stub
+}
+
+func (fake *FakeDeployment) NeededUserInputReturns(result1 kubernetes.InstallationOptions) {
+	fake.neededUserInputMutex.Lock()
+	defer fake.neededUserInputMutex.Unlock()
+	fake.NeededUserInputStub = nil
+	fake.neededUserInputReturns = struct {
+		result1 kubernetes.InstallationOptions
+	}{result1}
+}
+
+func (fake *FakeDeployment) NeededUserInputReturnsOnCall(i int, result1 kubernetes.InstallationOptions) {
+	fake.neededUserInputMutex.Lock()
+	defer fake.neededUserInputMutex.Unlock()
+	fake.NeededUserInputStub = nil
+	if fake.neededUserInputReturnsOnCall == nil {
+		fake.neededUserInputReturnsOnCall = make(map[int]struct {
+			result1 kubernetes.InstallationOptions
+		})
+	}
+	fake.neededUserInputReturnsOnCall[i] = struct {
+		result1 kubernetes.InstallationOptions
+	}{result1}
+}
+
 func (fake *FakeDeployment) Restore(arg1 kubernetes.Cluster, arg2 string) error {
 	fake.restoreMutex.Lock()
 	ret, specificReturn := fake.restoreReturnsOnCall[len(fake.restoreArgsForCall)]
@@ -670,8 +733,6 @@ func (fake *FakeDeployment) Invocations() map[string][][]interface{} {
 	defer fake.invocationsMutex.RUnlock()
 	fake.backupMutex.RLock()
 	defer fake.backupMutex.RUnlock()
-	fake.collectInputMutex.RLock()
-	defer fake.collectInputMutex.RUnlock()
 	fake.deleteMutex.RLock()
 	defer fake.deleteMutex.RUnlock()
 	fake.deployMutex.RLock()
@@ -682,6 +743,10 @@ func (fake *FakeDeployment) Invocations() map[string][][]interface{} {
 	defer fake.getDomainMutex.RUnlock()
 	fake.getVersionMutex.RLock()
 	defer fake.getVersionMutex.RUnlock()
+	fake.iDMutex.RLock()
+	defer fake.iDMutex.RUnlock()
+	fake.neededUserInputMutex.RLock()
+	defer fake.neededUserInputMutex.RUnlock()
 	fake.restoreMutex.RLock()
 	defer fake.restoreMutex.RUnlock()
 	fake.setDomainMutex.RLock()
