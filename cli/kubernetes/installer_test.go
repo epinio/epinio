@@ -4,132 +4,110 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/suse/carrier/cli/kubernetes"
+	. "github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/kubernetes/kubernetesfakes"
 )
 
-var _ = Describe("InstallationOption", func() {
-	Describe("ToOptMapKey", func() {
-		option := kubernetes.InstallationOption{
-			Name:         "TheName",
-			DeploymentID: "SomeDeployment",
-		}
-		It("returns a combination of Name + deploymentID", func() {
-			Expect(option.ToOptMapKey()).To(Equal("TheName-SomeDeployment"))
-		})
-	})
-})
+type FakeReader struct {
+	Values map[string]string
+}
 
-var _ = Describe("InstallationOptions", func() {
-	Describe("ToOptMap", func() {
-		options := kubernetes.InstallationOptions{
-			{
-				Name:         "OptionName",
-				Value:        "ForDeployment1",
+func (f *FakeReader) Read(opt InstallationOption) interface{} {
+	return f.Values[opt.Name+string(opt.DeploymentID)]
+}
+
+var _ = Describe("Installer", func() {
+	var installer *Installer
+	var deployment1 = &kubernetesfakes.FakeDeployment{}
+	var deployment2 = &kubernetesfakes.FakeDeployment{}
+
+	Describe("GatherNeededOptions", func() {
+		BeforeEach(func() {
+			deployment1.NeededOptionsReturns(
+				InstallationOptions{
+					{Name: "SharedOption", DeploymentID: "", Value: "ShouldBeIgnored"},
+					{Name: "PrivateOption1", DeploymentID: "Deployment1"},
+				})
+			deployment2.NeededOptionsReturns(
+				InstallationOptions{
+					{Name: "SharedOption", DeploymentID: "", Value: "ShouldBeIgnoredToo"},
+					{Name: "PrivateOption2", DeploymentID: "Deployment2"},
+				})
+			installer = NewInstaller(deployment1, deployment2)
+		})
+
+		It("returns a combination of all options from all deployments", func() {
+			installer.GatherNeededOptions()
+			Expect(len(installer.NeededOptions)).To(Equal(3))
+			Expect(installer.NeededOptions).To(
+				ContainElement(InstallationOption{Name: "SharedOption", Value: ""}))
+			Expect(installer.NeededOptions).To(ContainElement(InstallationOption{
+				Name:         "PrivateOption1",
 				DeploymentID: "Deployment1",
-			},
-			{
-				Name:         "OptionName",
-				Value:        "ThisShouldBeLost",
+			}))
+			Expect(installer.NeededOptions).To(ContainElement(InstallationOption{
+				Name:         "PrivateOption2",
 				DeploymentID: "Deployment2",
-			},
-			{
-				Name:         "OptionName",
-				Value:        "ForDeployment2",
-				DeploymentID: "Deployment2",
-			},
-			{
-				Name:         "OptionName",
-				Value:        "ForAllDeployments",
-				DeploymentID: "",
-			},
-		}
-		It("returns a map matching the InstallationOptions", func() {
-			optMap := options.ToOptMap()
-			Expect(optMap["OptionName-Deployment1"].Value).To(Equal("ForDeployment1"))
-			Expect(optMap["OptionName-Deployment2"].Value).To(Equal("ForDeployment2"))
-			Expect(optMap["OptionName-"].Value).To(Equal("ForAllDeployments"))
+			}))
+		})
+
+		It("ignores default values on shared options", func() {
+			installer.GatherNeededOptions()
+			Expect(installer.NeededOptions).To(ContainElement(
+				InstallationOption{Name: "SharedOption", Value: ""}))
 		})
 	})
 
-	Describe("Merge", func() {
-		When("merging shared options", func() {
-			var sharedOption, privateOption kubernetes.InstallationOption
-			var installationOptions kubernetes.InstallationOptions
-			BeforeEach(func() {
-				sharedOption = kubernetes.InstallationOption{
-					Name:         "Option",
-					Value:        "the old value",
-					DeploymentID: "", // This is what makes it shared
-				}
-				privateOption = kubernetes.InstallationOption{
-					Name:         "Option",
-					Value:        "private value",
-					DeploymentID: "MyDeploymentID", // This is what makes it private
-				}
-				installationOptions = kubernetes.InstallationOptions{sharedOption, privateOption}
-			})
-			It("returns only one instance of the shared option", func() {
-				result := installationOptions.Merge(kubernetes.InstallationOptions{
-					{Name: "Option", Value: "the new value", DeploymentID: ""},
-				})
-				Expect(result.GetString("Option", "")).To(Equal("the new value"))
-			})
-
-			It("doesn't overwrite private options with shared ones", func() {
-				result := installationOptions.Merge(kubernetes.InstallationOptions{
-					{Name: "Option", Value: "the new value", DeploymentID: ""},
-				})
-				Expect(result.GetString("Option", "MyDeploymentID")).To(Equal("private value"))
-			})
-
-			It("Returns every instance of private options (even when name match)", func() {
-				result := installationOptions.Merge(kubernetes.InstallationOptions{
-					{Name: "Option", Value: "the new value", DeploymentID: "OtherDeploymentID"},
-				})
-				Expect(result.GetString("Option", "MyDeploymentID")).To(Equal("private value"))
-				Expect(result.GetString("Option", "OtherDeploymentID")).To(Equal("the new value"))
-			})
-		})
-	})
-	Describe("GetString", func() {
-		var options kubernetes.InstallationOptions
-		When("option is a string", func() {
-			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
-						Name:  "Option",
-						Value: "the value",
-						Type:  kubernetes.StringType,
+	Describe("PopulateNeededOptions", func() {
+		BeforeEach(func() {
+			deployment1.NeededOptionsReturns(
+				InstallationOptions{
+					{
+						Name:         "SharedOption",
+						DeploymentID: "",
+						Value:        "", // To be filled in
 					},
-				}
-			})
-			It("returns a string value", func() {
-				Expect(options.GetString("Option", "")).To(Equal("the value"))
-			})
-		})
-		When("option is not a string", func() {
-			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
-						Name:  "Option",
-						Value: true,
-						Type:  kubernetes.BooleanType,
+					{
+						Name:         "PrivateOption1",
+						DeploymentID: "Deployment1",
+						Value:        "SomeDefault",
 					},
-				}
-			})
-			It("panics", func() {
-				Expect(func() { options.GetString("Option", "") }).
-					To(PanicWith(MatchRegexp("wrong type assertion")))
-			})
+				})
+			deployment2.NeededOptionsReturns(
+				InstallationOptions{
+					{
+						Name:         "SharedOption",
+						DeploymentID: "",
+						Value:        "Default",
+					},
+					{
+						Name:         "PrivateOption2",
+						DeploymentID: "Deployment2",
+						Value:        "", // to be filled
+					},
+				})
+			installer = NewInstaller(deployment1, deployment2)
+			installer.GatherNeededOptions()
 		})
 
-		When("option doesn't exist", func() {
-			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{}
-			})
-			It("returns an empty string", func() {
-				Expect(options.GetString("Option", "")).To(Equal(""))
-			})
+		It("returns a combination of all options from all deployments", func() {
+			fakereader := &FakeReader{
+				Values: map[string]string{
+					"SharedOption-":              "something-returned-by-user",
+					"PrivateOption2-Deployment2": "something-returned-by-user-private",
+				},
+			}
+			installer.PopulateNeededOptions(fakereader)
+			Expect(len(installer.NeededOptions)).To(Equal(3))
+			Expect(installer.NeededOptions).To(ContainElement(InstallationOption{
+				Name:  "SharedOption",
+				Value: "something-returned-by-user",
+			}))
+			Expect(installer.NeededOptions).To(ContainElement(InstallationOption{
+				Name:         "PrivateOption2",
+				DeploymentID: "Deployment2",
+				Value:        "something-returned-by-user-private",
+			}))
 		})
 	})
 })

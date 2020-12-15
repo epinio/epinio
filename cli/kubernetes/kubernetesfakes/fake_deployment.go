@@ -82,14 +82,14 @@ type FakeDeployment struct {
 	iDReturnsOnCall map[int]struct {
 		result1 kubernetes.DeploymentID
 	}
-	NeededUserInputStub        func() kubernetes.InstallationOptions
-	neededUserInputMutex       sync.RWMutex
-	neededUserInputArgsForCall []struct {
+	NeededOptionsStub        func() kubernetes.InstallationOptions
+	neededOptionsMutex       sync.RWMutex
+	neededOptionsArgsForCall []struct {
 	}
-	neededUserInputReturns struct {
+	neededOptionsReturns struct {
 		result1 kubernetes.InstallationOptions
 	}
-	neededUserInputReturnsOnCall map[int]struct {
+	neededOptionsReturnsOnCall map[int]struct {
 		result1 kubernetes.InstallationOptions
 	}
 	RestoreStub        func(kubernetes.Cluster, string) error
@@ -520,15 +520,15 @@ func (fake *FakeDeployment) IDReturnsOnCall(i int, result1 kubernetes.Deployment
 	}{result1}
 }
 
-func (fake *FakeDeployment) NeededUserInput() kubernetes.InstallationOptions {
-	fake.neededUserInputMutex.Lock()
-	ret, specificReturn := fake.neededUserInputReturnsOnCall[len(fake.neededUserInputArgsForCall)]
-	fake.neededUserInputArgsForCall = append(fake.neededUserInputArgsForCall, struct {
+func (fake *FakeDeployment) NeededOptions() kubernetes.InstallationOptions {
+	fake.neededOptionsMutex.Lock()
+	ret, specificReturn := fake.neededOptionsReturnsOnCall[len(fake.neededOptionsArgsForCall)]
+	fake.neededOptionsArgsForCall = append(fake.neededOptionsArgsForCall, struct {
 	}{})
-	stub := fake.NeededUserInputStub
-	fakeReturns := fake.neededUserInputReturns
-	fake.recordInvocation("NeededUserInput", []interface{}{})
-	fake.neededUserInputMutex.Unlock()
+	stub := fake.NeededOptionsStub
+	fakeReturns := fake.neededOptionsReturns
+	fake.recordInvocation("NeededOptions", []interface{}{})
+	fake.neededOptionsMutex.Unlock()
 	if stub != nil {
 		return stub()
 	}
@@ -538,37 +538,37 @@ func (fake *FakeDeployment) NeededUserInput() kubernetes.InstallationOptions {
 	return fakeReturns.result1
 }
 
-func (fake *FakeDeployment) NeededUserInputCallCount() int {
-	fake.neededUserInputMutex.RLock()
-	defer fake.neededUserInputMutex.RUnlock()
-	return len(fake.neededUserInputArgsForCall)
+func (fake *FakeDeployment) NeededOptionsCallCount() int {
+	fake.neededOptionsMutex.RLock()
+	defer fake.neededOptionsMutex.RUnlock()
+	return len(fake.neededOptionsArgsForCall)
 }
 
-func (fake *FakeDeployment) NeededUserInputCalls(stub func() kubernetes.InstallationOptions) {
-	fake.neededUserInputMutex.Lock()
-	defer fake.neededUserInputMutex.Unlock()
-	fake.NeededUserInputStub = stub
+func (fake *FakeDeployment) NeededOptionsCalls(stub func() kubernetes.InstallationOptions) {
+	fake.neededOptionsMutex.Lock()
+	defer fake.neededOptionsMutex.Unlock()
+	fake.NeededOptionsStub = stub
 }
 
-func (fake *FakeDeployment) NeededUserInputReturns(result1 kubernetes.InstallationOptions) {
-	fake.neededUserInputMutex.Lock()
-	defer fake.neededUserInputMutex.Unlock()
-	fake.NeededUserInputStub = nil
-	fake.neededUserInputReturns = struct {
+func (fake *FakeDeployment) NeededOptionsReturns(result1 kubernetes.InstallationOptions) {
+	fake.neededOptionsMutex.Lock()
+	defer fake.neededOptionsMutex.Unlock()
+	fake.NeededOptionsStub = nil
+	fake.neededOptionsReturns = struct {
 		result1 kubernetes.InstallationOptions
 	}{result1}
 }
 
-func (fake *FakeDeployment) NeededUserInputReturnsOnCall(i int, result1 kubernetes.InstallationOptions) {
-	fake.neededUserInputMutex.Lock()
-	defer fake.neededUserInputMutex.Unlock()
-	fake.NeededUserInputStub = nil
-	if fake.neededUserInputReturnsOnCall == nil {
-		fake.neededUserInputReturnsOnCall = make(map[int]struct {
+func (fake *FakeDeployment) NeededOptionsReturnsOnCall(i int, result1 kubernetes.InstallationOptions) {
+	fake.neededOptionsMutex.Lock()
+	defer fake.neededOptionsMutex.Unlock()
+	fake.NeededOptionsStub = nil
+	if fake.neededOptionsReturnsOnCall == nil {
+		fake.neededOptionsReturnsOnCall = make(map[int]struct {
 			result1 kubernetes.InstallationOptions
 		})
 	}
-	fake.neededUserInputReturnsOnCall[i] = struct {
+	fake.neededOptionsReturnsOnCall[i] = struct {
 		result1 kubernetes.InstallationOptions
 	}{result1}
 }
@@ -745,8 +745,8 @@ func (fake *FakeDeployment) Invocations() map[string][][]interface{} {
 	defer fake.getVersionMutex.RUnlock()
 	fake.iDMutex.RLock()
 	defer fake.iDMutex.RUnlock()
-	fake.neededUserInputMutex.RLock()
-	defer fake.neededUserInputMutex.RUnlock()
+	fake.neededOptionsMutex.RLock()
+	defer fake.neededOptionsMutex.RUnlock()
 	fake.restoreMutex.RLock()
 	defer fake.restoreMutex.RUnlock()
 	fake.setDomainMutex.RLock()
