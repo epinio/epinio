@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -28,7 +29,7 @@ func Execute() {
 		Use:   "install",
 		Short: "install Carrier in your configured kubernetes cluster",
 		Long:  `install Carrier PaaS in your configured kubernetes cluster`,
-		Run:   install,
+		Run:   Install,
 	}
 	installCmd.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
 	rootCmd.AddCommand(installCmd)
@@ -45,4 +46,6 @@ func ensureKubeConfig() error {
 	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
 		return errors.New("KUBECONFIG environment variable not set!")
 	}
+
+	return nil
 }

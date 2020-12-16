@@ -78,7 +78,7 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 	return nil
 }
 
-func (i *Installer) Install(cluster Cluster, options InstallationOptions) error {
+func (i *Installer) Install(cluster *Cluster) error {
 	// fmt.Println(d.Describe())
 	//	for _, := range i {
 

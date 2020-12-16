@@ -9,18 +9,13 @@ import (
 )
 
 // install command installs carrier on a configured cluster
-func install(cmd *cobra.Command, args []string) {
+func Install(cmd *cobra.Command, args []string) {
 	fmt.Println("Carrier installing...")
-
-	cluster, err := kubernetes.NewCluster(kubeconfig)
-	ExitfIfError(err, "Something went wrong")
-
-	// WIP WIP WIP: collect needed input from deployments and present all questions
-	// to the user in the begining. Don't wait until it's needed.
-	neededInput := []kubernetes.UserInput{}
-	for _, deployment := range []kubernetes.Deployment{Kpack{}, Gitea{}} {
-		deployment.CollectInput()
-	}
-
-	deployment.Install(cluster)
+	// TODO: Actually install some deployment
+	installer := kubernetes.Installer{}
+	installer.GatherNeededOptions()
+	installer.PopulateNeededOptions(nil)
+	cluster, err := kubernetes.NewCluster("") // TODO: find kubeconfig
+	ExitfIfError(err, "Couldn't get the cluster, check your config")
+	installer.Install(cluster)
 }
