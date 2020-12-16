@@ -1,5 +1,7 @@
 package kubernetes
 
+import "os"
+
 type DeploymentID string
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
@@ -48,7 +50,7 @@ func (i *Installer) GatherNeededOptions() {
 }
 
 type OptionsReader interface {
-	Read(InstallationOption) interface{}
+	Read(InstallationOption) (interface{}, error)
 }
 
 // PopulateNeededOptions will try to give values to the needed options
@@ -56,14 +58,24 @@ type OptionsReader interface {
 // InteractiveOptionsReader which will ask in the terminal.
 // This method only populates what is possible and leaves the rest empty.
 // TODO: Implement another method to validate that all options have been set.
-func (i *Installer) PopulateNeededOptions(reader OptionsReader) {
-	// if reader == nil {
-	// 	reader = InteractiveOptionsReader // stdin
-	// }
-	// for aech optino ask it from the reader calling Read()
-	// for _, d := range i.Deployments {
-	// 	i.NeededOptions = i.NeededOptions.Merge(d.NeededOptions())
-	// }
+func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
+	if reader == nil {
+		reader = NewInteractiveOptionsReader(os.Stdout, os.Stdin)
+	}
+
+	var err error
+	newOptions := InstallationOptions{}
+	for _, opt := range i.NeededOptions {
+		opt.Value, err = reader.Read(opt)
+		if err != nil {
+			return err
+		}
+		newOptions = append(newOptions, opt)
+	}
+
+	i.NeededOptions = newOptions
+
+	return nil
 }
 
 func (i *Installer) Install(cluster Cluster, options InstallationOptions) error {

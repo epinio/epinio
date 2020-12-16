@@ -12,8 +12,8 @@ type FakeReader struct {
 	Values map[string]string
 }
 
-func (f *FakeReader) Read(opt InstallationOption) interface{} {
-	return f.Values[opt.Name+string(opt.DeploymentID)]
+func (f *FakeReader) Read(opt InstallationOption) (interface{}, error) {
+	return f.Values[opt.Name+"-"+string(opt.DeploymentID)], nil
 }
 
 var _ = Describe("Installer", func() {
@@ -94,9 +94,10 @@ var _ = Describe("Installer", func() {
 			fakereader := &FakeReader{
 				Values: map[string]string{
 					"SharedOption-":              "something-returned-by-user",
-					"PrivateOption2-Deployment2": "something-returned-by-user-private",
+					"PrivateOption2-Deployment2": "something-returned-by-user-private2",
 				},
 			}
+			installer.GatherNeededOptions()
 			installer.PopulateNeededOptions(fakereader)
 			Expect(len(installer.NeededOptions)).To(Equal(3))
 			Expect(installer.NeededOptions).To(ContainElement(InstallationOption{
@@ -106,7 +107,7 @@ var _ = Describe("Installer", func() {
 			Expect(installer.NeededOptions).To(ContainElement(InstallationOption{
 				Name:         "PrivateOption2",
 				DeploymentID: "Deployment2",
-				Value:        "something-returned-by-user-private",
+				Value:        "something-returned-by-user-private2",
 			}))
 		})
 	})
