@@ -1,6 +1,9 @@
 package kubernetes
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 const (
 	BooleanType = iota
@@ -48,17 +51,47 @@ func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationO
 	return result
 }
 
-func (opts InstallationOptions) GetString(optionName string, deploymentID string) string {
+func (opts InstallationOptions) GetString(optionName string, deploymentID string) (string, error) {
 	for _, option := range opts {
 		if option.Name == optionName && string(option.DeploymentID) == deploymentID {
 			result, ok := option.Value.(string)
 			if !ok {
 				panic("wrong type assertion")
 			} else {
-				return result
+				return result, nil
 			}
 		}
 	}
 
-	return ""
+	return "", errors.New(optionName + " not set")
+}
+
+func (opts InstallationOptions) GetBool(optionName string, deploymentID string) (bool, error) {
+	for _, option := range opts {
+		if option.Name == optionName && string(option.DeploymentID) == deploymentID {
+			result, ok := option.Value.(bool)
+			if !ok {
+				panic("wrong type assertion")
+			} else {
+				return result, nil
+			}
+		}
+	}
+
+	return false, errors.New(optionName + " not set")
+}
+
+func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (int, error) {
+	for _, option := range opts {
+		if option.Name == optionName && string(option.DeploymentID) == deploymentID {
+			result, ok := option.Value.(int)
+			if !ok {
+				panic("wrong type assertion")
+			} else {
+				return result, nil
+			}
+		}
+	}
+
+	return 0, errors.New(optionName + " not set")
 }

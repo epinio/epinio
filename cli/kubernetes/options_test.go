@@ -105,7 +105,9 @@ var _ = Describe("InstallationOptions", func() {
 				}
 			})
 			It("returns a string value", func() {
-				Expect(options.GetString("Option", "")).To(Equal("the value"))
+				result, err := options.GetString("Option", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).To(Equal("the value"))
 			})
 		})
 		When("option is not a string", func() {
@@ -128,9 +130,116 @@ var _ = Describe("InstallationOptions", func() {
 			BeforeEach(func() {
 				options = kubernetes.InstallationOptions{}
 			})
-			It("returns an empty string", func() {
-				Expect(options.GetString("Option", "")).To(Equal(""))
+			It("returns an error", func() {
+				_, err := options.GetString("Option", "")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
 			})
+		})
+	})
+
+	Describe("GetInt", func() {
+		var options kubernetes.InstallationOptions
+		When("option is an int", func() {
+			BeforeEach(func() {
+				options = kubernetes.InstallationOptions{
+					kubernetes.InstallationOption{
+						Name:  "Option",
+						Value: 3,
+						Type:  kubernetes.IntType,
+					},
+				}
+			})
+			It("returns an int value", func() {
+				result, err := options.GetInt("Option", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).To(Equal(3))
+			})
+		})
+
+		When("option is not an int", func() {
+			BeforeEach(func() {
+				options = kubernetes.InstallationOptions{
+					kubernetes.InstallationOption{
+						Name:  "Option",
+						Value: true,
+						Type:  kubernetes.BooleanType,
+					},
+				}
+			})
+			It("panics", func() {
+				Expect(func() { options.GetInt("Option", "") }).
+					To(PanicWith(MatchRegexp("wrong type assertion")))
+			})
+		})
+
+		When("option doesn't exist", func() {
+			BeforeEach(func() {
+				options = kubernetes.InstallationOptions{}
+			})
+
+			It("returns an error", func() {
+				_, err := options.GetInt("Option", "")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+		})
+	})
+
+	Describe("GetBool", func() {
+		var options kubernetes.InstallationOptions
+		When("option is a bool", func() {
+			BeforeEach(func() {
+				options = kubernetes.InstallationOptions{
+					kubernetes.InstallationOption{
+						Name:  "Option",
+						Value: true,
+						Type:  kubernetes.BooleanType,
+					},
+				}
+			})
+			It("returns a boolean value", func() {
+				result, err := options.GetBool("Option", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result).To(BeTrue())
+			})
+		})
+
+		When("option is not a bool", func() {
+			BeforeEach(func() {
+				options = kubernetes.InstallationOptions{
+					kubernetes.InstallationOption{
+						Name:  "Option",
+						Value: "aString",
+						Type:  kubernetes.StringType,
+					},
+				}
+			})
+			It("panics", func() {
+				Expect(func() { options.GetBool("Option", "") }).
+					To(PanicWith(MatchRegexp("wrong type assertion")))
+			})
+		})
+
+		When("option doesn't exist", func() {
+			BeforeEach(func() {
+				options = kubernetes.InstallationOptions{}
+			})
+
+			It("returns an error", func() {
+				_, err := options.GetBool("Option", "")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+		})
+	})
+
+	Describe("ForDeployment", func() {
+		It("returns all options for the given deployment + shared options", func() {
+
+		})
+		It("returns no options from other deployments", func() {
+
 		})
 	})
 })
