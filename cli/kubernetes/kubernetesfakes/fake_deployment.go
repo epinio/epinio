@@ -53,16 +53,6 @@ type FakeDeployment struct {
 	describeReturnsOnCall map[int]struct {
 		result1 string
 	}
-	GetDomainStub        func() string
-	getDomainMutex       sync.RWMutex
-	getDomainArgsForCall []struct {
-	}
-	getDomainReturns struct {
-		result1 string
-	}
-	getDomainReturnsOnCall map[int]struct {
-		result1 string
-	}
 	GetVersionStub        func() string
 	getVersionMutex       sync.RWMutex
 	getVersionArgsForCall []struct {
@@ -73,15 +63,15 @@ type FakeDeployment struct {
 	getVersionReturnsOnCall map[int]struct {
 		result1 string
 	}
-	IDStub        func() kubernetes.DeploymentID
+	IDStub        func() string
 	iDMutex       sync.RWMutex
 	iDArgsForCall []struct {
 	}
 	iDReturns struct {
-		result1 kubernetes.DeploymentID
+		result1 string
 	}
 	iDReturnsOnCall map[int]struct {
-		result1 kubernetes.DeploymentID
+		result1 string
 	}
 	NeededOptionsStub        func() kubernetes.InstallationOptions
 	neededOptionsMutex       sync.RWMutex
@@ -104,11 +94,6 @@ type FakeDeployment struct {
 	}
 	restoreReturnsOnCall map[int]struct {
 		result1 error
-	}
-	SetDomainStub        func(string)
-	setDomainMutex       sync.RWMutex
-	setDomainArgsForCall []struct {
-		arg1 string
 	}
 	UpgradeStub        func(kubernetes.Cluster) error
 	upgradeMutex       sync.RWMutex
@@ -363,59 +348,6 @@ func (fake *FakeDeployment) DescribeReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) GetDomain() string {
-	fake.getDomainMutex.Lock()
-	ret, specificReturn := fake.getDomainReturnsOnCall[len(fake.getDomainArgsForCall)]
-	fake.getDomainArgsForCall = append(fake.getDomainArgsForCall, struct {
-	}{})
-	stub := fake.GetDomainStub
-	fakeReturns := fake.getDomainReturns
-	fake.recordInvocation("GetDomain", []interface{}{})
-	fake.getDomainMutex.Unlock()
-	if stub != nil {
-		return stub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *FakeDeployment) GetDomainCallCount() int {
-	fake.getDomainMutex.RLock()
-	defer fake.getDomainMutex.RUnlock()
-	return len(fake.getDomainArgsForCall)
-}
-
-func (fake *FakeDeployment) GetDomainCalls(stub func() string) {
-	fake.getDomainMutex.Lock()
-	defer fake.getDomainMutex.Unlock()
-	fake.GetDomainStub = stub
-}
-
-func (fake *FakeDeployment) GetDomainReturns(result1 string) {
-	fake.getDomainMutex.Lock()
-	defer fake.getDomainMutex.Unlock()
-	fake.GetDomainStub = nil
-	fake.getDomainReturns = struct {
-		result1 string
-	}{result1}
-}
-
-func (fake *FakeDeployment) GetDomainReturnsOnCall(i int, result1 string) {
-	fake.getDomainMutex.Lock()
-	defer fake.getDomainMutex.Unlock()
-	fake.GetDomainStub = nil
-	if fake.getDomainReturnsOnCall == nil {
-		fake.getDomainReturnsOnCall = make(map[int]struct {
-			result1 string
-		})
-	}
-	fake.getDomainReturnsOnCall[i] = struct {
-		result1 string
-	}{result1}
-}
-
 func (fake *FakeDeployment) GetVersion() string {
 	fake.getVersionMutex.Lock()
 	ret, specificReturn := fake.getVersionReturnsOnCall[len(fake.getVersionArgsForCall)]
@@ -469,7 +401,7 @@ func (fake *FakeDeployment) GetVersionReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) ID() kubernetes.DeploymentID {
+func (fake *FakeDeployment) ID() string {
 	fake.iDMutex.Lock()
 	ret, specificReturn := fake.iDReturnsOnCall[len(fake.iDArgsForCall)]
 	fake.iDArgsForCall = append(fake.iDArgsForCall, struct {
@@ -493,32 +425,32 @@ func (fake *FakeDeployment) IDCallCount() int {
 	return len(fake.iDArgsForCall)
 }
 
-func (fake *FakeDeployment) IDCalls(stub func() kubernetes.DeploymentID) {
+func (fake *FakeDeployment) IDCalls(stub func() string) {
 	fake.iDMutex.Lock()
 	defer fake.iDMutex.Unlock()
 	fake.IDStub = stub
 }
 
-func (fake *FakeDeployment) IDReturns(result1 kubernetes.DeploymentID) {
+func (fake *FakeDeployment) IDReturns(result1 string) {
 	fake.iDMutex.Lock()
 	defer fake.iDMutex.Unlock()
 	fake.IDStub = nil
 	fake.iDReturns = struct {
-		result1 kubernetes.DeploymentID
+		result1 string
 	}{result1}
 }
 
-func (fake *FakeDeployment) IDReturnsOnCall(i int, result1 kubernetes.DeploymentID) {
+func (fake *FakeDeployment) IDReturnsOnCall(i int, result1 string) {
 	fake.iDMutex.Lock()
 	defer fake.iDMutex.Unlock()
 	fake.IDStub = nil
 	if fake.iDReturnsOnCall == nil {
 		fake.iDReturnsOnCall = make(map[int]struct {
-			result1 kubernetes.DeploymentID
+			result1 string
 		})
 	}
 	fake.iDReturnsOnCall[i] = struct {
-		result1 kubernetes.DeploymentID
+		result1 string
 	}{result1}
 }
 
@@ -637,38 +569,6 @@ func (fake *FakeDeployment) RestoreReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) SetDomain(arg1 string) {
-	fake.setDomainMutex.Lock()
-	fake.setDomainArgsForCall = append(fake.setDomainArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	stub := fake.SetDomainStub
-	fake.recordInvocation("SetDomain", []interface{}{arg1})
-	fake.setDomainMutex.Unlock()
-	if stub != nil {
-		fake.SetDomainStub(arg1)
-	}
-}
-
-func (fake *FakeDeployment) SetDomainCallCount() int {
-	fake.setDomainMutex.RLock()
-	defer fake.setDomainMutex.RUnlock()
-	return len(fake.setDomainArgsForCall)
-}
-
-func (fake *FakeDeployment) SetDomainCalls(stub func(string)) {
-	fake.setDomainMutex.Lock()
-	defer fake.setDomainMutex.Unlock()
-	fake.SetDomainStub = stub
-}
-
-func (fake *FakeDeployment) SetDomainArgsForCall(i int) string {
-	fake.setDomainMutex.RLock()
-	defer fake.setDomainMutex.RUnlock()
-	argsForCall := fake.setDomainArgsForCall[i]
-	return argsForCall.arg1
-}
-
 func (fake *FakeDeployment) Upgrade(arg1 kubernetes.Cluster) error {
 	fake.upgradeMutex.Lock()
 	ret, specificReturn := fake.upgradeReturnsOnCall[len(fake.upgradeArgsForCall)]
@@ -741,8 +641,6 @@ func (fake *FakeDeployment) Invocations() map[string][][]interface{} {
 	defer fake.deployMutex.RUnlock()
 	fake.describeMutex.RLock()
 	defer fake.describeMutex.RUnlock()
-	fake.getDomainMutex.RLock()
-	defer fake.getDomainMutex.RUnlock()
 	fake.getVersionMutex.RLock()
 	defer fake.getVersionMutex.RUnlock()
 	fake.iDMutex.RLock()
@@ -751,8 +649,6 @@ func (fake *FakeDeployment) Invocations() map[string][][]interface{} {
 	defer fake.neededOptionsMutex.RUnlock()
 	fake.restoreMutex.RLock()
 	defer fake.restoreMutex.RUnlock()
-	fake.setDomainMutex.RLock()
-	defer fake.setDomainMutex.RUnlock()
 	fake.upgradeMutex.RLock()
 	defer fake.upgradeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

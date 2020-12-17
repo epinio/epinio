@@ -18,7 +18,7 @@ type InstallationOption struct {
 	Value        interface{}
 	Description  string
 	Type         InstallationOptionType
-	DeploymentID "" // If set, this option will be passed only to this deployment (private)
+	DeploymentID string // If set, this option will be passed only to this deployment (private)
 }
 
 type InstallationOptions []InstallationOption
@@ -53,7 +53,7 @@ func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationO
 
 func (opts InstallationOptions) GetString(optionName string, deploymentID string) (string, error) {
 	for _, option := range opts {
-		if option.Name == optionName && string(option.DeploymentID) == deploymentID {
+		if option.Name == optionName && option.DeploymentID == deploymentID {
 			result, ok := option.Value.(string)
 			if !ok {
 				panic("wrong type assertion")
@@ -68,7 +68,7 @@ func (opts InstallationOptions) GetString(optionName string, deploymentID string
 
 func (opts InstallationOptions) GetBool(optionName string, deploymentID string) (bool, error) {
 	for _, option := range opts {
-		if option.Name == optionName && string(option.DeploymentID) == deploymentID {
+		if option.Name == optionName && option.DeploymentID == deploymentID {
 			result, ok := option.Value.(bool)
 			if !ok {
 				panic("wrong type assertion")
@@ -83,7 +83,7 @@ func (opts InstallationOptions) GetBool(optionName string, deploymentID string) 
 
 func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (int, error) {
 	for _, option := range opts {
-		if option.Name == optionName && string(option.DeploymentID) == deploymentID {
+		if option.Name == optionName && option.DeploymentID == deploymentID {
 			result, ok := option.Value.(int)
 			if !ok {
 				panic("wrong type assertion")
@@ -96,7 +96,7 @@ func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (
 	return 0, errors.New(optionName + " not set")
 }
 
-func (opts InstallationOptions) ForDeployment(deploymentID DeploymentID) InstallationOptions {
+func (opts InstallationOptions) ForDeployment(deploymentID string) InstallationOptions {
 	result := InstallationOptions{}
 	for _, opt := range opts {
 		if opt.DeploymentID == deploymentID || opt.DeploymentID == "" {

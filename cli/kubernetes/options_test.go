@@ -282,7 +282,7 @@ var _ = Describe("InstallationOptions", func() {
 		})
 
 		It("returns no options from other deployments", func() {
-			result := options.ForDeployment(DeploymentID("Deployment2"))
+			result := options.ForDeployment("Deployment2")
 			Expect(result).ToNot(ContainElement(InstallationOption{
 				Name:         "Option1",
 				Value:        "SomeValue",

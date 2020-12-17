@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/briandowns/spinner v1.12.0
+	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0 // indirect

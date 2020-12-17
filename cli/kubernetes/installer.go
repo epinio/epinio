@@ -2,21 +2,17 @@ package kubernetes
 
 import "os"
 
-type DeploymentID string
-
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
 	Deploy(Cluster, InstallationOptions) error
 	Upgrade(Cluster) error
-	SetDomain(d string)
-	GetDomain() string
 	Delete(Cluster) error
 	Describe() string
 	GetVersion() string
 	NeededOptions() InstallationOptions
 	Restore(Cluster, string) error
 	Backup(Cluster, string) error
-	ID() DeploymentID
+	ID() string
 }
 
 // A list of deployment that should be installed together
