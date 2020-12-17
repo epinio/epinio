@@ -4,12 +4,12 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/suse/carrier/cli/kubernetes"
+	. "github.com/suse/carrier/cli/kubernetes"
 )
 
 var _ = Describe("InstallationOption", func() {
 	Describe("ToOptMapKey", func() {
-		option := kubernetes.InstallationOption{
+		option := InstallationOption{
 			Name:         "TheName",
 			DeploymentID: "SomeDeployment",
 		}
@@ -21,7 +21,7 @@ var _ = Describe("InstallationOption", func() {
 
 var _ = Describe("InstallationOptions", func() {
 	Describe("ToOptMap", func() {
-		options := kubernetes.InstallationOptions{
+		options := InstallationOptions{
 			{
 				Name:         "OptionName",
 				Value:        "ForDeployment1",
@@ -53,37 +53,37 @@ var _ = Describe("InstallationOptions", func() {
 
 	Describe("Merge", func() {
 		When("merging shared options", func() {
-			var sharedOption, privateOption kubernetes.InstallationOption
-			var installationOptions kubernetes.InstallationOptions
+			var sharedOption, privateOption InstallationOption
+			var installationOptions InstallationOptions
 			BeforeEach(func() {
-				sharedOption = kubernetes.InstallationOption{
+				sharedOption = InstallationOption{
 					Name:         "Option",
 					Value:        "the old value",
 					DeploymentID: "", // This is what makes it shared
 				}
-				privateOption = kubernetes.InstallationOption{
+				privateOption = InstallationOption{
 					Name:         "Option",
 					Value:        "private value",
 					DeploymentID: "MyDeploymentID", // This is what makes it private
 				}
-				installationOptions = kubernetes.InstallationOptions{sharedOption, privateOption}
+				installationOptions = InstallationOptions{sharedOption, privateOption}
 			})
 			It("returns only one instance of the shared option", func() {
-				result := installationOptions.Merge(kubernetes.InstallationOptions{
+				result := installationOptions.Merge(InstallationOptions{
 					{Name: "Option", Value: "the new value", DeploymentID: ""},
 				})
 				Expect(result.GetString("Option", "")).To(Equal("the new value"))
 			})
 
 			It("doesn't overwrite private options with shared ones", func() {
-				result := installationOptions.Merge(kubernetes.InstallationOptions{
+				result := installationOptions.Merge(InstallationOptions{
 					{Name: "Option", Value: "the new value", DeploymentID: ""},
 				})
 				Expect(result.GetString("Option", "MyDeploymentID")).To(Equal("private value"))
 			})
 
 			It("Returns every instance of private options (even when name match)", func() {
-				result := installationOptions.Merge(kubernetes.InstallationOptions{
+				result := installationOptions.Merge(InstallationOptions{
 					{Name: "Option", Value: "the new value", DeploymentID: "OtherDeploymentID"},
 				})
 				Expect(result.GetString("Option", "MyDeploymentID")).To(Equal("private value"))
@@ -93,14 +93,14 @@ var _ = Describe("InstallationOptions", func() {
 	})
 
 	Describe("GetString", func() {
-		var options kubernetes.InstallationOptions
+		var options InstallationOptions
 		When("option is a string", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
+				options = InstallationOptions{
+					InstallationOption{
 						Name:  "Option",
 						Value: "the value",
-						Type:  kubernetes.StringType,
+						Type:  StringType,
 					},
 				}
 			})
@@ -112,11 +112,11 @@ var _ = Describe("InstallationOptions", func() {
 		})
 		When("option is not a string", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
+				options = InstallationOptions{
+					InstallationOption{
 						Name:  "Option",
 						Value: true,
-						Type:  kubernetes.BooleanType,
+						Type:  BooleanType,
 					},
 				}
 			})
@@ -128,7 +128,7 @@ var _ = Describe("InstallationOptions", func() {
 
 		When("option doesn't exist", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{}
+				options = InstallationOptions{}
 			})
 			It("returns an error", func() {
 				_, err := options.GetString("Option", "")
@@ -139,14 +139,14 @@ var _ = Describe("InstallationOptions", func() {
 	})
 
 	Describe("GetInt", func() {
-		var options kubernetes.InstallationOptions
+		var options InstallationOptions
 		When("option is an int", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
+				options = InstallationOptions{
+					InstallationOption{
 						Name:  "Option",
 						Value: 3,
-						Type:  kubernetes.IntType,
+						Type:  IntType,
 					},
 				}
 			})
@@ -159,11 +159,11 @@ var _ = Describe("InstallationOptions", func() {
 
 		When("option is not an int", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
+				options = InstallationOptions{
+					InstallationOption{
 						Name:  "Option",
 						Value: true,
-						Type:  kubernetes.BooleanType,
+						Type:  BooleanType,
 					},
 				}
 			})
@@ -175,7 +175,7 @@ var _ = Describe("InstallationOptions", func() {
 
 		When("option doesn't exist", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{}
+				options = InstallationOptions{}
 			})
 
 			It("returns an error", func() {
@@ -187,14 +187,14 @@ var _ = Describe("InstallationOptions", func() {
 	})
 
 	Describe("GetBool", func() {
-		var options kubernetes.InstallationOptions
+		var options InstallationOptions
 		When("option is a bool", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
+				options = InstallationOptions{
+					InstallationOption{
 						Name:  "Option",
 						Value: true,
-						Type:  kubernetes.BooleanType,
+						Type:  BooleanType,
 					},
 				}
 			})
@@ -207,11 +207,11 @@ var _ = Describe("InstallationOptions", func() {
 
 		When("option is not a bool", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{
-					kubernetes.InstallationOption{
+				options = InstallationOptions{
+					InstallationOption{
 						Name:  "Option",
 						Value: "aString",
-						Type:  kubernetes.StringType,
+						Type:  StringType,
 					},
 				}
 			})
@@ -223,7 +223,7 @@ var _ = Describe("InstallationOptions", func() {
 
 		When("option doesn't exist", func() {
 			BeforeEach(func() {
-				options = kubernetes.InstallationOptions{}
+				options = InstallationOptions{}
 			})
 
 			It("returns an error", func() {
@@ -235,11 +235,59 @@ var _ = Describe("InstallationOptions", func() {
 	})
 
 	Describe("ForDeployment", func() {
-		It("returns all options for the given deployment + shared options", func() {
-
+		var options InstallationOptions
+		BeforeEach(func() {
+			options = InstallationOptions{
+				{
+					Name:         "Option1",
+					Value:        "ForDeployment1",
+					DeploymentID: "Deployment1",
+				},
+				{
+					Name:         "Option1",
+					Value:        "SomeValue",
+					DeploymentID: "Deployment2",
+				},
+				{
+					Name:         "Option2",
+					Value:        "SomeOtherValue",
+					DeploymentID: "Deployment2",
+				},
+				{
+					Name:         "OptionName",
+					Value:        "ForAllDeployments",
+					DeploymentID: "",
+				},
+			}
 		})
-		It("returns no options from other deployments", func() {
 
+		It("returns all options for the given deployment + shared options", func() {
+			result := options.ForDeployment("Deployment2")
+			Expect(result).To(ContainElement(InstallationOption{
+				Name:         "Option1",
+				Value:        "SomeValue",
+				DeploymentID: "Deployment2",
+			}))
+			Expect(result).To(ContainElement(InstallationOption{
+				Name:         "Option2",
+				Value:        "SomeOtherValue",
+				DeploymentID: "Deployment2",
+			}))
+			Expect(result).To(ContainElement(InstallationOption{
+				Name:         "OptionName",
+				Value:        "ForAllDeployments",
+				DeploymentID: "",
+			}))
+			Expect(len(result)).To(Equal(3))
+		})
+
+		It("returns no options from other deployments", func() {
+			result := options.ForDeployment(DeploymentID("Deployment2"))
+			Expect(result).ToNot(ContainElement(InstallationOption{
+				Name:         "Option1",
+				Value:        "SomeValue",
+				DeploymentID: "Deployment1",
+			}))
 		})
 	})
 })

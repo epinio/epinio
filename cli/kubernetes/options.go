@@ -95,3 +95,14 @@ func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (
 
 	return 0, errors.New(optionName + " not set")
 }
+
+func (opts InstallationOptions) ForDeployment(deploymentID DeploymentID) InstallationOptions {
+	result := InstallationOptions{}
+	for _, opt := range opts {
+		if opt.DeploymentID == deploymentID || opt.DeploymentID == "" {
+			result = append(result, opt)
+		}
+	}
+
+	return result
+}
