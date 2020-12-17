@@ -6,7 +6,7 @@ type DeploymentID string
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
-	Deploy(Cluster) error
+	Deploy(Cluster, InstallationOptions) error
 	Upgrade(Cluster) error
 	SetDomain(d string)
 	GetDomain() string
@@ -79,6 +79,10 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 }
 
 func (i *Installer) Install(cluster *Cluster) error {
+	for _, deployment := range i.Deployments {
+		options := i.NeededOptions.ForDeployment(deployment.ID())
+		deployment.Deploy(*cluster, options)
+	}
 	// fmt.Println(d.Describe())
 	//	for _, := range i {
 

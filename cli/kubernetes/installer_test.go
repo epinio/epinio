@@ -18,6 +18,7 @@ func (f *FakeReader) Read(opt InstallationOption) (interface{}, error) {
 
 var _ = Describe("Installer", func() {
 	var installer *Installer
+	var cluster Cluster
 	var deployment1 = &kubernetesfakes.FakeDeployment{}
 	var deployment2 = &kubernetesfakes.FakeDeployment{}
 
@@ -109,6 +110,20 @@ var _ = Describe("Installer", func() {
 				DeploymentID: "Deployment2",
 				Value:        "something-returned-by-user-private2",
 			}))
+		})
+	})
+	Describe("Install", func() {
+		BeforeEach(func() {
+			deployment1.DeployReturns(nil)
+			deployment2.DeployReturns(nil)
+			installer = NewInstaller(deployment1, deployment2)
+			cluster = Cluster{}
+		})
+
+		It("calls Deploy method on deployments", func() {
+			installer.Install(&cluster)
+			Expect(deployment1.DeployCallCount()).To(Equal(1))
+			Expect(deployment2.DeployCallCount()).To(Equal(1))
 		})
 	})
 })

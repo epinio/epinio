@@ -31,10 +31,11 @@ type FakeDeployment struct {
 	deleteReturnsOnCall map[int]struct {
 		result1 error
 	}
-	DeployStub        func(kubernetes.Cluster) error
+	DeployStub        func(kubernetes.Cluster, kubernetes.InstallationOptions) error
 	deployMutex       sync.RWMutex
 	deployArgsForCall []struct {
 		arg1 kubernetes.Cluster
+		arg2 kubernetes.InstallationOptions
 	}
 	deployReturns struct {
 		result1 error
@@ -247,18 +248,19 @@ func (fake *FakeDeployment) DeleteReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Deploy(arg1 kubernetes.Cluster) error {
+func (fake *FakeDeployment) Deploy(arg1 kubernetes.Cluster, arg2 kubernetes.InstallationOptions) error {
 	fake.deployMutex.Lock()
 	ret, specificReturn := fake.deployReturnsOnCall[len(fake.deployArgsForCall)]
 	fake.deployArgsForCall = append(fake.deployArgsForCall, struct {
 		arg1 kubernetes.Cluster
-	}{arg1})
+		arg2 kubernetes.InstallationOptions
+	}{arg1, arg2})
 	stub := fake.DeployStub
 	fakeReturns := fake.deployReturns
-	fake.recordInvocation("Deploy", []interface{}{arg1})
+	fake.recordInvocation("Deploy", []interface{}{arg1, arg2})
 	fake.deployMutex.Unlock()
 	if stub != nil {
-		return stub(arg1)
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -272,17 +274,17 @@ func (fake *FakeDeployment) DeployCallCount() int {
 	return len(fake.deployArgsForCall)
 }
 
-func (fake *FakeDeployment) DeployCalls(stub func(kubernetes.Cluster) error) {
+func (fake *FakeDeployment) DeployCalls(stub func(kubernetes.Cluster, kubernetes.InstallationOptions) error) {
 	fake.deployMutex.Lock()
 	defer fake.deployMutex.Unlock()
 	fake.DeployStub = stub
 }
 
-func (fake *FakeDeployment) DeployArgsForCall(i int) kubernetes.Cluster {
+func (fake *FakeDeployment) DeployArgsForCall(i int) (kubernetes.Cluster, kubernetes.InstallationOptions) {
 	fake.deployMutex.RLock()
 	defer fake.deployMutex.RUnlock()
 	argsForCall := fake.deployArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeDeployment) DeployReturns(result1 error) {
