@@ -118,12 +118,44 @@ var _ = Describe("Installer", func() {
 			deployment2.DeployReturns(nil)
 			installer = NewInstaller(deployment1, deployment2)
 			cluster = Cluster{}
+			installer.NeededOptions = InstallationOptions{
+				{
+					Name:         "Option1",
+					DeploymentID: "Deployment1",
+				},
+				{
+					Name:         "Option2",
+					DeploymentID: "Deployment2",
+				},
+				{
+					Name:         "Option3",
+					DeploymentID: "",
+				},
+			}
 		})
 
 		It("calls Deploy method on deployments", func() {
+			deployment1.IDReturns("Deployment1")
+			deployment2.IDReturns("Deployment2")
 			installer.Install(&cluster)
 			Expect(deployment1.DeployCallCount()).To(Equal(1))
 			Expect(deployment2.DeployCallCount()).To(Equal(1))
+		})
+
+		It("calls Deploy method with the correct InstallationOptions for each deployment", func() {
+			installer.Install(&cluster)
+			_, opts := deployment1.DeployArgsForCall(1)
+			Expect(opts).To(ContainElement(
+				InstallationOption{
+					Name:         "Option1",
+					DeploymentID: "Deployment1",
+				}))
+			Expect(opts).To(ContainElement(
+				InstallationOption{
+					Name:         "Option3",
+					DeploymentID: "",
+				}))
+			Expect(len(opts)).To(Equal(2))
 		})
 	})
 })
