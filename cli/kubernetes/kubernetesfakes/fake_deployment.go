@@ -95,10 +95,11 @@ type FakeDeployment struct {
 	restoreReturnsOnCall map[int]struct {
 		result1 error
 	}
-	UpgradeStub        func(kubernetes.Cluster) error
+	UpgradeStub        func(kubernetes.Cluster, kubernetes.InstallationOptions) error
 	upgradeMutex       sync.RWMutex
 	upgradeArgsForCall []struct {
 		arg1 kubernetes.Cluster
+		arg2 kubernetes.InstallationOptions
 	}
 	upgradeReturns struct {
 		result1 error
@@ -569,18 +570,19 @@ func (fake *FakeDeployment) RestoreReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Upgrade(arg1 kubernetes.Cluster) error {
+func (fake *FakeDeployment) Upgrade(arg1 kubernetes.Cluster, arg2 kubernetes.InstallationOptions) error {
 	fake.upgradeMutex.Lock()
 	ret, specificReturn := fake.upgradeReturnsOnCall[len(fake.upgradeArgsForCall)]
 	fake.upgradeArgsForCall = append(fake.upgradeArgsForCall, struct {
 		arg1 kubernetes.Cluster
-	}{arg1})
+		arg2 kubernetes.InstallationOptions
+	}{arg1, arg2})
 	stub := fake.UpgradeStub
 	fakeReturns := fake.upgradeReturns
-	fake.recordInvocation("Upgrade", []interface{}{arg1})
+	fake.recordInvocation("Upgrade", []interface{}{arg1, arg2})
 	fake.upgradeMutex.Unlock()
 	if stub != nil {
-		return stub(arg1)
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -594,17 +596,17 @@ func (fake *FakeDeployment) UpgradeCallCount() int {
 	return len(fake.upgradeArgsForCall)
 }
 
-func (fake *FakeDeployment) UpgradeCalls(stub func(kubernetes.Cluster) error) {
+func (fake *FakeDeployment) UpgradeCalls(stub func(kubernetes.Cluster, kubernetes.InstallationOptions) error) {
 	fake.upgradeMutex.Lock()
 	defer fake.upgradeMutex.Unlock()
 	fake.UpgradeStub = stub
 }
 
-func (fake *FakeDeployment) UpgradeArgsForCall(i int) kubernetes.Cluster {
+func (fake *FakeDeployment) UpgradeArgsForCall(i int) (kubernetes.Cluster, kubernetes.InstallationOptions) {
 	fake.upgradeMutex.RLock()
 	defer fake.upgradeMutex.RUnlock()
 	argsForCall := fake.upgradeArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeDeployment) UpgradeReturns(result1 error) {

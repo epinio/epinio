@@ -51,7 +51,7 @@ func (k Traefik) Delete(c kubernetes.Cluster) error {
 
 //	for i, ip := range c.GetPlatform().ExternalIPs() {
 //		helmArgs = append(helmArgs, "--set controller.service.externalIPs["+strconv.Itoa(i)+"]="+ip)
-func (k Traefik) apply(c kubernetes.Cluster, upgrade bool) error {
+func (k Traefik) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -92,10 +92,10 @@ func (k Traefik) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpt
 	}
 
 	emoji.Println(":ship:Deploying Traefik Ingress")
-	return k.apply(c, false)
+	return k.apply(c, options, false)
 }
 
-func (k Traefik) Upgrade(c kubernetes.Cluster) error {
+func (k Traefik) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		traefikDeploymentID,
@@ -106,5 +106,5 @@ func (k Traefik) Upgrade(c kubernetes.Cluster) error {
 	}
 
 	emoji.Println(":ship:Upgrade Traefik Ingress")
-	return k.apply(c, true)
+	return k.apply(c, options, true)
 }

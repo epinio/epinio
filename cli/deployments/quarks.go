@@ -49,7 +49,7 @@ func (k Quarks) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Quarks) apply(c kubernetes.Cluster, upgrade bool) error {
+func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -90,10 +90,10 @@ func (k Quarks) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 	}
 
 	emoji.Println(":ship:Deploying Quarks")
-	return k.apply(c, false)
+	return k.apply(c, options, false)
 }
 
-func (k Quarks) Upgrade(c kubernetes.Cluster) error {
+func (k Quarks) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		quarksDeploymentID,
@@ -104,5 +104,5 @@ func (k Quarks) Upgrade(c kubernetes.Cluster) error {
 	}
 
 	emoji.Println(":ship:Upgrade Quarks")
-	return k.apply(c, true)
+	return k.apply(c, options, true)
 }

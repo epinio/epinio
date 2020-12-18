@@ -5,7 +5,7 @@ import "os"
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
 	Deploy(Cluster, InstallationOptions) error
-	Upgrade(Cluster) error
+	Upgrade(Cluster, InstallationOptions) error
 	Delete(Cluster) error
 	Describe() string
 	GetVersion() string
