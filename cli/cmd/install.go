@@ -16,6 +16,7 @@ func Install(cmd *cobra.Command, args []string) {
 	installer := kubernetes.Installer{
 		Deployments: []kubernetes.Deployment{
 			&deployments.Traefik{},
+			&deployments.Quarks{},
 		},
 	}
 	installer.GatherNeededOptions()
