@@ -50,7 +50,9 @@ log "Labeling eirini namespace."
 kubectl label namespace eirini-workloads quarks.cloudfoundry.org/monitored=quarks-secret >> "$HOME/.carrier.log"
 
 log "Installing tekton pipelines for buildpacks."
+retry 60 'kubectl get secret -n eirini-workloads registry-tls-self-ca' >> "$HOME/.carrier.log" 2>&1
 retry 60 'kubectl get secret -n eirini-workloads registry-tls-self' >> "$HOME/.carrier.log" 2>&1
+
 # Get CA Cert
 ca_hash_self="$(kubectl get secret -n eirini-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout).0"
 template=`cat "$dir/staging.yaml" | sed "s/{{CA_HASHED_NAME}}/$ca_hash_self/g" | sed "s/{{CA_SELF_HASHED_NAME}}/$ca_hash_self/g"`
