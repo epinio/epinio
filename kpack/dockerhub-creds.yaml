@@ -1,8 +1,0 @@
-apiVersion: v1
-data:
-  .dockerconfigjson: {{CONFIG_JSON}}
-kind: Secret
-metadata:
-  name: dockerhub-creds
-  namespace: default
-type: kubernetes.io/dockerconfigjson

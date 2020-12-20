@@ -53,6 +53,7 @@ metadata:
   namespace: eirini-workloads
 secrets:
   - name: gitea-creds
+  - name: registry-creds
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -79,6 +80,15 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: staging-triggers-admin
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: registry-creds
+  namespace: eirini-workloads
+type: kubernetes.io/dockerconfigjson
+stringData:
+  .dockerconfigjson: '{"auths":{"registry.carrier-registry":{"username":"admin","password":"password"}, "registry.carrier-registry:444":{"username":"admin","password":"password"}}}'
 ---
 apiVersion: v1
 kind: Secret

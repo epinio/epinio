@@ -1,17 +1,5 @@
 #!/bin/bash
 
-if [ -z ${REGISTRY_USERNAME+x} ]; then
-  echo -n Docker Registry Username: 
-  read REGISTRY_USERNAME
-  echo
-fi
-
-if [ -z ${REGISTRY_PASSWORD+x} ]; then
-  echo -n Docker Registry Password: 
-  read -s REGISTRY_PASSWORD
-  echo
-fi
-
 # install traefik
 ./traefik/install
 ./traefik/wait
@@ -20,17 +8,27 @@ fi
 external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
 echo "Will use public IP address ${external_ip}"
 
-# install quarks
-./quarks/install
+cmd=$(basename "${0}")
+if [ "${cmd}" = "install" ]; then
+  command="$1"
+  shift
 
-# install gitea
-./gitea/install "$external_ip"
+  if [ -z "${command}" ]; then
+    # install quarks
+    ./quarks/install
 
-# install kpack
-./kpack/install "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD"
+    # install gitea
+    ./gitea/install "$external_ip"
 
-# install eirini
-./eirini/install "${external_ip}" "$REGISTRY_USERNAME" "$REGISTRY_PASSWORD"
+    # install eirini
+    ./eirini/install "${external_ip}"
 
-# install tekton
-./tekton/install "$external_ip"
+    # install registry
+    ./container-registry/install
+
+    # install tekton
+    ./tekton/install "$external_ip"
+  else
+    ./$command/install "$external_ip"
+  fi
+fi

@@ -3,6 +3,9 @@
 # uninstall traefik
 ./traefik/uninstall &
 
+# uninstall registry
+./container-registry/uninstall
+
 # uninstall quarks
 ./quarks/uninstall &
 
@@ -10,7 +13,7 @@
 ./gitea/uninstall &
 
 # uninstall kpack
-./kpack/uninstall &
+# ./kpack/uninstall &
 
 # uninstall tekton
 ./tekton/uninstall &

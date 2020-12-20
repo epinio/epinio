@@ -1,0 +1,5 @@
+#!/bin/bash
+
+function log() {
+  echo -e "\e[35mbuildpack-pipelines> \e[32m$1\e[39m"
+}

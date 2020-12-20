@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function log() {
-  echo -e "\e[35mbrigade> \e[32m$1\e[39m"
+  echo -e "\e[35mtekton> \e[32m$1\e[39m"
 }
 
 public_ip="$1"
@@ -9,7 +9,7 @@ public_ip="$1"
 dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 log "Waiting for gitea to come online."
-retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n gitea --selector=app=gitea pod' >> "$HOME/.carrier.log" 2>&1
+retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n gitea --selector=app.kubernetes.io/name=gitea pod' >> "$HOME/.carrier.log" 2>&1
 retry 60 "curl --fail http://gitea.$public_ip.nip.io" >> "$HOME/.carrier.log" 2>&1
 
 log "Installing tekton."
@@ -45,3 +45,17 @@ retry 60 "kubectl apply --filename $dir/triggers.yaml" >> "$HOME/.carrier.log" 2
 
 log "Install the tekton dashboard."
 kubectl apply --filename https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml >> "$HOME/.carrier.log" 2>&1
+
+log "Labeling eirini namespace."
+kubectl label namespace eirini-workloads quarks.cloudfoundry.org/monitored=quarks-secret >> "$HOME/.carrier.log"
+
+log "Installing tekton pipelines for buildpacks."
+retry 60 'kubectl get secret -n eirini-workloads registry-tls-self' >> "$HOME/.carrier.log" 2>&1
+# Get CA Cert
+ca_hash_self="$(kubectl get secret -n eirini-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout).0"
+template=`cat "$dir/staging.yaml" | sed "s/{{CA_HASHED_NAME}}/$ca_hash_self/g" | sed "s/{{CA_SELF_HASHED_NAME}}/$ca_hash_self/g"`
+retry 60 "echo '$template' | kubectl -n eirini-workloads apply -f -" >> "$HOME/.carrier.log" 2>&1
+
+log "Setting up ingress for tekton."
+template=`cat "$dir/ingress.yaml" | sed "s/{{PUBLIC_IP}}/$public_ip/g"`
+echo "$template" | kubectl apply -f - >> "$HOME/.carrier.log" 2>&1
