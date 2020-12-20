@@ -38,6 +38,9 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Download Builder Image with Creds
+        run: |
+          k3s crictl pull --creds "$DOCKERHUB_USERNAME:$DOCKERHUB_TOKEN" paketobuildpacks/builder:full-cf
       - name: Install Carrier
         run: |
           ./carrier install
