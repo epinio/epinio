@@ -109,7 +109,7 @@ spec:
     - clone
     params:
     - name: BUILDER_IMAGE
-      value: paketobuildpacks/builder:full-cf # heroku/buildpacks:18
+      value: quay.io/asgardtech/paketobuildpacks-builder:full-cf # paketobuildpacks/builder:full-cf # heroku/buildpacks:18
     - name: SOURCE_SUBPATH
       value: app
     resources:
