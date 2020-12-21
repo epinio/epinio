@@ -32,6 +32,8 @@ if [ "${cmd}" = "carrier" ]; then
   command="$1"
   shift
 
+echo "$@"
+
   case "${command}" in
     push)       "$dir/push" "$@" ;;
     delete)     "$dir/delete" "$@" ;;

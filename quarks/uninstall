@@ -5,7 +5,8 @@ function log() {
 }
 
 log "Removing quarks."
-helm uninstall quarks-operator -n quarks >> "$HOME/.carrier.log" 2>&1
+helm uninstall quarks-secret -n quarks >> "$HOME/.carrier.log" 2>&1
 
 log "Deleting quarks namespace."
 kubectl delete namespace quarks >> "$HOME/.carrier.log" 2>&1
+

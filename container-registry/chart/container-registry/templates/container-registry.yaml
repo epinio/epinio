@@ -1,8 +1,38 @@
 ---
 apiVersion: v1
+kind: Secret
+metadata:
+ name: auth
+ namespace: {{ .Release.Namespace }}
+stringData:
+ htpasswd: 'admin:$2y$05$AoJtww.iEMm8FAOk40ZxtuwVCwhMNTPpw4/Ows9kqbui5UXmF.M16'
+---
+apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-registry
+  name: registry
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "container-registry.selectorLabels" . | nindent 4 }}
+  ports:
+  - name: registry
+    port: 5000
+    targetPort: 5000
+  - name: registry-tls
+    port: 443
+    targetPort: 443
+  - name: registry-tls-self
+    port: 444
+    targetPort: 444
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-node
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "container-registry.labels" . | nindent 4 }}
@@ -12,52 +42,18 @@ spec:
     {{- include "container-registry.selectorLabels" . | nindent 4 }}
   ports:
   - name: registry
+    port: 5000
+    targetPort: 5000
+    nodePort: 30500
+  - name: registry-tls
     port: 443
-    targetPort: registry
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: {{ .Release.Name }}-registry-nginx
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-data:
-  default.conf: |
-    upstream registry {
-      server 127.0.0.1:5000;
-    }
-
-    server {
-      listen                443 ssl;
-      server_name           {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc;
-      client_max_body_size  0;
-
-      ssl_certificate           /etc/nginx/certs/cert.pem;
-      ssl_certificate_key       /etc/nginx/certs/key.pem;
-
-      ssl_session_cache         builtin:1000  shared:SSL:10m;
-      ssl_protocols             TLSv1 TLSv1.1 TLSv1.2;
-      ssl_ciphers               HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
-      ssl_prefer_server_ciphers on;
-
-      access_log  /var/log/nginx/registry.access.log;
-
-      location / {
-        proxy_set_header  Host $host;
-        proxy_set_header  X-Real-IP $remote_addr;
-        proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header  X-Forwarded-Proto $scheme;
-
-        proxy_pass          http://registry;
-        proxy_read_timeout  90;
-      }
-    }
+    targetPort: 443
+    nodePort: 30501
 ---
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret
 metadata:
-  name: {{ .Release.Name }}-registry-tls
+  name: registry-tls
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "container-registry.labels" . | nindent 4 }}
@@ -65,17 +61,67 @@ spec:
   request:
     certificate:
       alternativeNames:
-      - {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc
+      - registry.{{ .Release.Namespace }}
       commonName: registry
       isCA: false
       signerType: cluster
-  secretName: {{ .Release.Name }}-registry-tls
+  secretName: registry-tls
   type: certificate
+  copies:
+  - name: registry-tls
+    namespace: eirini-workloads
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: registry-tls-self-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+spec:
+  request:
+    certificate:
+      alternativeNames: null
+      commonName: registryCA
+      isCA: true
+      signerType: local
+  secretName: registry-tls-self-ca
+  type: certificate
+  copies:
+  - name: registry-tls-self-ca
+    namespace: eirini-workloads
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  name: registry-tls-self
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+spec:
+  request:
+    certificate:
+      CAKeyRef:
+        key: private_key
+        name: registry-tls-self-ca
+      CARef:
+        key: certificate
+        name: registry-tls-self-ca
+      alternativeNames:
+      - registry.{{ .Release.Namespace }}
+      commonName: registry
+      isCA: false
+      signerType: local
+  secretName: registry-tls-self
+  type: certificate
+  copies:
+  - name: registry-tls-self
+    namespace: eirini-workloads
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}-registry
+  name: registry
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "container-registry.labels" . | nindent 4 }}
@@ -93,10 +139,27 @@ spec:
       - name: registry
         image: {{ .Values.registry.image }}
         imagePullPolicy: {{ .Values.registry.imagePullPolicy }}
+        env:
+        # - name: REGISTRY_HTTP_TLS_CERTIFICATE
+        #   value: /etc/registry/certs/cert.pem
+        # - name: REGISTRY_HTTP_TLS_KEY
+        #   value: /etc/registry/certs/key.pem
+        - name: REGISTRY_AUTH
+          value: htpasswd
+        - name: REGISTRY_AUTH_HTPASSWD_REALM
+          value: Registry Realm
+        - name: REGISTRY_AUTH_HTPASSWD_PATH
+          value: /etc/registry/auth/htpasswd
         volumeMounts:
         - name: registry
           mountPath: /var/lib/registry
           readOnly: false
+        - name: tls
+          mountPath: /etc/registry/certs
+          readOnly: true
+        - name: auth
+          mountPath: /etc/registry/auth
+          readOnly: true
         securityContext:
           runAsUser: 1000
           runAsNonRoot: true
@@ -127,6 +190,9 @@ spec:
         - name: tls
           mountPath: /etc/nginx/certs
           readOnly: true
+        - name: tls-self
+          mountPath: /etc/nginx/certs-self
+          readOnly: true
         livenessProbe:
           tcpSocket:
             port: 443
@@ -142,12 +208,117 @@ spec:
         emptyDir: {}
       - name: config
         configMap:
-          name: {{ .Release.Name }}-registry-nginx
+          name: registry-nginx-config
       - name: tls
         secret:
-          secretName: {{ .Release.Name }}-registry-tls
+          secretName: registry-tls
           items:
           - key: certificate
             path: cert.pem
           - key: private_key
             path: key.pem
+      - name: tls-self
+        secret:
+          secretName: registry-tls-self
+          items:
+          - key: certificate
+            path: cert.pem
+          - key: private_key
+            path: key.pem
+      - name: auth
+        secret:
+          secretName: auth
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: registry-nginx-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+data:
+  default.conf: |
+    upstream registry {
+      server 127.0.0.1:5000;
+    }
+    server {
+      listen                444 ssl;
+      server_name           {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc;
+      client_max_body_size  0;
+      ssl_certificate           /etc/nginx/certs/cert.pem;
+      ssl_certificate_key       /etc/nginx/certs/key.pem;
+      ssl_session_cache         builtin:1000  shared:SSL:10m;
+      ssl_protocols             TLSv1 TLSv1.1 TLSv1.2;
+      ssl_ciphers               HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+      ssl_prefer_server_ciphers on;
+      access_log  /var/log/nginx/registry.access.log;
+      location / {
+        proxy_set_header  Host $host;
+        proxy_set_header  X-Real-IP $remote_addr;
+        proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header  X-Forwarded-Proto $scheme;
+        proxy_pass          http://registry;
+        proxy_read_timeout  90;
+      }
+    }
+    server {
+      listen                443 ssl;
+      server_name           {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc;
+      client_max_body_size  0;
+      ssl_certificate           /etc/nginx/certs-self/cert.pem;
+      ssl_certificate_key       /etc/nginx/certs-self/key.pem;
+      ssl_session_cache         builtin:1000  shared:SSL:10m;
+      ssl_protocols             TLSv1 TLSv1.1 TLSv1.2;
+      ssl_ciphers               HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+      ssl_prefer_server_ciphers on;
+      access_log  /var/log/nginx/registry.access.log;
+      location / {
+        proxy_set_header  Host $host;
+        proxy_set_header  X-Real-IP $remote_addr;
+        proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header  X-Forwarded-Proto $scheme;
+        proxy_pass          http://registry;
+        proxy_read_timeout  90;
+      }
+    }
+---
+# COPIES --------------------------
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  labels:
+    quarks.cloudfoundry.org/secret-kind: generated
+  annotations:
+    quarks.cloudfoundry.org/secret-copy-of: carrier-registry/registry-tls
+  name: registry-tls
+  namespace: eirini-workloads
+spec:
+  type: copy
+  secretName: registry-tls
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  labels:
+    quarks.cloudfoundry.org/secret-kind: generated
+  annotations:
+    quarks.cloudfoundry.org/secret-copy-of: carrier-registry/registry-tls-self
+  name: registry-tls-self
+  namespace: eirini-workloads
+spec:
+  type: copy
+  secretName: registry-tls-self
+---
+apiVersion: quarks.cloudfoundry.org/v1alpha1
+kind: QuarksSecret
+metadata:
+  labels:
+    quarks.cloudfoundry.org/secret-kind: generated
+  annotations:
+    quarks.cloudfoundry.org/secret-copy-of: carrier-registry/registry-tls-self-ca
+  name: registry-tls-self-ca
+  namespace: eirini-workloads
+spec:
+  type: copy
+  secretName: registry-tls-self-ca

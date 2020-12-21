@@ -14,7 +14,7 @@ data:
       cc_tls_disabled: true
       cc_internal_api: "http://cc-wiremock.eirini-core.svc.cluster.local"
 
-
+      registry_secret_name: "cluster-registry-creds-http"
       rootfs_version: v75.0.0
       application_service_account: eirini
       allow_run_image_as_root: false

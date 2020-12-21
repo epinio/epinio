@@ -11,4 +11,5 @@ log "Creating quarks namespace."
 kubectl create namespace quarks >> "$HOME/.carrier.log"
 
 log "Installing quarks."
-helm install quarks-operator quarks/cf-operator --version 6.1.17+0.gec409fd7 -n quarks >> "$HOME/.carrier.log"
+helm install quarks-secret quarks/quarks-secret --version 1.0.754 -n quarks \
+  --set global.monitoredID=quarks-secret >> "$HOME/.carrier.log"

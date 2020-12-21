@@ -8,14 +8,32 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
- name: dockerhub-creds
+ name: cluster-registry-creds
+ namespace: eirini-workloads
+type: kubernetes.io/dockerconfigjson
+stringData:
+  .dockerconfigjson: '{"auths":{"https://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"}}}'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+ name: cluster-registry-creds-http
+ namespace: eirini-workloads
+type: kubernetes.io/dockerconfigjson
+stringData:
+  .dockerconfigjson: '{"auths":{"http://127.0.0.1:30500":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"}}}'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+ name: eirini-registry-creds
  namespace: eirini-workloads
  annotations:
-   kpack.io/docker: https://index.docker.io/v1/
+   kpack.io/docker: http://127.0.0.1:30500/
 type: kubernetes.io/basic-auth
 stringData:
- username: "{{REGISTRY_USER}}"
- password: "{{REGISTRY_PASSWORD}}"
+ username: "admin"
+ password: "passsword"
 ---
 # BUILD
 apiVersion: v1
@@ -36,13 +54,26 @@ metadata:
   name: app-serviceaccount
   namespace: eirini-workloads
 secrets:
-  - name: dockerhub-creds
+  - name: cluster-registry-creds
+  - name: cluster-registry-creds-http
   - name: git-creds
+  - name: eirini-registry-creds
 imagePullSecrets:
-  - name: dockerhub-creds
+  - name: cluster-registry-creds
+  - name: cluster-registry-creds-http
+  - name: eirini-registry-creds
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: eirini
   namespace: eirini-workloads
+secrets:
+  - name: cluster-registry-creds
+  - name: cluster-registry-creds-http
+  - name: git-creds
+  - name: eirini-registry-creds
+imagePullSecrets:
+  - name: cluster-registry-creds
+  - name: cluster-registry-creds-http
+  - name: eirini-registry-creds

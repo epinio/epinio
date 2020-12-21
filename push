@@ -60,33 +60,12 @@ function prepare_code() {
 
   say "Preparing code ..."
 
-  image_user=$(registry_user)
-  image_password=$(registry_password)
-
   temp_dir=`mktemp -d`
   cp -a "$app_dir/." "$temp_dir"
 
   mkdir "$temp_dir/.kube"
 
   cat <<EOF >> "$temp_dir/.kube/app.yml"
----
-apiVersion: kpack.io/v1alpha1
-kind: Image
-metadata:
-  name: $app_name
-  namespace: eirini-workloads
-spec:
-  tag: $image_user/carrier-$app_name
-  serviceAccount: app-serviceaccount
-  builder:
-    name: carrier-builder
-    kind: ClusterBuilder
-  source:
-    git:
-      url: http://gitea.$target/$user/$app_name
-      revision: main
----
-# DEPLOYMENT
 apiVersion: eirini.cloudfoundry.org/v1
 kind: LRP
 metadata:
@@ -104,7 +83,7 @@ spec:
     PORT: "8080"
   ports:
   - 8080
-  image: "$image_user/carrier-$app_name"
+  image: "127.0.0.1:30500/apps/$app_name"
   appRoutes:
   - hostname: $app_name.$target
     port: 8080
@@ -146,7 +125,7 @@ function wait_for_app() {
 
   say "Waiting for app to come online ..."
 
-  retry 600 "kubectl wait --for=condition=Ready --timeout=5s -n eirini-workloads --selector=cloudfoundry.org/guid=$app_name pod > /dev/null 2>&1"
+  retry 100 "kubectl wait --for=condition=Ready --timeout=5s -n eirini-workloads --selector=cloudfoundry.org/guid=$app_name pod > /dev/null 2>&1"
 
   say "http://${app_name}.${target} is online"
 
@@ -156,14 +135,6 @@ function wait_for_app() {
 function get_target() {
   gitea_url=$(kubectl get configmap -n gitea config -o yaml | grep DOMAIN | head -n1 | awk '{print $3}')
   echo ${gitea_url:6}
-}
-
-function registry_user() {
-  kubectl get secret -n default dockerhub-creds -o jsonpath="{.data.\.dockerconfigjson}" | base64 -d | jq -r 'first(.auths[] | .username)'
-}
-
-function registry_password() {
-  kubectl get secret -n default dockerhub-creds -o jsonpath="{.data.\.dockerconfigjson}" | base64 -d | jq -r 'first(.auths[] | .password)'
 }
 
 app_name="$1"

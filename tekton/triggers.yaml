@@ -12,25 +12,42 @@ spec:
       description: The git repository url
     - name: namespace
       description: The namespace to create the resources
+    - name: appname
+      description: Name of the app to stage/run
   resourcetemplates:
     - apiVersion: tekton.dev/v1beta1
       kind: PipelineRun
       metadata:
-        name: staging-pipeline-run-$(uid)
+        name: staging-pipeline-run-$(tt.params.appname)-$(uid)
         namespace: eirini-workloads
       spec:
         serviceAccountName: staging-triggers-admin
         pipelineRef:
           name: staging-pipeline
+        workspaces:
+        - name: source
+          volumeClaimTemplate:
+            spec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 1Gi
         resources:
-          - name: source-repo
-            resourceSpec:
-              type: git
-              params:
-              - name: revision
-                value: $(tt.params.gitrevision)
-              - name: url
-                value: $(tt.params.gitrepositoryurl)
+        - name: source-repo
+          resourceSpec:
+            type: git
+            params:
+            - name: revision
+              value: $(tt.params.gitrevision)
+            - name: url
+              value: $(tt.params.gitrepositoryurl)
+        - name: image
+          resourceSpec:
+            type: image
+            params:
+            - name: url
+              value: registry.carrier-registry/apps/$(tt.params.appname)
 ---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerBinding
@@ -45,6 +62,8 @@ spec:
       value: eirini-workloads
     - name: gitrepositoryurl
       value: "http://gitea.gitea:10080/$(body.repository.full_name)"
+    - name: appname
+      value: "$(body.repository.name)"
 ---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: EventListener
@@ -65,37 +84,90 @@ metadata:
   name: staging-pipeline
   namespace: eirini-workloads
 spec:
+  workspaces:
+  - name: source
   resources:
   - name: source-repo
     type: git
+  - name: image
+    type: image
   tasks:
-    - name: stage
-      taskRef:
-        name: stage
-      resources:
-        inputs:
-        - name: source-repo
-          resource: source-repo
+  - name: clone
+    taskRef:
+      name: clone
+    resources:
+      inputs:
+      - name: source-repo
+        resource: source-repo
+    workspaces:
+    - name: source
+      workspace: source
+  - name: stage
+    taskRef:
+      name: buildpacks
+    runAfter:
+    - clone
+    params:
+    - name: BUILDER_IMAGE
+      value: quay.io/asgardtech/paketobuildpacks-builder:full-cf # paketobuildpacks/builder:full-cf # heroku/buildpacks:18
+    - name: SOURCE_SUBPATH
+      value: app
+    resources:
+      outputs:
+      - name: image
+        resource: image
+    workspaces:
+    - name: source
+      workspace: source
+  - name: run
+    taskRef:
+      name: run
+    runAfter:
+    - stage
+    workspaces:
+    - name: source
+      workspace: source
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: stage
+  name: clone
   namespace: eirini-workloads
 spec:
+  workspaces:
+  - name: source
   resources:
     inputs:
     - name: source-repo
       type: git
-      targetPath: app
+      targetPath: source/app
   steps:
-    - name: stage
-      image: lachlanevenson/k8s-kubectl
-      workingDir: "/workspace/app"
-      command:
-        - sh
-      args:
-        - -c
-        - |
-          ls -la
-          kubectl apply -f ./.kube/*
+  - name: stage
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source/app"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        pwd
+        ls -la
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: run
+  namespace: eirini-workloads
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: run
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source/app"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        kubectl apply -f ./.kube/*

@@ -13,8 +13,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: K3S with Calico and Helm
-        uses: manics/action-k3s-helm@v0.2.1
+        uses: manics/action-k3s-helm@v0.2.2
+        with:
+          k3s-version: v1.19.5+k3s2
       - name: Cache Tools
         uses: actions/cache@v2
         with:
@@ -52,4 +59,19 @@ jobs:
         if: ${{ always() }}
         run: |
           cat "$HOME/.carrier.log"
+
+          echo "-----------------------------------------------"
+          echo "-----------------------------------------------"
+          echo "ALL RESOURCES"
+          echo "-----------------------------------------------"
+          echo "-----------------------------------------------"
+
           kubectl get all -A -o wide
+
+          echo "-----------------------------------------------"
+          echo "-----------------------------------------------"
+          echo "DESCRIBE EIRINI-WORKLOADS PODS"
+          echo "-----------------------------------------------"
+          echo "-----------------------------------------------"
+
+          kubectl get pod -n eirini-workloads -o json | jq -r .items[].metadata.name | xargs -I{} kubectl describe pod -n eirini-workloads {}
