@@ -72,4 +72,4 @@ jobs:
           echo "-----------------------------------------------"
           echo "-----------------------------------------------"
 
-          kubectl get pod -n eirini-core -o json | jq -r .items[].metadata.name | xargs -I{} kubectl describe pod -n eirini-core {}
+          kubectl get pod -n eirini-workloads -o json | jq -r .items[].metadata.name | xargs -I{} kubectl describe pod -n eirini-workloads {}
