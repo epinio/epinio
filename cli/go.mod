@@ -13,6 +13,7 @@ require (
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
 	github.com/pkg/errors v0.9.1
+	github.com/rancher/k3d v1.7.0 // indirect
 	github.com/spf13/cobra v1.1.1
 	golang.org/x/mod v0.4.0 // indirect
 	golang.org/x/sync v0.0.0-20201207232520-09787c993a3a // indirect

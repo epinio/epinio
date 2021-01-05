@@ -77,7 +77,10 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 func (i *Installer) Install(cluster *Cluster) error {
 	for _, deployment := range i.Deployments {
 		options := i.NeededOptions.ForDeployment(deployment.ID())
-		deployment.Deploy(*cluster, options)
+		err := deployment.Deploy(*cluster, options)
+		if err != nil {
+			return err
+		}
 	}
 	// fmt.Println(d.Describe())
 	//	for _, := range i {

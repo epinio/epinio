@@ -61,7 +61,10 @@ func (k Gitea) apply(c kubernetes.Cluster, options kubernetes.InstallationOption
 		action = "upgrade"
 	}
 
-	currentdir, _ := os.Getwd()
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 
 	// Setup Gitea helm values
 	var helmArgs []string
@@ -72,9 +75,62 @@ func (k Gitea) apply(c kubernetes.Cluster, options kubernetes.InstallationOption
 	}
 	subdomain := giteaDeploymentID + "." + domain
 
-	helmCmd := fmt.Sprintf("helm %s gitea --create-namespace --namespace %s --set %s %s %s", subdomain, action, giteaDeploymentID, giteaChartURL, strings.Join(helmArgs, " "))
-	if _, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
-		return errors.New("Failed installing Gitea")
+	config := fmt.Sprintf(`
+ingress:
+  enabled: true
+  hosts:
+    - %s
+  annotations:
+    kubernetes.io/ingress.class: traefik
+service:
+  http:
+    type: NodePort
+    port: 10080
+  ssh:
+    type: NodePort
+    port: 10022
+  externalTrafficPolicy: Local
+
+gitea:
+  admin:
+    username: "dev"
+    password: "changeme"
+    email: "admin@carrier.sh"
+  config:
+    APP_NAME: "Carrier"
+    RUN_MODE: prod
+    repository:
+      ROOT:  "/data/git/gitea-repositories"
+    database:
+      DB_TYPE: sqlite3
+      PATH: /data/gitea/gitea.db
+    server:
+      DOMAIN:  %s
+      ROOT_URL: %s
+    security:
+      INSTALL_LOCK: true
+      SECRET_KEY: generated-by-quarks-secret
+      INTERNAL_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYmYiOjE2MDIzNzc3NzZ9.uvJPCMSDTPlVMAUwNzW9Jbl5487kbj5T_pWu3dGirnA
+    service:
+      ENABLE_REGISTRATION_CAPTCHA: false
+      DISABLE_REGISTRATION: true
+    openid:
+      ENABLE_OPENID_SIGNIN: false
+    oauth2:
+      ENABLE: true
+      JWT_SECRET: HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
+`, subdomain, subdomain, "http://"+subdomain)
+
+	configPath, err := helpers.CreateTmpFile(config)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(configPath)
+
+	helmCmd := fmt.Sprintf("helm %s gitea --create-namespace --values %s --namespace %s %s %s", action, configPath, giteaDeploymentID, giteaChartURL, strings.Join(helmArgs, " "))
+
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+		return errors.New("Failed installing Gitea: " + out)
 	}
 
 	if err := c.WaitForPodBySelectorRunning(giteaDeploymentID, "", k.Timeout); err != nil {
@@ -102,7 +158,12 @@ func (k Gitea) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 
 	emoji.Println(":ship:Deploying Gitea")
-	return k.apply(c, options, false)
+	err = k.apply(c, options, false)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (k Gitea) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {

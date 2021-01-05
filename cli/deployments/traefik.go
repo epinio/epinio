@@ -57,14 +57,17 @@ func (k Traefik) apply(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		action = "upgrade"
 	}
 
-	currentdir, _ := os.Getwd()
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
 
 	// Setup Traefik helm values
 	var helmArgs []string
 
 	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, traefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if _, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
-		return errors.New("Failed installing Traefik")
+		return errors.Wrap(err, "Failed installing Traefik")
 	}
 
 	if err := c.WaitForPodBySelectorRunning(traefikDeploymentID, "", k.Timeout); err != nil {
@@ -89,6 +92,16 @@ func (k Traefik) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpt
 	)
 	if err == nil {
 		return errors.New("Namespace " + traefikDeploymentID + " present already")
+	}
+
+	_, err = c.Kubectl.CoreV1().Services("kube-system").Get(
+		context.Background(),
+		"traefik",
+		metav1.GetOptions{},
+	)
+	if err == nil {
+		emoji.Println(":ship:Traefik already installed, skipping")
+		return nil
 	}
 
 	emoji.Println(":ship:Deploying Traefik Ingress")
