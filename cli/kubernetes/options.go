@@ -51,19 +51,28 @@ func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationO
 	return result
 }
 
-// getOpt finds the given option in opts giving priority to options with a
-// non-empty deploymentID. In other words, if there is a global option and a
-// deployment specific option with the same name, the more specific is the one
-// returned.
-func (opts InstallationOptions) getOpt(optionName string, deploymentID string) (InstallationOption, error) {
-	// "Private" options first
-	for _, option := range opts {
-		if option.Name == optionName && option.DeploymentID == deploymentID {
-			return option, nil
+// GetOpt finds the given option in opts.
+//
+// When the deploymentID is the empty string the function searches for
+// and returns only global options (not associated to any deployment).
+// Otherwise it searches for private options associated with the
+// specified deployment as well.
+//
+// Attention: In the second case private options have precedence. In
+// other words if we have private and global options of the same name,
+// then the private option is returned.
+
+func (opts InstallationOptions) GetOpt(optionName string, deploymentID string) (InstallationOption, error) {
+	if deploymentID != "" {
+		// "Private" options first, only if a deployment to search is known
+		for _, option := range opts {
+			if option.Name == optionName && option.DeploymentID == deploymentID {
+				return option, nil
+			}
 		}
 	}
 
-	// If there is not private option, try "Global" options
+	// If there is no private option, try "Global" options
 	for _, option := range opts {
 		if option.Name == optionName && option.DeploymentID == "" {
 			return option, nil
@@ -74,7 +83,7 @@ func (opts InstallationOptions) getOpt(optionName string, deploymentID string) (
 }
 
 func (opts InstallationOptions) GetString(optionName string, deploymentID string) (string, error) {
-	option, err := opts.getOpt(optionName, deploymentID)
+	option, err := opts.GetOpt(optionName, deploymentID)
 	if err != nil {
 		return "", err
 	}

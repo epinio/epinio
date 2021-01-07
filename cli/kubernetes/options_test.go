@@ -92,6 +92,86 @@ var _ = Describe("InstallationOptions", func() {
 		})
 	})
 
+	Describe("GetOpt", func() {
+		var options InstallationOptions
+		BeforeEach(func() {
+			options = InstallationOptions{
+				InstallationOption{
+					Name:         "Global Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "",
+				},
+				InstallationOption{
+					Name:         "Private Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "Private",
+				},
+				InstallationOption{
+					Name:         "Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "Another",
+				},
+				InstallationOption{
+					Name:         "Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "",
+				},
+			}
+		})
+		When("deploymentID is empty", func() {
+			It("misses a wholly unknown option", func() {
+				_, err := options.GetOpt("Bogus Option", "")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+			It("misses a private option", func() {
+				_, err := options.GetOpt("Private Option", "")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+			It("finds a global-only option", func() {
+				result, err := options.GetOpt("Global Option", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Global Option"))
+				Expect(result.DeploymentID).To(Equal(""))
+			})
+		})
+		When("deploymentID is not empty", func() {
+			It("finds a private-only option in its deployment", func() {
+				result, err := options.GetOpt("Private Option", "Private")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Private Option"))
+				Expect(result.DeploymentID).To(Equal("Private"))
+			})
+			It("finds a global-only option regardless of deployment", func() {
+				result, err := options.GetOpt("Global Option", "Another")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Global Option"))
+				Expect(result.DeploymentID).To(Equal(""))
+			})
+			It("finds a private option before a global option of the same name", func() {
+				result, err := options.GetOpt("Option", "Another")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Option"))
+				Expect(result.DeploymentID).To(Equal("Another"))
+			})
+			It("misses a private-only option outside its deployment", func() {
+				_, err := options.GetOpt("Private Option", "Another")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+			It("misses a wholly unknown option", func() {
+				_, err := options.GetOpt("Bogus Option", "Bogus")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+		})
+	})
+
 	Describe("GetString", func() {
 		var options InstallationOptions
 		When("option is a string", func() {
@@ -177,7 +257,6 @@ var _ = Describe("InstallationOptions", func() {
 			BeforeEach(func() {
 				options = InstallationOptions{}
 			})
-
 			It("returns an error", func() {
 				_, err := options.GetInt("Option", "")
 				Expect(err).To(HaveOccurred())
