@@ -81,6 +81,4 @@ func (reader InteractiveOptionsReader) Read(option InstallationOption) (interfac
 	default:
 		return nil, errors.New("option Type not supported")
 	}
-
-	return nil, nil
 }

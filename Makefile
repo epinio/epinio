@@ -10,17 +10,34 @@ tools-versions:
 version:
 	@./scripts/version.sh
 
-lint: shellcheck yamllint helmlint httplint
+build:
+	@$(MAKE) -C cli build
 
-helmlint:
-	@./scripts/helmlint.sh
+test:
+	@$(MAKE) -C cli test
 
-shellcheck:
-	@./scripts/shellcheck.sh
+fmt:
+	@$(MAKE) -C cli fmt
 
-yamllint:
-	@./scripts/yamllint.sh
+vet:
+	@$(MAKE) -C cli vet
 
-.PHONY: httplint
-httplint:
-	@./src/kubecf-tools/httplint/httplint.sh
+generate_fakes:
+	@$(MAKE) -C cli generate_fakes
+
+
+
+# lint: shellcheck yamllint helmlint httplint
+
+# helmlint:
+# 	@./scripts/helmlint.sh
+
+# shellcheck:
+# 	@./scripts/shellcheck.sh
+
+# yamllint:
+# 	@./scripts/yamllint.sh
+
+# .PHONY: httplint
+# httplint:
+# 	@./src/kubecf-tools/httplint/httplint.sh
