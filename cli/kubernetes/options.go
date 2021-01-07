@@ -51,20 +51,39 @@ func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationO
 	return result
 }
 
-func (opts InstallationOptions) GetString(optionName string, deploymentID string) (string, error) {
+// getOpt finds the given option in opts giving priority to options with a
+// non-empty deploymentID. In other words, if there is a global option and a
+// deployment specific option with the same name, the more specific is the one
+// returned.
+func (opts InstallationOptions) getOpt(optionName string, deploymentID string) (InstallationOption, error) {
+	// "Private" options first
 	for _, option := range opts {
-		// TODO: This breaks tests and needs to be implemented correctly
-		// TODO: Fix it in the rest of the methods below
-		suitableForDeployment :=
-			option.DeploymentID == deploymentID || option.DeploymentID == ""
-		if option.Name == optionName && suitableForDeployment {
-			result, ok := option.Value.(string)
-			if !ok {
-				panic("wrong type assertion")
-			} else {
-				return result, nil
-			}
+		if option.Name == optionName && option.DeploymentID == deploymentID {
+			return option, nil
 		}
+	}
+
+	// If there is not private option, try "Global" options
+	for _, option := range opts {
+		if option.Name == optionName && option.DeploymentID == "" {
+			return option, nil
+		}
+	}
+
+	return InstallationOption{}, errors.New(optionName + " not set")
+}
+
+func (opts InstallationOptions) GetString(optionName string, deploymentID string) (string, error) {
+	option, err := opts.getOpt(optionName, deploymentID)
+	if err != nil {
+		return "", err
+	}
+
+	result, ok := option.Value.(string)
+	if !ok {
+		panic("wrong type assertion")
+	} else {
+		return result, nil
 	}
 
 	return "", errors.New(optionName + " not set")
