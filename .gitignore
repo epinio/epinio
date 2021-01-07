@@ -10,5 +10,6 @@ personal-setup
 .envrc
 /*values.yaml
 /output
+/local
 /tmp
 /shim/shim
