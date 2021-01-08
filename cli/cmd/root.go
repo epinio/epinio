@@ -25,14 +25,7 @@ func Execute() {
 		SilenceErrors: true,
 	}
 
-	installCmd := &cobra.Command{
-		Use:   "install",
-		Short: "install Carrier in your configured kubernetes cluster",
-		Long:  `install Carrier PaaS in your configured kubernetes cluster`,
-		Run:   Install,
-	}
-	installCmd.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
-	rootCmd.AddCommand(installCmd)
+	RegisterInstall(rootCmd)
 
 	ExitIfError(ensureKubeConfig())
 

@@ -10,6 +10,18 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 )
 
+func RegisterInstall(rootCmd *cobra.Command) {
+	installCmd := &cobra.Command{
+		Use:   "install",
+		Short: "install Carrier in your configured kubernetes cluster",
+		Long:  `install Carrier PaaS in your configured kubernetes cluster`,
+		Run:   Install,
+	}
+	installCmd.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
+
+	rootCmd.AddCommand(installCmd)
+}
+
 // Install command installs carrier on a configured cluster
 func Install(cmd *cobra.Command, args []string) {
 	fmt.Println("Carrier installing...")
