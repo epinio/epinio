@@ -50,6 +50,8 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Check traefik service
+        run: kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
       - name: Install Carrier
         run: |
           ./cli/dist/carrier install --system-domain "$(kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}').nip.io"
