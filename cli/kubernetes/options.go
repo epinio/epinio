@@ -16,6 +16,7 @@ type InstallationOptionType int
 type InstallationOption struct {
 	Name         string
 	Value        interface{}
+	Default      interface{}
 	Description  string
 	Type         InstallationOptionType
 	DeploymentID string // If set, this option will be passed only to this deployment (private)
