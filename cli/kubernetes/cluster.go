@@ -168,8 +168,9 @@ func (c *Cluster) WaitUntilPodBySelectorExist(namespace, selector string, timeou
 	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.podExists(namespace, selector))
 }
 
-// Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
-// Returns an error if no pods are found or not all discovered pods enter running state.
+// WaitForPodBySelectorRunning waits timeout seconds for all pods in 'namespace'
+// with given 'selector' to enter running state. Returns an error if no pods are
+// found or not all discovered pods enter running state.
 func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeout int) error {
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
 	s.Start()                                                    // Start the spinner

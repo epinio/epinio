@@ -16,6 +16,7 @@ var installer = kubernetes.Installer{
 		&deployments.Traefik{},
 		&deployments.Quarks{},
 		&deployments.Gitea{},
+		&deployments.Eirini{},
 	},
 }
 
@@ -51,7 +52,6 @@ func RegisterInstall(rootCmd *cobra.Command) {
 // Install command installs carrier on a configured cluster
 func Install(cmd *cobra.Command, args []string) {
 	fmt.Println("Carrier installing...")
-
 	cluster, err := kubernetes.NewCluster(os.Getenv("KUBECONFIG"))
 	ExitfIfError(err, "Couldn't get the cluster, check your config")
 
