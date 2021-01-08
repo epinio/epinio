@@ -99,7 +99,7 @@ var _ = Describe("Installer", func() {
 				},
 			}
 			installer.GatherNeededOptions()
-			installer.PopulateNeededOptions(fakereader)
+			installer.PopulateNeededOptions(nil, fakereader)
 			Expect(len(installer.NeededOptions)).To(Equal(3))
 			Expect(installer.NeededOptions).To(ContainElement(InstallationOption{
 				Name:  "SharedOption",

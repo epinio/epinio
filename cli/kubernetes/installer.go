@@ -1,6 +1,11 @@
 package kubernetes
 
-import "os"
+import (
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+)
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
@@ -54,7 +59,7 @@ type OptionsReader interface {
 // InteractiveOptionsReader which will ask in the terminal.
 // This method only populates what is possible and leaves the rest empty.
 // TODO: Implement another method to validate that all options have been set.
-func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
+func (i *Installer) PopulateNeededOptions(cmd *cobra.Command, reader OptionsReader) error {
 	if reader == nil {
 		reader = NewInteractiveOptionsReader(os.Stdout, os.Stdin)
 	}
@@ -62,7 +67,41 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 	var err error
 	newOptions := InstallationOptions{}
 	for _, opt := range i.NeededOptions {
-		opt.Value, err = reader.Read(opt)
+		var skipInteractive = false
+
+		if cmd != nil {
+			// Translate option name
+			flagName := strings.ReplaceAll(opt.Name, "_", "-")
+
+			// Get option value. The default is considered
+			// as `not set`, forcing use of the
+			// interactive reader.  This is a hack I m
+			// unhappy with as it means that the user
+			// cannot specify the default, even if that is
+			// what they want.
+			//
+			// Unfortunately my quick look through the
+			// spf13/pflags documentation has not shown me
+			// a way to properly determine if a flag was
+			// not used on the command line at all,
+			// vs. specified with (possibly the default)
+			// value.
+			switch opt.Type {
+			case BooleanType:
+				opt.Value, err = cmd.Flags().GetBool(flagName)
+				skipInteractive = (err != nil) || (opt.Value.(bool) != opt.Default.(bool))
+			case StringType:
+				opt.Value, err = cmd.Flags().GetString(flagName)
+				skipInteractive = (err != nil) || (opt.Value.(string) != opt.Default.(string))
+			case IntType:
+				opt.Value, err = cmd.Flags().GetInt(flagName)
+				skipInteractive = (err != nil) || (opt.Value.(int) != opt.Default.(int))
+			}
+		}
+
+		if !skipInteractive {
+			opt.Value, err = reader.Read(opt)
+		}
 		if err != nil {
 			return err
 		}

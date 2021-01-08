@@ -50,7 +50,7 @@ func RegisterInstall(rootCmd *cobra.Command) {
 // Install command installs carrier on a configured cluster
 func Install(cmd *cobra.Command, args []string) {
 	fmt.Println("Carrier installing...")
-	installer.PopulateNeededOptions(nil)
+	installer.PopulateNeededOptions(cmd, nil)
 	cluster, err := kubernetes.NewCluster(os.Getenv("KUBECONFIG"))
 	ExitfIfError(err, "Couldn't get the cluster, check your config")
 	err = installer.Install(cluster)
