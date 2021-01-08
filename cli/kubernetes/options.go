@@ -91,11 +91,9 @@ func (opts InstallationOptions) GetString(optionName string, deploymentID string
 	result, ok := option.Value.(string)
 	if !ok {
 		panic("wrong type assertion")
-	} else {
-		return result, nil
 	}
 
-	return "", errors.New(optionName + " not set")
+	return result, nil
 }
 
 func (opts InstallationOptions) GetBool(optionName string, deploymentID string) (bool, error) {
@@ -103,13 +101,13 @@ func (opts InstallationOptions) GetBool(optionName string, deploymentID string) 
 	if err != nil {
 		return false, err
 	}
-	
+
 	result, ok := option.Value.(bool)
 	if !ok {
 		panic("wrong type assertion")
-	} else {
-		return result, nil
 	}
+
+	return result, nil
 }
 
 func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (int, error) {
@@ -121,9 +119,9 @@ func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (
 	result, ok := option.Value.(int)
 	if !ok {
 		panic("wrong type assertion")
-	} else {
-		return result, nil
 	}
+
+	return result, nil
 }
 
 func (opts InstallationOptions) ForDeployment(deploymentID string) InstallationOptions {
