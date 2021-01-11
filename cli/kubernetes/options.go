@@ -29,7 +29,7 @@ type InstallationOption struct {
 	Value          interface{}                      // Value to use (may not be valid, see `Valid` field).
 	Default        interface{}                      // Static default value for the value.
 	DynDefaultFunc InstallationOptionDynamicDefault // Function to provide a default. Has priority over `Default`.
-	Valid          bool                             // Flag, true when `Value` contains valid data
+	UserSpecified  bool                             // Flag, true if `Value` came from the user.
 	Description    string                           // Short description of the variable
 	Type           InstallationOptionType           // Type information for `Value` and `Default`.
 	DeploymentID   string                           // If set, this option will be passed only to this deployment (private)
@@ -52,6 +52,21 @@ func (opt InstallationOption) ToOptMapKey() string {
 
 func (opt *InstallationOption) DynDefault() error {
 	return opt.DynDefaultFunc(opt)
+}
+
+func (opt *InstallationOption) SetDefault() error {
+	// Give priority to a function which provides the default
+	// value dynamically.
+	if opt.DynDefaultFunc != nil {
+		err := opt.DynDefault()
+		if err != nil {
+			return err
+		}
+	} else if opt.Default != nil {
+		opt.Value = opt.Default
+	}
+
+	return nil
 }
 
 // Merge returns a merge of the two options respecting uniqueness of name+deploymentID

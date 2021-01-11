@@ -1,5 +1,11 @@
 package kubernetes
 
+import (
+	"fmt"
+
+	"github.com/kyokomi/emoji"
+)
+
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
 	Deploy(Cluster, InstallationOptions) error
@@ -73,6 +79,15 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 	i.NeededOptions = newOptions
 
 	return nil
+}
+
+// ShowNeededOptions prints the options and their values to stdout, to
+// inform the user of the detected and chosen configuration
+func (i *Installer) ShowNeededOptions() {
+	fmt.Println("Configuration...")
+	for _, opt := range i.NeededOptions {
+		fmt.Printf("  %s%s:\t'%v'\n", emoji.Sprintf(":compass:"), opt.Name, opt.Value)
+	}
 }
 
 func (i *Installer) Install(cluster *Cluster) error {

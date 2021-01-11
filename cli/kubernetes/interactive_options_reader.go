@@ -25,9 +25,8 @@ func NewInteractiveOptionsReader(stdout io.Writer, stdin io.Reader) InteractiveO
 // returns that value validated and converted to the appropriate type as defined
 // by the Type field of the InstallationOption.
 func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
-	// Ignore anything which is already valid, be it default, or
-	// user-specified (cli option, etc.)
-	if option.Valid {
+	// Ignore anything which is already set by the user (cli option or similar).
+	if option.UserSpecified {
 		return nil
 	}
 
@@ -40,10 +39,16 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 
 	possibleOptions := ""
 	if option.Type == BooleanType {
-		possibleOptions = "(y/n)"
+		possibleOptions = " (y/n)"
 	}
 
-	prompt := fmt.Sprintf("[%s] %s %s (%s) : ", deployment, option.Name, option.Description, possibleOptions)
+	// Prefill with a default the user may accept (**)
+	err := option.SetDefault()
+	if err != nil {
+		return err
+	}
+
+	prompt := fmt.Sprintf("[%s] %s %s%s [%v]: ", deployment, option.Name, option.Description, possibleOptions, option.Value)
 	reader.out.Write([]byte(prompt))
 	bufReader := bufio.NewReader(reader.in)
 	userValue, err := bufReader.ReadString('\n')
@@ -52,16 +57,30 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 	}
 	userValue = strings.TrimSpace(userValue)
 
+	if userValue == "" {
+		// Keep the default set by (**).
+		return nil
+	}
+
+	// TODO (post MVP): String and integer types should be
+	// extended to call an option-specific validation function, if
+	// present, which would perform additional checks on the
+	// user's value. For example range limits, proper syntax of
+	// the string, etc. Thye would then loop similar to the entry
+	// for booleans. The loop could then actually move outside of
+	// the switch, and boolean validation would use a standard
+	// validation function.
+
 	switch option.Type {
 	case BooleanType:
 		for {
 			if userValue == "y" {
 				option.Value = true
-				option.Valid = true
+				option.UserSpecified = true
 				return nil
 			} else if userValue == "n" {
 				option.Value = false
-				option.Valid = true
+				option.UserSpecified = true
 				return nil
 			}
 
@@ -74,14 +93,14 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 		}
 	case StringType:
 		option.Value = userValue
-		option.Valid = true
+		option.UserSpecified = true
 		return nil
 	case IntType:
 		for {
 			userInt, err := strconv.Atoi(userValue)
 			if err == nil {
 				option.Value = userInt
-				option.Valid = true
+				option.UserSpecified = true
 				return nil
 			}
 

@@ -35,7 +35,6 @@ var _ = Describe("InteractiveOptionsReader", func() {
 
 			resultStr, ok := option.Value.(string)
 			Expect(ok).To(BeTrue())
-			Expect(option.Valid).To(BeTrue())
 			Expect(resultStr).To(Equal("userDefinedValue"))
 		})
 
@@ -58,7 +57,6 @@ var _ = Describe("InteractiveOptionsReader", func() {
 
 				resultBool, ok := option.Value.(bool)
 				Expect(ok).To(BeTrue())
-				Expect(option.Valid).To(BeTrue())
 				Expect(resultBool).To(BeTrue())
 			})
 
@@ -74,7 +72,6 @@ var _ = Describe("InteractiveOptionsReader", func() {
 
 				resultBool, ok := option.Value.(bool)
 				Expect(ok).To(BeTrue())
-				Expect(option.Valid).To(BeTrue())
 				Expect(resultBool).To(BeTrue())
 			})
 		})

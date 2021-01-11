@@ -17,14 +17,10 @@ func NewCLIOptionsReader(cmd *cobra.Command) CLIOptionsReader {
 }
 
 // Read queries the cobra command for a cli options associated with
-// the given InstallationOption and returns its value validated and
-// converted to the appropriate type as defined by the Type field of
-// the InstallationOption.
+// the given InstallationOption and returns its value converted to the
+// appropriate (Go) type as defined by the Type field of the
+// InstallationOption.
 func (reader CLIOptionsReader) Read(option *InstallationOption) error {
-	// ATTENTION: This reader ignores the Valid flags set by the
-	// preceding readers (default reader).  This is required so
-	// that the user can override the defaults.
-
 	// Translate option name
 	flagName := strings.ReplaceAll(option.Name, "_", "-")
 
@@ -41,6 +37,12 @@ func (reader CLIOptionsReader) Read(option *InstallationOption) error {
 	var cliValue interface{}
 	var cliValid bool
 	var err error
+
+	// TODO (post MVP): String and integer types should be
+	// extended to call an option-specific validation function, if
+	// present, which would perform additional checks on the
+	// user's value. For example range limits, proper syntax of
+	// the string, etc.
 
 	switch option.Type {
 	case BooleanType:
@@ -60,7 +62,7 @@ func (reader CLIOptionsReader) Read(option *InstallationOption) error {
 
 	if cliValid {
 		option.Value = cliValue
-		option.Valid = true
+		option.UserSpecified = true
 	}
 
 	return nil

@@ -27,6 +27,7 @@ func RegisterInstall(rootCmd *cobra.Command) {
 		Run:   Install,
 	}
 	installCmd.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
+	installCmd.Flags().BoolP("non-interactive", "n", false, "Whether to ask the user or not")
 
 	installer.GatherNeededOptions()
 	for _, opt := range installer.NeededOptions {
@@ -73,19 +74,24 @@ func Install(cmd *cobra.Command, args []string) {
 		if len(ips) > 0 {
 			domain := fmt.Sprintf("%s.nip.io", ips[0])
 			o.Value = domain
-			o.Valid = true
 		}
 		// else leave invalid, to be handled by cli option
 		// reader or interactive entry
 		return nil
 	}
 
-	installer.PopulateNeededOptions(kubernetes.NewDefaultOptionsReader())
 	installer.PopulateNeededOptions(kubernetes.NewCLIOptionsReader(cmd))
-	installer.PopulateNeededOptions(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
-	// At last, check that all options are valid.
-	fmt.Println("Configuration...")
-	installer.PopulateNeededOptions(kubernetes.NewCheckOptionsReader())
+
+	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	ExitfIfError(err, "Couldn't install carrier")
+
+	if nonInteractive {
+		installer.PopulateNeededOptions(kubernetes.NewDefaultOptionsReader())
+	} else {
+		installer.PopulateNeededOptions(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+	}
+
+	installer.ShowNeededOptions()
 
 	err = installer.Install(cluster)
 	ExitfIfError(err, "Couldn't install carrier")
