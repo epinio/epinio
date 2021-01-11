@@ -35,7 +35,7 @@ func (k *k3s) Detect(kube *kubernetes.Clientset) bool {
 }
 
 func (k *k3s) ExternalIPs() []string {
-	return k.Generic.ExternalIP
+	return k.InternalIPs
 }
 
 func NewPlatform() *k3s {
