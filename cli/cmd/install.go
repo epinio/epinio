@@ -68,7 +68,7 @@ func Install(cmd *cobra.Command, args []string) {
 	if err != nil {
 		ExitfIfError(err, "Couldn't install carrier")
 	}
-	domain.DynDefault = func(o *kubernetes.InstallationOption) error {
+	domain.DynDefaultFunc = func(o *kubernetes.InstallationOption) error {
 		ips := cluster.GetPlatform().ExternalIPs()
 		if len(ips) > 0 {
 			domain := fmt.Sprintf("%s.nip.io", ips[0])

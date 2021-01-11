@@ -13,8 +13,8 @@ func NewDefaultOptionsReader() DefaultOptionsReader {
 func (reader DefaultOptionsReader) Read(option *InstallationOption) error {
 	// Give priority to a function which provides the default
 	// value dynamically.
-	if option.DynDefault != nil {
-		err := option.DynDefault(option)
+	if option.DynDefaultFunc != nil {
+		err := option.DynDefault()
 		if err != nil {
 			return err
 		}

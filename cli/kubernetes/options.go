@@ -25,14 +25,14 @@ type InstallationOptionDynamicDefault func(o *InstallationOption) error
 type InstallationOptionType int
 
 type InstallationOption struct {
-	Name         string                           // Identifying name of the configuration variable
-	Value        interface{}                      // Value to use (may not be valid, see `Valid` field).
-	Default      interface{}                      // Static default value for the value.
-	DynDefault   InstallationOptionDynamicDefault // Function to provide a default. Has priority over `Default`.
-	Valid        bool                             // Flag, true when `Value` contains valid data
-	Description  string                           // Short description of the variable
-	Type         InstallationOptionType           // Type information for `Value` and `Default`.
-	DeploymentID string                           // If set, this option will be passed only to this deployment (private)
+	Name           string                           // Identifying name of the configuration variable
+	Value          interface{}                      // Value to use (may not be valid, see `Valid` field).
+	Default        interface{}                      // Static default value for the value.
+	DynDefaultFunc InstallationOptionDynamicDefault // Function to provide a default. Has priority over `Default`.
+	Valid          bool                             // Flag, true when `Value` contains valid data
+	Description    string                           // Short description of the variable
+	Type           InstallationOptionType           // Type information for `Value` and `Default`.
+	DeploymentID   string                           // If set, this option will be passed only to this deployment (private)
 }
 
 type InstallationOptions []InstallationOption
@@ -48,6 +48,10 @@ func (opts InstallationOptions) ToOptMap() map[string]InstallationOption {
 
 func (opt InstallationOption) ToOptMapKey() string {
 	return fmt.Sprintf("%s-%s", opt.Name, opt.DeploymentID)
+}
+
+func (opt *InstallationOption) DynDefault() error {
+	return opt.DynDefaultFunc(opt)
 }
 
 // Merge returns a merge of the two options respecting uniqueness of name+deploymentID
