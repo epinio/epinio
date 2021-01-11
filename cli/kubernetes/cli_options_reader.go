@@ -38,12 +38,6 @@ func (reader CLIOptionsReader) Read(option *InstallationOption) error {
 	var cliValid bool
 	var err error
 
-	// TODO (post MVP): String and integer types should be
-	// extended to call an option-specific validation function, if
-	// present, which would perform additional checks on the
-	// user's value. For example range limits, proper syntax of
-	// the string, etc.
-
 	switch option.Type {
 	case BooleanType:
 		cliValue, err = reader.cmd.Flags().GetBool(flagName)

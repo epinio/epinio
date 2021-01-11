@@ -93,6 +93,12 @@ func Install(cmd *cobra.Command, args []string) {
 
 	installer.ShowNeededOptions()
 
+	// TODO (post MVP): Run a validation phase which perform
+	// additional checks on the values. For example range limits,
+	// proper syntax of the string, etc. do it as pghase, and late
+	// to report all problems at once, instead of early and
+	// piecemal.
+
 	err = installer.Install(cluster)
 	ExitfIfError(err, "Couldn't install carrier")
 
