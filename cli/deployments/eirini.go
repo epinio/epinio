@@ -2,6 +2,7 @@ package deployments
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -12,6 +13,7 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type Eirini struct {
@@ -80,9 +82,21 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.New("Failed installing Eirini: " + out)
 	}
 
-	// Create secrets and services accounts
-	err = k.createClusterRegistryCredsSecret(c)
+	domain, err := options.GetString("system_domain", eiriniDeploymentID)
 	if err != nil {
+		return err
+	}
+	// Create secrets and services accounts
+	if err = k.createClusterRegistryCredsSecret(c, false); err != nil {
+		return err
+	}
+	if err = k.createClusterRegistryCredsSecret(c, true); err != nil {
+		return err
+	}
+	if err = k.createGitCredsSecret(c, domain); err != nil {
+		return err
+	}
+	if err = k.patchServiceAccountWithSecretAccess(c, "eirini"); err != nil {
 		return err
 	}
 
@@ -136,17 +150,70 @@ func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 	return k.apply(c, options)
 }
 
-func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster) error {
+func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool) error {
+	var protocol, secretName string
+	if http {
+		protocol = "http"
+		secretName = "cluster-registry-creds"
+	} else {
+		protocol = "https"
+		secretName = "cluster-registry-creds-http"
+	}
 	_, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").Create(context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "cluster-registry-creds",
+				Name: secretName,
 			},
 			StringData: map[string]string{
-				".dockerconfigjson": `{"auths":{"https://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"}}}`,
+				".dockerconfigjson": `{"auths":{"` + protocol + `://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"}}}`,
 			},
 			Type: "kubernetes.io/dockerconfigjson",
 		}, metav1.CreateOptions{})
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (k Eirini) createGitCredsSecret(c kubernetes.Cluster, domain string) error {
+	_, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").Create(context.Background(),
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "git-creds",
+				Annotations: map[string]string{
+					"kpack.io/git": fmt.Sprintf("http://%s.%s", giteaDeploymentID, domain),
+				},
+			},
+			StringData: map[string]string{
+				"username": "dev",
+				"password": "changeme",
+			},
+			Type: "kubernetes.io/basic-auth",
+		}, metav1.CreateOptions{})
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name string) error {
+	patchContents := `
+{
+  "secrets": [
+		{ "name": "cluster-registry-creds" },
+		{ "name": "cluster-registry-creds-http" },
+		{ "name": "git-creds" }
+	],
+	"imagePullSecrets": [
+		{ "name": "cluster-registry-creds" },
+		{ "name": "cluster-registry-creds-http" },
+		{ "name": "git-creds" }
+	]
+}
+`
+	_, err := c.Kubectl.CoreV1().ServiceAccounts("eirini-workloads").Patch(context.Background(), name, types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
 
 	if err != nil {
 		return err
