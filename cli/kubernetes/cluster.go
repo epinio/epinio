@@ -12,10 +12,10 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 
-	generic "github.com/mudler/kubecfctl/pkg/kubernetes/platform/generic"
-	ibm "github.com/mudler/kubecfctl/pkg/kubernetes/platform/ibm"
-	k3s "github.com/mudler/kubecfctl/pkg/kubernetes/platform/k3s"
-	kind "github.com/mudler/kubecfctl/pkg/kubernetes/platform/kind"
+	generic "github.com/suse/carrier/cli/kubernetes/platform/generic"
+	ibm "github.com/suse/carrier/cli/kubernetes/platform/ibm"
+	k3s "github.com/suse/carrier/cli/kubernetes/platform/k3s"
+	kind "github.com/suse/carrier/cli/kubernetes/platform/kind"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,7 +38,11 @@ type Platform interface {
 	ExternalIPs() []string
 }
 
-var SupportedPlatforms []Platform = []Platform{kind.NewPlatform(), k3s.NewPlatform(), ibm.NewPlatform()}
+var SupportedPlatforms []Platform = []Platform{
+	kind.NewPlatform(),
+	k3s.NewPlatform(),
+	ibm.NewPlatform(),
+}
 
 type Cluster struct {
 	//	InternalIPs []string
@@ -72,10 +76,13 @@ func (c *Cluster) Connect(config string) error {
 	if c.platform == nil {
 		emoji.Println(":warning: No valid platform detected, trying general platform. Things might go wrong")
 		c.platform = generic.NewPlatform()
-		//return errors.New("No supported platform detected. Bailing out")
 	}
 
-	return c.platform.Load(clientset)
+	err = c.platform.Load(clientset)
+	if err == nil {
+		fmt.Println(c.platform.Describe())
+	}
+	return err
 }
 
 func (c *Cluster) detectPlatform() {

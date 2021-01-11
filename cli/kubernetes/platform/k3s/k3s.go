@@ -5,7 +5,8 @@ import (
 	"strings"
 
 	"github.com/kyokomi/emoji"
-	"github.com/mudler/kubecfctl/pkg/kubernetes/platform/generic"
+	"github.com/suse/carrier/cli/kubernetes/platform/generic"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
