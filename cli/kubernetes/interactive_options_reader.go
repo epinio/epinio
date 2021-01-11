@@ -21,10 +21,16 @@ func NewInteractiveOptionsReader(stdout io.Writer, stdin io.Reader) InteractiveO
 	return InteractiveOptionsReader{in: stdin, out: stdout}
 }
 
-// Read aks the user what value should the given InstallationOption have and
+// Read asks the user what value should the given InstallationOption have and
 // returns that value validated and converted to the appropriate type as defined
 // by the Type field of the InstallationOption.
-func (reader InteractiveOptionsReader) Read(option InstallationOption) (interface{}, error) {
+func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
+	// Ignore anything which is already valid, be it default, or
+	// user-specified (cli option, etc.)
+	if option.Valid {
+		return nil
+	}
+
 	var deployment string
 	if option.DeploymentID == "" {
 		deployment = "Shared"
@@ -42,7 +48,7 @@ func (reader InteractiveOptionsReader) Read(option InstallationOption) (interfac
 	bufReader := bufio.NewReader(reader.in)
 	userValue, err := bufReader.ReadString('\n')
 	if err != nil {
-		return nil, err
+		return err
 	}
 	userValue = strings.TrimSpace(userValue)
 
@@ -50,35 +56,43 @@ func (reader InteractiveOptionsReader) Read(option InstallationOption) (interfac
 	case BooleanType:
 		for {
 			if userValue == "y" {
-				return true, nil
+				option.Value = true
+				option.Valid = true
+				return nil
 			} else if userValue == "n" {
-				return false, nil
+				option.Value = false
+				option.Valid = true
+				return nil
 			}
 
 			reader.out.Write([]byte("It's either 'y' or 'n', please try again"))
 			userValue, err = bufReader.ReadString('\n')
 			if err != nil {
-				return nil, err
+				return err
 			}
 			userValue = strings.TrimSpace(userValue)
 		}
 	case StringType:
-		return userValue, nil
+		option.Value = userValue
+		option.Valid = true
+		return nil
 	case IntType:
 		for {
 			userInt, err := strconv.Atoi(userValue)
 			if err == nil {
-				return userInt, nil
+				option.Value = userInt
+				option.Valid = true
+				return nil
 			}
 
-			reader.out.Write([]byte("Please provide an integrer value"))
+			reader.out.Write([]byte("Please provide an integer value"))
 			userValue, err = bufReader.ReadString('\n')
 			if err != nil {
-				return nil, err
+				return err
 			}
 			userValue = strings.TrimSpace(userValue)
 		}
 	default:
-		return nil, errors.New("option Type not supported")
+		return errors.New("option Type not supported")
 	}
 }

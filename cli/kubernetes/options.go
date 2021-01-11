@@ -11,15 +11,28 @@ const (
 	IntType
 )
 
+// A InstallationOptionDynamicDefault function may provide a dynamic
+// default value for an option. When present it has precedence over
+// any static default value in the structure.
+//
+// ATTENTION: The function is responsible for setting both Value and
+// Valid flag of the specified option. This is necessary for cases
+// where the dynamic default could not be determined, yet is not an
+// error.
+//
+type InstallationOptionDynamicDefault func(o *InstallationOption) error
+
 type InstallationOptionType int
 
 type InstallationOption struct {
-	Name         string
-	Value        interface{}
-	Default      interface{}
-	Description  string
-	Type         InstallationOptionType
-	DeploymentID string // If set, this option will be passed only to this deployment (private)
+	Name         string                           // Identifying name of the configuration variable
+	Value        interface{}                      // Value to use (may not be valid, see `Valid` field).
+	Default      interface{}                      // Static default value for the value.
+	DynDefault   InstallationOptionDynamicDefault // Function to provide a default. Has priority over `Default`.
+	Valid        bool                             // Flag, true when `Value` contains valid data
+	Description  string                           // Short description of the variable
+	Type         InstallationOptionType           // Type information for `Value` and `Default`.
+	DeploymentID string                           // If set, this option will be passed only to this deployment (private)
 }
 
 type InstallationOptions []InstallationOption
@@ -59,28 +72,30 @@ func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationO
 // Otherwise it searches for private options associated with the
 // specified deployment as well.
 //
-// Attention: In the second case private options have precedence. In
+// ATTENTION: In the second case private options have precedence. In
 // other words if we have private and global options of the same name,
 // then the private option is returned.
-
-func (opts InstallationOptions) GetOpt(optionName string, deploymentID string) (InstallationOption, error) {
+//
+// ATTENTION: This function returns a reference, enabling the caller
+// to modify the structure.
+func (opts InstallationOptions) GetOpt(optionName string, deploymentID string) (*InstallationOption, error) {
 	if deploymentID != "" {
 		// "Private" options first, only if a deployment to search is known
-		for _, option := range opts {
+		for i, option := range opts {
 			if option.Name == optionName && option.DeploymentID == deploymentID {
-				return option, nil
+				return &opts[i], nil
 			}
 		}
 	}
 
 	// If there is no private option, try "Global" options
-	for _, option := range opts {
+	for i, option := range opts {
 		if option.Name == optionName && option.DeploymentID == "" {
-			return option, nil
+			return &opts[i], nil
 		}
 	}
 
-	return InstallationOption{}, errors.New(optionName + " not set")
+	return nil, errors.New(optionName + " not set")
 }
 
 func (opts InstallationOptions) GetString(optionName string, deploymentID string) (string, error) {
