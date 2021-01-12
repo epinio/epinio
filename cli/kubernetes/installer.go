@@ -1,6 +1,10 @@
 package kubernetes
 
-import "os"
+import (
+	"fmt"
+
+	"github.com/kyokomi/emoji"
+)
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
@@ -45,8 +49,15 @@ func (i *Installer) GatherNeededOptions() {
 	}
 }
 
+// OptionsReader is the interface to the structures and objects used
+// to fill InstallationOption instances with a valid value.
+//
+// Note, each reader has the discretion to not modify the provided
+// option instance based on its state. The option's Valid flag is, for
+// example, how the defaults, cli, and interactive readers communicate
+// and decide which options to handle.
 type OptionsReader interface {
-	Read(InstallationOption) (interface{}, error)
+	Read(*InstallationOption) error
 }
 
 // PopulateNeededOptions will try to give values to the needed options
@@ -55,14 +66,10 @@ type OptionsReader interface {
 // This method only populates what is possible and leaves the rest empty.
 // TODO: Implement another method to validate that all options have been set.
 func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
-	if reader == nil {
-		reader = NewInteractiveOptionsReader(os.Stdout, os.Stdin)
-	}
-
 	var err error
 	newOptions := InstallationOptions{}
 	for _, opt := range i.NeededOptions {
-		opt.Value, err = reader.Read(opt)
+		err = reader.Read(&opt)
 		if err != nil {
 			return err
 		}
@@ -74,6 +81,15 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 	return nil
 }
 
+// ShowNeededOptions prints the options and their values to stdout, to
+// inform the user of the detected and chosen configuration
+func (i *Installer) ShowNeededOptions() {
+	fmt.Println("Configuration...")
+	for _, opt := range i.NeededOptions {
+		fmt.Printf("  %s%s:\t'%v'\n", emoji.Sprintf(":compass:"), opt.Name, opt.Value)
+	}
+}
+
 func (i *Installer) Install(cluster *Cluster) error {
 	for _, deployment := range i.Deployments {
 		options := i.NeededOptions.ForDeployment(deployment.ID())
@@ -82,18 +98,6 @@ func (i *Installer) Install(cluster *Cluster) error {
 			return err
 		}
 	}
-	// fmt.Println(d.Describe())
-	//	for _, := range i {
-
-	// // Automatically set a deployment domain based on platform reported ExternalIPs
-	// if d.GetDomain() == "" {
-	// 	ips := cluster.GetPlatform().ExternalIPs()
-	// 	if len(ips) == 0 {
-	// 		return errors.New("Could not detect cluster ExternalIPs and no deployment domain was specified")
-	// 	}
-	// 	d.SetDomain(fmt.Sprintf("%s.nip.io", ips[0]))
-	// }
-	// return d.Deploy(cluster)
 	return nil
 }
 

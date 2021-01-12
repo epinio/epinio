@@ -50,9 +50,11 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
-      # - name: Install Carrier
-      #   run: |
-      #     ./cli/dist/carrier install
+      - name: Check traefik service
+        run: kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+      - name: Install Carrier
+        run: |
+          ./cli/dist/carrier install -n
       # - name: Push an App
       #   run: |
       #     git config --global user.email "ci@suse.dev"

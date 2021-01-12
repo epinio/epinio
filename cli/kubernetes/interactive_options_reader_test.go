@@ -25,7 +25,7 @@ var _ = Describe("InteractiveOptionsReader", func() {
 	Describe("Read", func() {
 		It("prompts the user for input on stdin", func() {
 			stdin.Write([]byte("userDefinedValue\n"))
-			result, err := reader.Read(option)
+			err := reader.Read(&option)
 			Expect(err).ToNot(HaveOccurred())
 
 			prompt, err := ioutil.ReadAll(stdout)
@@ -33,32 +33,36 @@ var _ = Describe("InteractiveOptionsReader", func() {
 
 			Expect(string(prompt)).To(ContainSubstring("This is a very needed option"))
 
-			resultStr, ok := result.(string)
+			resultStr, ok := option.Value.(string)
 			Expect(ok).To(BeTrue())
 			Expect(resultStr).To(Equal("userDefinedValue"))
 		})
 
 		When("the option is BooleanType", func() {
-			option := InstallationOption{
-				Name:        "Option",
-				Value:       "",
-				Description: "This is a boolean option",
-				Type:        BooleanType,
-			}
+			var option InstallationOption
+
+			BeforeEach(func() {
+				option = InstallationOption{
+					Name:        "Option",
+					Value:       "",
+					Description: "This is a boolean option",
+					Type:        BooleanType,
+				}
+			})
 
 			It("returns a boolean", func() {
 				stdin.Write([]byte("y\n"))
-				result, err := reader.Read(option)
+				err := reader.Read(&option)
 				Expect(err).ToNot(HaveOccurred())
 
-				resultStr, ok := result.(bool)
+				resultBool, ok := option.Value.(bool)
 				Expect(ok).To(BeTrue())
-				Expect(resultStr).To(BeTrue())
+				Expect(resultBool).To(BeTrue())
 			})
 
 			It("asks again if the answer is not 'y' or 'n'", func() {
 				stdin.Write([]byte("other\ny\n"))
-				result, err := reader.Read(option)
+				err := reader.Read(&option)
 				Expect(err).ToNot(HaveOccurred())
 
 				prompt, err := ioutil.ReadAll(stdout)
@@ -66,7 +70,7 @@ var _ = Describe("InteractiveOptionsReader", func() {
 				Expect(string(prompt)).To(
 					ContainSubstring("It's either 'y' or 'n', please try again"))
 
-				resultBool, ok := result.(bool)
+				resultBool, ok := option.Value.(bool)
 				Expect(ok).To(BeTrue())
 				Expect(resultBool).To(BeTrue())
 			})

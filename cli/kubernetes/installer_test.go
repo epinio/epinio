@@ -12,8 +12,9 @@ type FakeReader struct {
 	Values map[string]string
 }
 
-func (f *FakeReader) Read(opt InstallationOption) (interface{}, error) {
-	return f.Values[opt.Name+"-"+string(opt.DeploymentID)], nil
+func (f *FakeReader) Read(opt *InstallationOption) error {
+	opt.Value = f.Values[opt.Name+"-"+string(opt.DeploymentID)]
+	return nil
 }
 
 var _ = Describe("Installer", func() {
@@ -88,7 +89,6 @@ var _ = Describe("Installer", func() {
 					},
 				})
 			installer = NewInstaller(deployment1, deployment2)
-			installer.GatherNeededOptions()
 		})
 
 		It("returns a combination of all options from all deployments", func() {
