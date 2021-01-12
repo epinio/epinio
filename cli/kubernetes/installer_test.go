@@ -1,6 +1,10 @@
 package kubernetes_test
 
 import (
+	"bytes"
+	"io"
+	"os"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -15,6 +19,33 @@ type FakeReader struct {
 func (f *FakeReader) Read(opt *InstallationOption) error {
 	opt.Value = f.Values[opt.Name+"-"+string(opt.DeploymentID)]
 	return nil
+}
+
+// Snarfed from
+// https://stackoverflow.com/questions/10473800/in-go-how-do-i-capture-stdout-of-a-function-into-a-string/10476304#10476304,
+// with local adaptions.
+func captureStdout(f func()) string {
+	orig := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	outC := make(chan string)
+	// Copying the output is done in a separate goroutine. This
+	// prevents printing from blocking indefinitely.
+	go func() {
+		var buf bytes.Buffer
+		io.Copy(&buf, r)
+		outC <- buf.String()
+	}()
+
+	f()
+
+	// Restore original state
+	w.Close()
+	os.Stdout = orig
+
+	out := <-outC
+	return out
 }
 
 var _ = Describe("Installer", func() {
@@ -112,6 +143,37 @@ var _ = Describe("Installer", func() {
 			}))
 		})
 	})
+
+	Describe("ShowNeededOptions", func() {
+		BeforeEach(func() {
+			installer = NewInstaller(deployment1, deployment2)
+			installer.NeededOptions = InstallationOptions{
+				{
+					Name:  "A string",
+					Value: "fake",
+				},
+				{
+					Name:  "A flag",
+					Value: true,
+				},
+				{
+					Name:  "A count",
+					Value: 77,
+				},
+			}
+		})
+
+		It("prints the values of all options", func() {
+			output := captureStdout(func() {
+				installer.ShowNeededOptions()
+			})
+			Expect(string(output)).To(ContainSubstring("Configuration..."))
+			Expect(string(output)).To(ContainSubstring("A string:	'fake'"))
+			Expect(string(output)).To(ContainSubstring("A flag:	'true'"))
+			Expect(string(output)).To(ContainSubstring("A count:	'77'"))
+		})
+	})
+
 	Describe("Install", func() {
 		BeforeEach(func() {
 			deployment1.DeployReturns(nil)
