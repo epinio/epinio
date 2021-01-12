@@ -45,6 +45,7 @@ var _ = Describe("InstallationOptions", func() {
 		}
 		It("returns a map matching the InstallationOptions", func() {
 			optMap := options.ToOptMap()
+			Expect(len(optMap)).To(Equal(3))
 			Expect(optMap["OptionName-Deployment1"].Value).To(Equal("ForDeployment1"))
 			Expect(optMap["OptionName-Deployment2"].Value).To(Equal("ForDeployment2"))
 			Expect(optMap["OptionName-"].Value).To(Equal("ForAllDeployments"))

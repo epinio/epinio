@@ -66,7 +66,7 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 	// extended to call an option-specific validation function, if
 	// present, which would perform additional checks on the
 	// user's value. For example range limits, proper syntax of
-	// the string, etc. Thye would then loop similar to the entry
+	// the string, etc. They would then loop similar to the entry
 	// for booleans. The loop could then actually move outside of
 	// the switch, and boolean validation would use a standard
 	// validation function.
