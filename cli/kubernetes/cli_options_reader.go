@@ -48,13 +48,13 @@ func (reader CLIOptionsReader) Read(option *InstallationOption) error {
 	switch option.Type {
 	case BooleanType:
 		cliValue, err = reader.cmd.Flags().GetBool(flagName)
-		cliValid = (err != nil) || (cliValue.(bool) != option.Default.(bool))
+		cliValid = (err == nil) && (cliValue.(bool) != option.Default.(bool))
 	case StringType:
 		cliValue, err = reader.cmd.Flags().GetString(flagName)
-		cliValid = (err != nil) || (cliValue.(string) != option.Default.(string))
+		cliValid = (err == nil) && (cliValue.(string) != option.Default.(string))
 	case IntType:
 		cliValue, err = reader.cmd.Flags().GetInt(flagName)
-		cliValid = (err != nil) || (cliValue.(int) != option.Default.(int))
+		cliValid = (err == nil) && (cliValue.(int) != option.Default.(int))
 	}
 
 	if err != nil {
