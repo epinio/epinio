@@ -1,21 +1,22 @@
 
-ARM32	=	dist/arm32
-ARM64	=	dist/arm64
-AMD64	=	dist/amd64
+build: lint build-amd64
 
-build: lint build-amd64 build-arm64 build-arm32
+build-all: lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-arm32: lint
-	mkdir -p ${ARM32}
-	GOARCH="arm" go build -v -o ${ARM32}/carrier
+	GOARCH="arm" GOOS="linux" go build -o dist/carrier-linux-arm32
 
 build-arm64: lint
-	mkdir -p ${ARM64}
-	GOARCH="arm64" go build -v -o ${ARM64}/carrier
+	GOARCH="arm64" GOOS="linux" go build -o dist/carrier-linux-arm64
 
 build-amd64: lint
-	mkdir -p ${AMD64}
-	GOARCH="amd64" go build -v -o ${AMD64}/carrier
+	GOARCH="amd64" GOOS="linux" go build -o dist/carrier-linux-amd64
+
+build-windows: lint
+	GOARCH="amd64" GOOS="windows" go build -o dist/carrier-windows-amd64
+
+build-darwin: lint
+	GOARCH="amd64" GOOS="darwin" go build -o dist/carrier-darwin-amd64
 
 test: lint
 	ginkgo ./...
