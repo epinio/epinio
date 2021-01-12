@@ -1,7 +1,6 @@
+build: tools package_embedded_files lint build-amd64
 
-build: lint build-amd64
-
-build-all: lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
+build-all: tools package_embedded_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-arm32: lint
 	GOARCH="arm" GOOS="linux" go build -o dist/carrier-linux-arm32
@@ -31,3 +30,11 @@ vet:
 
 fmt:
 	go fmt ./...
+
+.PHONY: tools
+tools:
+	go get github.com/rakyll/statik
+
+package_embedded_files:
+	helm package ../container-registry/chart/container-registry/ -d embedded-files
+	statik -f -src=./embedded-files
