@@ -3,6 +3,9 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -36,6 +39,24 @@ type InstallationOption struct {
 }
 
 type InstallationOptions []InstallationOption
+
+func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
+	for _, opt := range opts {
+		// Translate option name
+		flagName := strings.ReplaceAll(opt.Name, "_", "-")
+
+		// Declare option's flag, type-dependent
+		switch opt.Type {
+		case BooleanType:
+			cmd.Flags().Bool(flagName, opt.Default.(bool), opt.Description)
+		case StringType:
+			cmd.Flags().String(flagName, opt.Default.(string), opt.Description)
+		case IntType:
+			cmd.Flags().Int(flagName, opt.Default.(int), opt.Description)
+		}
+	}
+	return
+}
 
 func (opts InstallationOptions) ToOptMap() map[string]InstallationOption {
 	result := map[string]InstallationOption{}
