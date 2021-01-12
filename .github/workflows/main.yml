@@ -20,7 +20,7 @@ jobs:
       - name: Setup Ginkgo Test Framework
         run: go get -u github.com/onsi/ginkgo/ginkgo
       - name: Lint and Build Carrier
-        run: make build
+        run: make build-all
       - name: Test Carrier
         run: make test
       - name: Login to Docker Hub
@@ -54,7 +54,7 @@ jobs:
         run: kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
       - name: Install Carrier
         run: |
-          ./cli/dist/carrier install -n
+          ./cli/dist/carrier-linux-amd64 install -n
       # - name: Push an App
       #   run: |
       #     git config --global user.email "ci@suse.dev"
