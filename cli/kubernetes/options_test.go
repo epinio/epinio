@@ -1,6 +1,8 @@
 package kubernetes_test
 
 import (
+	"errors"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -15,6 +17,67 @@ var _ = Describe("InstallationOption", func() {
 		}
 		It("returns a combination of Name + deploymentID", func() {
 			Expect(option.ToOptMapKey()).To(Equal("TheName-SomeDeployment"))
+		})
+	})
+
+	Describe("DynDefault", func() {
+		option := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			DynDefaultFunc: func(o *InstallationOption) error {
+				o.Value = "Hello"
+				return nil
+			},
+		}
+		It("it calls the DynDefaultFunc", func() {
+			Expect(option.DynDefault()).To(BeNil())
+			Expect(option.Value).To(Equal("Hello"))
+		})
+	})
+
+	Describe("SetDefault", func() {
+		// The tests here are the origin for the tests of
+		// `DefaultOptionsReader.Read` in files
+		// `default_options_reader(_test).go`.  Any new tests
+		// here should be replicated there.
+
+		optionDynamic := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			Default:      "World",
+			DynDefaultFunc: func(o *InstallationOption) error {
+				o.Value = "Hello"
+				return nil
+			},
+		}
+		optionStatic := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			Default:      "World",
+		}
+		optionError := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			DynDefaultFunc: func(o *InstallationOption) error {
+				o.Value = "Hello"
+				return errors.New("an error")
+			},
+		}
+
+		It("it prefers the DynDefaultFunc over a static Default", func() {
+			Expect(optionDynamic.SetDefault()).To(BeNil())
+			Expect(optionDynamic.Value).To(Equal("Hello"))
+		})
+
+		It("it uses a static Default", func() {
+			Expect(optionStatic.SetDefault()).To(BeNil())
+			Expect(optionStatic.Value).To(Equal("World"))
+		})
+
+		It("it reports errors returned from the DynDefaultFunc", func() {
+			err := optionError.SetDefault()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("an error"))
 		})
 	})
 })
