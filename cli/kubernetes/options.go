@@ -48,11 +48,23 @@ func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
 		// Declare option's flag, type-dependent
 		switch opt.Type {
 		case BooleanType:
-			cmd.Flags().Bool(flagName, opt.Default.(bool), opt.Description)
+			if opt.Default == nil {
+				cmd.Flags().Bool(flagName, false, opt.Description)
+			} else {
+				cmd.Flags().Bool(flagName, opt.Default.(bool), opt.Description)
+			}
 		case StringType:
-			cmd.Flags().String(flagName, opt.Default.(string), opt.Description)
+			if opt.Default == nil {
+				cmd.Flags().String(flagName, "", opt.Description)
+			} else {
+				cmd.Flags().String(flagName, opt.Default.(string), opt.Description)
+			}
 		case IntType:
-			cmd.Flags().Int(flagName, opt.Default.(int), opt.Description)
+			if opt.Default == nil {
+				cmd.Flags().Int(flagName, 0, opt.Description)
+			} else {
+				cmd.Flags().Int(flagName, opt.Default.(int), opt.Description)
+			}
 		}
 	}
 	return
