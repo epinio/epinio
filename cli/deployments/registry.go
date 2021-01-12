@@ -31,6 +31,7 @@ func (k *Registry) NeededOptions() kubernetes.InstallationOptions {
 			Name:        "system_domain",
 			Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP",
 			Type:        kubernetes.StringType,
+			Default:     "",
 		},
 	}
 }
