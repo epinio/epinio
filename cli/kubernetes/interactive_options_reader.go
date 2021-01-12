@@ -25,6 +25,16 @@ func NewInteractiveOptionsReader(stdout io.Writer, stdin io.Reader) InteractiveO
 // returns that value validated and converted to the appropriate type as defined
 // by the Type field of the InstallationOption.
 func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
+
+	// Internal validation of Type field early. Prevent bogus prompting.
+	switch option.Type {
+	case BooleanType:
+	case StringType:
+	case IntType:
+	default:
+		return errors.New("Internal error: option Type not supported")
+	}
+
 	// Ignore anything which is already set by the user (cli option or similar).
 	if option.UserSpecified {
 		return nil
@@ -58,7 +68,9 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 	userValue = strings.TrimSpace(userValue)
 
 	if userValue == "" {
-		// Keep the default set by (**).
+		// Keep the default set by (**). And claim it as
+		// user-specified (actually more `affirmed`).
+		option.UserSpecified = true
 		return nil
 	}
 
@@ -112,6 +124,6 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 			userValue = strings.TrimSpace(userValue)
 		}
 	default:
-		return errors.New("option Type not supported")
+		return errors.New("Internal error: option Type not supported")
 	}
 }
