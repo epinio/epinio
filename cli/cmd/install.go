@@ -4,7 +4,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/deployments"
@@ -30,21 +29,7 @@ func RegisterInstall(rootCmd *cobra.Command) {
 	installCmd.Flags().BoolP("non-interactive", "n", false, "Whether to ask the user or not")
 
 	installer.GatherNeededOptions()
-	for _, opt := range installer.NeededOptions {
-		// Translate option name
-		flagName := strings.ReplaceAll(opt.Name, "_", "-")
-
-		// Declare option's flag, type-dependent
-		switch opt.Type {
-		case kubernetes.BooleanType:
-			installCmd.Flags().Bool(flagName, opt.Default.(bool), opt.Description)
-		case kubernetes.StringType:
-			installCmd.Flags().String(flagName, opt.Default.(string), opt.Description)
-		case kubernetes.IntType:
-			installCmd.Flags().Int(flagName, opt.Default.(int), opt.Description)
-		}
-	}
-
+	installer.NeededOptions.AsCobraFlagsFor(installCmd)
 	rootCmd.AddCommand(installCmd)
 }
 
