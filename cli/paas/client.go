@@ -1,6 +1,7 @@
 package paas
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -9,15 +10,18 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/kubernetes/tailer"
 	"github.com/suse/carrier/cli/paas/config"
 	paasgitea "github.com/suse/carrier/cli/paas/gitea"
 	"github.com/suse/carrier/cli/paas/ui"
+	"k8s.io/apimachinery/pkg/labels"
 )
 
 var (
@@ -142,10 +146,11 @@ func (c *CarrierClient) Push(app string, path string) error {
 		return errors.Wrap(err, "failed to git push code")
 	}
 
-	err = c.logs(app)
+	stopFunc, err := c.logs(app)
 	if err != nil {
 		return errors.Wrap(err, "failed to tail logs")
 	}
+	defer stopFunc()
 
 	err = c.waitForApp(app)
 	if err != nil {
@@ -238,27 +243,28 @@ func (c *CarrierClient) prepareCode(name, appDir string) (tmpDir string, err err
 	// TODO: name of LRP will lead to collisions, since the same app name
 	// can be present in more than one organization
 	lrpTmpl, err := template.New("lrp").Parse(`
+---
 apiVersion: eirini.cloudfoundry.org/v1
 kind: LRP
 metadata:
-	name: "{{ .AppName }}"
-	namespace: eirini-workloads
+  name: "{{ .AppName }}"
+  namespace: eirini-workloads
 spec:
-	GUID: "${{ .AppName }}"
-	version: "version-1"
-	appName: "{{ .AppName }}"
-	instances: 1
-	lastUpdated: "never"
-	diskMB: 100
-	runsAsRoot: true
-	env:
-		PORT: "8080"
-	ports:
-	- 8080
-	image: "127.0.0.1:30500/apps/{{ .AppName }}"
-	appRoutes:
-	- hostname: "{{ .AppName }}.{{ .Domain }}"
-		port: 8080
+  GUID: "{{ .AppName }}"
+  version: "version-1"
+  appName: "{{ .AppName }}"
+  instances: 1
+  lastUpdated: "never"
+  diskMB: 100
+  runsAsRoot: true
+  env:
+    PORT: "8080"
+  ports:
+  - 8080
+  image: "127.0.0.1:30500/apps/{{ .AppName }}"
+  appRoutes:
+  - hostname: "{{ .AppName }}.{{ .Domain }}"
+    port: 8080
 `)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse lrp template for app")
@@ -330,17 +336,46 @@ git push carrier master:main
 	return nil
 }
 
-func (c *CarrierClient) logs(name string) error {
+func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 	c.ui.Normal().Msg("Tailing app logs ...")
-	//  stern --namespace "eirini-workloads" ".*$app_name.*" &
 
-	return nil
+	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	// TODO: improve the way we look for pods, use selectors
+	// and watch staging as well
+	err := tailer.Run(ctx, &tailer.Config{
+		ContainerQuery:        regexp.MustCompile(".*"),
+		ExcludeContainerQuery: nil,
+		ContainerState:        "running",
+		Exclude:               nil,
+		Include:               nil,
+		Timestamps:            true,
+		Since:                 172800000000000, //48hr
+		AllNamespaces:         false,
+		LabelSelector:         labels.Everything(),
+		TailLines:             nil,
+		Template:              tailer.DefaultSingleNamespaceTemplate(),
+
+		Namespace: "eirini-workloads",
+		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*%s.*", name)),
+	}, c.kubeClient)
+	if err != nil {
+		return cancelFunc, errors.Wrap(err, "failed to start log tail")
+	}
+
+	return cancelFunc, nil
 }
 
 func (c *CarrierClient) waitForApp(name string) error {
+	c.ui.Normal().Msg("Waiting for resources to be created ...")
+	err := c.kubeClient.WaitUntilPodBySelectorExist(
+		c.config.EiriniWorkloadsNamespace,
+		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
+		300)
+
 	c.ui.Normal().Msg("Waiting for app to come online ...")
 
-	err := c.kubeClient.WaitForPodBySelectorRunning(
+	err = c.kubeClient.WaitForPodBySelectorRunning(
 		c.config.EiriniWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)

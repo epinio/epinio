@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
-	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 
 	generic "github.com/mudler/kubecfctl/pkg/kubernetes/platform/generic"
@@ -45,25 +43,23 @@ type Cluster struct {
 	//	InternalIPs []string
 	//	Ingress     bool
 	Kubectl    *kubernetes.Clientset
-	restConfig *restclient.Config
+	RestConfig *restclient.Config
 	platform   Platform
 }
 
 // NewClusterFromClient creates a new Cluster from a Kubernetes rest client config
-func NewClusterFromClient(restClient *restclient.Config) (*Cluster, error) {
+func NewClusterFromClient(restConfig *restclient.Config) (*Cluster, error) {
 	c := &Cluster{}
 
-	c.restConfig = restClient
-	clientset, err := kubernetes.NewForConfig(restClient)
+	c.RestConfig = restConfig
+	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return nil, err
 	}
 	c.Kubectl = clientset
 	c.detectPlatform()
 	if c.platform == nil {
-		emoji.Println(":warning: No valid platform detected, trying general platform. Things might go wrong")
 		c.platform = generic.NewPlatform()
-		//return errors.New("No supported platform detected. Bailing out")
 	}
 
 	return c, c.platform.Load(clientset)
@@ -83,7 +79,7 @@ func (c *Cluster) Connect(config string) error {
 	if err != nil {
 		return err
 	}
-	c.restConfig = restConfig
+	c.RestConfig = restConfig
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return err
@@ -91,9 +87,7 @@ func (c *Cluster) Connect(config string) error {
 	c.Kubectl = clientset
 	c.detectPlatform()
 	if c.platform == nil {
-		emoji.Println(":warning: No valid platform detected, trying general platform. Things might go wrong")
 		c.platform = generic.NewPlatform()
-		//return errors.New("No supported platform detected. Bailing out")
 	}
 
 	return c.platform.Load(clientset)
@@ -110,7 +104,7 @@ func (c *Cluster) detectPlatform() {
 
 // return a condition function that indicates whether the given pod is
 // currently running
-func (c *Cluster) isPodRunning(podName, namespace string) wait.ConditionFunc {
+func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
 		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
 		if err != nil {
@@ -140,7 +134,7 @@ func (c *Cluster) isPodRunning(podName, namespace string) wait.ConditionFunc {
 	}
 }
 
-func (c *Cluster) podExists(namespace, selector string) wait.ConditionFunc {
+func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
 		podList, err := c.ListPods(namespace, selector)
 		if err != nil {
@@ -156,7 +150,7 @@ func (c *Cluster) podExists(namespace, selector string) wait.ConditionFunc {
 // Poll up to timeout seconds for pod to enter running state.
 // Returns an error if the pod never enters the running state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, c.isPodRunning(podName, namespace))
+	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(podName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector
@@ -175,20 +169,12 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 // Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
 func (c *Cluster) WaitUntilPodBySelectorExist(namespace, selector string, timeout int) error {
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
-	s.Start()                                                    // Start the spinner
-	defer s.Stop()
-	s.Suffix = emoji.Sprintf(" Waiting for resource %s to be created in %s ... :zzz: ", selector, namespace)
-	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.podExists(namespace, selector))
+	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodExists(namespace, selector))
 }
 
 // Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
 func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeout int) error {
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
-	s.Start()                                                    // Start the spinner
-	defer s.Stop()
-	s.Suffix = emoji.Sprintf(" Waiting for resource %s to be running in %s ... :zzz: ", selector, namespace)
 	podList, err := c.ListPods(namespace, selector)
 	if err != nil {
 		return errors.Wrapf(err, "failed listingpods with selector %s", selector)
@@ -199,7 +185,6 @@ func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeou
 	}
 
 	for _, pod := range podList.Items {
-		s.Suffix = emoji.Sprintf(" Waiting for pod %s to be running in %s ... :zzz: ", pod.Name, namespace)
 		if err := c.WaitForPodRunning(namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
 			return errors.Wrapf(err, "failed waiting for %s", pod.Name)
 		}
@@ -276,7 +261,7 @@ func (c *Cluster) execPod(namespace, podName, containerName string,
 		option,
 		scheme.ParameterCodec,
 	)
-	exec, err := remotecommand.NewSPDYExecutor(c.restConfig, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(c.RestConfig, "POST", req.URL())
 	if err != nil {
 		return err
 	}
