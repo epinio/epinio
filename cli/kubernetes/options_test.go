@@ -1,6 +1,8 @@
 package kubernetes_test
 
 import (
+	"errors"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -15,6 +17,67 @@ var _ = Describe("InstallationOption", func() {
 		}
 		It("returns a combination of Name + deploymentID", func() {
 			Expect(option.ToOptMapKey()).To(Equal("TheName-SomeDeployment"))
+		})
+	})
+
+	Describe("DynDefault", func() {
+		option := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			DynDefaultFunc: func(o *InstallationOption) error {
+				o.Value = "Hello"
+				return nil
+			},
+		}
+		It("calls the DynDefaultFunc", func() {
+			Expect(option.DynDefault()).To(BeNil())
+			Expect(option.Value).To(Equal("Hello"))
+		})
+	})
+
+	Describe("SetDefault", func() {
+		// The tests here are the origin for the tests of
+		// `DefaultOptionsReader.Read` in files
+		// `default_options_reader(_test).go`.  Any new tests
+		// here should be replicated there.
+
+		optionDynamic := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			Default:      "World",
+			DynDefaultFunc: func(o *InstallationOption) error {
+				o.Value = "Hello"
+				return nil
+			},
+		}
+		optionStatic := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			Default:      "World",
+		}
+		optionError := InstallationOption{
+			Name:         "TheName",
+			DeploymentID: "SomeDeployment",
+			DynDefaultFunc: func(o *InstallationOption) error {
+				o.Value = "Hello"
+				return errors.New("an error")
+			},
+		}
+
+		It("prefers the DynDefaultFunc over a static Default", func() {
+			Expect(optionDynamic.SetDefault()).To(BeNil())
+			Expect(optionDynamic.Value).To(Equal("Hello"))
+		})
+
+		It("uses a static Default", func() {
+			Expect(optionStatic.SetDefault()).To(BeNil())
+			Expect(optionStatic.Value).To(Equal("World"))
+		})
+
+		It("reports errors returned from the DynDefaultFunc", func() {
+			err := optionError.SetDefault()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(Equal("an error"))
 		})
 	})
 })
@@ -45,6 +108,7 @@ var _ = Describe("InstallationOptions", func() {
 		}
 		It("returns a map matching the InstallationOptions", func() {
 			optMap := options.ToOptMap()
+			Expect(len(optMap)).To(Equal(3))
 			Expect(optMap["OptionName-Deployment1"].Value).To(Equal("ForDeployment1"))
 			Expect(optMap["OptionName-Deployment2"].Value).To(Equal("ForDeployment2"))
 			Expect(optMap["OptionName-"].Value).To(Equal("ForAllDeployments"))
@@ -88,6 +152,86 @@ var _ = Describe("InstallationOptions", func() {
 				})
 				Expect(result.GetString("Option", "MyDeploymentID")).To(Equal("private value"))
 				Expect(result.GetString("Option", "OtherDeploymentID")).To(Equal("the new value"))
+			})
+		})
+	})
+
+	Describe("GetOpt", func() {
+		var options InstallationOptions
+		BeforeEach(func() {
+			options = InstallationOptions{
+				InstallationOption{
+					Name:         "Global Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "",
+				},
+				InstallationOption{
+					Name:         "Private Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "Private",
+				},
+				InstallationOption{
+					Name:         "Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "Another",
+				},
+				InstallationOption{
+					Name:         "Option",
+					Value:        "the value",
+					Type:         StringType,
+					DeploymentID: "",
+				},
+			}
+		})
+		When("deploymentID is empty", func() {
+			It("misses a wholly unknown option", func() {
+				_, err := options.GetOpt("Bogus Option", "")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+			It("misses a private option", func() {
+				_, err := options.GetOpt("Private Option", "")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+			It("finds a global-only option", func() {
+				result, err := options.GetOpt("Global Option", "")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Global Option"))
+				Expect(result.DeploymentID).To(Equal(""))
+			})
+		})
+		When("deploymentID is not empty", func() {
+			It("finds a private-only option in its deployment", func() {
+				result, err := options.GetOpt("Private Option", "Private")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Private Option"))
+				Expect(result.DeploymentID).To(Equal("Private"))
+			})
+			It("finds a global-only option regardless of deployment", func() {
+				result, err := options.GetOpt("Global Option", "Another")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Global Option"))
+				Expect(result.DeploymentID).To(Equal(""))
+			})
+			It("finds a private option before a global option of the same name", func() {
+				result, err := options.GetOpt("Option", "Another")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(result.Name).To(Equal("Option"))
+				Expect(result.DeploymentID).To(Equal("Another"))
+			})
+			It("misses a private-only option outside its deployment", func() {
+				_, err := options.GetOpt("Private Option", "Another")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+			It("misses a wholly unknown option", func() {
+				_, err := options.GetOpt("Bogus Option", "Bogus")
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("not set"))
 			})
 		})
 	})
@@ -177,7 +321,6 @@ var _ = Describe("InstallationOptions", func() {
 			BeforeEach(func() {
 				options = InstallationOptions{}
 			})
-
 			It("returns an error", func() {
 				_, err := options.GetInt("Option", "")
 				Expect(err).To(HaveOccurred())

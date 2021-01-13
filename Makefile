@@ -10,17 +10,55 @@ tools-versions:
 version:
 	@./scripts/version.sh
 
-lint: shellcheck yamllint helmlint httplint
+build:
+	@$(MAKE) -C cli build
 
-helmlint:
-	@./scripts/helmlint.sh
+build-all:
+	@$(MAKE) -C cli build-all
 
-shellcheck:
-	@./scripts/shellcheck.sh
+build-arm32:
+	@$(MAKE) -C cli build-arm32
 
-yamllint:
-	@./scripts/yamllint.sh
+build-arm64:
+	@$(MAKE) -C cli build-arm64
 
-.PHONY: httplint
-httplint:
-	@./src/kubecf-tools/httplint/httplint.sh
+build-amd64:
+	@$(MAKE) -C cli build-amd64
+
+build-windows:
+	@$(MAKE) -C cli build-windows
+
+build-darwin:
+	@$(MAKE) -C cli build-darwin
+
+test:
+	@$(MAKE) -C cli test
+
+lint:
+	@$(MAKE) -C cli lint
+
+fmt:
+	@$(MAKE) -C cli fmt
+
+vet:
+	@$(MAKE) -C cli vet
+
+generate_fakes:
+	@$(MAKE) -C cli generate_fakes
+
+
+
+# lint: shellcheck yamllint helmlint httplint
+
+# helmlint:
+# 	@./scripts/helmlint.sh
+
+# shellcheck:
+# 	@./scripts/shellcheck.sh
+
+# yamllint:
+# 	@./scripts/yamllint.sh
+
+# .PHONY: httplint
+# httplint:
+# 	@./src/kubecf-tools/httplint/httplint.sh

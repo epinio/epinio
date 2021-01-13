@@ -3,6 +3,9 @@ package kubernetes
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -11,17 +14,61 @@ const (
 	IntType
 )
 
+// A InstallationOptionDynamicDefault function may provide a dynamic
+// default value for an option. When present it has precedence over
+// any static default value in the structure.
+//
+// ATTENTION: The function is responsible for setting both Value and
+// Valid flag of the specified option. This is necessary for cases
+// where the dynamic default could not be determined, yet is not an
+// error.
+//
+type InstallationOptionDynamicDefault func(o *InstallationOption) error
+
 type InstallationOptionType int
 
 type InstallationOption struct {
-	Name         string
-	Value        interface{}
-	Description  string
-	Type         InstallationOptionType
-	DeploymentID string // If set, this option will be passed only to this deployment (private)
+	Name           string                           // Identifying name of the configuration variable
+	Value          interface{}                      // Value to use (may not be valid, see `Valid` field).
+	Default        interface{}                      // Static default value for the value.
+	DynDefaultFunc InstallationOptionDynamicDefault // Function to provide a default. Has priority over `Default`.
+	UserSpecified  bool                             // Flag, true if `Value` came from the user.
+	Description    string                           // Short description of the variable
+	Type           InstallationOptionType           // Type information for `Value` and `Default`.
+	DeploymentID   string                           // If set, this option will be passed only to this deployment (private)
 }
 
 type InstallationOptions []InstallationOption
+
+func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
+	for _, opt := range opts {
+		// Translate option name
+		flagName := strings.ReplaceAll(opt.Name, "_", "-")
+
+		// Declare option's flag, type-dependent
+		switch opt.Type {
+		case BooleanType:
+			if opt.Default == nil {
+				cmd.Flags().Bool(flagName, false, opt.Description)
+			} else {
+				cmd.Flags().Bool(flagName, opt.Default.(bool), opt.Description)
+			}
+		case StringType:
+			if opt.Default == nil {
+				cmd.Flags().String(flagName, "", opt.Description)
+			} else {
+				cmd.Flags().String(flagName, opt.Default.(string), opt.Description)
+			}
+		case IntType:
+			if opt.Default == nil {
+				cmd.Flags().Int(flagName, 0, opt.Description)
+			} else {
+				cmd.Flags().Int(flagName, opt.Default.(int), opt.Description)
+			}
+		}
+	}
+	return
+}
 
 func (opts InstallationOptions) ToOptMap() map[string]InstallationOption {
 	result := map[string]InstallationOption{}
@@ -34,6 +81,25 @@ func (opts InstallationOptions) ToOptMap() map[string]InstallationOption {
 
 func (opt InstallationOption) ToOptMapKey() string {
 	return fmt.Sprintf("%s-%s", opt.Name, opt.DeploymentID)
+}
+
+func (opt *InstallationOption) DynDefault() error {
+	return opt.DynDefaultFunc(opt)
+}
+
+func (opt *InstallationOption) SetDefault() error {
+	// Give priority to a function which provides the default
+	// value dynamically.
+	if opt.DynDefaultFunc != nil {
+		err := opt.DynDefault()
+		if err != nil {
+			return err
+		}
+	} else if opt.Default != nil {
+		opt.Value = opt.Default
+	}
+
+	return nil
 }
 
 // Merge returns a merge of the two options respecting uniqueness of name+deploymentID
@@ -51,30 +117,41 @@ func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationO
 	return result
 }
 
-// getOpt finds the given option in opts giving priority to options with a
-// non-empty deploymentID. In other words, if there is a global option and a
-// deployment specific option with the same name, the more specific is the one
-// returned.
-func (opts InstallationOptions) getOpt(optionName string, deploymentID string) (InstallationOption, error) {
-	// "Private" options first
-	for _, option := range opts {
-		if option.Name == optionName && option.DeploymentID == deploymentID {
-			return option, nil
+// GetOpt finds the given option in opts.
+//
+// When the deploymentID is the empty string the function searches for
+// and returns only global options (not associated to any deployment).
+// Otherwise it searches for private options associated with the
+// specified deployment as well.
+//
+// ATTENTION: In the second case private options have precedence. In
+// other words if we have private and global options of the same name,
+// then the private option is returned.
+//
+// ATTENTION: This function returns a reference, enabling the caller
+// to modify the structure.
+func (opts InstallationOptions) GetOpt(optionName string, deploymentID string) (*InstallationOption, error) {
+	if deploymentID != "" {
+		// "Private" options first, only if a deployment to search is known
+		for i, option := range opts {
+			if option.Name == optionName && option.DeploymentID == deploymentID {
+				return &opts[i], nil
+			}
 		}
 	}
 
-	// If there is not private option, try "Global" options
-	for _, option := range opts {
+	// If there is no private option, try "Global" options
+	for i, option := range opts {
 		if option.Name == optionName && option.DeploymentID == "" {
-			return option, nil
+			return &opts[i], nil
 		}
 	}
 
-	return InstallationOption{}, errors.New(optionName + " not set")
+	return nil, errors.New(optionName + " not set")
 }
 
 func (opts InstallationOptions) GetString(optionName string, deploymentID string) (string, error) {
-	option, err := opts.getOpt(optionName, deploymentID)
+	option, err := opts.GetOpt(optionName, deploymentID)
 	if err != nil {
 		return "", err
 	}
@@ -82,41 +159,37 @@ func (opts InstallationOptions) GetString(optionName string, deploymentID string
 	result, ok := option.Value.(string)
 	if !ok {
 		panic("wrong type assertion")
-	} else {
-		return result, nil
 	}
 
-	return "", errors.New(optionName + " not set")
+	return result, nil
 }
 
 func (opts InstallationOptions) GetBool(optionName string, deploymentID string) (bool, error) {
-	for _, option := range opts {
-		if option.Name == optionName && option.DeploymentID == deploymentID {
-			result, ok := option.Value.(bool)
-			if !ok {
-				panic("wrong type assertion")
-			} else {
-				return result, nil
-			}
-		}
+	option, err := opts.GetOpt(optionName, deploymentID)
+	if err != nil {
+		return false, err
 	}
 
-	return false, errors.New(optionName + " not set")
+	result, ok := option.Value.(bool)
+	if !ok {
+		panic("wrong type assertion")
+	}
+
+	return result, nil
 }
 
 func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (int, error) {
-	for _, option := range opts {
-		if option.Name == optionName && option.DeploymentID == deploymentID {
-			result, ok := option.Value.(int)
-			if !ok {
-				panic("wrong type assertion")
-			} else {
-				return result, nil
-			}
-		}
+	option, err := opts.GetOpt(optionName, deploymentID)
+	if err != nil {
+		return 0, err
 	}
 
-	return 0, errors.New(optionName + " not set")
+	result, ok := option.Value.(int)
+	if !ok {
+		panic("wrong type assertion")
+	}
+
+	return result, nil
 }
 
 func (opts InstallationOptions) ForDeployment(deploymentID string) InstallationOptions {

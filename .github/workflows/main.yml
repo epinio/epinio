@@ -13,6 +13,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Setup Go for Building
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.13.7'
+      - name: Setup Ginkgo Test Framework
+        run: go get -u github.com/onsi/ginkgo/ginkgo
+      - name: Lint and Build Carrier
+        run: make build-all
+      - name: Test Carrier
+        run: make test
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
@@ -40,25 +50,27 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Check traefik service
+        run: kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
       - name: Install Carrier
         run: |
-          ./carrier install
-      - name: Push an App
-        run: |
-          git config --global user.email "ci@suse.dev"
-          git config --global user.name "cibot"
-          ./carrier push "ci${GITHUB_RUN_NUMBER}" ./sample-app
-      - name: Test App
-        run: |
-          external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
-          curl --fail http://"ci${GITHUB_RUN_NUMBER}.${external_ip}.nip.io"
-      - name: Uninstall Carrier
-        run: |
-          ./carrier uninstall
+          ./cli/dist/carrier-linux-amd64 install -n
+      # - name: Push an App
+      #   run: |
+      #     git config --global user.email "ci@suse.dev"
+      #     git config --global user.name "cibot"
+      #     ./carrier push "ci${GITHUB_RUN_NUMBER}" ./sample-app
+      # - name: Test App
+      #   run: |
+      #     external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
+      #     curl --fail http://"ci${GITHUB_RUN_NUMBER}.${external_ip}.nip.io"
+      # - name: Uninstall Carrier
+      #   run: |
+      #     ./carrier uninstall
       - name: Log
         if: ${{ always() }}
         run: |
-          cat "$HOME/.carrier.log"
+          # cat "$HOME/.carrier.log" - Not created by the go-based carrier cli
 
           echo "-----------------------------------------------"
           echo "-----------------------------------------------"
@@ -68,10 +80,10 @@ jobs:
 
           kubectl get all -A -o wide
 
-          echo "-----------------------------------------------"
-          echo "-----------------------------------------------"
-          echo "DESCRIBE EIRINI-WORKLOADS PODS"
-          echo "-----------------------------------------------"
-          echo "-----------------------------------------------"
+          # echo "-----------------------------------------------"
+          # echo "-----------------------------------------------"
+          # echo "DESCRIBE EIRINI-WORKLOADS PODS"
+          # echo "-----------------------------------------------"
+          # echo "-----------------------------------------------"
 
-          kubectl get pod -n eirini-workloads -o json | jq -r .items[].metadata.name | xargs -I{} kubectl describe pod -n eirini-workloads {}
+          # kubectl get pod -n eirini-workloads -o json | jq -r .items[].metadata.name | xargs -I{} kubectl describe pod -n eirini-workloads {}
