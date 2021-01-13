@@ -109,7 +109,7 @@ var _ = Describe("CLIOptionsReader", func() {
 
 	Describe("Read", func() {
 		When("handling an option without flag", func() {
-			It("it does nothing", func() {
+			It("does nothing", func() {
 				err := reader.Read(&optionUnknown)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(optionUnknown.UserSpecified).To(BeFalse())

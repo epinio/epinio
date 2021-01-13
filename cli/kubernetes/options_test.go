@@ -29,7 +29,7 @@ var _ = Describe("InstallationOption", func() {
 				return nil
 			},
 		}
-		It("it calls the DynDefaultFunc", func() {
+		It("calls the DynDefaultFunc", func() {
 			Expect(option.DynDefault()).To(BeNil())
 			Expect(option.Value).To(Equal("Hello"))
 		})
@@ -64,17 +64,17 @@ var _ = Describe("InstallationOption", func() {
 			},
 		}
 
-		It("it prefers the DynDefaultFunc over a static Default", func() {
+		It("prefers the DynDefaultFunc over a static Default", func() {
 			Expect(optionDynamic.SetDefault()).To(BeNil())
 			Expect(optionDynamic.Value).To(Equal("Hello"))
 		})
 
-		It("it uses a static Default", func() {
+		It("uses a static Default", func() {
 			Expect(optionStatic.SetDefault()).To(BeNil())
 			Expect(optionStatic.Value).To(Equal("World"))
 		})
 
-		It("it reports errors returned from the DynDefaultFunc", func() {
+		It("reports errors returned from the DynDefaultFunc", func() {
 			err := optionError.SetDefault()
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("an error"))

@@ -42,17 +42,17 @@ var _ = Describe("DefaultOptionsReader", func() {
 			},
 		}
 
-		It("it prefers the DynDefaultFunc over a static Default", func() {
+		It("prefers the DynDefaultFunc over a static Default", func() {
 			Expect(reader.Read(&optionDynamic)).To(BeNil())
 			Expect(optionDynamic.Value).To(Equal("Hello"))
 		})
 
-		It("it uses a static Default", func() {
+		It("uses a static Default", func() {
 			Expect(reader.Read(&optionStatic)).To(BeNil())
 			Expect(optionStatic.Value).To(Equal("World"))
 		})
 
-		It("it reports errors returned from the DynDefaultFunc", func() {
+		It("reports errors returned from the DynDefaultFunc", func() {
 			err := reader.Read(&optionError)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("an error"))
