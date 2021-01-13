@@ -23,6 +23,7 @@ const (
 	tektonDashboardYamlPath       = "tekton/dashboard-v0.11.1.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
 	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.10.1.yaml"
+	tektonTriggersYamlPath        = "tekton/triggers.yaml"
 )
 
 func (k *Tekton) NeededOptions() kubernetes.InstallationOptions {
@@ -59,7 +60,6 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	helpers.KubectlApplyEmbeddedYaml(tektonPipelineReleaseYamlPath)
 	helpers.KubectlApplyEmbeddedYaml(tektonTriggersReleaseYamlPath)
 	helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath)
-	helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath)
 
 	for _, crd := range []string{
 		"clustertasks.tekton.dev",
@@ -76,16 +76,56 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		"triggers.triggers.tekton.dev",
 		"triggertemplates.triggers.tekton.dev",
 	} {
-		helpers.SpinnerWaitCommand(
-			emoji.Sprintf(" Waiting for crd %s to be established ... :zzz: ", crd),
+		message := fmt.Sprintf("Waiting for crd %s to be established", crd)
+		out, err := helpers.SpinnerWaitCommand(message,
 			func() (string, error) {
 				return helpers.Kubectl("wait --for=condition=established --timeout=300s crd/" + crd)
 			},
 		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
 	}
 
-	// 	retry 60 'kubectl wait --for=condition=Ready --timeout=5s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod' >> "$HOME/.carrier.log" 2>&1
-	// 	retry 60 "curl --fail http://gitea.$public_ip.nip.io" >> "$HOME/.carrier.log" 2>&1
+	message := "Waiting for tekton triggers webhook pod to be running"
+	out, err := helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return helpers.Kubectl("wait --for=condition=Ready --timeout=300s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Waiting for tekton pipelines webhook pod to be running"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return helpers.Kubectl("wait --for=condition=Ready --timeout=300s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Installing staging pipelines and triggers"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Install the tekton dashboard"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
 
 	emoji.Println(":heavy_check_mark: Tekton deployed")
 
