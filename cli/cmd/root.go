@@ -31,20 +31,10 @@ func Execute() {
 
 	RegisterInstall(rootCmd)
 
-	ExitIfError(ensureKubeConfig())
-
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
-}
-
-func ensureKubeConfig() error {
-	if kubeconfig = os.Getenv("KUBECONFIG"); kubeconfig == "" {
-		return errors.New("KUBECONFIG environment variable not set!")
-	}
-
-	return nil
 }
 
 func checkDependencies() error {
