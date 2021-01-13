@@ -39,9 +39,11 @@ update_registry:
 	helm package ../container-registry/chart/container-registry/ -d embedded-files
 
 update_tekton:
-	 wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml -O embedded-files/tekton-pipeline-v0.19.0.yaml
-	 wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.10.1/release.yaml -O embedded-files/tekton-triggers-v0.10.1.yaml
-	 wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O embedded-files/tekton-dashboard-v0.11.1.yaml
+	mkdir -p embedded-files/tekton
+	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml -O embedded-files/tekton/pipeline-v0.19.0.yaml
+	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.10.1/release.yaml -O embedded-files/tekton/triggers-v0.10.1.yaml
+	wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-v0.11.1.yaml
+	cp ../tekton/*.yaml embedded-files/tekton/
 
 embed_files:
 	statik -f -src=./embedded-files
