@@ -13,8 +13,29 @@ version:
 build:
 	@$(MAKE) -C cli build
 
+build-all:
+	@$(MAKE) -C cli build-all
+
+build-arm32:
+	@$(MAKE) -C cli build-arm32
+
+build-arm64:
+	@$(MAKE) -C cli build-arm64
+
+build-amd64:
+	@$(MAKE) -C cli build-amd64
+
+build-windows:
+	@$(MAKE) -C cli build-windows
+
+build-darwin:
+	@$(MAKE) -C cli build-darwin
+
 test:
 	@$(MAKE) -C cli test
+
+lint:
+	@$(MAKE) -C cli lint
 
 fmt:
 	@$(MAKE) -C cli fmt
