@@ -4,5 +4,5 @@ build:
 test:
 	ginkgo ./...
 
-generate_fakes:
+generate:
 	go generate ./...

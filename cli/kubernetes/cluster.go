@@ -18,6 +18,7 @@ import (
 	kind "github.com/mudler/kubecfctl/pkg/kubernetes/platform/kind"
 
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -46,6 +47,26 @@ type Cluster struct {
 	Kubectl    *kubernetes.Clientset
 	restConfig *restclient.Config
 	platform   Platform
+}
+
+// NewClusterFromClient creates a new Cluster from a Kubernetes rest client config
+func NewClusterFromClient(restClient *restclient.Config) (*Cluster, error) {
+	c := &Cluster{}
+
+	c.restConfig = restClient
+	clientset, err := kubernetes.NewForConfig(restClient)
+	if err != nil {
+		return nil, err
+	}
+	c.Kubectl = clientset
+	c.detectPlatform()
+	if c.platform == nil {
+		emoji.Println(":warning: No valid platform detected, trying general platform. Things might go wrong")
+		c.platform = generic.NewPlatform()
+		//return errors.New("No supported platform detected. Bailing out")
+	}
+
+	return c, c.platform.Load(clientset)
 }
 
 func NewCluster(kubeconfig string) (*Cluster, error) {
@@ -197,6 +218,40 @@ func (c *Cluster) Exec(namespace, podName, containerName string, command, stdin 
 	// }
 	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), err
 }
+
+// GetSecret gets a secret's values
+func (c *Cluster) GetSecret(namespace, name string) (*v1.Secret, error) {
+	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get secret")
+	}
+
+	return secret, nil
+}
+
+// GetVersion get the kube server version
+func (c *Cluster) GetVersion() (string, error) {
+	v, err := c.Kubectl.ServerVersion()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get kube server version")
+	}
+
+	return v.String(), nil
+}
+
+// ListIngress returns the list of available ingresses in `namespace` with the given selector
+func (c *Cluster) ListIngress(namespace, selector string) (*networkingv1.IngressList, error) {
+	listOptions := metav1.ListOptions{}
+	if len(selector) > 0 {
+		listOptions.LabelSelector = selector
+	}
+	ingressList, err := c.Kubectl.NetworkingV1().Ingresses(namespace).List(context.Background(), listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return ingressList, nil
+}
+
 func (c *Cluster) execPod(namespace, podName, containerName string,
 	command string, stdin io.Reader, stdout, stderr io.Writer) error {
 	cmd := []string{

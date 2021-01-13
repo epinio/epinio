@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"github.com/suse/carrier/cli/cmd/internal/client"
 )
 
 const (
@@ -33,6 +34,11 @@ func Execute() {
 	}
 	installCmd.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
 	rootCmd.AddCommand(installCmd)
+
+	rootCmd.AddCommand(client.CmdInfo)
+	rootCmd.AddCommand(client.CmdOrgs)
+	rootCmd.AddCommand(client.CmdCreateOrg)
+	rootCmd.AddCommand(client.CmdPush)
 
 	ExitIfError(ensureKubeConfig())
 
