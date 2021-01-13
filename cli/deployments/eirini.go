@@ -100,6 +100,9 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	if err = k.patchServiceAccountWithSecretAccess(c, "eirini"); err != nil {
 		return err
 	}
+	if err = k.patchWorkloadsNamespaceForQuarks(c); err != nil {
+		return err
+	}
 
 	// TODO: Implement a waiting method that doesn't require a specific label
 	// or exact pod name
@@ -215,6 +218,19 @@ func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name s
 }
 `
 	_, err := c.Kubectl.CoreV1().ServiceAccounts("eirini-workloads").Patch(context.Background(), name, types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (k Eirini) patchWorkloadsNamespaceForQuarks(c kubernetes.Cluster) error {
+	patchContents := `
+		{ "metadata": { "labels": {
+		  "quarks.cloudfoundry.org/monitored": "quarks-secret" } } }`
+
+	_, err := c.Kubectl.CoreV1().Namespaces().Patch(context.Background(), "eirini-workloads", types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
 
 	if err != nil {
 		return err
