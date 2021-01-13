@@ -1,8 +1,11 @@
 package helpers
 
 import (
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 	"path"
 
 	"github.com/rakyll/statik/fs"
@@ -34,4 +37,16 @@ func UnEmbedFile(filePath string) (string, error) {
 	}
 
 	return tmpFilePath, nil
+}
+
+// KubectlApplyEmbeddedYaml un-embeds the given yaml file and calls `kubectl apply`
+// on it. It returns the command output and an error (if there is one)
+func KubectlApplyEmbeddedYaml(yamlPath string) (string, error) {
+	yamlPathOnDisk, err := UnEmbedFile(yamlPath)
+	if err != nil {
+		return "", errors.New("Failed to extract embedded file: " + yamlPath + " - " + err.Error())
+	}
+	defer os.Remove(yamlPathOnDisk)
+
+	return Kubectl(fmt.Sprintf("apply --filename %s", yamlPathOnDisk))
 }

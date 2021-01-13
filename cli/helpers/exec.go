@@ -6,9 +6,15 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/codeskyblue/kexec"
+	"github.com/pkg/errors"
 )
+
+type ExternalCommandFunc func() (output string, err error)
 
 func RunProc(cmd, dir string, toStdout bool) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
@@ -75,4 +81,31 @@ func CreateTmpFile(contents string) (string, error) {
 	}
 
 	return tmpfile.Name(), nil
+}
+
+// Kubectl invoces the `kubectl` command in PATH, running the specified command.
+// It returns the command output and/or error.
+func Kubectl(command string) (string, error) {
+	_, err := exec.LookPath("kubectl")
+	if err != nil {
+		return "", errors.Wrap(err, "kubectl not in path")
+	}
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	cmd := fmt.Sprintf("kubectl " + command)
+
+	return RunProc(cmd, currentdir, false)
+}
+
+func SpinnerWaitCommand(message string, funk ExternalCommandFunc) {
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
+	s.Start()                                                    // Start the spinner
+	defer s.Stop()
+
+	s.Suffix = message
+	funk()
 }

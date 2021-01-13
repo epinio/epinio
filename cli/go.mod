@@ -13,6 +13,7 @@ require (
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
+	github.com/mudler/kubecfctl v0.0.0-20201204144139-280ab92e4c08
 	github.com/nxadm/tail v1.4.5 // indirect
 	github.com/onsi/ginkgo v1.14.2
 	github.com/onsi/gomega v1.10.3
@@ -28,6 +29,7 @@ require (
 	golang.org/x/tools v0.0.0-20201215192005-fa10ef0b8743 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	k8s.io/api v0.18.8
+	k8s.io/apiextensions-apiserver v0.18.8
 	k8s.io/apimachinery v0.18.8
 	k8s.io/client-go v0.18.8
 )
