@@ -67,7 +67,7 @@ func (k Registry) apply(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return err
 	}
 
-	if err = createNamespace(c, registryDeploymentID); err != nil {
+	if err = createQuarksMonitoredNamespace(c, registryDeploymentID); err != nil {
 		return err
 	}
 
@@ -132,7 +132,7 @@ func (k Registry) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationO
 	return k.apply(c, options, true)
 }
 
-func createNamespace(c kubernetes.Cluster, name string) error {
+func createQuarksMonitoredNamespace(c kubernetes.Cluster, name string) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Create(
 		context.Background(),
 		&corev1.Namespace{
