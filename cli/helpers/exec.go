@@ -103,11 +103,10 @@ func Kubectl(command string) (string, error) {
 }
 
 func SpinnerWaitCommand(message string, funk ExternalCommandFunc) (string, error) {
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
-	s.Start()                                                    // Start the spinner
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner,
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)               // configure, and
+	s.Start()                                                    // start it
 	defer s.Stop()
-
-	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
 
 	return funk()
 }

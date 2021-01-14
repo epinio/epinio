@@ -9,7 +9,7 @@ build-arm64: lint
 	GOARCH="arm64" GOOS="linux" go build -o dist/carrier-linux-arm64
 
 build-amd64: lint
-	GOARCH="amd64" GOOS="linux" go build -o dist/carrier-linux-amd64
+	GOARCH="amd64" GOOS="linux" go build -race -o dist/carrier-linux-amd64
 
 build-windows: lint
 	GOARCH="amd64" GOOS="windows" go build -o dist/carrier-windows-amd64
