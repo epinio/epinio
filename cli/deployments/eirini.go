@@ -112,6 +112,13 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		}
 	}
 
+	if err = k.patchNamespaceForQuarks(c, "eirini-workloads"); err != nil {
+		return err
+	}
+	if err = k.patchNamespaceForQuarks(c, "eirini-core"); err != nil {
+		return err
+	}
+
 	// TODO: Generate  eirini tls
 
 	domain, err := options.GetString("system_domain", eiriniDeploymentID)
@@ -129,9 +136,6 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return err
 	}
 	if err = k.patchServiceAccountWithSecretAccess(c, "eirini"); err != nil {
-		return err
-	}
-	if err = k.patchWorkloadsNamespaceForQuarks(c); err != nil {
 		return err
 	}
 
@@ -256,12 +260,13 @@ func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name s
 	return nil
 }
 
-func (k Eirini) patchWorkloadsNamespaceForQuarks(c kubernetes.Cluster) error {
+func (k Eirini) patchNamespaceForQuarks(c kubernetes.Cluster, namespace string) error {
 	patchContents := `
 		{ "metadata": { "labels": {
 		  "quarks.cloudfoundry.org/monitored": "quarks-secret" } } }`
 
-	_, err := c.Kubectl.CoreV1().Namespaces().Patch(context.Background(), "eirini-workloads", types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
+	_, err := c.Kubectl.CoreV1().Namespaces().Patch(context.Background(), namespace,
+		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
 
 	if err != nil {
 		return err
