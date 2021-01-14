@@ -3,6 +3,9 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"regexp"
 	"time"
 
 	"github.com/kyokomi/emoji"
@@ -25,6 +28,7 @@ const (
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
 	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.10.1.yaml"
 	tektonTriggersYamlPath        = "tekton/triggers.yaml"
+	tektonStagingYamlPath         = "tekton/staging.yaml"
 )
 
 func (k *Tekton) NeededOptions() kubernetes.InstallationOptions {
@@ -157,6 +161,16 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
+	message = "Applying tekton staging resources"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return applyTektonStaging(c)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
 	emoji.Println(":heavy_check_mark: Tekton deployed")
 
 	return nil
@@ -199,4 +213,48 @@ func (k Tekton) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 
 	emoji.Println(":ship:Upgrade Tekton")
 	return k.apply(c, options, true)
+}
+
+// The equivalent of:
+// kubectl get secret -n eirini-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
+// written in golang.
+func getRegistryCAHash(c kubernetes.Cluster) (string, error) {
+	secret, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").
+		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return helpers.OpenSSLSubjectHash(string(secret.Data["ca"]))
+}
+
+func applyTektonStaging(c kubernetes.Cluster) (string, error) {
+	caHash, err := getRegistryCAHash(c)
+	if err != nil {
+		return "", errors.Wrap(err, "Failed to get registry CA from eirini-workloads namespace")
+	}
+
+	yamlPathOnDisk, err := helpers.UnEmbedFile(tektonStagingYamlPath)
+	if err != nil {
+		return "", errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
+	}
+	defer os.Remove(yamlPathOnDisk)
+
+	fileContents, err := ioutil.ReadFile(yamlPathOnDisk)
+	if err != nil {
+		return "", err
+	}
+
+	// Constucting the name of the cert file as required by openssl.
+	// Lookup "subject_hash" in the docs: https://www.openssl.org/docs/man1.0.2/man1/x509.html
+	re := regexp.MustCompile(`{{CA_SELF_HASHED_NAME}}`)
+	renderedFileContents := re.ReplaceAll(fileContents, []byte(caHash+".0"))
+
+	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(tmpFilePath)
+
+	return helpers.Kubectl(fmt.Sprintf("apply --filename %s", tmpFilePath))
 }

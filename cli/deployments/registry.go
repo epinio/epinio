@@ -20,7 +20,7 @@ type Registry struct {
 }
 
 const (
-	registryDeploymentID = "registry"
+	registryDeploymentID = "carrier-registry"
 	registryVersion      = "0.1.0"
 	registryChartFile    = "container-registry-0.1.0.tgz"
 )
