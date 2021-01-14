@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"path"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -25,7 +24,7 @@ type Eirini struct {
 const (
 	eiriniDeploymentID = "eirini"
 	eiriniVersion      = "2.0.0"
-	eiriniReleaseURL   = "https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz"
+	eiriniReleasePath  = "eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
 )
 
 func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
@@ -52,7 +51,7 @@ func (k *Eirini) Restore(c kubernetes.Cluster, d string) error {
 }
 
 func (k Eirini) Describe() string {
-	return emoji.Sprintf(":cloud:Eirini version: %s\n:clipboard:Eirini chart: %s", eiriniVersion, eiriniReleaseURL)
+	return emoji.Sprintf(":cloud:Eirini version: %s\n:clipboard:Eirini chart: %s", eiriniVersion, eiriniReleasePath)
 }
 
 func (k Eirini) Delete(c kubernetes.Cluster) error {
@@ -66,12 +65,12 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 	defer os.Remove(releaseDir)
 
-	// Download eirini release
-	err = helpers.DownloadFile(eiriniReleaseURL, "eirini-release.tgz", releaseDir)
+	releaseFile, err := helpers.UnEmbedFile(eiriniReleasePath)
 	if err != nil {
-		return err
+		return errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
 	}
-	releaseFile := path.Join(releaseDir, "eirini-release.tgz")
+	defer os.Remove(releaseFile)
+
 	err = helpers.Untar(releaseFile, releaseDir)
 	if err != nil {
 		return err
