@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -76,12 +77,42 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return err
 	}
 
-	// Install eirini yamls
-	// TODO: !!!! Get rid of bash. Use `kubectl` to install things directly.
-	cmd := "bash -c ./deploy/scripts/deploy.sh"
-	if out, err := helpers.RunProc(cmd, releaseDir, k.Debug); err != nil {
-		return errors.New("Failed installing Eirini: " + out)
+	message := "Creating Eirini namespace for core components"
+	out, err := helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			file := path.Join(releaseDir, "deploy", "core", "namespace.yml")
+			return helpers.Kubectl("apply -f " + file)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
+
+	message = "Creating Eirini namespace for workloads"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			file := path.Join(releaseDir, "deploy", "workloads", "namespace.yml")
+			return helpers.Kubectl("apply -f " + file)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	for _, component := range []string{"core", "events", "metrics", "workloads"} {
+		message := "Deploying eirini " + component
+		out, err := helpers.SpinnerWaitCommand(message,
+			func() (string, error) {
+				dir := path.Join(releaseDir, "deploy", component)
+				return helpers.Kubectl("apply -f " + dir)
+			},
+		)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
+	}
+
+	// TODO: Generate  eirini tls
 
 	domain, err := options.GetString("system_domain", eiriniDeploymentID)
 	if err != nil {
