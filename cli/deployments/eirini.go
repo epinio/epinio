@@ -78,6 +78,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 
 	// Install eirini yamls
+	// TODO: !!!! Get rid of bash. Use `kubectl` to install things directly.
 	cmd := "bash -c ./deploy/scripts/deploy.sh"
 	if out, err := helpers.RunProc(cmd, releaseDir, k.Debug); err != nil {
 		return errors.New("Failed installing Eirini: " + out)

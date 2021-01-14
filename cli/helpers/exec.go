@@ -134,7 +134,7 @@ func ExecToSuccessWithTimeout(funk ExternalCommandFunc, timeout, interval time.D
 // returned by this command:
 // openssl x509 -hash -noout
 // https://www.openssl.org/docs/man1.0.2/man1/x509.html
-// TODO: The way this function is implemented, it makes a system cell to openssl
+// TODO: The way this function is implemented, it makes a system call to openssl
 // thus making openssl a dependency. There must be a way to calculate the hash
 // in Go so we don't need openssl.
 func OpenSSLSubjectHash(cert string) (string, error) {
