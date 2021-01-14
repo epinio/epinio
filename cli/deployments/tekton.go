@@ -57,9 +57,15 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	// 	action = "upgrade"
 	// }
 
-	helpers.KubectlApplyEmbeddedYaml(tektonPipelineReleaseYamlPath)
-	helpers.KubectlApplyEmbeddedYaml(tektonTriggersReleaseYamlPath)
-	helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath)
+	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonPipelineReleaseYamlPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+	}
+	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonTriggersReleaseYamlPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonTriggersReleaseYamlPath, out))
+	}
+	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	}
 
 	for _, crd := range []string{
 		"clustertasks.tekton.dev",
