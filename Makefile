@@ -47,6 +47,15 @@ generate_fakes:
 	@$(MAKE) -C cli generate_fakes
 
 
+########################################################################
+# Kube dev environments
+
+minikube-start:
+	@./scripts/minikube-start.sh
+
+minikube-delete:
+	@./scripts/minikube-delete.sh
+
 
 # lint: shellcheck yamllint helmlint httplint
 
