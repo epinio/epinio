@@ -110,3 +110,21 @@ func SpinnerWaitCommand(message string, funk ExternalCommandFunc) (string, error
 
 	return funk()
 }
+
+// ExecToSuccessWithTimeout retries the given function until it either succeeds of the
+// timeout is reached. It retries every "interval" duration.
+func ExecToSuccessWithTimeout(funk ExternalCommandFunc, timeout, interval time.Duration) (string, error) {
+	timeoutChan := time.After(timeout)
+	for {
+		select {
+		case <-timeoutChan:
+			return "", errors.New(fmt.Sprintf("Timed out after %s", timeout.String()))
+		default:
+			if out, err := funk(); err != nil {
+				time.Sleep(interval)
+			} else {
+				return out, nil
+			}
+		}
+	}
+}

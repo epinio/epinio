@@ -17,6 +17,7 @@ var installer = kubernetes.Installer{
 		&deployments.Gitea{},
 		&deployments.Eirini{},
 		&deployments.Registry{},
+		&deployments.Tekton{},
 	},
 }
 

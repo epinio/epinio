@@ -3,6 +3,7 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -127,6 +128,29 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	out, err = helpers.SpinnerWaitCommand(message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Waiting for registry certificates to be created in the eirini-workloads namespace"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			out1, err := helpers.ExecToSuccessWithTimeout(
+				func() (string, error) {
+					return helpers.Kubectl("get secret -n eirini-workloads registry-tls-self-ca")
+				}, 300*time.Second, 3*time.Second)
+			if err != nil {
+				return out1, err
+			}
+
+			out2, err := helpers.ExecToSuccessWithTimeout(
+				func() (string, error) {
+					return helpers.Kubectl("get secret -n eirini-workloads registry-tls-self")
+				}, 300*time.Second, 3*time.Second)
+
+			return fmt.Sprintf("%s\n%s", out1, out2), err
 		},
 	)
 	if err != nil {
