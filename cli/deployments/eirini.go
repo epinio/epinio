@@ -25,7 +25,8 @@ type Eirini struct {
 const (
 	eiriniDeploymentID = "eirini"
 	eiriniVersion      = "2.0.0"
-	eiriniReleasePath  = "eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
+	eiriniReleasePath  = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
+	eiriniQuarksYaml   = "eirini/quarks-secrets.yaml"
 )
 
 func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
@@ -93,6 +94,24 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		func() (string, error) {
 			file := path.Join(releaseDir, "deploy", "workloads", "namespace.yml")
 			return helpers.Kubectl("apply -f " + file)
+
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	if err = k.patchNamespaceForQuarks(c, "eirini-workloads"); err != nil {
+		return err
+	}
+	if err = k.patchNamespaceForQuarks(c, "eirini-core"); err != nil {
+		return err
+	}
+
+	message = "Creating eirini certs using quarks-secret"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(eiriniQuarksYaml)
 		},
 	)
 	if err != nil {
@@ -112,15 +131,6 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		}
 	}
 
-	if err = k.patchNamespaceForQuarks(c, "eirini-workloads"); err != nil {
-		return err
-	}
-	if err = k.patchNamespaceForQuarks(c, "eirini-core"); err != nil {
-		return err
-	}
-
-	// TODO: Generate  eirini tls
-
 	domain, err := options.GetString("system_domain", eiriniDeploymentID)
 	if err != nil {
 		return err
@@ -139,12 +149,12 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return err
 	}
 
-	// TODO: Implement a waiting method that doesn't require a specific label
-	// or exact pod name
-
-	// if err := c.WaitForPodBySelectorRunning("eirini-core", "", k.Timeout); err != nil {
-	// 	return errors.Wrap(err, "failed waiting Eirini deployment to come up")
-	// }
+	if err := c.WaitForPodBySelectorRunning("eirini-core", "name=eirini-api", 300); err != nil {
+		return errors.Wrap(err, "failed waiting Eirini api deployment to come up")
+	}
+	if err := c.WaitForPodBySelectorRunning("eirini-core", "name=eirini-metrics", 300); err != nil {
+		return errors.Wrap(err, "failed waiting Eirini metrics deployment to come up")
+	}
 
 	emoji.Println(":heavy_check_mark: Eirini deployed")
 

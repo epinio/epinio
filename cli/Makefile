@@ -36,7 +36,9 @@ tools:
 	go get github.com/rakyll/statik
 
 update_eirini:
-	wget https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz -O embedded-files/eirini-v2.0.0.tgz
+	mkdir -p embedded-files/eirini
+	wget https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz -O embedded-files/eirini/eirini-v2.0.0.tgz
+	cp ../eirini/quarks-secrets.yaml embedded-files/eirini/
 
 update_registry:
 	helm package ../container-registry/chart/container-registry/ -d embedded-files
