@@ -164,19 +164,20 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 // Returns an error if no pods are found or not all discovered pods enter running state.
 func (c *Cluster) WaitUntilPodBySelectorExist(namespace, selector string, timeout int) error {
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
-	s.Start()                                                    // Start the spinner
-	defer s.Stop()
 	s.Suffix = emoji.Sprintf(" Waiting for resource %s to be created in %s ... :zzz: ", selector, namespace)
+	s.Start() // Start the spinner
+	defer s.Stop()
 	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.podExists(namespace, selector))
 }
 
-// Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
-// Returns an error if no pods are found or not all discovered pods enter running state.
+// WaitForPodBySelectorRunning waits timeout seconds for all pods in 'namespace'
+// with given 'selector' to enter running state. Returns an error if no pods are
+// found or not all discovered pods enter running state.
 func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeout int) error {
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
-	s.Start()                                                    // Start the spinner
-	defer s.Stop()
 	s.Suffix = emoji.Sprintf(" Waiting for resource %s to be running in %s ... :zzz: ", selector, namespace)
+	s.Start() // Start the spinner
+	defer s.Stop()
 	podList, err := c.ListPods(namespace, selector)
 	if err != nil {
 		return errors.Wrapf(err, "failed listingpods with selector %s", selector)
@@ -187,7 +188,9 @@ func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeou
 	}
 
 	for _, pod := range podList.Items {
+		s.Stop()
 		s.Suffix = emoji.Sprintf(" Waiting for pod %s to be running in %s ... :zzz: ", pod.Name, namespace)
+		s.Start()
 		if err := c.WaitForPodRunning(namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
 			return errors.Wrapf(err, "failed waiting for %s", pod.Name)
 		}

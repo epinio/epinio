@@ -10,11 +10,18 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 )
 
+const (
+	DefaultTimeoutSec = 300
+)
+
 var installer = kubernetes.Installer{
 	Deployments: []kubernetes.Deployment{
-		&deployments.Traefik{},
-		&deployments.Quarks{},
-		&deployments.Gitea{},
+		&deployments.Traefik{Timeout: DefaultTimeoutSec},
+		&deployments.Quarks{Timeout: DefaultTimeoutSec},
+		&deployments.Gitea{Timeout: DefaultTimeoutSec},
+		&deployments.Eirini{Timeout: DefaultTimeoutSec},
+		&deployments.Registry{Timeout: DefaultTimeoutSec},
+		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 	},
 }
 
@@ -36,7 +43,6 @@ func RegisterInstall(rootCmd *cobra.Command) {
 // Install command installs carrier on a configured cluster
 func Install(cmd *cobra.Command, args []string) {
 	fmt.Println("Carrier installing...")
-
 	cluster, err := kubernetes.NewCluster(os.Getenv("KUBECONFIG"))
 	ExitfIfError(err, "Couldn't get the cluster, check your config")
 
