@@ -29,7 +29,8 @@ func (m *Minikube) Detect(kube *kubernetes.Clientset) bool {
 		return false
 	}
 	for _, n := range nodes.Items {
-		if n.Name == "minikube" {
+		labels := n.GetLabels()
+		if _, found := labels["minikube.k8s.io/version"]; found {
 			return true
 		}
 	}
