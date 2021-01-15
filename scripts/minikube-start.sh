@@ -28,6 +28,25 @@ if ! minikube status > /dev/null; then
 
     minikube addons enable dashboard
     minikube addons enable metrics-server
+    minikube addons enable metallb
+
+    # Configure metallb addon
+    MINIKUBE_IP=($(minikube ip))
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: metallb-system
+  name: config
+data:
+  config: |
+    address-pools:
+    - name: default
+      protocol: layer2
+      addresses:
+      - ${MINIKUBE_IP}/28
+EOF
+
 else
     echo "Minikube is already started"
 fi
