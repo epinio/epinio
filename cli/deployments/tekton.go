@@ -12,7 +12,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Tekton struct {
@@ -32,7 +34,14 @@ const (
 )
 
 func (k *Tekton) NeededOptions() kubernetes.InstallationOptions {
-	return kubernetes.InstallationOptions{}
+	return kubernetes.InstallationOptions{
+		{
+			Name:        "system_domain",
+			Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP",
+			Type:        kubernetes.StringType,
+			Default:     "",
+		},
+	}
 }
 
 func (k *Tekton) ID() string {
@@ -171,6 +180,21 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
+	domain, err := options.GetString("system_domain", tektonDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get system_domain option")
+	}
+
+	message = "Creating Tekton dashboard ingress"
+	_, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return "", createTektonIngress(c, tektonDeploymentID+"."+domain)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
+	}
+
 	emoji.Println(":heavy_check_mark: Tekton deployed")
 
 	return nil
@@ -257,4 +281,37 @@ func applyTektonStaging(c kubernetes.Cluster) (string, error) {
 	defer os.Remove(tmpFilePath)
 
 	return helpers.Kubectl(fmt.Sprintf("apply --filename %s", tmpFilePath))
+}
+
+func createTektonIngress(c kubernetes.Cluster, subdomain string) error {
+	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses("tekton-pipelines").Create(
+		context.Background(),
+		&v1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "tekton-dashboard",
+				Namespace: "tekton-pipelines",
+				Annotations: map[string]string{
+					"kubernetes.io/ingress.class": "traefik",
+				},
+			},
+			Spec: v1beta1.IngressSpec{
+				Rules: []v1beta1.IngressRule{
+					{
+						Host: subdomain,
+						IngressRuleValue: v1beta1.IngressRuleValue{
+							HTTP: &v1beta1.HTTPIngressRuleValue{
+								Paths: []v1beta1.HTTPIngressPath{
+									{
+										Path: "/",
+										Backend: v1beta1.IngressBackend{
+											ServiceName: "tekton-dashboard",
+											ServicePort: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 9097,
+											},
+										}}}}}}}}},
+		metav1.CreateOptions{},
+	)
+
+	return err
 }
