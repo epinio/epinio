@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strconv"
 	"time"
 
 	"github.com/kyokomi/emoji"
@@ -99,7 +100,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		message := fmt.Sprintf("Waiting for crd %s to be established", crd)
 		out, err := helpers.SpinnerWaitCommand(message,
 			func() (string, error) {
-				return helpers.Kubectl("wait --for=condition=established --timeout=300s crd/" + crd)
+				return helpers.Kubectl("wait --for=condition=established --timeout=" + strconv.Itoa(k.Timeout) + "s crd/" + crd)
 			},
 		)
 		if err != nil {
@@ -110,7 +111,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	message := "Waiting for tekton triggers webhook pod to be running"
 	out, err := helpers.SpinnerWaitCommand(message,
 		func() (string, error) {
-			return helpers.Kubectl("wait --for=condition=Ready --timeout=300s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
+			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
 		},
 	)
 	if err != nil {
@@ -120,7 +121,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	message = "Waiting for tekton pipelines webhook pod to be running"
 	out, err = helpers.SpinnerWaitCommand(message,
 		func() (string, error) {
-			return helpers.Kubectl("wait --for=condition=Ready --timeout=300s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
+			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
 		},
 	)
 	if err != nil {
@@ -153,7 +154,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
 					return helpers.Kubectl("get secret -n eirini-workloads registry-tls-self-ca")
-				}, 300*time.Second, 3*time.Second)
+				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
 			if err != nil {
 				return out1, err
 			}
@@ -161,7 +162,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 			out2, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
 					return helpers.Kubectl("get secret -n eirini-workloads registry-tls-self")
-				}, 300*time.Second, 3*time.Second)
+				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
 
 			return fmt.Sprintf("%s\n%s", out1, out2), err
 		},

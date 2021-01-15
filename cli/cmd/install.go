@@ -10,14 +10,18 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 )
 
+const (
+	DefaultTimeoutSec = 300
+)
+
 var installer = kubernetes.Installer{
 	Deployments: []kubernetes.Deployment{
-		&deployments.Traefik{},
-		&deployments.Quarks{},
-		&deployments.Gitea{},
-		&deployments.Eirini{},
-		&deployments.Registry{},
-		&deployments.Tekton{},
+		&deployments.Traefik{Timeout: DefaultTimeoutSec},
+		&deployments.Quarks{Timeout: DefaultTimeoutSec},
+		&deployments.Gitea{Timeout: DefaultTimeoutSec},
+		&deployments.Eirini{Timeout: DefaultTimeoutSec},
+		&deployments.Registry{Timeout: DefaultTimeoutSec},
+		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 	},
 }
 
