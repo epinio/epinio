@@ -19,8 +19,7 @@ import (
 )
 
 type Tekton struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
 }
 
@@ -259,7 +258,7 @@ func applyTektonStaging(c kubernetes.Cluster) (string, error) {
 		return "", errors.Wrap(err, "Failed to get registry CA from eirini-workloads namespace")
 	}
 
-	yamlPathOnDisk, err := helpers.UnEmbedFile(tektonStagingYamlPath)
+	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
 		return "", errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
 	}

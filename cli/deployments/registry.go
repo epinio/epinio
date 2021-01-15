@@ -71,7 +71,7 @@ func (k Registry) apply(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return err
 	}
 
-	tarPath, err := helpers.UnEmbedFile(registryChartFile)
+	tarPath, err := helpers.ExtractFile(registryChartFile)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tarPath + " - " + err.Error())
 	}

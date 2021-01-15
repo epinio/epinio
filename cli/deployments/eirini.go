@@ -17,8 +17,7 @@ import (
 )
 
 type Eirini struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
 }
 
@@ -67,7 +66,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 	defer os.RemoveAll(releaseDir)
 
-	releaseFile, err := helpers.UnEmbedFile(eiriniReleasePath)
+	releaseFile, err := helpers.ExtractFile(eiriniReleasePath)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
 	}
@@ -251,15 +250,15 @@ func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name s
 	patchContents := `
 {
   "secrets": [
-		{ "name": "cluster-registry-creds" },
-		{ "name": "cluster-registry-creds-http" },
-		{ "name": "git-creds" }
-	],
-	"imagePullSecrets": [
-		{ "name": "cluster-registry-creds" },
-		{ "name": "cluster-registry-creds-http" },
-		{ "name": "git-creds" }
-	]
+    { "name": "cluster-registry-creds" },
+    { "name": "cluster-registry-creds-http" },
+    { "name": "git-creds" }
+  ],
+  "imagePullSecrets": [
+    { "name": "cluster-registry-creds" },
+    { "name": "cluster-registry-creds-http" },
+    { "name": "git-creds" }
+  ]
 }
 `
 	_, err := c.Kubectl.CoreV1().ServiceAccounts("eirini-workloads").Patch(context.Background(), name, types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
@@ -271,9 +270,7 @@ func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name s
 }
 
 func (k Eirini) patchNamespaceForQuarks(c kubernetes.Cluster, namespace string) error {
-	patchContents := `
-		{ "metadata": { "labels": {
-		  "quarks.cloudfoundry.org/monitored": "quarks-secret" } } }`
+	patchContents := `{ "metadata": { "labels": { "quarks.cloudfoundry.org/monitored": "quarks-secret" } } }`
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Patch(context.Background(), namespace,
 		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
