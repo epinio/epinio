@@ -65,7 +65,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	if err != nil {
 		return err
 	}
-	defer os.Remove(releaseDir)
+	defer os.RemoveAll(releaseDir)
 
 	releaseFile, err := helpers.UnEmbedFile(eiriniReleasePath)
 	if err != nil {
