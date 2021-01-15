@@ -16,6 +16,7 @@ import (
 	ibm "github.com/suse/carrier/cli/kubernetes/platform/ibm"
 	k3s "github.com/suse/carrier/cli/kubernetes/platform/k3s"
 	kind "github.com/suse/carrier/cli/kubernetes/platform/kind"
+	minikube "github.com/suse/carrier/cli/kubernetes/platform/minikube"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,6 +43,7 @@ var SupportedPlatforms []Platform = []Platform{
 	kind.NewPlatform(),
 	k3s.NewPlatform(),
 	ibm.NewPlatform(),
+	minikube.NewPlatform(),
 }
 
 type Cluster struct {
