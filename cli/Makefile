@@ -23,10 +23,13 @@ test: lint
 generate_fakes:
 	go generate ./...
 
-lint:	fmt vet
+lint:	fmt vet tidy
 
 vet:
 	go vet ./...
+
+tidy:
+	go mod tidy
 
 fmt:
 	go fmt ./...
