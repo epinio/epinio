@@ -61,7 +61,7 @@ spec:
     - name: namespace
       value: eirini-workloads
     - name: gitrepositoryurl
-      value: "http://gitea.gitea:10080/$(body.repository.full_name)"
+      value: "http://gitea-http.gitea:10080/$(body.repository.full_name)"
     - name: appname
       value: "$(body.repository.name)"
 ---

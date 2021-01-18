@@ -96,7 +96,7 @@ metadata:
   name: gitea-creds
   namespace: eirini-workloads
   annotations:
-    tekton.dev/git-0: http://gitea.gitea:10080
+    tekton.dev/git-0: http://gitea-http.gitea:10080
 type: kubernetes.io/basic-auth
 stringData:
   username: dev
