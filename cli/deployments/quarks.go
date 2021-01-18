@@ -60,6 +60,8 @@ func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	// Setup Quarks helm values
 	var helmArgs []string
 
+	helmArgs = append(helmArgs, "--set global.monitoredID=quarks-secret")
+
 	helmCmd := fmt.Sprintf("helm %s quarks --create-namespace --namespace %s %s %s", action, quarksDeploymentID, quarksChartURL, strings.Join(helmArgs, " "))
 	if _, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Quarks")
