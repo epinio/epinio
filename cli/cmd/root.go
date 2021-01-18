@@ -37,8 +37,6 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdCreateOrg)
 	rootCmd.AddCommand(client.CmdPush)
 
-	ExitIfError(ensureKubeConfig())
-
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
