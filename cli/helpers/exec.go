@@ -6,9 +6,17 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"os/exec"
+	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/codeskyblue/kexec"
+	"github.com/kyokomi/emoji"
+	"github.com/pkg/errors"
 )
+
+type ExternalCommandFunc func() (output string, err error)
 
 func RunProc(cmd, dir string, toStdout bool) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
@@ -75,4 +83,78 @@ func CreateTmpFile(contents string) (string, error) {
 	}
 
 	return tmpfile.Name(), nil
+}
+
+// Kubectl invoces the `kubectl` command in PATH, running the specified command.
+// It returns the command output and/or error.
+func Kubectl(command string) (string, error) {
+	_, err := exec.LookPath("kubectl")
+	if err != nil {
+		return "", errors.Wrap(err, "kubectl not in path")
+	}
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+
+	cmd := fmt.Sprintf("kubectl " + command)
+
+	return RunProc(cmd, currentdir, false)
+}
+
+func SpinnerWaitCommand(message string, funk ExternalCommandFunc) (string, error) {
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner,
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)               // configure, and
+	s.Start()                                                    // start it
+	defer s.Stop()
+
+	return funk()
+}
+
+// ExecToSuccessWithTimeout retries the given function until it either succeeds of the
+// timeout is reached. It retries every "interval" duration.
+func ExecToSuccessWithTimeout(funk ExternalCommandFunc, timeout, interval time.Duration) (string, error) {
+	timeoutChan := time.After(timeout)
+	for {
+		select {
+		case <-timeoutChan:
+			return "", errors.New(fmt.Sprintf("Timed out after %s", timeout.String()))
+		default:
+			if out, err := funk(); err != nil {
+				time.Sleep(interval)
+			} else {
+				return out, nil
+			}
+		}
+	}
+}
+
+// OpenSSLSubjectHash return the subject_hash of the given CA certificate as
+// returned by this command:
+// openssl x509 -hash -noout
+// https://www.openssl.org/docs/man1.0.2/man1/x509.html
+// TODO: The way this function is implemented, it makes a system call to openssl
+// thus making openssl a dependency. There must be a way to calculate the hash
+// in Go so we don't need openssl.
+func OpenSSLSubjectHash(cert string) (string, error) {
+	_, err := exec.LookPath("openssl")
+	if err != nil {
+		return "", errors.Wrap(err, "openssl not in path")
+	}
+
+	cmd := exec.Command("openssl", "x509", "-hash", "-noout")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return "", err
+	}
+
+	go func() {
+		defer stdin.Close()
+		io.WriteString(stdin, cert)
+	}()
+
+	out, err := cmd.CombinedOutput()
+
+	return strings.TrimSpace(string(out)), err
 }

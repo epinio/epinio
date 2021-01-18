@@ -8,12 +8,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/briandowns/spinner"
+	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 
 	generic "github.com/suse/carrier/cli/kubernetes/platform/generic"
 	ibm "github.com/suse/carrier/cli/kubernetes/platform/ibm"
 	k3s "github.com/suse/carrier/cli/kubernetes/platform/k3s"
 	kind "github.com/suse/carrier/cli/kubernetes/platform/kind"
+	minikube "github.com/suse/carrier/cli/kubernetes/platform/minikube"
 
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -41,6 +44,7 @@ var SupportedPlatforms []Platform = []Platform{
 	kind.NewPlatform(),
 	k3s.NewPlatform(),
 	ibm.NewPlatform(),
+	minikube.NewPlatform(),
 }
 
 type Cluster struct {
@@ -177,12 +181,21 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 // Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
 func (c *Cluster) WaitUntilPodBySelectorExist(namespace, selector string, timeout int) error {
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
+	s.Suffix = emoji.Sprintf(" Waiting for resource %s to be created in %s ... :zzz: ", selector, namespace)
+	s.Start() // Start the spinner
+	defer s.Stop()
 	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodExists(namespace, selector))
 }
 
-// Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
-// Returns an error if no pods are found or not all discovered pods enter running state.
+// WaitForPodBySelectorRunning waits timeout seconds for all pods in 'namespace'
+// with given 'selector' to enter running state. Returns an error if no pods are
+// found or not all discovered pods enter running state.
 func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeout int) error {
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner
+	s.Suffix = emoji.Sprintf(" Waiting for resource %s to be running in %s ... :zzz: ", selector, namespace)
+	s.Start() // Start the spinner
+	defer s.Stop()
 	podList, err := c.ListPods(namespace, selector)
 	if err != nil {
 		return errors.Wrapf(err, "failed listingpods with selector %s", selector)
@@ -193,6 +206,9 @@ func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeou
 	}
 
 	for _, pod := range podList.Items {
+		s.Stop()
+		s.Suffix = emoji.Sprintf(" Waiting for pod %s to be running in %s ... :zzz: ", pod.Name, namespace)
+		s.Start()
 		if err := c.WaitForPodRunning(namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
 			return errors.Wrapf(err, "failed waiting for %s", pod.Name)
 		}
