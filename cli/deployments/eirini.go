@@ -26,6 +26,7 @@ const (
 	eiriniVersion      = "2.0.0"
 	eiriniReleasePath  = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
 	eiriniQuarksYaml   = "eirini/quarks-secrets.yaml"
+	eiriniIngressYaml  = "eirini/routing.yaml"
 )
 
 func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
@@ -138,6 +139,16 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 		}
+	}
+
+	message = "Deploying eirini ingress extension"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(eiriniIngressYaml)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
 	domain, err := options.GetString("system_domain", eiriniDeploymentID)
