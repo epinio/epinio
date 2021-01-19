@@ -8,6 +8,7 @@ import (
 
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
+	"github.com/suse/carrier/cli/cmd/internal/client"
 )
 
 const (
@@ -30,6 +31,11 @@ func Execute() {
 	}
 
 	RegisterInstall(rootCmd)
+
+	rootCmd.AddCommand(client.CmdInfo)
+	rootCmd.AddCommand(client.CmdOrgs)
+	rootCmd.AddCommand(client.CmdCreateOrg)
+	rootCmd.AddCommand(client.CmdPush)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

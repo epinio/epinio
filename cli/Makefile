@@ -20,7 +20,7 @@ build-darwin: lint
 test: lint
 	ginkgo ./...
 
-generate_fakes:
+generate:
 	go generate ./...
 
 lint:	fmt vet
