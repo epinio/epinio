@@ -148,8 +148,14 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return err
 	}
 
+	if err := c.WaitUntilPodBySelectorExist("eirini-core", "name=eirini-api", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Eirini api deployment to exist")
+	}
 	if err := c.WaitForPodBySelectorRunning("eirini-core", "name=eirini-api", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Eirini api deployment to come up")
+	}
+	if err := c.WaitUntilPodBySelectorExist("eirini-core", "name=eirini-metrics", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Eirini metrics deployment to exist")
 	}
 	if err := c.WaitForPodBySelectorRunning("eirini-core", "name=eirini-metrics", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Eirini metrics deployment to come up")
