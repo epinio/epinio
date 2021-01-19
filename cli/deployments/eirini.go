@@ -26,6 +26,7 @@ const (
 	eiriniVersion      = "2.0.0"
 	eiriniReleasePath  = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
 	eiriniQuarksYaml   = "eirini/quarks-secrets.yaml"
+	eiriniIngressYaml  = "eirini/routing.yaml"
 )
 
 func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
@@ -117,6 +118,16 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
+	message = "Adding private registry configuration"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return k.patchOpiConfForPrivateRegistry(path.Join(releaseDir, "deploy", "core", "api-configmap.yml"))
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
 	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
 		message := "Deploying eirini " + component
 		out, err := helpers.SpinnerWaitCommand(message,
@@ -128,6 +139,16 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 		}
+	}
+
+	message = "Deploying eirini ingress extension"
+	out, err = helpers.SpinnerWaitCommand(message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(eiriniIngressYaml)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
 	domain, err := options.GetString("system_domain", eiriniDeploymentID)
@@ -205,13 +226,15 @@ func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 }
 
 func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool) error {
-	var protocol, secretName string
+	var protocol, secretName, port string
 	if http {
 		protocol = "http"
 		secretName = "cluster-registry-creds"
+		port = "30501"
 	} else {
 		protocol = "https"
 		secretName = "cluster-registry-creds-http"
+		port = "30500"
 	}
 	_, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").Create(context.Background(),
 		&corev1.Secret{
@@ -219,7 +242,7 @@ func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool
 				Name: secretName,
 			},
 			StringData: map[string]string{
-				".dockerconfigjson": `{"auths":{"` + protocol + `://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"}}}`,
+				".dockerconfigjson": `{"auths":{"` + protocol + `://127.0.0.1:` + port + `":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"}}}`,
 			},
 			Type: "kubernetes.io/dockerconfigjson",
 		}, metav1.CreateOptions{})
@@ -285,4 +308,18 @@ func (k Eirini) patchNamespaceForQuarks(c kubernetes.Cluster, namespace string) 
 		return err
 	}
 	return nil
+}
+
+func (k Eirini) patchOpiConfForPrivateRegistry(path string) (string, error) {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(`
+      registry_secret_name: "cluster-registry-creds-http"
+`)
+
+	return "", err
 }
