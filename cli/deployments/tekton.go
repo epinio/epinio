@@ -74,7 +74,7 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 
 	err := c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
 	if err != nil {
-		return errors.New("Failed uninstalling Quarks: " + err.Error())
+		return errors.New("Failed uninstalling Tekton: " + err.Error())
 	}
 	s.Stop()
 

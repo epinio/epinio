@@ -29,7 +29,7 @@ func Uninstall(cmd *cobra.Command, args []string) {
 	ExitfIfError(err, "Couldn't get the cluster, check your config")
 
 	err = installer.Uninstall(cluster)
-	ExitfIfError(err, "Couldn't install carrier")
+	ExitfIfError(err, "Couldn't uninstall carrier")
 
 	fmt.Println("Carrier uninstallation complete.")
 }
