@@ -43,6 +43,9 @@ fmt:
 vet:
 	@$(MAKE) -C cli vet
 
+tidy:
+	@$(MAKE) -C cli tidy
+
 generate_fakes:
 	@$(MAKE) -C cli generate_fakes
 
