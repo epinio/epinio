@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -57,8 +59,45 @@ func (k Eirini) Describe() string {
 	return emoji.Sprintf(":cloud:Eirini version: %s\n:clipboard:Eirini chart: %s", eiriniVersion, eiriniReleasePath)
 }
 
+// Delete removes Eirini from kubernetes cluster
 func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), eiriniDeploymentID, metav1.DeleteOptions{})
+	message := "Deleting Eirini"
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
+	s.Start()
+
+	releaseDir, err := ioutil.TempDir("", "carrier")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(releaseDir)
+
+	releaseFile, err := helpers.ExtractFile(eiriniReleasePath)
+	if err != nil {
+		return errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
+	}
+	defer os.Remove(releaseFile)
+
+	err = helpers.Untar(releaseFile, releaseDir)
+	if err != nil {
+		return err
+	}
+
+	file := path.Join(releaseDir, "deploy", "core", "namespace.yml")
+	out, err := helpers.Kubectl("delete -f " + file)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+	file = path.Join(releaseDir, "deploy", "workloads", "namespace.yml")
+	out, err = helpers.Kubectl("delete -f " + file)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+	s.Stop()
+
+	emoji.Println(":heavy_check_mark: Eirini removed")
+
+	return nil
 }
 
 func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {

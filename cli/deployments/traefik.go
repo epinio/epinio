@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -45,8 +47,32 @@ func (k Traefik) Describe() string {
 	return emoji.Sprintf(":cloud:Traefik version: %s\n:clipboard:Traefik Ingress chart: %s", traefikVersion, traefikChartURL)
 }
 
+// Delete removes traefik from kubernetes cluster
 func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), traefikDeploymentID, metav1.DeleteOptions{})
+	message := "Deleting Traefik"
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
+	s.Start()
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Traefik: " + err.Error())
+	}
+
+	helmCmd := fmt.Sprintf("helm uninstall traefik --namespace '%s'", traefikDeploymentID)
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+		return errors.New("Failed uninstalling Traefik: " + out)
+	}
+
+	err = c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), traefikDeploymentID, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.New("Failed uninstalling Traefik: " + err.Error())
+	}
+	s.Stop()
+
+	emoji.Println(":heavy_check_mark: Traefik removed")
+
+	return nil
 }
 
 //	for i, ip := range c.GetPlatform().ExternalIPs() {

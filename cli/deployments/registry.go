@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -52,8 +54,32 @@ func (k Registry) Describe() string {
 	return emoji.Sprintf(":cloud:Registry version: %s\n:clipboard:Registry chart: %s", registryVersion, registryChartFile)
 }
 
+// Delete removes Registry from kubernetes cluster
 func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), registryDeploymentID, metav1.DeleteOptions{})
+	message := "Deleting Registry"
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
+	s.Start()
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Registry: " + err.Error())
+	}
+
+	helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", registryDeploymentID, registryDeploymentID)
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+		return errors.New("Failed uninstalling Registry: " + out)
+	}
+
+	err = c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), registryDeploymentID, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.New("Failed uninstalling Registry: " + err.Error())
+	}
+	s.Stop()
+
+	emoji.Println(":heavy_check_mark: Registry removed")
+
+	return nil
 }
 
 func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {

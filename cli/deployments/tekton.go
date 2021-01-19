@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -20,8 +21,10 @@ import (
 )
 
 type Tekton struct {
-	Debug   bool
-	Timeout int
+	Debug      bool
+	Secrets    []string
+	ConfigMaps []string
+	Timeout    int
 }
 
 const (
@@ -62,11 +65,26 @@ func (k Tekton) Describe() string {
 		tektonPipelineReleaseYamlPath, tektonDashboardYamlPath, tektonTriggersReleaseYamlPath)
 }
 
+// Delete removes Tekton from kubernetes cluster
 func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
+	message := "Deleting Tekton"
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
+	s.Start()
+
+	err := c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.New("Failed uninstalling Quarks: " + err.Error())
+	}
+	s.Stop()
+
+	emoji.Println(":heavy_check_mark: Tekton removed")
+
+	return nil
 }
 
 func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+
 	// action := "install"
 	// if upgrade {
 	// 	action = "upgrade"

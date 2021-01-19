@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -52,8 +54,32 @@ func (k Gitea) Describe() string {
 	return emoji.Sprintf(":cloud:Gitea version: %s\n:clipboard:Gitea chart: %s", giteaVersion, giteaChartURL)
 }
 
+// Delete removes Gitea from kubernetes cluster
 func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), giteaDeploymentID, metav1.DeleteOptions{})
+	message := "Deleting Gitea"
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
+	s.Start()
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Gitea: " + err.Error())
+	}
+
+	helmCmd := fmt.Sprintf("helm uninstall gitea --namespace %s", giteaDeploymentID)
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+		return errors.New("Failed uninstalling Gitea: " + out)
+	}
+
+	err = c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), giteaDeploymentID, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.New("Failed uninstalling Gitea: " + err.Error())
+	}
+	s.Stop()
+
+	emoji.Println(":heavy_check_mark: Gitea removed")
+
+	return nil
 }
 
 func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {

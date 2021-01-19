@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
+	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -45,8 +47,32 @@ func (k Quarks) Describe() string {
 	return emoji.Sprintf(":cloud:Quarks version: %s\n:clipboard:Quarks chart: %s", quarksVersion, quarksChartURL)
 }
 
+// Delete removes Quarks from kubernetes cluster
 func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
+	message := "Deleting Quarks"
+	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
+	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
+	s.Start()
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Quarks: " + err.Error())
+	}
+
+	helmCmd := fmt.Sprintf("helm uninstall quarks --namespace %s", quarksDeploymentID)
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+		return errors.New("Failed uninstalling Quarks: " + out)
+	}
+
+	err = c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.New("Failed uninstalling Quarks: " + err.Error())
+	}
+	s.Stop()
+
+	emoji.Println(":heavy_check_mark: Quarks removed")
+
+	return nil
 }
 
 func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
