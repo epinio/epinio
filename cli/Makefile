@@ -1,6 +1,6 @@
 build: tools embed_files lint build-amd64
 
-build-all: tools embed_files fmt lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
+build-all: tools embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-arm32: lint
 	GOARCH="arm" GOOS="linux" go build -o dist/carrier-linux-arm32
