@@ -8,6 +8,7 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 	kubeconfig "github.com/suse/carrier/cli/kubernetes/config"
 	"github.com/suse/carrier/cli/paas/config"
+	"github.com/suse/carrier/cli/paas/eirini"
 	"github.com/suse/carrier/cli/paas/gitea"
 	"github.com/suse/carrier/cli/paas/ui"
 )
@@ -22,6 +23,7 @@ func BuildApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*Carr
 		gitea.NewResolver,
 		kubernetes.NewClusterFromClient,
 		kubeconfig.KubeConfig,
+		eirini.NewEiriniKubeClient,
 	)
 
 	return &CarrierClient{}, func() {}, nil

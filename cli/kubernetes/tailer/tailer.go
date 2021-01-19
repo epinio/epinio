@@ -91,7 +91,9 @@ func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
 
 		stream, err := req.Stream(ctx)
 		if err != nil {
-			fmt.Println(errors.Wrapf(err, "Error opening stream to %s/%s: %s\n", t.Namespace, t.PodName, t.ContainerName))
+			if context.Canceled == nil {
+				fmt.Println(errors.Wrapf(err, "Error opening stream to %s/%s: %s\n", t.Namespace, t.PodName, t.ContainerName))
+			}
 			return
 		}
 		defer stream.Close()

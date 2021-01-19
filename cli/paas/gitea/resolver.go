@@ -2,6 +2,7 @@ package gitea
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/kubernetes"
@@ -24,6 +25,35 @@ func NewResolver(config *config.Config, cluster *kubernetes.Cluster) *Resolver {
 		cluster: cluster,
 		config:  config,
 	}
+}
+
+// GetMainDomain finds the main domain for Carrier
+func (r *Resolver) GetMainDomain() (string, error) {
+	// Get the ingress
+	ingresses, err := r.cluster.ListIngress(r.config.GiteaNamespace, "app.kubernetes.io/name=gitea")
+	if err != nil {
+		return "", errors.Wrap(err, "failed to list ingresses for gitea")
+	}
+
+	if len(ingresses.Items) < 1 {
+		return "", errors.New("gitea ingress not found")
+	}
+
+	if len(ingresses.Items) > 1 {
+		return "", errors.New("more than one gitea ingress found")
+	}
+
+	if len(ingresses.Items[0].Spec.Rules) < 1 {
+		return "", errors.New("gitea ingress has no rules")
+	}
+
+	if len(ingresses.Items[0].Spec.Rules) > 1 {
+		return "", errors.New("gitea ingress has more than on rule")
+	}
+
+	host := ingresses.Items[0].Spec.Rules[0].Host
+
+	return strings.TrimPrefix(host, "gitea."), nil
 }
 
 // GetGiteaURL finds the URL for gitea

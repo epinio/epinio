@@ -248,6 +248,43 @@ func (c *Cluster) GetVersion() (string, error) {
 	return v.String(), nil
 }
 
+// StatefulSetStatus returns running status for a StatefulSet
+// If the sts doesn't exist, the status is set to 0/0
+func (c *Cluster) StatefulSetStatus(namespace, selector string) (string, error) {
+	result, err := c.Kubectl.AppsV1().StatefulSets(namespace).List(
+		context.Background(),
+		metav1.ListOptions{
+			LabelSelector: selector,
+		},
+	)
+
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get StatefulSet status")
+	}
+
+	if len(result.Items) < 1 {
+		return "0/0", nil
+	}
+
+	return fmt.Sprintf("%d/%d", result.Items[0].Status.ReadyReplicas, result.Items[0].Status.Replicas), nil
+}
+
+// ListIngressRoutes returns a list of all routes for ingresses in `namespace` with the given selector
+func (c *Cluster) ListIngressRoutes(namespace, name string) ([]string, error) {
+	ingress, err := c.Kubectl.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to list ingresses")
+	}
+
+	result := []string{}
+
+	for _, rule := range ingress.Spec.Rules {
+		result = append(result, rule.Host)
+	}
+
+	return result, nil
+}
+
 // ListIngress returns the list of available ingresses in `namespace` with the given selector
 func (c *Cluster) ListIngress(namespace, selector string) (*networkingv1.IngressList, error) {
 	listOptions := metav1.ListOptions{}

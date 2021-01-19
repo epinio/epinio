@@ -36,6 +36,8 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdOrgs)
 	rootCmd.AddCommand(client.CmdCreateOrg)
 	rootCmd.AddCommand(client.CmdPush)
+	rootCmd.AddCommand(client.CmdDeleteApp)
+	rootCmd.AddCommand(client.CmdApps)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

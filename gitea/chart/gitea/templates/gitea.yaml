@@ -120,7 +120,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: gitea
+  name: gitea-http
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "gitea.labels" . | nindent 4 }}
@@ -155,6 +155,6 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: gitea
+          serviceName: gitea-http
           servicePort: 10080
         path: /
