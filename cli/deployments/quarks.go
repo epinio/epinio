@@ -67,8 +67,17 @@ func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.New("Failed installing Quarks")
 	}
 
-	if err := c.WaitForPodBySelectorRunning(quarksDeploymentID, "", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Quarks deployment to come up")
+	for _, podname := range []string{
+		"cf-operator",
+		"quarks-secret",
+		"quarks-job",
+	} {
+		if err := c.WaitUntilPodBySelectorExist(quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to exist")
+		}
+		if err := c.WaitForPodBySelectorRunning(quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to come up")
+		}
 	}
 
 	emoji.Println(":heavy_check_mark: Quarks deployed")
