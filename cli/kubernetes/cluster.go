@@ -19,6 +19,7 @@ import (
 	minikube "github.com/suse/carrier/cli/kubernetes/platform/minikube"
 
 	v1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
@@ -50,8 +51,26 @@ type Cluster struct {
 	//	InternalIPs []string
 	//	Ingress     bool
 	Kubectl    *kubernetes.Clientset
-	restConfig *restclient.Config
+	RestConfig *restclient.Config
 	platform   Platform
+}
+
+// NewClusterFromClient creates a new Cluster from a Kubernetes rest client config
+func NewClusterFromClient(restConfig *restclient.Config) (*Cluster, error) {
+	c := &Cluster{}
+
+	c.RestConfig = restConfig
+	clientset, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	c.Kubectl = clientset
+	c.detectPlatform()
+	if c.platform == nil {
+		c.platform = generic.NewPlatform()
+	}
+
+	return c, c.platform.Load(clientset)
 }
 
 func NewCluster(kubeconfig string) (*Cluster, error) {
@@ -68,7 +87,7 @@ func (c *Cluster) Connect(config string) error {
 	if err != nil {
 		return err
 	}
-	c.restConfig = restConfig
+	c.RestConfig = restConfig
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return err
@@ -76,7 +95,6 @@ func (c *Cluster) Connect(config string) error {
 	c.Kubectl = clientset
 	c.detectPlatform()
 	if c.platform == nil {
-		emoji.Println(":warning: No valid platform detected, trying general platform. Things might go wrong")
 		c.platform = generic.NewPlatform()
 	}
 
@@ -98,7 +116,7 @@ func (c *Cluster) detectPlatform() {
 
 // return a condition function that indicates whether the given pod is
 // currently running
-func (c *Cluster) isPodRunning(podName, namespace string) wait.ConditionFunc {
+func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
 		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
 		if err != nil {
@@ -128,7 +146,7 @@ func (c *Cluster) isPodRunning(podName, namespace string) wait.ConditionFunc {
 	}
 }
 
-func (c *Cluster) podExists(namespace, selector string) wait.ConditionFunc {
+func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
 		podList, err := c.ListPods(namespace, selector)
 		if err != nil {
@@ -144,7 +162,7 @@ func (c *Cluster) podExists(namespace, selector string) wait.ConditionFunc {
 // Poll up to timeout seconds for pod to enter running state.
 // Returns an error if the pod never enters the running state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, c.isPodRunning(podName, namespace))
+	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(podName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector
@@ -167,7 +185,7 @@ func (c *Cluster) WaitUntilPodBySelectorExist(namespace, selector string, timeou
 	s.Suffix = emoji.Sprintf(" Waiting for resource %s to be created in %s ... :zzz: ", selector, namespace)
 	s.Start() // Start the spinner
 	defer s.Stop()
-	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.podExists(namespace, selector))
+	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodExists(namespace, selector))
 }
 
 // WaitForPodBySelectorRunning waits timeout seconds for all pods in 'namespace'
@@ -209,6 +227,40 @@ func (c *Cluster) Exec(namespace, podName, containerName string, command, stdin 
 	// }
 	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), err
 }
+
+// GetSecret gets a secret's values
+func (c *Cluster) GetSecret(namespace, name string) (*v1.Secret, error) {
+	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get secret")
+	}
+
+	return secret, nil
+}
+
+// GetVersion get the kube server version
+func (c *Cluster) GetVersion() (string, error) {
+	v, err := c.Kubectl.ServerVersion()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get kube server version")
+	}
+
+	return v.String(), nil
+}
+
+// ListIngress returns the list of available ingresses in `namespace` with the given selector
+func (c *Cluster) ListIngress(namespace, selector string) (*networkingv1.IngressList, error) {
+	listOptions := metav1.ListOptions{}
+	if len(selector) > 0 {
+		listOptions.LabelSelector = selector
+	}
+	ingressList, err := c.Kubectl.NetworkingV1().Ingresses(namespace).List(context.Background(), listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return ingressList, nil
+}
+
 func (c *Cluster) execPod(namespace, podName, containerName string,
 	command string, stdin io.Reader, stdout, stderr io.Writer) error {
 	cmd := []string{
@@ -233,7 +285,7 @@ func (c *Cluster) execPod(namespace, podName, containerName string,
 		option,
 		scheme.ParameterCodec,
 	)
-	exec, err := remotecommand.NewSPDYExecutor(c.restConfig, "POST", req.URL())
+	exec, err := remotecommand.NewSPDYExecutor(c.RestConfig, "POST", req.URL())
 	if err != nil {
 		return err
 	}

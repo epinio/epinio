@@ -117,7 +117,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	for _, component := range []string{"core", "events", "metrics", "workloads"} {
+	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
 		message := "Deploying eirini " + component
 		out, err := helpers.SpinnerWaitCommand(message,
 			func() (string, error) {

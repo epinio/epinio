@@ -280,7 +280,7 @@ func applyTektonStaging(c kubernetes.Cluster) (string, error) {
 	}
 	defer os.Remove(tmpFilePath)
 
-	return helpers.Kubectl(fmt.Sprintf("apply --filename %s", tmpFilePath))
+	return helpers.Kubectl(fmt.Sprintf("apply -n eirini-workloads --filename %s", tmpFilePath))
 }
 
 func createTektonIngress(c kubernetes.Cluster, subdomain string) error {
