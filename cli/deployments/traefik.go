@@ -53,6 +53,7 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
 	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
 	s.Start()
+	defer s.Stop()
 
 	currentdir, err := os.Getwd()
 	if err != nil {
@@ -68,7 +69,6 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	if err != nil {
 		return errors.New("Failed uninstalling Traefik: " + err.Error())
 	}
-	s.Stop()
 
 	emoji.Println(":heavy_check_mark: Traefik removed")
 
