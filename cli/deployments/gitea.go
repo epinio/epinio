@@ -134,8 +134,17 @@ gitea:
 		return errors.New("Failed installing Gitea: " + out)
 	}
 
-	if err := c.WaitForPodBySelectorRunning(giteaDeploymentID, "", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Gitea deployment to come up")
+	for _, podname := range []string{
+		"memcached",
+		"postgresql",
+		"gitea",
+	} {
+		if err := c.WaitUntilPodBySelectorExist(giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to exist")
+		}
+		if err := c.WaitForPodBySelectorRunning(giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to come up")
+		}
 	}
 
 	emoji.Println(":heavy_check_mark: Gitea deployed")
