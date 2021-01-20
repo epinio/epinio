@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -56,7 +57,7 @@ func (k Registry) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), registryDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Registry) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Registry) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -89,7 +90,7 @@ func (k Registry) apply(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 
-	emoji.Println(":heavy_check_mark: Registry deployed")
+	ui.Success().Msg("Registry deployed")
 
 	return nil
 }
@@ -98,7 +99,7 @@ func (k Registry) GetVersion() string {
 	return registryVersion
 }
 
-func (k Registry) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Registry) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -109,8 +110,9 @@ func (k Registry) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOp
 		return errors.New("Namespace " + registryDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Registry")
-	err = k.apply(c, options, false)
+	ui.Note().Msg("Deploying Registry...")
+
+	err = k.apply(c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -118,7 +120,7 @@ func (k Registry) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOp
 	return nil
 }
 
-func (k Registry) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Registry) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		registryDeploymentID,
@@ -128,8 +130,9 @@ func (k Registry) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationO
 		return errors.New("Namespace " + registryDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Registry")
-	return k.apply(c, options, true)
+	ui.Note().Msg("Upgrading Registry...")
+
+	return k.apply(c, ui, options, true)
 }
 
 func createQuarksMonitoredNamespace(c kubernetes.Cluster, name string) error {

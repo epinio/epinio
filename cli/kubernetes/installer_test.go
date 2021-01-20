@@ -10,6 +10,7 @@ import (
 
 	. "github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/kubernetes/kubernetesfakes"
+	"github.com/suse/carrier/cli/paas/ui"
 )
 
 type FakeReader struct {
@@ -151,26 +152,32 @@ var _ = Describe("Installer", func() {
 				{
 					Name:  "A string",
 					Value: "fake",
+					Type:  StringType,
 				},
 				{
 					Name:  "A flag",
 					Value: true,
+					Type:  BooleanType,
 				},
 				{
 					Name:  "A count",
 					Value: 77,
+					Type:  IntType,
 				},
 			}
 		})
 
 		It("prints the values of all options", func() {
 			output := captureStdout(func() {
-				installer.ShowNeededOptions()
+				installer.ShowNeededOptions(ui.NewUI())
 			})
 			Expect(string(output)).To(ContainSubstring("Configuration..."))
-			Expect(string(output)).To(ContainSubstring("A string:	'fake'"))
-			Expect(string(output)).To(ContainSubstring("A flag:	'true'"))
-			Expect(string(output)).To(ContainSubstring("A count:	'77'"))
+			Expect(string(output)).To(ContainSubstring("A string:"))
+			Expect(string(output)).To(ContainSubstring("fake"))
+			Expect(string(output)).To(ContainSubstring("A flag:"))
+			Expect(string(output)).To(ContainSubstring("true"))
+			Expect(string(output)).To(ContainSubstring("A count:"))
+			Expect(string(output)).To(ContainSubstring("77"))
 		})
 	})
 
@@ -199,14 +206,14 @@ var _ = Describe("Installer", func() {
 		It("calls Deploy method on deployments", func() {
 			deployment1.IDReturns("Deployment1")
 			deployment2.IDReturns("Deployment2")
-			installer.Install(&cluster)
+			installer.Install(&cluster, ui.NewUI())
 			Expect(deployment1.DeployCallCount()).To(Equal(1))
 			Expect(deployment2.DeployCallCount()).To(Equal(1))
 		})
 
 		It("calls Deploy method with the correct InstallationOptions for each deployment", func() {
-			installer.Install(&cluster)
-			_, opts := deployment1.DeployArgsForCall(1)
+			installer.Install(&cluster, ui.NewUI())
+			_, _, opts := deployment1.DeployArgsForCall(1)
 			Expect(opts).To(ContainElement(
 				InstallationOption{
 					Name:         "Option1",

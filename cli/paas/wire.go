@@ -28,3 +28,16 @@ func BuildApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*Carr
 
 	return &CarrierClient{}, func() {}, nil
 }
+
+// BuildInstallApp creates the Carrier Client for installation
+func BuildInstallApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
+	wire.Build(
+		wire.Struct(new(CarrierClient), "config", "ui", "kubeClient"),
+		config.Load,
+		ui.NewUI,
+		kubernetes.NewClusterFromClient,
+		kubeconfig.KubeConfig,
+	)
+
+	return &CarrierClient{}, func() {}, nil
+}

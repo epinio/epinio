@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -49,7 +50,7 @@ func (k Quarks) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Quarks) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -80,7 +81,7 @@ func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		}
 	}
 
-	emoji.Println(":heavy_check_mark: Quarks deployed")
+	ui.Success().Msg("Quarks deployed")
 
 	return nil
 }
@@ -89,7 +90,7 @@ func (k Quarks) GetVersion() string {
 	return quarksVersion
 }
 
-func (k Quarks) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Quarks) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -100,11 +101,12 @@ func (k Quarks) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + quarksDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Quarks")
-	return k.apply(c, options, false)
+	ui.Note().Msg("Deploying Quarks...")
+
+	return k.apply(c, ui, options, false)
 }
 
-func (k Quarks) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Quarks) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		quarksDeploymentID,
@@ -114,6 +116,7 @@ func (k Quarks) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Namespace " + quarksDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Quarks")
-	return k.apply(c, options, true)
+	ui.Note().Msg("Upgrading Quarks...")
+
+	return k.apply(c, ui, options, true)
 }

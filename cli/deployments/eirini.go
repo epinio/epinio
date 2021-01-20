@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -60,7 +61,7 @@ func (k Eirini) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), eiriniDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	releaseDir, err := ioutil.TempDir("", "carrier")
 	if err != nil {
 		return err
@@ -86,7 +87,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	message = "Creating Eirini namespace for workloads"
@@ -98,7 +99,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	if err = k.patchNamespaceForQuarks(c, "eirini-workloads"); err != nil {
@@ -115,7 +116,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	message = "Adding private registry configuration"
@@ -125,7 +126,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
@@ -137,7 +138,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 			},
 		)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			return errors.Wrapf(err, "%s failed:\n%s", message, out)
 		}
 	}
 
@@ -148,7 +149,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	domain, err := options.GetString("system_domain", eiriniDeploymentID)
@@ -181,7 +182,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		}
 	}
 
-	emoji.Println(":heavy_check_mark: Eirini deployed")
+	ui.Success().Msg("Eirini deployed")
 
 	return nil
 }
@@ -190,7 +191,7 @@ func (k Eirini) GetVersion() string {
 	return eiriniVersion
 }
 
-func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -201,8 +202,9 @@ func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + eiriniDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Eirini")
-	err = k.apply(c, options)
+	ui.Note().Msg("Deploying Eirini...")
+
+	err = k.apply(c, ui, options)
 	if err != nil {
 		return err
 	}
@@ -210,7 +212,7 @@ func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 	return nil
 }
 
-func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		eiriniDeploymentID,
@@ -220,8 +222,9 @@ func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Namespace " + eiriniDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Eirini")
-	return k.apply(c, options)
+	ui.Note().Msg("Upgrading Eirini...")
+
+	return k.apply(c, ui, options)
 }
 
 func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool) error {

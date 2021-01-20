@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/kyokomi/emoji"
 	"github.com/olekukonko/tablewriter"
 )
 
@@ -16,6 +17,8 @@ const (
 	normal msgType = iota
 	exclamation
 	problem
+	note
+	success
 )
 
 const (
@@ -73,6 +76,24 @@ func (u *UI) Exclamation() *Message {
 	}
 }
 
+// Note returns a UIMessage that prints a note message
+func (u *UI) Note() *Message {
+	return &Message{
+		msgType:      note,
+		interactions: []interaction{},
+		end:          -1,
+	}
+}
+
+// Success returns a UIMessage that prints a success message
+func (u *UI) Success() *Message {
+	return &Message{
+		msgType:      success,
+		interactions: []interaction{},
+		end:          -1,
+	}
+}
+
 // Problem returns a Message that prints a message that describes a problem
 func (u *UI) Problem() *Message {
 	return &Message{
@@ -82,14 +103,29 @@ func (u *UI) Problem() *Message {
 	}
 }
 
-// Msg prints a message on the CLI
+// Msgf prints a formatted message on the CLI
+func (u *Message) Msgf(message string, a ...interface{}) {
+	u.Msg(fmt.Sprintf(message, a...))
+}
+
+// Msg prints a message on the CLI, resolving emoji as it goes
 func (u *Message) Msg(message string) {
+	message = emoji.Sprint(message)
+
 	switch u.msgType {
 	case normal:
 		fmt.Println(message)
 	case exclamation:
+		message = emoji.Sprintf(":warning: %s", message)
 		color.Yellow(message)
+	case note:
+		message = emoji.Sprintf(":ship:%s", message)
+		color.Blue(message)
+	case success:
+		message = emoji.Sprintf(":heavy_check_mark: %s", message)
+		color.Green(message)
 	case problem:
+		message = emoji.Sprintf(":forbidden:%s", message)
 		color.Red(message)
 	}
 
@@ -108,11 +144,11 @@ func (u *Message) Msg(message string) {
 		case show:
 			switch interaction.valueType {
 			case tBool:
-				fmt.Printf("%s: %s\n", interaction.name, color.MagentaString("%b", interaction.value))
+				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%b", interaction.value))
 			case tInt:
-				fmt.Printf("%s: %s\n", interaction.name, color.CyanString("%d", interaction.value))
+				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.CyanString("%d", interaction.value))
 			case tString:
-				fmt.Printf("%s: %s\n", interaction.name, color.GreenString("%s", interaction.value))
+				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.GreenString("%s", interaction.value))
 			}
 		}
 	}

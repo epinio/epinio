@@ -1,15 +1,13 @@
 package kubernetes
 
 import (
-	"fmt"
-
-	"github.com/kyokomi/emoji"
+	"github.com/suse/carrier/cli/paas/ui"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
-	Deploy(Cluster, InstallationOptions) error
-	Upgrade(Cluster, InstallationOptions) error
+	Deploy(Cluster, *ui.UI, InstallationOptions) error
+	Upgrade(Cluster, *ui.UI, InstallationOptions) error
 	Delete(Cluster) error
 	Describe() string
 	GetVersion() string
@@ -83,17 +81,26 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 
 // ShowNeededOptions prints the options and their values to stdout, to
 // inform the user of the detected and chosen configuration
-func (i *Installer) ShowNeededOptions() {
-	fmt.Println("Configuration...")
+func (i *Installer) ShowNeededOptions(ui *ui.UI) {
+	m := ui.Normal()
 	for _, opt := range i.NeededOptions {
-		fmt.Printf("  %s%s:\t'%v'\n", emoji.Sprintf(":compass:"), opt.Name, opt.Value)
+		name := "  :compass:" + opt.Name
+		switch opt.Type {
+		case BooleanType:
+			m = m.WithBoolValue(name, opt.Value.(bool))
+		case StringType:
+			m = m.WithStringValue(name, opt.Value.(string))
+		case IntType:
+			m = m.WithIntValue(name, opt.Value.(int))
+		}
 	}
+	m.Msg("Configuration...")
 }
 
-func (i *Installer) Install(cluster *Cluster) error {
+func (i *Installer) Install(cluster *Cluster, ui *ui.UI) error {
 	for _, deployment := range i.Deployments {
 		options := i.NeededOptions.ForDeployment(deployment.ID())
-		err := deployment.Deploy(*cluster, options)
+		err := deployment.Deploy(*cluster, ui, options)
 		if err != nil {
 			return err
 		}
