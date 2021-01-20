@@ -69,6 +69,7 @@ jobs:
           ./cli/dist/carrier-linux-amd64 orgs
       - name: Push an App
         run: |
+          sleep 8m ;# Wait for tekton to be usable
           ./cli/dist/carrier-linux-amd64 create-org workspace ;# FUTURE: Part of install.
           git config --global user.email "ci@suse.dev"
           git config --global user.name "cibot"
