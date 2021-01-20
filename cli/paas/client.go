@@ -86,12 +86,15 @@ func (c *CarrierClient) Apps() error {
 			c.config.EiriniWorkloadsNamespace,
 			fmt.Sprintf("cloudfoundry.org/guid=%s", app.Name))
 		if err != nil {
-			return errors.Wrap(err, "failed to get app status")
+			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
 		}
 
 		routes, err := c.kubeClient.ListIngressRoutes(
 			c.config.EiriniWorkloadsNamespace,
 			app.Name)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
+		}
 
 		msg = msg.WithTableRow(app.Name, status, strings.Join(routes, ", "))
 	}
@@ -123,14 +126,14 @@ func (c *CarrierClient) Delete(app string) error {
 		return errors.Wrap(err, "failed to delete repo")
 	}
 
-	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app repo.")
+	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app code repository.")
 
 	err = c.eiriniClient.EiriniV1().LRPs(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete eirini lrp")
 	}
 
-	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app LRP.")
+	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app containers.")
 
 	return nil
 }
