@@ -71,7 +71,7 @@ jobs:
         run: |
           git config --global user.email "ci@suse.dev"
           git config --global user.name "cibot"
-          ( cd ./sample-app ; ./cli/dist/carrier-linux-amd64 push "ci${GITHUB_RUN_NUMBER}" )
+          ( cd ./sample-app ; ../cli/dist/carrier-linux-amd64 push "ci${GITHUB_RUN_NUMBER}" )
       # - name: Carrier Apps
       #   run: |
       #     ./cli/dist/carrier-linux-amd64 apps
