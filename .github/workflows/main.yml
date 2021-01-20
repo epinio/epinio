@@ -55,15 +55,35 @@ jobs:
       - name: Install Carrier
         run: |
           ./cli/dist/carrier-linux-amd64 install -n
-      # - name: Push an App
+      - name: Carrier Setup Information
+        run: |
+          ./cli/dist/carrier-linux-amd64 info
+      - name: Default Organizations
+        run: |
+          ./cli/dist/carrier-linux-amd64 orgs
+      - name: Create Organization
+        run: |
+          ./cli/dist/carrier-linux-amd64 create-org myself
+      - name: Carrier Orgs
+        run: |
+          ./cli/dist/carrier-linux-amd64 orgs
+      - name: Push an App
+        run: |
+          sleep 8m ;# Wait for tekton to be usable
+          ./cli/dist/carrier-linux-amd64 create-org workspace ;# FUTURE: Part of install.
+          git config --global user.email "ci@suse.dev"
+          git config --global user.name "cibot"
+          ( cd ./sample-app ; ../cli/dist/carrier-linux-amd64 push "ci${GITHUB_RUN_NUMBER}" )
+      # - name: Carrier Apps
       #   run: |
-      #     git config --global user.email "ci@suse.dev"
-      #     git config --global user.name "cibot"
-      #     ./carrier push "ci${GITHUB_RUN_NUMBER}" ./sample-app
+      #     ./cli/dist/carrier-linux-amd64 apps
       # - name: Test App
       #   run: |
       #     external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
       #     curl --fail http://"ci${GITHUB_RUN_NUMBER}.${external_ip}.nip.io"
+      # - name: Delete The App
+      #   run: |
+      #     ./cli/dist/carrier-linux-amd64 delete "ci${GITHUB_RUN_NUMBER}"
       # - name: Uninstall Carrier
       #   run: |
       #     ./carrier uninstall
