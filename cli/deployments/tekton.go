@@ -74,6 +74,19 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	s.Start()
 	defer s.Stop()
 
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonTriggersReleaseYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonTriggersReleaseYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+	}
+
 	warning, err := c.DeleteNamespaceIfOwned(tektonNamespace)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
@@ -299,7 +312,7 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 		return "", err
 	}
 
-	// Constucting the name of the cert file as required by openssl.
+	// Constructing the name of the cert file as required by openssl.
 	// Lookup "subject_hash" in the docs: https://www.openssl.org/docs/man1.0.2/man1/x509.html
 	re := regexp.MustCompile(`{{CA_SELF_HASHED_NAME}}`)
 	renderedFileContents := re.ReplaceAll(fileContents, []byte(caHash+".0"))

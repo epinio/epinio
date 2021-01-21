@@ -53,12 +53,16 @@ func KubectlApplyEmbeddedYaml(yamlPath string) (string, error) {
 
 // KubectlDeleteEmbeddedYaml un-embeds the given yaml file and calls `kubectl delete`
 // on it. It returns the command output and an error (if there is one)
-func KubectlDeleteEmbeddedYaml(yamlPath string) (string, error) {
+func KubectlDeleteEmbeddedYaml(yamlPath string, ignoreMissing bool) (string, error) {
 	yamlPathOnDisk, err := ExtractFile(yamlPath)
 	if err != nil {
 		return "", errors.New("Failed to extract embedded file: " + yamlPath + " - " + err.Error())
 	}
 	defer os.Remove(yamlPathOnDisk)
 
-	return Kubectl(fmt.Sprintf("delete --filename %s", yamlPathOnDisk))
+	if ignoreMissing {
+		return Kubectl(fmt.Sprintf("delete --ignore-not-found=true --filename %s", yamlPathOnDisk))
+	} else {
+		return Kubectl(fmt.Sprintf("delete --filename %s", yamlPathOnDisk))
+	}
 }
