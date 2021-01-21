@@ -114,7 +114,7 @@ func (c *Cluster) detectPlatform() {
 	}
 }
 
-// return a condition function that indicates whether the given pod is
+// IsPodRunning returns a condition function that indicates whether the given pod is
 // currently running
 func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
@@ -210,10 +210,54 @@ func (c *Cluster) WaitForPodBySelectorRunning(namespace, selector string, timeou
 		s.Suffix = emoji.Sprintf(" Waiting for pod %s to be running in %s ... :zzz: ", pod.Name, namespace)
 		s.Start()
 		if err := c.WaitForPodRunning(namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
-			return errors.Wrapf(err, "failed waiting for %s", pod.Name)
+			events, err2 := c.GetPodEvents(namespace, pod.Name)
+			if err2 != nil {
+				return errors.Wrap(err, err2.Error())
+			} else {
+				return errors.New(fmt.Sprintf("Failed waiting for %s: %s\nPod Events: \n%s", pod.Name, err.Error(), events))
+			}
 		}
 	}
 	return nil
+}
+
+// GetPodEventsWithSelector tries to find a pod using the provided selector and
+// namespace. If found it returns the events on that Pod. If not found it returns
+// an error.
+// An equivalent kubectl command would look like this
+// (label selector being "app.kubernetes.io/name=container-registry"):
+//   kubectl get event --namespace my-namespace \
+//   --field-selector involvedObject.name=$( \
+//     kubectl get pods -o=jsonpath='{.items[0].metadata.name}' --selector=app.kubernetes.io/name=container-registry -n my-namespace)
+func (c *Cluster) GetPodEventsWithSelector(namespace, selector string) (string, error) {
+	podList, err := c.Kubectl.CoreV1().Pods(namespace).List(context.Background(),
+		metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return "", err
+	}
+	if len(podList.Items) < 1 {
+		return "", errors.New(fmt.Sprintf("Couldn't find Pod with selector '%s' in namespace %s", selector, namespace))
+	}
+	podName := podList.Items[0].Name
+
+	return c.GetPodEvents(namespace, podName)
+}
+
+func (c *Cluster) GetPodEvents(namespace, podName string) (string, error) {
+	eventList, err := c.Kubectl.CoreV1().Events(namespace).List(context.Background(),
+		metav1.ListOptions{
+			FieldSelector: "involvedObject.name=" + podName,
+		})
+	if err != nil {
+		return "", err
+	}
+
+	events := []string{}
+	for _, event := range eventList.Items {
+		events = append(events, event.Message)
+	}
+
+	return strings.Join(events, "\n"), nil
 }
 
 func (c *Cluster) Exec(namespace, podName, containerName string, command, stdin string) (string, string, error) {

@@ -377,6 +377,8 @@ func (c *CarrierClient) gitPush(name, tmpDir string) error {
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
 cd "%s" 
 git init
+git config user.name "Carrier"
+git config user.email ci@carrier
 git remote add carrier "%s"
 git fetch --all
 git reset --soft carrier/main
