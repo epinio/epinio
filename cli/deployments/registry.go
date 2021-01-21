@@ -82,10 +82,10 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return errors.New("Failed installing Registry: " + out)
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 

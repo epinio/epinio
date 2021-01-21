@@ -70,10 +70,10 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Traefik: %s\n", out))
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to exist")
 	}
-	if err := c.WaitForPodBySelectorRunning(traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to come up")
 	}
 

@@ -72,10 +72,10 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		"quarks-secret",
 		"quarks-job",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to come up")
 		}
 	}

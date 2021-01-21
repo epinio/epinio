@@ -139,10 +139,10 @@ gitea:
 		"postgresql",
 		"gitea",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to come up")
 		}
 	}

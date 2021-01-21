@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/codeskyblue/kexec"
-	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+
+	"github.com/suse/carrier/cli/paas/ui"
 )
 
 type ExternalCommandFunc func() (output string, err error)
@@ -103,10 +103,8 @@ func Kubectl(command string) (string, error) {
 	return RunProc(cmd, currentdir, false)
 }
 
-func SpinnerWaitCommand(message string, funk ExternalCommandFunc) (string, error) {
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond) // Build our new spinner,
-	s.Suffix = emoji.Sprintf(" %s :zzz:", message)               // configure, and
-	s.Start()                                                    // start it
+func WaitForCommandCompletion(ui *ui.UI, message string, funk ExternalCommandFunc) (string, error) {
+	s := ui.Progressf(" %s", message)
 	defer s.Stop()
 
 	return funk()

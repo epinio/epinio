@@ -80,7 +80,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message := "Creating Eirini namespace for core components"
-	out, err := helpers.SpinnerWaitCommand(message,
+	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			file := path.Join(releaseDir, "deploy", "core", "namespace.yml")
 			return helpers.Kubectl("apply -f " + file)
@@ -91,7 +91,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Creating Eirini namespace for workloads"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			file := path.Join(releaseDir, "deploy", "workloads", "namespace.yml")
 			return helpers.Kubectl("apply -f " + file)
@@ -110,7 +110,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Creating eirini certs using quarks-secret"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(eiriniQuarksYaml)
 		},
@@ -120,7 +120,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Adding private registry configuration"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return k.patchOpiConfForPrivateRegistry(path.Join(releaseDir, "deploy", "core", "api-configmap.yml"))
 		},
@@ -131,7 +131,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 
 	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
 		message := "Deploying eirini " + component
-		out, err := helpers.SpinnerWaitCommand(message,
+		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				dir := path.Join(releaseDir, "deploy", component)
 				return helpers.Kubectl("apply -f " + dir)
@@ -143,7 +143,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Deploying eirini ingress extension"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(eiriniIngressYaml)
 		},
@@ -174,10 +174,10 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		"eirini-api",
 		"eirini-metrics",
 	} {
-		if err := c.WaitUntilPodBySelectorExist("eirini-core", "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, "eirini-core", "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Eirini "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning("eirini-core", "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, "eirini-core", "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Eirini "+podname+" deployment to come up")
 		}
 	}

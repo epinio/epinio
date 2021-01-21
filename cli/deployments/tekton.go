@@ -98,7 +98,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		"triggertemplates.triggers.tekton.dev",
 	} {
 		message := fmt.Sprintf("Waiting for crd %s to be established", crd)
-		out, err := helpers.SpinnerWaitCommand(message,
+		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				return helpers.Kubectl("wait --for=condition=established --timeout=" + strconv.Itoa(k.Timeout) + "s crd/" + crd)
 			},
@@ -109,7 +109,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message := "Waiting for tekton triggers webhook pod to be running"
-	out, err := helpers.SpinnerWaitCommand(message,
+	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
 		},
@@ -119,7 +119,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Waiting for tekton pipelines webhook pod to be running"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
 		},
@@ -129,7 +129,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Installing staging pipelines and triggers"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath)
 		},
@@ -139,7 +139,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Install the tekton dashboard"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath)
 		},
@@ -149,7 +149,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Waiting for registry certificates to be created in the eirini-workloads namespace"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
@@ -172,7 +172,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Applying tekton staging resources"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return applyTektonStaging(c, ui)
 		},
@@ -187,7 +187,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	message = "Creating Tekton dashboard ingress"
-	_, err = helpers.SpinnerWaitCommand(message,
+	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return "", createTektonIngress(c, tektonDeploymentID+"."+domain)
 		},

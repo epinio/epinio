@@ -53,9 +53,31 @@ type interaction struct {
 	value     interface{}
 }
 
+// Progress abstracts the operations for a progress meter and/or
+// spinner used to indicate the cli waiting for some background
+// operation to complete.
+type Progress interface {
+	Start()
+	Stop()
+	ChangeMessage(message string)
+	ChangeMessagef(message string, a ...interface{})
+}
+
 // NewUI creates a new UI
 func NewUI() *UI {
 	return &UI{}
+}
+
+// Progress creates, configures, and returns an active progress
+// meter. It accepts a formatted message.
+func (u *UI) Progressf(message string, a ...interface{}) Progress {
+	return u.Progress(fmt.Sprintf(message, a...))
+}
+
+// Progress creates, configures, and returns an active progress
+// meter. It accepts a fixed message.
+func (u *UI) Progress(message string) Progress {
+	return NewSpinProgress(message)
 }
 
 // Normal returns a UIMessage that prints a normal message
