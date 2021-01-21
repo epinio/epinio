@@ -20,7 +20,6 @@ import (
 type Eirini struct {
 	Debug   bool
 	Timeout int
-	UI      *ui.UI
 }
 
 const (
@@ -46,15 +45,11 @@ func (k *Eirini) ID() string {
 	return eiriniDeploymentID
 }
 
-func (k *Eirini) SetUI(ui *ui.UI) {
-	k.UI = ui
-}
-
-func (k *Eirini) Backup(c kubernetes.Cluster, d string) error {
+func (k *Eirini) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
-func (k *Eirini) Restore(c kubernetes.Cluster, d string) error {
+func (k *Eirini) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
@@ -62,11 +57,11 @@ func (k Eirini) Describe() string {
 	return emoji.Sprintf(":cloud:Eirini version: %s\n:clipboard:Eirini chart: %s", eiriniVersion, eiriniReleasePath)
 }
 
-func (k Eirini) Delete(c kubernetes.Cluster) error {
+func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), eiriniDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	releaseDir, err := ioutil.TempDir("", "carrier")
 	if err != nil {
 		return err
@@ -187,7 +182,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		}
 	}
 
-	k.UI.Success().Msg("Eirini deployed")
+	ui.Success().Msg("Eirini deployed")
 
 	return nil
 }
@@ -196,7 +191,7 @@ func (k Eirini) GetVersion() string {
 	return eiriniVersion
 }
 
-func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -207,9 +202,9 @@ func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + eiriniDeploymentID + " present already")
 	}
 
-	k.UI.Note().Msg("Deploying Eirini...")
+	ui.Note().Msg("Deploying Eirini...")
 
-	err = k.apply(c, options)
+	err = k.apply(c, ui, options)
 	if err != nil {
 		return err
 	}
@@ -217,7 +212,7 @@ func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 	return nil
 }
 
-func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		eiriniDeploymentID,
@@ -227,12 +222,12 @@ func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Namespace " + eiriniDeploymentID + " not present")
 	}
 
-	k.UI.Note().Msg("Upgrading Eirini...")
+	ui.Note().Msg("Upgrading Eirini...")
 
-	return k.apply(c, options)
+	return k.apply(c, ui, options)
 }
 
-func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool) error {
+func (k Eirini) createClusterRegistryCredsSecret(c *kubernetes.Cluster, http bool) error {
 	var protocol, secretName, port string
 	if http {
 		protocol = "http"
@@ -260,7 +255,7 @@ func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool
 	return nil
 }
 
-func (k Eirini) createGitCredsSecret(c kubernetes.Cluster, domain string) error {
+func (k Eirini) createGitCredsSecret(c *kubernetes.Cluster, domain string) error {
 	_, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").Create(context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -282,7 +277,7 @@ func (k Eirini) createGitCredsSecret(c kubernetes.Cluster, domain string) error 
 	return nil
 }
 
-func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name string) error {
+func (k Eirini) patchServiceAccountWithSecretAccess(c *kubernetes.Cluster, name string) error {
 	patchContents := `
 {
   "secrets": [
@@ -305,7 +300,7 @@ func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name s
 	return nil
 }
 
-func (k Eirini) patchNamespaceForQuarks(c kubernetes.Cluster, namespace string) error {
+func (k Eirini) patchNamespaceForQuarks(c *kubernetes.Cluster, namespace string) error {
 	patchContents := `{ "metadata": { "labels": { "quarks.cloudfoundry.org/monitored": "quarks-secret" } } }`
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Patch(context.Background(), namespace,

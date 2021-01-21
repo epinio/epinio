@@ -22,7 +22,6 @@ import (
 type Tekton struct {
 	Debug   bool
 	Timeout int
-	UI      *ui.UI
 }
 
 const (
@@ -50,15 +49,11 @@ func (k *Tekton) ID() string {
 	return tektonDeploymentID
 }
 
-func (k *Tekton) SetUI(ui *ui.UI) {
-	k.UI = ui
-}
-
-func (k *Tekton) Backup(c kubernetes.Cluster, d string) error {
+func (k *Tekton) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
-func (k *Tekton) Restore(c kubernetes.Cluster, d string) error {
+func (k *Tekton) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
@@ -67,11 +62,11 @@ func (k Tekton) Describe() string {
 		tektonPipelineReleaseYamlPath, tektonDashboardYamlPath, tektonTriggersReleaseYamlPath)
 }
 
-func (k Tekton) Delete(c kubernetes.Cluster) error {
+func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	// action := "install"
 	// if upgrade {
 	// 	action = "upgrade"
@@ -179,7 +174,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	message = "Applying tekton staging resources"
 	out, err = helpers.SpinnerWaitCommand(message,
 		func() (string, error) {
-			return applyTektonStaging(c)
+			return applyTektonStaging(c, ui)
 		},
 	)
 	if err != nil {
@@ -201,7 +196,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
-	k.UI.Success().Msg("Tekton deployed")
+	ui.Success().Msg("Tekton deployed")
 
 	return nil
 }
@@ -211,7 +206,7 @@ func (k Tekton) GetVersion() string {
 		tektonPipelineReleaseYamlPath, tektonTriggersReleaseYamlPath, tektonDashboardYamlPath)
 }
 
-func (k Tekton) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -222,9 +217,9 @@ func (k Tekton) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + tektonDeploymentID + " present already")
 	}
 
-	k.UI.Note().Msg("Deploying Tekton...")
+	ui.Note().Msg("Deploying Tekton...")
 
-	err = k.apply(c, options, false)
+	err = k.apply(c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -232,7 +227,7 @@ func (k Tekton) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 	return nil
 }
 
-func (k Tekton) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		tektonDeploymentID,
@@ -242,15 +237,15 @@ func (k Tekton) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Namespace " + tektonDeploymentID + " not present")
 	}
 
-	k.UI.Note().Msg("Upgrading Tekton...")
+	ui.Note().Msg("Upgrading Tekton...")
 
-	return k.apply(c, options, true)
+	return k.apply(c, ui, options, true)
 }
 
 // The equivalent of:
 // kubectl get secret -n eirini-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCAHash(c kubernetes.Cluster) (string, error) {
+func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").
 		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
 	if err != nil {
@@ -260,8 +255,8 @@ func getRegistryCAHash(c kubernetes.Cluster) (string, error) {
 	return helpers.OpenSSLSubjectHash(string(secret.Data["ca"]))
 }
 
-func applyTektonStaging(c kubernetes.Cluster) (string, error) {
-	caHash, err := getRegistryCAHash(c)
+func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
+	caHash, err := getRegistryCAHash(c, ui)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get registry CA from eirini-workloads namespace")
 	}
@@ -291,7 +286,7 @@ func applyTektonStaging(c kubernetes.Cluster) (string, error) {
 	return helpers.Kubectl(fmt.Sprintf("apply -n eirini-workloads --filename %s", tmpFilePath))
 }
 
-func createTektonIngress(c kubernetes.Cluster, subdomain string) error {
+func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
 	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses("tekton-pipelines").Create(
 		context.Background(),
 		&v1beta1.Ingress{

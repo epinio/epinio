@@ -20,10 +20,8 @@ type InstallClient struct {
 }
 
 // Install deploys carrier to the cluster.
-func (c *InstallClient) Install(cmd *cobra.Command, installer *kubernetes.Installer) error {
+func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.DeploymentSet) error {
 	c.ui.Note().Msg("Carrier installing...")
-
-	installer.UI = c.ui
 
 	// Hack? Override static default for system domain with a
 	// function which queries the cluster for the necessary
@@ -35,7 +33,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, installer *kubernetes.Instal
 	// cluster in question, and that information is only available
 	// now, not at deployment declaration time.
 
-	domain, err := installer.NeededOptions.GetOpt("system_domain", "")
+	domain, err := deployments.NeededOptions.GetOpt("system_domain", "")
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
 	}
@@ -50,7 +48,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, installer *kubernetes.Instal
 		return nil
 	}
 
-	installer.PopulateNeededOptions(kubernetes.NewCLIOptionsReader(cmd))
+	deployments.PopulateNeededOptions(kubernetes.NewCLIOptionsReader(cmd))
 
 	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
 	if err != nil {
@@ -58,12 +56,12 @@ func (c *InstallClient) Install(cmd *cobra.Command, installer *kubernetes.Instal
 	}
 
 	if nonInteractive {
-		installer.PopulateNeededOptions(kubernetes.NewDefaultOptionsReader())
+		deployments.PopulateNeededOptions(kubernetes.NewDefaultOptionsReader())
 	} else {
-		installer.PopulateNeededOptions(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		deployments.PopulateNeededOptions(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
 	}
 
-	installer.ShowNeededOptions()
+	c.showInstallConfiguration(deployments)
 
 	// TODO (post MVP): Run a validation phase which perform
 	// additional checks on the values. For example range limits,
@@ -71,12 +69,42 @@ func (c *InstallClient) Install(cmd *cobra.Command, installer *kubernetes.Instal
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	err = installer.Install(c.kubeClient)
+	err = c.deploySet(deployments)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
 	}
 
 	c.ui.Success().Msg("Carrier installed.")
 
+	return nil
+}
+
+// showInstallConfiguration prints the options and their values to stdout, to
+// inform the user of the detected and chosen configuration
+func (c *InstallClient) showInstallConfiguration(ds *kubernetes.DeploymentSet) {
+	m := c.ui.Normal()
+	for _, opt := range ds.NeededOptions {
+		name := "  :compass:" + opt.Name
+		switch opt.Type {
+		case kubernetes.BooleanType:
+			m = m.WithBoolValue(name, opt.Value.(bool))
+		case kubernetes.StringType:
+			m = m.WithStringValue(name, opt.Value.(string))
+		case kubernetes.IntType:
+			m = m.WithIntValue(name, opt.Value.(int))
+		}
+	}
+	m.Msg("Configuration...")
+}
+
+// deploySet deploys all the deployments in the set, in order.
+func (c *InstallClient) deploySet(ds *kubernetes.DeploymentSet) error {
+	for _, deployment := range ds.Deployments {
+		options := ds.NeededOptions.ForDeployment(deployment.ID())
+		err := deployment.Deploy(c.kubeClient, c.ui, options)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

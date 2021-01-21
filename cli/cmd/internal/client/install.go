@@ -13,7 +13,7 @@ const (
 	DefaultTimeoutSec = 300
 )
 
-var installer = kubernetes.Installer{
+var carrierDeploymentSet = kubernetes.DeploymentSet{
 	Deployments: []kubernetes.Deployment{
 		&deployments.Traefik{Timeout: DefaultTimeoutSec},
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
@@ -43,8 +43,7 @@ func init() {
 	CmdInstall.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
 	CmdInstall.Flags().BoolP("non-interactive", "n", false, "Whether to ask the user or not")
 
-	installer.GatherNeededOptions()
-	installer.NeededOptions.AsCobraFlagsFor(CmdInstall)
+	carrierDeploymentSet.AsCobraFlagsFor(CmdInstall)
 }
 
 // Install command installs carrier on a configured cluster
@@ -60,7 +59,7 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = install_client.Install(cmd, &installer)
+	err = install_client.Install(cmd, &carrierDeploymentSet)
 	if err != nil {
 		return errors.Wrap(err, "error installing Carrier")
 	}
