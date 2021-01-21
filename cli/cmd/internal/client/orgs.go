@@ -42,5 +42,5 @@ func init() {
 	argToEnv := map[string]string{}
 
 	cmd.KubeConfigFlags(pf, argToEnv)
-	cmd.AddEnvToUsage(CmdInfo, argToEnv)
+	cmd.AddEnvToUsage(CmdOrgs, argToEnv)
 }
