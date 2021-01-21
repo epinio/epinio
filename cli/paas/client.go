@@ -11,8 +11,10 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
+	eiriniclient "code.cloudfoundry.org/eirini/pkg/generated/clientset/versioned"
 	"code.gitea.io/sdk/gitea"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
@@ -21,6 +23,7 @@ import (
 	"github.com/suse/carrier/cli/paas/config"
 	paasgitea "github.com/suse/carrier/cli/paas/gitea"
 	"github.com/suse/carrier/cli/paas/ui"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -42,6 +45,7 @@ type CarrierClient struct {
 	ui            *ui.UI
 	config        *config.Config
 	giteaResolver *paasgitea.Resolver
+	eiriniClient  *eiriniclient.Clientset
 }
 
 // Info displays information about environment
@@ -75,13 +79,27 @@ func (c *CarrierClient) Apps() error {
 		return errors.Wrap(err, "failed to list apps")
 	}
 
-	msg := c.ui.Normal().WithTable("Name", "Status", "Route")
+	msg := c.ui.Normal().WithTable("Name", "Status", "Routes")
 
 	for _, app := range apps {
-		msg = msg.WithTableRow(app.Name)
+		status, err := c.kubeClient.StatefulSetStatus(
+			c.config.EiriniWorkloadsNamespace,
+			fmt.Sprintf("cloudfoundry.org/guid=%s", app.Name))
+		if err != nil {
+			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
+		}
+
+		routes, err := c.kubeClient.ListIngressRoutes(
+			c.config.EiriniWorkloadsNamespace,
+			app.Name)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
+		}
+
+		msg = msg.WithTableRow(app.Name, status, strings.Join(routes, ", "))
 	}
 
-	msg.Msg("Carrier Organizations")
+	msg.Msg("Carrier Apps.")
 
 	return nil
 }
@@ -103,6 +121,20 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 // Delete deletes an app
 func (c *CarrierClient) Delete(app string) error {
+	_, err := c.giteaClient.DeleteRepo(c.config.Org, app)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete repo")
+	}
+
+	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app code repository.")
+
+	err = c.eiriniClient.EiriniV1().LRPs(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to delete eirini lrp")
+	}
+
+	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app containers.")
+
 	return nil
 }
 
@@ -157,6 +189,16 @@ func (c *CarrierClient) Push(app string, path string) error {
 		return errors.Wrap(err, "waiting for app failed")
 	}
 
+	route, err := c.appDefaultRoute(app)
+	if err != nil {
+		return errors.Wrap(err, "failed to determine default app route")
+	}
+
+	c.ui.Exclamation().
+		WithStringValue("App Name", app).
+		WithStringValue("Route", fmt.Sprintf("http://%s", route)).
+		Msg("App is online.")
+
 	return nil
 }
 
@@ -184,7 +226,17 @@ func (c *CarrierClient) check() {
 func (c *CarrierClient) createRepo(name string) error {
 	c.ui.Normal().Msg("Creating application ...")
 
-	_, _, err := c.giteaClient.CreateOrgRepo(c.config.Org, gitea.CreateRepoOption{
+	_, resp, err := c.giteaClient.GetRepo(c.config.Org, name)
+	if resp == nil && err != nil {
+		return errors.Wrap(err, "failed to make get repo request")
+	}
+
+	if resp.StatusCode == 200 {
+		c.ui.Normal().WithStringValue("name", name).Msg("Application already exists.")
+		return nil
+	}
+
+	_, _, err = c.giteaClient.CreateOrgRepo(c.config.Org, gitea.CreateRepoOption{
 		Name:          name,
 		AutoInit:      true,
 		Private:       true,
@@ -218,6 +270,15 @@ func (c *CarrierClient) createRepoWebhook(name string) error {
 	return nil
 }
 
+func (c *CarrierClient) appDefaultRoute(name string) (string, error) {
+	domain, err := c.giteaResolver.GetMainDomain()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to determine carrier domain")
+	}
+
+	return fmt.Sprintf("%s.%s", name, domain), nil
+}
+
 func (c *CarrierClient) prepareCode(name, appDir string) (tmpDir string, err error) {
 	c.ui.Normal().Msg("Preparing code ...")
 
@@ -236,8 +297,10 @@ func (c *CarrierClient) prepareCode(name, appDir string) (tmpDir string, err err
 		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
-	// TODO: fixme
-	domain := "FOO"
+	route, err := c.appDefaultRoute(name)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to calculate default app route")
+	}
 
 	// TODO: perhaps marshaling an actual struct is better
 	// TODO: name of LRP will lead to collisions, since the same app name
@@ -263,7 +326,7 @@ spec:
   - 8080
   image: "127.0.0.1:30500/apps/{{ .AppName }}"
   appRoutes:
-  - hostname: "{{ .AppName }}.{{ .Domain }}"
+  - hostname: "{{ .Route }}"
     port: 8080
 `)
 	if err != nil {
@@ -278,10 +341,10 @@ spec:
 
 	err = lrpTmpl.Execute(appFile, struct {
 		AppName string
-		Domain  string
+		Route   string
 	}{
 		AppName: name,
-		Domain:  domain,
+		Route:   route,
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to render kube resource definition")
@@ -351,7 +414,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 		ContainerState:        "running",
 		Exclude:               nil,
 		Include:               nil,
-		Timestamps:            true,
+		Timestamps:            false,
 		Since:                 172800000000000, //48hr
 		AllNamespaces:         false,
 		LabelSelector:         labels.Everything(),
@@ -386,6 +449,5 @@ func (c *CarrierClient) waitForApp(name string) error {
 		return errors.Wrap(err, "waiting for app to come online failed")
 	}
 
-	c.ui.Exclamation().WithStringValue("App Name", name).Msg("App is online.")
 	return nil
 }
