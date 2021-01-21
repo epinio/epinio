@@ -77,6 +77,18 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		fmt.Print(warning) // TODO: use cli
 	}
 
+	for _, crd := range []string{
+		"quarksstatefulsets.quarks.cloudfoundry.org",
+		"quarksjobs.quarks.cloudfoundry.org",
+		"boshdeployments.quarks.cloudfoundry.org",
+		"quarkssecrets.quarks.cloudfoundry.org",
+	} {
+		out, err := helpers.Kubectl("delete crds --ignore-not-found=true " + crd)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Deleting quarks CRD failed:\n%s", out))
+		}
+	}
+
 	emoji.Println(":heavy_check_mark: Quarks removed")
 
 	return nil
