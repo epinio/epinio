@@ -6,8 +6,8 @@ import (
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment
 type Deployment interface {
-	Deploy(Cluster, *ui.UI, InstallationOptions) error
-	Upgrade(Cluster, *ui.UI, InstallationOptions) error
+	Deploy(Cluster, InstallationOptions) error
+	Upgrade(Cluster, InstallationOptions) error
 	Delete(Cluster) error
 	Describe() string
 	GetVersion() string
@@ -15,6 +15,7 @@ type Deployment interface {
 	Restore(Cluster, string) error
 	Backup(Cluster, string) error
 	ID() string
+	SetUI(*ui.UI)
 }
 
 // A list of deployment that should be installed together
@@ -100,8 +101,9 @@ func (i *Installer) ShowNeededOptions() {
 
 func (i *Installer) Install(cluster *Cluster) error {
 	for _, deployment := range i.Deployments {
+		deployment.SetUI(i.UI)
 		options := i.NeededOptions.ForDeployment(deployment.ID())
-		err := deployment.Deploy(*cluster, i.UI, options)
+		err := deployment.Deploy(*cluster, options)
 		if err != nil {
 			return err
 		}

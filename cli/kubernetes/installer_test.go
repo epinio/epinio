@@ -216,7 +216,7 @@ var _ = Describe("Installer", func() {
 		It("calls Deploy method with the correct InstallationOptions for each deployment", func() {
 			installer.UI = ui.NewUI()
 			installer.Install(&cluster)
-			_, _, opts := deployment1.DeployArgsForCall(1)
+			_, opts := deployment1.DeployArgsForCall(1)
 			Expect(opts).To(ContainElement(
 				InstallationOption{
 					Name:         "Option1",

@@ -22,6 +22,7 @@ import (
 type Tekton struct {
 	Debug   bool
 	Timeout int
+	UI      *ui.UI
 }
 
 const (
@@ -49,6 +50,10 @@ func (k *Tekton) ID() string {
 	return tektonDeploymentID
 }
 
+func (k *Tekton) SetUI(ui *ui.UI) {
+	k.UI = ui
+}
+
 func (k *Tekton) Backup(c kubernetes.Cluster, d string) error {
 	return nil
 }
@@ -66,7 +71,7 @@ func (k Tekton) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Tekton) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
 	// action := "install"
 	// if upgrade {
 	// 	action = "upgrade"
@@ -196,7 +201,7 @@ func (k Tekton) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
-	ui.Success().Msg("Tekton deployed")
+	k.UI.Success().Msg("Tekton deployed")
 
 	return nil
 }
@@ -206,7 +211,7 @@ func (k Tekton) GetVersion() string {
 		tektonPipelineReleaseYamlPath, tektonTriggersReleaseYamlPath, tektonDashboardYamlPath)
 }
 
-func (k Tekton) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Tekton) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -217,9 +222,9 @@ func (k Tekton) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.New("Namespace " + tektonDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Tekton...")
+	k.UI.Note().Msg("Deploying Tekton...")
 
-	err = k.apply(c, ui, options, false)
+	err = k.apply(c, options, false)
 	if err != nil {
 		return err
 	}
@@ -227,7 +232,7 @@ func (k Tekton) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	return nil
 }
 
-func (k Tekton) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Tekton) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		tektonDeploymentID,
@@ -237,9 +242,9 @@ func (k Tekton) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.New("Namespace " + tektonDeploymentID + " not present")
 	}
 
-	ui.Note().Msg("Upgrading Tekton...")
+	k.UI.Note().Msg("Upgrading Tekton...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(c, options, true)
 }
 
 // The equivalent of:

@@ -32,12 +32,11 @@ type FakeDeployment struct {
 	deleteReturnsOnCall map[int]struct {
 		result1 error
 	}
-	DeployStub        func(kubernetes.Cluster, *ui.UI, kubernetes.InstallationOptions) error
+	DeployStub        func(kubernetes.Cluster, kubernetes.InstallationOptions) error
 	deployMutex       sync.RWMutex
 	deployArgsForCall []struct {
 		arg1 kubernetes.Cluster
-		arg2 *ui.UI
-		arg3 kubernetes.InstallationOptions
+		arg2 kubernetes.InstallationOptions
 	}
 	deployReturns struct {
 		result1 error
@@ -97,12 +96,16 @@ type FakeDeployment struct {
 	restoreReturnsOnCall map[int]struct {
 		result1 error
 	}
-	UpgradeStub        func(kubernetes.Cluster, *ui.UI, kubernetes.InstallationOptions) error
+	SetUIStub        func(*ui.UI)
+	setUIMutex       sync.RWMutex
+	setUIArgsForCall []struct {
+		arg1 *ui.UI
+	}
+	UpgradeStub        func(kubernetes.Cluster, kubernetes.InstallationOptions) error
 	upgradeMutex       sync.RWMutex
 	upgradeArgsForCall []struct {
 		arg1 kubernetes.Cluster
-		arg2 *ui.UI
-		arg3 kubernetes.InstallationOptions
+		arg2 kubernetes.InstallationOptions
 	}
 	upgradeReturns struct {
 		result1 error
@@ -237,20 +240,19 @@ func (fake *FakeDeployment) DeleteReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Deploy(arg1 kubernetes.Cluster, arg2 *ui.UI, arg3 kubernetes.InstallationOptions) error {
+func (fake *FakeDeployment) Deploy(arg1 kubernetes.Cluster, arg2 kubernetes.InstallationOptions) error {
 	fake.deployMutex.Lock()
 	ret, specificReturn := fake.deployReturnsOnCall[len(fake.deployArgsForCall)]
 	fake.deployArgsForCall = append(fake.deployArgsForCall, struct {
 		arg1 kubernetes.Cluster
-		arg2 *ui.UI
-		arg3 kubernetes.InstallationOptions
-	}{arg1, arg2, arg3})
+		arg2 kubernetes.InstallationOptions
+	}{arg1, arg2})
 	stub := fake.DeployStub
 	fakeReturns := fake.deployReturns
-	fake.recordInvocation("Deploy", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("Deploy", []interface{}{arg1, arg2})
 	fake.deployMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -264,17 +266,17 @@ func (fake *FakeDeployment) DeployCallCount() int {
 	return len(fake.deployArgsForCall)
 }
 
-func (fake *FakeDeployment) DeployCalls(stub func(kubernetes.Cluster, *ui.UI, kubernetes.InstallationOptions) error) {
+func (fake *FakeDeployment) DeployCalls(stub func(kubernetes.Cluster, kubernetes.InstallationOptions) error) {
 	fake.deployMutex.Lock()
 	defer fake.deployMutex.Unlock()
 	fake.DeployStub = stub
 }
 
-func (fake *FakeDeployment) DeployArgsForCall(i int) (kubernetes.Cluster, *ui.UI, kubernetes.InstallationOptions) {
+func (fake *FakeDeployment) DeployArgsForCall(i int) (kubernetes.Cluster, kubernetes.InstallationOptions) {
 	fake.deployMutex.RLock()
 	defer fake.deployMutex.RUnlock()
 	argsForCall := fake.deployArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeDeployment) DeployReturns(result1 error) {
@@ -574,20 +576,51 @@ func (fake *FakeDeployment) RestoreReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Upgrade(arg1 kubernetes.Cluster, arg2 *ui.UI, arg3 kubernetes.InstallationOptions) error {
+func (fake *FakeDeployment) SetUI(arg1 *ui.UI) {
+	fake.setUIMutex.Lock()
+	fake.setUIArgsForCall = append(fake.setUIArgsForCall, struct {
+		arg1 *ui.UI
+	}{arg1})
+	stub := fake.SetUIStub
+	fake.recordInvocation("SetUI", []interface{}{arg1})
+	fake.setUIMutex.Unlock()
+	if stub != nil {
+		fake.SetUIStub(arg1)
+	}
+}
+
+func (fake *FakeDeployment) SetUICallCount() int {
+	fake.setUIMutex.RLock()
+	defer fake.setUIMutex.RUnlock()
+	return len(fake.setUIArgsForCall)
+}
+
+func (fake *FakeDeployment) SetUICalls(stub func(*ui.UI)) {
+	fake.setUIMutex.Lock()
+	defer fake.setUIMutex.Unlock()
+	fake.SetUIStub = stub
+}
+
+func (fake *FakeDeployment) SetUIArgsForCall(i int) *ui.UI {
+	fake.setUIMutex.RLock()
+	defer fake.setUIMutex.RUnlock()
+	argsForCall := fake.setUIArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeDeployment) Upgrade(arg1 kubernetes.Cluster, arg2 kubernetes.InstallationOptions) error {
 	fake.upgradeMutex.Lock()
 	ret, specificReturn := fake.upgradeReturnsOnCall[len(fake.upgradeArgsForCall)]
 	fake.upgradeArgsForCall = append(fake.upgradeArgsForCall, struct {
 		arg1 kubernetes.Cluster
-		arg2 *ui.UI
-		arg3 kubernetes.InstallationOptions
-	}{arg1, arg2, arg3})
+		arg2 kubernetes.InstallationOptions
+	}{arg1, arg2})
 	stub := fake.UpgradeStub
 	fakeReturns := fake.upgradeReturns
-	fake.recordInvocation("Upgrade", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("Upgrade", []interface{}{arg1, arg2})
 	fake.upgradeMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
@@ -601,17 +634,17 @@ func (fake *FakeDeployment) UpgradeCallCount() int {
 	return len(fake.upgradeArgsForCall)
 }
 
-func (fake *FakeDeployment) UpgradeCalls(stub func(kubernetes.Cluster, *ui.UI, kubernetes.InstallationOptions) error) {
+func (fake *FakeDeployment) UpgradeCalls(stub func(kubernetes.Cluster, kubernetes.InstallationOptions) error) {
 	fake.upgradeMutex.Lock()
 	defer fake.upgradeMutex.Unlock()
 	fake.UpgradeStub = stub
 }
 
-func (fake *FakeDeployment) UpgradeArgsForCall(i int) (kubernetes.Cluster, *ui.UI, kubernetes.InstallationOptions) {
+func (fake *FakeDeployment) UpgradeArgsForCall(i int) (kubernetes.Cluster, kubernetes.InstallationOptions) {
 	fake.upgradeMutex.RLock()
 	defer fake.upgradeMutex.RUnlock()
 	argsForCall := fake.upgradeArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *FakeDeployment) UpgradeReturns(result1 error) {
@@ -656,6 +689,8 @@ func (fake *FakeDeployment) Invocations() map[string][][]interface{} {
 	defer fake.neededOptionsMutex.RUnlock()
 	fake.restoreMutex.RLock()
 	defer fake.restoreMutex.RUnlock()
+	fake.setUIMutex.RLock()
+	defer fake.setUIMutex.RUnlock()
 	fake.upgradeMutex.RLock()
 	defer fake.upgradeMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}

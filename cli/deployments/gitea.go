@@ -15,9 +15,9 @@ import (
 )
 
 type Gitea struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
+	UI      *ui.UI
 }
 
 const (
@@ -41,6 +41,10 @@ func (k *Gitea) ID() string {
 	return giteaDeploymentID
 }
 
+func (k *Gitea) SetUI(ui *ui.UI) {
+	k.UI = ui
+}
+
 func (k *Gitea) Backup(c kubernetes.Cluster, d string) error {
 	return nil
 }
@@ -57,7 +61,7 @@ func (k Gitea) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), giteaDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Gitea) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Gitea) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -148,7 +152,7 @@ gitea:
 		}
 	}
 
-	ui.Success().Msg("Gitea deployed")
+	k.UI.Success().Msg("Gitea deployed")
 
 	return nil
 }
@@ -157,7 +161,7 @@ func (k Gitea) GetVersion() string {
 	return giteaVersion
 }
 
-func (k Gitea) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Gitea) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -168,9 +172,9 @@ func (k Gitea) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 		return errors.New("Namespace " + giteaDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Gitea...")
+	k.UI.Note().Msg("Deploying Gitea...")
 
-	err = k.apply(c, ui, options, false)
+	err = k.apply(c, options, false)
 	if err != nil {
 		return err
 	}
@@ -178,7 +182,7 @@ func (k Gitea) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 	return nil
 }
 
-func (k Gitea) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Gitea) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		giteaDeploymentID,
@@ -188,7 +192,7 @@ func (k Gitea) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.New("Namespace " + giteaDeploymentID + " not present")
 	}
 
-	ui.Note().Msg("Upgrading Gitea...")
+	k.UI.Note().Msg("Upgrading Gitea...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(c, options, true)
 }

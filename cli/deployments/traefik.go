@@ -15,9 +15,9 @@ import (
 )
 
 type Traefik struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
+	UI      *ui.UI
 }
 
 const (
@@ -32,6 +32,10 @@ func (k *Traefik) NeededOptions() kubernetes.InstallationOptions {
 
 func (k *Traefik) ID() string {
 	return traefikDeploymentID
+}
+
+func (k *Traefik) SetUI(ui *ui.UI) {
+	k.UI = ui
 }
 
 func (k *Traefik) Backup(c kubernetes.Cluster, d string) error {
@@ -52,7 +56,7 @@ func (k Traefik) Delete(c kubernetes.Cluster) error {
 
 //	for i, ip := range c.GetPlatform().ExternalIPs() {
 //		helmArgs = append(helmArgs, "--set controller.service.externalIPs["+strconv.Itoa(i)+"]="+ip)
-func (k Traefik) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Traefik) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -78,7 +82,7 @@ func (k Traefik) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to come up")
 	}
 
-	ui.Success().Msg("Traefik Ingress deployed")
+	k.UI.Success().Msg("Traefik Ingress deployed")
 
 	return nil
 }
@@ -87,7 +91,7 @@ func (k Traefik) GetVersion() string {
 	return traefikVersion
 }
 
-func (k Traefik) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Traefik) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -104,17 +108,17 @@ func (k Traefik) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		ui.Exclamation().Msg("Traefik Ingress already installed, skipping")
+		k.UI.Exclamation().Msg("Traefik Ingress already installed, skipping")
 
 		return nil
 	}
 
-	ui.Note().Msg("Deploying Traefik Ingress...")
+	k.UI.Note().Msg("Deploying Traefik Ingress...")
 
-	return k.apply(c, ui, options, false)
+	return k.apply(c, options, false)
 }
 
-func (k Traefik) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Traefik) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		traefikDeploymentID,
@@ -124,7 +128,7 @@ func (k Traefik) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return errors.New("Namespace " + traefikDeploymentID + " not present")
 	}
 
-	ui.Note().Msg("Upgrading Traefik Ingress...")
+	k.UI.Note().Msg("Upgrading Traefik Ingress...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(c, options, true)
 }

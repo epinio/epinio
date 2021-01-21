@@ -15,9 +15,9 @@ import (
 )
 
 type Quarks struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
+	UI      *ui.UI
 }
 
 const (
@@ -32,6 +32,10 @@ func (k *Quarks) NeededOptions() kubernetes.InstallationOptions {
 
 func (k *Quarks) ID() string {
 	return quarksDeploymentID
+}
+
+func (k *Quarks) SetUI(ui *ui.UI) {
+	k.UI = ui
 }
 
 func (k *Quarks) Backup(c kubernetes.Cluster, d string) error {
@@ -50,7 +54,7 @@ func (k Quarks) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Quarks) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -81,7 +85,7 @@ func (k Quarks) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 		}
 	}
 
-	ui.Success().Msg("Quarks deployed")
+	k.UI.Success().Msg("Quarks deployed")
 
 	return nil
 }
@@ -90,7 +94,7 @@ func (k Quarks) GetVersion() string {
 	return quarksVersion
 }
 
-func (k Quarks) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Quarks) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -101,12 +105,12 @@ func (k Quarks) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.New("Namespace " + quarksDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Quarks...")
+	k.UI.Note().Msg("Deploying Quarks...")
 
-	return k.apply(c, ui, options, false)
+	return k.apply(c, options, false)
 }
 
-func (k Quarks) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Quarks) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		quarksDeploymentID,
@@ -116,7 +120,7 @@ func (k Quarks) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.New("Namespace " + quarksDeploymentID + " not present")
 	}
 
-	ui.Note().Msg("Upgrading Quarks...")
+	k.UI.Note().Msg("Upgrading Quarks...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(c, options, true)
 }

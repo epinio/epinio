@@ -20,6 +20,7 @@ import (
 type Eirini struct {
 	Debug   bool
 	Timeout int
+	UI      *ui.UI
 }
 
 const (
@@ -45,6 +46,10 @@ func (k *Eirini) ID() string {
 	return eiriniDeploymentID
 }
 
+func (k *Eirini) SetUI(ui *ui.UI) {
+	k.UI = ui
+}
+
 func (k *Eirini) Backup(c kubernetes.Cluster, d string) error {
 	return nil
 }
@@ -61,7 +66,7 @@ func (k Eirini) Delete(c kubernetes.Cluster) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), eiriniDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Eirini) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	releaseDir, err := ioutil.TempDir("", "carrier")
 	if err != nil {
 		return err
@@ -182,7 +187,7 @@ func (k Eirini) apply(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 		}
 	}
 
-	ui.Success().Msg("Eirini deployed")
+	k.UI.Success().Msg("Eirini deployed")
 
 	return nil
 }
@@ -191,7 +196,7 @@ func (k Eirini) GetVersion() string {
 	return eiriniVersion
 }
 
-func (k Eirini) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -202,9 +207,9 @@ func (k Eirini) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.New("Namespace " + eiriniDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Eirini...")
+	k.UI.Note().Msg("Deploying Eirini...")
 
-	err = k.apply(c, ui, options)
+	err = k.apply(c, options)
 	if err != nil {
 		return err
 	}
@@ -212,7 +217,7 @@ func (k Eirini) Deploy(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	return nil
 }
 
-func (k Eirini) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		eiriniDeploymentID,
@@ -222,9 +227,9 @@ func (k Eirini) Upgrade(c kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.New("Namespace " + eiriniDeploymentID + " not present")
 	}
 
-	ui.Note().Msg("Upgrading Eirini...")
+	k.UI.Note().Msg("Upgrading Eirini...")
 
-	return k.apply(c, ui, options)
+	return k.apply(c, options)
 }
 
 func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool) error {
