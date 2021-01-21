@@ -29,6 +29,7 @@ type Tekton struct {
 
 const (
 	tektonDeploymentID            = "tekton"
+	tektonNamespace               = "tekton-pipelines"
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.19.0.yaml"
 	tektonDashboardYamlPath       = "tekton/dashboard-v0.11.1.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
@@ -73,9 +74,12 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	s.Start()
 	defer s.Stop()
 
-	err := c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
+	warning, err := c.DeleteNamespaceIfOwned(tektonNamespace)
 	if err != nil {
-		return errors.New("Failed uninstalling Tekton: " + err.Error())
+		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
+	}
+	if warning != "" {
+		fmt.Print(warning) // TODO: use cli
 	}
 
 	emoji.Println(":heavy_check_mark: Tekton removed")
@@ -98,6 +102,11 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	}
+
+	err := c.LabelNamespace(tektonNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	for _, crd := range []string{

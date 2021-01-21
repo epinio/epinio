@@ -62,12 +62,19 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 
 	helmCmd := fmt.Sprintf("helm uninstall quarks --namespace %s", quarksDeploymentID)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
-		return errors.New("Failed uninstalling Quarks: " + out)
+		if strings.Contains(out, "release: not found") {
+			fmt.Printf("%s helm release not found, skipping.\n", quarksDeploymentID)
+		} else {
+			return errors.New("Failed uninstalling Quarks: " + out)
+		}
 	}
 
-	err = c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
+	warning, err := c.DeleteNamespaceIfOwned(quarksDeploymentID)
 	if err != nil {
-		return errors.New("Failed uninstalling Quarks: " + err.Error())
+		return errors.Wrapf(err, "Failed deleting namespace %s", quarksDeploymentID)
+	}
+	if warning != "" {
+		fmt.Print(warning) // TODO: use cli
 	}
 
 	emoji.Println(":heavy_check_mark: Quarks removed")
@@ -104,6 +111,10 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		if err := c.WaitForPodBySelectorRunning(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to come up")
 		}
+	}
+	err := c.LabelNamespace(quarksDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	ui.Success().Msg("Quarks deployed")

@@ -62,12 +62,19 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 
 	helmCmd := fmt.Sprintf("helm uninstall traefik --namespace '%s'", traefikDeploymentID)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
-		return errors.New("Failed uninstalling Traefik: " + out)
+		if strings.Contains(out, "release: not found") {
+			fmt.Printf("%s helm release not found, skipping.\n", traefikDeploymentID)
+		} else {
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", traefikDeploymentID, out)
+		}
 	}
 
-	err = c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), traefikDeploymentID, metav1.DeleteOptions{})
+	warning, err := c.DeleteNamespaceIfOwned(traefikDeploymentID)
 	if err != nil {
-		return errors.New("Failed uninstalling Traefik: " + err.Error())
+		return errors.Wrapf(err, "Failed deleting namespace %s", traefikDeploymentID)
+	}
+	if warning != "" {
+		fmt.Print(warning) // TODO: use cli
 	}
 
 	emoji.Println(":heavy_check_mark: Traefik removed")
@@ -94,6 +101,11 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, traefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Traefik: %s\n", out))
+	}
+
+	err = c.LabelNamespace(traefikDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	if err := c.WaitUntilPodBySelectorExist(ui, traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {

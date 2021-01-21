@@ -25,11 +25,13 @@ type Eirini struct {
 }
 
 const (
-	eiriniDeploymentID = "eirini"
-	eiriniVersion      = "2.0.0"
-	eiriniReleasePath  = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
-	eiriniQuarksYaml   = "eirini/quarks-secrets.yaml"
-	eiriniIngressYaml  = "eirini/routing.yaml"
+	eiriniDeploymentID       = "eirini"
+	eiriniVersion            = "2.0.0"
+	eiriniReleasePath        = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
+	eiriniQuarksYaml         = "eirini/quarks-secrets.yaml"
+	eiriniWorkLoadsNamespace = "eirini-workloads"
+	eiriniCoreNamespace      = "eirini-core"
+	eiriniIngressYaml        = "eirini/routing.yaml"
 )
 
 func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
@@ -65,35 +67,17 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
 	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
 	s.Start()
+	defer s.Stop()
 
-	releaseDir, err := ioutil.TempDir("", "carrier")
-	if err != nil {
-		return err
+	for _, namespace := range []string{eiriniCoreNamespace, eiriniWorkLoadsNamespace} {
+		warning, err := c.DeleteNamespaceIfOwned(namespace)
+		if err != nil {
+			return errors.Wrapf(err, "Failed deleting namespace %s", namespace)
+		}
+		if warning != "" {
+			fmt.Print(warning) // TODO: use cli
+		}
 	}
-	defer os.RemoveAll(releaseDir)
-
-	releaseFile, err := helpers.ExtractFile(eiriniReleasePath)
-	if err != nil {
-		return errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
-	}
-	defer os.Remove(releaseFile)
-
-	err = helpers.Untar(releaseFile, releaseDir)
-	if err != nil {
-		return err
-	}
-
-	file := path.Join(releaseDir, "deploy", "core", "namespace.yml")
-	out, err := helpers.Kubectl("delete -f " + file)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-	file = path.Join(releaseDir, "deploy", "workloads", "namespace.yml")
-	out, err = helpers.Kubectl("delete -f " + file)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-	s.Stop()
 
 	emoji.Println(":heavy_check_mark: Eirini removed")
 
@@ -128,6 +112,10 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	if err != nil {
 		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
+	err = c.LabelNamespace(eiriniCoreNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
+	}
 
 	message = "Creating Eirini namespace for workloads"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
@@ -139,6 +127,10 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	)
 	if err != nil {
 		return errors.Wrapf(err, "%s failed:\n%s", message, out)
+	}
+	err = c.LabelNamespace(eiriniWorkLoadsNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	if err = k.patchNamespaceForQuarks(c, "eirini-workloads"); err != nil {
