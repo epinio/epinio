@@ -21,6 +21,7 @@ type Deployment interface {
 type Installer struct {
 	Deployments   []Deployment
 	NeededOptions InstallationOptions
+	UI            *ui.UI
 }
 
 func NewInstaller(deployments ...Deployment) *Installer {
@@ -81,8 +82,8 @@ func (i *Installer) PopulateNeededOptions(reader OptionsReader) error {
 
 // ShowNeededOptions prints the options and their values to stdout, to
 // inform the user of the detected and chosen configuration
-func (i *Installer) ShowNeededOptions(ui *ui.UI) {
-	m := ui.Normal()
+func (i *Installer) ShowNeededOptions() {
+	m := i.UI.Normal()
 	for _, opt := range i.NeededOptions {
 		name := "  :compass:" + opt.Name
 		switch opt.Type {
@@ -97,10 +98,10 @@ func (i *Installer) ShowNeededOptions(ui *ui.UI) {
 	m.Msg("Configuration...")
 }
 
-func (i *Installer) Install(cluster *Cluster, ui *ui.UI) error {
+func (i *Installer) Install(cluster *Cluster) error {
 	for _, deployment := range i.Deployments {
 		options := i.NeededOptions.ForDeployment(deployment.ID())
-		err := deployment.Deploy(*cluster, ui, options)
+		err := deployment.Deploy(*cluster, i.UI, options)
 		if err != nil {
 			return err
 		}

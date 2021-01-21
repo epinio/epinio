@@ -226,6 +226,8 @@ func (c *CarrierClient) Target(org string) error {
 func (c *CarrierClient) Install(cmd *cobra.Command, installer *kubernetes.Installer) error {
 	c.ui.Note().Msg("Carrier installing...")
 
+	installer.UI = c.ui
+
 	// Hack? Override static default for system domain with a
 	// function which queries the cluster for the necessary
 	// data. If that data could not be found the system will fall
@@ -264,7 +266,7 @@ func (c *CarrierClient) Install(cmd *cobra.Command, installer *kubernetes.Instal
 		installer.PopulateNeededOptions(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
 	}
 
-	installer.ShowNeededOptions(c.ui)
+	installer.ShowNeededOptions()
 
 	// TODO (post MVP): Run a validation phase which perform
 	// additional checks on the values. For example range limits,
@@ -272,7 +274,7 @@ func (c *CarrierClient) Install(cmd *cobra.Command, installer *kubernetes.Instal
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	err = installer.Install(c.kubeClient, c.ui)
+	err = installer.Install(c.kubeClient)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
 	}

@@ -169,7 +169,8 @@ var _ = Describe("Installer", func() {
 
 		It("prints the values of all options", func() {
 			output := captureStdout(func() {
-				installer.ShowNeededOptions(ui.NewUI())
+				installer.UI = ui.NewUI()
+				installer.ShowNeededOptions()
 			})
 			Expect(string(output)).To(ContainSubstring("Configuration..."))
 			Expect(string(output)).To(ContainSubstring("A string:"))
@@ -206,13 +207,15 @@ var _ = Describe("Installer", func() {
 		It("calls Deploy method on deployments", func() {
 			deployment1.IDReturns("Deployment1")
 			deployment2.IDReturns("Deployment2")
-			installer.Install(&cluster, ui.NewUI())
+			installer.UI = ui.NewUI()
+			installer.Install(&cluster)
 			Expect(deployment1.DeployCallCount()).To(Equal(1))
 			Expect(deployment2.DeployCallCount()).To(Equal(1))
 		})
 
 		It("calls Deploy method with the correct InstallationOptions for each deployment", func() {
-			installer.Install(&cluster, ui.NewUI())
+			installer.UI = ui.NewUI()
+			installer.Install(&cluster)
 			_, _, opts := deployment1.DeployArgsForCall(1)
 			Expect(opts).To(ContainElement(
 				InstallationOption{
