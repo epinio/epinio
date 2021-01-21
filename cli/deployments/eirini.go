@@ -69,6 +69,21 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	s.Start()
 	defer s.Stop()
 
+	releaseDir, err := k.ExtractRelease()
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(releaseDir)
+
+	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
+		dir := path.Join(releaseDir, "deploy", component)
+		out, err := helpers.Kubectl("delete --ignore-not-found=true -f " + dir)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		}
+	}
+
+	// Delete namespaces last
 	for _, namespace := range []string{eiriniCoreNamespace, eiriniWorkLoadsNamespace} {
 		warning, err := c.DeleteNamespaceIfOwned(namespace)
 		if err != nil {
@@ -85,22 +100,11 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 }
 
 func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-	releaseDir, err := ioutil.TempDir("", "carrier")
+	releaseDir, err := k.ExtractRelease()
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(releaseDir)
-
-	releaseFile, err := helpers.ExtractFile(eiriniReleasePath)
-	if err != nil {
-		return errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
-	}
-	defer os.Remove(releaseFile)
-
-	err = helpers.Untar(releaseFile, releaseDir)
-	if err != nil {
-		return err
-	}
 
 	message := "Creating Eirini namespace for core components"
 	out, err := helpers.WaitForCommandCompletion(ui, message,
@@ -355,4 +359,21 @@ func (k Eirini) patchOpiConfForPrivateRegistry(path string) (string, error) {
 `)
 
 	return "", err
+}
+
+// ExtractRelease extracts the embedded Eirini release tarball in a temporary
+// directory. It returns the path to the directory or an error if something fails.
+func (k Eirini) ExtractRelease() (string, error) {
+	releaseDir, err := ioutil.TempDir("", "carrier")
+	if err != nil {
+		return "", err
+	}
+
+	releaseFile, err := helpers.ExtractFile(eiriniReleasePath)
+	if err != nil {
+		return "", errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
+	}
+	defer os.Remove(releaseFile)
+
+	return releaseDir, helpers.Untar(releaseFile, releaseDir)
 }
