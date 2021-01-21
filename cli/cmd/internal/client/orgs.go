@@ -14,7 +14,7 @@ var CmdOrgs = &cobra.Command{
 	Use:   "orgs",
 	Short: "Lists all orgs",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, cleanup, err := paas.BuildApp(cmd.Flags(), nil)
+		app, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

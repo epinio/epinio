@@ -49,10 +49,10 @@ func init() {
 
 // Install command installs carrier on a configured cluster
 func Install(cmd *cobra.Command, args []string) error {
-	carrier_install, cleanup_install, err := paas.BuildInstallApp(cmd.Flags(), nil)
+	install_client, install_cleanup, err := paas.NewInstallClient(cmd.Flags(), nil)
 	defer func() {
-		if cleanup_install != nil {
-			cleanup_install()
+		if install_cleanup != nil {
+			install_cleanup()
 		}
 	}()
 
@@ -60,17 +60,17 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = carrier_install.Install(cmd, &installer)
+	err = install_client.Install(cmd, &installer)
 	if err != nil {
 		return errors.Wrap(err, "error installing Carrier")
 	}
 
 	// Installation complete. Run `create-org`
 
-	carrier, cleanup, err := paas.BuildApp(cmd.Flags(), nil)
+	carrier_client, carrier_cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 	defer func() {
-		if cleanup != nil {
-			cleanup()
+		if carrier_cleanup != nil {
+			carrier_cleanup()
 		}
 	}()
 
@@ -78,7 +78,7 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = carrier.CreateOrg("workspace")
+	err = carrier_client.CreateOrg("workspace")
 	if err != nil {
 		return errors.Wrap(err, "error creating org")
 	}

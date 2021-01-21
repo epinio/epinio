@@ -13,8 +13,8 @@ import (
 	"github.com/suse/carrier/cli/paas/ui"
 )
 
-// BuildApp creates the Carrier Client
-func BuildApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
+// NewCarrierClient creates the Carrier Client
+func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
 	wire.Build(
 		wire.Struct(new(CarrierClient), "*"),
 		config.Load,
@@ -29,15 +29,15 @@ func BuildApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*Carr
 	return &CarrierClient{}, func() {}, nil
 }
 
-// BuildInstallApp creates the Carrier Client for installation
-func BuildInstallApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
+// NewInstallClient creates the Carrier Client for installation
+func NewInstallClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*InstallClient, func(), error) {
 	wire.Build(
-		wire.Struct(new(CarrierClient), "config", "ui", "kubeClient"),
+		wire.Struct(new(InstallClient), "*"),
 		config.Load,
 		ui.NewUI,
 		kubernetes.NewClusterFromClient,
 		kubeconfig.KubeConfig,
 	)
 
-	return &CarrierClient{}, func() {}, nil
+	return &InstallClient{}, func() {}, nil
 }
