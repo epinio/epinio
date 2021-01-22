@@ -37,6 +37,7 @@ func Execute() {
 
 	rootCmd.AddCommand(CmdCompletion)
 	rootCmd.AddCommand(client.CmdInstall)
+	rootCmd.AddCommand(client.CmdUninstall)
 	rootCmd.AddCommand(client.CmdInfo)
 	rootCmd.AddCommand(client.CmdOrgs)
 	rootCmd.AddCommand(client.CmdCreateOrg)

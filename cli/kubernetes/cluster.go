@@ -33,6 +33,16 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
+const (
+	// APISGroupName is the api name used for carrier
+	APISGroupName = "carrier.suse.org"
+)
+
+var (
+	CarrierDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
+	CarrierDeploymentLabelValue = "true"
+)
+
 type Platform interface {
 	Detect(*kubernetes.Clientset) bool
 	Describe() string

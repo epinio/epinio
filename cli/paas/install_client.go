@@ -79,6 +79,23 @@ func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.Depl
 	return nil
 }
 
+// Uninstall removes carrier from the cluster.
+func (c *InstallClient) Uninstall(cmd *cobra.Command, deployments *kubernetes.DeploymentSet) error {
+	c.ui.Note().Msg("Carrier uninstalling...")
+
+	size := len(deployments.Deployments)
+	for index := range deployments.Deployments {
+		err := deployments.Deployments[size-index-1].Delete(c.kubeClient, c.ui)
+		if err != nil {
+			return err
+		}
+	}
+
+	c.ui.Success().Msg("Carrier uninstalled.")
+
+	return nil
+}
+
 // showInstallConfiguration prints the options and their values to stdout, to
 // inform the user of the detected and chosen configuration
 func (c *InstallClient) showInstallConfiguration(ds *kubernetes.DeploymentSet) {
