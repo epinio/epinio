@@ -77,7 +77,8 @@ func (u *UI) Progressf(message string, a ...interface{}) Progress {
 // Progress creates, configures, and returns an active progress
 // meter. It accepts a fixed message.
 func (u *UI) Progress(message string) Progress {
-	return NewSpinProgress(message)
+	return NewDotProgress(u, message)
+	// return NewSpinProgress(message)
 }
 
 // Normal returns a UIMessage that prints a normal message
@@ -123,6 +124,10 @@ func (u *UI) Problem() *Message {
 		interactions: []interaction{},
 		end:          -1,
 	}
+}
+
+func (u *UI) Raw(message string) {
+	fmt.Printf("%s", message)
 }
 
 // Msgf prints a formatted message on the CLI
