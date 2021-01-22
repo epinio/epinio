@@ -109,7 +109,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return err
 	}
 
-	message = "Creating eirini certs using quarks-secret"
+	message = "Creating Eirini certs using quarks-secret"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(eiriniQuarksYaml)
@@ -130,7 +130,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
-		message := "Deploying eirini " + component
+		message := "Deploying Eirini " + component
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				dir := path.Join(releaseDir, "deploy", component)
@@ -142,7 +142,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		}
 	}
 
-	message = "Deploying eirini ingress extension"
+	message = "Deploying Eirini ingress extension"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(eiriniIngressYaml)

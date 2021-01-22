@@ -97,7 +97,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		"triggers.triggers.tekton.dev",
 		"triggertemplates.triggers.tekton.dev",
 	} {
-		message := fmt.Sprintf("Waiting for crd %s to be established", crd)
+		message := fmt.Sprintf("Establish CRD %s", crd)
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				return helpers.Kubectl("wait --for=condition=established --timeout=" + strconv.Itoa(k.Timeout) + "s crd/" + crd)
@@ -108,7 +108,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		}
 	}
 
-	message := "Waiting for tekton triggers webhook pod to be running"
+	message := "Starting tekton triggers webhook pod"
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
@@ -118,7 +118,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Waiting for tekton pipelines webhook pod to be running"
+	message = "Starting tekton pipelines webhook pod"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
@@ -138,7 +138,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Install the tekton dashboard"
+	message = "Installing the tekton dashboard"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath)
@@ -148,7 +148,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Waiting for registry certificates to be created in the eirini-workloads namespace"
+	message = "Creating registry certificates in eirini-workloads"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(

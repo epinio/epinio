@@ -180,7 +180,7 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 // Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
 func (c *Cluster) WaitUntilPodBySelectorExist(ui *ui.UI, namespace, selector string, timeout int) error {
-	s := ui.Progressf(" Waiting for resource %s to be created in %s ...", selector, namespace)
+	s := ui.Progressf("Creating %s in %s", selector, namespace)
 	defer s.Stop()
 
 	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodExists(namespace, selector))
@@ -190,7 +190,7 @@ func (c *Cluster) WaitUntilPodBySelectorExist(ui *ui.UI, namespace, selector str
 // with given 'selector' to enter running state. Returns an error if no pods are
 // found or not all discovered pods enter running state.
 func (c *Cluster) WaitForPodBySelectorRunning(ui *ui.UI, namespace, selector string, timeout int) error {
-	s := ui.Progressf(" Waiting for resource %s to be running in %s ...", selector, namespace)
+	s := ui.Progressf("Starting %s in %s", selector, namespace)
 	defer s.Stop()
 
 	podList, err := c.ListPods(namespace, selector)
@@ -203,7 +203,7 @@ func (c *Cluster) WaitForPodBySelectorRunning(ui *ui.UI, namespace, selector str
 	}
 
 	for _, pod := range podList.Items {
-		s.ChangeMessagef(" Waiting for pod %s to be running in %s ...", pod.Name, namespace)
+		s.ChangeMessagef("  Starting pod %s in %s", pod.Name, namespace)
 		if err := c.WaitForPodRunning(namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
 			events, err2 := c.GetPodEvents(namespace, pod.Name)
 			if err2 != nil {
