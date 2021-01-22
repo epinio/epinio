@@ -15,7 +15,7 @@ var CmdDeleteApp = &cobra.Command{
 	Short: "Deletes an app",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, cleanup, err := paas.BuildApp(cmd.Flags(), nil)
+		app, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

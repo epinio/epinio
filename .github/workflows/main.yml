@@ -70,7 +70,6 @@ jobs:
       - name: Push an App
         run: |
           sleep 8m ;# Wait for tekton to be usable
-          ./cli/dist/carrier-linux-amd64 create-org workspace ;# FUTURE: Part of install.
           ( cd ./sample-app ; ../cli/dist/carrier-linux-amd64 push "ci${GITHUB_RUN_NUMBER}" )
       # - name: Carrier Apps
       #   run: |

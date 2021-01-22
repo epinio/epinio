@@ -10,12 +10,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Gitea struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
 }
 
@@ -40,11 +40,11 @@ func (k *Gitea) ID() string {
 	return giteaDeploymentID
 }
 
-func (k *Gitea) Backup(c kubernetes.Cluster, d string) error {
+func (k *Gitea) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
-func (k *Gitea) Restore(c kubernetes.Cluster, d string) error {
+func (k *Gitea) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
@@ -52,11 +52,11 @@ func (k Gitea) Describe() string {
 	return emoji.Sprintf(":cloud:Gitea version: %s\n:clipboard:Gitea chart: %s", giteaVersion, giteaChartURL)
 }
 
-func (k Gitea) Delete(c kubernetes.Cluster) error {
+func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), giteaDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Gitea) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -139,15 +139,15 @@ gitea:
 		"postgresql",
 		"gitea",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to come up")
 		}
 	}
 
-	emoji.Println(":heavy_check_mark: Gitea deployed")
+	ui.Success().Msg("Gitea deployed")
 
 	return nil
 }
@@ -156,7 +156,7 @@ func (k Gitea) GetVersion() string {
 	return giteaVersion
 }
 
-func (k Gitea) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -167,8 +167,9 @@ func (k Gitea) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.New("Namespace " + giteaDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Gitea")
-	err = k.apply(c, options, false)
+	ui.Note().Msg("Deploying Gitea...")
+
+	err = k.apply(c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -176,7 +177,7 @@ func (k Gitea) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	return nil
 }
 
-func (k Gitea) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Gitea) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		giteaDeploymentID,
@@ -186,6 +187,7 @@ func (k Gitea) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + giteaDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Gitea")
-	return k.apply(c, options, true)
+	ui.Note().Msg("Upgrading Gitea...")
+
+	return k.apply(c, ui, options, true)
 }

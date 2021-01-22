@@ -15,7 +15,7 @@ var CmdApps = &cobra.Command{
 	Short: "Lists all apps",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, cleanup, err := paas.BuildApp(cmd.Flags(), nil)
+		app, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()

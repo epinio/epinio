@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -44,11 +45,11 @@ func (k *Eirini) ID() string {
 	return eiriniDeploymentID
 }
 
-func (k *Eirini) Backup(c kubernetes.Cluster, d string) error {
+func (k *Eirini) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
-func (k *Eirini) Restore(c kubernetes.Cluster, d string) error {
+func (k *Eirini) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
@@ -56,11 +57,11 @@ func (k Eirini) Describe() string {
 	return emoji.Sprintf(":cloud:Eirini version: %s\n:clipboard:Eirini chart: %s", eiriniVersion, eiriniReleasePath)
 }
 
-func (k Eirini) Delete(c kubernetes.Cluster) error {
+func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), eiriniDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	releaseDir, err := ioutil.TempDir("", "carrier")
 	if err != nil {
 		return err
@@ -79,18 +80,18 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 
 	message := "Creating Eirini namespace for core components"
-	out, err := helpers.SpinnerWaitCommand(message,
+	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			file := path.Join(releaseDir, "deploy", "core", "namespace.yml")
 			return helpers.Kubectl("apply -f " + file)
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	message = "Creating Eirini namespace for workloads"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			file := path.Join(releaseDir, "deploy", "workloads", "namespace.yml")
 			return helpers.Kubectl("apply -f " + file)
@@ -98,7 +99,7 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	if err = k.patchNamespaceForQuarks(c, "eirini-workloads"); err != nil {
@@ -108,47 +109,47 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return err
 	}
 
-	message = "Creating eirini certs using quarks-secret"
-	out, err = helpers.SpinnerWaitCommand(message,
+	message = "Creating Eirini certs using quarks-secret"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(eiriniQuarksYaml)
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	message = "Adding private registry configuration"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return k.patchOpiConfForPrivateRegistry(path.Join(releaseDir, "deploy", "core", "api-configmap.yml"))
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
-		message := "Deploying eirini " + component
-		out, err := helpers.SpinnerWaitCommand(message,
+		message := "Deploying Eirini " + component
+		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				dir := path.Join(releaseDir, "deploy", component)
 				return helpers.Kubectl("apply -f " + dir)
 			},
 		)
 		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			return errors.Wrapf(err, "%s failed:\n%s", message, out)
 		}
 	}
 
-	message = "Deploying eirini ingress extension"
-	out, err = helpers.SpinnerWaitCommand(message,
+	message = "Deploying Eirini ingress extension"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(eiriniIngressYaml)
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	domain, err := options.GetString("system_domain", eiriniDeploymentID)
@@ -173,15 +174,15 @@ func (k Eirini) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		"eirini-api",
 		"eirini-metrics",
 	} {
-		if err := c.WaitUntilPodBySelectorExist("eirini-core", "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, "eirini-core", "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Eirini "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning("eirini-core", "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, "eirini-core", "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Eirini "+podname+" deployment to come up")
 		}
 	}
 
-	emoji.Println(":heavy_check_mark: Eirini deployed")
+	ui.Success().Msg("Eirini deployed")
 
 	return nil
 }
@@ -190,7 +191,7 @@ func (k Eirini) GetVersion() string {
 	return eiriniVersion
 }
 
-func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -201,8 +202,9 @@ func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + eiriniDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Eirini")
-	err = k.apply(c, options)
+	ui.Note().Msg("Deploying Eirini...")
+
+	err = k.apply(c, ui, options)
 	if err != nil {
 		return err
 	}
@@ -210,7 +212,7 @@ func (k Eirini) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 	return nil
 }
 
-func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Eirini) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		eiriniDeploymentID,
@@ -220,11 +222,12 @@ func (k Eirini) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Namespace " + eiriniDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Eirini")
-	return k.apply(c, options)
+	ui.Note().Msg("Upgrading Eirini...")
+
+	return k.apply(c, ui, options)
 }
 
-func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool) error {
+func (k Eirini) createClusterRegistryCredsSecret(c *kubernetes.Cluster, http bool) error {
 	var protocol, secretName, port string
 	if http {
 		protocol = "http"
@@ -252,7 +255,7 @@ func (k Eirini) createClusterRegistryCredsSecret(c kubernetes.Cluster, http bool
 	return nil
 }
 
-func (k Eirini) createGitCredsSecret(c kubernetes.Cluster, domain string) error {
+func (k Eirini) createGitCredsSecret(c *kubernetes.Cluster, domain string) error {
 	_, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").Create(context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -274,7 +277,7 @@ func (k Eirini) createGitCredsSecret(c kubernetes.Cluster, domain string) error 
 	return nil
 }
 
-func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name string) error {
+func (k Eirini) patchServiceAccountWithSecretAccess(c *kubernetes.Cluster, name string) error {
 	patchContents := `
 {
   "secrets": [
@@ -297,7 +300,7 @@ func (k Eirini) patchServiceAccountWithSecretAccess(c kubernetes.Cluster, name s
 	return nil
 }
 
-func (k Eirini) patchNamespaceForQuarks(c kubernetes.Cluster, namespace string) error {
+func (k Eirini) patchNamespaceForQuarks(c *kubernetes.Cluster, namespace string) error {
 	patchContents := `{ "metadata": { "labels": { "quarks.cloudfoundry.org/monitored": "quarks-secret" } } }`
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Patch(context.Background(), namespace,

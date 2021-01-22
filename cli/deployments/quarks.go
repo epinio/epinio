@@ -10,12 +10,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Quarks struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
 }
 
@@ -33,11 +33,11 @@ func (k *Quarks) ID() string {
 	return quarksDeploymentID
 }
 
-func (k *Quarks) Backup(c kubernetes.Cluster, d string) error {
+func (k *Quarks) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
-func (k *Quarks) Restore(c kubernetes.Cluster, d string) error {
+func (k *Quarks) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
@@ -45,11 +45,11 @@ func (k Quarks) Describe() string {
 	return emoji.Sprintf(":cloud:Quarks version: %s\n:clipboard:Quarks chart: %s", quarksVersion, quarksChartURL)
 }
 
-func (k Quarks) Delete(c kubernetes.Cluster) error {
+func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -72,15 +72,15 @@ func (k Quarks) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		"quarks-secret",
 		"quarks-job",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to come up")
 		}
 	}
 
-	emoji.Println(":heavy_check_mark: Quarks deployed")
+	ui.Success().Msg("Quarks deployed")
 
 	return nil
 }
@@ -89,7 +89,7 @@ func (k Quarks) GetVersion() string {
 	return quarksVersion
 }
 
-func (k Quarks) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Quarks) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -100,11 +100,12 @@ func (k Quarks) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + quarksDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Quarks")
-	return k.apply(c, options, false)
+	ui.Note().Msg("Deploying Quarks...")
+
+	return k.apply(c, ui, options, false)
 }
 
-func (k Quarks) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Quarks) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		quarksDeploymentID,
@@ -114,6 +115,7 @@ func (k Quarks) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Namespace " + quarksDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Quarks")
-	return k.apply(c, options, true)
+	ui.Note().Msg("Upgrading Quarks...")
+
+	return k.apply(c, ui, options, true)
 }

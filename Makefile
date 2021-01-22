@@ -46,9 +46,8 @@ vet:
 tidy:
 	@$(MAKE) -C cli tidy
 
-generate_fakes:
-	@$(MAKE) -C cli generate_fakes
-
+generate:
+	@$(MAKE) -C cli generate
 
 ########################################################################
 # Kube dev environments

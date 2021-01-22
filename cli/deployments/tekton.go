@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -48,11 +49,11 @@ func (k *Tekton) ID() string {
 	return tektonDeploymentID
 }
 
-func (k *Tekton) Backup(c kubernetes.Cluster, d string) error {
+func (k *Tekton) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
-func (k *Tekton) Restore(c kubernetes.Cluster, d string) error {
+func (k *Tekton) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
@@ -61,11 +62,11 @@ func (k Tekton) Describe() string {
 		tektonPipelineReleaseYamlPath, tektonDashboardYamlPath, tektonTriggersReleaseYamlPath)
 }
 
-func (k Tekton) Delete(c kubernetes.Cluster) error {
+func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	// action := "install"
 	// if upgrade {
 	// 	action = "upgrade"
@@ -96,8 +97,8 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		"triggers.triggers.tekton.dev",
 		"triggertemplates.triggers.tekton.dev",
 	} {
-		message := fmt.Sprintf("Waiting for crd %s to be established", crd)
-		out, err := helpers.SpinnerWaitCommand(message,
+		message := fmt.Sprintf("Establish CRD %s", crd)
+		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
 				return helpers.Kubectl("wait --for=condition=established --timeout=" + strconv.Itoa(k.Timeout) + "s crd/" + crd)
 			},
@@ -107,8 +108,8 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		}
 	}
 
-	message := "Waiting for tekton triggers webhook pod to be running"
-	out, err := helpers.SpinnerWaitCommand(message,
+	message := "Starting tekton triggers webhook pod"
+	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
 		},
@@ -117,8 +118,8 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Waiting for tekton pipelines webhook pod to be running"
-	out, err = helpers.SpinnerWaitCommand(message,
+	message = "Starting tekton pipelines webhook pod"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
 		},
@@ -128,7 +129,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 
 	message = "Installing staging pipelines and triggers"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath)
 		},
@@ -137,8 +138,8 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Install the tekton dashboard"
-	out, err = helpers.SpinnerWaitCommand(message,
+	message = "Installing the tekton dashboard"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonDashboardYamlPath)
 		},
@@ -147,8 +148,8 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Waiting for registry certificates to be created in the eirini-workloads namespace"
-	out, err = helpers.SpinnerWaitCommand(message,
+	message = "Creating registry certificates in eirini-workloads"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
@@ -171,9 +172,9 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 
 	message = "Applying tekton staging resources"
-	out, err = helpers.SpinnerWaitCommand(message,
+	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return applyTektonStaging(c)
+			return applyTektonStaging(c, ui)
 		},
 	)
 	if err != nil {
@@ -186,7 +187,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 	}
 
 	message = "Creating Tekton dashboard ingress"
-	_, err = helpers.SpinnerWaitCommand(message,
+	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return "", createTektonIngress(c, tektonDeploymentID+"."+domain)
 		},
@@ -195,7 +196,7 @@ func (k Tekton) apply(c kubernetes.Cluster, options kubernetes.InstallationOptio
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
-	emoji.Println(":heavy_check_mark: Tekton deployed")
+	ui.Success().Msg("Tekton deployed")
 
 	return nil
 }
@@ -205,7 +206,7 @@ func (k Tekton) GetVersion() string {
 		tektonPipelineReleaseYamlPath, tektonTriggersReleaseYamlPath, tektonDashboardYamlPath)
 }
 
-func (k Tekton) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -216,8 +217,9 @@ func (k Tekton) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 		return errors.New("Namespace " + tektonDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Tekton")
-	err = k.apply(c, options, false)
+	ui.Note().Msg("Deploying Tekton...")
+
+	err = k.apply(c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -225,7 +227,7 @@ func (k Tekton) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOpti
 	return nil
 }
 
-func (k Tekton) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		tektonDeploymentID,
@@ -235,14 +237,15 @@ func (k Tekton) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Namespace " + tektonDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Tekton")
-	return k.apply(c, options, true)
+	ui.Note().Msg("Upgrading Tekton...")
+
+	return k.apply(c, ui, options, true)
 }
 
 // The equivalent of:
 // kubectl get secret -n eirini-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCAHash(c kubernetes.Cluster) (string, error) {
+func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").
 		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
 	if err != nil {
@@ -252,8 +255,8 @@ func getRegistryCAHash(c kubernetes.Cluster) (string, error) {
 	return helpers.OpenSSLSubjectHash(string(secret.Data["ca"]))
 }
 
-func applyTektonStaging(c kubernetes.Cluster) (string, error) {
-	caHash, err := getRegistryCAHash(c)
+func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
+	caHash, err := getRegistryCAHash(c, ui)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get registry CA from eirini-workloads namespace")
 	}
@@ -283,7 +286,7 @@ func applyTektonStaging(c kubernetes.Cluster) (string, error) {
 	return helpers.Kubectl(fmt.Sprintf("apply -n eirini-workloads --filename %s", tmpFilePath))
 }
 
-func createTektonIngress(c kubernetes.Cluster, subdomain string) error {
+func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
 	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses("tekton-pipelines").Create(
 		context.Background(),
 		&v1beta1.Ingress{

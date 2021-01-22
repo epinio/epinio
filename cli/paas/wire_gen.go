@@ -17,7 +17,8 @@ import (
 
 // Injectors from wire.go:
 
-func BuildApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
+// NewCarrierClient creates the Carrier Client
+func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
 	configConfig, err := config.Load()
 	if err != nil {
 		return nil, nil, err
@@ -49,5 +50,29 @@ func BuildApp(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*Carr
 		eiriniClient:  clientset,
 	}
 	return carrierClient, func() {
+	}, nil
+}
+
+// NewInstallClient creates the Carrier Client for installation
+func NewInstallClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*InstallClient, func(), error) {
+	restConfig, err := config2.KubeConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+	cluster, err := kubernetes.NewClusterFromClient(restConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	uiUI := ui.NewUI()
+	configConfig, err := config.Load()
+	if err != nil {
+		return nil, nil, err
+	}
+	installClient := &InstallClient{
+		kubeClient: cluster,
+		ui:         uiUI,
+		config:     configConfig,
+	}
+	return installClient, func() {
 	}, nil
 }

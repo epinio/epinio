@@ -9,13 +9,13 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Registry struct {
-	Debug bool
-
+	Debug   bool
 	Timeout int
 }
 
@@ -40,11 +40,11 @@ func (k *Registry) ID() string {
 	return registryDeploymentID
 }
 
-func (k *Registry) Backup(c kubernetes.Cluster, d string) error {
+func (k *Registry) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
-func (k *Registry) Restore(c kubernetes.Cluster, d string) error {
+func (k *Registry) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
 	return nil
 }
 
@@ -52,11 +52,11 @@ func (k Registry) Describe() string {
 	return emoji.Sprintf(":cloud:Registry version: %s\n:clipboard:Registry chart: %s", registryVersion, registryChartFile)
 }
 
-func (k Registry) Delete(c kubernetes.Cluster) error {
+func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), registryDeploymentID, metav1.DeleteOptions{})
 }
 
-func (k Registry) apply(c kubernetes.Cluster, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -82,14 +82,14 @@ func (k Registry) apply(c kubernetes.Cluster, options kubernetes.InstallationOpt
 		return errors.New("Failed installing Registry: " + out)
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 
-	emoji.Println(":heavy_check_mark: Registry deployed")
+	ui.Success().Msg("Registry deployed")
 
 	return nil
 }
@@ -98,7 +98,7 @@ func (k Registry) GetVersion() string {
 	return registryVersion
 }
 
-func (k Registry) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -109,8 +109,9 @@ func (k Registry) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOp
 		return errors.New("Namespace " + registryDeploymentID + " present already")
 	}
 
-	emoji.Println(":ship:Deploying Registry")
-	err = k.apply(c, options, false)
+	ui.Note().Msg("Deploying Registry...")
+
+	err = k.apply(c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -118,7 +119,7 @@ func (k Registry) Deploy(c kubernetes.Cluster, options kubernetes.InstallationOp
 	return nil
 }
 
-func (k Registry) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Registry) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		registryDeploymentID,
@@ -128,11 +129,12 @@ func (k Registry) Upgrade(c kubernetes.Cluster, options kubernetes.InstallationO
 		return errors.New("Namespace " + registryDeploymentID + " not present")
 	}
 
-	emoji.Println(":ship:Upgrade Registry")
-	return k.apply(c, options, true)
+	ui.Note().Msg("Upgrading Registry...")
+
+	return k.apply(c, ui, options, true)
 }
 
-func createQuarksMonitoredNamespace(c kubernetes.Cluster, name string) error {
+func createQuarksMonitoredNamespace(c *kubernetes.Cluster, name string) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Create(
 		context.Background(),
 		&corev1.Namespace{
