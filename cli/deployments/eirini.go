@@ -77,7 +77,7 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 
 	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
 		dir := path.Join(releaseDir, "deploy", component)
-		out, err := helpers.Kubectl("delete --ignore-not-found=true -f " + dir)
+		out, err := helpers.Kubectl("delete --ignore-not-found=true --wait=false -f " + dir)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 		}
