@@ -11,7 +11,7 @@ var ()
 
 // CmdCreateOrg implements the carrier orgs command
 var CmdCreateOrg = &cobra.Command{
-	Use:   "create-org [args]",
+	Use:   "create-org NAME",
 	Short: "Creates an org",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
