@@ -139,6 +139,11 @@ func (u *Message) Msgf(message string, a ...interface{}) {
 func (u *Message) Msg(message string) {
 	message = emoji.Sprint(message)
 
+	// Always print a newline before starting output
+	if message != "" {
+		fmt.Println()
+	}
+
 	switch u.msgType {
 	case normal:
 		fmt.Println(message)

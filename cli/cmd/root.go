@@ -15,7 +15,10 @@ const (
 	Version = "0.1"
 )
 
-var kubeconfig string
+var (
+	flagConfigFile string
+	kubeconfig     string
+)
 
 // Execute adds all child commands to the root command sets flags appropriately.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
@@ -30,6 +33,8 @@ func Execute() {
 		SilenceErrors: true,
 	}
 
+	rootCmd.PersistentFlags().StringVarP(&flagConfigFile, "config-file", "", "", "set path of configuration file")
+
 	rootCmd.AddCommand(client.CmdInstall)
 	rootCmd.AddCommand(client.CmdInfo)
 	rootCmd.AddCommand(client.CmdOrgs)
@@ -37,6 +42,7 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdPush)
 	rootCmd.AddCommand(client.CmdDeleteApp)
 	rootCmd.AddCommand(client.CmdApps)
+	rootCmd.AddCommand(client.CmdTarget)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

@@ -15,7 +15,7 @@ var CmdPush = &cobra.Command{
 	Short: "Push an app",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -27,7 +27,7 @@ var CmdPush = &cobra.Command{
 		}
 
 		// TODO - add a parameter for path
-		err = app.Push(args[0], ".")
+		err = client.Push(args[0], ".")
 		if err != nil {
 			return errors.Wrap(err, "error pushing app")
 		}

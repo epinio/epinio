@@ -15,7 +15,7 @@ var CmdApps = &cobra.Command{
 	Short: "Lists all apps",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -26,7 +26,7 @@ var CmdApps = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = app.Apps()
+		err = client.Apps()
 		if err != nil {
 			return errors.Wrap(err, "error listing apps")
 		}
