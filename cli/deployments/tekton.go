@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -68,11 +67,7 @@ func (k Tekton) Describe() string {
 
 // Delete removes Tekton from kubernetes cluster
 func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	message := "Deleting Tekton"
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
-	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
-	s.Start()
-	defer s.Stop()
+	ui.Note().Msg("Removing Tekton...")
 
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
@@ -87,15 +82,20 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
 	}
 
-	warning, err := c.DeleteNamespaceIfOwned(tektonNamespace)
+	message := "Deleting Tekton namespace " + tektonNamespace
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(tektonNamespace)
+		},
+	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
 	}
 	if warning != "" {
-		fmt.Print(warning) // TODO: use cli
+		ui.Exclamation().Msg(warning)
 	}
 
-	emoji.Println(":heavy_check_mark: Tekton removed")
+	ui.Success().Msg("Tekton removed")
 
 	return nil
 }

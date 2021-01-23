@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -49,32 +47,39 @@ func (k Quarks) Describe() string {
 
 // Delete removes Quarks from kubernetes cluster
 func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	message := "Deleting Quarks"
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
-	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
-	s.Start()
-	defer s.Stop()
+	ui.Note().Msg("Removing Quarks...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Quarks: " + err.Error())
 	}
 
-	helmCmd := fmt.Sprintf("helm uninstall quarks --namespace %s", quarksDeploymentID)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	message := "Removing helm release " + quarksDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall quarks --namespace %s", quarksDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
 		if strings.Contains(out, "release: not found") {
-			fmt.Printf("%s helm release not found, skipping.\n", quarksDeploymentID)
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", quarksDeploymentID)
 		} else {
 			return errors.New("Failed uninstalling Quarks: " + out)
 		}
 	}
 
-	warning, err := c.DeleteNamespaceIfOwned(quarksDeploymentID)
+	message = "Deleting Quarks namespace " + quarksDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(quarksDeploymentID)
+		},
+	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", quarksDeploymentID)
 	}
 	if warning != "" {
-		fmt.Print(warning) // TODO: use cli
+		ui.Exclamation().Msg(warning)
 	}
 
 	for _, crd := range []string{
@@ -89,7 +94,7 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		}
 	}
 
-	emoji.Println(":heavy_check_mark: Quarks removed")
+	ui.Success().Msg("Quarks removed")
 
 	return nil
 }

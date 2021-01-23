@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -57,36 +55,42 @@ func (k Registry) Describe() string {
 
 // Delete removes Registry from kubernetes cluster
 func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	// TODO: replace printf with ui later
-	message := "Deleting Registry"
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
-	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
-	s.Start()
-	defer s.Stop()
+	ui.Note().Msg("Removing Registry...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Registry: " + err.Error())
 	}
 
-	helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", registryDeploymentID, registryDeploymentID)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	message := "Removing helm release " + registryDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", registryDeploymentID, registryDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
 		if strings.Contains(out, "release: not found") {
-			fmt.Printf("%s helm release not found, skipping.\n", registryDeploymentID)
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", registryDeploymentID)
 		} else {
 			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", registryDeploymentID, out)
 		}
 	}
 
-	warning, err := c.DeleteNamespaceIfOwned(registryDeploymentID)
+	message = "Deleting Registry namespace " + registryDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(registryDeploymentID)
+		},
+	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", registryDeploymentID)
 	}
 	if warning != "" {
-		fmt.Print(warning) // TODO: use cli
+		ui.Exclamation().Msg(warning)
 	}
 
-	emoji.Println(":heavy_check_mark: Registry removed")
+	ui.Success().Msg("Registry removed")
 
 	return nil
 }

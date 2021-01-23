@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -49,35 +47,42 @@ func (k Traefik) Describe() string {
 
 // Delete removes traefik from kubernetes cluster
 func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	message := "Deleting Traefik"
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
-	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
-	s.Start()
-	defer s.Stop()
+	ui.Note().Msg("Removing Traefik...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Traefik: " + err.Error())
 	}
 
-	helmCmd := fmt.Sprintf("helm uninstall traefik --namespace '%s'", traefikDeploymentID)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	message := "Removing helm release " + traefikDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall traefik --namespace '%s'", traefikDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
 		if strings.Contains(out, "release: not found") {
-			fmt.Printf("%s helm release not found, skipping.\n", traefikDeploymentID)
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", traefikDeploymentID)
 		} else {
 			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", traefikDeploymentID, out)
 		}
 	}
 
-	warning, err := c.DeleteNamespaceIfOwned(traefikDeploymentID)
+	message = "Deleting Traefik namespace " + traefikDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(traefikDeploymentID)
+		},
+	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", traefikDeploymentID)
 	}
 	if warning != "" {
-		fmt.Print(warning) // TODO: use cli
+		ui.Exclamation().Msg(warning)
 	}
 
-	emoji.Println(":heavy_check_mark: Traefik removed")
+	ui.Success().Msg("Traefik removed")
 
 	return nil
 }

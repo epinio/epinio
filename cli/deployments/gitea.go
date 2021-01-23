@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
-	"github.com/briandowns/spinner"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/helpers"
@@ -56,35 +54,42 @@ func (k Gitea) Describe() string {
 
 // Delete removes Gitea from kubernetes cluster
 func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	message := "Deleting Gitea"
-	s := spinner.New(spinner.CharSets[11], 100*time.Millisecond)
-	s.Suffix = emoji.Sprintf(" %s :zzz:", message)
-	s.Start()
-	defer s.Stop()
+	ui.Note().Msg("Removing Gitea...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Gitea: " + err.Error())
 	}
 
-	helmCmd := fmt.Sprintf("helm uninstall gitea --namespace %s", giteaDeploymentID)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	message := "Removing helm release " + giteaDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall gitea --namespace %s", giteaDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
 		if strings.Contains(out, "release: not found") {
-			fmt.Printf("%s helm release not found, skipping.\n", registryDeploymentID)
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", giteaDeploymentID)
 		} else {
-			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", registryDeploymentID, out)
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", giteaDeploymentID, out)
 		}
 	}
 
-	warning, err := c.DeleteNamespaceIfOwned(giteaDeploymentID)
+	message = "Deleting Gitea namespace " + giteaDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(giteaDeploymentID)
+		},
+	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", giteaDeploymentID)
 	}
 	if warning != "" {
-		fmt.Print(warning) // TODO: use cli
+		ui.Exclamation().Msg(warning)
 	}
 
-	emoji.Println(":heavy_check_mark: Gitea removed")
+	ui.Success().Msg("Gitea removed")
 
 	return nil
 }
@@ -168,7 +173,6 @@ gitea:
 	}
 	err = c.LabelNamespace(giteaDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
 	if err != nil {
-		fmt.Println(err)
 		return err
 	}
 
