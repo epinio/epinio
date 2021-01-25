@@ -7,6 +7,7 @@ import (
 	"hash/fnv"
 	"os"
 	"regexp"
+	"strings"
 	"text/template"
 
 	"github.com/fatih/color"
@@ -19,6 +20,7 @@ import (
 type Tail struct {
 	Namespace      string
 	PodName        string
+	Origin         string
 	ContainerName  string
 	Options        *TailOptions
 	req            *rest.Request
@@ -42,6 +44,7 @@ func NewTail(namespace, podName, containerName string, tmpl *template.Template, 
 	return &Tail{
 		Namespace:     namespace,
 		PodName:       podName,
+		Origin:        originOf(podName),
 		ContainerName: containerName,
 		Options:       options,
 		closed:        make(chan struct{}),
@@ -67,9 +70,16 @@ func determineColor(podName string) (podColor, containerColor *color.Color) {
 	return colors[0], colors[1]
 }
 
+func originOf(podName string) string {
+	if strings.HasPrefix(podName, "staging-pipeline-run-") {
+		return "[STAGE]"
+	}
+	return "[APP]"
+}
+
 // Start starts tailing
 func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
-	t.podColor, t.containerColor = determineColor(t.PodName)
+	t.podColor, t.containerColor = determineColor(t.Origin)
 
 	go func() {
 		g := color.New(color.FgHiGreen, color.Bold).SprintFunc()
@@ -161,6 +171,7 @@ func (t *Tail) Print(msg string) {
 		Message:        msg,
 		Namespace:      t.Namespace,
 		PodName:        t.PodName,
+		Origin:         t.Origin,
 		ContainerName:  t.ContainerName,
 		PodColor:       t.podColor,
 		ContainerColor: t.containerColor,
@@ -182,6 +193,9 @@ type Log struct {
 
 	// PodName of the pod
 	PodName string `json:"podName"`
+
+	// Origin
+	Origin string `json:"origin"`
 
 	// ContainerName of the container
 	ContainerName string `json:"containerName"`
