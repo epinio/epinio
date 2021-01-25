@@ -13,6 +13,7 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -97,6 +98,34 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		if warning != "" {
 			ui.Exclamation().Msg(warning)
 		}
+	}
+
+	message := "Waiting for Eirini workloads namespace to be gone"
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			_, err = c.Kubectl.CoreV1().Namespaces().Get(
+				context.Background(),
+				"eirini-workloads",
+				metav1.GetOptions{},
+			)
+			if err != nil {
+				if serr, ok := err.(*apierrors.StatusError); ok {
+					if serr.ErrStatus.Reason == metav1.StatusReasonNotFound {
+						return "eirini-workloads namespace already gone", nil
+					}
+				}
+
+				return "", err
+			}
+
+			return "", nil
+		},
+	)
+	if err != nil {
+		return err
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
 	}
 
 	ui.Success().Msg("Eirini removed")
