@@ -10,7 +10,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 - must fit in less than 4GB of RAM
 - must install in less than 5 minutes when images are warm
-- must install with a one-line command 
+- must install with a one-line command and zero config
 - must completely uninstall and leave the cluster in its previous state with a one-line command
 - must work on local clusters (edge friendly)
 
