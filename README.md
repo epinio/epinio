@@ -20,8 +20,51 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 - all acceptance tests should run in less than 10 minutes
 - all tests should be able to run on the minimal cluster 
 
-## Install
+## Usage
+### Install
 
 ```bash
-$ ./carrier install
+$ carrier install
+```
+### Uninstall
+
+```bash
+$ carrier uninstall
+```
+---
+### Push an app
+
+Run the following command inside of any supported app directory (e.g. inside [sample-app directory](sample-app)).
+
+```bash
+$ carrier push NAME
+```
+
+### Delete an app
+
+```bash
+$ carrier delete NAME
+```
+---
+### Create a separate org
+
+```bash
+$ carrier create-org NAME
+```
+
+### Target an org
+
+```bash
+$ carrier target NAME
+```
+---
+### List all commands
+
+```bash
+$ carrier help
+```
+### Detailed help for each command
+
+```bash
+$ carrier COMMAND --help
 ```
