@@ -496,7 +496,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            false,
-		Since:                 172800000000000, //48hr
+		Since:                 48 * time.Hour,
 		AllNamespaces:         false,
 		LabelSelector:         labels.Everything(),
 		TailLines:             nil,
