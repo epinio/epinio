@@ -52,6 +52,9 @@ func checkDependencies() error {
 	}{
 		{CommandName: "kubectl"},
 		{CommandName: "helm"},
+		{CommandName: "sh"},
+		{CommandName: "git"},
+		{CommandName: "openssl"},
 	}
 
 	for _, dependency := range dependencies {
