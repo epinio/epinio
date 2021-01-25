@@ -25,11 +25,13 @@ var carrierDeploymentSet = kubernetes.DeploymentSet{
 }
 
 var CmdInstall = &cobra.Command{
-	Use:   "install",
-	Short: "install Carrier in your configured kubernetes cluster",
-	Long:  `install Carrier PaaS in your configured kubernetes cluster`,
-	Args:  cobra.ExactArgs(0),
-	RunE:  Install,
+	Use:           "install",
+	Short:         "install Carrier in your configured kubernetes cluster",
+	Long:          `install Carrier PaaS in your configured kubernetes cluster`,
+	Args:          cobra.ExactArgs(0),
+	RunE:          Install,
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func init() {

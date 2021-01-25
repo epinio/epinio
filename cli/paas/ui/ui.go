@@ -19,6 +19,7 @@ const (
 	problem
 	note
 	success
+	progress
 )
 
 const (
@@ -117,6 +118,15 @@ func (u *UI) Success() *Message {
 	}
 }
 
+// ProgressNote returns a UIMessage that prints a progress-related message
+func (u *UI) ProgressNote() *Message {
+	return &Message{
+		msgType:      progress,
+		interactions: []interaction{},
+		end:          -1,
+	}
+}
+
 // Problem returns a Message that prints a message that describes a problem
 func (u *UI) Problem() *Message {
 	return &Message{
@@ -156,6 +166,9 @@ func (u *Message) Msg(message string) {
 	case success:
 		message = emoji.Sprintf(":heavy_check_mark: %s", message)
 		color.Green(message)
+	case progress:
+		message = emoji.Sprintf(":three-thirty: %s", message)
+		fmt.Println(message)
 	case problem:
 		message = emoji.Sprintf(":forbidden:%s", message)
 		color.Red(message)
