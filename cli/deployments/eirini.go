@@ -103,22 +103,21 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	message := "Waiting for Eirini workloads namespace to be gone"
 	warning, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			_, err = c.Kubectl.CoreV1().Namespaces().Get(
-				context.Background(),
-				"eirini-workloads",
-				metav1.GetOptions{},
-			)
-			if err != nil {
-				if serr, ok := err.(*apierrors.StatusError); ok {
-					if serr.ErrStatus.Reason == metav1.StatusReasonNotFound {
-						return "eirini-workloads namespace already gone", nil
-					}
+			var err error
+			for err == nil {
+				_, err = c.Kubectl.CoreV1().Namespaces().Get(
+					context.Background(),
+					"eirini-workloads",
+					metav1.GetOptions{},
+				)
+			}
+			if serr, ok := err.(*apierrors.StatusError); ok {
+				if serr.ErrStatus.Reason == metav1.StatusReasonNotFound {
+					return "", nil
 				}
-
-				return "", err
 			}
 
-			return "", nil
+			return "", err
 		},
 	)
 	if err != nil {
