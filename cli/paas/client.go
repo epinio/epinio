@@ -503,7 +503,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
 
 		Namespace: "eirini-workloads",
-		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*%s.*", name)),
+		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*-%s-.*", name)),
 	}, c.kubeClient)
 	if err != nil {
 		return cancelFunc, errors.Wrap(err, "failed to start log tail")
