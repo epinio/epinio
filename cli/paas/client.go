@@ -63,7 +63,7 @@ func (c *CarrierClient) Info() error {
 		giteaVersion = version
 	}
 
-	c.ui.Normal().
+	c.ui.Success().
 		WithStringValue("Platform", platform.String()).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
@@ -72,8 +72,9 @@ func (c *CarrierClient) Info() error {
 	return nil
 }
 
-// AppsMatching returns all Carrier apps having the partial string as prefix
-func (c *CarrierClient) AppsMatching(partial string) []string {
+// AppsMatching returns all Carrier apps having the specified prefix
+// in their name.
+func (c *CarrierClient) AppsMatching(prefix string) []string {
 	result := []string{}
 
 	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
@@ -82,7 +83,7 @@ func (c *CarrierClient) AppsMatching(partial string) []string {
 	}
 
 	for _, app := range apps {
-		if strings.HasPrefix(app.Name, partial) {
+		if strings.HasPrefix(app.Name, prefix) {
 			result = append(result, app.Name)
 		}
 	}
@@ -128,7 +129,17 @@ func (c *CarrierClient) CreateOrg(org string) error {
 		WithStringValue("Name", org).
 		Msg("Creating organization...")
 
-	_, _, err := c.giteaClient.CreateOrg(gitea.CreateOrgOption{
+	_, resp, err := c.giteaClient.GetOrg(org)
+	if resp == nil && err != nil {
+		return errors.Wrap(err, "failed to make get org request")
+	}
+
+	if resp.StatusCode == 200 {
+		c.ui.Exclamation().Msg("Organization already exists.")
+		return nil
+	}
+
+	_, _, err = c.giteaClient.CreateOrg(gitea.CreateOrgOption{
 		Name: org,
 	})
 
@@ -165,6 +176,25 @@ func (c *CarrierClient) Delete(app string) error {
 	return nil
 }
 
+// OrgsMatching returns all Carrier orgs having the specified prefix
+// in their name
+func (c *CarrierClient) OrgsMatching(prefix string) []string {
+	result := []string{}
+
+	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	if err != nil {
+		return result
+	}
+
+	for _, org := range orgs {
+		if strings.HasPrefix(org.UserName, prefix) {
+			result = append(result, org.UserName)
+		}
+	}
+
+	return result
+}
+
 // Orgs get a list of all orgs in gitea
 func (c *CarrierClient) Orgs() error {
 	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
@@ -187,6 +217,7 @@ func (c *CarrierClient) Orgs() error {
 func (c *CarrierClient) Push(app string, path string) error {
 	c.ui.Note().
 		WithStringValue("Name", app).
+		WithStringValue("Organization", c.config.Org).
 		WithStringValue("Sources", path).
 		Msg("Pushing application")
 
@@ -228,6 +259,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 
 	c.ui.Success().
 		WithStringValue("Name", app).
+		WithStringValue("Organization", c.config.Org).
 		WithStringValue("Route", fmt.Sprintf("http://%s", route)).
 		Msg("App is online.")
 
@@ -238,20 +270,32 @@ func (c *CarrierClient) Push(app string, path string) error {
 func (c *CarrierClient) Target(org string) error {
 	if org == "" {
 		c.ui.Success().
-			WithStringValue("Currently targeted org", c.config.Org).
+			WithStringValue("Currently targeted organization", c.config.Org).
 			Msg("")
 		return nil
 	}
 
+	c.ui.Note().
+		WithStringValue("Name", org).
+		Msg("Targeting organization...")
+
+	_, resp, err := c.giteaClient.GetOrg(org)
+	if resp == nil && err != nil {
+		return errors.Wrap(err, "failed to make get org request")
+	}
+
+	if resp.StatusCode == 404 {
+		c.ui.Exclamation().Msg("Organization does not exist.")
+		return nil
+	}
+
 	c.config.Org = org
-	err := c.config.Save()
+	err = c.config.Save()
 	if err != nil {
 		return errors.Wrap(err, "failed to save configuration")
 	}
 
-	c.ui.Success().
-		WithStringValue("Targeted org now", c.config.Org).
-		Msg("")
+	c.ui.Success().Msg("Organization targeted.")
 
 	return nil
 }
@@ -267,9 +311,7 @@ func (c *CarrierClient) createRepo(name string) error {
 	}
 
 	if resp.StatusCode == 200 {
-		c.ui.Normal().
-			WithStringValue("Name", name).
-			Msg("Application already exists.")
+		c.ui.Note().Msg("Application already exists. Updating.")
 		return nil
 	}
 

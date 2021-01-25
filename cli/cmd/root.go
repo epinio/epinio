@@ -33,7 +33,6 @@ func Execute() {
 		SilenceErrors: true,
 	}
 
-
 	rootCmd.PersistentFlags().StringVarP(&flagConfigFile, "config-file", "", "", "set path of configuration file")
 
 	rootCmd.AddCommand(CmdCompletion)
