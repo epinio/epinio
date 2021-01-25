@@ -32,7 +32,7 @@ const (
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.19.0.yaml"
 	tektonDashboardYamlPath       = "tekton/dashboard-v0.11.1.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
-	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.10.1.yaml"
+	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.11.1.yaml"
 	tektonTriggersYamlPath        = "tekton/triggers.yaml"
 	tektonStagingYamlPath         = "tekton/staging.yaml"
 )
