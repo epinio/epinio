@@ -207,7 +207,8 @@ func (c *CarrierClient) Push(app string, path string) error {
 // Target targets an org in gitea
 func (c *CarrierClient) Target(org string) error {
 	if org == "" {
-		c.ui.Normal().WithStringValue("Name", c.config.Org).Msg("Targetted org:")
+		c.ui.Normal().WithStringValue("Currently targetted org", c.config.Org).Msg("")
+		return nil
 	}
 
 	c.config.Org = org
@@ -216,7 +217,7 @@ func (c *CarrierClient) Target(org string) error {
 		return errors.Wrap(err, "failed to save configuration")
 	}
 
-	c.ui.Normal().WithStringValue("Name", c.config.Org).Msg("Targetted org:")
+	c.ui.Normal().WithStringValue("Targetted org", c.config.Org).Msg("")
 
 	return nil
 }
