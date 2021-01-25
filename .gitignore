@@ -15,3 +15,4 @@ personal-setup
 /shim/shim
 /cli/dist
 /resources
+/cli/statik/statik.go

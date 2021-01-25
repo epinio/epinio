@@ -17,18 +17,18 @@ build-windows: lint
 build-darwin: lint
 	GOARCH="amd64" GOOS="darwin" go build -o dist/carrier-darwin-amd64
 
-test: lint
+test: embed_files lint
 	ginkgo ./...
 
 generate:
 	go generate ./...
 
-lint:	fmt vet tidy
+lint: embed_files fmt vet tidy
 
-vet:
+vet: embed_files
 	go vet ./...
 
-tidy:
+tidy: embed_files
 	go mod tidy
 
 fmt:
@@ -55,5 +55,5 @@ update_tekton:
 	cp ../tekton/staging.yaml embedded-files/tekton/
 	cp ../tekton/triggers.yaml embedded-files/tekton/
 
-embed_files:
+embed_files: tools
 	statik -f -src=./embedded-files
