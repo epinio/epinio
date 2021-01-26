@@ -489,7 +489,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 
 	// TODO: improve the way we look for pods, use selectors
 	// and watch staging as well
-	err := tailer.Run(ctx, &tailer.Config{
+	err := tailer.Run(c.ui, ctx, &tailer.Config{
 		ContainerQuery:        regexp.MustCompile(".*"),
 		ExcludeContainerQuery: nil,
 		ContainerState:        "running",

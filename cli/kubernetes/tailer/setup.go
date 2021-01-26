@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/kubernetes"
+	"github.com/suse/carrier/cli/paas/ui"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -36,7 +37,7 @@ type Config struct {
 //   - For log entries `Exclude` is applied before `Include`.
 
 // Run starts the log watching
-func Run(ctx context.Context, config *Config, cluster *kubernetes.Cluster) error {
+func Run(ui *ui.UI, ctx context.Context, config *Config, cluster *kubernetes.Cluster) error {
 	var namespace string
 
 	if config.AllNamespaces {
@@ -59,7 +60,7 @@ func Run(ctx context.Context, config *Config, cluster *kubernetes.Cluster) error
 				continue
 			}
 
-			tail := NewTail(p.Namespace, p.Pod, p.Container, config.Template, &TailOptions{
+			tail := NewTail(ui, p.Namespace, p.Pod, p.Container, config.Template, &TailOptions{
 				Timestamps:   config.Timestamps,
 				SinceSeconds: int64(config.Since.Seconds()),
 				Exclude:      config.Exclude,

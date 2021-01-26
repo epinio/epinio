@@ -2,6 +2,7 @@ package tailer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"hash/fnv"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
+	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -28,6 +30,7 @@ type Tail struct {
 	podColor       *color.Color
 	containerColor *color.Color
 	tmpl           *template.Template
+	ui             *ui.UI
 }
 
 type TailOptions struct {
@@ -40,7 +43,7 @@ type TailOptions struct {
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
-func NewTail(namespace, podName, containerName string, tmpl *template.Template, options *TailOptions) *Tail {
+func NewTail(ui *ui.UI, namespace, podName, containerName string, tmpl *template.Template, options *TailOptions) *Tail {
 	return &Tail{
 		Namespace:     namespace,
 		PodName:       podName,
@@ -49,6 +52,7 @@ func NewTail(namespace, podName, containerName string, tmpl *template.Template, 
 		Options:       options,
 		closed:        make(chan struct{}),
 		tmpl:          tmpl,
+		ui:            ui,
 	}
 }
 
@@ -85,11 +89,13 @@ func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
 		g := color.New(color.FgHiGreen, color.Bold).SprintFunc()
 		p := t.podColor.SprintFunc()
 		c := t.containerColor.SprintFunc()
+		var m string
 		if t.Options.Namespace {
-			fmt.Fprintf(os.Stderr, "%s %s %s › %s\n", g("+"), p(t.Namespace), p(t.PodName), c(t.ContainerName))
+			m = fmt.Sprintf("%s %s %s › %s", g("Now tracking"), p(t.Namespace), p(t.PodName), c(t.ContainerName))
 		} else {
-			fmt.Fprintf(os.Stderr, "%s %s › %s\n", g("+"), p(t.PodName), c(t.ContainerName))
+			m = fmt.Sprintf("%s %s › %s", g("Now tracking"), p(t.PodName), c(t.ContainerName))
 		}
+		t.ui.ProgressNote().Msg(m)
 
 		req := i.GetLogs(t.PodName, &corev1.PodLogOptions{
 			Follow:       true,
@@ -176,10 +182,14 @@ func (t *Tail) Print(msg string) {
 		PodColor:       t.podColor,
 		ContainerColor: t.containerColor,
 	}
-	err := t.tmpl.Execute(os.Stdout, vm)
+
+	var result bytes.Buffer
+	err := t.tmpl.Execute(&result, vm)
 	if err != nil {
 		os.Stderr.WriteString(fmt.Sprintf("expanding template failed: %s", err))
+		return
 	}
+	t.ui.ProgressNote().Msg(result.String())
 }
 
 // Log is the object which will be used together with the template to generate
