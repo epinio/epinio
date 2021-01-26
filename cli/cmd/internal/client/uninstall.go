@@ -24,11 +24,6 @@ func init() {
 
 	cmd.KubeConfigFlags(pf, argToEnv)
 	cmd.AddEnvToUsage(CmdUninstall, argToEnv)
-
-	CmdUninstall.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
-	CmdUninstall.Flags().BoolP("non-interactive", "n", false, "Whether to ask the user or not")
-
-	carrierDeploymentSet.AsCobraFlagsFor(CmdUninstall)
 }
 
 // Uninstall command removes carrier from a configured cluster
