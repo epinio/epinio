@@ -34,6 +34,16 @@ func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.Depl
 	// cluster in question, and that information is only available
 	// now, not at deployment declaration time.
 
+	// The user either has a custom domain or not.
+	// If yes, she should use the -i flag to go interactive and supply the custom
+	// domain to be used.
+	// If not, we will do our best to use nip.io with some IP pointing to the cluster.
+	// We can postpone fetching that IP until when it's actually needed and call
+	// the dynamic default function when that happens. That should happen after
+	// Traefik has been installed. It's up to the Traefik deployment to assign
+	// and ExternalIP to the cluster (either through a LoadBalancer or using the
+	// Node's IP address in the case of local clusters)
+
 	domain, err := deployments.NeededOptions.GetOpt("system_domain", "")
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
