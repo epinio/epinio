@@ -43,7 +43,7 @@ func init() {
 	cmd.AddEnvToUsage(CmdInstall, argToEnv)
 
 	CmdInstall.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
-	CmdInstall.Flags().BoolP("non-interactive", "n", false, "Whether to ask the user or not")
+	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not")
 
 	carrierDeploymentSet.AsCobraFlagsFor(CmdInstall)
 }

@@ -50,15 +50,15 @@ func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.Depl
 
 	deployments.PopulateNeededOptions(kubernetes.NewCLIOptionsReader(cmd))
 
-	nonInteractive, err := cmd.Flags().GetBool("non-interactive")
+	interactive, err := cmd.Flags().GetBool("interactive")
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
 	}
 
-	if nonInteractive {
-		deployments.PopulateNeededOptions(kubernetes.NewDefaultOptionsReader())
-	} else {
+	if interactive {
 		deployments.PopulateNeededOptions(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+	} else {
+		deployments.PopulateNeededOptions(kubernetes.NewDefaultOptionsReader())
 	}
 
 	c.showInstallConfiguration(deployments)

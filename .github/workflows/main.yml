@@ -54,7 +54,7 @@ jobs:
         run: kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
       - name: Install Carrier
         run: |
-          ./cli/dist/carrier-linux-amd64 install -n
+          ./cli/dist/carrier-linux-amd64 install
       - name: Carrier Setup Information
         run: |
           ./cli/dist/carrier-linux-amd64 info
