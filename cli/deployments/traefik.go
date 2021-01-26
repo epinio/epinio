@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/kyokomi/emoji"
@@ -87,8 +88,6 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-//	for i, ip := range c.GetPlatform().ExternalIPs() {
-//		helmArgs = append(helmArgs, "--set controller.service.externalIPs["+strconv.Itoa(i)+"]="+ip)
 func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
@@ -102,6 +101,10 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 
 	// Setup Traefik helm values
 	var helmArgs []string
+
+	for i, ip := range c.GetPlatform().ExternalIPs() {
+		helmArgs = append(helmArgs, "--set service.externalIPs["+strconv.Itoa(i)+"]="+ip)
+	}
 
 	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, traefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
