@@ -39,6 +39,16 @@ jobs:
           key: ${{ runner.os }}-tools
       - name: Install Tools
         run: make tools-install
+      - name: Install Vault CLI
+        uses: innovationnorway/setup-vault@v1.0.3
+        with:
+          version: 1.4.2
+      - name: Renew Vault Token
+        env:
+          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
+          VAULT_ADDR: https://volt.cap.explore.suse.dev
+        run: |
+          vault token renew
       - name: Read configuration
         uses: hashicorp/vault-action@v2.1.0
         with:
