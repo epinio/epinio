@@ -72,6 +72,10 @@ jobs:
           sleep 8m ;# Wait for tekton to be usable
           ( cd ./sample-app ; ../cli/dist/carrier-linux-amd64 push "ci${GITHUB_RUN_NUMBER}" )
       # - name: Carrier Apps
+      - name: Uninstall Carrier
+        run: |
+          ./cli/dist/carrier-linux-amd64 uninstall
+      # - name: Push an App
       #   run: |
       #     ./cli/dist/carrier-linux-amd64 apps
       # - name: Test App

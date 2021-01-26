@@ -20,16 +20,19 @@ import (
 )
 
 type Tekton struct {
-	Debug   bool
-	Timeout int
+	Debug      bool
+	Secrets    []string
+	ConfigMaps []string
+	Timeout    int
 }
 
 const (
 	tektonDeploymentID            = "tekton"
+	tektonNamespace               = "tekton-pipelines"
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.19.0.yaml"
 	tektonDashboardYamlPath       = "tekton/dashboard-v0.11.1.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
-	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.10.1.yaml"
+	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.11.1.yaml"
 	tektonTriggersYamlPath        = "tekton/triggers.yaml"
 	tektonStagingYamlPath         = "tekton/staging.yaml"
 )
@@ -62,11 +65,43 @@ func (k Tekton) Describe() string {
 		tektonPipelineReleaseYamlPath, tektonDashboardYamlPath, tektonTriggersReleaseYamlPath)
 }
 
+// Delete removes Tekton from kubernetes cluster
 func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), tektonDeploymentID, metav1.DeleteOptions{})
+	ui.Note().Msg("Removing Tekton...")
+
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonTriggersReleaseYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonTriggersReleaseYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+	}
+
+	message := "Deleting Tekton namespace " + tektonNamespace
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(tektonNamespace)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	ui.Success().Msg("Tekton removed")
+
+	return nil
 }
 
 func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+
 	// action := "install"
 	// if upgrade {
 	// 	action = "upgrade"
@@ -80,6 +115,11 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	}
+
+	err := c.LabelNamespace(tektonNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	for _, crd := range []string{
@@ -272,7 +312,7 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 		return "", err
 	}
 
-	// Constucting the name of the cert file as required by openssl.
+	// Constructing the name of the cert file as required by openssl.
 	// Lookup "subject_hash" in the docs: https://www.openssl.org/docs/man1.0.2/man1/x509.html
 	re := regexp.MustCompile(`{{CA_SELF_HASHED_NAME}}`)
 	renderedFileContents := re.ReplaceAll(fileContents, []byte(caHash+".0"))

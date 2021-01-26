@@ -45,8 +45,46 @@ func (k Traefik) Describe() string {
 	return emoji.Sprintf(":cloud:Traefik version: %s\n:clipboard:Traefik Ingress chart: %s", traefikVersion, traefikChartURL)
 }
 
+// Delete removes traefik from kubernetes cluster
 func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), traefikDeploymentID, metav1.DeleteOptions{})
+	ui.Note().Msg("Removing Traefik...")
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Traefik: " + err.Error())
+	}
+
+	message := "Removing helm release " + traefikDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall traefik --namespace '%s'", traefikDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", traefikDeploymentID)
+		} else {
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", traefikDeploymentID, out)
+		}
+	}
+
+	message = "Deleting Traefik namespace " + traefikDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(traefikDeploymentID)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", traefikDeploymentID)
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	ui.Success().Msg("Traefik removed")
+
+	return nil
 }
 
 //	for i, ip := range c.GetPlatform().ExternalIPs() {
@@ -68,6 +106,11 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, traefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Traefik: %s\n", out))
+	}
+
+	err = c.LabelNamespace(traefikDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	if err := c.WaitUntilPodBySelectorExist(ui, traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {

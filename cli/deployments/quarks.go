@@ -45,8 +45,58 @@ func (k Quarks) Describe() string {
 	return emoji.Sprintf(":cloud:Quarks version: %s\n:clipboard:Quarks chart: %s", quarksVersion, quarksChartURL)
 }
 
+// Delete removes Quarks from kubernetes cluster
 func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
+	ui.Note().Msg("Removing Quarks...")
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Quarks: " + err.Error())
+	}
+
+	message := "Removing helm release " + quarksDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall quarks --namespace %s", quarksDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", quarksDeploymentID)
+		} else {
+			return errors.New("Failed uninstalling Quarks: " + out)
+		}
+	}
+
+	message = "Deleting Quarks namespace " + quarksDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(quarksDeploymentID)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", quarksDeploymentID)
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	for _, crd := range []string{
+		"quarksstatefulsets.quarks.cloudfoundry.org",
+		"quarksjobs.quarks.cloudfoundry.org",
+		"boshdeployments.quarks.cloudfoundry.org",
+		"quarkssecrets.quarks.cloudfoundry.org",
+	} {
+		out, err := helpers.Kubectl("delete crds --ignore-not-found=true " + crd)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Deleting quarks CRD failed:\n%s", out))
+		}
+	}
+
+	ui.Success().Msg("Quarks removed")
+
+	return nil
 }
 
 func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
@@ -78,6 +128,10 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		if err := c.WaitForPodBySelectorRunning(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to come up")
 		}
+	}
+	err := c.LabelNamespace(quarksDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	ui.Success().Msg("Quarks deployed")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -52,8 +53,46 @@ func (k Registry) Describe() string {
 	return emoji.Sprintf(":cloud:Registry version: %s\n:clipboard:Registry chart: %s", registryVersion, registryChartFile)
 }
 
+// Delete removes Registry from kubernetes cluster
 func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), registryDeploymentID, metav1.DeleteOptions{})
+	ui.Note().Msg("Removing Registry...")
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Registry: " + err.Error())
+	}
+
+	message := "Removing helm release " + registryDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", registryDeploymentID, registryDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", registryDeploymentID)
+		} else {
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", registryDeploymentID, out)
+		}
+	}
+
+	message = "Deleting Registry namespace " + registryDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(registryDeploymentID)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", registryDeploymentID)
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	ui.Success().Msg("Registry removed")
+
+	return nil
 }
 
 func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
@@ -82,6 +121,10 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return errors.New("Failed installing Registry: " + out)
 	}
 
+	err = c.LabelNamespace(registryDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
+	}
 	if err := c.WaitUntilPodBySelectorExist(ui, registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}

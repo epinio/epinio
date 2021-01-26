@@ -49,7 +49,7 @@ update_registry:
 update_tekton:
 	mkdir -p embedded-files/tekton
 	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml -O embedded-files/tekton/pipeline-v0.19.0.yaml
-	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.10.1/release.yaml -O embedded-files/tekton/triggers-v0.10.1.yaml
+	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.11.1/release.yaml -O embedded-files/tekton/triggers-v0.11.1.yaml
 	wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-v0.11.1.yaml
 	cp ../tekton/admin-role.yaml embedded-files/tekton/
 	cp ../tekton/staging.yaml embedded-files/tekton/

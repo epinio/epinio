@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/config"
 	"github.com/suse/carrier/cli/paas/ui"
@@ -75,6 +76,37 @@ func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.Depl
 	}
 
 	c.ui.Success().Msg("Carrier installed.")
+
+	return nil
+}
+
+// Uninstall removes carrier from the cluster.
+func (c *InstallClient) Uninstall(cmd *cobra.Command, deploymentset *kubernetes.DeploymentSet) error {
+	c.ui.Note().Msg("Carrier uninstalling...")
+
+	eiriniDeploymentID := (&deployments.Eirini{}).ID()
+	// Eirini deployment first
+	for _, d := range deploymentset.Deployments {
+		if d.ID() == eiriniDeploymentID {
+			err := d.Delete(c.kubeClient, c.ui)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	size := len(deploymentset.Deployments)
+	for index := range deploymentset.Deployments {
+		d := deploymentset.Deployments[size-index-1]
+		if d.ID() != eiriniDeploymentID {
+			err := d.Delete(c.kubeClient, c.ui)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	c.ui.Success().Msg("Carrier uninstalled.")
 
 	return nil
 }
