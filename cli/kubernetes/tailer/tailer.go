@@ -91,11 +91,11 @@ func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
 		c := t.containerColor.SprintFunc()
 		var m string
 		if t.Options.Namespace {
-			m = fmt.Sprintf("%s %s %s › %s", g("Now tracking"), p(t.Namespace), p(t.PodName), c(t.ContainerName))
+			m = fmt.Sprintf("%s %s %s › %s ", g("Now tracking"), p(t.Namespace), p(t.PodName), c(t.ContainerName))
 		} else {
-			m = fmt.Sprintf("%s %s › %s", g("Now tracking"), p(t.PodName), c(t.ContainerName))
+			m = fmt.Sprintf("%s %s › %s ", g("Now tracking"), p(t.PodName), c(t.ContainerName))
 		}
-		t.ui.ProgressNote().Msg(m)
+		t.ui.ProgressNote().KeepLine().Msg(m)
 
 		req := i.GetLogs(t.PodName, &corev1.PodLogOptions{
 			Follow:       true,
@@ -128,7 +128,7 @@ func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
 				return
 			}
 
-			str := string(line)
+			str := strings.TrimRight(string(line), "\r\n\t ")
 
 			for _, rex := range t.Options.Exclude {
 				if rex.MatchString(str) {
@@ -189,7 +189,7 @@ func (t *Tail) Print(msg string) {
 		os.Stderr.WriteString(fmt.Sprintf("expanding template failed: %s", err))
 		return
 	}
-	t.ui.ProgressNote().Msg(result.String())
+	t.ui.ProgressNote().KeepLine().Msg(result.String() + " ")
 }
 
 // Log is the object which will be used together with the template to generate
