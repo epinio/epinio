@@ -25,7 +25,9 @@ jobs:
           go-version: '^1.13.7'
       - name: Build Carrier
         if: steps.branch.outputs.BRANCH_NAME == 'main'
-        run: make build-all
+        run: |
+          make build-all-small
+          make compress
       - name: Release Carrier
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         uses: fnkr/github-action-ghr@v1
