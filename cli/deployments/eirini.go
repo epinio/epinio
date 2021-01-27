@@ -24,7 +24,7 @@ type Eirini struct {
 }
 
 const (
-	eiriniDeploymentID       = "eirini"
+	EiriniDeploymentID       = "eirini"
 	eiriniVersion            = "2.0.0"
 	eiriniReleasePath        = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
 	eiriniQuarksYaml         = "eirini/quarks-secrets.yaml"
@@ -46,7 +46,7 @@ func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
 }
 
 func (k *Eirini) ID() string {
-	return eiriniDeploymentID
+	return EiriniDeploymentID
 }
 
 func (k *Eirini) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -224,7 +224,7 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return err
 	}
 
-	domain, err := options.GetString("system_domain", eiriniDeploymentID)
+	domain, err := options.GetString("system_domain", EiriniDeploymentID)
 	if err != nil {
 		return err
 	}
@@ -267,11 +267,11 @@ func (k Eirini) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		eiriniDeploymentID,
+		EiriniDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + eiriniDeploymentID + " present already")
+		return errors.New("Namespace " + EiriniDeploymentID + " present already")
 	}
 
 	ui.Note().Msg("Deploying Eirini...")
@@ -287,11 +287,11 @@ func (k Eirini) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 func (k Eirini) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		eiriniDeploymentID,
+		EiriniDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + eiriniDeploymentID + " not present")
+		return errors.New("Namespace " + EiriniDeploymentID + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Eirini...")
@@ -333,7 +333,7 @@ func (k Eirini) createGitCredsSecret(c *kubernetes.Cluster, domain string) error
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "git-creds",
 				Annotations: map[string]string{
-					"kpack.io/git": fmt.Sprintf("http://%s.%s", giteaDeploymentID, domain),
+					"kpack.io/git": fmt.Sprintf("http://%s.%s", GiteaDeploymentID, domain),
 				},
 			},
 			StringData: map[string]string{

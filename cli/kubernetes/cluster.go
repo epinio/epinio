@@ -45,6 +45,7 @@ var (
 
 type Platform interface {
 	Detect(*kubernetes.Clientset) bool
+	HasLoadBalancer() bool
 	Describe() string
 	String() string
 	Load(*kubernetes.Clientset) error

@@ -16,7 +16,6 @@ var (
 
 // Config represents a carrier config
 type Config struct {
-	GiteaNamespace           string `mapstructure:"gitea_namespace"`
 	GiteaProtocol            string `mapstructure:"gitea_protocol"`
 	EiriniWorkloadsNamespace string `mapstructure:"eirini_workloads_namespace"`
 	Org                      string `mapstructure:"org"`

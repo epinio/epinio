@@ -12,6 +12,10 @@ type Generic struct {
 	InternalIPs, ExternalIP []string
 }
 
+func (k *Generic) HasLoadBalancer() bool {
+	return true
+}
+
 func (k *Generic) Describe() string {
 	return emoji.Sprintf(":anchor:Detected kubernetes platform: %s\n:earth_americas:ExternalIPs: %s\n:curly_loop:InternalIPs: %s", k.String(), k.ExternalIPs(), k.InternalIPs)
 }

@@ -27,7 +27,7 @@ type Tekton struct {
 }
 
 const (
-	tektonDeploymentID            = "tekton"
+	TektonDeploymentID            = "tekton"
 	tektonNamespace               = "tekton-pipelines"
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.19.0.yaml"
 	tektonDashboardYamlPath       = "tekton/dashboard-v0.11.1.yaml"
@@ -49,7 +49,7 @@ func (k *Tekton) NeededOptions() kubernetes.InstallationOptions {
 }
 
 func (k *Tekton) ID() string {
-	return tektonDeploymentID
+	return TektonDeploymentID
 }
 
 func (k *Tekton) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -221,7 +221,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	domain, err := options.GetString("system_domain", tektonDeploymentID)
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
@@ -229,7 +229,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	message = "Creating Tekton dashboard ingress"
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", createTektonIngress(c, tektonDeploymentID+"."+domain)
+			return "", createTektonIngress(c, TektonDeploymentID+"."+domain)
 		},
 	)
 	if err != nil {
@@ -250,11 +250,11 @@ func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		tektonDeploymentID,
+		TektonDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + tektonDeploymentID + " present already")
+		return errors.New("Namespace " + TektonDeploymentID + " present already")
 	}
 
 	ui.Note().Msg("Deploying Tekton...")
@@ -270,11 +270,11 @@ func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		tektonDeploymentID,
+		TektonDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + tektonDeploymentID + " not present")
+		return errors.New("Namespace " + TektonDeploymentID + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Tekton...")

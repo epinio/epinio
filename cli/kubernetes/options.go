@@ -14,6 +14,17 @@ const (
 	IntType
 )
 
+// OptionsReader is the interface to the structures and objects used
+// to fill InstallationOption instances with a valid value.
+//
+// Note, each reader has the discretion to not modify the provided
+// option instance based on its state. The option's Valid flag is, for
+// example, how the defaults, cli, and interactive readers communicate
+// and decide which options to handle.
+type OptionsReader interface {
+	Read(*InstallationOption) error
+}
+
 // A InstallationOptionDynamicDefault function may provide a dynamic
 // default value for an option. When present it has precedence over
 // any static default value in the structure.
@@ -201,4 +212,22 @@ func (opts InstallationOptions) ForDeployment(deploymentID string) InstallationO
 	}
 
 	return result
+}
+
+// Populate will try to give values to the needed options
+// using the given OptionsReader. If none is given, the default is the
+// InteractiveOptionsReader which will ask in the terminal.
+// This method only populates what is possible and leaves the rest empty.
+// TODO: Implement another method to validate that all options have been set.
+func (opts *InstallationOptions) Populate(reader OptionsReader) (*InstallationOptions, error) {
+	newOpts := InstallationOptions{}
+	for _, opt := range *opts {
+		err := reader.Read(&opt)
+		if err != nil {
+			return opts, err
+		}
+		newOpts = append(newOpts, opt)
+	}
+
+	return &newOpts, nil
 }
