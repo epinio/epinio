@@ -59,4 +59,4 @@ update_tekton:
 	cp ../tekton/triggers.yaml embedded-files/tekton/
 
 embed_files:
-	statik -f -src=./embedded-files
+	statik -m -f -src=./embedded-files
