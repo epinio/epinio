@@ -93,12 +93,21 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 // Apps gets all Carrier apps
 func (c *CarrierClient) Apps() error {
+	c.ui.Note().
+		WithStringValue("Organization", c.config.Org).
+		Msg("Listing applications")
+
+	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
+	if err != nil {
+		return err
+	}
+
 	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list apps")
 	}
 
-	msg := c.ui.Normal().WithTable("Name", "Status", "Routes")
+	msg := c.ui.Success().WithTable("Name", "Status", "Routes")
 
 	for _, app := range apps {
 		status, err := c.kubeClient.StatefulSetStatus(
@@ -118,7 +127,7 @@ func (c *CarrierClient) Apps() error {
 		msg = msg.WithTableRow(app.Name, status, strings.Join(routes, ", "))
 	}
 
-	msg.Msg("Carrier Apps.")
+	msg.Msg("Carrier Applications:")
 
 	return nil
 }
@@ -197,18 +206,20 @@ func (c *CarrierClient) OrgsMatching(prefix string) []string {
 
 // Orgs get a list of all orgs in gitea
 func (c *CarrierClient) Orgs() error {
+	c.ui.Note().Msg("Listing organizations")
+
 	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list orgs")
 	}
 
-	msg := c.ui.Normal().WithTable("Name")
+	msg := c.ui.Success().WithTable("Name")
 
 	for _, org := range orgs {
 		msg = msg.WithTableRow(org.UserName)
 	}
 
-	msg.Msg("Carrier Organizations")
+	msg.Msg("Carrier Organizations:")
 
 	return nil
 }
@@ -221,7 +232,12 @@ func (c *CarrierClient) Push(app string, path string) error {
 		WithStringValue("Sources", path).
 		Msg("Pushing application")
 
-	err := c.createRepo(app)
+	err := c.ensureGoodOrg(c.config.Org, "Unable to push.")
+	if err != nil {
+		return err
+	}
+
+	err = c.createRepo(app)
 	if err != nil {
 		return errors.Wrap(err, "create repo failed")
 	}
@@ -279,14 +295,9 @@ func (c *CarrierClient) Target(org string) error {
 		WithStringValue("Name", org).
 		Msg("Targeting organization...")
 
-	_, resp, err := c.giteaClient.GetOrg(org)
-	if resp == nil && err != nil {
-		return errors.Wrap(err, "failed to make get org request")
-	}
-
-	if resp.StatusCode == 404 {
-		c.ui.Exclamation().Msg("Organization does not exist.")
-		return nil
+	err := c.ensureGoodOrg(org, "Unable to target.")
+	if err != nil {
+		return err
 	}
 
 	c.config.Org = org
@@ -528,6 +539,23 @@ func (c *CarrierClient) waitForApp(name string) error {
 
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to come online failed")
+	}
+
+	return nil
+}
+
+func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
+	_, resp, err := c.giteaClient.GetOrg(org)
+	if resp == nil && err != nil {
+		return errors.Wrap(err, "failed to make get org request")
+	}
+
+	if resp.StatusCode == 404 {
+		errmsg := "Organization does not exist."
+		if msg != "" {
+			errmsg += " " + msg
+		}
+		c.ui.Exclamation().WithEnd(1).Msg(errmsg)
 	}
 
 	return nil
