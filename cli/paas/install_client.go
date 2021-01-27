@@ -169,7 +169,6 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 					break Exit
 				case <-ticker:
 					serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
-						LabelSelector: "app=traefik",
 						FieldSelector: "metadata.name=traefik",
 					})
 					if len(serviceList.Items) == 0 {
