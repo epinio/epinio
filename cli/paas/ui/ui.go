@@ -42,6 +42,8 @@ type UI struct {
 type Message struct {
 	msgType      msgType
 	end          int
+	compact      bool
+	keepline     bool
 	interactions []interaction
 	tableHeaders [][]string
 	tableData    [][][]string
@@ -136,10 +138,6 @@ func (u *UI) Problem() *Message {
 	}
 }
 
-func (u *UI) Raw(message string) {
-	fmt.Printf("%s", message)
-}
-
 // Msgf prints a formatted message on the CLI
 func (u *Message) Msgf(message string, a ...interface{}) {
 	u.Msg(fmt.Sprintf(message, a...))
@@ -149,30 +147,34 @@ func (u *Message) Msgf(message string, a ...interface{}) {
 func (u *Message) Msg(message string) {
 	message = emoji.Sprint(message)
 
-	// Always print a newline before starting output
-	if message != "" {
+	// Print a newline before starting output, if not compact.
+	if message != "" && !u.compact {
 		fmt.Println()
+	}
+
+	if !u.keepline {
+		message += "\n"
 	}
 
 	switch u.msgType {
 	case normal:
-		fmt.Println(message)
 	case exclamation:
 		message = emoji.Sprintf(":warning: %s", message)
-		color.Yellow(message)
+		message = color.YellowString(message)
 	case note:
 		message = emoji.Sprintf(":ship:%s", message)
-		color.Blue(message)
+		message = color.BlueString(message)
 	case success:
 		message = emoji.Sprintf(":heavy_check_mark: %s", message)
-		color.Green(message)
+		message = color.GreenString(message)
 	case progress:
 		message = emoji.Sprintf(":three-thirty: %s", message)
-		fmt.Println(message)
 	case problem:
 		message = emoji.Sprintf(":forbidden:%s", message)
-		color.Red(message)
+		message = color.RedString(message)
 	}
+
+	fmt.Printf("%s", message)
 
 	for _, interaction := range u.interactions {
 		switch interaction.variant {
@@ -216,7 +218,19 @@ func (u *Message) Msg(message string) {
 	}
 }
 
-// WithEnd ends the app
+// KeepLine disables the printing of a newline after a message output
+func (u *Message) KeepLine() *Message {
+	u.keepline = true
+	return u
+}
+
+// Compact disables the printing of a newline before starting output
+func (u *Message) Compact() *Message {
+	u.compact = true
+	return u
+}
+
+// WithEnd ends the entire process after printing the message.
 func (u *Message) WithEnd(code int) *Message {
 	u.end = code
 	return u

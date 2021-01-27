@@ -489,21 +489,21 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 
 	// TODO: improve the way we look for pods, use selectors
 	// and watch staging as well
-	err := tailer.Run(ctx, &tailer.Config{
+	err := tailer.Run(c.ui, ctx, &tailer.Config{
 		ContainerQuery:        regexp.MustCompile(".*"),
 		ExcludeContainerQuery: nil,
 		ContainerState:        "running",
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            false,
-		Since:                 172800000000000, //48hr
+		Since:                 48 * time.Hour,
 		AllNamespaces:         false,
 		LabelSelector:         labels.Everything(),
 		TailLines:             nil,
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
 
 		Namespace: "eirini-workloads",
-		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*%s.*", name)),
+		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*-%s-.*", name)),
 	}, c.kubeClient)
 	if err != nil {
 		return cancelFunc, errors.Wrap(err, "failed to start log tail")

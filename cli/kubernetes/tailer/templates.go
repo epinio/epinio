@@ -11,7 +11,7 @@ import (
 // DefaultSingleNamespaceTemplate returns a printing template used when
 // printing with colors and watching resources in a single namespace
 func DefaultSingleNamespaceTemplate() *template.Template {
-	t := "{{color .PodColor .PodName}} {{color .ContainerColor .ContainerName}} {{.Message}}"
+	t := "{{color .PodColor .Origin}} {{color .ContainerColor .ContainerName}} {{.Message}}"
 
 	funs := map[string]interface{}{
 		"json": func(in interface{}) (string, error) {
