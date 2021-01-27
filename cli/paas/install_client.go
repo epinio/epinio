@@ -20,15 +20,6 @@ const (
 	DefaultTimeoutSec = 300
 )
 
-var deploymentSet = map[string]kubernetes.Deployment{
-	"traefik":  &deployments.Traefik{Timeout: DefaultTimeoutSec},
-	"quarks":   &deployments.Quarks{Timeout: DefaultTimeoutSec},
-	"gitea":    &deployments.Gitea{Timeout: DefaultTimeoutSec},
-	"eirini":   &deployments.Eirini{Timeout: DefaultTimeoutSec},
-	"registry": &deployments.Registry{Timeout: DefaultTimeoutSec},
-	"tekton":   &deployments.Tekton{Timeout: DefaultTimeoutSec},
-}
-
 // InstallClient provides functionality for talking to Kubernetes for
 // installing Carrier on it.
 type InstallClient struct {
@@ -72,8 +63,8 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	deployment := deploymentSet["traefik"]
-	err = deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
+	deployment := deployments.Traefik{Timeout: DefaultTimeoutSec}
+	deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
 	if err != nil {
 		return err
 	}
@@ -94,17 +85,20 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
 
-	for _, deploymentName := range []string{"quarks", "gitea", "eirini", "registry", "tekton"} {
-		deployment := deploymentSet[deploymentName]
-		options := options.ForDeployment(deployment.ID())
-		err := deployment.Deploy(c.kubeClient, c.ui, options)
+	for _, deployment := range []kubernetes.Deployment{
+		&deployments.Quarks{Timeout: DefaultTimeoutSec},
+		&deployments.Gitea{Timeout: DefaultTimeoutSec},
+		&deployments.Eirini{Timeout: DefaultTimeoutSec},
+		&deployments.Registry{Timeout: DefaultTimeoutSec},
+		&deployments.Tekton{Timeout: DefaultTimeoutSec},
+	} {
+		err := deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
 		if err != nil {
 			return err
 		}
 	}
 
-	c.ui.Success().Msg("Carrier installed.")
-	c.ui.Success().Msg("Your system domain is: " + domain.Value.(string))
+	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("Carrier installed.")
 
 	return nil
 }
@@ -113,15 +107,19 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	c.ui.Note().Msg("Carrier uninstalling...")
 
-	deployment := deploymentSet["eirini"]
-	err := deployment.Delete(c.kubeClient, c.ui)
+	err := deployments.Eirini{Timeout: DefaultTimeoutSec}.Delete(c.kubeClient, c.ui)
 	if err != nil {
 		return err
 	}
 
-	for _, deploymentName := range []string{"tekton", "registry", "gitea", "quarks", "traefik"} {
-		d := deploymentSet[deploymentName]
-		err := d.Delete(c.kubeClient, c.ui)
+	for _, deployment := range []kubernetes.Deployment{
+		&deployments.Tekton{Timeout: DefaultTimeoutSec},
+		&deployments.Registry{Timeout: DefaultTimeoutSec},
+		&deployments.Gitea{Timeout: DefaultTimeoutSec},
+		&deployments.Quarks{Timeout: DefaultTimeoutSec},
+		&deployments.Traefik{Timeout: DefaultTimeoutSec},
+	} {
+		err := deployment.Delete(c.kubeClient, c.ui)
 		if err != nil {
 			return err
 		}
@@ -159,7 +157,8 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 				ip = ips[0]
 			}
 		} else {
-			c.ui.ProgressNote().Msg("Waiting for LoadBalancer IP on traefik service.")
+			s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+			defer s.Stop()
 			timeout := time.After(2 * time.Minute)
 			ticker := time.Tick(1 * time.Second)
 		Exit:
