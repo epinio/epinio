@@ -13,7 +13,7 @@ type Generic struct {
 }
 
 func (k *Generic) HasLoadBalancer() bool {
-	return false
+	return true
 }
 
 func (k *Generic) Describe() string {

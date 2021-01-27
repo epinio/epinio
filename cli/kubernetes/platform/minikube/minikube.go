@@ -15,6 +15,10 @@ type Minikube struct {
 	generic.Generic
 }
 
+func (m *Minikube) HasLoadBalancer() bool {
+	return false
+}
+
 // Describe returns information about the platform.
 func (m *Minikube) Describe() string {
 	return emoji.Sprintf(":anchor:Detected kubernetes platform: %s\n:earth_americas:ExternalIPs: %s\n:curly_loop:InternalIPs: %s", m.String(), m.ExternalIPs(), m.InternalIPs)
