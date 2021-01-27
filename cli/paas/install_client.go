@@ -1,8 +1,10 @@
 package paas
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -10,7 +12,22 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/config"
 	"github.com/suse/carrier/cli/paas/ui"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const (
+	DefaultTimeoutSec = 300
+)
+
+var deploymentSet = map[string]kubernetes.Deployment{
+	"traefik":  &deployments.Traefik{Timeout: DefaultTimeoutSec},
+	"quarks":   &deployments.Quarks{Timeout: DefaultTimeoutSec},
+	"gitea":    &deployments.Gitea{Timeout: DefaultTimeoutSec},
+	"eirini":   &deployments.Eirini{Timeout: DefaultTimeoutSec},
+	"registry": &deployments.Registry{Timeout: DefaultTimeoutSec},
+	"tekton":   &deployments.Tekton{Timeout: DefaultTimeoutSec},
+}
 
 // InstallClient provides functionality for talking to Kubernetes for
 // installing Carrier on it.
@@ -21,45 +38,14 @@ type InstallClient struct {
 }
 
 // Install deploys carrier to the cluster.
-func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.DeploymentSet) error {
+func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
 	c.ui.Note().Msg("Carrier installing...")
 
-	// Hack? Override static default for system domain with a
-	// function which queries the cluster for the necessary
-	// data. If that data could not be found the system will fall
-	// back to cli option and/or interactive entry by the user.
-	//
-	// NOTE: This is function is set here and not in the gitea
-	// definition because the function has to have access to the
-	// cluster in question, and that information is only available
-	// now, not at deployment declaration time.
-
-	// The user either has a custom domain or not.
-	// If yes, she should use the -i flag to go interactive and supply the custom
-	// domain to be used.
-	// If not, we will do our best to use nip.io with some IP pointing to the cluster.
-	// We can postpone fetching that IP until when it's actually needed and call
-	// the dynamic default function when that happens. That should happen after
-	// Traefik has been installed. It's up to the Traefik deployment to assign
-	// and ExternalIP to the cluster (either through a LoadBalancer or using the
-	// Node's IP address in the case of local clusters)
-
-	domain, err := deployments.NeededOptions.GetOpt("system_domain", "")
+	var err error
+	options, err = options.Populate(kubernetes.NewCLIOptionsReader(cmd))
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
 	}
-	domain.DynDefaultFunc = func(o *kubernetes.InstallationOption) error {
-		ips := c.kubeClient.GetPlatform().ExternalIPs()
-		if len(ips) > 0 {
-			domain := fmt.Sprintf("%s.nip.io", ips[0])
-			o.Value = domain
-		}
-		// else leave invalid, to be handled by cli option
-		// reader or interactive entry
-		return nil
-	}
-
-	deployments.PopulateNeededOptions(kubernetes.NewCLIOptionsReader(cmd))
 
 	interactive, err := cmd.Flags().GetBool("interactive")
 	if err != nil {
@@ -67,12 +53,18 @@ func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.Depl
 	}
 
 	if interactive {
-		deployments.PopulateNeededOptions(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		options, err = options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		if err != nil {
+			return errors.Wrap(err, "Couldn't install carrier")
+		}
 	} else {
-		deployments.PopulateNeededOptions(kubernetes.NewDefaultOptionsReader())
+		options, err = options.Populate(kubernetes.NewDefaultOptionsReader())
+		if err != nil {
+			return errors.Wrap(err, "Couldn't install carrier")
+		}
 	}
 
-	c.showInstallConfiguration(deployments)
+	c.showInstallConfiguration(options)
 
 	// TODO (post MVP): Run a validation phase which perform
 	// additional checks on the values. For example range limits,
@@ -80,39 +72,58 @@ func (c *InstallClient) Install(cmd *cobra.Command, deployments *kubernetes.Depl
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	err = c.deploySet(deployments)
+	deployment := deploymentSet["traefik"]
+	err = deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
+	if err != nil {
+		return err
+	}
+
+	// Try to give a nip.io domain if the user didn't specify one
+	domain, err := options.GetOpt("system_domain", "")
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
 	}
 
+	err = c.fillInMissingSystemDomain(domain)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't install carrier")
+	}
+	if domain.Value.(string) == "" {
+		return errors.New("You didn't provide a system_domain and we were unable to setup a nip.io domain (couldn't find and ExternalIP)")
+	}
+
+	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
+
+	for _, deploymentName := range []string{"quarks", "gitea", "eirini", "registry", "tekton"} {
+		deployment := deploymentSet[deploymentName]
+		options := options.ForDeployment(deployment.ID())
+		err := deployment.Deploy(c.kubeClient, c.ui, options)
+		if err != nil {
+			return err
+		}
+	}
+
 	c.ui.Success().Msg("Carrier installed.")
+	c.ui.Success().Msg("Your system domain is: " + domain.Value.(string))
 
 	return nil
 }
 
 // Uninstall removes carrier from the cluster.
-func (c *InstallClient) Uninstall(cmd *cobra.Command, deploymentset *kubernetes.DeploymentSet) error {
+func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	c.ui.Note().Msg("Carrier uninstalling...")
 
-	eiriniDeploymentID := (&deployments.Eirini{}).ID()
-	// Eirini deployment first
-	for _, d := range deploymentset.Deployments {
-		if d.ID() == eiriniDeploymentID {
-			err := d.Delete(c.kubeClient, c.ui)
-			if err != nil {
-				return err
-			}
-		}
+	deployment := deploymentSet["eirini"]
+	err := deployment.Delete(c.kubeClient, c.ui)
+	if err != nil {
+		return err
 	}
 
-	size := len(deploymentset.Deployments)
-	for index := range deploymentset.Deployments {
-		d := deploymentset.Deployments[size-index-1]
-		if d.ID() != eiriniDeploymentID {
-			err := d.Delete(c.kubeClient, c.ui)
-			if err != nil {
-				return err
-			}
+	for _, deploymentName := range []string{"tekton", "registry", "gitea", "quarks", "traefik"} {
+		d := deploymentSet[deploymentName]
+		err := d.Delete(c.kubeClient, c.ui)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -123,9 +134,9 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, deploymentset *kubernetes.
 
 // showInstallConfiguration prints the options and their values to stdout, to
 // inform the user of the detected and chosen configuration
-func (c *InstallClient) showInstallConfiguration(ds *kubernetes.DeploymentSet) {
+func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOptions) {
 	m := c.ui.Normal()
-	for _, opt := range ds.NeededOptions {
+	for _, opt := range *opts {
 		name := "  :compass: " + opt.Name
 		switch opt.Type {
 		case kubernetes.BooleanType:
@@ -139,14 +150,47 @@ func (c *InstallClient) showInstallConfiguration(ds *kubernetes.DeploymentSet) {
 	m.Msg("Configuration...")
 }
 
-// deploySet deploys all the deployments in the set, in order.
-func (c *InstallClient) deploySet(ds *kubernetes.DeploymentSet) error {
-	for _, deployment := range ds.Deployments {
-		options := ds.NeededOptions.ForDeployment(deployment.ID())
-		err := deployment.Deploy(c.kubeClient, c.ui, options)
-		if err != nil {
-			return err
+func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.InstallationOption) error {
+	if domain.Value.(string) == "" {
+		ip := ""
+		if !c.kubeClient.GetPlatform().HasLoadBalancer() {
+			ips := c.kubeClient.GetPlatform().ExternalIPs()
+			if len(ips) > 0 {
+				ip = ips[0]
+			}
+		} else {
+			c.ui.ProgressNote().Msg("Waiting for LoadBalancer IP on traefik service.")
+			timeout := time.After(2 * time.Minute)
+			ticker := time.Tick(1 * time.Second)
+		Exit:
+			for {
+				select {
+				case <-timeout:
+					break Exit
+				case <-ticker:
+					serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
+						LabelSelector: "app=traefik",
+						FieldSelector: "metadata.name=traefik",
+					})
+					if len(serviceList.Items) == 0 {
+						return errors.New("Couldn't find the traefik service")
+					}
+					if err != nil {
+						return err
+					}
+					ingress := serviceList.Items[0].Status.LoadBalancer.Ingress
+					if len(ingress) > 0 {
+						ip = ingress[0].IP
+						break Exit
+					}
+				}
+			}
+		}
+
+		if ip != "" {
+			domain.Value = fmt.Sprintf("%s.nip.io", ip)
 		}
 	}
+
 	return nil
 }

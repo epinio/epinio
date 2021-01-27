@@ -15,7 +15,7 @@ type kind struct {
 	generic.Generic
 }
 
-func (k *Kind) HasLoadBalancer() bool {
+func (k *kind) HasLoadBalancer() bool {
 	return false
 }
 

@@ -9,6 +9,15 @@ import (
 	. "github.com/suse/carrier/cli/kubernetes"
 )
 
+type FakeReader struct {
+	Values map[string]string
+}
+
+func (f *FakeReader) Read(opt *InstallationOption) error {
+	opt.Value = f.Values[opt.Name+"-"+string(opt.DeploymentID)]
+	return nil
+}
+
 var _ = Describe("InstallationOption", func() {
 	Describe("ToOptMapKey", func() {
 		option := InstallationOption{
@@ -430,6 +439,51 @@ var _ = Describe("InstallationOptions", func() {
 				Name:         "Option1",
 				Value:        "SomeValue",
 				DeploymentID: "Deployment1",
+			}))
+		})
+	})
+
+	Describe("Populate", func() {
+		var options *InstallationOptions
+		BeforeEach(func() {
+			options = &InstallationOptions{
+				{
+					Name:         "SharedOption",
+					DeploymentID: "",
+					Value:        "", // To be filled in
+				},
+				{
+					Name:         "PrivateOption1",
+					DeploymentID: "Deployment1",
+					Value:        "SomeDefault",
+				},
+				{
+					Name:         "PrivateOption2",
+					DeploymentID: "Deployment2",
+					Value:        "", // to be filled
+				},
+			}
+		})
+
+		It("returns a all options for all deployments", func() {
+			fakereader := &FakeReader{
+				Values: map[string]string{
+					"SharedOption-":              "something-returned-by-user",
+					"PrivateOption2-Deployment2": "something-returned-by-user-private2",
+				},
+			}
+			var err error
+			options, err = options.Populate(fakereader)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(len(*options)).To(Equal(3))
+			Expect(*options).To(ContainElement(InstallationOption{
+				Name:  "SharedOption",
+				Value: "something-returned-by-user",
+			}))
+			Expect(*options).To(ContainElement(InstallationOption{
+				Name:         "PrivateOption2",
+				DeploymentID: "Deployment2",
+				Value:        "something-returned-by-user-private2",
 			}))
 		})
 	})

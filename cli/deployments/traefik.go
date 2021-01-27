@@ -21,7 +21,7 @@ type Traefik struct {
 }
 
 const (
-	traefikDeploymentID = "traefik"
+	TraefikDeploymentID = "traefik"
 	traefikVersion      = "9.11.0"
 	traefikChartURL     = "https://helm.traefik.io/traefik/traefik-9.11.0.tgz"
 )
@@ -31,7 +31,7 @@ func (k *Traefik) NeededOptions() kubernetes.InstallationOptions {
 }
 
 func (k *Traefik) ID() string {
-	return traefikDeploymentID
+	return TraefikDeploymentID
 }
 
 func (k *Traefik) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -55,29 +55,29 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.New("Failed uninstalling Traefik: " + err.Error())
 	}
 
-	message := "Removing helm release " + traefikDeploymentID
+	message := "Removing helm release " + TraefikDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall traefik --namespace '%s'", traefikDeploymentID)
+			helmCmd := fmt.Sprintf("helm uninstall traefik --namespace '%s'", TraefikDeploymentID)
 			return helpers.RunProc(helmCmd, currentdir, k.Debug)
 		},
 	)
 	if err != nil {
 		if strings.Contains(out, "release: not found") {
-			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", traefikDeploymentID)
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", TraefikDeploymentID)
 		} else {
-			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", traefikDeploymentID, out)
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", TraefikDeploymentID, out)
 		}
 	}
 
-	message = "Deleting Traefik namespace " + traefikDeploymentID
+	message = "Deleting Traefik namespace " + TraefikDeploymentID
 	warning, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(traefikDeploymentID)
+			return c.DeleteNamespaceIfOwned(TraefikDeploymentID)
 		},
 	)
 	if err != nil {
-		return errors.Wrapf(err, "Failed deleting namespace %s", traefikDeploymentID)
+		return errors.Wrapf(err, "Failed deleting namespace %s", TraefikDeploymentID)
 	}
 	if warning != "" {
 		ui.Exclamation().Msg(warning)
@@ -110,20 +110,20 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		}
 	}
 
-	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, traefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, TraefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Traefik: %s\n", out))
 	}
 
-	err = c.LabelNamespace(traefikDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(TraefikDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
 	if err != nil {
 		return err
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to exist")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, traefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to come up")
 	}
 
@@ -144,11 +144,11 @@ func (k Traefik) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		traefikDeploymentID,
+		TraefikDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + traefikDeploymentID + " present already")
+		return errors.New("Namespace " + TraefikDeploymentID + " present already")
 	}
 
 	_, err = c.Kubectl.CoreV1().Services("kube-system").Get(
@@ -170,11 +170,11 @@ func (k Traefik) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 func (k Traefik) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		traefikDeploymentID,
+		TraefikDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + traefikDeploymentID + " not present")
+		return errors.New("Namespace " + TraefikDeploymentID + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Traefik Ingress...")

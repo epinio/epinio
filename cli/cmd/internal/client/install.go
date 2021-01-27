@@ -4,23 +4,17 @@ import (
 	"code.cloudfoundry.org/quarks-utils/pkg/cmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas"
 )
 
-const (
-	DefaultTimeoutSec = 300
-)
-
-var carrierDeploymentSet = kubernetes.DeploymentSet{
-	Deployments: []kubernetes.Deployment{
-		&deployments.Traefik{Timeout: DefaultTimeoutSec},
-		&deployments.Quarks{Timeout: DefaultTimeoutSec},
-		&deployments.Gitea{Timeout: DefaultTimeoutSec},
-		&deployments.Eirini{Timeout: DefaultTimeoutSec},
-		&deployments.Registry{Timeout: DefaultTimeoutSec},
-		&deployments.Tekton{Timeout: DefaultTimeoutSec},
+var NeededOptions = kubernetes.InstallationOptions{
+	{
+		Name:        "system_domain",
+		Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP (Leave empty to use a nip.io domain).",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
 	},
 }
 
@@ -45,7 +39,7 @@ func init() {
 	CmdInstall.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not")
 
-	carrierDeploymentSet.AsCobraFlagsFor(CmdInstall)
+	NeededOptions.AsCobraFlagsFor(CmdInstall)
 }
 
 // Install command installs carrier on a configured cluster
@@ -61,7 +55,7 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = install_client.Install(cmd, &carrierDeploymentSet)
+	err = install_client.Install(cmd, &NeededOptions)
 	if err != nil {
 		return errors.Wrap(err, "error installing Carrier")
 	}

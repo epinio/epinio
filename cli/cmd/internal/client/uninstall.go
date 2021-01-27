@@ -33,7 +33,7 @@ func Uninstall(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = installClient.Uninstall(cmd, &carrierDeploymentSet)
+	err = installClient.Uninstall(cmd)
 	if err != nil {
 		return errors.Wrap(err, "error uninstalling Carrier")
 	}
