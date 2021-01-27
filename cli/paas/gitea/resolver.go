@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/config"
 )
@@ -30,7 +31,7 @@ func NewResolver(config *config.Config, cluster *kubernetes.Cluster) *Resolver {
 // GetMainDomain finds the main domain for Carrier
 func (r *Resolver) GetMainDomain() (string, error) {
 	// Get the ingress
-	ingresses, err := r.cluster.ListIngress(r.config.GiteaNamespace, "app.kubernetes.io/name=gitea")
+	ingresses, err := r.cluster.ListIngress(deployments.GiteaDeploymentID, "app.kubernetes.io/name=gitea")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list ingresses for gitea")
 	}
@@ -59,7 +60,7 @@ func (r *Resolver) GetMainDomain() (string, error) {
 // GetGiteaURL finds the URL for gitea
 func (r *Resolver) GetGiteaURL() (string, error) {
 	// Get the ingress
-	ingresses, err := r.cluster.ListIngress(r.config.GiteaNamespace, "app.kubernetes.io/name=gitea")
+	ingresses, err := r.cluster.ListIngress(deployments.GiteaDeploymentID, "app.kubernetes.io/name=gitea")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list ingresses for gitea")
 	}
