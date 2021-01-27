@@ -247,7 +247,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 	defer stopFunc()
 
-	err = c.waitForApp(c.ui, app)
+	err = c.waitForApp(app)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -512,17 +512,17 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 	return cancelFunc, nil
 }
 
-func (c *CarrierClient) waitForApp(ui *ui.UI, name string) error {
+func (c *CarrierClient) waitForApp(name string) error {
 	c.ui.ProgressNote().Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
-		ui, c.config.EiriniWorkloadsNamespace,
+		c.ui, c.config.EiriniWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)
 
 	c.ui.ProgressNote().Msg("Starting application")
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
-		ui, c.config.EiriniWorkloadsNamespace,
+		c.ui, c.config.EiriniWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)
 
