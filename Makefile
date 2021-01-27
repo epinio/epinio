@@ -16,6 +16,9 @@ build:
 build-all:
 	@$(MAKE) -C cli build-all
 
+build-all-small:
+	@$(MAKE) -C cli build-all-small
+
 build-arm32:
 	@$(MAKE) -C cli build-arm32
 
@@ -30,6 +33,13 @@ build-windows:
 
 build-darwin:
 	@$(MAKE) -C cli build-darwin
+
+compress:
+	upx --brute -1 ./cli/dist/carrier-linux-arm32
+	upx --brute -1 ./cli/dist/carrier-linux-arm64
+	upx --brute -1 ./cli/dist/carrier-linux-amd64
+	upx --brute -1 ./cli/dist/carrier-windows-amd64
+	upx --brute -1 ./cli/dist/carrier-darwin-amd64
 
 test:
 	@$(MAKE) -C cli test
