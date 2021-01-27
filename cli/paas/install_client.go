@@ -116,7 +116,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command, deploymentset *kubernetes.
 func (c *InstallClient) showInstallConfiguration(ds *kubernetes.DeploymentSet) {
 	m := c.ui.Normal()
 	for _, opt := range ds.NeededOptions {
-		name := "  :compass:" + opt.Name
+		name := "  :compass: " + opt.Name
 		switch opt.Type {
 		case kubernetes.BooleanType:
 			m = m.WithBoolValue(name, opt.Value.(bool))
