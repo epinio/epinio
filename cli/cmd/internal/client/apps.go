@@ -12,7 +12,7 @@ var ()
 // CmdApps implements the carrier app command
 var CmdApps = &cobra.Command{
 	Use:   "apps",
-	Short: "Lists all apps",
+	Short: "Lists all applications",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)

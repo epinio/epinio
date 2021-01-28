@@ -12,7 +12,7 @@ var ()
 // CmdCreateOrg implements the carrier orgs command
 var CmdCreateOrg = &cobra.Command{
 	Use:   "create-org NAME",
-	Short: "Creates an org",
+	Short: "Creates an organization",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)

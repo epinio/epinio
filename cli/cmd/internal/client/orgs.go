@@ -12,7 +12,7 @@ var ()
 // CmdOrgs implements the carrier orgs command
 var CmdOrgs = &cobra.Command{
 	Use:   "orgs",
-	Short: "Lists all orgs",
+	Short: "Lists all organizations",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
 		defer func() {
