@@ -10,6 +10,9 @@ tools-versions:
 version:
 	@./scripts/version.sh
 
+help:
+	@$(MAKE) -C cli help
+
 build:
 	@$(MAKE) -C cli build
 
