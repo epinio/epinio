@@ -59,7 +59,8 @@ update_tekton:
 	cp ../tekton/triggers.yaml embedded-files/tekton/
 
 embed_files:
-	statik -f -src=./embedded-files
+	statik -m -f -src=./embedded-files
 
 help:
 	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee ../HELP
+  
