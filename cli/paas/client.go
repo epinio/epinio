@@ -63,7 +63,7 @@ func (c *CarrierClient) Info() error {
 		giteaVersion = version
 	}
 
-	c.ui.Normal().
+	c.ui.Success().
 		WithStringValue("Platform", platform.String()).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
@@ -72,14 +72,42 @@ func (c *CarrierClient) Info() error {
 	return nil
 }
 
+// AppsMatching returns all Carrier apps having the specified prefix
+// in their name.
+func (c *CarrierClient) AppsMatching(prefix string) []string {
+	result := []string{}
+
+	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
+	if err != nil {
+		return result
+	}
+
+	for _, app := range apps {
+		if strings.HasPrefix(app.Name, prefix) {
+			result = append(result, app.Name)
+		}
+	}
+
+	return result
+}
+
 // Apps gets all Carrier apps
 func (c *CarrierClient) Apps() error {
+	c.ui.Note().
+		WithStringValue("Organization", c.config.Org).
+		Msg("Listing applications")
+
+	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
+	if err != nil {
+		return err
+	}
+
 	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list apps")
 	}
 
-	msg := c.ui.Normal().WithTable("Name", "Status", "Routes")
+	msg := c.ui.Success().WithTable("Name", "Status", "Routes")
 
 	for _, app := range apps {
 		status, err := c.kubeClient.StatefulSetStatus(
@@ -99,16 +127,28 @@ func (c *CarrierClient) Apps() error {
 		msg = msg.WithTableRow(app.Name, status, strings.Join(routes, ", "))
 	}
 
-	msg.Msg("Carrier Apps.")
+	msg.Msg("Carrier Applications:")
 
 	return nil
 }
 
 // CreateOrg creates an Org in gitea
 func (c *CarrierClient) CreateOrg(org string) error {
-	c.ui.Note().WithStringValue("Name", org).Msg("Creating organization...")
+	c.ui.Note().
+		WithStringValue("Name", org).
+		Msg("Creating organization...")
 
-	_, _, err := c.giteaClient.CreateOrg(gitea.CreateOrgOption{
+	_, resp, err := c.giteaClient.GetOrg(org)
+	if resp == nil && err != nil {
+		return errors.Wrap(err, "failed to make get org request")
+	}
+
+	if resp.StatusCode == 200 {
+		c.ui.Exclamation().Msg("Organization already exists.")
+		return nil
+	}
+
+	_, _, err = c.giteaClient.CreateOrg(gitea.CreateOrgOption{
 		Name: org,
 	})
 
@@ -123,44 +163,81 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 // Delete deletes an app
 func (c *CarrierClient) Delete(app string) error {
+	c.ui.Note().
+		WithStringValue("Name", app).
+		Msg("Deleting application...")
+
 	_, err := c.giteaClient.DeleteRepo(c.config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete repo")
 	}
 
-	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app code repository.")
+	c.ui.Normal().Msg("Deleted app code repository.")
 
 	err = c.eiriniClient.EiriniV1().LRPs(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete eirini lrp")
 	}
 
-	c.ui.Normal().WithStringValue("name", app).Msg("Deleted app containers.")
+	c.ui.Normal().Msg("Deleted app containers.")
+	c.ui.Success().Msg("Application deleted.")
 
 	return nil
 }
 
+// OrgsMatching returns all Carrier orgs having the specified prefix
+// in their name
+func (c *CarrierClient) OrgsMatching(prefix string) []string {
+	result := []string{}
+
+	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	if err != nil {
+		return result
+	}
+
+	for _, org := range orgs {
+		if strings.HasPrefix(org.UserName, prefix) {
+			result = append(result, org.UserName)
+		}
+	}
+
+	return result
+}
+
 // Orgs get a list of all orgs in gitea
 func (c *CarrierClient) Orgs() error {
+	c.ui.Note().Msg("Listing organizations")
+
 	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list orgs")
 	}
 
-	msg := c.ui.Normal().WithTable("Name")
+	msg := c.ui.Success().WithTable("Name")
 
 	for _, org := range orgs {
 		msg = msg.WithTableRow(org.UserName)
 	}
 
-	msg.Msg("Carrier Organizations")
+	msg.Msg("Carrier Organizations:")
 
 	return nil
 }
 
 // Push pushes an app
 func (c *CarrierClient) Push(app string, path string) error {
-	err := c.createRepo(app)
+	c.ui.Note().
+		WithStringValue("Name", app).
+		WithStringValue("Organization", c.config.Org).
+		WithStringValue("Sources", path).
+		Msg("Pushing application")
+
+	err := c.ensureGoodOrg(c.config.Org, "Unable to push.")
+	if err != nil {
+		return err
+	}
+
+	err = c.createRepo(app)
 	if err != nil {
 		return errors.Wrap(err, "create repo failed")
 	}
@@ -186,7 +263,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 	defer stopFunc()
 
-	err = c.waitForApp(c.ui, app)
+	err = c.waitForApp(app)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -196,8 +273,9 @@ func (c *CarrierClient) Push(app string, path string) error {
 		return errors.Wrap(err, "failed to determine default app route")
 	}
 
-	c.ui.Exclamation().
-		WithStringValue("App Name", app).
+	c.ui.Success().
+		WithStringValue("Name", app).
+		WithStringValue("Organization", c.config.Org).
 		WithStringValue("Route", fmt.Sprintf("http://%s", route)).
 		Msg("App is online.")
 
@@ -207,17 +285,28 @@ func (c *CarrierClient) Push(app string, path string) error {
 // Target targets an org in gitea
 func (c *CarrierClient) Target(org string) error {
 	if org == "" {
-		c.ui.Normal().WithStringValue("Currently targetted org", c.config.Org).Msg("")
+		c.ui.Success().
+			WithStringValue("Currently targeted organization", c.config.Org).
+			Msg("")
 		return nil
 	}
 
+	c.ui.Note().
+		WithStringValue("Name", org).
+		Msg("Targeting organization...")
+
+	err := c.ensureGoodOrg(org, "Unable to target.")
+	if err != nil {
+		return err
+	}
+
 	c.config.Org = org
-	err := c.config.Save()
+	err = c.config.Save()
 	if err != nil {
 		return errors.Wrap(err, "failed to save configuration")
 	}
 
-	c.ui.Normal().WithStringValue("Targetted org", c.config.Org).Msg("")
+	c.ui.Success().Msg("Organization targeted.")
 
 	return nil
 }
@@ -227,15 +316,13 @@ func (c *CarrierClient) check() {
 }
 
 func (c *CarrierClient) createRepo(name string) error {
-	c.ui.Normal().Msg("Creating application ...")
-
 	_, resp, err := c.giteaClient.GetRepo(c.config.Org, name)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get repo request")
 	}
 
 	if resp.StatusCode == 200 {
-		c.ui.Normal().WithStringValue("name", name).Msg("Application already exists.")
+		c.ui.Note().Msg("Application already exists. Updating.")
 		return nil
 	}
 
@@ -250,7 +337,7 @@ func (c *CarrierClient) createRepo(name string) error {
 		return errors.Wrap(err, "failed to create application")
 	}
 
-	c.ui.Normal().WithStringValue("name", name).Msg("Application created.")
+	c.ui.Success().Msg("Application Repository created.")
 
 	return nil
 }
@@ -393,39 +480,41 @@ git push carrier master:main
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		c.ui.Problem().
-			WithStringValue("stdout", string(output)).
-			WithStringValue("stderr", "").
+			WithStringValue("Stdout", string(output)).
+			WithStringValue("Stderr", "").
 			Msg("App push failed")
 		return errors.Wrap(err, "push script failed")
 	}
 
-	c.ui.Exclamation().WithStringValue("output", string(output)).Msg("App push successful")
+	c.ui.Success().
+		WithStringValue("Output", string(output)).
+		Msg("Application push successful")
 
 	return nil
 }
 
 func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
-	c.ui.Normal().Msg("Tailing app logs ...")
+	c.ui.ProgressNote().Msg("Tailing application logs ...")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	// TODO: improve the way we look for pods, use selectors
 	// and watch staging as well
-	err := tailer.Run(ctx, &tailer.Config{
+	err := tailer.Run(c.ui, ctx, &tailer.Config{
 		ContainerQuery:        regexp.MustCompile(".*"),
 		ExcludeContainerQuery: nil,
 		ContainerState:        "running",
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            false,
-		Since:                 172800000000000, //48hr
+		Since:                 48 * time.Hour,
 		AllNamespaces:         false,
 		LabelSelector:         labels.Everything(),
 		TailLines:             nil,
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
 
 		Namespace: "eirini-workloads",
-		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*%s.*", name)),
+		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*-%s-.*", name)),
 	}, c.kubeClient)
 	if err != nil {
 		return cancelFunc, errors.Wrap(err, "failed to start log tail")
@@ -434,22 +523,39 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 	return cancelFunc, nil
 }
 
-func (c *CarrierClient) waitForApp(ui *ui.UI, name string) error {
-	c.ui.Normal().Msg("Waiting for resources to be created ...")
+func (c *CarrierClient) waitForApp(name string) error {
+	c.ui.ProgressNote().Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
-		ui, c.config.EiriniWorkloadsNamespace,
+		c.ui, c.config.EiriniWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)
 
-	c.ui.Normal().Msg("Waiting for app to come online ...")
+	c.ui.ProgressNote().Msg("Starting application")
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
-		ui, c.config.EiriniWorkloadsNamespace,
+		c.ui, c.config.EiriniWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)
 
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to come online failed")
+	}
+
+	return nil
+}
+
+func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
+	_, resp, err := c.giteaClient.GetOrg(org)
+	if resp == nil && err != nil {
+		return errors.Wrap(err, "failed to make get org request")
+	}
+
+	if resp.StatusCode == 404 {
+		errmsg := "Organization does not exist."
+		if msg != "" {
+			errmsg += " " + msg
+		}
+		c.ui.Exclamation().WithEnd(1).Msg(errmsg)
 	}
 
 	return nil

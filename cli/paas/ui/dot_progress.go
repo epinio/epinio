@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/kyokomi/emoji"
+	"github.com/fatih/color"
 )
 
 // This file implements the DotProgress form of the Progress
@@ -32,7 +32,7 @@ func NewDotProgress(ui *UI, message string) *DotProgress {
 		active:   false,
 		stopChan: make(chan struct{}, 1),
 	}
-	p.ui.Raw(message)
+	p.ui.ProgressNote().KeepLine().Msg(message)
 	p.Start()
 	return p
 }
@@ -57,7 +57,10 @@ func (p *DotProgress) Start() {
 					p.mu.Unlock()
 					return
 				}
-				p.ui.Raw(".")
+				p.ui.Normal().
+					Compact().
+					KeepLine().
+					Msg(color.MagentaString("."))
 				delay := p.Delay
 				p.mu.Unlock()
 				time.Sleep(delay)
@@ -71,7 +74,7 @@ func (p *DotProgress) Stop() {
 	defer p.mu.Unlock()
 	if p.active {
 		p.active = false
-		p.ui.Raw("\n")
+		p.ui.Normal().Compact().Msg("")
 		p.stopChan <- struct{}{}
 	}
 }
@@ -87,10 +90,10 @@ func (p *DotProgress) ChangeMessagef(message string, a ...interface{}) {
 func (p *DotProgress) ChangeMessage(message string) {
 	message = mfinal(message)
 	p.Stop()
-	p.ui.Raw(message)
+	p.ui.ProgressNote().KeepLine().Msg(message)
 	p.Start()
 }
 
 func mfinal(message string) string {
-	return emoji.Sprint(":three-thirty: " + message + " ")
+	return message + " "
 }

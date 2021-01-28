@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ type Registry struct {
 }
 
 const (
-	registryDeploymentID = "carrier-registry"
+	RegistryDeploymentID = "carrier-registry"
 	registryVersion      = "0.1.0"
 	registryChartFile    = "container-registry-0.1.0.tgz"
 )
@@ -37,7 +38,7 @@ func (k *Registry) NeededOptions() kubernetes.InstallationOptions {
 }
 
 func (k *Registry) ID() string {
-	return registryDeploymentID
+	return RegistryDeploymentID
 }
 
 func (k *Registry) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -52,8 +53,46 @@ func (k Registry) Describe() string {
 	return emoji.Sprintf(":cloud:Registry version: %s\n:clipboard:Registry chart: %s", registryVersion, registryChartFile)
 }
 
+// Delete removes Registry from kubernetes cluster
 func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), registryDeploymentID, metav1.DeleteOptions{})
+	ui.Note().Msg("Removing Registry...")
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Registry: " + err.Error())
+	}
+
+	message := "Removing helm release " + RegistryDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", RegistryDeploymentID, RegistryDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", RegistryDeploymentID)
+		} else {
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", RegistryDeploymentID, out)
+		}
+	}
+
+	message = "Deleting Registry namespace " + RegistryDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(RegistryDeploymentID)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", RegistryDeploymentID)
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	ui.Success().Msg("Registry removed")
+
+	return nil
 }
 
 func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
@@ -67,7 +106,7 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return err
 	}
 
-	if err = createQuarksMonitoredNamespace(c, registryDeploymentID); err != nil {
+	if err = createQuarksMonitoredNamespace(c, RegistryDeploymentID); err != nil {
 		return err
 	}
 
@@ -77,15 +116,19 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s %s", action, registryDeploymentID, registryDeploymentID, tarPath)
+	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s %s", action, RegistryDeploymentID, RegistryDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Registry: " + out)
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	err = c.LabelNamespace(RegistryDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
+	}
+	if err := c.WaitUntilPodBySelectorExist(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, registryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 
@@ -102,11 +145,11 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		registryDeploymentID,
+		RegistryDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + registryDeploymentID + " present already")
+		return errors.New("Namespace " + RegistryDeploymentID + " present already")
 	}
 
 	ui.Note().Msg("Deploying Registry...")
@@ -122,11 +165,11 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 func (k Registry) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		registryDeploymentID,
+		RegistryDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + registryDeploymentID + " not present")
+		return errors.New("Namespace " + RegistryDeploymentID + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Registry...")

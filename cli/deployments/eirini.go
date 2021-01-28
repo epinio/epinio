@@ -13,6 +13,7 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -23,11 +24,14 @@ type Eirini struct {
 }
 
 const (
-	eiriniDeploymentID = "eirini"
-	eiriniVersion      = "2.0.0"
-	eiriniReleasePath  = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
-	eiriniQuarksYaml   = "eirini/quarks-secrets.yaml"
-	eiriniIngressYaml  = "eirini/routing.yaml"
+	EiriniDeploymentID       = "eirini"
+	eiriniVersion            = "2.0.0"
+	eiriniReleasePath        = "eirini/eirini-v2.0.0.tgz" // Embedded from: https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz
+	eiriniQuarksYaml         = "eirini/quarks-secrets.yaml"
+	eiriniWorkLoadsNamespace = "eirini-workloads"
+	eiriniCoreNamespace      = "eirini-core"
+	eiriniIngressNamespace   = "eirini-ingress"
+	eiriniIngressYaml        = "eirini/routing.yaml"
 )
 
 func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
@@ -42,7 +46,7 @@ func (k *Eirini) NeededOptions() kubernetes.InstallationOptions {
 }
 
 func (k *Eirini) ID() string {
-	return eiriniDeploymentID
+	return EiriniDeploymentID
 }
 
 func (k *Eirini) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -57,27 +61,83 @@ func (k Eirini) Describe() string {
 	return emoji.Sprintf(":cloud:Eirini version: %s\n:clipboard:Eirini chart: %s", eiriniVersion, eiriniReleasePath)
 }
 
+// Delete removes Eirini from kubernetes cluster
 func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), eiriniDeploymentID, metav1.DeleteOptions{})
-}
+	ui.Note().Msg("Removing Eirini...")
 
-func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-	releaseDir, err := ioutil.TempDir("", "carrier")
+	releaseDir, err := k.ExtractRelease()
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(releaseDir)
 
-	releaseFile, err := helpers.ExtractFile(eiriniReleasePath)
-	if err != nil {
-		return errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
+	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
+		message := "Removing Eirini " + component
+		out, err := helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				dir := path.Join(releaseDir, "deploy", component)
+				return helpers.Kubectl("delete --ignore-not-found=true --wait=false -f " + dir)
+			},
+		)
+		if err != nil {
+			return errors.Wrapf(err, "%s failed:\n%s", message, out)
+		}
 	}
-	defer os.Remove(releaseFile)
 
-	err = helpers.Untar(releaseFile, releaseDir)
+	// Delete namespaces last
+	for _, namespace := range []string{eiriniCoreNamespace, eiriniWorkLoadsNamespace, eiriniIngressNamespace} {
+		message := "Deleting Eirini namespace " + namespace
+		warning, err := helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return c.DeleteNamespaceIfOwned(namespace)
+			},
+		)
+		if err != nil {
+			return errors.Wrapf(err, "Failed deleting namespace %s", namespace)
+		}
+		if warning != "" {
+			ui.Exclamation().Msg(warning)
+		}
+	}
+
+	message := "Waiting for Eirini workloads namespace to be gone"
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			var err error
+			for err == nil {
+				_, err = c.Kubectl.CoreV1().Namespaces().Get(
+					context.Background(),
+					"eirini-workloads",
+					metav1.GetOptions{},
+				)
+			}
+			if serr, ok := err.(*apierrors.StatusError); ok {
+				if serr.ErrStatus.Reason == metav1.StatusReasonNotFound {
+					return "", nil
+				}
+			}
+
+			return "", err
+		},
+	)
 	if err != nil {
 		return err
 	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	ui.Success().Msg("Eirini removed")
+
+	return nil
+}
+
+func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+	releaseDir, err := k.ExtractRelease()
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(releaseDir)
 
 	message := "Creating Eirini namespace for core components"
 	out, err := helpers.WaitForCommandCompletion(ui, message,
@@ -88,6 +148,10 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	)
 	if err != nil {
 		return errors.Wrapf(err, "%s failed:\n%s", message, out)
+	}
+	err = c.LabelNamespace(eiriniCoreNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	message = "Creating Eirini namespace for workloads"
@@ -100,6 +164,10 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	)
 	if err != nil {
 		return errors.Wrapf(err, "%s failed:\n%s", message, out)
+	}
+	err = c.LabelNamespace(eiriniWorkLoadsNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	if err = k.patchNamespaceForQuarks(c, "eirini-workloads"); err != nil {
@@ -151,8 +219,12 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	if err != nil {
 		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
+	err = c.LabelNamespace(eiriniIngressNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
+	}
 
-	domain, err := options.GetString("system_domain", eiriniDeploymentID)
+	domain, err := options.GetString("system_domain", EiriniDeploymentID)
 	if err != nil {
 		return err
 	}
@@ -195,11 +267,11 @@ func (k Eirini) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		eiriniDeploymentID,
+		EiriniDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + eiriniDeploymentID + " present already")
+		return errors.New("Namespace " + EiriniDeploymentID + " present already")
 	}
 
 	ui.Note().Msg("Deploying Eirini...")
@@ -215,11 +287,11 @@ func (k Eirini) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 func (k Eirini) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		eiriniDeploymentID,
+		EiriniDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + eiriniDeploymentID + " not present")
+		return errors.New("Namespace " + EiriniDeploymentID + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Eirini...")
@@ -261,7 +333,7 @@ func (k Eirini) createGitCredsSecret(c *kubernetes.Cluster, domain string) error
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "git-creds",
 				Annotations: map[string]string{
-					"kpack.io/git": fmt.Sprintf("http://%s.%s", giteaDeploymentID, domain),
+					"kpack.io/git": fmt.Sprintf("http://%s.%s", GiteaDeploymentID, domain),
 				},
 			},
 			StringData: map[string]string{
@@ -324,4 +396,21 @@ func (k Eirini) patchOpiConfForPrivateRegistry(path string) (string, error) {
 `)
 
 	return "", err
+}
+
+// ExtractRelease extracts the embedded Eirini release tarball in a temporary
+// directory. It returns the path to the directory or an error if something fails.
+func (k Eirini) ExtractRelease() (string, error) {
+	releaseDir, err := ioutil.TempDir("", "carrier")
+	if err != nil {
+		return "", err
+	}
+
+	releaseFile, err := helpers.ExtractFile(eiriniReleasePath)
+	if err != nil {
+		return "", errors.New("Failed to extract embedded file: " + eiriniReleasePath + " - " + err.Error())
+	}
+	defer os.Remove(releaseFile)
+
+	return releaseDir, helpers.Untar(releaseFile, releaseDir)
 }

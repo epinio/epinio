@@ -11,7 +11,7 @@ var ()
 
 // CmdDeleteApp implements the carrier delete command
 var CmdDeleteApp = &cobra.Command{
-	Use:   "delete [args]",
+	Use:   "delete NAME",
 	Short: "Deletes an app",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -35,6 +35,21 @@ var CmdDeleteApp = &cobra.Command{
 	},
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+		app, cleanup, _ := paas.NewCarrierClient(cmd.Flags(), nil)
+		defer func() {
+			if cleanup != nil {
+				cleanup()
+			}
+		}()
+
+		matches := app.AppsMatching(toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	},
 }
 
 func init() {

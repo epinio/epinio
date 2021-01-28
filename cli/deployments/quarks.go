@@ -20,7 +20,7 @@ type Quarks struct {
 }
 
 const (
-	quarksDeploymentID = "quarks"
+	QuarksDeploymentID = "quarks"
 	quarksVersion      = "6.1.17+0.gec409fd7"
 	quarksChartURL     = "https://cloudfoundry-incubator.github.io/quarks-helm/cf-operator-6.1.17+0.gec409fd7.tgz"
 )
@@ -30,7 +30,7 @@ func (k *Quarks) NeededOptions() kubernetes.InstallationOptions {
 }
 
 func (k *Quarks) ID() string {
-	return quarksDeploymentID
+	return QuarksDeploymentID
 }
 
 func (k *Quarks) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -45,8 +45,58 @@ func (k Quarks) Describe() string {
 	return emoji.Sprintf(":cloud:Quarks version: %s\n:clipboard:Quarks chart: %s", quarksVersion, quarksChartURL)
 }
 
+// Delete removes Quarks from kubernetes cluster
 func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), quarksDeploymentID, metav1.DeleteOptions{})
+	ui.Note().Msg("Removing Quarks...")
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Quarks: " + err.Error())
+	}
+
+	message := "Removing helm release " + QuarksDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall quarks --namespace %s", QuarksDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", QuarksDeploymentID)
+		} else {
+			return errors.New("Failed uninstalling Quarks: " + out)
+		}
+	}
+
+	message = "Deleting Quarks namespace " + QuarksDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(QuarksDeploymentID)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", QuarksDeploymentID)
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	for _, crd := range []string{
+		"quarksstatefulsets.quarks.cloudfoundry.org",
+		"quarksjobs.quarks.cloudfoundry.org",
+		"boshdeployments.quarks.cloudfoundry.org",
+		"quarkssecrets.quarks.cloudfoundry.org",
+	} {
+		out, err := helpers.Kubectl("delete crds --ignore-not-found=true " + crd)
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Deleting quarks CRD failed:\n%s", out))
+		}
+	}
+
+	ui.Success().Msg("Quarks removed")
+
+	return nil
 }
 
 func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
@@ -62,7 +112,7 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 
 	helmArgs = append(helmArgs, "--set global.monitoredID=quarks-secret")
 
-	helmCmd := fmt.Sprintf("helm %s quarks --create-namespace --namespace %s %s %s", action, quarksDeploymentID, quarksChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s quarks --create-namespace --namespace %s %s %s", action, QuarksDeploymentID, quarksChartURL, strings.Join(helmArgs, " "))
 	if _, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Quarks")
 	}
@@ -72,12 +122,16 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		"quarks-secret",
 		"quarks-job",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(ui, quarksDeploymentID, "name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to come up")
 		}
+	}
+	err := c.LabelNamespace(QuarksDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	ui.Success().Msg("Quarks deployed")
@@ -93,11 +147,11 @@ func (k Quarks) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		quarksDeploymentID,
+		QuarksDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + quarksDeploymentID + " present already")
+		return errors.New("Namespace " + QuarksDeploymentID + " present already")
 	}
 
 	ui.Note().Msg("Deploying Quarks...")
@@ -108,11 +162,11 @@ func (k Quarks) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 func (k Quarks) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		quarksDeploymentID,
+		QuarksDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + quarksDeploymentID + " not present")
+		return errors.New("Namespace " + QuarksDeploymentID + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Quarks...")

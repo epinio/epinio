@@ -4,32 +4,32 @@ import (
 	"code.cloudfoundry.org/quarks-utils/pkg/cmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas"
 )
 
-const (
-	DefaultTimeoutSec = 300
-)
-
-var carrierDeploymentSet = kubernetes.DeploymentSet{
-	Deployments: []kubernetes.Deployment{
-		&deployments.Traefik{Timeout: DefaultTimeoutSec},
-		&deployments.Quarks{Timeout: DefaultTimeoutSec},
-		&deployments.Gitea{Timeout: DefaultTimeoutSec},
-		&deployments.Eirini{Timeout: DefaultTimeoutSec},
-		&deployments.Registry{Timeout: DefaultTimeoutSec},
-		&deployments.Tekton{Timeout: DefaultTimeoutSec},
+var NeededOptions = kubernetes.InstallationOptions{
+	{
+		Name:        "system_domain",
+		Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP (Leave empty to use a nip.io domain).",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
 	},
 }
 
+const (
+	DefaultOrganization = "workspace"
+)
+
 var CmdInstall = &cobra.Command{
-	Use:   "install",
-	Short: "install Carrier in your configured kubernetes cluster",
-	Long:  `install Carrier PaaS in your configured kubernetes cluster`,
-	Args:  cobra.ExactArgs(0),
-	RunE:  Install,
+	Use:           "install",
+	Short:         "install Carrier in your configured kubernetes cluster",
+	Long:          `install Carrier PaaS in your configured kubernetes cluster`,
+	Args:          cobra.ExactArgs(0),
+	RunE:          Install,
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func init() {
@@ -41,9 +41,9 @@ func init() {
 	cmd.AddEnvToUsage(CmdInstall, argToEnv)
 
 	CmdInstall.Flags().BoolP("verbose", "v", true, "Wether to print logs to stdout")
-	CmdInstall.Flags().BoolP("non-interactive", "n", false, "Whether to ask the user or not")
+	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not")
 
-	carrierDeploymentSet.AsCobraFlagsFor(CmdInstall)
+	NeededOptions.AsCobraFlagsFor(CmdInstall)
 }
 
 // Install command installs carrier on a configured cluster
@@ -59,7 +59,7 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = install_client.Install(cmd, &carrierDeploymentSet)
+	err = install_client.Install(cmd, &NeededOptions)
 	if err != nil {
 		return errors.Wrap(err, "error installing Carrier")
 	}
@@ -77,9 +77,24 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = carrier_client.CreateOrg("workspace")
+	// Post Installation Tasks:
+	// - Create and target a default organization, so that the
+	//   user can immediately begin to push applications.
+	//
+	// Dev Note: The targeting is done to ensure that a carrier
+	// config left over from a previous installation will contain
+	// a valid organization. Without it may contain the name of a
+	// now invalid organization from said previous install. This
+	// then breaks push and other commands in non-obvious ways.
+
+	err = carrier_client.CreateOrg(DefaultOrganization)
 	if err != nil {
 		return errors.Wrap(err, "error creating org")
+	}
+
+	err = carrier_client.Target(DefaultOrganization)
+	if err != nil {
+		return errors.Wrap(err, "failed to set target")
 	}
 
 	return nil

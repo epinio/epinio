@@ -2,15 +2,18 @@ package tailer
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"hash/fnv"
 	"os"
 	"regexp"
+	"strings"
 	"text/template"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
+	"github.com/suse/carrier/cli/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -19,6 +22,7 @@ import (
 type Tail struct {
 	Namespace      string
 	PodName        string
+	Origin         string
 	ContainerName  string
 	Options        *TailOptions
 	req            *rest.Request
@@ -26,6 +30,7 @@ type Tail struct {
 	podColor       *color.Color
 	containerColor *color.Color
 	tmpl           *template.Template
+	ui             *ui.UI
 }
 
 type TailOptions struct {
@@ -38,14 +43,16 @@ type TailOptions struct {
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
-func NewTail(namespace, podName, containerName string, tmpl *template.Template, options *TailOptions) *Tail {
+func NewTail(ui *ui.UI, namespace, podName, containerName string, tmpl *template.Template, options *TailOptions) *Tail {
 	return &Tail{
 		Namespace:     namespace,
 		PodName:       podName,
+		Origin:        originOf(podName),
 		ContainerName: containerName,
 		Options:       options,
 		closed:        make(chan struct{}),
 		tmpl:          tmpl,
+		ui:            ui,
 	}
 }
 
@@ -67,19 +74,28 @@ func determineColor(podName string) (podColor, containerColor *color.Color) {
 	return colors[0], colors[1]
 }
 
+func originOf(podName string) string {
+	if strings.HasPrefix(podName, "staging-pipeline-run-") {
+		return "[STAGE]"
+	}
+	return "[APP]"
+}
+
 // Start starts tailing
 func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
-	t.podColor, t.containerColor = determineColor(t.PodName)
+	t.podColor, t.containerColor = determineColor(t.Origin)
 
 	go func() {
 		g := color.New(color.FgHiGreen, color.Bold).SprintFunc()
 		p := t.podColor.SprintFunc()
 		c := t.containerColor.SprintFunc()
+		var m string
 		if t.Options.Namespace {
-			fmt.Fprintf(os.Stderr, "%s %s %s › %s\n", g("+"), p(t.Namespace), p(t.PodName), c(t.ContainerName))
+			m = fmt.Sprintf("%s %s %s › %s ", g("Now tracking"), p(t.Namespace), p(t.PodName), c(t.ContainerName))
 		} else {
-			fmt.Fprintf(os.Stderr, "%s %s › %s\n", g("+"), p(t.PodName), c(t.ContainerName))
+			m = fmt.Sprintf("%s %s › %s ", g("Now tracking"), p(t.PodName), c(t.ContainerName))
 		}
+		t.ui.ProgressNote().KeepLine().Msg(m)
 
 		req := i.GetLogs(t.PodName, &corev1.PodLogOptions{
 			Follow:       true,
@@ -112,7 +128,7 @@ func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
 				return
 			}
 
-			str := string(line)
+			str := strings.TrimRight(string(line), "\r\n\t ")
 
 			for _, rex := range t.Options.Exclude {
 				if rex.MatchString(str) {
@@ -161,14 +177,19 @@ func (t *Tail) Print(msg string) {
 		Message:        msg,
 		Namespace:      t.Namespace,
 		PodName:        t.PodName,
+		Origin:         t.Origin,
 		ContainerName:  t.ContainerName,
 		PodColor:       t.podColor,
 		ContainerColor: t.containerColor,
 	}
-	err := t.tmpl.Execute(os.Stdout, vm)
+
+	var result bytes.Buffer
+	err := t.tmpl.Execute(&result, vm)
 	if err != nil {
 		os.Stderr.WriteString(fmt.Sprintf("expanding template failed: %s", err))
+		return
 	}
+	t.ui.ProgressNote().KeepLine().Msg(result.String() + " ")
 }
 
 // Log is the object which will be used together with the template to generate
@@ -182,6 +203,9 @@ type Log struct {
 
 	// PodName of the pod
 	PodName string `json:"podName"`
+
+	// Origin
+	Origin string `json:"origin"`
 
 	// ContainerName of the container
 	ContainerName string `json:"containerName"`

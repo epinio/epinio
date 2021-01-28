@@ -15,6 +15,10 @@ type k3s struct {
 	generic.Generic
 }
 
+func (k *k3s) HasLoadBalancer() bool {
+	return true
+}
+
 func (k *k3s) Describe() string {
 	return emoji.Sprintf(":anchor:Detected kubernetes platform: %s\n:earth_americas:ExternalIPs: %s\n:curly_loop:InternalIPs: %s", k.String(), k.ExternalIPs(), k.InternalIPs)
 }

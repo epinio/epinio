@@ -20,7 +20,7 @@ type Gitea struct {
 }
 
 const (
-	giteaDeploymentID = "gitea"
+	GiteaDeploymentID = "gitea"
 	giteaVersion      = "2.1.3"
 	giteaChartURL     = "https://dl.gitea.io/charts/gitea-2.1.3.tgz"
 )
@@ -37,7 +37,7 @@ func (k *Gitea) NeededOptions() kubernetes.InstallationOptions {
 }
 
 func (k *Gitea) ID() string {
-	return giteaDeploymentID
+	return GiteaDeploymentID
 }
 
 func (k *Gitea) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
@@ -52,8 +52,46 @@ func (k Gitea) Describe() string {
 	return emoji.Sprintf(":cloud:Gitea version: %s\n:clipboard:Gitea chart: %s", giteaVersion, giteaChartURL)
 }
 
+// Delete removes Gitea from kubernetes cluster
 func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	return c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), giteaDeploymentID, metav1.DeleteOptions{})
+	ui.Note().Msg("Removing Gitea...")
+
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return errors.New("Failed uninstalling Gitea: " + err.Error())
+	}
+
+	message := "Removing helm release " + GiteaDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall gitea --namespace %s", GiteaDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", GiteaDeploymentID)
+		} else {
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", GiteaDeploymentID, out)
+		}
+	}
+
+	message = "Deleting Gitea namespace " + GiteaDeploymentID
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return c.DeleteNamespaceIfOwned(GiteaDeploymentID)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", GiteaDeploymentID)
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	}
+
+	ui.Success().Msg("Gitea removed")
+
+	return nil
 }
 
 func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
@@ -70,11 +108,11 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Instal
 	// Setup Gitea helm values
 	var helmArgs []string
 
-	domain, err := options.GetString("system_domain", giteaDeploymentID)
+	domain, err := options.GetString("system_domain", GiteaDeploymentID)
 	if err != nil {
 		return err
 	}
-	subdomain := giteaDeploymentID + "." + domain
+	subdomain := GiteaDeploymentID + "." + domain
 
 	config := fmt.Sprintf(`
 ingress:
@@ -128,10 +166,14 @@ gitea:
 	}
 	defer os.Remove(configPath)
 
-	helmCmd := fmt.Sprintf("helm %s gitea --create-namespace --values %s --namespace %s %s %s", action, configPath, giteaDeploymentID, giteaChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s gitea --create-namespace --values %s --namespace %s %s %s", action, configPath, GiteaDeploymentID, giteaChartURL, strings.Join(helmArgs, " "))
 
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Gitea: " + out)
+	}
+	err = c.LabelNamespace(GiteaDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	if err != nil {
+		return err
 	}
 
 	for _, podname := range []string{
@@ -139,10 +181,10 @@ gitea:
 		"postgresql",
 		"gitea",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(ui, giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ui, GiteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(ui, giteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ui, GiteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to come up")
 		}
 	}
@@ -160,11 +202,11 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		giteaDeploymentID,
+		GiteaDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + giteaDeploymentID + " present already")
+		return errors.New("Namespace " + GiteaDeploymentID + " present already")
 	}
 
 	ui.Note().Msg("Deploying Gitea...")
@@ -180,11 +222,11 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 func (k Gitea) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
-		giteaDeploymentID,
+		GiteaDeploymentID,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + giteaDeploymentID + " not present")
+		return errors.New("Namespace " + GiteaDeploymentID + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Gitea...")
