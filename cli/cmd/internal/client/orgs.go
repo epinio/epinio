@@ -1,7 +1,6 @@
 package client
 
 import (
-	"code.cloudfoundry.org/quarks-utils/pkg/cmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/paas"
@@ -34,13 +33,4 @@ var CmdOrgs = &cobra.Command{
 	},
 	SilenceErrors: true,
 	SilenceUsage:  true,
-}
-
-func init() {
-	pf := CmdOrgs.PersistentFlags()
-
-	argToEnv := map[string]string{}
-
-	cmd.KubeConfigFlags(pf, argToEnv)
-	cmd.AddEnvToUsage(CmdOrgs, argToEnv)
 }

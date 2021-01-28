@@ -9,6 +9,7 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/cmd/internal/client"
+	"github.com/suse/carrier/cli/kubernetes/config"
 )
 
 const (
@@ -34,6 +35,10 @@ func Execute() {
 	}
 
 	rootCmd.PersistentFlags().StringVarP(&flagConfigFile, "config-file", "", "", "set path of configuration file")
+
+	argToEnv := map[string]string{}
+	config.KubeConfigFlags(rootCmd.PersistentFlags(), argToEnv)
+	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)
 	rootCmd.AddCommand(client.CmdInstall)

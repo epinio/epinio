@@ -12,7 +12,6 @@ replace (
 
 require (
 	code.cloudfoundry.org/eirini v0.0.0-20201118000750-3dcf72f6ed2f
-	code.cloudfoundry.org/quarks-utils v0.0.1
 	code.gitea.io/sdk/gitea v0.13.2
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
