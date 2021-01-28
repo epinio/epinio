@@ -18,6 +18,10 @@ var NeededOptions = kubernetes.InstallationOptions{
 	},
 }
 
+const (
+	DefaultOrganization = "workspace"
+)
+
 var CmdInstall = &cobra.Command{
 	Use:           "install",
 	Short:         "install Carrier in your configured kubernetes cluster",
@@ -73,9 +77,24 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = carrier_client.CreateOrg("workspace")
+	// Post Installation Tasks:
+	// - Create and target a default organization, so that the
+	//   user can immediately begin to push applications.
+	//
+	// Dev Note: The targeting is done to ensure that a carrier
+	// config left over from a previous installation will contain
+	// a valid organization. Without it may contain the name of a
+	// now invalid organization from said previous install. This
+	// then breaks push and other commands in non-obvious ways.
+
+	err = carrier_client.CreateOrg(DefaultOrganization)
 	if err != nil {
 		return errors.Wrap(err, "error creating org")
+	}
+
+	err = carrier_client.Target(DefaultOrganization)
+	if err != nil {
+		return errors.Wrap(err, "failed to set target")
 	}
 
 	return nil

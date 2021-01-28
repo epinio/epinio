@@ -38,46 +38,17 @@ type getter struct {
 }
 
 func (g *getter) Get(configPath string) (*rest.Config, error) {
+	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if configPath == "" {
-		// If no explicit location, try the in-cluster config.
-		_, okHost := g.lookupEnv("KUBERNETES_SERVICE_HOST")
-		_, okPort := g.lookupEnv("KUBERNETES_SERVICE_PORT")
-		if okHost && okPort {
-			c, err := g.inClusterConfig()
-			if err == nil {
-				return c, nil
-			} else if !os.IsNotExist(err) {
-				return nil, &getConfigError{err}
-			}
-		}
-
-		// If no in-cluster config, set the config path to the user's ~/.kube directory.
-		usr, err := g.currentUser()
+		c, err := g.restConfigFromKubeConfig(loadingRules, &clientcmd.ConfigOverrides{}).ClientConfig()
 		if err != nil {
 			return nil, &getConfigError{err}
 		}
-
-		homeFile := filepath.Join(usr.HomeDir, ".kube", "config")
-		_, err = g.stat(homeFile)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return nil, &getConfigError{err}
-			}
-
-			// If neither the custom config path, nor the user's ~/.kube directory config path exist, use a
-			// default config.
-			c, err := g.defaultRESTConfig()
-			if err != nil {
-				return nil, &getConfigError{err}
-			}
-
-			return c, nil
-		}
-
-		configPath = homeFile
+		return c, nil
 	}
 
-	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
+	// Default loading rules are replaced by configPath provided
+	// by the carrier user.
 	if len(configPath) > 0 {
 		paths := filepath.SplitList(configPath)
 		if len(paths) == 1 {
