@@ -1,7 +1,6 @@
 package client
 
 import (
-	"code.cloudfoundry.org/quarks-utils/pkg/cmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/paas"
@@ -12,7 +11,7 @@ var ()
 // CmdDeleteApp implements the carrier delete command
 var CmdDeleteApp = &cobra.Command{
 	Use:   "delete NAME",
-	Short: "Deletes an app",
+	Short: "Deletes an application",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
@@ -50,13 +49,4 @@ var CmdDeleteApp = &cobra.Command{
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
-}
-
-func init() {
-	pf := CmdDeleteApp.PersistentFlags()
-
-	argToEnv := map[string]string{}
-
-	cmd.KubeConfigFlags(pf, argToEnv)
-	cmd.AddEnvToUsage(CmdDeleteApp, argToEnv)
 }

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"code.cloudfoundry.org/quarks-utils/pkg/cmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/paas"
@@ -15,15 +14,6 @@ var CmdUninstall = &cobra.Command{
 	RunE:          Uninstall,
 	SilenceErrors: true,
 	SilenceUsage:  true,
-}
-
-func init() {
-	pf := CmdUninstall.PersistentFlags()
-
-	argToEnv := map[string]string{}
-
-	cmd.KubeConfigFlags(pf, argToEnv)
-	cmd.AddEnvToUsage(CmdUninstall, argToEnv)
 }
 
 // Uninstall command removes carrier from a configured cluster
