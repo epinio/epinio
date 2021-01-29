@@ -14,9 +14,8 @@ import (
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/ui"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Tekton struct {
@@ -327,9 +326,9 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 }
 
 func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
-	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses("tekton-pipelines").Create(
+	_, err := c.Kubectl.NetworkingV1().Ingresses("tekton-pipelines").Create(
 		context.Background(),
-		&v1beta1.Ingress{
+		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "tekton-dashboard",
 				Namespace: "tekton-pipelines",
@@ -337,20 +336,22 @@ func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
 					"kubernetes.io/ingress.class": "traefik",
 				},
 			},
-			Spec: v1beta1.IngressSpec{
-				Rules: []v1beta1.IngressRule{
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{
 					{
 						Host: subdomain,
-						IngressRuleValue: v1beta1.IngressRuleValue{
-							HTTP: &v1beta1.HTTPIngressRuleValue{
-								Paths: []v1beta1.HTTPIngressPath{
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
 									{
 										Path: "/",
-										Backend: v1beta1.IngressBackend{
-											ServiceName: "tekton-dashboard",
-											ServicePort: intstr.IntOrString{
-												Type:   intstr.Int,
-												IntVal: 9097,
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "tekton-dashboard",
+												Port: networkingv1.ServiceBackendPort{
+													Name:   "tekton",
+													Number: 9097,
+												},
 											},
 										}}}}}}}}},
 		metav1.CreateOptions{},
