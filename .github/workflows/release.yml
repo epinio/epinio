@@ -27,6 +27,9 @@ jobs:
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: |
           make build-all-small
+      - name: Create CHECKSUMS
+        if: steps.branch.outputs.BRANCH_NAME == 'main'
+        run: ( cd cli/dist ; sha256sum -b carrier* > SHA256SUM.txt )
       - name: Release Carrier
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         uses: fnkr/github-action-ghr@v1
