@@ -1,23 +1,25 @@
 package config
 
 import (
-	flag "github.com/spf13/pflag"
-	"github.com/spf13/viper"
+	"log"
+	"os"
 
 	"github.com/go-logr/logr"
 	"github.com/go-logr/stdr"
+	flag "github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
-// Verbosity returns the verbosity argument
-func Verbosity() int {
-	return viper.GetInt("verbosity")
+// TraceLevel returns the trace-level argument
+func TraceLevel() int {
+	return viper.GetInt("trace-level")
 }
 
 // LoggerFlags adds to viper flags
 func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
-	pf.IntP("verbosity", "", 0, "Only print log messages at or above this level")
-	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
-	argToEnv["verbosity"] = "VERBOSITY"
+	pf.IntP("trace-level", "", 0, "Only print trace messages at or above this level")
+	viper.BindPFlag("trace-level", pf.Lookup("tracelevel"))
+	argToEnv["trace-level"] = "TRACE_LEVEL"
 }
 
 // New creates a new logger with our setup
@@ -32,6 +34,6 @@ func NewInstallClientLogger() logr.Logger {
 
 // New creates a new logger with our setup
 func NewLogger() logr.Logger {
-	stdr.SetVerbosity(Verbosity())
-	return stdr.New(nil).V(1) // NOTE: Increment of level, not absolute.
+	stdr.SetVerbosity(TraceLevel())
+	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
 }
