@@ -24,6 +24,7 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		kubernetes.NewClusterFromClient,
 		kubeconfig.KubeConfig,
 		eirini.NewEiriniKubeClient,
+		kubeconfig.NewClientLogger,
 	)
 
 	return &CarrierClient{}, func() {}, nil
@@ -37,6 +38,7 @@ func NewInstallClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		ui.NewUI,
 		kubernetes.NewClusterFromClient,
 		kubeconfig.KubeConfig,
+		kubeconfig.NewInstallClientLogger,
 	)
 
 	return &InstallClient{}, func() {}, nil

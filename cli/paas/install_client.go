@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/deployments"
@@ -26,6 +27,7 @@ type InstallClient struct {
 	kubeClient *kubernetes.Cluster
 	ui         *ui.UI
 	config     *config.Config
+	Log        logr.Logger
 }
 
 // Install deploys carrier to the cluster.

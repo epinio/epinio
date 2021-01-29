@@ -16,6 +16,7 @@ import (
 
 	eiriniclient "code.cloudfoundry.org/eirini/pkg/generated/clientset/versioned"
 	"code.gitea.io/sdk/gitea"
+	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/kubernetes"
@@ -46,6 +47,7 @@ type CarrierClient struct {
 	config        *config.Config
 	giteaResolver *paasgitea.Resolver
 	eiriniClient  *eiriniclient.Clientset
+	Log           logr.Logger
 }
 
 // Info displays information about environment
