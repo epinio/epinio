@@ -2,11 +2,6 @@ module github.com/suse/carrier/cli
 
 go 1.13
 
-replace (
-	github.com/coreos/bbolt => github.com/coreos/bbolt v1.3.0
-	google.golang.org/grpc => google.golang.org/grpc v1.29.1
-)
-
 require (
 	code.gitea.io/sdk/gitea v0.13.2
 	github.com/Azure/go-autorest/autorest v0.11.17 // indirect
