@@ -81,6 +81,11 @@ func (c *CarrierClient) Info() error {
 // AppsMatching returns all Carrier apps having the specified prefix
 // in their name.
 func (c *CarrierClient) AppsMatching(prefix string) []string {
+	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	result := []string{}
 
 	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
@@ -89,7 +94,10 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 	}
 
 	for _, app := range apps {
+		details.Info("Found", "Name", app.Name)
+
 		if strings.HasPrefix(app.Name, prefix) {
+			details.Info("Matched", "Name", app.Name)
 			result = append(result, app.Name)
 		}
 	}
@@ -99,15 +107,22 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 // Apps gets all Carrier apps
 func (c *CarrierClient) Apps() error {
+	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().
 		WithStringValue("Organization", c.config.Org).
 		Msg("Listing applications")
 
+	details.Info("validate")
 	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
 	if err != nil {
 		return err
 	}
 
+	details.Info("list org repos")
 	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list apps")
@@ -116,6 +131,7 @@ func (c *CarrierClient) Apps() error {
 	msg := c.ui.Success().WithTable("Name", "Status", "Routes")
 
 	for _, app := range apps {
+		details.Info("get status", "App", app.Name)
 		status, err := c.kubeClient.StatefulSetStatus(
 			c.config.EiriniWorkloadsNamespace,
 			fmt.Sprintf("cloudfoundry.org/guid=%s", app.Name))
@@ -123,6 +139,7 @@ func (c *CarrierClient) Apps() error {
 			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
 		}
 
+		details.Info("get ingress", "App", app.Name)
 		routes, err := c.kubeClient.ListIngressRoutes(
 			c.config.EiriniWorkloadsNamespace,
 			app.Name)
@@ -140,10 +157,17 @@ func (c *CarrierClient) Apps() error {
 
 // CreateOrg creates an Org in gitea
 func (c *CarrierClient) CreateOrg(org string) error {
+	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().
 		WithStringValue("Name", org).
 		Msg("Creating organization...")
 
+	details.Info("validate")
+	details.Info("gitea get-org")
 	_, resp, err := c.giteaClient.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")
@@ -154,6 +178,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 		return nil
 	}
 
+	details.Info("gitea create-org")
 	_, _, err = c.giteaClient.CreateOrg(gitea.CreateOrgOption{
 		Name: org,
 	})
@@ -169,10 +194,16 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 // Delete deletes an app
 func (c *CarrierClient) Delete(app string) error {
+	log := c.Log.WithName("Delete").WithValues("Application", app)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().
 		WithStringValue("Name", app).
 		Msg("Deleting application...")
 
+	details.Info("delete repo")
 	_, err := c.giteaClient.DeleteRepo(c.config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete repo")
@@ -180,6 +211,7 @@ func (c *CarrierClient) Delete(app string) error {
 
 	c.ui.Normal().Msg("Deleted app code repository.")
 
+	details.Info("delete lrp")
 	err = c.eiriniClient.EiriniV1().LRPs(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete eirini lrp")

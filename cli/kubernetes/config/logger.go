@@ -22,18 +22,16 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 
 // New creates a new logger with our setup
 func NewClientLogger() logr.Logger {
-	stdr.SetVerbosity(Verbosity())
 	return NewLogger().WithName("CarrierClient")
 }
 
 // New creates a new logger with our setup
 func NewInstallClientLogger() logr.Logger {
-	stdr.SetVerbosity(Verbosity())
 	return NewLogger().WithName("InstallClient")
 }
 
 // New creates a new logger with our setup
 func NewLogger() logr.Logger {
 	stdr.SetVerbosity(Verbosity())
-	return stdr.New(nil).V(1)
+	return stdr.New(nil).V(1) // NOTE: Increment of level, not absolute.
 }
