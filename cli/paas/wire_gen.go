@@ -10,9 +10,9 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 	config2 "github.com/suse/carrier/cli/kubernetes/config"
 	"github.com/suse/carrier/cli/paas/config"
-	"github.com/suse/carrier/cli/paas/eirini"
 	"github.com/suse/carrier/cli/paas/gitea"
 	"github.com/suse/carrier/cli/paas/ui"
+	"k8s.io/client-go/dynamic"
 )
 
 // Injectors from wire.go:
@@ -37,7 +37,7 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		return nil, nil, err
 	}
 	uiUI := ui.NewUI()
-	clientset, err := eirini.NewEiriniKubeClient(cluster)
+	dynamicInterface, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -48,7 +48,7 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		ui:            uiUI,
 		config:        configConfig,
 		giteaResolver: resolver,
-		eiriniClient:  clientset,
+		dynamicClient: dynamicInterface,
 		Log:           logger,
 	}
 	return carrierClient, func() {

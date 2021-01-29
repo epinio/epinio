@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	eiriniclient "code.cloudfoundry.org/eirini/pkg/generated/clientset/versioned"
 	"code.gitea.io/sdk/gitea"
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
@@ -26,6 +25,8 @@ import (
 	"github.com/suse/carrier/cli/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/dynamic"
 )
 
 var (
@@ -46,7 +47,7 @@ type CarrierClient struct {
 	ui            *ui.UI
 	config        *config.Config
 	giteaResolver *paasgitea.Resolver
-	eiriniClient  *eiriniclient.Clientset
+	dynamicClient dynamic.Interface
 	Log           logr.Logger
 }
 
@@ -212,7 +213,13 @@ func (c *CarrierClient) Delete(app string) error {
 	c.ui.Normal().Msg("Deleted app code repository.")
 
 	details.Info("delete lrp")
-	err = c.eiriniClient.EiriniV1().LRPs(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
+	virtualLrpGVR := schema.GroupVersionResource{
+		Group:    "eirini.cloudfoundry.org",
+		Version:  "v1",
+		Resource: "lrps",
+	}
+
+	err = c.dynamicClient.Resource(virtualLrpGVR).Namespace(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete eirini lrp")
 	}
