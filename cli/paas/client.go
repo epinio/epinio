@@ -52,6 +52,10 @@ type CarrierClient struct {
 
 // Info displays information about environment
 func (c *CarrierClient) Info() error {
+	log := c.Log.WithName("Info")
+	log.Info("start")
+	defer log.Info("return")
+
 	platform := c.kubeClient.GetPlatform()
 	kubeVersion, err := c.kubeClient.GetVersion()
 	if err != nil {
