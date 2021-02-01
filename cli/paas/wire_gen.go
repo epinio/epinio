@@ -10,14 +10,13 @@ import (
 	"github.com/suse/carrier/cli/kubernetes"
 	config2 "github.com/suse/carrier/cli/kubernetes/config"
 	"github.com/suse/carrier/cli/paas/config"
-	"github.com/suse/carrier/cli/paas/eirini"
 	"github.com/suse/carrier/cli/paas/gitea"
 	"github.com/suse/carrier/cli/paas/ui"
+	"k8s.io/client-go/dynamic"
 )
 
 // Injectors from wire.go:
 
-// NewCarrierClient creates the Carrier Client
 func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
 	configConfig, err := config.Load(flags)
 	if err != nil {
@@ -37,7 +36,7 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		return nil, nil, err
 	}
 	uiUI := ui.NewUI()
-	clientset, err := eirini.NewEiriniKubeClient(cluster)
+	dynamicInterface, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -48,14 +47,13 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		ui:            uiUI,
 		config:        configConfig,
 		giteaResolver: resolver,
-		eiriniClient:  clientset,
+		dynamicClient: dynamicInterface,
 		Log:           logger,
 	}
 	return carrierClient, func() {
 	}, nil
 }
 
-// NewInstallClient creates the Carrier Client for installation
 func NewInstallClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*InstallClient, func(), error) {
 	restConfig, err := config2.KubeConfig()
 	if err != nil {

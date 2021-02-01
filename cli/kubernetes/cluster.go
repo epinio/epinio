@@ -18,7 +18,7 @@ import (
 	"github.com/suse/carrier/cli/paas/ui"
 
 	v1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/api/extensions/v1beta1"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -338,12 +338,14 @@ func (c *Cluster) ListIngressRoutes(namespace, name string) ([]string, error) {
 }
 
 // ListIngress returns the list of available ingresses in `namespace` with the given selector
-func (c *Cluster) ListIngress(namespace, selector string) (*networkingv1.IngressList, error) {
+func (c *Cluster) ListIngress(namespace, selector string) (*v1beta1.IngressList, error) {
 	listOptions := metav1.ListOptions{}
 	if len(selector) > 0 {
 		listOptions.LabelSelector = selector
 	}
-	ingressList, err := c.Kubectl.NetworkingV1().Ingresses(namespace).List(context.Background(), listOptions)
+
+	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
+	ingressList, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).List(context.Background(), listOptions)
 	if err != nil {
 		return nil, err
 	}

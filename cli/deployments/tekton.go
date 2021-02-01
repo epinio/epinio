@@ -329,6 +329,9 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
 	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses("tekton-pipelines").Create(
 		context.Background(),
+		// TODO: Switch to networking v1 when we don't care about <1.18 clusters
+		// Like this (which has been reverted):
+		// https://github.com/SUSE/carrier/commit/7721d610fdf27a79be980af522783671d3ffc198
 		&v1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "tekton-dashboard",
