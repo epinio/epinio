@@ -17,6 +17,7 @@ import (
 
 // Injectors from wire.go:
 
+// NewCarrierClient creates the Carrier Client
 func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*CarrierClient, func(), error) {
 	configConfig, err := config.Load(flags)
 	if err != nil {
@@ -40,6 +41,7 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 	if err != nil {
 		return nil, nil, err
 	}
+	logger := config2.NewClientLogger()
 	carrierClient := &CarrierClient{
 		giteaClient:   client,
 		kubeClient:    cluster,
@@ -47,11 +49,13 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		config:        configConfig,
 		giteaResolver: resolver,
 		eiriniClient:  clientset,
+		Log:           logger,
 	}
 	return carrierClient, func() {
 	}, nil
 }
 
+// NewInstallClient creates the Carrier Client for installation
 func NewInstallClient(flags *pflag.FlagSet, configOverrides func(*config.Config)) (*InstallClient, func(), error) {
 	restConfig, err := config2.KubeConfig()
 	if err != nil {
@@ -66,10 +70,12 @@ func NewInstallClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 	if err != nil {
 		return nil, nil, err
 	}
+	logger := config2.NewInstallClientLogger()
 	installClient := &InstallClient{
 		kubeClient: cluster,
 		ui:         uiUI,
 		config:     configConfig,
+		Log:        logger,
 	}
 	return installClient, func() {
 	}, nil

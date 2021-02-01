@@ -16,6 +16,8 @@ require (
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
 	github.com/fatih/color v1.9.0
+	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/stdr v0.4.0
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/google/wire v0.4.0
 	github.com/kyokomi/emoji v2.2.4+incompatible

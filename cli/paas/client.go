@@ -16,6 +16,7 @@ import (
 
 	eiriniclient "code.cloudfoundry.org/eirini/pkg/generated/clientset/versioned"
 	"code.gitea.io/sdk/gitea"
+	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/cli/kubernetes"
@@ -46,10 +47,15 @@ type CarrierClient struct {
 	config        *config.Config
 	giteaResolver *paasgitea.Resolver
 	eiriniClient  *eiriniclient.Clientset
+	Log           logr.Logger
 }
 
 // Info displays information about environment
 func (c *CarrierClient) Info() error {
+	log := c.Log.WithName("Info")
+	log.Info("start")
+	defer log.Info("return")
+
 	platform := c.kubeClient.GetPlatform()
 	kubeVersion, err := c.kubeClient.GetVersion()
 	if err != nil {
@@ -75,6 +81,11 @@ func (c *CarrierClient) Info() error {
 // AppsMatching returns all Carrier apps having the specified prefix
 // in their name.
 func (c *CarrierClient) AppsMatching(prefix string) []string {
+	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	result := []string{}
 
 	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
@@ -83,7 +94,10 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 	}
 
 	for _, app := range apps {
+		details.Info("Found", "Name", app.Name)
+
 		if strings.HasPrefix(app.Name, prefix) {
+			details.Info("Matched", "Name", app.Name)
 			result = append(result, app.Name)
 		}
 	}
@@ -93,15 +107,22 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 // Apps gets all Carrier apps
 func (c *CarrierClient) Apps() error {
+	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().
 		WithStringValue("Organization", c.config.Org).
 		Msg("Listing applications")
 
+	details.Info("validate")
 	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
 	if err != nil {
 		return err
 	}
 
+	details.Info("gitea list org repos")
 	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list apps")
@@ -110,6 +131,7 @@ func (c *CarrierClient) Apps() error {
 	msg := c.ui.Success().WithTable("Name", "Status", "Routes")
 
 	for _, app := range apps {
+		details.Info("kube get status", "App", app.Name)
 		status, err := c.kubeClient.StatefulSetStatus(
 			c.config.EiriniWorkloadsNamespace,
 			fmt.Sprintf("cloudfoundry.org/guid=%s", app.Name))
@@ -117,6 +139,7 @@ func (c *CarrierClient) Apps() error {
 			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
 		}
 
+		details.Info("kube get ingress", "App", app.Name)
 		routes, err := c.kubeClient.ListIngressRoutes(
 			c.config.EiriniWorkloadsNamespace,
 			app.Name)
@@ -134,10 +157,17 @@ func (c *CarrierClient) Apps() error {
 
 // CreateOrg creates an Org in gitea
 func (c *CarrierClient) CreateOrg(org string) error {
+	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().
 		WithStringValue("Name", org).
 		Msg("Creating organization...")
 
+	details.Info("validate")
+	details.Info("gitea get-org")
 	_, resp, err := c.giteaClient.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")
@@ -148,6 +178,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 		return nil
 	}
 
+	details.Info("gitea create-org")
 	_, _, err = c.giteaClient.CreateOrg(gitea.CreateOrgOption{
 		Name: org,
 	})
@@ -163,10 +194,16 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 // Delete deletes an app
 func (c *CarrierClient) Delete(app string) error {
+	log := c.Log.WithName("Delete").WithValues("Application", app)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().
 		WithStringValue("Name", app).
 		Msg("Deleting application...")
 
+	details.Info("delete repo")
 	_, err := c.giteaClient.DeleteRepo(c.config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete repo")
@@ -174,6 +211,7 @@ func (c *CarrierClient) Delete(app string) error {
 
 	c.ui.Normal().Msg("Deleted app code repository.")
 
+	details.Info("delete lrp")
 	err = c.eiriniClient.EiriniV1().LRPs(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete eirini lrp")
@@ -188,6 +226,11 @@ func (c *CarrierClient) Delete(app string) error {
 // OrgsMatching returns all Carrier orgs having the specified prefix
 // in their name
 func (c *CarrierClient) OrgsMatching(prefix string) []string {
+	log := c.Log.WithName("OrgsMatching").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	result := []string{}
 
 	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
@@ -196,7 +239,10 @@ func (c *CarrierClient) OrgsMatching(prefix string) []string {
 	}
 
 	for _, org := range orgs {
+		details.Info("Found", "Name", org.UserName)
+
 		if strings.HasPrefix(org.UserName, prefix) {
+			details.Info("Matched", "Name", org.UserName)
 			result = append(result, org.UserName)
 		}
 	}
@@ -206,8 +252,14 @@ func (c *CarrierClient) OrgsMatching(prefix string) []string {
 
 // Orgs get a list of all orgs in gitea
 func (c *CarrierClient) Orgs() error {
+	log := c.Log.WithName("Orgs")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().Msg("Listing organizations")
 
+	details.Info("gitea admin list orgs")
 	orgs, _, err := c.giteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list orgs")
@@ -226,48 +278,65 @@ func (c *CarrierClient) Orgs() error {
 
 // Push pushes an app
 func (c *CarrierClient) Push(app string, path string) error {
+	log := c.Log.
+		WithName("Push").
+		WithValues("Name", app,
+			"Organization", c.config.Org,
+			"Sources", path)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().
 		WithStringValue("Name", app).
 		WithStringValue("Organization", c.config.Org).
 		WithStringValue("Sources", path).
 		Msg("Pushing application")
 
+	details.Info("validate")
 	err := c.ensureGoodOrg(c.config.Org, "Unable to push.")
 	if err != nil {
 		return err
 	}
 
+	details.Info("create repo")
 	err = c.createRepo(app)
 	if err != nil {
 		return errors.Wrap(err, "create repo failed")
 	}
 
+	details.Info("create repo webhook")
 	err = c.createRepoWebhook(app)
 	if err != nil {
 		return errors.Wrap(err, "webhook configuration failed")
 	}
 
+	details.Info("prepare code")
 	tmpDir, err := c.prepareCode(app, path)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare code")
 	}
 
+	details.Info("git push")
 	err = c.gitPush(app, tmpDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to git push code")
 	}
 
+	details.Info("start tailing logs")
 	stopFunc, err := c.logs(app)
 	if err != nil {
 		return errors.Wrap(err, "failed to tail logs")
 	}
 	defer stopFunc()
 
+	details.Info("wait for apps")
 	err = c.waitForApp(app)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
 
+	details.Info("get app default route")
 	route, err := c.appDefaultRoute(app)
 	if err != nil {
 		return errors.Wrap(err, "failed to determine default app route")
@@ -284,7 +353,13 @@ func (c *CarrierClient) Push(app string, path string) error {
 
 // Target targets an org in gitea
 func (c *CarrierClient) Target(org string) error {
+	log := c.Log.WithName("Target").WithValues("Organization", org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	if org == "" {
+		details.Info("query config")
 		c.ui.Success().
 			WithStringValue("Currently targeted organization", c.config.Org).
 			Msg("")
@@ -295,11 +370,13 @@ func (c *CarrierClient) Target(org string) error {
 		WithStringValue("Name", org).
 		Msg("Targeting organization...")
 
+	details.Info("validate")
 	err := c.ensureGoodOrg(org, "Unable to target.")
 	if err != nil {
 		return err
 	}
 
+	details.Info("set config")
 	c.config.Org = org
 	err = c.config.Save()
 	if err != nil {

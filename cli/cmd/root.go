@@ -34,10 +34,12 @@ func Execute() {
 		SilenceErrors: true,
 	}
 
-	rootCmd.PersistentFlags().StringVarP(&flagConfigFile, "config-file", "", "", "set path of configuration file")
-
+	pf := rootCmd.PersistentFlags()
 	argToEnv := map[string]string{}
-	config.KubeConfigFlags(rootCmd.PersistentFlags(), argToEnv)
+
+	pf.StringVarP(&flagConfigFile, "config-file", "", "", "set path of configuration file")
+	config.KubeConfigFlags(pf, argToEnv)
+	config.LoggerFlags(pf, argToEnv)
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)

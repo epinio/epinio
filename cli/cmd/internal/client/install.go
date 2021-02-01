@@ -32,7 +32,6 @@ var CmdInstall = &cobra.Command{
 }
 
 func init() {
-	CmdInstall.Flags().BoolP("verbose", "v", true, "Print more detailed messages")
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 
 	NeededOptions.AsCobraFlagsFor(CmdInstall)

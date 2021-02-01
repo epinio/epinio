@@ -6,6 +6,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/deployments"
@@ -26,13 +27,20 @@ type InstallClient struct {
 	kubeClient *kubernetes.Cluster
 	ui         *ui.UI
 	config     *config.Config
+	Log        logr.Logger
 }
 
 // Install deploys carrier to the cluster.
 func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
+	log := c.Log.WithName("Install")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().Msg("Carrier installing...")
 
 	var err error
+	details.Info("process cli options")
 	options, err = options.Populate(kubernetes.NewCLIOptionsReader(cmd))
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
@@ -44,17 +52,20 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	}
 
 	if interactive {
+		details.Info("query user for options")
 		options, err = options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
 		if err != nil {
 			return errors.Wrap(err, "Couldn't install carrier")
 		}
 	} else {
+		details.Info("fill defaults into options")
 		options, err = options.Populate(kubernetes.NewDefaultOptionsReader())
 		if err != nil {
 			return errors.Wrap(err, "Couldn't install carrier")
 		}
 	}
 
+	details.Info("show option configuration")
 	c.showInstallConfiguration(options)
 
 	// TODO (post MVP): Run a validation phase which perform
@@ -64,6 +75,8 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	// piecemal.
 
 	deployment := deployments.Traefik{Timeout: DefaultTimeoutSec}
+
+	details.Info("deploy", "Deployment", deployment.ID())
 	deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
 	if err != nil {
 		return err
@@ -75,6 +88,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		return errors.Wrap(err, "Couldn't install carrier")
 	}
 
+	details.Info("ensure system-domain")
 	err = c.fillInMissingSystemDomain(domain)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't install carrier")
@@ -92,6 +106,8 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 	} {
+		details.Info("deploy", "Deployment", deployment.ID())
+
 		err := deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
 		if err != nil {
 			return err
@@ -105,9 +121,17 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 // Uninstall removes carrier from the cluster.
 func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
+	log := c.Log.WithName("Uninstall")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
 	c.ui.Note().Msg("Carrier uninstalling...")
 
-	err := deployments.Eirini{Timeout: DefaultTimeoutSec}.Delete(c.kubeClient, c.ui)
+	deployment := deployments.Eirini{Timeout: DefaultTimeoutSec}
+
+	details.Info("remove", "Deployment", deployment.ID())
+	err := deployment.Delete(c.kubeClient, c.ui)
 	if err != nil {
 		return err
 	}
@@ -119,6 +143,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Traefik{Timeout: DefaultTimeoutSec},
 	} {
+		details.Info("remove", "Deployment", deployment.ID())
 		err := deployment.Delete(c.kubeClient, c.ui)
 		if err != nil {
 			return err
