@@ -1,8 +1,0 @@
-#!/bin/bash
-
-function log() {
-  echo -e "\e[35mingress> \e[90m$1\e[39m"
-}
-
-log "Waiting for load balancer IP address to be allocated ..."
-retry 60 'kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip | grep -q "[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*"'
