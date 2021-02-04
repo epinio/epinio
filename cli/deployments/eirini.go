@@ -72,9 +72,10 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	defer os.RemoveAll(releaseDir)
 
 	for _, component := range []string{
+		"core/lrp-crd.yml",
+		"core/task-crd.yml",
 		"core/controller-deployment.yml",
 		"core/controller-rbac.yml",
-		"core/lrp-crd.yml",
 		"core/api-configmap.yml",
 		"workloads/app-rbac.yml",
 		"workloads/core/controller-rbac.yml",
@@ -205,9 +206,10 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	}
 
 	for _, component := range []string{
+		"core/lrp-crd.yml",
+		"core/task-crd.yml",
 		"core/controller-deployment.yml",
 		"core/controller-rbac.yml",
-		"core/lrp-crd.yml",
 		"core/api-configmap.yml",
 		"workloads/app-rbac.yml",
 		"workloads/core/controller-rbac.yml",
