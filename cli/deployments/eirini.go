@@ -69,7 +69,12 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(releaseDir)
+	defer func() {
+		err := os.RemoveAll(releaseDir)
+		if err != nil {
+			ui.Exclamation().Msg(err.Error())
+		}
+	}()
 
 	for _, component := range []string{
 		"core/lrp-crd.yml",
@@ -145,7 +150,12 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(releaseDir)
+	defer func() {
+		err := os.RemoveAll(releaseDir)
+		if err != nil {
+			ui.Exclamation().Msg(err.Error())
+		}
+	}()
 
 	message := "Creating Eirini namespace for core components"
 	out, err := helpers.WaitForCommandCompletion(ui, message,
