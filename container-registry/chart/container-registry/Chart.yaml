@@ -1,5 +1,0 @@
-apiVersion: v2
-name: container-registry
-description: A Helm chart for the Container Registry
-type: application
-version: 0.1.0

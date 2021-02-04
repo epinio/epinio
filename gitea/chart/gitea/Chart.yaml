@@ -1,5 +1,0 @@
-apiVersion: v2
-name: gitea
-description: A Helm chart for Gitea
-type: application
-version: 0.1.0
