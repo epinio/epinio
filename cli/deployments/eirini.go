@@ -69,9 +69,22 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(releaseDir)
+	defer func() {
+		err := os.RemoveAll(releaseDir)
+		if err != nil {
+			ui.Exclamation().Msg(err.Error())
+		}
+	}()
 
-	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
+	for _, component := range []string{
+		"core/lrp-crd.yml",
+		"core/task-crd.yml",
+		"core/controller-deployment.yml",
+		"core/controller-rbac.yml",
+		"core/api-configmap.yml",
+		"workloads/app-rbac.yml",
+		"workloads/core/controller-rbac.yml",
+	} {
 		message := "Removing Eirini " + component
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
@@ -137,7 +150,12 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(releaseDir)
+	defer func() {
+		err := os.RemoveAll(releaseDir)
+		if err != nil {
+			ui.Exclamation().Msg(err.Error())
+		}
+	}()
 
 	message := "Creating Eirini namespace for core components"
 	out, err := helpers.WaitForCommandCompletion(ui, message,
@@ -197,7 +215,15 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
-	for _, component := range []string{"core", "events", "metrics", "workloads", "workloads/core"} {
+	for _, component := range []string{
+		"core/lrp-crd.yml",
+		"core/task-crd.yml",
+		"core/controller-deployment.yml",
+		"core/controller-rbac.yml",
+		"core/api-configmap.yml",
+		"workloads/app-rbac.yml",
+		"workloads/core/controller-rbac.yml",
+	} {
 		message := "Deploying Eirini " + component
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
@@ -242,16 +268,11 @@ func (k Eirini) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return err
 	}
 
-	for _, podname := range []string{
-		"eirini-api",
-		"eirini-metrics",
-	} {
-		if err := c.WaitUntilPodBySelectorExist(ui, "eirini-core", "name="+podname, k.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting Eirini "+podname+" deployment to exist")
-		}
-		if err := c.WaitForPodBySelectorRunning(ui, "eirini-core", "name="+podname, k.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting Eirini "+podname+" deployment to come up")
-		}
+	if err := c.WaitUntilPodBySelectorExist(ui, "eirini-core", "name=eirini-controller", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Eirini eirini-controller deployment to exist")
+	}
+	if err := c.WaitForPodBySelectorRunning(ui, "eirini-core", "name=eirini-controller", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Eirini eirini-controller deployment to come up")
 	}
 
 	ui.Success().Msg("Eirini deployed")

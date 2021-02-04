@@ -22,7 +22,7 @@ type Quarks struct {
 const (
 	QuarksDeploymentID = "quarks"
 	quarksVersion      = "6.1.17+0.gec409fd7"
-	quarksChartURL     = "https://cloudfoundry-incubator.github.io/quarks-helm/cf-operator-6.1.17+0.gec409fd7.tgz"
+	quarksChartURL     = "https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-0.0.755-ge100fdc.tgz"
 )
 
 func (k *Quarks) NeededOptions() kubernetes.InstallationOptions {
@@ -83,9 +83,6 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	}
 
 	for _, crd := range []string{
-		"quarksstatefulsets.quarks.cloudfoundry.org",
-		"quarksjobs.quarks.cloudfoundry.org",
-		"boshdeployments.quarks.cloudfoundry.org",
 		"quarkssecrets.quarks.cloudfoundry.org",
 	} {
 		out, err := helpers.Kubectl("delete crds --ignore-not-found=true " + crd)
@@ -117,18 +114,13 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.New("Failed installing Quarks")
 	}
 
-	for _, podname := range []string{
-		"cf-operator",
-		"quarks-secret",
-		"quarks-job",
-	} {
-		if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name="+podname, k.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to exist")
-		}
-		if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name="+podname, k.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting Quarks "+podname+" deployment to come up")
-		}
+	if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to exist")
 	}
+	if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
+	}
+
 	err := c.LabelNamespace(QuarksDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
 	if err != nil {
 		return err
