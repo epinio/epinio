@@ -57,7 +57,7 @@ update_eirini:
 	wget https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz -O embedded-files/eirini/eirini-v2.0.0.tgz
 
 update_registry:
-	helm package ../container-registry/chart/container-registry/ -d embedded-files
+	helm package ./assets/container-registry/chart/container-registry/ -d embedded-files
 
 update_tekton:
 	mkdir -p embedded-files/tekton
@@ -69,7 +69,7 @@ embed_files:
 	statik -m -f -src=./embedded-files
 
 help:
-	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee ../HELP
+	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee HELP
 
 ########################################################################
 # Support
