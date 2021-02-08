@@ -63,7 +63,7 @@ func (k Eirini) Describe() string {
 
 // Delete removes Eirini from kubernetes cluster
 func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	ui.Note().Msg("Removing Eirini...")
+	ui.Note().KeeplineUnder(1).Msg("Removing Eirini...")
 
 	releaseDir, err := k.ExtractRelease()
 	if err != nil {
@@ -295,7 +295,7 @@ func (k Eirini) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.New("Namespace " + EiriniDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Eirini...")
+	ui.Note().KeeplineUnder(1).Msg("Deploying Eirini...")
 
 	err = k.apply(c, ui, options)
 	if err != nil {

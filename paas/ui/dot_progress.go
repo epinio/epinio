@@ -32,7 +32,7 @@ func NewDotProgress(ui *UI, message string) *DotProgress {
 		active:   false,
 		stopChan: make(chan struct{}, 1),
 	}
-	p.ui.ProgressNote().KeepLine().Msg(message)
+	p.ui.ProgressNote().V(1).KeepLine().Msg(message)
 	p.Start()
 	return p
 }
@@ -74,7 +74,7 @@ func (p *DotProgress) Stop() {
 	defer p.mu.Unlock()
 	if p.active {
 		p.active = false
-		p.ui.Normal().Compact().Msg("")
+		p.ui.Normal().V(1).Compact().Msg("")
 		p.stopChan <- struct{}{}
 	}
 }
@@ -88,9 +88,16 @@ func (p *DotProgress) ChangeMessagef(message string, a ...interface{}) {
 // ChangeMessage extends the dot-based progress with the ability to
 // change the message mid-flight
 func (p *DotProgress) ChangeMessage(message string) {
+	// Prevent the restart dance if the message would not be shown
+	// anyway, due to a low verbosity level. This keeps the dots
+	// nicer.
+	if p.ui.verbosity < 1 {
+		return
+	}
+
 	message = mfinal(message)
 	p.Stop()
-	p.ui.ProgressNote().KeepLine().Msg(message)
+	p.ui.ProgressNote().V(1).KeepLine().Msg(message)
 	p.Start()
 }
 

@@ -570,15 +570,14 @@ git push carrier master:main
 		return errors.Wrap(err, "push script failed")
 	}
 
-	c.ui.Success().
-		WithStringValue("Output", string(output)).
-		Msg("Application push successful")
+	c.ui.Note().V(1).WithStringValue("Output", string(output)).Msg("")
+	c.ui.Success().Msg("Application push successful")
 
 	return nil
 }
 
 func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
-	c.ui.ProgressNote().Msg("Tailing application logs ...")
+	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
@@ -608,13 +607,13 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 }
 
 func (c *CarrierClient) waitForApp(name string) error {
-	c.ui.ProgressNote().Msg("Creating application resources")
+	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.EiriniWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)
 
-	c.ui.ProgressNote().Msg("Starting application")
+	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
 		c.ui, c.config.EiriniWorkloadsNamespace,

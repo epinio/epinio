@@ -7,6 +7,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/kyokomi/emoji"
 	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/viper"
 )
 
 type msgType int
@@ -36,10 +37,13 @@ const (
 // UI contains functionality for dealing with the user
 // on the CLI
 type UI struct {
+	verbosity int // Verbosity level for user messages.
 }
 
 // Message represents a piece of information we want displayed to the user
 type Message struct {
+	ui           *UI // For access to requested verbosity.
+	level        int
 	msgType      msgType
 	end          int
 	compact      bool
@@ -68,7 +72,9 @@ type Progress interface {
 
 // NewUI creates a new UI
 func NewUI() *UI {
-	return &UI{}
+	return &UI{
+		verbosity: verbosity(),
+	}
 }
 
 // Progress creates, configures, and returns an active progress
@@ -87,6 +93,7 @@ func (u *UI) Progress(message string) Progress {
 // Normal returns a UIMessage that prints a normal message
 func (u *UI) Normal() *Message {
 	return &Message{
+		ui:           u,
 		msgType:      normal,
 		interactions: []interaction{},
 		end:          -1,
@@ -96,6 +103,7 @@ func (u *UI) Normal() *Message {
 // Exclamation returns a UIMessage that prints an exclamation message
 func (u *UI) Exclamation() *Message {
 	return &Message{
+		ui:           u,
 		msgType:      exclamation,
 		interactions: []interaction{},
 		end:          -1,
@@ -105,6 +113,7 @@ func (u *UI) Exclamation() *Message {
 // Note returns a UIMessage that prints a note message
 func (u *UI) Note() *Message {
 	return &Message{
+		ui:           u,
 		msgType:      note,
 		interactions: []interaction{},
 		end:          -1,
@@ -114,6 +123,7 @@ func (u *UI) Note() *Message {
 // Success returns a UIMessage that prints a success message
 func (u *UI) Success() *Message {
 	return &Message{
+		ui:           u,
 		msgType:      success,
 		interactions: []interaction{},
 		end:          -1,
@@ -123,6 +133,7 @@ func (u *UI) Success() *Message {
 // ProgressNote returns a UIMessage that prints a progress-related message
 func (u *UI) ProgressNote() *Message {
 	return &Message{
+		ui:           u,
 		msgType:      progress,
 		interactions: []interaction{},
 		end:          -1,
@@ -132,6 +143,7 @@ func (u *UI) ProgressNote() *Message {
 // Problem returns a Message that prints a message that describes a problem
 func (u *UI) Problem() *Message {
 	return &Message{
+		ui:           u,
 		msgType:      problem,
 		interactions: []interaction{},
 		end:          -1,
@@ -145,6 +157,11 @@ func (u *Message) Msgf(message string, a ...interface{}) {
 
 // Msg prints a message on the CLI, resolving emoji as it goes
 func (u *Message) Msg(message string) {
+	// Ignore messages higher than the requested verbosity.
+	if u.level > u.ui.verbosity {
+		return
+	}
+
 	message = emoji.Sprint(message)
 
 	// Print a newline before starting output, if not compact.
@@ -218,9 +235,24 @@ func (u *Message) Msg(message string) {
 	}
 }
 
+// V incrementally modifies the message level.
+func (u *Message) V(delta int) *Message {
+	u.level += delta
+	return u
+}
+
 // KeepLine disables the printing of a newline after a message output
 func (u *Message) KeepLine() *Message {
 	u.keepline = true
+	return u
+}
+
+// KeeplineUnder disables the printing of a newline after a message
+// output, if the verbosity level is below the specified.
+func (u *Message) KeeplineUnder(level int) *Message {
+	if u.ui.verbosity < level {
+		u.keepline = true
+	}
 	return u
 }
 
@@ -321,4 +353,9 @@ func readInt() int {
 	fmt.Scanf("%d", &value)
 
 	return value
+}
+
+// verbosity returns the verbosity argument
+func verbosity() int {
+	return viper.GetInt("verbosity")
 }

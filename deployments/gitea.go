@@ -54,7 +54,7 @@ func (k Gitea) Describe() string {
 
 // Delete removes Gitea from kubernetes cluster
 func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	ui.Note().Msg("Removing Gitea...")
+	ui.Note().KeeplineUnder(1).Msg("Removing Gitea...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
@@ -209,7 +209,7 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.New("Namespace " + GiteaDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Gitea...")
+	ui.Note().KeeplineUnder(1).Msg("Deploying Gitea...")
 
 	err = k.apply(c, ui, options, false)
 	if err != nil {

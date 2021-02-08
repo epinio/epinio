@@ -95,7 +95,7 @@ func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
 		} else {
 			m = fmt.Sprintf("%s %s › %s ", g("Now tracking"), p(t.PodName), c(t.ContainerName))
 		}
-		t.ui.ProgressNote().KeepLine().Msg(m)
+		t.ui.ProgressNote().V(1).KeepLine().Msg(m)
 
 		req := i.GetLogs(t.PodName, &corev1.PodLogOptions{
 			Follow:       true,
@@ -189,7 +189,7 @@ func (t *Tail) Print(msg string) {
 		os.Stderr.WriteString(fmt.Sprintf("expanding template failed: %s", err))
 		return
 	}
-	t.ui.ProgressNote().KeepLine().Msg(result.String() + " ")
+	t.ui.ProgressNote().V(1).KeepLine().Msg(result.String() + " ")
 }
 
 // Log is the object which will be used together with the template to generate
