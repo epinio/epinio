@@ -34,6 +34,12 @@ compress:
 test: lint
 	ginkgo ./...
 
+test-acceptance:
+	# Consider less nodes to avoid creating too many clusters which are not really needed
+	#ginkgo -p -stream acceptance/.
+	ginkgo -nodes 2 -stream acceptance/.
+
+
 generate:
 	go generate ./...
 

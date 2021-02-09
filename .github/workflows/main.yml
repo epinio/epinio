@@ -60,44 +60,9 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
-      - name: Check traefik service
-        run: kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-      - name: Install Carrier
+      - name: Acceptance tests
         run: |
-          ./dist/carrier-linux-amd64 install
-      - name: Carrier Setup Information
-        run: |
-          ./dist/carrier-linux-amd64 info
-      - name: Default Organizations
-        run: |
-          ./dist/carrier-linux-amd64 orgs
-      - name: Create Organization
-        run: |
-          ./dist/carrier-linux-amd64 create-org myself
-      - name: Carrier Orgs
-        run: |
-          ./dist/carrier-linux-amd64 orgs
-      - name: Push an App
-        run: |
-          sleep 8m ;# Wait for tekton to be usable
-          ( cd ./sample-app ; ../dist/carrier-linux-amd64 push "ci${GITHUB_RUN_NUMBER}" )
-      # - name: Carrier Apps
-      - name: Uninstall Carrier
-        run: |
-          ./dist/carrier-linux-amd64 uninstall
-      # - name: Push an App
-      #   run: |
-      #     ./dist/carrier-linux-amd64 apps
-      # - name: Test App
-      #   run: |
-      #     external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
-      #     curl --fail http://"ci${GITHUB_RUN_NUMBER}.${external_ip}.nip.io"
-      # - name: Delete The App
-      #   run: |
-      #     ./dist/carrier-linux-amd64 delete "ci${GITHUB_RUN_NUMBER}"
-      # - name: Uninstall Carrier
-      #   run: |
-      #     ./carrier uninstall
+          make test-acceptance
       - name: Log
         if: ${{ always() }}
         run: |

@@ -6,6 +6,12 @@ import (
 )
 
 var _ = Describe("Orgs", func() {
+	It("has a default org", func() {
+		orgs, err := Carrier("orgs", "")
+		Expect(err).ToNot(HaveOccurred())
+		Expect(orgs).To(MatchRegexp("workspace"))
+	})
+
 	Describe("create-org", func() {
 		BeforeEach(func() {
 			_, err := Carrier("create-org mycreatedorg", "")

@@ -23,17 +23,40 @@ var _ = Describe("Apps", func() {
 		BeforeEach(func() {
 			appName = "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
 		})
+
 		It("pushes an app successfully", func() {
-			// TODO: Fix the path when we move to the root dir
 			currentDir, err := os.Getwd()
 			Expect(err).ToNot(HaveOccurred())
-			appDir := path.Join(currentDir, "sample-app")
+			appDir := path.Join(currentDir, "../sample-app")
 
-			_, err = Carrier("push "+appName, appDir)
-			Expect(err).ToNot(HaveOccurred())
-			out, err := Carrier("apps", "")
-			Expect(err).ToNot(HaveOccurred())
+			out, err := Carrier("push "+appName, appDir)
+			Expect(err).ToNot(HaveOccurred(), out)
+			out, err = Carrier("apps", "")
+			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(appName + ".*|.*1/1.*|.*"))
+		})
+	})
+
+	Describe("delete", func() {
+		var appName string
+		BeforeEach(func() {
+			appName = "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
+			currentDir, err := os.Getwd()
+			Expect(err).ToNot(HaveOccurred())
+			appDir := path.Join(currentDir, "../sample-app")
+			out, err := Carrier("push "+appName, appDir)
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		It("deletes an app successfully", func() {
+			_, err := Carrier("delete "+appName, "")
+			Expect(err).ToNot(HaveOccurred())
+			var out string
+			Eventually(func() string {
+				out, err = Carrier("apps", "")
+				Expect(err).ToNot(HaveOccurred())
+				return out
+			}, "1m").ShouldNot(MatchRegexp(appName+".*|.*1/1.*|.*"), out)
 		})
 	})
 })

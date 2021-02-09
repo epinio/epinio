@@ -14,6 +14,7 @@ import (
 
 	"github.com/codeskyblue/kexec"
 	"github.com/onsi/ginkgo/config"
+	"github.com/suse/carrier/cli/helpers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -27,6 +28,12 @@ func TestAcceptance(t *testing.T) {
 var nodeSuffix, nodeTmpDir string
 
 var _ = SynchronizedBeforeSuite(func() []byte {
+	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
+		panic("REGISTRY_USERNAME and REGISTRY_PASSWORD environment variables can't be empty")
+	}
+
+	fmt.Printf("Compiling Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
+
 	buildCarrier()
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
@@ -40,13 +47,33 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	copyCarrier()
+	fmt.Printf("Creating a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
 	createCluster()
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+
+	fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
+	helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
+		"https://index.docker.io/v1/",
+		os.Getenv("REGISTRY_USERNAME"),
+		os.Getenv("REGISTRY_PASSWORD"),
+	))
+
+	fmt.Printf("Installing Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 	installCarrier()
+
+	// Allow things to settle. Shouldn't be needed after we fix this:
+	// https://github.com/SUSE/carrier/issues/108
+	fmt.Printf("Waiting 3 minutes for things to settle on node %d\n", config.GinkgoConfig.ParallelNode)
+	time.Sleep(3 * time.Minute)
+	fmt.Printf("Done waiting on node %d\n", config.GinkgoConfig.ParallelNode)
 })
 
 var _ = AfterSuite(func() {
+	// TODO: Maybe uninstall carrier here and remove the uninstall test?
+	// Then we don't need to re-install carrier in AfterEach
+	fmt.Printf("Deleting cluster on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteCluster()
+	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
 })
 
@@ -117,14 +144,14 @@ func RunProc(cmd, dir string, toStdout bool) (string, error) {
 }
 
 func buildCarrier() {
-	output, err := RunProc("make", "", false)
+	output, err := RunProc("make", "..", false)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't build Carrier: %s\n %s\n"+err.Error(), output))
 	}
 }
 
 func copyCarrier() {
-	output, err := RunProc("cp dist/carrier-* "+nodeTmpDir+"/carrier", "", false)
+	output, err := RunProc("cp dist/carrier-* "+nodeTmpDir+"/carrier", "..", false)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't copy Carrier: %s\n %s\n"+err.Error(), output))
 	}
