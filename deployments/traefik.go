@@ -110,6 +110,11 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		}
 	}
 
+	// Disable sending anonymous usage statistics
+	// https://github.com/traefik/traefik-helm-chart/blob/v9.11.0/traefik/values.yaml#L170
+	// Overwrite globalArguments until https://github.com/traefik/traefik-helm-chart/issues/357 is fixed
+	helmArgs = append(helmArgs, `--set "globalArguments="`)
+
 	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, TraefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Traefik: %s\n", out))
