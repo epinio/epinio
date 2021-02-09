@@ -1,5 +1,78 @@
+
 ########################################################################
-# Development
+## Development
+
+build: tools embed_files lint build-amd64
+
+build-all: tools embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
+
+build-all-small:
+	@$(MAKE) LDFLAGS+="-s -w" build-all
+
+build-arm32: lint
+	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/carrier-linux-arm32
+
+build-arm64: lint
+	GOARCH="arm64" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/carrier-linux-arm64
+
+build-amd64: lint
+	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/carrier-linux-amd64
+
+build-windows: lint
+	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/carrier-windows-amd64
+
+build-darwin: lint
+	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/carrier-darwin-amd64
+
+compress:
+	upx --brute -1 ./dist/carrier-linux-arm32
+	upx --brute -1 ./dist/carrier-linux-arm64
+	upx --brute -1 ./dist/carrier-linux-amd64
+	upx --brute -1 ./dist/carrier-windows-amd64
+	upx --brute -1 ./dist/carrier-darwin-amd64
+
+test: lint
+	ginkgo ./...
+
+generate:
+	go generate ./...
+
+lint:	fmt vet tidy
+
+vet:
+	go vet ./...
+
+tidy:
+	go mod tidy
+
+fmt:
+	go fmt ./...
+
+.PHONY: tools
+tools:
+	go get github.com/rakyll/statik
+
+update_eirini:
+	mkdir -p embedded-files/eirini
+	wget https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz -O embedded-files/eirini/eirini-v2.0.0.tgz
+
+update_registry:
+	helm package ./assets/container-registry/chart/container-registry/ -d embedded-files
+
+update_tekton:
+	mkdir -p embedded-files/tekton
+	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml -O embedded-files/tekton/pipeline-v0.19.0.yaml
+	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.11.1/release.yaml -O embedded-files/tekton/triggers-v0.11.1.yaml
+	wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-v0.11.1.yaml
+
+embed_files:
+	statik -m -f -src=./embedded-files
+
+help:
+	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee HELP
+
+########################################################################
+# Support
 
 tools-install:
 	@./scripts/tools-install.sh
@@ -10,58 +83,6 @@ tools-versions:
 version:
 	@./scripts/version.sh
 
-help:
-	@$(MAKE) -C cli help
-
-build:
-	@$(MAKE) -C cli build
-
-build-all:
-	@$(MAKE) -C cli build-all
-
-build-all-small:
-	@$(MAKE) -C cli build-all-small
-
-build-arm32:
-	@$(MAKE) -C cli build-arm32
-
-build-arm64:
-	@$(MAKE) -C cli build-arm64
-
-build-amd64:
-	@$(MAKE) -C cli build-amd64
-
-build-windows:
-	@$(MAKE) -C cli build-windows
-
-build-darwin:
-	@$(MAKE) -C cli build-darwin
-
-compress:
-	upx --brute -1 ./cli/dist/carrier-linux-arm32
-	upx --brute -1 ./cli/dist/carrier-linux-arm64
-	upx --brute -1 ./cli/dist/carrier-linux-amd64
-	upx --brute -1 ./cli/dist/carrier-windows-amd64
-	upx --brute -1 ./cli/dist/carrier-darwin-amd64
-
-test:
-	@$(MAKE) -C cli test
-
-lint:
-	@$(MAKE) -C cli lint
-
-fmt:
-	@$(MAKE) -C cli fmt
-
-vet:
-	@$(MAKE) -C cli vet
-
-tidy:
-	@$(MAKE) -C cli tidy
-
-generate:
-	@$(MAKE) -C cli generate
-
 ########################################################################
 # Kube dev environments
 
@@ -70,19 +91,3 @@ minikube-start:
 
 minikube-delete:
 	@./scripts/minikube-delete.sh
-
-
-# lint: shellcheck yamllint helmlint httplint
-
-# helmlint:
-# 	@./scripts/helmlint.sh
-
-# shellcheck:
-# 	@./scripts/shellcheck.sh
-
-# yamllint:
-# 	@./scripts/yamllint.sh
-
-# .PHONY: httplint
-# httplint:
-# 	@./src/kubecf-tools/httplint/httplint.sh

@@ -13,5 +13,5 @@ personal-setup
 /local
 /tmp
 /shim/shim
-/cli/dist
+/dist
 /resources
