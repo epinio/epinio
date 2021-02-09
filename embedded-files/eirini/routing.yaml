@@ -80,7 +80,7 @@ spec:
       containers:
         - name: eirini-ingress
           imagePullPolicy: Always
-          image: "quay.io/mudler/eirinix-ingress"
+          image: "quay.io/mudler/eirinix-ingress:v0.1"
           env:
             - name: NAMESPACE
               value: "eirini-workloads"
