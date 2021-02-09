@@ -2,13 +2,6 @@
 ########################################################################
 ## Development
 
-compress:
-	upx --brute -1 ./dist/carrier-linux-arm32
-	upx --brute -1 ./dist/carrier-linux-arm64
-	upx --brute -1 ./dist/carrier-linux-amd64
-	upx --brute -1 ./dist/carrier-windows-amd64
-	upx --brute -1 ./dist/carrier-darwin-amd64
-
 build: tools embed_files lint build-amd64
 
 build-all: tools embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
@@ -30,6 +23,13 @@ build-windows: lint
 
 build-darwin: lint
 	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/carrier-darwin-amd64
+
+compress:
+	upx --brute -1 ./dist/carrier-linux-arm32
+	upx --brute -1 ./dist/carrier-linux-arm64
+	upx --brute -1 ./dist/carrier-linux-amd64
+	upx --brute -1 ./dist/carrier-windows-amd64
+	upx --brute -1 ./dist/carrier-darwin-amd64
 
 test: lint
 	ginkgo ./...
