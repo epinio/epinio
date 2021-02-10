@@ -42,7 +42,7 @@ func Execute() {
 	config.KubeConfigFlags(pf, argToEnv)
 	config.LoggerFlags(pf, argToEnv)
 
-	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level")
+	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
 	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
 	argToEnv["verbosity"] = "VERBOSITY"
 
