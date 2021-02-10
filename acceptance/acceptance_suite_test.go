@@ -63,8 +63,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	// Allow things to settle. Shouldn't be needed after we fix this:
 	// https://github.com/SUSE/carrier/issues/108
-	fmt.Printf("Waiting 3 minutes for things to settle on node %d\n", config.GinkgoConfig.ParallelNode)
-	time.Sleep(3 * time.Minute)
+	fmt.Printf("Waiting 2 minutes for things to settle on node %d\n", config.GinkgoConfig.ParallelNode)
+	time.Sleep(2 * time.Minute)
 	fmt.Printf("Done waiting on node %d\n", config.GinkgoConfig.ParallelNode)
 })
 
