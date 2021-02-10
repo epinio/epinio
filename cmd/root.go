@@ -8,6 +8,7 @@ import (
 
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"github.com/suse/carrier/cli/cmd/internal/client"
 	"github.com/suse/carrier/cli/kubernetes/config"
 )
@@ -40,6 +41,11 @@ func Execute() {
 	pf.StringVarP(&flagConfigFile, "config-file", "", "", "set path of configuration file")
 	config.KubeConfigFlags(pf, argToEnv)
 	config.LoggerFlags(pf, argToEnv)
+
+	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
+	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
+	argToEnv["verbosity"] = "VERBOSITY"
+
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)

@@ -47,7 +47,7 @@ func (k Quarks) Describe() string {
 
 // Delete removes Quarks from kubernetes cluster
 func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	ui.Note().Msg("Removing Quarks...")
+	ui.Note().KeeplineUnder(1).Msg("Removing Quarks...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
@@ -146,7 +146,7 @@ func (k Quarks) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.New("Namespace " + QuarksDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Quarks...")
+	ui.Note().KeeplineUnder(1).Msg("Deploying Quarks...")
 
 	return k.apply(c, ui, options, false)
 }

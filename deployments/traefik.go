@@ -48,7 +48,7 @@ func (k Traefik) Describe() string {
 
 // Delete removes traefik from kubernetes cluster
 func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	ui.Note().Msg("Removing Traefik...")
+	ui.Note().KeeplineUnder(1).Msg("Removing Traefik...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
@@ -167,7 +167,7 @@ func (k Traefik) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 		return nil
 	}
 
-	ui.Note().Msg("Deploying Traefik Ingress...")
+	ui.Note().KeeplineUnder(1).Msg("Deploying Traefik Ingress...")
 
 	return k.apply(c, ui, options, false)
 }

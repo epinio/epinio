@@ -55,7 +55,7 @@ func (k Registry) Describe() string {
 
 // Delete removes Registry from kubernetes cluster
 func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	ui.Note().Msg("Removing Registry...")
+	ui.Note().KeeplineUnder(1).Msg("Removing Registry...")
 
 	currentdir, err := os.Getwd()
 	if err != nil {
@@ -152,7 +152,7 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 		return errors.New("Namespace " + RegistryDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Registry...")
+	ui.Note().KeeplineUnder(1).Msg("Deploying Registry...")
 
 	err = k.apply(c, ui, options, false)
 	if err != nil {

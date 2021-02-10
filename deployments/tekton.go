@@ -67,7 +67,7 @@ func (k Tekton) Describe() string {
 
 // Delete removes Tekton from kubernetes cluster
 func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
-	ui.Note().Msg("Removing Tekton...")
+	ui.Note().KeeplineUnder(1).Msg("Removing Tekton...")
 
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
@@ -257,7 +257,7 @@ func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 		return errors.New("Namespace " + TektonDeploymentID + " present already")
 	}
 
-	ui.Note().Msg("Deploying Tekton...")
+	ui.Note().KeeplineUnder(1).Msg("Deploying Tekton...")
 
 	err = k.apply(c, ui, options, false)
 	if err != nil {
