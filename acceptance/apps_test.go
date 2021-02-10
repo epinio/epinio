@@ -51,12 +51,12 @@ var _ = Describe("Apps", func() {
 		It("deletes an app successfully", func() {
 			_, err := Carrier("delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred())
-			var out string
+			// TODO: Fix `carrier delete` from returning before the app is deleted #131
 			Eventually(func() string {
-				out, err = Carrier("apps", "")
-				Expect(err).ToNot(HaveOccurred())
+				out, err := Carrier("apps", "")
+				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "1m").ShouldNot(MatchRegexp(appName+".*|.*1/1.*|.*"), out)
+			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 		})
 	})
 })
