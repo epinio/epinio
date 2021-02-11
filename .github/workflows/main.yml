@@ -19,19 +19,14 @@ jobs:
           go-version: '^1.13.7'
       - name: Setup Ginkgo Test Framework
         run: go get -u github.com/onsi/ginkgo/ginkgo
+      - name: Install k3d
+        run: wget -q -O k3d https://github.com/rancher/k3d/releases/download/v4.2.0/k3d-linux-amd64 && echo "745396701fb0ffaa832b02c5b734fd5b6bb042ac878b3ad16bb810ebbf02df0c k3d" | sha256sum --check --status && chmod +x k3d && mv k3d ~/bin/
       - name: Lint and Build Carrier
-        run: make build-all
-      - name: Test Carrier
-        run: make test
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: K3S with Calico and Helm
-        uses: manics/action-k3s-helm@v0.2.2
-        with:
-          k3s-version: v1.19.5+k3s2
+        run: make build
+      - name: Provide Docker Hub credentials
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Cache Tools
         uses: actions/cache@v2
         with:
@@ -39,47 +34,11 @@ jobs:
           key: ${{ runner.os }}-tools
       - name: Install Tools
         run: make tools-install
-      - name: Install Vault CLI
-        uses: innovationnorway/setup-vault@v1.0.3
-        with:
-          version: 1.4.2
-      - name: Renew Vault Token
-        env:
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-          VAULT_ADDR: https://volt.cap.explore.suse.dev
-        run: |
-          vault token renew
-      - name: Read configuration
-        uses: hashicorp/vault-action@v2.1.0
-        with:
-          url: https://volt.cap.explore.suse.dev/
-          token: ${{ secrets.VAULT_TOKEN }}
-          secrets: |
-            secret/data/carrier "docker_registry_username"     | REGISTRY_USERNAME;
-            secret/data/carrier "docker_registry_password"     | REGISTRY_PASSWORD;
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Run unit tests
+        run: make test
       - name: Acceptance tests
         run: |
           make test-acceptance
-      - name: Log
-        if: ${{ always() }}
-        run: |
-          # cat "$HOME/.carrier.log" - Not created by the go-based carrier cli
-
-          echo "-----------------------------------------------"
-          echo "-----------------------------------------------"
-          echo "ALL RESOURCES"
-          echo "-----------------------------------------------"
-          echo "-----------------------------------------------"
-
-          kubectl get all -A -o wide
-
-          # echo "-----------------------------------------------"
-          # echo "-----------------------------------------------"
-          # echo "DESCRIBE EIRINI-WORKLOADS PODS"
-          # echo "-----------------------------------------------"
-          # echo "-----------------------------------------------"
-
-          # kubectl get pod -n eirini-workloads -o json | jq -r .items[].metadata.name | xargs -I{} kubectl describe pod -n eirini-workloads {}
