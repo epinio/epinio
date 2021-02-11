@@ -18,13 +18,14 @@ var _ = Describe("Apps", func() {
 		_, err = Carrier("target "+org, "")
 		Expect(err).ToNot(HaveOccurred())
 	})
-	Describe("push", func() {
+	Describe("push and delete", func() {
 		var appName string
 		BeforeEach(func() {
 			appName = "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
 		})
 
-		It("pushes an app successfully", func() {
+		It("pushes and deletes an app", func() {
+			By("pushing the app")
 			currentDir, err := os.Getwd()
 			Expect(err).ToNot(HaveOccurred())
 			appDir := path.Join(currentDir, "../sample-app")
@@ -34,22 +35,9 @@ var _ = Describe("Apps", func() {
 			out, err = Carrier("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(appName + ".*|.*1/1.*|.*"))
-		})
-	})
 
-	Describe("delete", func() {
-		var appName string
-		BeforeEach(func() {
-			appName = "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
-			currentDir, err := os.Getwd()
-			Expect(err).ToNot(HaveOccurred())
-			appDir := path.Join(currentDir, "../sample-app")
-			out, err := Carrier("push "+appName, appDir)
-			Expect(err).ToNot(HaveOccurred(), out)
-		})
-
-		It("deletes an app successfully", func() {
-			_, err := Carrier("delete "+appName, "")
+			By("deleting the app")
+			_, err = Carrier("delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred())
 			// TODO: Fix `carrier delete` from returning before the app is deleted #131
 			Eventually(func() string {
