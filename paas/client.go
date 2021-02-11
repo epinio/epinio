@@ -291,9 +291,13 @@ func (c *CarrierClient) Push(app string, path string) error {
 
 	c.ui.Note().
 		WithStringValue("Name", app).
-		WithStringValue("Organization", c.config.Org).
 		WithStringValue("Sources", path).
-		Msg("Pushing application")
+		WithStringValue("Organization", c.config.Org).
+		Msg("About to push an application with given name and sources into the specified organization")
+
+	c.ui.Exclamation().
+		Timeout(5 * time.Second).
+		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
 
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.config.Org, "Unable to push.")

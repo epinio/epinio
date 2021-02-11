@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/kyokomi/emoji"
@@ -48,6 +50,7 @@ type Message struct {
 	end          int
 	compact      bool
 	keepline     bool
+	wait         time.Duration
 	interactions []interaction
 	tableHeaders [][]string
 	tableData    [][][]string
@@ -233,6 +236,31 @@ func (u *Message) Msg(message string) {
 	if u.end > -1 {
 		os.Exit(u.end)
 	}
+
+	if u.wait > 0 {
+		timeoutChan := time.After(u.wait)
+		doneChan := make(chan struct{}, 1)
+
+		go func(done chan struct{}) {
+			reader := bufio.NewReader(os.Stdin)
+			_, _ = reader.ReadString('\n')
+			done <- struct{}{}
+		}(doneChan)
+
+		// Now just wait for timeout or input
+		select {
+		case <-timeoutChan:
+		case <-doneChan:
+		}
+	}
+}
+
+// Timeout sets a timeout for the message to wait after printing
+// before continuing. This disables any previous `WithEnd`.
+func (u *Message) Timeout(wait time.Duration) *Message {
+	u.wait = wait
+	u.end = -1
+	return u
 }
 
 // V incrementally modifies the message level.
@@ -262,9 +290,11 @@ func (u *Message) Compact() *Message {
 	return u
 }
 
-// WithEnd ends the entire process after printing the message.
+// WithEnd ends the entire process after printing the message.  This
+// also disables any previous `Timeout`.
 func (u *Message) WithEnd(code int) *Message {
 	u.end = code
+	u.wait = 0
 	return u
 }
 
