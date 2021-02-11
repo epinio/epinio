@@ -81,27 +81,6 @@ roleRef:
   kind: ClusterRole
   name: staging-triggers-admin
 ---
-apiVersion: v1
-kind: Secret
-metadata:
-  name: registry-creds
-  namespace: carrier-workloads
-type: kubernetes.io/dockerconfigjson
-stringData:
-  .dockerconfigjson: '{"auths":{"registry.carrier-registry":{"username":"admin","password":"password"}, "registry.carrier-registry:444":{"username":"admin","password":"password"}}}'
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: gitea-creds
-  namespace: carrier-workloads
-  annotations:
-    tekton.dev/git-0: http://gitea-http.gitea:10080
-type: kubernetes.io/basic-auth
-stringData:
-  username: dev
-  password: changeme
----
 # Make the service account admin for now, only
 # because of the new stuff (like LRPs, images, etc.)
 kind: ClusterRoleBinding
