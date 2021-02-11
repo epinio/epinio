@@ -32,15 +32,19 @@ $ carrier install
 $ carrier uninstall
 ```
 ---
-### Push an app
+### Push an application
 
-Run the following command inside of any supported app directory (e.g. inside [sample-app directory](sample-app)).
+Run the following command for any supported application directory (e.g. inside [sample-app directory](sample-app)).
 
 ```bash
-$ carrier push NAME
+$ carrier push NAME PATH_TO_APPLICATION_SOURCES
 ```
 
-### Delete an app
+Note that the path argument is __optional__.
+If not specified the __current working directory__ will be used.
+Always ensure that the chosen directory contains a supported application.
+
+### Delete an application
 
 ```bash
 $ carrier delete NAME
