@@ -57,6 +57,15 @@ func (k Registry) Describe() string {
 func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Registry...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(RegistryDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", RegistryDeploymentID)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Registry because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Registry: " + err.Error())
@@ -78,16 +87,13 @@ func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	}
 
 	message = "Deleting Registry namespace " + RegistryDeploymentID
-	warning, err := helpers.WaitForCommandCompletion(ui, message,
+	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(RegistryDeploymentID)
+			return "", c.DeleteNamespace(RegistryDeploymentID)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", RegistryDeploymentID)
-	}
-	if warning != "" {
-		ui.Exclamation().Msg(warning)
 	}
 
 	ui.Success().Msg("Registry removed")

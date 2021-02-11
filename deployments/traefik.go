@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/kyokomi/emoji"
@@ -50,6 +49,15 @@ func (k Traefik) Describe() string {
 func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Traefik...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(TraefikDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", TraefikDeploymentID)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Traefik because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Traefik: " + err.Error())
@@ -71,16 +79,13 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	}
 
 	message = "Deleting Traefik namespace " + TraefikDeploymentID
-	warning, err := helpers.WaitForCommandCompletion(ui, message,
+	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(TraefikDeploymentID)
+			return "", c.DeleteNamespace(TraefikDeploymentID)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", TraefikDeploymentID)
-	}
-	if warning != "" {
-		ui.Exclamation().Msg(warning)
 	}
 
 	ui.Success().Msg("Traefik removed")

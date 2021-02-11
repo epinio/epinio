@@ -49,6 +49,15 @@ func (k Quarks) Describe() string {
 func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Quarks...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(QuarksDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", QuarksDeploymentID)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Quarks because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Quarks: " + err.Error())
@@ -69,19 +78,6 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		}
 	}
 
-	message = "Deleting Quarks namespace " + QuarksDeploymentID
-	warning, err := helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(QuarksDeploymentID)
-		},
-	)
-	if err != nil {
-		return errors.Wrapf(err, "Failed deleting namespace %s", QuarksDeploymentID)
-	}
-	if warning != "" {
-		ui.Exclamation().Msg(warning)
-	}
-
 	for _, crd := range []string{
 		"quarkssecrets.quarks.cloudfoundry.org",
 	} {
@@ -89,6 +85,16 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Deleting quarks CRD failed:\n%s", out))
 		}
+	}
+
+	message = "Deleting Quarks namespace " + QuarksDeploymentID
+	_, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return "", c.DeleteNamespace(QuarksDeploymentID)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", QuarksDeploymentID)
 	}
 
 	ui.Success().Msg("Quarks removed")
