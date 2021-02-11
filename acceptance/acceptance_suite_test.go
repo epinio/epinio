@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"strconv"
 	"testing"
 	"time"
@@ -63,8 +64,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	// Allow things to settle. Shouldn't be needed after we fix this:
 	// https://github.com/SUSE/carrier/issues/108
-	fmt.Printf("Waiting 1 minutes for things to settle on node %d\n", config.GinkgoConfig.ParallelNode)
-	time.Sleep(1 * time.Minute)
+	fmt.Printf("Waiting for things to settle on node %d\n", config.GinkgoConfig.ParallelNode)
+
+	WaitForInstallationToSettle(180)
 	fmt.Printf("Done waiting on node %d\n", config.GinkgoConfig.ParallelNode)
 })
 
@@ -181,4 +183,18 @@ func Carrier(command string, dir string) (string, error) {
 	cmd := fmt.Sprintf(nodeTmpDir+"/carrier %s", command)
 
 	return RunProc(cmd, commandDir, false)
+}
+
+// Allow things to settle. Shouldn't be needed after we fix this:
+// https://github.com/SUSE/carrier/issues/108
+func WaitForInstallationToSettle(seconds int) {
+	for i := 0; i < seconds; i++ {
+		out, _ := RunProc(`kubectl get pods --namespace tekton-pipelines`, ".", false)
+		match, _ := regexp.MatchString(`tekton-dashboard-[0-9a-z-]+ +1/1`, out)
+		if match {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
 }

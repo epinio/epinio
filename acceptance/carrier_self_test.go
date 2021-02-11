@@ -1,8 +1,6 @@
 package acceptance_test
 
 import (
-	"time"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -25,7 +23,7 @@ var _ = Describe("Carrier maintenance operations", func() {
 			installCarrier()
 			// Allow things to settle. Shouldn't be needed after we fix this:
 			// https://github.com/SUSE/carrier/issues/108
-			time.Sleep(3 * time.Minute)
+			WaitForInstallationToSettle(180)
 		})
 
 		It("uninstalls Carrier", func() {
