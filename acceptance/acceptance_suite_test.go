@@ -71,8 +71,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = AfterSuite(func() {
-	// TODO: Maybe uninstall carrier here and remove the uninstall test?
-	// Then we don't need to re-install carrier in AfterEach
+	fmt.Printf("Uninstall carrier on node %d\n", config.GinkgoConfig.ParallelNode)
+	out, _ := uninstallCarrier()
+	match, _ := regexp.MatchString(`Carrier uninstalled`, out)
+	if !match {
+		panic("Uninstalling carrier failed: " + out)
+	}
 	fmt.Printf("Deleting cluster on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteCluster()
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
@@ -161,6 +165,10 @@ func copyCarrier() {
 
 func installCarrier() (string, error) {
 	return Carrier("install", "")
+}
+
+func uninstallCarrier() (string, error) {
+	return Carrier("uninstall", "")
 }
 
 // Carrier invoces the `carrier` binary, running the specified command.

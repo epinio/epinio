@@ -15,21 +15,4 @@ var _ = Describe("Carrier maintenance operations", func() {
 			Expect(info).To(MatchRegexp("Gitea Version: 1.13"))
 		})
 	})
-
-	Describe("uninstall", func() {
-		AfterEach(func() {
-			// TODO: This could fail because when we uninstall we don't wait for things
-			// to be removed.
-			installCarrier()
-			// Allow things to settle. Shouldn't be needed after we fix this:
-			// https://github.com/SUSE/carrier/issues/108
-			WaitForInstallationToSettle(180)
-		})
-
-		It("uninstalls Carrier", func() {
-			out, err := Carrier("uninstall", "")
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchRegexp("Carrier uninstalled"))
-		})
-	})
 })
