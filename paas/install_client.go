@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/cli/deployments"
+	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/paas/config"
 	"github.com/suse/carrier/cli/paas/ui"
@@ -176,44 +178,45 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.InstallationOption) error {
 	if domain.Value.(string) == "" {
 		ip := ""
-		if !c.kubeClient.GetPlatform().HasLoadBalancer() {
-			ips := c.kubeClient.GetPlatform().ExternalIPs()
-			if len(ips) > 0 {
-				ip = ips[0]
+		s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+		defer s.Stop()
+		err := helpers.RunToSuccessWithTimeout(
+			func() error {
+				return c.fetchIP(&ip)
+			}, time.Duration(2)*time.Minute, 3*time.Second)
+		if err != nil {
+			if strings.Contains(err.Error(), "Timed out after") {
+				return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +
+					"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
+					"Follow these steps to enable this ability\n" +
+					"https://github.com/SUSE/carrier/blob/main/docs/install.md")
 			}
-		} else {
-			s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-			defer s.Stop()
-			timeout := time.After(2 * time.Minute)
-			ticker := time.Tick(1 * time.Second)
-		Exit:
-			for {
-				select {
-				case <-timeout:
-					break Exit
-				case <-ticker:
-					serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
-						FieldSelector: "metadata.name=traefik",
-					})
-					if len(serviceList.Items) == 0 {
-						return errors.New("Couldn't find the traefik service")
-					}
-					if err != nil {
-						return err
-					}
-					ingress := serviceList.Items[0].Status.LoadBalancer.Ingress
-					if len(ingress) > 0 {
-						ip = ingress[0].IP
-						break Exit
-					}
-				}
-			}
+			return err
 		}
 
 		if ip != "" {
 			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
 		}
 	}
+
+	return nil
+}
+
+func (c *InstallClient) fetchIP(ip *string) error {
+	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
+		FieldSelector: "metadata.name=traefik",
+	})
+	if len(serviceList.Items) == 0 {
+		return errors.New("couldn't find the traefik service")
+	}
+	if err != nil {
+		return err
+	}
+	ingress := serviceList.Items[0].Status.LoadBalancer.Ingress
+	if len(ingress) <= 0 {
+		return errors.New("ingress list is empty in traefik service")
+	}
+	*ip = ingress[0].IP
 
 	return nil
 }

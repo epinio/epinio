@@ -102,14 +102,6 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	// Setup Traefik helm values
 	var helmArgs []string
 
-	// Setup ExternalIPs for platforms where there is no loadbalancer
-	platform := c.GetPlatform()
-	if !platform.HasLoadBalancer() {
-		for i, ip := range platform.ExternalIPs() {
-			helmArgs = append(helmArgs, "--set service.externalIPs["+strconv.Itoa(i)+"]="+ip)
-		}
-	}
-
 	// Disable sending anonymous usage statistics
 	// https://github.com/traefik/traefik-helm-chart/blob/v9.11.0/traefik/values.yaml#L170
 	// Overwrite globalArguments until https://github.com/traefik/traefik-helm-chart/issues/357 is fixed
@@ -130,10 +122,6 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	}
 	if err := c.WaitForPodBySelectorRunning(ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to come up")
-	}
-
-	if platform.HasLoadBalancer() {
-		// TODO: Wait until an IP address is assigned
 	}
 
 	ui.Success().Msg("Traefik Ingress deployed")
