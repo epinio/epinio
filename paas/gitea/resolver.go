@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	eiriniGiteaCredentialsSecret = "git-creds"
+	GiteaCredentialsSecret = "git-creds"
 )
 
 // Resolver figures out where Gitea lives and how to login to it
@@ -88,7 +88,7 @@ func (r *Resolver) GetGiteaURL() (string, error) {
 
 // GetGiteaCredentials resolves Gitea's credentials
 func (r *Resolver) GetGiteaCredentials() (string, string, error) {
-	s, err := r.cluster.GetSecret(r.config.EiriniWorkloadsNamespace, eiriniGiteaCredentialsSecret)
+	s, err := r.cluster.GetSecret(r.config.CarrierWorkloadsNamespace, GiteaCredentialsSecret)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to read gitea credentials")
 	}

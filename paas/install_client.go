@@ -103,8 +103,8 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
+		&deployments.Workloads{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
-		&deployments.Eirini{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 	} {
@@ -130,15 +130,8 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 
 	c.ui.Note().Msg("Carrier uninstalling...")
 
-	deployment := deployments.Eirini{Timeout: DefaultTimeoutSec}
-
-	details.Info("remove", "Deployment", deployment.ID())
-	err := deployment.Delete(c.kubeClient, c.ui)
-	if err != nil {
-		return err
-	}
-
 	for _, deployment := range []kubernetes.Deployment{
+		&deployments.Workloads{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},

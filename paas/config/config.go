@@ -16,9 +16,9 @@ var (
 
 // Config represents a carrier config
 type Config struct {
-	GiteaProtocol            string `mapstructure:"gitea_protocol"`
-	EiriniWorkloadsNamespace string `mapstructure:"eirini_workloads_namespace"`
-	Org                      string `mapstructure:"org"`
+	GiteaProtocol             string `mapstructure:"gitea_protocol"`
+	CarrierWorkloadsNamespace string `mapstructure:"carrier_workloads_namespace"`
+	Org                       string `mapstructure:"org"`
 
 	v *viper.Viper
 }
@@ -41,7 +41,7 @@ func Load(flags *pflag.FlagSet) (*Config, error) {
 
 	v.SetDefault("gitea_namespace", "gitea")
 	v.SetDefault("gitea_protocol", "http")
-	v.SetDefault("eirini_workloads_namespace", "eirini-workloads")
+	v.SetDefault("carrier_workloads_namespace", "carrier-workloads")
 	v.SetDefault("org", "workspace")
 
 	configExists, err := fileExists(file)
