@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	GiteaCredentialsSecret = "git-creds"
+	GiteaCredentialsSecret = "gitea-creds"
 )
 
 // Resolver figures out where Gitea lives and how to login to it

@@ -18,6 +18,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
+	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/kubernetes"
 	"github.com/suse/carrier/cli/kubernetes/tailer"
 	"github.com/suse/carrier/cli/paas/config"
@@ -483,6 +484,8 @@ func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, er
 	// TODO: name of Deployment will lead to collisions, since the same app name
 	// can be present in more than one organization
 	// TODO: Prefix the Deployment name with the organization name or use a different
+	// TODO: Compare with the statefulset deployed by Eirini. Does that have a default
+	//   servicesaccount mounted? What serviceaccount does that use in spec?
 	deploymentTmpl, err := template.New("deployment").Parse(`
 ---
 apiVersion: apps/v1
@@ -506,6 +509,8 @@ spec:
       labels:
         app: "{{ .AppName }}"
     spec:
+      serviceAccountName: ` + deployments.WorkloadsDeploymentID + `
+      automountServiceAccountToken: false
       containers:
       - name: "{{ .AppName }}"
 				image: "127.0.0.1:30500/apps/{{ .AppName }}"
