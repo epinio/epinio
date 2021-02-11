@@ -36,7 +36,7 @@ var (
 
 	// StagingEventListenerURL should not exist
 	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-staging-listener.eirini-workloads:8080"
+	StagingEventListenerURL = "http://el-staging-listener.carrier-workloads:8080"
 )
 
 // CarrierClient provides functionality for talking to a
@@ -134,7 +134,7 @@ func (c *CarrierClient) Apps() error {
 	for _, app := range apps {
 		details.Info("kube get status", "App", app.Name)
 		status, err := c.kubeClient.StatefulSetStatus(
-			c.config.EiriniWorkloadsNamespace,
+			c.config.CarrierWorkloadsNamespace,
 			fmt.Sprintf("cloudfoundry.org/guid=%s", app.Name))
 		if err != nil {
 			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
@@ -142,7 +142,7 @@ func (c *CarrierClient) Apps() error {
 
 		details.Info("kube get ingress", "App", app.Name)
 		routes, err := c.kubeClient.ListIngressRoutes(
-			c.config.EiriniWorkloadsNamespace,
+			c.config.CarrierWorkloadsNamespace,
 			app.Name)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
@@ -219,7 +219,7 @@ func (c *CarrierClient) Delete(app string) error {
 		Resource: "lrps",
 	}
 
-	err = c.dynamicClient.Resource(virtualLrpGVR).Namespace(c.config.EiriniWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
+	err = c.dynamicClient.Resource(virtualLrpGVR).Namespace(c.config.CarrierWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete eirini lrp")
 	}
@@ -319,7 +319,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 
 	details.Info("prepare code")
-	tmpDir, err := c.prepareCode(app, path)
+	tmpDir, err := c.prepareCode(app, c.config.Org, path)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare code")
 	}
@@ -453,7 +453,7 @@ func (c *CarrierClient) appDefaultRoute(name string) (string, error) {
 	return fmt.Sprintf("%s.%s", name, domain), nil
 }
 
-func (c *CarrierClient) prepareCode(name, appDir string) (tmpDir string, err error) {
+func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
 	c.ui.Normal().Msg("Preparing code ...")
 
 	tmpDir, err = ioutil.TempDir("", "carrier-app")
@@ -476,35 +476,44 @@ func (c *CarrierClient) prepareCode(name, appDir string) (tmpDir string, err err
 		return "", errors.Wrap(err, "failed to calculate default app route")
 	}
 
+	// TODO: Use a go client to create this deployment
+	// (maybe not? What if staging fails? Right now no sts or deployment is created)
+	// c.kubeClient.Kubectl.AppsV1().Deployments("carrier-workloads").Create(&appsv1.Deployment{})
 	// TODO: perhaps marshaling an actual struct is better
-	// TODO: name of LRP will lead to collisions, since the same app name
+	// TODO: name of Deployment will lead to collisions, since the same app name
 	// can be present in more than one organization
-	lrpTmpl, err := template.New("lrp").Parse(`
+	// TODO: Prefix the Deployment name with the organization name or use a different
+	deploymentTmpl, err := template.New("deployment").Parse(`
 ---
-apiVersion: eirini.cloudfoundry.org/v1
-kind: LRP
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: "{{ .AppName }}"
-  namespace: eirini-workloads
+  labels:
+		"carrier/app-name": "{{ .AppName }}"
+		"carrier/org": "{{ .Org }}"
+	annotations:
+		"carrier/routes":
+		  - hostname: "{{ .Route }}"
+				port: 8080
 spec:
-  GUID: "{{ .AppName }}"
-  version: "version-1"
-  appName: "{{ .AppName }}"
-  instances: 1
-  lastUpdated: "never"
-  diskMB: 100
-  runsAsRoot: true
-  env:
-    PORT: "8080"
-  ports:
-  - 8080
-  image: "127.0.0.1:30500/apps/{{ .AppName }}"
-  appRoutes:
-  - hostname: "{{ .Route }}"
-    port: 8080
-`)
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "{{ .AppName }}"
+  template:
+    metadata:
+      labels:
+        app: "{{ .AppName }}"
+    spec:
+      containers:
+      - name: "{{ .AppName }}"
+				image: "127.0.0.1:30500/apps/{{ .AppName }}"
+        ports:
+        - containerPort: 8080
+	`)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to parse lrp template for app")
+		return "", errors.Wrap(err, "failed to parse deployment template for app")
 	}
 
 	appFile, err := os.Create(filepath.Join(tmpDir, ".kube", "app.yml"))
@@ -513,12 +522,14 @@ spec:
 	}
 	defer func() { err = appFile.Close() }()
 
-	err = lrpTmpl.Execute(appFile, struct {
+	err = deploymentTmpl.Execute(appFile, struct {
 		AppName string
 		Route   string
+		Org     string
 	}{
 		AppName: name,
 		Route:   route,
+		Org:     c.config.Org,
 	})
 	if err != nil {
 		return "", errors.Wrap(err, "failed to render kube resource definition")
@@ -596,7 +607,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 		TailLines:             nil,
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
 
-		Namespace: "eirini-workloads",
+		Namespace: "carrier-workloads",
 		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*-%s-.*", name)),
 	}, c.kubeClient)
 	if err != nil {
@@ -609,14 +620,14 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 func (c *CarrierClient) waitForApp(name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
-		c.ui, c.config.EiriniWorkloadsNamespace,
+		c.ui, c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)
 
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
-		c.ui, c.config.EiriniWorkloadsNamespace,
+		c.ui, c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
 		300)
 

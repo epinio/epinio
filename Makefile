@@ -58,10 +58,6 @@ fmt:
 tools:
 	go get github.com/rakyll/statik
 
-update_eirini:
-	mkdir -p embedded-files/eirini
-	wget https://github.com/cloudfoundry-incubator/eirini-release/releases/download/v2.0.0/eirini-yaml.tgz -O embedded-files/eirini/eirini-v2.0.0.tgz
-
 update_registry:
 	helm package ./assets/container-registry/chart/container-registry/ -d embedded-files
 
