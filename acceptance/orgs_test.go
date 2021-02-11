@@ -27,6 +27,10 @@ var _ = Describe("Orgs", func() {
 			out, err := Carrier("target", "")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(out).To(MatchRegexp("Currently targeted organization: mycreatedorg"))
+
+			By("switching org back to default")
+			_, err = Carrier("target workspace", "")
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })
