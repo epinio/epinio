@@ -69,6 +69,15 @@ func (k Tekton) Describe() string {
 func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Tekton...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(tektonNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", tektonNamespace)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Tekton because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
 	}
@@ -83,16 +92,13 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	}
 
 	message := "Deleting Tekton namespace " + tektonNamespace
-	warning, err := helpers.WaitForCommandCompletion(ui, message,
+	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(tektonNamespace)
+			return "", c.DeleteNamespace(tektonNamespace)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
-	}
-	if warning != "" {
-		ui.Exclamation().Msg(warning)
 	}
 
 	ui.Success().Msg("Tekton removed")

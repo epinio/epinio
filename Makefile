@@ -32,7 +32,13 @@ compress:
 	upx --brute -1 ./dist/carrier-darwin-amd64
 
 test: lint
-	ginkgo ./...
+	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
+
+test-acceptance:
+	# Consider less nodes to avoid creating too many clusters which are not really needed
+	#ginkgo -p -stream acceptance/.
+	ginkgo -nodes 2 -stream acceptance/.
+
 
 generate:
 	go generate ./...

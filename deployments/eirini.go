@@ -65,6 +65,15 @@ func (k Eirini) Describe() string {
 func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Eirini...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(eiriniCoreNamespace)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", eiriniCoreNamespace)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Eirini because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	releaseDir, err := k.ExtractRelease()
 	if err != nil {
 		return err
@@ -100,16 +109,13 @@ func (k Eirini) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	// Delete namespaces last
 	for _, namespace := range []string{eiriniCoreNamespace, eiriniWorkLoadsNamespace, eiriniIngressNamespace} {
 		message := "Deleting Eirini namespace " + namespace
-		warning, err := helpers.WaitForCommandCompletion(ui, message,
+		_, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
-				return c.DeleteNamespaceIfOwned(namespace)
+				return "", c.DeleteNamespace(namespace)
 			},
 		)
 		if err != nil {
 			return errors.Wrapf(err, "Failed deleting namespace %s", namespace)
-		}
-		if warning != "" {
-			ui.Exclamation().Msg(warning)
 		}
 	}
 

@@ -19,7 +19,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
-	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -45,7 +45,6 @@ var (
 
 type Platform interface {
 	Detect(*kubernetes.Clientset) bool
-	HasLoadBalancer() bool
 	Describe() string
 	String() string
 	Load(*kubernetes.Clientset) error
@@ -406,6 +405,36 @@ func (c *Cluster) LabelNamespace(namespace, labelKey, labelValue string) error {
 	return nil
 }
 
+// NamespaceExistsAndOwned checks if the namespace exists
+// and is created by carrier or not.
+func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
+	exists, err := c.NamespaceExists(namespaceName)
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, nil
+	}
+
+	owned, err := c.NamespaceLabelExists(namespaceName, CarrierDeploymentLabelKey)
+	if err != nil {
+		return false, err
+	}
+	return owned, nil
+}
+
+// NamespaceExists checks if a namespace exists or not
+func (c *Cluster) NamespaceExists(namespaceName string) (bool, error) {
+	_, err := c.Kubectl.CoreV1().Namespaces().Get(context.Background(), namespaceName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 // NamespaceLabelExists checks if a specific label exits on the namespace
 func (c *Cluster) NamespaceLabelExists(namespaceName, labelKey string) (bool, error) {
 	namespace, err := c.Kubectl.CoreV1().Namespaces().Get(context.Background(), namespaceName, metav1.GetOptions{})
@@ -420,26 +449,11 @@ func (c *Cluster) NamespaceLabelExists(namespaceName, labelKey string) (bool, er
 	return false, nil
 }
 
-// DeleteNamespaceIfOwned deletes the namepace if it exists and
-// has a carrier label otherwise returns the warning as a string
-func (c *Cluster) DeleteNamespaceIfOwned(namespace string) (string, error) {
-	owned, err := c.NamespaceLabelExists(namespace, CarrierDeploymentLabelKey)
+// DeleteNamespace deletes the namepace
+func (c *Cluster) DeleteNamespace(namespace string) error {
+	err := c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
 	if err != nil {
-		if kubeerrors.IsNotFound(err) {
-			return fmt.Sprintf("%s namespace not found, skipping.\n", namespace), nil
-		}
-		return "", err
+		return err
 	}
-
-	if owned {
-		err = c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
-		if err != nil {
-			return "", err
-		}
-
-	} else {
-		return fmt.Sprintf("%s namespace found but was not created by Carrier, skipping.\n", namespace), nil
-	}
-
-	return "", nil
+	return nil
 }

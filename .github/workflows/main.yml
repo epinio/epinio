@@ -19,19 +19,8 @@ jobs:
           go-version: '^1.13.7'
       - name: Setup Ginkgo Test Framework
         run: go get -u github.com/onsi/ginkgo/ginkgo
-      - name: Lint and Build Carrier
-        run: make build-all
-      - name: Test Carrier
-        run: make test
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: K3S with Calico and Helm
-        uses: manics/action-k3s-helm@v0.2.2
-        with:
-          k3s-version: v1.19.5+k3s2
+      - name: Lint Carrier
+        run: make lint
       - name: Cache Tools
         uses: actions/cache@v2
         with:
@@ -39,82 +28,14 @@ jobs:
           key: ${{ runner.os }}-tools
       - name: Install Tools
         run: make tools-install
-      - name: Install Vault CLI
-        uses: innovationnorway/setup-vault@v1.0.3
-        with:
-          version: 1.4.2
-      - name: Renew Vault Token
-        env:
-          VAULT_TOKEN: ${{ secrets.VAULT_TOKEN }}
-          VAULT_ADDR: https://volt.cap.explore.suse.dev
-        run: |
-          vault token renew
-      - name: Read configuration
-        uses: hashicorp/vault-action@v2.1.0
-        with:
-          url: https://volt.cap.explore.suse.dev/
-          token: ${{ secrets.VAULT_TOKEN }}
-          secrets: |
-            secret/data/carrier "docker_registry_username"     | REGISTRY_USERNAME;
-            secret/data/carrier "docker_registry_password"     | REGISTRY_PASSWORD;
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
-      - name: Check traefik service
-        run: kubectl get service -n kube-system traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
-      - name: Install Carrier
+      - name: Run unit tests
+        run: make test
+      - name: Acceptance tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          ./dist/carrier-linux-amd64 install
-      - name: Carrier Setup Information
-        run: |
-          ./dist/carrier-linux-amd64 info
-      - name: Default Organizations
-        run: |
-          ./dist/carrier-linux-amd64 orgs
-      - name: Create Organization
-        run: |
-          ./dist/carrier-linux-amd64 create-org myself
-      - name: Carrier Orgs
-        run: |
-          ./dist/carrier-linux-amd64 orgs
-      - name: Push an App
-        run: |
-          sleep 8m ;# Wait for tekton to be usable
-          ( cd ./sample-app ; ../dist/carrier-linux-amd64 push "ci${GITHUB_RUN_NUMBER}" )
-      # - name: Carrier Apps
-      - name: Uninstall Carrier
-        run: |
-          ./dist/carrier-linux-amd64 uninstall
-      # - name: Push an App
-      #   run: |
-      #     ./dist/carrier-linux-amd64 apps
-      # - name: Test App
-      #   run: |
-      #     external_ip=$(kubectl get svc -A --field-selector='metadata.name=traefik' -o json | jq -r .items[0].status.loadBalancer.ingress[0].ip)
-      #     curl --fail http://"ci${GITHUB_RUN_NUMBER}.${external_ip}.nip.io"
-      # - name: Delete The App
-      #   run: |
-      #     ./dist/carrier-linux-amd64 delete "ci${GITHUB_RUN_NUMBER}"
-      # - name: Uninstall Carrier
-      #   run: |
-      #     ./carrier uninstall
-      - name: Log
-        if: ${{ always() }}
-        run: |
-          # cat "$HOME/.carrier.log" - Not created by the go-based carrier cli
-
-          echo "-----------------------------------------------"
-          echo "-----------------------------------------------"
-          echo "ALL RESOURCES"
-          echo "-----------------------------------------------"
-          echo "-----------------------------------------------"
-
-          kubectl get all -A -o wide
-
-          # echo "-----------------------------------------------"
-          # echo "-----------------------------------------------"
-          # echo "DESCRIBE EIRINI-WORKLOADS PODS"
-          # echo "-----------------------------------------------"
-          # echo "-----------------------------------------------"
-
-          # kubectl get pod -n eirini-workloads -o json | jq -r .items[].metadata.name | xargs -I{} kubectl describe pod -n eirini-workloads {}
+          make test-acceptance
