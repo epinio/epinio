@@ -28,8 +28,6 @@ jobs:
           key: ${{ runner.os }}-tools
       - name: Install Tools
         run: make tools-install
-      - name: Install k3d
-        run: wget -q -O k3d https://github.com/rancher/k3d/releases/download/v4.2.0/k3d-linux-amd64 && echo "745396701fb0ffaa832b02c5b734fd5b6bb042ac878b3ad16bb810ebbf02df0c k3d" | sha256sum --check --status && chmod +x k3d && mv k3d "`pwd`/output/bin"
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
