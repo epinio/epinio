@@ -12,7 +12,6 @@ import (
 	"github.com/suse/carrier/cli/paas/config"
 	"github.com/suse/carrier/cli/paas/gitea"
 	"github.com/suse/carrier/cli/paas/ui"
-	"k8s.io/client-go/dynamic"
 )
 
 // Injectors from wire.go:
@@ -36,10 +35,6 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		return nil, nil, err
 	}
 	uiUI := ui.NewUI()
-	dynamicInterface, err := dynamic.NewForConfig(restConfig)
-	if err != nil {
-		return nil, nil, err
-	}
 	logger := config2.NewClientLogger()
 	carrierClient := &CarrierClient{
 		giteaClient:   client,
@@ -47,7 +42,6 @@ func NewCarrierClient(flags *pflag.FlagSet, configOverrides func(*config.Config)
 		ui:            uiUI,
 		config:        configConfig,
 		giteaResolver: resolver,
-		dynamicClient: dynamicInterface,
 		Log:           logger,
 	}
 	return carrierClient, func() {

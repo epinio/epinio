@@ -129,10 +129,7 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) er
 	if err := w.createGiteaCredsSecret(c); err != nil {
 		return err
 	}
-	if err := w.createClusterRegistryCredsSecret(c, true); err != nil {
-		return err
-	}
-	if err := w.createClusterRegistryCredsSecret(c, false); err != nil {
+	if err := w.createClusterRegistryCredsSecret(c); err != nil {
 		return err
 	}
 	if err := w.createWorkloadsServiceAccountWithSecretAccess(c); err != nil {
@@ -186,32 +183,19 @@ func (w Workloads) deleteWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) er
 	return nil
 }
 
-func (w Workloads) createClusterRegistryCredsSecret(c *kubernetes.Cluster, http bool) error {
-	var protocol, secretName, port string
-	if http {
-		protocol = "http"
-		secretName = "registry-creds"
-		port = "30501"
-	} else {
-		protocol = "https"
-		secretName = "registry-creds-http"
-		port = "30500"
-	}
-
+func (w Workloads) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
 	// TODO: Are all of these really used? We need tekton to be able to access
 	// the registry and also kubernetes (when we deploy our app deployments)
-	auths := fmt.Sprintf(`{ "auths": {
-		"%s:127.0.0.1:%s":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
-		"%s:127.0.0.1:%s":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
+	auths := `{ "auths": {
+		"https://127.0.0.1:30500":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
+		"http://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
 		 "registry.carrier-registry":{"username":"admin","password":"password"},
-		 "registry.carrier-registry:444":{"username":"admin","password":"password"}
-} }
-`, protocol, port, protocol, port)
+		 "registry.carrier-registry:444":{"username":"admin","password":"password"} } }`
 
 	_, err := c.Kubectl.CoreV1().Secrets(WorkloadsDeploymentID).Create(context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: secretName,
+				Name: "registry-creds",
 			},
 			StringData: map[string]string{
 				".dockerconfigjson": auths,
@@ -248,32 +232,22 @@ func (w Workloads) createGiteaCredsSecret(c *kubernetes.Cluster) error {
 	return nil
 }
 
+// Adding the imagePullSecrets to the service account attached to the application
+// pods, will automatically assign the same imagePullSecrets to the pods themselves:
+// https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#verify-imagepullsecrets-was-added-to-pod-spec
 func (w Workloads) createWorkloadsServiceAccountWithSecretAccess(c *kubernetes.Cluster) error {
+	automountServiceAccountToken := false
 	_, err := c.Kubectl.CoreV1().ServiceAccounts(WorkloadsDeploymentID).Create(
 		context.Background(),
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: WorkloadsDeploymentID,
 			},
-			Secrets: []corev1.ObjectReference{
-				{
-					Kind:      "Secret",
-					Namespace: WorkloadsDeploymentID,
-					Name:      "registry-creds",
-				},
-				{
-					Kind:      "Secret",
-					Namespace: WorkloadsDeploymentID,
-					Name:      "registry-creds-http",
-				},
-				{
-					Kind:      "Secret",
-					Namespace: WorkloadsDeploymentID,
-					Name:      "gitea-creds",
-				},
+			ImagePullSecrets: []corev1.LocalObjectReference{
+				{Name: "registry-creds"},
+				{Name: "gitea-creds"},
 			},
-			//ImagePullSecrets:             []corev1.LocalObjectReference{},
-			AutomountServiceAccountToken: nil,
+			AutomountServiceAccountToken: &automountServiceAccountToken,
 		}, metav1.CreateOptions{})
 
 	return err
