@@ -45,8 +45,26 @@ func (k Workloads) Describe() string {
 func (w Workloads) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Workloads...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(WorkloadsDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", WorkloadsDeploymentID)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Workspace because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	if err := w.deleteWorkloadsNamespace(c, ui); err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", WorkloadsDeploymentID)
+	}
+
+	existsAndOwned, err = c.NamespaceExistsAndOwned("app-ingress")
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace 'app-ingress' is owned or not")
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping app-ingress namespace deletion because either doesn't exist or not owned by Carrier")
+		return nil
 	}
 
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(appIngressYamlPath, true); err != nil {
@@ -141,20 +159,17 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) er
 
 func (w Workloads) deleteWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) error {
 	message := "Deleting Workloads namespace " + WorkloadsDeploymentID
-	warning, err := helpers.WaitForCommandCompletion(ui, message,
+	_, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(WorkloadsDeploymentID)
+			return "", c.DeleteNamespace(WorkloadsDeploymentID)
 		},
 	)
 	if err != nil {
 		return err
 	}
-	if warning != "" {
-		ui.Exclamation().Msg(warning)
-	}
 
 	message = "Waiting for workloads namespace to be gone"
-	warning, err = helpers.WaitForCommandCompletion(ui, message,
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			var err error
 			for err == nil {
