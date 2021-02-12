@@ -171,10 +171,10 @@ func uninstallCarrier() (string, error) {
 	return Carrier("uninstall", "")
 }
 
-// Carrier invoces the `carrier` binary, running the specified command.
+// Carrier invokes the `carrier` binary, running the specified command.
 // It returns the command output and/or error.
 // dir parameter defines the directory from which the command should be run.
-// It default to the current dir if left empty.
+// It defaults to the current dir if left empty.
 func Carrier(command string, dir string) (string, error) {
 	var commandDir string
 	var err error
