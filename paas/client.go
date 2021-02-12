@@ -26,8 +26,6 @@ import (
 	"github.com/suse/carrier/cli/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 )
 
 var (
@@ -48,7 +46,6 @@ type CarrierClient struct {
 	ui            *ui.UI
 	config        *config.Config
 	giteaResolver *paasgitea.Resolver
-	dynamicClient dynamic.Interface
 	Log           logr.Logger
 }
 
@@ -213,16 +210,11 @@ func (c *CarrierClient) Delete(app string) error {
 
 	c.ui.Normal().Msg("Deleted app code repository.")
 
-	details.Info("delete lrp")
-	virtualLrpGVR := schema.GroupVersionResource{
-		Group:    "eirini.cloudfoundry.org",
-		Version:  "v1",
-		Resource: "lrps",
-	}
+	details.Info("delete deployment")
 
-	err = c.dynamicClient.Resource(virtualLrpGVR).Namespace(c.config.CarrierWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
+	err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.CarrierWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
 	if err != nil {
-		return errors.Wrap(err, "failed to delete eirini lrp")
+		return errors.Wrap(err, "failed to delete application deployment")
 	}
 
 	c.ui.Normal().Msg("Deleted app containers.")
@@ -339,7 +331,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	defer stopFunc()
 
 	details.Info("wait for apps")
-	err = c.waitForApp(app)
+	err = c.waitForApp(c.config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -493,12 +485,8 @@ kind: Deployment
 metadata:
   name: "{{ .AppName }}"
   labels:
-		"carrier/app-name": "{{ .AppName }}"
-		"carrier/org": "{{ .Org }}"
-	annotations:
-		"carrier/routes":
-		  - hostname: "{{ .Route }}"
-				port: 8080
+    carrier/app-name: "{{ .AppName }}"
+    carrier/org: "{{ .Org }}"
 spec:
   replicas: 1
   selector:
@@ -508,15 +496,24 @@ spec:
     metadata:
       labels:
         app: "{{ .AppName }}"
+        # Needed for the ingress extension to work:
+        cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
+      annotations:
+        # Needed for the ingress extension to work:
+        cloudfoundry.org/routes: '[{ "hostname": "{{ .Route}}", "port": 8080 }]'
+        cloudfoundry.org/application_name:  "{{ .AppName }}"
     spec:
       serviceAccountName: ` + deployments.WorkloadsDeploymentID + `
       automountServiceAccountToken: false
       containers:
       - name: "{{ .AppName }}"
-				image: "127.0.0.1:30500/apps/{{ .AppName }}"
+        image: "127.0.0.1:30500/apps/{{ .AppName }}"
         ports:
         - containerPort: 8080
-	`)
+        env:
+        - name: PORT
+          value: "8080"
+  `)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse deployment template for app")
 	}
@@ -622,18 +619,21 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 	return cancelFunc, nil
 }
 
-func (c *CarrierClient) waitForApp(name string) error {
+func (c *CarrierClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.CarrierWorkloadsNamespace,
-		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
+		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
 		300)
+	if err != nil {
+		return errors.Wrap(err, "waiting for app to be created failed")
+	}
 
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
 		c.ui, c.config.CarrierWorkloadsNamespace,
-		fmt.Sprintf("cloudfoundry.org/guid=%s", name),
+		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
 		300)
 
 	if err != nil {
