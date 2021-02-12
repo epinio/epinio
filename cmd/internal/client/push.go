@@ -13,7 +13,7 @@ var ()
 // CmdPush implements the carrier orgs command
 var CmdPush = &cobra.Command{
 	Use:   "push NAME [PATH_TO_APPLICATION_SOURCES]",
-	Short: "Push an application from the current working directory",
+	Short: "Push an application from the specified directory, or the current working directory",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
