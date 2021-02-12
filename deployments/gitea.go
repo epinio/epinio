@@ -25,17 +25,6 @@ const (
 	giteaChartURL     = "https://dl.gitea.io/charts/gitea-2.1.3.tgz"
 )
 
-func (k *Gitea) NeededOptions() kubernetes.InstallationOptions {
-	return kubernetes.InstallationOptions{
-		{
-			Name:        "system_domain",
-			Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP",
-			Type:        kubernetes.StringType,
-			Default:     "",
-		},
-	}
-}
-
 func (k *Gitea) ID() string {
 	return GiteaDeploymentID
 }

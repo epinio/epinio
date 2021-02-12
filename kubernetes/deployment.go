@@ -11,7 +11,6 @@ type Deployment interface {
 	Delete(*Cluster, *ui.UI) error
 	Describe() string
 	GetVersion() string
-	NeededOptions() InstallationOptions
 	Restore(*Cluster, *ui.UI, string) error
 	Backup(*Cluster, *ui.UI, string) error
 	ID() string

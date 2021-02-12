@@ -25,10 +25,6 @@ const (
 	quarksChartURL     = "https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-0.0.755-ge100fdc.tgz"
 )
 
-func (k *Quarks) NeededOptions() kubernetes.InstallationOptions {
-	return kubernetes.InstallationOptions{}
-}
-
 func (k *Quarks) ID() string {
 	return QuarksDeploymentID
 }

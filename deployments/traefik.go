@@ -25,10 +25,6 @@ const (
 	traefikChartURL     = "https://helm.traefik.io/traefik/traefik-9.11.0.tgz"
 )
 
-func (k *Traefik) NeededOptions() kubernetes.InstallationOptions {
-	return kubernetes.InstallationOptions{}
-}
-
 func (k *Traefik) ID() string {
 	return TraefikDeploymentID
 }
