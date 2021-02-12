@@ -48,7 +48,11 @@ kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.5/manife
 kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.9.5/manifests/metallb.yaml
 kubectl create secret generic -n metallb-system memberlist --from-literal=secretkey="$(openssl rand -base64 128)"
 
-SUBNET_IP=`docker network inspect kind | jq -r '.[0].IPAM.Config[0].Subnet'`
+SUBNET_IP=`docker network inspect kind | jq -r '.[0].IPAM.Config[0].Gateway'`
+## Use the last few IP addresses
+IP_ARRAY=(${SUBNET_IP//./ })
+SUBNET_IP="${IP_ARRAY[0]}.${IP_ARRAY[1]}.255.255"
+
 cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: ConfigMap
