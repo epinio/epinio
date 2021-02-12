@@ -34,7 +34,7 @@ var _ = Describe("Apps", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = Carrier("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(appName + ".*|.*1/1.*|.*"))
+			Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
 
 			time.Sleep(10 * time.Second)
 

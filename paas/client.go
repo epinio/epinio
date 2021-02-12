@@ -131,9 +131,10 @@ func (c *CarrierClient) Apps() error {
 
 	for _, app := range apps {
 		details.Info("kube get status", "App", app.Name)
-		status, err := c.kubeClient.StatefulSetStatus(
+		status, err := c.kubeClient.DeploymentStatus(
 			c.config.CarrierWorkloadsNamespace,
-			fmt.Sprintf("cloudfoundry.org/guid=%s", app.Name))
+			fmt.Sprintf("carrier/app-guid=%s.%s", c.config.Org, app.Name),
+		)
 		if err != nil {
 			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
 		}
@@ -212,7 +213,8 @@ func (c *CarrierClient) Delete(app string) error {
 
 	details.Info("delete deployment")
 
-	err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.CarrierWorkloadsNamespace).Delete(context.Background(), app, metav1.DeleteOptions{})
+	err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.CarrierWorkloadsNamespace).
+		Delete(context.Background(), fmt.Sprintf("%s.%s", c.config.Org, app), metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete application deployment")
 	}
@@ -469,22 +471,14 @@ func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, er
 		return "", errors.Wrap(err, "failed to calculate default app route")
 	}
 
-	// TODO: Use a go client to create this deployment
-	// (maybe not? What if staging fails? Right now no sts or deployment is created)
-	// c.kubeClient.Kubectl.AppsV1().Deployments("carrier-workloads").Create(&appsv1.Deployment{})
-	// TODO: perhaps marshaling an actual struct is better
-	// TODO: name of Deployment will lead to collisions, since the same app name
-	// can be present in more than one organization
-	// TODO: Prefix the Deployment name with the organization name or use a different
-	// TODO: Compare with the statefulset deployed by Eirini. Does that have a default
-	//   servicesaccount mounted? What serviceaccount does that use in spec?
 	deploymentTmpl, err := template.New("deployment").Parse(`
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{{ .AppName }}"
+  name: "{{ .Org }}.{{ .AppName }}"
   labels:
+    carrier/app-guid:  "{{ .Org }}.{{ .AppName }}"
     carrier/app-name: "{{ .AppName }}"
     carrier/org: "{{ .Org }}"
 spec:
