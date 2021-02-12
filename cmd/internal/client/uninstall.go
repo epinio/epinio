@@ -25,7 +25,7 @@ func Uninstall(cmd *cobra.Command, args []string) error {
 
 	err = installClient.Uninstall(cmd)
 	if err != nil {
-		return errors.Wrap(err, "error uninstalling Carrier")
+		return err
 	}
 
 	return nil

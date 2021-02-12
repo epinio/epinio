@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/kyokomi/emoji"
@@ -50,6 +49,15 @@ func (k Traefik) Describe() string {
 func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Traefik...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(TraefikDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", TraefikDeploymentID)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Traefik because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Traefik: " + err.Error())
@@ -71,16 +79,13 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	}
 
 	message = "Deleting Traefik namespace " + TraefikDeploymentID
-	warning, err := helpers.WaitForCommandCompletion(ui, message,
+	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(TraefikDeploymentID)
+			return "", c.DeleteNamespace(TraefikDeploymentID)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", TraefikDeploymentID)
-	}
-	if warning != "" {
-		ui.Exclamation().Msg(warning)
 	}
 
 	ui.Success().Msg("Traefik removed")
@@ -102,14 +107,6 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	// Setup Traefik helm values
 	var helmArgs []string
 
-	// Setup ExternalIPs for platforms where there is no loadbalancer
-	platform := c.GetPlatform()
-	if !platform.HasLoadBalancer() {
-		for i, ip := range platform.ExternalIPs() {
-			helmArgs = append(helmArgs, "--set service.externalIPs["+strconv.Itoa(i)+"]="+ip)
-		}
-	}
-
 	// Disable sending anonymous usage statistics
 	// https://github.com/traefik/traefik-helm-chart/blob/v9.11.0/traefik/values.yaml#L170
 	// Overwrite globalArguments until https://github.com/traefik/traefik-helm-chart/issues/357 is fixed
@@ -130,10 +127,6 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	}
 	if err := c.WaitForPodBySelectorRunning(ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to come up")
-	}
-
-	if platform.HasLoadBalancer() {
-		// TODO: Wait until an IP address is assigned
 	}
 
 	ui.Success().Msg("Traefik Ingress deployed")

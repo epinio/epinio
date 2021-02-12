@@ -16,7 +16,9 @@ import (
 	"github.com/suse/carrier/cli/paas/ui"
 )
 
-type ExternalCommandFunc func() (output string, err error)
+type ExternalFuncWithString func() (output string, err error)
+
+type ExternalFunc func() (err error)
 
 func RunProc(cmd, dir string, toStdout bool) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
@@ -103,16 +105,16 @@ func Kubectl(command string) (string, error) {
 	return RunProc(cmd, currentdir, false)
 }
 
-func WaitForCommandCompletion(ui *ui.UI, message string, funk ExternalCommandFunc) (string, error) {
+func WaitForCommandCompletion(ui *ui.UI, message string, funk ExternalFuncWithString) (string, error) {
 	s := ui.Progressf(" %s", message)
 	defer s.Stop()
 
 	return funk()
 }
 
-// ExecToSuccessWithTimeout retries the given function until it either succeeds of the
-// timeout is reached. It retries every "interval" duration.
-func ExecToSuccessWithTimeout(funk ExternalCommandFunc, timeout, interval time.Duration) (string, error) {
+// ExecToSuccessWithTimeout retries the given function with stirng & error return,
+// until it either succeeds of the timeout is reached. It retries every "interval" duration.
+func ExecToSuccessWithTimeout(funk ExternalFuncWithString, timeout, interval time.Duration) (string, error) {
 	timeoutChan := time.After(timeout)
 	for {
 		select {
@@ -123,6 +125,24 @@ func ExecToSuccessWithTimeout(funk ExternalCommandFunc, timeout, interval time.D
 				time.Sleep(interval)
 			} else {
 				return out, nil
+			}
+		}
+	}
+}
+
+// RunToSuccessWithTimeout retries the given function with error return,
+// until it either succeeds or the timeout is reached. It retries every "interval" duration.
+func RunToSuccessWithTimeout(funk ExternalFunc, timeout, interval time.Duration) error {
+	timeoutChan := time.After(timeout)
+	for {
+		select {
+		case <-timeoutChan:
+			return fmt.Errorf("Timed out after %s", timeout.String())
+		default:
+			if err := funk(); err != nil {
+				time.Sleep(interval)
+			} else {
+				return nil
 			}
 		}
 	}

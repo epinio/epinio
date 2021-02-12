@@ -56,6 +56,15 @@ func (k Gitea) Describe() string {
 func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Gitea...")
 
+	existsAndOwned, err := c.NamespaceExistsAndOwned(GiteaDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", GiteaDeploymentID)
+	}
+	if !existsAndOwned {
+		ui.Exclamation().Msg("Skipping Gitea because namespace either doesn't exist or not owned by Carrier")
+		return nil
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return errors.New("Failed uninstalling Gitea: " + err.Error())
@@ -77,16 +86,13 @@ func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	}
 
 	message = "Deleting Gitea namespace " + GiteaDeploymentID
-	warning, err := helpers.WaitForCommandCompletion(ui, message,
+	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return c.DeleteNamespaceIfOwned(GiteaDeploymentID)
+			return "", c.DeleteNamespace(GiteaDeploymentID)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", GiteaDeploymentID)
-	}
-	if warning != "" {
-		ui.Exclamation().Msg(warning)
 	}
 
 	ui.Success().Msg("Gitea removed")
