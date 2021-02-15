@@ -31,7 +31,7 @@ $ carrier install
 ```bash
 $ carrier uninstall
 ```
----
+
 ### Push an application
 
 Run the following command for any supported application directory (e.g. inside [sample-app directory](sample-app)).
@@ -49,7 +49,7 @@ Always ensure that the chosen directory contains a supported application.
 ```bash
 $ carrier delete NAME
 ```
----
+
 ### Create a separate org
 
 ```bash
@@ -61,7 +61,7 @@ $ carrier create-org NAME
 ```bash
 $ carrier target NAME
 ```
----
+
 ### List all commands
 
 ```bash
@@ -72,3 +72,13 @@ $ carrier help
 ```bash
 $ carrier COMMAND --help
 ```
+
+## Configuration
+
+Carrier places its configuration at `$HOME/.config/carrier/config.yaml` by default.
+
+For exceptional situations this can be overriden by either specifying
+
+  - The global command-line option `--config-file`, or
+
+  - The environment variable `CARRIER_CONFIG`.
