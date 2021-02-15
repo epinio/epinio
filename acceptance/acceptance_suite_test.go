@@ -51,6 +51,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Creating a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
 	createCluster()
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+	os.Setenv("CARRIER_CONFIG", nodeTmpDir+"/carrier.yaml")
 
 	fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
 	helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
