@@ -26,17 +26,6 @@ const (
 	registryChartFile    = "container-registry-0.1.0.tgz"
 )
 
-func (k *Registry) NeededOptions() kubernetes.InstallationOptions {
-	return kubernetes.InstallationOptions{
-		{
-			Name:        "system_domain",
-			Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP",
-			Type:        kubernetes.StringType,
-			Default:     "",
-		},
-	}
-}
-
 func (k *Registry) ID() string {
 	return RegistryDeploymentID
 }

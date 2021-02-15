@@ -13,10 +13,10 @@ import (
 var _ = Describe("Apps", func() {
 	var org = "apps-org"
 	BeforeEach(func() {
-		_, err := Carrier("create-org "+org, "")
-		Expect(err).ToNot(HaveOccurred())
-		_, err = Carrier("target "+org, "")
-		Expect(err).ToNot(HaveOccurred())
+		out, err := Carrier("create-org "+org, "")
+		Expect(err).ToNot(HaveOccurred(), out)
+		out, err = Carrier("target "+org, "")
+		Expect(err).ToNot(HaveOccurred(), out)
 	})
 	Describe("push and delete", func() {
 		var appName string
@@ -34,13 +34,13 @@ var _ = Describe("Apps", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = Carrier("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(appName + ".*|.*1/1.*|.*"))
+			Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
 
 			time.Sleep(10 * time.Second)
 
 			By("deleting the app")
-			_, err = Carrier("delete "+appName, "")
-			Expect(err).ToNot(HaveOccurred())
+			out, err = Carrier("delete "+appName, "")
+			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `carrier delete` from returning before the app is deleted #131
 			Eventually(func() string {
 				out, err := Carrier("apps", "")

@@ -77,16 +77,6 @@ type FakeDeployment struct {
 	iDReturnsOnCall map[int]struct {
 		result1 string
 	}
-	NeededOptionsStub        func() kubernetes.InstallationOptions
-	neededOptionsMutex       sync.RWMutex
-	neededOptionsArgsForCall []struct {
-	}
-	neededOptionsReturns struct {
-		result1 kubernetes.InstallationOptions
-	}
-	neededOptionsReturnsOnCall map[int]struct {
-		result1 kubernetes.InstallationOptions
-	}
 	RestoreStub        func(*kubernetes.Cluster, *ui.UI, string) error
 	restoreMutex       sync.RWMutex
 	restoreArgsForCall []struct {
@@ -464,59 +454,6 @@ func (fake *FakeDeployment) IDReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) NeededOptions() kubernetes.InstallationOptions {
-	fake.neededOptionsMutex.Lock()
-	ret, specificReturn := fake.neededOptionsReturnsOnCall[len(fake.neededOptionsArgsForCall)]
-	fake.neededOptionsArgsForCall = append(fake.neededOptionsArgsForCall, struct {
-	}{})
-	stub := fake.NeededOptionsStub
-	fakeReturns := fake.neededOptionsReturns
-	fake.recordInvocation("NeededOptions", []interface{}{})
-	fake.neededOptionsMutex.Unlock()
-	if stub != nil {
-		return stub()
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *FakeDeployment) NeededOptionsCallCount() int {
-	fake.neededOptionsMutex.RLock()
-	defer fake.neededOptionsMutex.RUnlock()
-	return len(fake.neededOptionsArgsForCall)
-}
-
-func (fake *FakeDeployment) NeededOptionsCalls(stub func() kubernetes.InstallationOptions) {
-	fake.neededOptionsMutex.Lock()
-	defer fake.neededOptionsMutex.Unlock()
-	fake.NeededOptionsStub = stub
-}
-
-func (fake *FakeDeployment) NeededOptionsReturns(result1 kubernetes.InstallationOptions) {
-	fake.neededOptionsMutex.Lock()
-	defer fake.neededOptionsMutex.Unlock()
-	fake.NeededOptionsStub = nil
-	fake.neededOptionsReturns = struct {
-		result1 kubernetes.InstallationOptions
-	}{result1}
-}
-
-func (fake *FakeDeployment) NeededOptionsReturnsOnCall(i int, result1 kubernetes.InstallationOptions) {
-	fake.neededOptionsMutex.Lock()
-	defer fake.neededOptionsMutex.Unlock()
-	fake.NeededOptionsStub = nil
-	if fake.neededOptionsReturnsOnCall == nil {
-		fake.neededOptionsReturnsOnCall = make(map[int]struct {
-			result1 kubernetes.InstallationOptions
-		})
-	}
-	fake.neededOptionsReturnsOnCall[i] = struct {
-		result1 kubernetes.InstallationOptions
-	}{result1}
-}
-
 func (fake *FakeDeployment) Restore(arg1 *kubernetes.Cluster, arg2 *ui.UI, arg3 string) error {
 	fake.restoreMutex.Lock()
 	ret, specificReturn := fake.restoreReturnsOnCall[len(fake.restoreArgsForCall)]
@@ -658,8 +595,6 @@ func (fake *FakeDeployment) Invocations() map[string][][]interface{} {
 	defer fake.getVersionMutex.RUnlock()
 	fake.iDMutex.RLock()
 	defer fake.iDMutex.RUnlock()
-	fake.neededOptionsMutex.RLock()
-	defer fake.neededOptionsMutex.RUnlock()
 	fake.restoreMutex.RLock()
 	defer fake.restoreMutex.RUnlock()
 	fake.upgradeMutex.RLock()

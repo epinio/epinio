@@ -299,10 +299,10 @@ func (c *Cluster) GetVersion() (string, error) {
 	return v.String(), nil
 }
 
-// StatefulSetStatus returns running status for a StatefulSet
-// If the sts doesn't exist, the status is set to 0/0
-func (c *Cluster) StatefulSetStatus(namespace, selector string) (string, error) {
-	result, err := c.Kubectl.AppsV1().StatefulSets(namespace).List(
+// DeploymentStatus returns running status for a Deployment
+// If the deployment doesn't exist, the status is set to 0/0
+func (c *Cluster) DeploymentStatus(namespace, selector string) (string, error) {
+	result, err := c.Kubectl.AppsV1().Deployments(namespace).List(
 		context.Background(),
 		metav1.ListOptions{
 			LabelSelector: selector,
@@ -310,7 +310,7 @@ func (c *Cluster) StatefulSetStatus(namespace, selector string) (string, error) 
 	)
 
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get StatefulSet status")
+		return "", errors.Wrap(err, "failed to get Deployment status")
 	}
 
 	if len(result.Items) < 1 {

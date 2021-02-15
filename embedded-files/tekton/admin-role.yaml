@@ -17,7 +17,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: staging-triggers-admin
-  namespace: eirini-workloads
+  namespace: carrier-workloads
 rules:
 - apiGroups:
   - triggers.tekton.dev
@@ -50,7 +50,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: staging-triggers-admin
-  namespace: eirini-workloads
+  namespace: carrier-workloads
 secrets:
   - name: gitea-creds
   - name: registry-creds
@@ -59,7 +59,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: staging-triggers-admin-binding
-  namespace: eirini-workloads
+  namespace: carrier-workloads
 subjects:
   - kind: ServiceAccount
     name: staging-triggers-admin
@@ -75,32 +75,11 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: staging-triggers-admin
-    namespace: eirini-workloads
+    namespace: carrier-workloads
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: staging-triggers-admin
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: registry-creds
-  namespace: eirini-workloads
-type: kubernetes.io/dockerconfigjson
-stringData:
-  .dockerconfigjson: '{"auths":{"registry.carrier-registry":{"username":"admin","password":"password"}, "registry.carrier-registry:444":{"username":"admin","password":"password"}}}'
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: gitea-creds
-  namespace: eirini-workloads
-  annotations:
-    tekton.dev/git-0: http://gitea-http.gitea:10080
-type: kubernetes.io/basic-auth
-stringData:
-  username: dev
-  password: changeme
 ---
 # Make the service account admin for now, only
 # because of the new stuff (like LRPs, images, etc.)
@@ -111,7 +90,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: staging-triggers-admin
-  namespace: eirini-workloads
+  namespace: carrier-workloads
 roleRef:
   kind: ClusterRole
   name: cluster-admin

@@ -37,17 +37,6 @@ const (
 	tektonStagingYamlPath         = "tekton/staging.yaml"
 )
 
-func (k *Tekton) NeededOptions() kubernetes.InstallationOptions {
-	return kubernetes.InstallationOptions{
-		{
-			Name:        "system_domain",
-			Description: "The domain you are planning to use for Carrier. Should be pointing to the traefik public IP",
-			Type:        kubernetes.StringType,
-			Default:     "",
-		},
-	}
-}
-
 func (k *Tekton) ID() string {
 	return TektonDeploymentID
 }
@@ -194,12 +183,12 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Creating registry certificates in eirini-workloads"
+	message = "Creating registry certificates in carrier-workloads"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					return helpers.Kubectl("get secret -n eirini-workloads registry-tls-self-ca")
+					return helpers.Kubectl("get secret -n carrier-workloads registry-tls-self-ca")
 				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
 			if err != nil {
 				return out1, err
@@ -207,7 +196,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 
 			out2, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					return helpers.Kubectl("get secret -n eirini-workloads registry-tls-self")
+					return helpers.Kubectl("get secret -n carrier-workloads registry-tls-self")
 				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
 
 			return fmt.Sprintf("%s\n%s", out1, out2), err
@@ -289,10 +278,10 @@ func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 }
 
 // The equivalent of:
-// kubectl get secret -n eirini-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n carrier-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
 func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
-	secret, err := c.Kubectl.CoreV1().Secrets("eirini-workloads").
+	secret, err := c.Kubectl.CoreV1().Secrets("carrier-workloads").
 		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -304,7 +293,7 @@ func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 	caHash, err := getRegistryCAHash(c, ui)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get registry CA from eirini-workloads namespace")
+		return "", errors.Wrap(err, "Failed to get registry CA from carrier-workloads namespace")
 	}
 
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
@@ -329,7 +318,7 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 	}
 	defer os.Remove(tmpFilePath)
 
-	return helpers.Kubectl(fmt.Sprintf("apply -n eirini-workloads --filename %s", tmpFilePath))
+	return helpers.Kubectl(fmt.Sprintf("apply -n carrier-workloads --filename %s", tmpFilePath))
 }
 
 func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
