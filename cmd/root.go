@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/suse/carrier/cli/cmd/internal/client"
 	"github.com/suse/carrier/cli/kubernetes/config"
+	pconfig "github.com/suse/carrier/cli/paas/config"
 )
 
 const (
@@ -38,7 +39,11 @@ func Execute() {
 	pf := rootCmd.PersistentFlags()
 	argToEnv := map[string]string{}
 
-	pf.StringVarP(&flagConfigFile, "config-file", "", "", "set path of configuration file")
+	pf.StringVarP(&flagConfigFile, "config-file", "", pconfig.DefaultLocation(),
+		"set path of configuration file")
+	viper.BindPFlag("config-file", pf.Lookup("config-file"))
+	argToEnv["config-file"] = "CARRIER_CONFIG"
+
 	config.KubeConfigFlags(pf, argToEnv)
 	config.LoggerFlags(pf, argToEnv)
 

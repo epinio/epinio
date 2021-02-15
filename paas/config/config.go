@@ -23,16 +23,15 @@ type Config struct {
 	v *viper.Viper
 }
 
+// DefaultLocation returns the standard location for the configuration file
+func DefaultLocation() string {
+	return defaultConfigFilePath
+}
+
 // Load loads the Carrier config
 func Load(flags *pflag.FlagSet) (*Config, error) {
 	v := viper.New()
-
-	file := defaultConfigFilePath
-	if f, err := flags.GetString("config-file"); err == nil && f != "" {
-		file = f
-	} else if err != nil {
-		return nil, errors.Wrap(err, "failed to get config flag")
-	}
+	file := location()
 
 	v.SetConfigType("yaml")
 	v.SetConfigFile(file)
@@ -82,6 +81,10 @@ func (c *Config) Save() error {
 	}
 
 	return nil
+}
+
+func location() string {
+	return viper.GetString("config-file")
 }
 
 func fileExists(path string) (bool, error) {
