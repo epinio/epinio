@@ -2,6 +2,7 @@ package acceptance_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -33,6 +34,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		panic("REGISTRY_USERNAME and REGISTRY_PASSWORD environment variables can't be empty")
 	}
 
+	if err := checkDependencies(); err != nil {
+		panic("Missing dependencies: " + err.Error())
+	}
+
 	fmt.Printf("Compiling Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 
 	buildCarrier()
@@ -48,9 +53,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	copyCarrier()
-	fmt.Printf("Creating a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
-	createCluster()
-	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+	// NOTE: Don't set CARRIER_ACCEPTANCE_KUBECONFIG when using multiple ginkgo
+	// nodes because they will all use the same cluster. This will lead to flaky
+	// tests.
+	if kubeconfigPath := os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG"); kubeconfigPath != "" {
+		os.Setenv("KUBECONFIG", kubeconfigPath)
+	} else {
+		fmt.Printf("Creating a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
+		createCluster()
+		os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+	}
 	os.Setenv("CARRIER_CONFIG", nodeTmpDir+"/carrier.yaml")
 
 	fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
@@ -71,8 +83,12 @@ var _ = AfterSuite(func() {
 	if !match {
 		panic("Uninstalling carrier failed: " + out)
 	}
-	fmt.Printf("Deleting cluster on node %d\n", config.GinkgoConfig.ParallelNode)
-	deleteCluster()
+
+	if os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG") == "" {
+		fmt.Printf("Deleting cluster on node %d\n", config.GinkgoConfig.ParallelNode)
+		deleteCluster()
+	}
+
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
 })
@@ -185,4 +201,29 @@ func Carrier(command string, dir string) (string, error) {
 	cmd := fmt.Sprintf(nodeTmpDir+"/carrier %s", command)
 
 	return RunProc(cmd, commandDir, false)
+}
+
+func checkDependencies() error {
+	ok := true
+
+	dependencies := []struct {
+		CommandName string
+	}{
+		{CommandName: "wget"},
+		{CommandName: "tar"},
+	}
+
+	for _, dependency := range dependencies {
+		_, err := exec.LookPath(dependency.CommandName)
+		if err != nil {
+			fmt.Printf("Not found: %s\n", dependency.CommandName)
+			ok = false
+		}
+	}
+
+	if ok {
+		return nil
+	}
+
+	return errors.New("Please check your PATH, some of our dependencies were not found")
 }
