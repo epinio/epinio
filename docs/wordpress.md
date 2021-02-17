@@ -15,6 +15,7 @@ https://wordpress.org/download/#download-install
 wget https://wordpress.org/latest.tar.gz
 tar xvf latest.tar.gz
 mv wordpress htdocs
+rm -rf latest.tar.gz
 ```
 
 ## Create a buildpack.yml for your application
@@ -42,6 +43,7 @@ mkdir .php.ini.d
 cat << EOF > .php.ini.d/extensions.ini
 extension=zlib
 extension=mysqli
+EOF
 ```
 
 ## Deploy
