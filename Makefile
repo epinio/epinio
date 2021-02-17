@@ -35,9 +35,7 @@ test: lint
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
 test-acceptance:
-	# Consider less nodes to avoid creating too many clusters which are not really needed
-	#ginkgo -p -stream acceptance/.
-	ginkgo -nodes 2 -stream acceptance/.
+	@./scripts/test-acceptance.sh
 
 generate:
 	go generate ./...
