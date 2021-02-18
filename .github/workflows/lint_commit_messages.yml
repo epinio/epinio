@@ -15,4 +15,4 @@ jobs:
         run: git clone https://github.com/SUSE/carrier.git && cd carrier && git checkout ${GITHUB_HEAD_REF}
       - name: Lint new commits
         working-directory: ./carrier
-        run: gitlint --commits "origin..HEAD" --contrib contrib-title-conventional-commits  --ignore B6
+        run: gitlint --commits "origin..HEAD"
