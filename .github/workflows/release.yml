@@ -38,6 +38,7 @@ jobs:
           onlyLastTag: "true"
           stripGeneratorNotice: "true"
           issuesWoLabels: "true"
+          stripHeaders: "true"
       - name: Release Carrier
         uses: softprops/action-gh-release@v1
         if: steps.branch.outputs.BRANCH_NAME == 'main'
