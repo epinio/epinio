@@ -6,9 +6,17 @@ on:
       - '*'
         
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
     steps:
+      - name: Generate Changelog
+        id: changelog
+        uses: heinrichreimer/github-changelog-generator-action@v2.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          pullRequests: "false"
+          onlyLastTag: "true"
+          stripGeneratorNotice: "true"
       - name: Checkout Repository
         uses: actions/checkout@v2
         with:
@@ -31,8 +39,10 @@ jobs:
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: ( cd dist ; sha256sum -b carrier* > SHA256SUM.txt )
       - name: Release Carrier
+        uses: softprops/action-gh-release@v1
         if: steps.branch.outputs.BRANCH_NAME == 'main'
-        uses: fnkr/github-action-ghr@v1
+        with:
+          files: ./dist/*
+          body: ${{steps.changelog.outputs.changelog}}
         env:
-          GHR_PATH: ./dist/
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
