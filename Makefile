@@ -51,6 +51,9 @@ tidy:
 fmt:
 	go fmt ./...
 
+gitlint:
+	gitlint --commits "origin..HEAD"
+
 .PHONY: tools
 tools:
 	go get github.com/rakyll/statik

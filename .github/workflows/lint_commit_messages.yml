@@ -1,0 +1,18 @@
+name: Lint Commit Messages
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Setup gitlint
+        run: sudo apt-get install gitlint
+      - name: Checkout
+        run: git clone https://github.com/SUSE/carrier.git && cd carrier && git checkout ${GITHUB_HEAD_REF}
+      - name: Lint new commits
+        working-directory: ./carrier
+        run: gitlint --commits "origin..HEAD"
