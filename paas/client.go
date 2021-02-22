@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"code.gitea.io/sdk/gitea"
+	"github.com/fatih/color"
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
@@ -136,7 +137,7 @@ func (c *CarrierClient) Apps() error {
 			fmt.Sprintf("carrier/app-guid=%s.%s", c.config.Org, app.Name),
 		)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get status for app '%s'", app.Name)
+			status = color.RedString(err.Error())
 		}
 
 		details.Info("kube get ingress", "App", app.Name)
@@ -144,7 +145,7 @@ func (c *CarrierClient) Apps() error {
 			c.config.CarrierWorkloadsNamespace,
 			app.Name)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get routes for app '%s'", app.Name)
+			routes = []string{color.RedString(err.Error())}
 		}
 
 		msg = msg.WithTableRow(app.Name, status, strings.Join(routes, ", "))
