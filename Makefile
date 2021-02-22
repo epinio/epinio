@@ -1,4 +1,3 @@
-
 ########################################################################
 ## Development
 
@@ -40,7 +39,7 @@ test-acceptance:
 generate:
 	go generate ./...
 
-lint:	fmt vet tidy
+lint:	prepare_version fmt vet tidy
 
 vet:
 	go vet ./...
@@ -53,6 +52,9 @@ fmt:
 
 gitlint:
 	gitlint --commits "origin..HEAD"
+
+prepare_version:
+	echo -e "package cmd\n\nconst Version = \"$$(git describe --tags)\"" > cmd/version.go
 
 .PHONY: tools
 tools:
