@@ -12,7 +12,8 @@ jobs:
       - name: Setup gitlint
         run: sudo apt-get install gitlint
       - name: Checkout
-        run: git clone https://github.com/SUSE/carrier.git && cd carrier && git checkout ${GITHUB_HEAD_REF}
+        uses: actions/checkout@v2
+      - name: Get all git branches
+        run: git fetch --prune --unshallow && git checkout ${GITHUB_HEAD_REF}
       - name: Lint new commits
-        working-directory: ./carrier
         run: gitlint --commits "origin..HEAD"
