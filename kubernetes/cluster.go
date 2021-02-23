@@ -170,6 +170,19 @@ func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	}
 }
 
+func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc {
+	return func() (bool, error) {
+		podList, err := c.ListPods(namespace, selector)
+		if err != nil {
+			return true, nil
+		}
+		if len(podList.Items) > 0 {
+			return false, nil
+		}
+		return true, nil
+	}
+}
+
 // Poll up to timeout seconds for pod to enter running state.
 // Returns an error if the pod never enters the running state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
@@ -187,6 +200,15 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 		return nil, err
 	}
 	return podList, nil
+}
+
+// Wait up to timeout seconds for pod to be removed.
+// Returns an error if the pod is not removed within the allotted time.
+func (c *Cluster) WaitForPodBySelectorMissing(ui *ui.UI, namespace, selector string, timeout int) error {
+	s := ui.Progressf("Removing %s in %s", selector, namespace)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodDoesNotExist(namespace, selector))
 }
 
 // Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
