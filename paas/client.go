@@ -207,10 +207,10 @@ func (c *CarrierClient) Delete(app string) error {
 	details.Info("delete repo")
 	_, err := c.giteaClient.DeleteRepo(c.config.Org, app)
 	if err != nil {
-		return errors.Wrap(err, "failed to delete repo")
+		return errors.Wrap(err, "failed to delete repository")
 	}
 
-	c.ui.Normal().Msg("Deleted app code repository.")
+	c.ui.Normal().Msg("Deleted application code repository.")
 
 	details.Info("delete deployment")
 
@@ -220,7 +220,20 @@ func (c *CarrierClient) Delete(app string) error {
 		return errors.Wrap(err, "failed to delete application deployment")
 	}
 
-	c.ui.Normal().Msg("Deleted app containers.")
+	// The command above removes the application's deployment.
+	// This in turn deletes the associated replicaset, and pod, in
+	// this order. The pod being gone thus indicates command
+	// completion, and is therefore what we are waiting on below.
+
+	err = c.kubeClient.WaitForPodBySelectorMissing(c.ui,
+		c.config.CarrierWorkloadsNamespace,
+		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", c.config.Org, app),
+		DefaultTimeoutSec)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete application pod")
+	}
+
+	c.ui.Normal().Msg("Deleted application containers.")
 	c.ui.Success().Msg("Application deleted.")
 
 	return nil
