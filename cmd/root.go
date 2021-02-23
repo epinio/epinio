@@ -14,10 +14,6 @@ import (
 	pconfig "github.com/suse/carrier/cli/paas/config"
 )
 
-const (
-	Version = "0.1"
-)
-
 var (
 	flagConfigFile string
 	kubeconfig     string

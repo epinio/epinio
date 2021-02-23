@@ -16,3 +16,4 @@ personal-setup
 /dist
 /resources
 acceptance/acceptance.test
+cmd/version.go
