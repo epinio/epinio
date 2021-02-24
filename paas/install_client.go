@@ -105,11 +105,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	deployment := deployments.Traefik{Timeout: DefaultTimeoutSec}
-
-	details.Info("deploy", "Deployment", deployment.ID())
-	deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
-	if err != nil {
+	if err := c.InstallDeployment(&deployments.Traefik{Timeout: DefaultTimeoutSec}, details); err != nil {
 		return err
 	}
 
@@ -137,10 +133,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 	} {
-		details.Info("deploy", "Deployment", deployment.ID())
-
-		err := deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
-		if err != nil {
+		if err := c.InstallDeployment(deployment, details); err != nil {
 			return err
 		}
 	}
@@ -177,6 +170,12 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	c.ui.Success().Msg("Carrier uninstalled.")
 
 	return nil
+}
+
+// InstallDeployment installs one single Deployment on the cluster
+func (c *InstallClient) InstallDeployment(deployment kubernetes.Deployment, logger logr.Logger) error {
+	logger.Info("deploy", "Deployment", deployment.ID())
+	return deployment.Deploy(c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
 // showInstallConfiguration prints the options and their values to stdout, to
