@@ -39,6 +39,8 @@ var CmdEnableGoogle = &cobra.Command{
 }
 
 func init() {
+	CmdEnableGoogle.Flags().String("service-account-json", "", "the path to the service_account_json for Google Cloud authentication [required]")
+	CmdEnableGoogle.MarkFlagRequired("service-account-json")
 	CmdEnable.AddCommand(CmdEnableInCluster)
 	CmdEnable.AddCommand(CmdEnableGoogle)
 }
@@ -46,18 +48,34 @@ func init() {
 func EnableInCluster(cmd *cobra.Command, args []string) error {
 	return InstallDeployment(
 		cmd, &deployments.Minibroker{Timeout: paas.DefaultTimeoutSec},
+		kubernetes.InstallationOptions{},
 		"You can now use in-cluster services")
 }
 
 func EnableGoogle(cmd *cobra.Command, args []string) error {
+	serviceAccountJSONPath, err := cmd.Flags().GetString("service-account-json")
+	if err != nil {
+		return err
+	}
+
 	return InstallDeployment(
 		cmd, &deployments.GoogleServices{Timeout: paas.DefaultTimeoutSec},
+		kubernetes.InstallationOptions{
+			{
+				Name:         "service-account-json",
+				Description:  "The path to the service account json file used to authenticate with Google Cloud",
+				Type:         kubernetes.StringType,
+				Default:      "",
+				Value:        serviceAccountJSONPath,
+				DeploymentID: deployments.GoogleServicesDeploymentID,
+			},
+		},
 		"You can now use Google Cloud services")
 }
 
-func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, successMessage string) error {
+func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, opts kubernetes.InstallationOptions, successMessage string) error {
 	uiUI := ui.NewUI()
-	installClient, installCleanup, err := paas.NewInstallClient(cmd.Flags(), &kubernetes.InstallationOptions{})
+	installClient, installCleanup, err := paas.NewInstallClient(cmd.Flags(), &opts)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()

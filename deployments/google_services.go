@@ -3,7 +3,9 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/kyokomi/emoji"
@@ -106,7 +108,33 @@ func (k GoogleServices) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernet
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s %s", action, GoogleServicesDeploymentID, GoogleServicesDeploymentID, tarPath)
+	serviceAccountJSONPath, err := options.GetString("service-account-json", GoogleServicesDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "failed to read service-account-json value")
+	}
+	if _, err := os.Stat(serviceAccountJSONPath); os.IsNotExist(err) {
+		return errors.Errorf("%s file does not exist", serviceAccountJSONPath)
+	}
+	jsonContent, err := ioutil.ReadFile(serviceAccountJSONPath)
+	if err != nil {
+		return err
+	}
+	tmpDir, err := ioutil.TempDir("", "google-service-broker-values")
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory")
+	}
+	defer os.RemoveAll(tmpDir)
+
+	valuesYamlPath := path.Join(tmpDir, "values.yaml")
+	valuesYaml := fmt.Sprintf(`
+broker:
+  service_account_json: '%s'`, strings.Replace(string(jsonContent), "\n", "", -1))
+	err = ioutil.WriteFile(valuesYamlPath, []byte(valuesYaml), 0644)
+	if err != nil {
+		return err
+	}
+
+	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s --values %s %s", action, GoogleServicesDeploymentID, GoogleServicesDeploymentID, valuesYamlPath, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing GoogleServices: " + out)
 	}
@@ -115,10 +143,18 @@ func (k GoogleServices) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernet
 	if err != nil {
 		return err
 	}
-	if err := c.WaitUntilPodBySelectorExist(ui, GoogleServicesDeploymentID, "app=minibroker-minibroker", k.Timeout); err != nil {
+
+	if err := c.WaitUntilPodBySelectorExist(ui, GoogleServicesDeploymentID, "app=google-service-broker-mysql", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting GoogleServices database to come up")
+	}
+	if err := c.WaitForPodBySelectorRunning(ui, GoogleServicesDeploymentID, "app=google-service-broker-mysql", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting GoogleServices database to be running")
+	}
+
+	if err := c.WaitUntilPodBySelectorExist(ui, GoogleServicesDeploymentID, "app.kubernetes.io/name=gcp-service-broker", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting GoogleServices to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, GoogleServicesDeploymentID, "app=minibroker-minibroker", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, GoogleServicesDeploymentID, "app.kubernetes.io/name=gcp-service-broker", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting GoogleServices to come be running")
 	}
 
