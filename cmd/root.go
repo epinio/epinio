@@ -59,6 +59,8 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdDeleteApp)
 	rootCmd.AddCommand(client.CmdApps)
 	rootCmd.AddCommand(client.CmdTarget)
+	rootCmd.AddCommand(client.CmdEnable)
+	rootCmd.AddCommand(client.CmdDisable)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

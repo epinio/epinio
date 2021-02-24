@@ -162,9 +162,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Traefik{Timeout: DefaultTimeoutSec},
 	} {
-		details.Info("remove", "Deployment", deployment.ID())
-		err := deployment.Delete(c.kubeClient, c.ui)
-		if err != nil {
+		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err
 		}
 	}
@@ -178,6 +176,12 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 func (c *InstallClient) InstallDeployment(deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("deploy", "Deployment", deployment.ID())
 	return deployment.Deploy(c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
+}
+
+// UninstallDeployment uninstalls one single Deployment from the cluster
+func (c *InstallClient) UninstallDeployment(deployment kubernetes.Deployment, logger logr.Logger) error {
+	logger.Info("remove", "Deployment", deployment.ID())
+	return deployment.Delete(c.kubeClient, c.ui)
 }
 
 // showInstallConfiguration prints the options and their values to stdout, to
