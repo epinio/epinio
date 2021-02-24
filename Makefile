@@ -65,6 +65,9 @@ tools:
 update_registry:
 	helm package ./assets/container-registry/chart/container-registry/ -d embedded-files
 
+update_google_service_broker:
+	@./scripts/update-google-service-broker.sh
+
 update_tekton:
 	mkdir -p embedded-files/tekton
 	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml -O embedded-files/tekton/pipeline-v0.19.0.yaml

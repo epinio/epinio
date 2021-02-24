@@ -28,11 +28,34 @@ var CmdEnableInCluster = &cobra.Command{
 	SilenceUsage:  true,
 }
 
+var CmdEnableGoogle = &cobra.Command{
+	Use:           "services-google",
+	Short:         "enable Google Cloud services in Carrier",
+	Long:          `enable Google Cloud services in Carrier which allows provisioning those kind of services.`,
+	Args:          cobra.ExactArgs(0),
+	RunE:          EnableGoogle,
+	SilenceErrors: true,
+	SilenceUsage:  true,
+}
+
 func init() {
 	CmdEnable.AddCommand(CmdEnableInCluster)
+	CmdEnable.AddCommand(CmdEnableGoogle)
 }
 
 func EnableInCluster(cmd *cobra.Command, args []string) error {
+	return InstallDeployment(
+		cmd, &deployments.Minibroker{Timeout: paas.DefaultTimeoutSec},
+		"You can now use in-cluster services")
+}
+
+func EnableGoogle(cmd *cobra.Command, args []string) error {
+	return InstallDeployment(
+		cmd, &deployments.GoogleServices{Timeout: paas.DefaultTimeoutSec},
+		"You can now use Google Cloud services")
+}
+
+func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, successMessage string) error {
 	uiUI := ui.NewUI()
 	installClient, installCleanup, err := paas.NewInstallClient(cmd.Flags(), &kubernetes.InstallationOptions{})
 	defer func() {
@@ -44,11 +67,11 @@ func EnableInCluster(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
-	uiUI.Note().Msg("Minibroker installing...")
-	if err := installClient.InstallDeployment(&deployments.Minibroker{Timeout: paas.DefaultTimeoutSec}, installClient.Log); err != nil {
+	uiUI.Note().Msg(deployment.ID() + " installing...")
+	if err := installClient.InstallDeployment(deployment, installClient.Log); err != nil {
 		return err
 	}
-	uiUI.Note().Msg("You can now use in-cluster services")
+	uiUI.Note().Msg(successMessage)
 
 	return nil
 }
