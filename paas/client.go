@@ -19,8 +19,10 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
+	"github.com/spf13/pflag"
 	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/kubernetes"
+	kubeconfig "github.com/suse/carrier/cli/kubernetes/config"
 	"github.com/suse/carrier/cli/kubernetes/tailer"
 	"github.com/suse/carrier/cli/paas/config"
 	paasgitea "github.com/suse/carrier/cli/paas/gitea"
@@ -48,6 +50,38 @@ type CarrierClient struct {
 	config        *config.Config
 	giteaResolver *paasgitea.Resolver
 	Log           logr.Logger
+}
+
+func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
+	configConfig, err := config.Load(flags)
+	if err != nil {
+		return nil, nil, err
+	}
+	restConfig, err := kubeconfig.KubeConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+	cluster, err := kubernetes.NewClusterFromClient(restConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	resolver := paasgitea.NewResolver(configConfig, cluster)
+	client, err := paasgitea.NewGiteaClient(resolver)
+	if err != nil {
+		return nil, nil, err
+	}
+	uiUI := ui.NewUI()
+	logger := kubeconfig.NewClientLogger()
+	carrierClient := &CarrierClient{
+		giteaClient:   client,
+		kubeClient:    cluster,
+		ui:            uiUI,
+		config:        configConfig,
+		giteaResolver: resolver,
+		Log:           logger,
+	}
+	return carrierClient, func() {
+	}, nil
 }
 
 // Info displays information about environment

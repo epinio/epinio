@@ -10,9 +10,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	kubeconfig "github.com/suse/carrier/cli/kubernetes/config"
 	"github.com/suse/carrier/cli/paas/config"
 	"github.com/suse/carrier/cli/paas/ui"
 
@@ -27,13 +29,40 @@ const (
 // installing Carrier on it.
 type InstallClient struct {
 	kubeClient *kubernetes.Cluster
+	options    *kubernetes.InstallationOptions
 	ui         *ui.UI
 	config     *config.Config
 	Log        logr.Logger
 }
 
+func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
+	restConfig, err := kubeconfig.KubeConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+	cluster, err := kubernetes.NewClusterFromClient(restConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	uiUI := ui.NewUI()
+	configConfig, err := config.Load(flags)
+	if err != nil {
+		return nil, nil, err
+	}
+	logger := kubeconfig.NewInstallClientLogger()
+	installClient := &InstallClient{
+		kubeClient: cluster,
+		ui:         uiUI,
+		config:     configConfig,
+		Log:        logger,
+		options:    options,
+	}
+	return installClient, func() {
+	}, nil
+}
+
 // Install deploys carrier to the cluster.
-func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
+func (c *InstallClient) Install(cmd *cobra.Command) error {
 	log := c.Log.WithName("Install")
 	log.Info("start")
 	defer log.Info("return")
@@ -43,7 +72,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 	var err error
 	details.Info("process cli options")
-	options, err = options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd))
 	if err != nil {
 		return err
 	}
@@ -55,20 +84,20 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 	if interactive {
 		details.Info("query user for options")
-		options, err = options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		c.options, err = c.options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
 		if err != nil {
 			return err
 		}
 	} else {
 		details.Info("fill defaults into options")
-		options, err = options.Populate(kubernetes.NewDefaultOptionsReader())
+		c.options, err = c.options.Populate(kubernetes.NewDefaultOptionsReader())
 		if err != nil {
 			return err
 		}
 	}
 
 	details.Info("show option configuration")
-	c.showInstallConfiguration(options)
+	c.showInstallConfiguration(c.options)
 
 	// TODO (post MVP): Run a validation phase which perform
 	// additional checks on the values. For example range limits,
@@ -85,7 +114,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	}
 
 	// Try to give a omg.howdoi.website domain if the user didn't specify one
-	domain, err := options.GetOpt("system_domain", "")
+	domain, err := c.options.GetOpt("system_domain", "")
 	if err != nil {
 		return err
 	}
