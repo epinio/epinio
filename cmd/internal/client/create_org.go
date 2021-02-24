@@ -14,7 +14,7 @@ var CmdCreateOrg = &cobra.Command{
 	Short: "Creates an organization",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()

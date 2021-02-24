@@ -12,7 +12,6 @@ require (
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/stdr v0.4.0
 	github.com/google/go-cmp v0.5.4 // indirect
-	github.com/google/wire v0.4.0
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
