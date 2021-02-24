@@ -84,6 +84,176 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 	}, nil
 }
 
+// Services gets all Carrier services in the targeted org
+func (c *CarrierClient) Services() error {
+	log := c.Log.WithName("Services").WithValues("Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Organization", c.config.Org).
+		Msg("Listing services")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
+	if err != nil {
+		return err
+	}
+
+	secrets, err := c.kubeClient.Kubectl.CoreV1().
+		Secrets("carrier-workloads").
+		List(context.Background(), metav1.ListOptions{})
+	// TODO: See if we can prefilter for service + org secrets
+
+	if err != nil {
+		return errors.Wrap(err, "failed to list secrets")
+	}
+
+	details.Info("list service secrets")
+
+	msg := c.ui.Success().WithTable("Name")
+
+	matchPrefix := fmt.Sprintf("service.%s.", c.config.Org)
+
+	for _, s := range secrets.Items {
+		if strings.HasPrefix(s.Name, matchPrefix) {
+			details.Info("Found", "Name", s.Name)
+			fields := strings.Split(s.Name, ".")
+			service := fields[len(fields)-1]
+			msg = msg.WithTableRow(service)
+		}
+	}
+
+	msg.Msg("Carrier Services:")
+
+	return nil
+}
+
+// ServiceMatching returns all Carrier services having the specified prefix
+// in their name.
+func (c *CarrierClient) ServiceMatching(prefix string) []string {
+	log := c.Log.WithName("ServiceMatching").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	result := []string{}
+
+	secrets, err := c.kubeClient.Kubectl.CoreV1().
+		Secrets("carrier-workloads").
+		List(context.Background(), metav1.ListOptions{})
+	// TODO: See if we can prefilter for service + org secrets
+
+	if err != nil {
+		return result
+	}
+
+	matchPrefix := fmt.Sprintf("service.%s.%s", c.config.Org, prefix)
+
+	for _, s := range secrets.Items {
+		details.Info("Found", "Name", s.Name)
+		if strings.HasPrefix(s.Name, matchPrefix) {
+			details.Info("Matched", "Name", s.Name)
+			fields := strings.Split(s.Name, ".")
+			service := fields[len(fields)-1]
+			result = append(result, service)
+		}
+	}
+
+	return result
+}
+
+// DeleteService deletes a service specified by name
+func (c *CarrierClient) DeleteService(name string) error {
+	log := c.Log.WithName("Delete Service").
+		WithValues("Name", name, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Delete Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to remove service.")
+	if err != nil {
+		return err
+	}
+
+	secretName := fmt.Sprintf("service.%s.%s", c.config.Org, name)
+
+	_, err = c.kubeClient.GetSecret("carrier-workloads", secretName)
+	if err != nil {
+		c.ui.Exclamation().Msg("Service does not exist.")
+		return nil
+	}
+
+	// TODO: Validation. Prevent removal of a service still bound
+	// TODO: to applications.
+
+	err = c.kubeClient.DeleteSecret("carrier-workloads", secretName)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete secret")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Removed.")
+	return nil
+}
+
+// CreateCustomService creates a service specified by name and key/value dictionary
+func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
+	log := c.Log.WithName("Create Custom Service").
+		WithValues("Name", name, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	data := make(map[string][]byte)
+
+	msg := c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		WithTable("Parameter", "Value")
+	for i := 0; i < len(dict); i += 2 {
+		key := dict[i]
+		value := dict[i+1]
+		msg = msg.WithTableRow(key, value)
+		data[key] = []byte(value)
+	}
+	msg.Msg("Create Custom Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to create service.")
+	if err != nil {
+		return err
+	}
+
+	secretName := fmt.Sprintf("service.%s.%s", c.config.Org, name)
+
+	_, err = c.kubeClient.GetSecret("carrier-workloads", secretName)
+	if err == nil {
+		c.ui.Exclamation().Msg("Service of this name already exists.")
+		return nil
+	}
+
+	err = c.kubeClient.CreateSecret("carrier-workloads", secretName, data)
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Saved.")
+	return nil
+}
+
 // Info displays information about environment
 func (c *CarrierClient) Info() error {
 	log := c.Log.WithName("Info")
@@ -139,7 +309,7 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 	return result
 }
 
-// Apps gets all Carrier apps
+// Apps gets all Carrier apps in the targeted org
 func (c *CarrierClient) Apps() error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org)
 	log.Info("start")
