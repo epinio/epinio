@@ -29,11 +29,34 @@ var CmdDisableInCluster = &cobra.Command{
 	SilenceUsage:  true,
 }
 
+var CmdDisableGoogle = &cobra.Command{
+	Use:           "services-google",
+	Short:         "disable Google Cloud service in Carrier",
+	Long:          `disable Google Cloud services in Carrier which will disable the provisioning of those services. Doesn't delete already provisioned services by default.`,
+	Args:          cobra.ExactArgs(0),
+	RunE:          DisableGoogle,
+	SilenceErrors: true,
+	SilenceUsage:  true,
+}
+
 func init() {
 	CmdDisable.AddCommand(CmdDisableInCluster)
+	CmdDisable.AddCommand(CmdDisableGoogle)
 }
 
 func DisableInCluster(cmd *cobra.Command, args []string) error {
+	return UninstallDeployment(
+		cmd, &deployments.Minibroker{Timeout: paas.DefaultTimeoutSec},
+		"in-cluster services functionality has been disabled")
+}
+
+func DisableGoogle(cmd *cobra.Command, args []string) error {
+	return UninstallDeployment(
+		cmd, &deployments.GoogleServices{Timeout: paas.DefaultTimeoutSec},
+		"Google Cloud services functionality has been disabled")
+}
+
+func UninstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, successMessage string) error {
 	uiUI := ui.NewUI()
 	installClient, installCleanup, err := paas.NewInstallClient(cmd.Flags(), &kubernetes.InstallationOptions{})
 	defer func() {
@@ -45,11 +68,11 @@ func DisableInCluster(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
-	uiUI.Note().Msg("Minibroker uninstalling...")
-	if err := installClient.UninstallDeployment(&deployments.Minibroker{Timeout: paas.DefaultTimeoutSec}, installClient.Log); err != nil {
+	uiUI.Note().Msg(deployment.ID() + " uninstalling...")
+	if err := installClient.UninstallDeployment(deployment, installClient.Log); err != nil {
 		return err
 	}
-	uiUI.Note().Msg("in-cluster services functionality has been disabled")
+	uiUI.Note().Msg(successMessage)
 
 	return nil
 }
