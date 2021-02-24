@@ -313,6 +313,33 @@ func (c *Cluster) GetSecret(namespace, name string) (*v1.Secret, error) {
 	return secret, nil
 }
 
+// DeleteSecret removes a secret
+func (c *Cluster) DeleteSecret(namespace, name string) error {
+	err := c.Kubectl.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to delete secret")
+	}
+
+	return nil
+}
+
+// CreateSecret posts a new secret with key/value dictionary.
+func (c *Cluster) CreateSecret(namespace, name string, data map[string][]byte) error {
+	secret := &v1.Secret{
+		Data: data,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(context.Background(),
+		secret,
+		metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+	return nil
+}
+
 // GetVersion get the kube server version
 func (c *Cluster) GetVersion() (string, error) {
 	v, err := c.Kubectl.ServerVersion()
