@@ -161,6 +161,8 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Traefik{Timeout: DefaultTimeoutSec},
+		&deployments.Minibroker{Timeout: DefaultTimeoutSec},
+		&deployments.GoogleServices{Timeout: DefaultTimeoutSec},
 	} {
 		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err
