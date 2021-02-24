@@ -132,6 +132,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
+		&deployments.ServiceCatalog{Timeout: DefaultTimeoutSec},
 	} {
 		if err := c.InstallDeployment(deployment, details); err != nil {
 			return err
@@ -154,6 +155,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Workloads{Timeout: DefaultTimeoutSec},
+		&deployments.ServiceCatalog{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
