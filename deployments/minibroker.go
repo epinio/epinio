@@ -84,6 +84,11 @@ func (k Minibroker) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "Failed deleting namespace %s", MinibrokerDeploymentID)
 	}
 
+	err = c.WaitForNamespaceMissing(ui, MinibrokerDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
 	ui.Success().Msg("Minibroker removed")
 
 	return nil
