@@ -10,9 +10,11 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/suse/carrier/cli/deployments"
 	"github.com/suse/carrier/cli/helpers"
 	"github.com/suse/carrier/cli/kubernetes"
+	kubeconfig "github.com/suse/carrier/cli/kubernetes/config"
 	"github.com/suse/carrier/cli/paas/config"
 	"github.com/suse/carrier/cli/paas/ui"
 
@@ -27,13 +29,40 @@ const (
 // installing Carrier on it.
 type InstallClient struct {
 	kubeClient *kubernetes.Cluster
+	options    *kubernetes.InstallationOptions
 	ui         *ui.UI
 	config     *config.Config
 	Log        logr.Logger
 }
 
+func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
+	restConfig, err := kubeconfig.KubeConfig()
+	if err != nil {
+		return nil, nil, err
+	}
+	cluster, err := kubernetes.NewClusterFromClient(restConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	uiUI := ui.NewUI()
+	configConfig, err := config.Load(flags)
+	if err != nil {
+		return nil, nil, err
+	}
+	logger := kubeconfig.NewInstallClientLogger()
+	installClient := &InstallClient{
+		kubeClient: cluster,
+		ui:         uiUI,
+		config:     configConfig,
+		Log:        logger,
+		options:    options,
+	}
+	return installClient, func() {
+	}, nil
+}
+
 // Install deploys carrier to the cluster.
-func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.InstallationOptions) error {
+func (c *InstallClient) Install(cmd *cobra.Command) error {
 	log := c.Log.WithName("Install")
 	log.Info("start")
 	defer log.Info("return")
@@ -43,7 +72,7 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 	var err error
 	details.Info("process cli options")
-	options, err = options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd))
 	if err != nil {
 		return err
 	}
@@ -55,20 +84,20 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 
 	if interactive {
 		details.Info("query user for options")
-		options, err = options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		c.options, err = c.options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
 		if err != nil {
 			return err
 		}
 	} else {
 		details.Info("fill defaults into options")
-		options, err = options.Populate(kubernetes.NewDefaultOptionsReader())
+		c.options, err = c.options.Populate(kubernetes.NewDefaultOptionsReader())
 		if err != nil {
 			return err
 		}
 	}
 
 	details.Info("show option configuration")
-	c.showInstallConfiguration(options)
+	c.showInstallConfiguration(c.options)
 
 	// TODO (post MVP): Run a validation phase which perform
 	// additional checks on the values. For example range limits,
@@ -76,16 +105,12 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	deployment := deployments.Traefik{Timeout: DefaultTimeoutSec}
-
-	details.Info("deploy", "Deployment", deployment.ID())
-	deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
-	if err != nil {
+	if err := c.InstallDeployment(&deployments.Traefik{Timeout: DefaultTimeoutSec}, details); err != nil {
 		return err
 	}
 
 	// Try to give a omg.howdoi.website domain if the user didn't specify one
-	domain, err := options.GetOpt("system_domain", "")
+	domain, err := c.options.GetOpt("system_domain", "")
 	if err != nil {
 		return err
 	}
@@ -107,11 +132,9 @@ func (c *InstallClient) Install(cmd *cobra.Command, options *kubernetes.Installa
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
+		&deployments.ServiceCatalog{Timeout: DefaultTimeoutSec},
 	} {
-		details.Info("deploy", "Deployment", deployment.ID())
-
-		err := deployment.Deploy(c.kubeClient, c.ui, options.ForDeployment(deployment.ID()))
-		if err != nil {
+		if err := c.InstallDeployment(deployment, details); err != nil {
 			return err
 		}
 	}
@@ -131,6 +154,9 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	c.ui.Note().Msg("Carrier uninstalling...")
 
 	for _, deployment := range []kubernetes.Deployment{
+		&deployments.Minibroker{Timeout: DefaultTimeoutSec},
+		&deployments.GoogleServices{Timeout: DefaultTimeoutSec},
+		&deployments.ServiceCatalog{Timeout: DefaultTimeoutSec},
 		&deployments.Workloads{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
@@ -138,9 +164,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Traefik{Timeout: DefaultTimeoutSec},
 	} {
-		details.Info("remove", "Deployment", deployment.ID())
-		err := deployment.Delete(c.kubeClient, c.ui)
-		if err != nil {
+		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err
 		}
 	}
@@ -148,6 +172,18 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	c.ui.Success().Msg("Carrier uninstalled.")
 
 	return nil
+}
+
+// InstallDeployment installs one single Deployment on the cluster
+func (c *InstallClient) InstallDeployment(deployment kubernetes.Deployment, logger logr.Logger) error {
+	logger.Info("deploy", "Deployment", deployment.ID())
+	return deployment.Deploy(c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
+}
+
+// UninstallDeployment uninstalls one single Deployment from the cluster
+func (c *InstallClient) UninstallDeployment(deployment kubernetes.Deployment, logger logr.Logger) error {
+	logger.Info("remove", "Deployment", deployment.ID())
+	return deployment.Delete(c.kubeClient, c.ui)
 }
 
 // showInstallConfiguration prints the options and their values to stdout, to

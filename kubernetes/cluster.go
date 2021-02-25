@@ -170,6 +170,13 @@ func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	}
 }
 
+func (c *Cluster) NamespaceDoesNotExist(namespaceName string) wait.ConditionFunc {
+	return func() (bool, error) {
+		exists, err := c.NamespaceExists(namespaceName)
+		return !exists, err
+	}
+}
+
 func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
 		podList, err := c.ListPods(namespace, selector)
@@ -200,6 +207,15 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 		return nil, err
 	}
 	return podList, nil
+}
+
+// Wait up to timeout seconds for Namespace to be removed.
+// Returns an error if the Namespace is not removed within the allotted time.
+func (c *Cluster) WaitForNamespaceMissing(ui *ui.UI, namespace string, timeout int) error {
+	s := ui.Progressf("Waiting for namespace %s to be deleted", namespace)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.NamespaceDoesNotExist(namespace))
 }
 
 // Wait up to timeout seconds for pod to be removed.

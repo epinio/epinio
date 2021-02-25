@@ -7,7 +7,7 @@
 #
 
 [general]
-ignore=body-is-missing
+ignore=body-is-missing, body-max-line-length
 contrib=contrib-title-conventional-commits
 
 # Ignore certain rules, this example uses both full name and id
