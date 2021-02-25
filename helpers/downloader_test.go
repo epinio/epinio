@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/suse/carrier/cli/helpers"
+	. "github.com/suse/carrier/helpers"
 )
 
 var _ = Describe("DownloadFile", func() {

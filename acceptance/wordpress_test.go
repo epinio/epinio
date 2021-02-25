@@ -13,7 +13,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/helpers"
+	"github.com/suse/carrier/helpers"
 )
 
 type WordpressApp struct {

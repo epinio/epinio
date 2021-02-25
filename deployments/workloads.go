@@ -6,9 +6,9 @@ import (
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/helpers"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/kubernetes"
+	"github.com/suse/carrier/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

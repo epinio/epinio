@@ -1,4 +1,4 @@
-module github.com/suse/carrier/cli
+module github.com/suse/carrier
 
 go 1.13
 

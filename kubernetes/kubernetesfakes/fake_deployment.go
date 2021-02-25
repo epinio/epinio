@@ -4,8 +4,8 @@ package kubernetesfakes
 import (
 	"sync"
 
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/kubernetes"
+	"github.com/suse/carrier/paas/ui"
 )
 
 type FakeDeployment struct {

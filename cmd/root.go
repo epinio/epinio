@@ -9,9 +9,9 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/suse/carrier/cli/cmd/internal/client"
-	"github.com/suse/carrier/cli/kubernetes/config"
-	pconfig "github.com/suse/carrier/cli/paas/config"
+	"github.com/suse/carrier/cmd/internal/client"
+	"github.com/suse/carrier/kubernetes/config"
+	pconfig "github.com/suse/carrier/paas/config"
 )
 
 var (
