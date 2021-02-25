@@ -86,6 +86,11 @@ func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 		return errors.Wrapf(err, "Failed deleting namespace %s", GoogleServicesDeploymentID)
 	}
 
+	err = c.WaitForNamespaceMissing(ui, GoogleServicesDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
 	ui.Success().Msg("GoogleServices removed")
 
 	return nil
