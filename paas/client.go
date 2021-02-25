@@ -101,10 +101,14 @@ func (c *CarrierClient) Services() error {
 		return err
 	}
 
+	// We filter for carrier secrets referencing the targeted organization
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", c.config.Org)
 	secrets, err := c.kubeClient.Kubectl.CoreV1().
 		Secrets("carrier-workloads").
-		List(context.Background(), metav1.ListOptions{})
-	// TODO: See if we can prefilter for service + org secrets
+		List(context.Background(),
+			metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
 
 	if err != nil {
 		return errors.Wrap(err, "failed to list secrets")
@@ -114,15 +118,9 @@ func (c *CarrierClient) Services() error {
 
 	msg := c.ui.Success().WithTable("Name")
 
-	matchPrefix := fmt.Sprintf("service.%s.", c.config.Org)
-
 	for _, s := range secrets.Items {
-		if strings.HasPrefix(s.Name, matchPrefix) {
-			details.Info("Found", "Name", s.Name)
-			fields := strings.Split(s.Name, ".")
-			service := fields[len(fields)-1]
-			msg = msg.WithTableRow(service)
-		}
+		service := s.ObjectMeta.Labels["carrier.suse.org/service"]
+		msg = msg.WithTableRow(service)
 	}
 
 	msg.Msg("Carrier Services:")
@@ -140,23 +138,24 @@ func (c *CarrierClient) ServiceMatching(prefix string) []string {
 
 	result := []string{}
 
+	// We filter for carrier secrets referencing the targeted organization
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", c.config.Org)
 	secrets, err := c.kubeClient.Kubectl.CoreV1().
 		Secrets("carrier-workloads").
-		List(context.Background(), metav1.ListOptions{})
-	// TODO: See if we can prefilter for service + org secrets
+		List(context.Background(),
+			metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
 
 	if err != nil {
 		return result
 	}
 
-	matchPrefix := fmt.Sprintf("service.%s.%s", c.config.Org, prefix)
-
 	for _, s := range secrets.Items {
-		details.Info("Found", "Name", s.Name)
-		if strings.HasPrefix(s.Name, matchPrefix) {
-			details.Info("Matched", "Name", s.Name)
-			fields := strings.Split(s.Name, ".")
-			service := fields[len(fields)-1]
+		service := s.ObjectMeta.Labels["carrier.suse.org/service"]
+		details.Info("Found", "Name", service)
+		if strings.HasPrefix(service, prefix) {
+			details.Info("Matched", "Name", service)
 			result = append(result, service)
 		}
 	}
@@ -183,7 +182,7 @@ func (c *CarrierClient) DeleteService(name string) error {
 		return err
 	}
 
-	secretName := fmt.Sprintf("service.%s.%s", c.config.Org, name)
+	secretName := c.serviceName(c.config.Org, name)
 
 	_, err = c.kubeClient.GetSecret("carrier-workloads", secretName)
 	if err != nil {
@@ -234,7 +233,7 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 		return err
 	}
 
-	secretName := fmt.Sprintf("service.%s.%s", c.config.Org, name)
+	secretName := c.serviceName(c.config.Org, name)
 
 	_, err = c.kubeClient.GetSecret("carrier-workloads", secretName)
 	if err == nil {
@@ -242,7 +241,18 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 		return nil
 	}
 
-	err = c.kubeClient.CreateSecret("carrier-workloads", secretName, data)
+	err = c.kubeClient.CreateLabeledSecret("carrier-workloads",
+		secretName, data,
+		map[string]string{
+			"carrier.suse.org/service-type": "custom",
+			"carrier.suse.org/service":      name,
+			"carrier.suse.org/organization": c.config.Org,
+			"app.kubernetes.io/name":        "carrier",
+			// "app.kubernetes.io/version":     cmd.Version
+			// FIXME: Importing cmd causes cycle
+			// FIXME: Move version info to separate package!
+		},
+	)
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret")
 	}
@@ -887,4 +897,8 @@ func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
 	}
 
 	return nil
+}
+
+func (c *CarrierClient) serviceName(org, service string) string {
+	return fmt.Sprintf("service.org-%s.svc-%s", org, service)
 }

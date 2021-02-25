@@ -340,6 +340,54 @@ func (c *Cluster) CreateSecret(namespace, name string, data map[string][]byte) e
 	return nil
 }
 
+// CreateLabeledSecret posts a new secret with key/value dictionary.
+func (c *Cluster) CreateLabeledSecret(namespace, name string,
+	data map[string][]byte,
+	label map[string]string) error {
+
+	secret := &v1.Secret{
+		Data: data,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(context.Background(),
+		secret,
+		metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+
+	// FIXME ... We patch the labels in ... Easier than trying to
+	// find all the necessary types for the Secret structure.
+
+	return c.LabelSecret(namespace, name, label)
+}
+
+// LabelSecret patches a secret with labels. Analogous to
+// LabelNamespace later in this file.
+func (c *Cluster) LabelSecret(
+	namespace, name string,
+	label map[string]string) error {
+
+	labels := []string{}
+	for key, value := range label {
+		labels = append(labels, fmt.Sprintf(`"%s":"%s"`, key, value))
+	}
+
+	patchContents := fmt.Sprintf(`{ "metadata": { "labels": { %s } } }`,
+		strings.Join(labels, ","))
+
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Patch(context.Background(), name,
+		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetVersion get the kube server version
 func (c *Cluster) GetVersion() (string, error) {
 	v, err := c.Kubectl.ServerVersion()
