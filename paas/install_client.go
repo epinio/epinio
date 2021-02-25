@@ -154,15 +154,15 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	c.ui.Note().Msg("Carrier uninstalling...")
 
 	for _, deployment := range []kubernetes.Deployment{
-		&deployments.Workloads{Timeout: DefaultTimeoutSec},
+		&deployments.Minibroker{Timeout: DefaultTimeoutSec},
+		&deployments.GoogleServices{Timeout: DefaultTimeoutSec},
 		&deployments.ServiceCatalog{Timeout: DefaultTimeoutSec},
+		&deployments.Workloads{Timeout: DefaultTimeoutSec},
 		&deployments.Tekton{Timeout: DefaultTimeoutSec},
 		&deployments.Registry{Timeout: DefaultTimeoutSec},
 		&deployments.Gitea{Timeout: DefaultTimeoutSec},
 		&deployments.Quarks{Timeout: DefaultTimeoutSec},
 		&deployments.Traefik{Timeout: DefaultTimeoutSec},
-		&deployments.Minibroker{Timeout: DefaultTimeoutSec},
-		&deployments.GoogleServices{Timeout: DefaultTimeoutSec},
 	} {
 		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err
