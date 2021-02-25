@@ -13,7 +13,7 @@ var CmdServices = &cobra.Command{
 	Use:   "services",
 	Short: "Lists all services",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()

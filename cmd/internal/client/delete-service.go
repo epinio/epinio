@@ -15,7 +15,7 @@ var CmdDeleteService = &cobra.Command{
 	Long:  `Delete service by name.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags(), nil)
+		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -39,7 +39,7 @@ var CmdDeleteService = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, cleanup, _ := paas.NewCarrierClient(cmd.Flags(), nil)
+		app, cleanup, _ := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
