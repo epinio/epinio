@@ -233,26 +233,8 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 		return err
 	}
 
-	secretName := c.serviceName(c.config.Org, name)
+	// TODO: CreateCustomService
 
-	_, err = c.kubeClient.GetSecret("carrier-workloads", secretName)
-	if err == nil {
-		c.ui.Exclamation().Msg("Service of this name already exists.")
-		return nil
-	}
-
-	err = c.kubeClient.CreateLabeledSecret("carrier-workloads",
-		secretName, data,
-		map[string]string{
-			"carrier.suse.org/service-type": "custom",
-			"carrier.suse.org/service":      name,
-			"carrier.suse.org/organization": c.config.Org,
-			"app.kubernetes.io/name":        "carrier",
-			// "app.kubernetes.io/version":     cmd.Version
-			// FIXME: Importing cmd causes cycle
-			// FIXME: Move version info to separate package!
-		},
-	)
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret")
 	}
@@ -899,6 +881,3 @@ func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
 	return nil
 }
 
-func (c *CarrierClient) serviceName(org, service string) string {
-	return fmt.Sprintf("service.org-%s.svc-%s", org, service)
-}
