@@ -440,7 +440,20 @@ func (c *CarrierClient) createRepo(name string) error {
 }
 
 func (c *CarrierClient) createRepoWebhook(name string) error {
-	c.ui.Normal().Msg("Creating webhook in the repo ...")
+	hooks, resp, err := c.giteaClient.ListRepoHooks(c.config.Org, name, gitea.ListHooksOptions{})
+	if resp == nil && err != nil {
+		return errors.Wrap(err, "failed to list webhooks")
+	}
+
+	for _, hook := range hooks {
+		url := hook.Config["url"]
+		if url == StagingEventListenerURL {
+			c.ui.Normal().Msg("Webhook already exists.")
+			return nil
+		}
+	}
+
+	c.ui.Normal().Msg("Creating webhook in the repo...")
 
 	c.giteaClient.CreateRepoHook(c.config.Org, name, gitea.CreateHookOption{
 		Active:       true,
