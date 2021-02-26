@@ -31,7 +31,7 @@ var nodeSuffix, nodeTmpDir string
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
-		panic("REGISTRY_USERNAME and REGISTRY_PASSWORD environment variables can't be empty")
+		fmt.Println("REGISTRY_USERNAME or REGISTRY_PASSWORD environment variables are empty. Pulling from dockerhub will be subject to rate limiting.")
 	}
 
 	if err := checkDependencies(); err != nil {
@@ -65,12 +65,14 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 	os.Setenv("CARRIER_CONFIG", nodeTmpDir+"/carrier.yaml")
 
-	fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
-	helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
-		"https://index.docker.io/v1/",
-		os.Getenv("REGISTRY_USERNAME"),
-		os.Getenv("REGISTRY_PASSWORD"),
-	))
+	if os.Getenv("REGISTRY_USERNAME") != "" && os.Getenv("REGISTRY_PASSWORD") != "" {
+		fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
+		helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
+			"https://index.docker.io/v1/",
+			os.Getenv("REGISTRY_USERNAME"),
+			os.Getenv("REGISTRY_PASSWORD"),
+		))
+	}
 
 	fmt.Printf("Installing Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 	installCarrier()
