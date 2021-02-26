@@ -93,7 +93,7 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	It("can deploy Wordpress", func() {
-		out, err := Carrier("push "+wordpress.Name, wordpress.Dir)
+		out, err := Carrier(fmt.Sprintf("push %s --verbosity 1", wordpress.Name), wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		out, err = Carrier("apps", "")

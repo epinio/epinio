@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -30,7 +31,7 @@ var _ = Describe("Apps", func() {
 			Expect(err).ToNot(HaveOccurred())
 			appDir := path.Join(currentDir, "../sample-app")
 
-			out, err := Carrier("push "+appName, appDir)
+			out, err := Carrier(fmt.Sprintf("push %s --verbosity 1", appName), appDir)
 			Expect(err).ToNot(HaveOccurred(), out)
 			out, err = Carrier("apps", "")
 			Expect(err).ToNot(HaveOccurred(), out)
