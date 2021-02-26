@@ -134,24 +134,10 @@ func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
 			return false, err
 		}
 
-		for _, cont := range pod.Status.ContainerStatuses {
-			if cont.State.Waiting != nil {
-				//fmt.Println("containers still in waiting")
-				return false, nil
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == v1.PodReady && condition.Status == v1.ConditionTrue {
+				return true, nil
 			}
-		}
-
-		for _, cont := range pod.Status.InitContainerStatuses {
-			if cont.State.Waiting != nil || cont.State.Running != nil {
-				return false, nil
-			}
-		}
-
-		switch pod.Status.Phase {
-		case v1.PodRunning, v1.PodSucceeded:
-			return true, nil
-		case v1.PodFailed:
-			return false, nil
 		}
 		return false, nil
 	}
