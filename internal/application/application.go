@@ -25,15 +25,20 @@ func (a *CarrierApplication) Org() string {
 }
 
 func (a *CarrierApplication) Delete() error {
+	// TODO: delete application
+	// NOTE: has to do the things client does, without UI messages!
+	// Hide the things (repo, hooks, whatnot, ...) from the user.
 	return nil
 }
 
 func (a *CarrierApplication) Bind(org, service string) error {
+	// TODO PRIORITY. patch application deployment to use the service secret (derive from the org/service tuple).
 	return nil
 }
 
 // Lookup locates an Application by org and name
-func Lookup(kubeClient *kubernetes.Cluster,
+func Lookup(
+	kubeClient *kubernetes.Cluster,
 	giteaClient *gitea.Client,
 	org, app string) (interfaces.Application, error) {
 
@@ -56,8 +61,9 @@ func Lookup(kubeClient *kubernetes.Cluster,
 	return nil, errors.New("Application not found")
 }
 
-// List returns a ApplicationList of all available applications
-func List(kubeClient *kubernetes.Cluster,
+// List returns an ApplicationList of all available applications (in the org)
+func List(
+	kubeClient *kubernetes.Cluster,
 	giteaClient *gitea.Client,
 	org string) (interfaces.ApplicationList, error) {
 

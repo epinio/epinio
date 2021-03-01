@@ -306,6 +306,8 @@ func (c *CarrierClient) Info() error {
 // AppsMatching returns all Carrier apps having the specified prefix
 // in their name.
 func (c *CarrierClient) AppsMatching(prefix string) []string {
+	// TODO: change to use application.List()
+
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -332,6 +334,8 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 // Apps gets all Carrier apps in the targeted org
 func (c *CarrierClient) Apps() error {
+	// TODO: change to use application.List()
+
 	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -420,6 +424,9 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 // Delete deletes an app
 func (c *CarrierClient) Delete(app string) error {
+	// TODO: lookup app, (get object), invoke action.
+	// TODO: Move action here into `internal/application`.
+
 	log := c.Log.WithName("Delete").WithValues("Application", app)
 	log.Info("start")
 	defer log.Info("return")

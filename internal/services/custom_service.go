@@ -106,6 +106,7 @@ func (s *CustomService) Bind(app interfaces.Application) error {
 }
 
 func (s *CustomService) Unbind(app interfaces.Application) error {
+	// TODO remove custom service binding to app
 	return nil
 }
 
