@@ -69,16 +69,16 @@ func (s *CustomService) Org() string {
 }
 
 func (s *CustomService) Bind(app interfaces.Application) error {
-
+	kubeClient := s.kubeClient
 	serviceSecret, err := kubeClient.GetSecret("carrier-workloads", s.SecretName)
 
 	if err == nil {
 		return errors.New("Service does not exist.")
 	}
-	
+
 	secretName := bindingSecretName(s.OrgName, s.Service, app.Name())
 
-	_, err := kubeClient.GetSecret("carrier-workloads", secretName)
+	_, err = kubeClient.GetSecret("carrier-workloads", secretName)
 	if err == nil {
 		return errors.New("Binding already exists.")
 	}
@@ -89,14 +89,14 @@ func (s *CustomService) Bind(app interfaces.Application) error {
 			"carrier.suse.org/service-type": "custom",
 			"carrier.suse.org/service":      s.Service,
 			"carrier.suse.org/organization": s.OrgName,
-			"carrier.suse.org/application": app.Name(),
+			"carrier.suse.org/application":  app.Name(),
 			"app.kubernetes.io/name":        "carrier",
 			// "app.kubernetes.io/version":     cmd.Version
 			// FIXME: Importing cmd causes cycle
 			// FIXME: Move version info to separate package!
 		},
 	)
-	
+
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (s *CustomService) Bind(app interfaces.Application) error {
 	return app.Bind(s.OrgName, s.Service)
 }
 
-func (s *CustomService) Unbind() error {
+func (s *CustomService) Unbind(app interfaces.Application) error {
 	return nil
 }
 

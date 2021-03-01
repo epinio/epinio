@@ -20,11 +20,11 @@ func (s *CatalogService) Org() string {
 	return ""
 }
 
-func (s *CatalogService) Bind() error {
+func (s *CatalogService) Bind(app interfaces.Application) error {
 	return nil
 }
 
-func (s *CatalogService) Unbind() error {
+func (s *CatalogService) Unbind(app interfaces.Application) error {
 	return nil
 }
 

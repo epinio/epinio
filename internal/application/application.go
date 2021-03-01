@@ -1,18 +1,19 @@
 package application
 
 import (
-	"errors"
-	"github.com/suse/carrier/kubernetes"
 	"code.gitea.io/sdk/gitea"
+	"errors"
+	"github.com/suse/carrier/internal/interfaces"
+	"github.com/suse/carrier/kubernetes"
 )
 
 // CarrierApplication manages applications.
 // Implements the Application interface.
 type CarrierApplication struct {
-	Application string
+	Application  string
 	Organization string
-	giteaClient   *gitea.Client
-	kubeClient *kubernetes.Cluster
+	giteaClient  *gitea.Client
+	kubeClient   *kubernetes.Cluster
 }
 
 func (a *CarrierApplication) Name() string {
@@ -33,7 +34,7 @@ func (a *CarrierApplication) Bind(org, service string) error {
 
 // Lookup locates an Application by org and name
 func Lookup(kubeClient *kubernetes.Cluster,
-	giteaClient   *gitea.Client,
+	giteaClient *gitea.Client,
 	org, app string) (interfaces.Application, error) {
 
 	apps, _, err := giteaClient.ListOrgRepos(org, gitea.ListOrgReposOptions{})
@@ -44,10 +45,10 @@ func Lookup(kubeClient *kubernetes.Cluster,
 	for _, anApp := range apps {
 		if anApp.Name == app {
 			return &CarrierApplication{
-				Organization:    org,
-				Application:    app,
-				kubeClient: kubeClient,
-				giteaClient: giteaClient,
+				Organization: org,
+				Application:  app,
+				kubeClient:   kubeClient,
+				giteaClient:  giteaClient,
 			}, nil
 		}
 	}
@@ -55,10 +56,9 @@ func Lookup(kubeClient *kubernetes.Cluster,
 	return nil, errors.New("Application not found")
 }
 
-
 // List returns a ApplicationList of all available applications
 func List(kubeClient *kubernetes.Cluster,
-	giteaClient   *gitea.Client,
+	giteaClient *gitea.Client,
 	org string) (interfaces.ApplicationList, error) {
 
 	apps, _, err := giteaClient.ListOrgRepos(org, gitea.ListOrgReposOptions{})
@@ -66,15 +66,15 @@ func List(kubeClient *kubernetes.Cluster,
 		return nil, err
 	}
 
-	result := ApplicationList{}
-	
+	result := interfaces.ApplicationList{}
+
 	for _, app := range apps {
 		result = append(result, &CarrierApplication{
-			Organization:    org,
-			Application:    app.Name,
-			kubeClient: kubeClient,
-			giteaClient: giteaClient,
-		}
+			Organization: org,
+			Application:  app.Name,
+			kubeClient:   kubeClient,
+			giteaClient:  giteaClient,
+		})
 	}
 
 	return result, nil

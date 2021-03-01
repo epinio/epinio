@@ -39,7 +39,7 @@ func Lookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Ser
 
 	return &CustomService{
 		SecretName: secretName,
-		Organization:    org,
+		OrgName:    org,
 		Service:    service,
 		kubeClient: kubeClient,
 	}, nil
@@ -76,7 +76,7 @@ func List(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, e
 
 		result = append(result, &CustomService{
 			SecretName: secretName,
-			Organization:    org,
+			OrgName:    org,
 			Service:    service,
 			kubeClient: kubeClient,
 		})
