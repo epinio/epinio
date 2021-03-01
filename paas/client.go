@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
@@ -143,6 +144,56 @@ func (c *CarrierClient) ServiceMatching(prefix string) []string {
 	}
 
 	return result
+}
+
+// BindService deletes a service specified by name
+func (c *CarrierClient) BindService(serviceName, appName string) error {
+	log := c.Log.WithName("Bind Service").
+		WithValues("Name", serviceName, "Application", appName, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Bind Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to bind service.")
+	if err != nil {
+		return err
+	}
+
+	// Lookup app and service. Conversion from name to internal objects.
+
+	app, err := application.Lookup(c.kubeClient, c.giteaClient, c.config.Org, appName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	service, err := services.Lookup(c.kubeClient, c.config.Org, serviceName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	// Do the task
+
+	err = service.Bind(app)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to bind service")
+	}
+
+	c.ui.Success().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Bound.")
+	return nil
 }
 
 // DeleteService deletes a service specified by name
