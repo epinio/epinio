@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/interfaces"
 )
 
@@ -24,12 +25,12 @@ func (s *CatalogService) Org() string {
 	return ""
 }
 
-func (s *CatalogService) Bind(app interfaces.Application) error {
+func (s *CatalogService) Bind(app application.Application) error {
 	// TODO bind catalog service to app
 	return nil
 }
 
-func (s *CatalogService) Unbind(app interfaces.Application) error {
+func (s *CatalogService) Unbind(app application.Application) error {
 	// TODO remove catalog service binding to app
 	return nil
 }

@@ -2,20 +2,14 @@
 // e.g. Service, Application etc
 package interfaces
 
+import "github.com/suse/carrier/internal/application"
+
 type Service interface {
 	Name() string
 	Org() string
-	Bind(app Application) error
-	Unbind(app Application) error
+	Bind(app application.Application) error
+	Unbind(app application.Application) error
 	Delete() error
-}
-
-type Application interface {
-	Name() string
-	Org() string
-	Delete() error
-	Bind(org, service string) error
 }
 
 type ServiceList []Service
-type ApplicationList []Application

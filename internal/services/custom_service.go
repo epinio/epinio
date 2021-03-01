@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/interfaces"
 	"github.com/suse/carrier/kubernetes"
 	corev1 "k8s.io/api/core/v1"
@@ -76,7 +77,7 @@ func (s *CustomService) Org() string {
 	return s.OrgName
 }
 
-func (s *CustomService) Bind(app interfaces.Application) error {
+func (s *CustomService) Bind(app application.Application) error {
 	kubeClient := s.kubeClient
 	serviceSecret, err := kubeClient.GetSecret("carrier-workloads", s.SecretName)
 	if err != nil {
@@ -89,7 +90,7 @@ func (s *CustomService) Bind(app interfaces.Application) error {
 	// TODO: Move this code to the Application structure
 	deployment, err := kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Get(
 		context.Background(),
-		fmt.Sprintf("%s.%s", s.OrgName, app.Name()),
+		fmt.Sprintf("%s.%s", s.OrgName, app.Name),
 		metav1.GetOptions{},
 	)
 	if err != nil {
@@ -131,7 +132,7 @@ func (s *CustomService) Bind(app interfaces.Application) error {
 	return err
 }
 
-func (s *CustomService) Unbind(app interfaces.Application) error {
+func (s *CustomService) Unbind(app application.Application) error {
 	// TODO remove custom service binding to app
 	return nil
 }
