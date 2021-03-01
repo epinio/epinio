@@ -12,6 +12,14 @@ func CreateCatalogService(name, org, class, plan string, parameters map[string]s
 	return &CatalogService{}
 }
 
+func (s *CatalogService) Name() string {
+	return ""
+}
+
+func (s *CatalogService) Org() string {
+	return ""
+}
+
 func (s *CatalogService) Bind() error {
 	return nil
 }

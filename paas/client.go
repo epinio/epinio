@@ -21,6 +21,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
 	"github.com/suse/carrier/kubernetes/tailer"
@@ -101,28 +102,17 @@ func (c *CarrierClient) Services() error {
 		return err
 	}
 
-	// We filter for carrier secrets referencing the targeted organization
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", c.config.Org)
-	secrets, err := c.kubeClient.Kubectl.CoreV1().
-		Secrets("carrier-workloads").
-		List(context.Background(),
-			metav1.ListOptions{
-				LabelSelector: labelSelector,
-			})
-
+	orgServices, err := services.List(c.kubeClient, c.config.Org)
 	if err != nil {
-		return errors.Wrap(err, "failed to list secrets")
+		return errors.Wrap(err, "failed to list services")
 	}
 
 	details.Info("list service secrets")
 
 	msg := c.ui.Success().WithTable("Name")
-
-	for _, s := range secrets.Items {
-		service := s.ObjectMeta.Labels["carrier.suse.org/service"]
-		msg = msg.WithTableRow(service)
+	for _, s := range orgServices {
+		msg = msg.WithTableRow(s.Name())
 	}
-
 	msg.Msg("Carrier Services:")
 
 	return nil
@@ -138,21 +128,13 @@ func (c *CarrierClient) ServiceMatching(prefix string) []string {
 
 	result := []string{}
 
-	// We filter for carrier secrets referencing the targeted organization
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", c.config.Org)
-	secrets, err := c.kubeClient.Kubectl.CoreV1().
-		Secrets("carrier-workloads").
-		List(context.Background(),
-			metav1.ListOptions{
-				LabelSelector: labelSelector,
-			})
-
+	orgServices, err := services.List(c.kubeClient, c.config.Org)
 	if err != nil {
 		return result
 	}
 
-	for _, s := range secrets.Items {
-		service := s.ObjectMeta.Labels["carrier.suse.org/service"]
+	for _, s := range orgServices {
+		service := s.Name()
 		details.Info("Found", "Name", service)
 		if strings.HasPrefix(service, prefix) {
 			details.Info("Matched", "Name", service)
@@ -182,20 +164,18 @@ func (c *CarrierClient) DeleteService(name string) error {
 		return err
 	}
 
-	secretName := c.serviceName(c.config.Org, name)
-
-	_, err = c.kubeClient.GetSecret("carrier-workloads", secretName)
+	service, err := services.Lookup(c.kubeClient, c.config.Org, name)
 	if err != nil {
-		c.ui.Exclamation().Msg("Service does not exist.")
+		c.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
 
 	// TODO: Validation. Prevent removal of a service still bound
 	// TODO: to applications.
 
-	err = c.kubeClient.DeleteSecret("carrier-workloads", secretName)
+	err = service.Delete()
 	if err != nil {
-		return errors.Wrap(err, "failed to delete secret")
+		return errors.Wrap(err, "failed to delete service")
 	}
 
 	c.ui.Success().
@@ -213,8 +193,7 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	data := make(map[string][]byte)
-
+	data := make(map[string]string)
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Organization", c.config.Org).
@@ -223,7 +202,7 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 		key := dict[i]
 		value := dict[i+1]
 		msg = msg.WithTableRow(key, value)
-		data[key] = []byte(value)
+		data[key] = value
 	}
 	msg.Msg("Create Custom Service")
 
@@ -233,15 +212,14 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 		return err
 	}
 
-	// TODO: CreateCustomService
-
+	service, err := services.CreateCustomService(c.kubeClient, name, c.config.Org, data)
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret")
 	}
 
 	c.ui.Success().
-		WithStringValue("Name", name).
-		WithStringValue("Organization", c.config.Org).
+		WithStringValue("Name", service.Name()).
+		WithStringValue("Organization", service.Org()).
 		Msg("Service Saved.")
 	return nil
 }
@@ -880,4 +858,3 @@ func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
 
 	return nil
 }
-
