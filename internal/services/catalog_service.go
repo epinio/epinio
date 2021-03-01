@@ -1,8 +1,8 @@
 package services
 
 import (
-	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/interfaces"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // CatalogService is a Service created using Service Catalog.
@@ -25,14 +25,16 @@ func (s *CatalogService) Org() string {
 	return ""
 }
 
-func (s *CatalogService) Bind(app application.Application) error {
+// GetBinding returns an application-specific secret for the service to be
+// bound to that application.
+func (s *CatalogService) GetBinding(appName string) (*corev1.Secret, error) {
 	// TODO bind catalog service to app
-	return nil
-}
+	// - Create ServiceBinding resource
+	// - Wait for service catalog to create the secret
+	// - Label the secret
+	// - Return secret
 
-func (s *CatalogService) Unbind(app application.Application) error {
-	// TODO remove catalog service binding to app
-	return nil
+	return nil, nil
 }
 
 func (s *CatalogService) Delete() error {

@@ -1,10 +1,16 @@
 package application
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"code.gitea.io/sdk/gitea"
+	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/interfaces"
 	"github.com/suse/carrier/kubernetes"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Application manages applications.
@@ -25,9 +31,54 @@ func (a *Application) Delete() error {
 	return nil
 }
 
-func (a *Application) Bind(service string) error {
-	// TODO PRIORITY. patch application deployment to use the service secret (derive from the org/service tuple).
-	return nil
+func (a *Application) Bind(service interfaces.Service) error {
+	bindSecret, err := service.GetBinding(a.Name)
+	if err != nil {
+		return err
+	}
+
+	deployment, err := a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Get(
+		context.Background(),
+		fmt.Sprintf("%s.%s", a.Organization, a.Name),
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		return err
+	}
+
+	volumes := deployment.Spec.Template.Spec.Volumes
+
+	for _, volume := range volumes {
+		if volume.Name == service.Name() {
+			return errors.New("service already bound")
+		}
+	}
+
+	volumes = append(volumes, corev1.Volume{
+		Name: service.Name(),
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: bindSecret.Name,
+			},
+		},
+	})
+	// TODO: Iterate over containers and find the one matching the app name
+	volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		Name:      service.Name(),
+		ReadOnly:  true,
+		MountPath: fmt.Sprintf("/services/%s", service.Name()),
+	})
+
+	deployment.Spec.Template.Spec.Volumes = volumes
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
+	_, err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
+		context.Background(),
+		deployment,
+		metav1.UpdateOptions{},
+	)
+	return err
 }
 
 // Lookup locates an Application by org and name
