@@ -237,6 +237,7 @@ func (c *CarrierClient) DeleteService(name string) error {
 }
 
 // CreateCustomService creates a service specified by name and key/value dictionary
+// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
 func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 	log := c.Log.WithName("Create Custom Service").
 		WithValues("Name", name, "Organization", c.config.Org)

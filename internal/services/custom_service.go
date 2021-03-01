@@ -4,9 +4,17 @@
 package services
 
 import (
+	"context"
 	"errors"
+	"fmt"
+
+	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/internal/interfaces"
 	"github.com/suse/carrier/kubernetes"
+	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CustomService is a user defined service.
@@ -71,38 +79,56 @@ func (s *CustomService) Org() string {
 func (s *CustomService) Bind(app interfaces.Application) error {
 	kubeClient := s.kubeClient
 	serviceSecret, err := kubeClient.GetSecret("carrier-workloads", s.SecretName)
-
-	if err == nil {
-		return errors.New("Service does not exist.")
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return errors.New("Service does not exist.")
+		}
+		return err
 	}
 
-	secretName := bindingSecretName(s.OrgName, s.Service, app.Name())
-
-	_, err = kubeClient.GetSecret("carrier-workloads", secretName)
-	if err == nil {
-		return errors.New("Binding already exists.")
-	}
-
-	err = kubeClient.CreateLabeledSecret("carrier-workloads",
-		secretName, serviceSecret.Data,
-		map[string]string{
-			"carrier.suse.org/service-type": "custom",
-			"carrier.suse.org/service":      s.Service,
-			"carrier.suse.org/organization": s.OrgName,
-			"carrier.suse.org/application":  app.Name(),
-			"app.kubernetes.io/name":        "carrier",
-			// "app.kubernetes.io/version":     cmd.Version
-			// FIXME: Importing cmd causes cycle
-			// FIXME: Move version info to separate package!
-		},
+	// TODO: Move this code to the Application structure
+	deployment, err := kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Get(
+		context.Background(),
+		fmt.Sprintf("%s.%s", s.OrgName, app.Name()),
+		metav1.GetOptions{},
 	)
-
 	if err != nil {
 		return err
 	}
 
-	// Alter: Pass the created kube secret directly?
-	return app.Bind(s.OrgName, s.Service)
+	volumes := deployment.Spec.Template.Spec.Volumes
+
+	for _, volume := range volumes {
+		if volume.Name == s.Service {
+			return errors.New("service already bound")
+		}
+	}
+
+	volumes = append(volumes, corev1.Volume{
+		Name: s.Service,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: serviceSecret.Name,
+			},
+		},
+	})
+	// TODO: Iterate over containers and find the one matching the app name
+	volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
+	volumeMounts = append(volumeMounts, corev1.VolumeMount{
+		Name:      s.Service,
+		ReadOnly:  true,
+		MountPath: fmt.Sprintf("/services/%s", s.Service),
+	})
+
+	deployment.Spec.Template.Spec.Volumes = volumes
+	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
+	_, err = kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
+		context.Background(),
+		deployment,
+		v1.UpdateOptions{},
+	)
+	return err
 }
 
 func (s *CustomService) Unbind(app interfaces.Application) error {

@@ -1,8 +1,9 @@
 package application
 
 import (
-	"code.gitea.io/sdk/gitea"
 	"errors"
+
+	"code.gitea.io/sdk/gitea"
 	"github.com/suse/carrier/internal/interfaces"
 	"github.com/suse/carrier/kubernetes"
 )
