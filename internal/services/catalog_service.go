@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -28,6 +27,58 @@ type CatalogService struct {
 	Class        string
 	Plan         string
 	kubeClient   *kubernetes.Cluster
+}
+
+// CatalogServiceList returns a ServiceList of all available catalog Services
+func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", org)
+
+	serviceInstanceGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "serviceinstances",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(kubeClient.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceInstances, err := dynamicClient.Resource(serviceInstanceGVR).
+		Namespace(deployments.WorkloadsDeploymentID).
+		List(context.Background(),
+			metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := interfaces.ServiceList{}
+
+	for _, serviceInstance := range serviceInstances.Items {
+		spec := serviceInstance.Object["spec"].(map[string]interface{})
+		className := spec["clusterServiceClassExternalName"].(string)
+		planName := spec["clusterServicePlanExternalName"].(string)
+
+		metadata := serviceInstance.Object["metadata"].(map[string]interface{})
+		instanceName := metadata["name"].(string)
+		labels := metadata["labels"].(map[string]interface{})
+		org := labels["carrier.suse.org/organization"].(string)
+		service := labels["carrier.suse.org/service"].(string)
+
+		result = append(result, &CatalogService{
+			InstanceName: instanceName,
+			OrgName:      org,
+			Service:      service,
+			Class:        className,
+			Plan:         planName,
+			kubeClient:   kubeClient,
+		})
+	}
+
+	return result, nil
 }
 
 func CatalogServiceLookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
@@ -79,12 +130,22 @@ func CreateCatalogService(kubeClient *kubernetes.Cluster, name, org, class, plan
 	data := fmt.Sprintf(`{
 		"apiVersion": "servicecatalog.k8s.io/v1beta1",
 		"kind": "ServiceInstance",
-		"metadata": { "name": "%s", "namespace": "%s" },
+		"metadata": {
+			"name": "%s",
+			"namespace": "%s",
+			"labels": {
+				"carrier.suse.org/service-type": "catalog",
+				"carrier.suse.org/service":      "%s",
+				"carrier.suse.org/organization": "%s",
+				"app.kubernetes.io/name":        "carrier"
+			}
+		},
 		"spec": {
 			"clusterServiceClassExternalName": "%s",
 			"clusterServicePlanExternalName": "%s" },
 		"parameters": %s
-	}`, resourceName, deployments.WorkloadsDeploymentID, class, plan, param)
+	}`, resourceName, deployments.WorkloadsDeploymentID,
+		name, org, class, plan, param)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -113,8 +174,6 @@ func CreateCatalogService(kubeClient *kubernetes.Cluster, name, org, class, plan
 	if err != nil {
 		return nil, err
 	}
-
-	// todo : wait for instance to be ready.
 
 	return &CatalogService{
 		InstanceName: resourceName,
@@ -226,10 +285,36 @@ func (s *CatalogService) GetBindingSecret(bindingName string) (*corev1.Secret, e
 // DeleteBinding deletes the ServiceBinding resource. The relevant secret will
 // also be deleted automatically.
 func (s *CatalogService) DeleteBinding(appName string) error {
-	return errors.New("to be implemented")
+
+	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
+
+	serviceBindingGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "servicebindings",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(s.kubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	return dynamicClient.Resource(serviceBindingGVR).Namespace(deployments.WorkloadsDeploymentID).
+		Delete(context.Background(), bindingName, metav1.DeleteOptions{})
 }
 
 func (s *CatalogService) Delete() error {
-	// TODO delete catalog service via service catalog
-	return nil
+	serviceInstanceGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "serviceinstances",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(s.kubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	return dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+		Delete(context.Background(), s.InstanceName, metav1.DeleteOptions{})
 }

@@ -4,13 +4,16 @@
 package services
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/internal/interfaces"
 	"github.com/suse/carrier/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // CustomService is a user defined service.
@@ -20,6 +23,39 @@ type CustomService struct {
 	OrgName    string
 	Service    string
 	kubeClient *kubernetes.Cluster
+}
+
+// CustomServiceList returns a ServiceList of all available custom Services
+func CustomServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", org)
+
+	secrets, err := kubeClient.Kubectl.CoreV1().
+		Secrets(deployments.WorkloadsDeploymentID).
+		List(context.Background(),
+			metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := interfaces.ServiceList{}
+
+	for _, s := range secrets.Items {
+		service := s.ObjectMeta.Labels["carrier.suse.org/service"]
+		org := s.ObjectMeta.Labels["carrier.suse.org/organization"]
+		secretName := s.ObjectMeta.Name
+
+		result = append(result, &CustomService{
+			SecretName: secretName,
+			OrgName:    org,
+			Service:    service,
+			kubeClient: kubeClient,
+		})
+	}
+
+	return result, nil
 }
 
 // CustomServiceLookup finds a Custom Service by looking for the relevant Secret.

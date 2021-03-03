@@ -1,7 +1,7 @@
 package acceptance_test
 
 import (
-	"github.com/suse/carrier/cli/helpers"
+	"github.com/suse/carrier/helpers"
 	"os"
 
 	. "github.com/onsi/ginkgo"

@@ -108,6 +108,8 @@ func (c *CarrierClient) Services() error {
 		return errors.Wrap(err, "failed to list services")
 	}
 
+	// todo: sort services by name before display
+
 	details.Info("list service secrets")
 
 	msg := c.ui.Success().WithTable("Name")
@@ -322,6 +324,10 @@ func (c *CarrierClient) CreateService(name, class, plan string, dict []string) e
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret")
 	}
+
+	// TODO : wait for instance to be ready.
+	// service.WaitToBeReady()
+	// progress indicator
 
 	c.ui.Success().
 		WithStringValue("Name", service.Name()).
