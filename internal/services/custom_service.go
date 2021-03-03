@@ -22,12 +22,33 @@ type CustomService struct {
 	kubeClient *kubernetes.Cluster
 }
 
+// CustomServiceLookup finds a Custom Service by looking for the relevant Secret.
+func CustomServiceLookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
+	secretName := serviceResourceName(org, service)
+
+	_, err := kubeClient.GetSecret(deployments.WorkloadsDeploymentID, secretName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	return &CustomService{
+		SecretName: secretName,
+		OrgName:    org,
+		Service:    service,
+		kubeClient: kubeClient,
+	}, nil
+}
+
 // CreateCustomService creates a new custom service from org, name and the
 // binding data.
 func CreateCustomService(kubeClient *kubernetes.Cluster, name, org string,
 	data map[string]string) (interfaces.Service, error) {
 
-	secretName := serviceSecretName(org, name)
+	secretName := serviceResourceName(org, name)
 
 	_, err := kubeClient.GetSecret(deployments.WorkloadsDeploymentID, secretName)
 	if err == nil {
@@ -77,12 +98,18 @@ func (s *CustomService) GetBinding(appName string) (*corev1.Secret, error) {
 	serviceSecret, err := kubeClient.GetSecret(deployments.WorkloadsDeploymentID, s.SecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return nil, errors.New("Service does not exist.")
+			return nil, errors.New("service does not exist")
 		}
 		return nil, err
 	}
 
 	return serviceSecret, nil
+}
+
+// DeleteBinding does nothing in the case of custom services because the custom
+// service is just a secret which may be re-used later.
+func (s *CustomService) DeleteBinding(appName string) error {
+	return nil
 }
 
 func (s *CustomService) Delete() error {

@@ -146,9 +146,10 @@ func (c *CarrierClient) ServiceMatching(prefix string) []string {
 	return result
 }
 
-// BindService deletes a service specified by name
+// BindService attaches a service specified by name to the named application,
+// both in the targeted organization.
 func (c *CarrierClient) BindService(serviceName, appName string) error {
-	log := c.Log.WithName("Bind Service").
+	log := c.Log.WithName("Bind Service To Application").
 		WithValues("Name", serviceName, "Application", appName, "Organization", c.config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -192,7 +193,58 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
 		WithStringValue("Organization", c.config.Org).
-		Msg("Service Bound.")
+		Msg("Service Bound to Application.")
+	return nil
+}
+
+// UnbindService detaches the service specified by name from the named
+// application, both in the targeted organization.
+func (c *CarrierClient) UnbindService(serviceName, appName string) error {
+	log := c.Log.WithName("Unbind Service").
+		WithValues("Name", serviceName, "Application", appName, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Unbind Service from Application")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to unbind service.")
+	if err != nil {
+		return err
+	}
+
+	// Lookup app and service. Conversion from names to internal objects.
+
+	app, err := application.Lookup(c.kubeClient, c.giteaClient, c.config.Org, appName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	service, err := services.Lookup(c.kubeClient, c.config.Org, serviceName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	// Do the task
+
+	err = app.Unbind(service)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to unbind service")
+	}
+
+	c.ui.Success().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Detached From Application.")
 	return nil
 }
 
@@ -233,6 +285,50 @@ func (c *CarrierClient) DeleteService(name string) error {
 		WithStringValue("Name", name).
 		WithStringValue("Organization", c.config.Org).
 		Msg("Service Removed.")
+	return nil
+}
+
+// CreateService creates a service specified by name, class, plan, and optional key/value dictionary
+// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
+func (c *CarrierClient) CreateService(name, class, plan string, dict []string) error {
+	log := c.Log.WithName("Create Service").
+		WithValues("Name", name, "Class", class, "Plan", plan, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	data := make(map[string]string)
+	msg := c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		WithStringValue("Class", class).
+		WithStringValue("Plan", plan).
+		WithTable("Parameter", "Value")
+	for i := 0; i < len(dict); i += 2 {
+		key := dict[i]
+		value := dict[i+1]
+		msg = msg.WithTableRow(key, value)
+		data[key] = value
+	}
+	msg.Msg("Create Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to create service.")
+	if err != nil {
+		return err
+	}
+
+	service, err := services.CreateCatalogService(c.kubeClient, name, c.config.Org, class, plan, data)
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", service.Name()).
+		WithStringValue("Organization", service.Org()).
+		WithStringValue("Class", class).
+		WithStringValue("Plan", plan).
+		Msg("Service Saved.")
 	return nil
 }
 

@@ -176,6 +176,28 @@ func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc
 	}
 }
 
+// WaitForSecret waits until the specified secret exists. If timeout is reached,
+// an error is returned.
+// It should be used when something is expected to create a Secret and the code
+// needs to wait until that happens.
+func (c *Cluster) WaitForSecret(namespace, secretName string, timeout time.Duration) (*v1.Secret, error) {
+	var secret *v1.Secret
+	waitErr := wait.PollImmediate(time.Second, timeout, func() (bool, error) {
+		var err error
+		secret, err = c.GetSecret(namespace, secretName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			} else {
+				return false, err
+			}
+		}
+		return true, nil
+	})
+
+	return secret, waitErr
+}
+
 // Poll up to timeout seconds for pod to enter running state.
 // Returns an error if the pod never enters the running state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
@@ -305,12 +327,7 @@ func (c *Cluster) Exec(namespace, podName, containerName string, command, stdin 
 
 // GetSecret gets a secret's values
 func (c *Cluster) GetSecret(namespace, name string) (*v1.Secret, error) {
-	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get secret")
-	}
-
-	return secret, nil
+	return c.Kubectl.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
 }
 
 // DeleteSecret removes a secret

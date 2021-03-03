@@ -10,6 +10,7 @@ type Service interface {
 	Name() string
 	Org() string
 	GetBinding(appName string) (*corev1.Secret, error)
+	DeleteBinding(appName string) error
 	Delete() error
 }
 

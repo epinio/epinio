@@ -62,8 +62,10 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdEnable)
 	rootCmd.AddCommand(client.CmdDisable)
 	rootCmd.AddCommand(client.CmdCreateCustomService)
+	rootCmd.AddCommand(client.CmdCreateService)
 	rootCmd.AddCommand(client.CmdDeleteService)
 	rootCmd.AddCommand(client.CmdBindService)
+	rootCmd.AddCommand(client.CmdUnbindService)
 	rootCmd.AddCommand(client.CmdServices)
 
 	if err := rootCmd.Execute(); err != nil {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/suse/carrier/internal/interfaces"
 	"github.com/suse/carrier/kubernetes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,37 +13,23 @@ import (
 
 // Lookup locates a Service by org and name
 func Lookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
-
-	// TODO: Update when CatalogServices become available.
-	// At the moment the kind is always CustomService.
-
-	// Catalog services have a `ServiceInstance` here, instead of a
-	// secret.  IOW we have to perform two lookups. We could, if we wanted
-	// to, create our own secret in parallel for catalog services. Then a
-	// single lookup would be good enough here, and in List.
-
-	secretName := serviceSecretName(org, service)
-
-	_, err := kubeClient.GetSecret("carrier-workloads", secretName)
+	serviceInstance, err := CustomServiceLookup(kubeClient, org, service)
 	if err != nil {
-		return nil, errors.New("Service does not exist.")
+		return nil, err
+	}
+	if serviceInstance != nil {
+		return serviceInstance, nil
 	}
 
-	// Pull information about the service out of the secret.
-	// IOW kind (name, org are known from the arguments)
-	// We could assert that the data in the secret matches the arguments
+	serviceInstance, err = CatalogServiceLookup(kubeClient, org, service)
+	if err != nil {
+		return nil, err
+	}
+	if serviceInstance != nil {
+		return serviceInstance, nil
+	}
 
-	// TODO kind := secret.ObjectMeta.Label["carrier.suse.org/service-type"]
-
-	// -- See also List, see if we can factor structure creation into a
-	// common internal function.
-
-	return &CustomService{
-		SecretName: secretName,
-		OrgName:    org,
-		Service:    service,
-		kubeClient: kubeClient,
-	}, nil
+	return nil, errors.New("service not found")
 }
 
 // List returns a ServiceList of all available Services
@@ -85,10 +72,10 @@ func List(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, e
 	return result, nil
 }
 
-func serviceSecretName(org, service string) string {
+func serviceResourceName(org, service string) string {
 	return fmt.Sprintf("service.org-%s.svc-%s", org, service)
 }
 
-func bindingSecretName(org, service, app string) string {
+func bindingResourceName(org, service, app string) string {
 	return fmt.Sprintf("service.org-%s.svc-%s.app-%s", org, service, app)
 }
