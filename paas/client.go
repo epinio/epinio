@@ -399,7 +399,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	c.ui.Success().
 		WithStringValue("Name", app).
 		WithStringValue("Organization", c.config.Org).
-		WithStringValue("Route", fmt.Sprintf("http://%s", route)).
+		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
 		Msg("App is online.")
 
 	return nil
