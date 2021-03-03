@@ -669,6 +669,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare code")
 	}
+	defer os.RemoveAll(tmpDir)
 
 	details.Info("git push")
 	err = c.gitPush(app, tmpDir)
