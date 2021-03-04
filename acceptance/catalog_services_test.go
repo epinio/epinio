@@ -39,6 +39,11 @@ var _ = Describe("Catalog Services", func() {
 	})
 
 	Describe("create-service", func() {
+		AfterEach(func() {
+			out, err := Carrier(fmt.Sprintf("delete-service %s", serviceName), "")
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
 		It("creates a catalog based service", func() {
 			out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -57,9 +62,12 @@ var _ = Describe("Catalog Services", func() {
 		It("deletes a catalog based service", func() {
 			out, err := Carrier("delete-service "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
-			out, err = Carrier("services", "")
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp(serviceName))
+
+			Eventually(func() string {
+				out, err = Carrier("services", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "2m").ShouldNot(MatchRegexp(serviceName))
 		})
 
 		PIt("doesn't delete a bound service", func() {
