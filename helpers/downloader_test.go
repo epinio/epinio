@@ -14,26 +14,26 @@ import (
 
 var _ = Describe("DownloadFile", func() {
 	var url string
+	var sourceDirectory, targetDirectory string
+	var err error
 
 	BeforeEach(func() {
-		directory, err := ioutil.TempDir("", "carrier-test")
-		defer os.Remove(directory)
+		sourceDirectory, err = ioutil.TempDir("", "carrier-test")
 
-		file, err := os.Create(path.Join(directory, "thefile"))
+		file, err := os.Create(path.Join(sourceDirectory, "thefile"))
 		Expect(err).ToNot(HaveOccurred())
 		defer file.Close()
 
 		file.Write([]byte("the file contents"))
 
-		dirURL, err := ServeDir(directory)
+		dirURL, err := ServeDir(sourceDirectory)
 		Expect(err).ToNot(HaveOccurred())
 
 		url = "http://" + dirURL + "/thefile"
 	})
 
 	It("downloads a url with filename under directory", func() {
-		targetDirectory, err := ioutil.TempDir("", "carrier-test")
-		defer os.Remove(targetDirectory)
+		targetDirectory, err = ioutil.TempDir("", "carrier-test")
 
 		err = DownloadFile(url, "downloadedFile", targetDirectory)
 		Expect(err).ToNot(HaveOccurred())
@@ -45,6 +45,11 @@ var _ = Describe("DownloadFile", func() {
 		contents, err := ioutil.ReadFile(targetPath)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(string(contents)).To(Equal("the file contents"))
+	})
+
+	AfterEach(func() {
+		os.RemoveAll(sourceDirectory)
+		os.RemoveAll(targetDirectory)
 	})
 })
 
