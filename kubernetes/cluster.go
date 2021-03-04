@@ -19,6 +19,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -174,6 +175,33 @@ func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc
 		}
 		return true, nil
 	}
+}
+
+// WaitForCRD wait for a custom resource definition to exist in the cluster.
+// This method should be used when installing a Deployment that is supposed to
+// provide that CRD and want to make sure the CRD is ready for consumption before
+// continuing deploying things that will consume it.
+func (c *Cluster) WaitForCRD(ui *ui.UI, CRDName string, timeout int) error {
+	s := ui.Progressf("Waiting for CRD %s to be ready to use", CRDName)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, func() (bool, error) {
+		clientset, err := apiextensions.NewForConfig(c.RestConfig)
+		if err != nil {
+			return false, err
+		}
+
+		_, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.Background(), CRDName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			} else {
+				return false, err
+			}
+		}
+
+		return true, nil
+	})
 }
 
 // WaitForSecret waits until the specified secret exists. If timeout is reached,

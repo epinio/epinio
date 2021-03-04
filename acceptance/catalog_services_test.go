@@ -28,11 +28,14 @@ var _ = Describe("Catalog Services", func() {
 
 		// Wait until plans appear
 		Eventually(func() bool {
-			out, err := helpers.Kubectl("get clusterserviceclass mariadb")
-			Expect(err).ToNot(HaveOccurred(), out)
-
+			_, err := helpers.Kubectl("get clusterserviceclass mariadb")
 			return err == nil
-		}, "2m").Should(BeTrue())
+		}, "5m").Should(BeTrue())
+	})
+
+	AfterEach(func() {
+		out, err := Carrier("disable services-incluster", "")
+		Expect(err).ToNot(HaveOccurred(), out)
 	})
 
 	Describe("create-service", func() {

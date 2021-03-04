@@ -127,6 +127,12 @@ func (k ServiceCatalog) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernet
 	if err := c.WaitForPodBySelectorRunning(ui, ServiceCatalogDeploymentID, "app=service-catalog-catalog-webhook", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting ServiceCatalog webhook to come be running")
 	}
+	if err := c.WaitForPodBySelectorRunning(ui, ServiceCatalogDeploymentID, "app=service-catalog-catalog-webhook", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting ServiceCatalog webhook to come be running")
+	}
+	if err = c.WaitForCRD(ui, "clusterservicebrokers.servicecatalog.k8s.io", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting for CRD clusterservicebrokers.servicecatalog.k8s.io to become available")
+	}
 
 	ui.Success().Msg("ServiceCatalog deployed")
 
