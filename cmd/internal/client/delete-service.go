@@ -28,7 +28,7 @@ var CmdDeleteService = &cobra.Command{
 
 		err = client.DeleteService(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error creating service")
+			return errors.Wrap(err, "error deleting service")
 		}
 
 		return nil
