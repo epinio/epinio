@@ -276,7 +276,8 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName string) (in
 		Create(context.Background(), obj, metav1.CreateOptions{})
 }
 
-// GetBindingSecret creates a ServiceBinding for the application with name appName.
+// GetBindingSecret returns the Secret that represents the binding of a Service
+// to an Application.
 func (s *CatalogService) GetBindingSecret(bindingName string) (*corev1.Secret, error) {
 	// TODO: Replace hardcoded timeout with a constant
 	return s.kubeClient.WaitForSecret(deployments.WorkloadsDeploymentID, bindingName, time.Second*300)
@@ -285,7 +286,6 @@ func (s *CatalogService) GetBindingSecret(bindingName string) (*corev1.Secret, e
 // DeleteBinding deletes the ServiceBinding resource. The relevant secret will
 // also be deleted automatically.
 func (s *CatalogService) DeleteBinding(appName string) error {
-
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
 
 	serviceBindingGVR := schema.GroupVersionResource{

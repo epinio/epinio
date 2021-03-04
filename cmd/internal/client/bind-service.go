@@ -28,7 +28,7 @@ var CmdBindService = &cobra.Command{
 
 		err = client.BindService(args[0], args[1])
 		if err != nil {
-			return errors.Wrap(err, "error creating service")
+			return errors.Wrap(err, "error binding service")
 		}
 
 		return nil

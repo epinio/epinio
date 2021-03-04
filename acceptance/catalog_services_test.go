@@ -28,9 +28,9 @@ var _ = Describe("Catalog Services", func() {
 
 		// Wait until plans appear
 		Eventually(func() bool {
-			_, err := helpers.Kubectl("get clusterserviceclass mariadb")
+			out, err = helpers.Kubectl("get clusterserviceclass mariadb")
 			return err == nil
-		}, "5m").Should(BeTrue())
+		}, "5m").Should(BeTrue(), out)
 	})
 
 	AfterEach(func() {

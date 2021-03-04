@@ -183,10 +183,7 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 		return nil
 	}
 
-	// Do the task
-
 	err = app.Bind(service)
-
 	if err != nil {
 		return errors.Wrap(err, "failed to bind service")
 	}
