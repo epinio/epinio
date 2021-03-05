@@ -1,8 +1,9 @@
 package acceptance_test
 
 import (
-	"github.com/suse/carrier/helpers"
 	"os"
+
+	"github.com/suse/carrier/helpers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,7 +11,8 @@ import (
 
 var _ = Describe("Carrier enable/disable features", func() {
 	Describe("services-incluster", func() {
-		AfterEach(func() {
+		BeforeEach(func() {
+			// Make sure they are not already enabled
 			out, err := Carrier("disable services-incluster", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
@@ -30,6 +32,10 @@ var _ = Describe("Carrier enable/disable features", func() {
 		var err error
 
 		BeforeEach(func() {
+			// Make sure they aren't already enabled
+			out, err := Carrier("disable services-google", "")
+			Expect(err).ToNot(HaveOccurred(), out)
+
 			serviceAccountJson, err = helpers.CreateTmpFile(`
 				{
 					"type": "service_account",
@@ -48,8 +54,6 @@ var _ = Describe("Carrier enable/disable features", func() {
 		})
 
 		AfterEach(func() {
-			out, err := Carrier("disable services-google", "")
-			Expect(err).ToNot(HaveOccurred(), out)
 			err = os.Remove(serviceAccountJson)
 			Expect(err).ToNot(HaveOccurred())
 		})
