@@ -137,14 +137,13 @@ func (k Minibroker) GetVersion() string {
 }
 
 func (k Minibroker) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-
-	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
-		MinibrokerDeploymentID,
-		metav1.GetOptions{},
-	)
-	if err == nil {
-		return errors.New("Namespace " + MinibrokerDeploymentID + " present already")
+	existsAndOwned, err := c.NamespaceExistsAndOwned(MinibrokerDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", MinibrokerDeploymentID)
+	}
+	if existsAndOwned {
+		ui.Exclamation().Msg("Minibroker already installed, skipping")
+		return nil
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Minibroker...")

@@ -173,14 +173,13 @@ func (k GoogleServices) GetVersion() string {
 }
 
 func (k GoogleServices) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-
-	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
-		GoogleServicesDeploymentID,
-		metav1.GetOptions{},
-	)
-	if err == nil {
-		return errors.New("Namespace " + GoogleServicesDeploymentID + " present already")
+	existsAndOwned, err := c.NamespaceExistsAndOwned(GoogleServicesDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", MinibrokerDeploymentID)
+	}
+	if existsAndOwned {
+		ui.Exclamation().Msg("GoogleServices already installed, skipping")
+		return nil
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying GoogleServices...")

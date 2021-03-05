@@ -27,15 +27,10 @@ var _ = Describe("Catalog Services", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Wait until plans appear
-		Eventually(func() bool {
-			out, err = helpers.Kubectl("get clusterserviceclass mariadb")
-			return err == nil
-		}, "5m").Should(BeTrue(), out)
-	})
-
-	AfterEach(func() {
-		out, err := Carrier("disable services-incluster", "")
-		Expect(err).ToNot(HaveOccurred(), out)
+		Eventually(func() error {
+			_, err = helpers.Kubectl("get clusterserviceclass mariadb")
+			return err
+		}, "5m").ShouldNot(HaveOccurred())
 	})
 
 	Describe("create-service", func() {
