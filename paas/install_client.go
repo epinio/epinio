@@ -11,12 +11,12 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/suse/carrier/cli/deployments"
-	"github.com/suse/carrier/cli/helpers"
-	"github.com/suse/carrier/cli/kubernetes"
-	kubeconfig "github.com/suse/carrier/cli/kubernetes/config"
-	"github.com/suse/carrier/cli/paas/config"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/kubernetes"
+	kubeconfig "github.com/suse/carrier/kubernetes/config"
+	"github.com/suse/carrier/paas/config"
+	"github.com/suse/carrier/paas/ui"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )

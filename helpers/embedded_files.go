@@ -9,7 +9,7 @@ import (
 	"path"
 
 	"github.com/rakyll/statik/fs"
-	_ "github.com/suse/carrier/cli/statik"
+	_ "github.com/suse/carrier/statik"
 )
 
 // ExtractFile creates a file in a temporary directory on disk from a file

@@ -13,7 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/paas/ui"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"

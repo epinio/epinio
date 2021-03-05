@@ -20,13 +20,15 @@ import (
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	"github.com/suse/carrier/cli/deployments"
-	"github.com/suse/carrier/cli/kubernetes"
-	kubeconfig "github.com/suse/carrier/cli/kubernetes/config"
-	"github.com/suse/carrier/cli/kubernetes/tailer"
-	"github.com/suse/carrier/cli/paas/config"
-	paasgitea "github.com/suse/carrier/cli/paas/gitea"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/application"
+	"github.com/suse/carrier/internal/services"
+	"github.com/suse/carrier/kubernetes"
+	kubeconfig "github.com/suse/carrier/kubernetes/config"
+	"github.com/suse/carrier/kubernetes/tailer"
+	"github.com/suse/carrier/paas/config"
+	paasgitea "github.com/suse/carrier/paas/gitea"
+	"github.com/suse/carrier/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -84,6 +86,295 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 	}, nil
 }
 
+// Services gets all Carrier services in the targeted org
+func (c *CarrierClient) Services() error {
+	log := c.Log.WithName("Services").WithValues("Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Organization", c.config.Org).
+		Msg("Listing services")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
+	if err != nil {
+		return err
+	}
+
+	orgServices, err := services.List(c.kubeClient, c.config.Org)
+	if err != nil {
+		return errors.Wrap(err, "failed to list services")
+	}
+
+	// todo: sort services by name before display
+
+	details.Info("list service secrets")
+
+	msg := c.ui.Success().WithTable("Name")
+	for _, s := range orgServices {
+		msg = msg.WithTableRow(s.Name())
+	}
+	msg.Msg("Carrier Services:")
+
+	return nil
+}
+
+// ServiceMatching returns all Carrier services having the specified prefix
+// in their name.
+func (c *CarrierClient) ServiceMatching(prefix string) []string {
+	log := c.Log.WithName("ServiceMatching").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	result := []string{}
+
+	orgServices, err := services.List(c.kubeClient, c.config.Org)
+	if err != nil {
+		return result
+	}
+
+	for _, s := range orgServices {
+		service := s.Name()
+		details.Info("Found", "Name", service)
+		if strings.HasPrefix(service, prefix) {
+			details.Info("Matched", "Name", service)
+			result = append(result, service)
+		}
+	}
+
+	return result
+}
+
+// BindService attaches a service specified by name to the named application,
+// both in the targeted organization.
+func (c *CarrierClient) BindService(serviceName, appName string) error {
+	log := c.Log.WithName("Bind Service To Application").
+		WithValues("Name", serviceName, "Application", appName, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Bind Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to bind service.")
+	if err != nil {
+		return err
+	}
+
+	// Lookup app and service. Conversion from name to internal objects.
+
+	app, err := application.Lookup(c.kubeClient, c.giteaClient, c.config.Org, appName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	service, err := services.Lookup(c.kubeClient, c.config.Org, serviceName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	err = app.Bind(service)
+	if err != nil {
+		return errors.Wrap(err, "failed to bind service")
+	}
+
+	c.ui.Success().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Bound to Application.")
+	return nil
+}
+
+// UnbindService detaches the service specified by name from the named
+// application, both in the targeted organization.
+func (c *CarrierClient) UnbindService(serviceName, appName string) error {
+	log := c.Log.WithName("Unbind Service").
+		WithValues("Name", serviceName, "Application", appName, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Unbind Service from Application")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to unbind service.")
+	if err != nil {
+		return err
+	}
+
+	// Lookup app and service. Conversion from names to internal objects.
+
+	app, err := application.Lookup(c.kubeClient, c.giteaClient, c.config.Org, appName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	service, err := services.Lookup(c.kubeClient, c.config.Org, serviceName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	// Do the task
+
+	err = app.Unbind(service)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to unbind service")
+	}
+
+	c.ui.Success().
+		WithStringValue("Service", serviceName).
+		WithStringValue("Application", appName).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Detached From Application.")
+	return nil
+}
+
+// DeleteService deletes a service specified by name
+func (c *CarrierClient) DeleteService(name string) error {
+	log := c.Log.WithName("Delete Service").
+		WithValues("Name", name, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Delete Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to remove service.")
+	if err != nil {
+		return err
+	}
+
+	service, err := services.Lookup(c.kubeClient, c.config.Org, name)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	// TODO: Validation. Prevent removal of a service still bound
+	// TODO: to applications.
+
+	err = service.Delete()
+	if err != nil {
+		return errors.Wrap(err, "failed to delete service")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Removed.")
+	return nil
+}
+
+// CreateService creates a service specified by name, class, plan, and optional key/value dictionary
+// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
+func (c *CarrierClient) CreateService(name, class, plan string, dict []string) error {
+	log := c.Log.WithName("Create Service").
+		WithValues("Name", name, "Class", class, "Plan", plan, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	data := make(map[string]string)
+	msg := c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		WithStringValue("Class", class).
+		WithStringValue("Plan", plan).
+		WithTable("Parameter", "Value")
+	for i := 0; i < len(dict); i += 2 {
+		key := dict[i]
+		value := dict[i+1]
+		msg = msg.WithTableRow(key, value)
+		data[key] = value
+	}
+	msg.Msg("Create Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to create service.")
+	if err != nil {
+		return err
+	}
+
+	service, err := services.CreateCatalogService(c.kubeClient, name, c.config.Org, class, plan, data)
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+
+	// TODO : wait for instance to be ready.
+	// service.WaitToBeReady()
+	// progress indicator
+
+	c.ui.Success().
+		WithStringValue("Name", service.Name()).
+		WithStringValue("Organization", service.Org()).
+		WithStringValue("Class", class).
+		WithStringValue("Plan", plan).
+		Msg("Service Saved.")
+	return nil
+}
+
+// CreateCustomService creates a service specified by name and key/value dictionary
+// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
+func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
+	log := c.Log.WithName("Create Custom Service").
+		WithValues("Name", name, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	data := make(map[string]string)
+	msg := c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		WithTable("Parameter", "Value")
+	for i := 0; i < len(dict); i += 2 {
+		key := dict[i]
+		value := dict[i+1]
+		msg = msg.WithTableRow(key, value)
+		data[key] = value
+	}
+	msg.Msg("Create Custom Service")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to create service.")
+	if err != nil {
+		return err
+	}
+
+	service, err := services.CreateCustomService(c.kubeClient, name, c.config.Org, data)
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", service.Name()).
+		WithStringValue("Organization", service.Org()).
+		Msg("Service Saved.")
+	return nil
+}
+
 // Info displays information about environment
 func (c *CarrierClient) Info() error {
 	log := c.Log.WithName("Info")
@@ -115,6 +406,8 @@ func (c *CarrierClient) Info() error {
 // AppsMatching returns all Carrier apps having the specified prefix
 // in their name.
 func (c *CarrierClient) AppsMatching(prefix string) []string {
+	// TODO: change to use application.List()
+
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -139,8 +432,10 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 	return result
 }
 
-// Apps gets all Carrier apps
+// Apps gets all Carrier apps in the targeted org
 func (c *CarrierClient) Apps() error {
+	// TODO: change to use application.List()
+
 	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -229,6 +524,9 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 // Delete deletes an app
 func (c *CarrierClient) Delete(app string) error {
+	// TODO: lookup app, (get object), invoke action.
+	// TODO: Move action here into `internal/application`.
+
 	log := c.Log.WithName("Delete").WithValues("Application", app)
 	log.Info("start")
 	defer log.Info("return")
@@ -683,7 +981,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
-		300)
+		2000)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
 	}

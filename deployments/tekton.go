@@ -11,9 +11,9 @@ import (
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/helpers"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/kubernetes"
+	"github.com/suse/carrier/paas/ui"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"

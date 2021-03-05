@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/suse/carrier/cli/kubernetes"
+	. "github.com/suse/carrier/kubernetes"
 )
 
 type FakeReader struct {

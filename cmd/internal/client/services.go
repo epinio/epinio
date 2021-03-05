@@ -8,11 +8,10 @@ import (
 
 var ()
 
-// CmdCreateOrg implements the carrier orgs command
-var CmdCreateOrg = &cobra.Command{
-	Use:   "create-org NAME",
-	Short: "Creates an organization",
-	Args:  cobra.ExactArgs(1),
+// CmdServices implements the carrier services command
+var CmdServices = &cobra.Command{
+	Use:   "services",
+	Short: "Lists all services",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
@@ -25,9 +24,9 @@ var CmdCreateOrg = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.CreateOrg(args[0])
+		err = client.Services()
 		if err != nil {
-			return errors.Wrap(err, "error creating org")
+			return errors.Wrap(err, "error listing services")
 		}
 
 		return nil

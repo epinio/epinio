@@ -3,7 +3,7 @@ package client
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/cli/paas"
+	"github.com/suse/carrier/paas"
 )
 
 var CmdUninstall = &cobra.Command{

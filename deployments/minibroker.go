@@ -8,9 +8,9 @@ import (
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/helpers"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/kubernetes"
+	"github.com/suse/carrier/paas/ui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -137,14 +137,13 @@ func (k Minibroker) GetVersion() string {
 }
 
 func (k Minibroker) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
-
-	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
-		MinibrokerDeploymentID,
-		metav1.GetOptions{},
-	)
-	if err == nil {
-		return errors.New("Namespace " + MinibrokerDeploymentID + " present already")
+	existsAndOwned, err := c.NamespaceExistsAndOwned(MinibrokerDeploymentID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", MinibrokerDeploymentID)
+	}
+	if existsAndOwned {
+		ui.Exclamation().Msg("Minibroker already installed, skipping")
+		return nil
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Minibroker...")
