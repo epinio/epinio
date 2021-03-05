@@ -981,7 +981,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
-		1000)
+		2000)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
 	}
