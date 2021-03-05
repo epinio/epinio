@@ -13,7 +13,7 @@ import (
 	"github.com/codeskyblue/kexec"
 	"github.com/pkg/errors"
 
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/paas/ui"
 )
 
 type ExternalFuncWithString func() (output string, err error)

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/ui"
+	"github.com/suse/carrier/kubernetes"
+	"github.com/suse/carrier/paas/ui"
 	"k8s.io/apimachinery/pkg/labels"
 )
 

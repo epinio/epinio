@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/cli/deployments"
-	"github.com/suse/carrier/cli/kubernetes"
-	"github.com/suse/carrier/cli/paas/config"
+	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/kubernetes"
+	"github.com/suse/carrier/paas/config"
 )
 
 const (

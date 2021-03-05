@@ -9,9 +9,9 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/suse/carrier/cli/cmd/internal/client"
-	"github.com/suse/carrier/cli/kubernetes/config"
-	pconfig "github.com/suse/carrier/cli/paas/config"
+	"github.com/suse/carrier/cmd/internal/client"
+	"github.com/suse/carrier/kubernetes/config"
+	pconfig "github.com/suse/carrier/paas/config"
 )
 
 var (
@@ -61,6 +61,12 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdTarget)
 	rootCmd.AddCommand(client.CmdEnable)
 	rootCmd.AddCommand(client.CmdDisable)
+	rootCmd.AddCommand(client.CmdCreateCustomService)
+	rootCmd.AddCommand(client.CmdCreateService)
+	rootCmd.AddCommand(client.CmdDeleteService)
+	rootCmd.AddCommand(client.CmdBindService)
+	rootCmd.AddCommand(client.CmdUnbindService)
+	rootCmd.AddCommand(client.CmdServices)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

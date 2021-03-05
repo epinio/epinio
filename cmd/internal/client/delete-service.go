@@ -8,10 +8,11 @@ import (
 
 var ()
 
-// CmdDeleteApp implements the carrier delete command
-var CmdDeleteApp = &cobra.Command{
-	Use:   "delete NAME",
-	Short: "Deletes an application",
+// CmdDeleteService implements the carrier delete-service command
+var CmdDeleteService = &cobra.Command{
+	Use:   "delete-service NAME",
+	Short: "Delete a service",
+	Long:  `Delete service by name.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
@@ -25,9 +26,9 @@ var CmdDeleteApp = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.Delete(args[0])
+		err = client.DeleteService(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error deleting app")
+			return errors.Wrap(err, "error deleting service")
 		}
 
 		return nil
@@ -45,7 +46,7 @@ var CmdDeleteApp = &cobra.Command{
 			}
 		}()
 
-		matches := app.AppsMatching(toComplete)
+		matches := app.ServiceMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

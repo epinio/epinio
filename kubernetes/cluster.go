@@ -10,15 +10,16 @@ import (
 
 	"github.com/pkg/errors"
 
-	generic "github.com/suse/carrier/cli/kubernetes/platform/generic"
-	ibm "github.com/suse/carrier/cli/kubernetes/platform/ibm"
-	k3s "github.com/suse/carrier/cli/kubernetes/platform/k3s"
-	kind "github.com/suse/carrier/cli/kubernetes/platform/kind"
-	minikube "github.com/suse/carrier/cli/kubernetes/platform/minikube"
-	"github.com/suse/carrier/cli/paas/ui"
+	generic "github.com/suse/carrier/kubernetes/platform/generic"
+	ibm "github.com/suse/carrier/kubernetes/platform/ibm"
+	k3s "github.com/suse/carrier/kubernetes/platform/k3s"
+	kind "github.com/suse/carrier/kubernetes/platform/kind"
+	minikube "github.com/suse/carrier/kubernetes/platform/minikube"
+	"github.com/suse/carrier/paas/ui"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -176,6 +177,55 @@ func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc
 	}
 }
 
+// WaitForCRD wait for a custom resource definition to exist in the cluster.
+// This method should be used when installing a Deployment that is supposed to
+// provide that CRD and want to make sure the CRD is ready for consumption before
+// continuing deploying things that will consume it.
+func (c *Cluster) WaitForCRD(ui *ui.UI, CRDName string, timeout int) error {
+	s := ui.Progressf("Waiting for CRD %s to be ready to use", CRDName)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, func() (bool, error) {
+		clientset, err := apiextensions.NewForConfig(c.RestConfig)
+		if err != nil {
+			return false, err
+		}
+
+		_, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.Background(), CRDName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			} else {
+				return false, err
+			}
+		}
+
+		return true, nil
+	})
+}
+
+// WaitForSecret waits until the specified secret exists. If timeout is reached,
+// an error is returned.
+// It should be used when something is expected to create a Secret and the code
+// needs to wait until that happens.
+func (c *Cluster) WaitForSecret(namespace, secretName string, timeout time.Duration) (*v1.Secret, error) {
+	var secret *v1.Secret
+	waitErr := wait.PollImmediate(time.Second, timeout, func() (bool, error) {
+		var err error
+		secret, err = c.GetSecret(namespace, secretName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			} else {
+				return false, err
+			}
+		}
+		return true, nil
+	})
+
+	return secret, waitErr
+}
+
 // Poll up to timeout seconds for pod to enter running state.
 // Returns an error if the pod never enters the running state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
@@ -305,12 +355,82 @@ func (c *Cluster) Exec(namespace, podName, containerName string, command, stdin 
 
 // GetSecret gets a secret's values
 func (c *Cluster) GetSecret(namespace, name string) (*v1.Secret, error) {
-	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	return c.Kubectl.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+}
+
+// DeleteSecret removes a secret
+func (c *Cluster) DeleteSecret(namespace, name string) error {
+	err := c.Kubectl.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get secret")
+		return errors.Wrap(err, "failed to delete secret")
 	}
 
-	return secret, nil
+	return nil
+}
+
+// CreateSecret posts a new secret with key/value dictionary.
+func (c *Cluster) CreateSecret(namespace, name string, data map[string][]byte) error {
+	secret := &v1.Secret{
+		Data: data,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(context.Background(),
+		secret,
+		metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+	return nil
+}
+
+// CreateLabeledSecret posts a new secret with key/value dictionary.
+func (c *Cluster) CreateLabeledSecret(namespace, name string,
+	data map[string][]byte,
+	label map[string]string) error {
+
+	secret := &v1.Secret{
+		Data: data,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+	}
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(context.Background(),
+		secret,
+		metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to create secret")
+	}
+
+	// FIXME ... We patch the labels in ... Easier than trying to
+	// find all the necessary types for the Secret structure.
+
+	return c.LabelSecret(namespace, name, label)
+}
+
+// LabelSecret patches a secret with labels. Analogous to
+// LabelNamespace later in this file.
+func (c *Cluster) LabelSecret(
+	namespace, name string,
+	label map[string]string) error {
+
+	labels := []string{}
+	for key, value := range label {
+		labels = append(labels, fmt.Sprintf(`"%s":"%s"`, key, value))
+	}
+
+	patchContents := fmt.Sprintf(`{ "metadata": { "labels": { %s } } }`,
+		strings.Join(labels, ","))
+
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Patch(context.Background(), name,
+		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetVersion get the kube server version

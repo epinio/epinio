@@ -54,8 +54,9 @@ gitlint:
 	gitlint --commits "origin..HEAD"
 
 prepare_version:
-	echo "package cmd" > cmd/version.go
-	echo "const Version = \"$$(git describe --tags)\"" >> cmd/version.go
+	echo >  cmd/version.go "package cmd"
+	echo >> cmd/version.go ""
+	echo >> cmd/version.go "const Version = \"$$(git describe --tags)\""
 	cat cmd/version.go
 
 .PHONY: tools
