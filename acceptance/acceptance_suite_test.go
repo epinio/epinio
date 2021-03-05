@@ -41,6 +41,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Compiling Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 
 	buildCarrier()
+
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
 	var err error
@@ -55,11 +56,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	copyCarrier()
-	// NOTE: Don't set CARRIER_ACCEPTANCE_KUBECONFIG when using multiple ginkgo
-	// nodes because they will all use the same cluster. This will lead to flaky
-	// tests.
-	if kubeconfigPath := os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG"); kubeconfigPath != "" {
+
+	if kubeconfigDir := os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG_DIR"); kubeconfigDir != "" {
+		files, err := ioutil.ReadDir(kubeconfigDir)
+		Expect(err).ToNot(HaveOccurred())
+		kubeconfigPath := path.Join(kubeconfigDir, files[config.GinkgoConfig.ParallelNode-1].Name())
 		os.Setenv("KUBECONFIG", kubeconfigPath)
+		fmt.Println("Using KUBECONFIG: ", kubeconfigPath)
 	} else {
 		fmt.Printf("Creating a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
 		createCluster()
@@ -88,7 +91,7 @@ var _ = AfterSuite(func() {
 		panic("Uninstalling carrier failed: " + out)
 	}
 
-	if os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG") == "" {
+	if os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG_DIR") == "" {
 		fmt.Printf("Deleting cluster on node %d\n", config.GinkgoConfig.ParallelNode)
 		deleteCluster()
 	}
