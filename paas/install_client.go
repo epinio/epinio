@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -13,16 +12,13 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
 	"github.com/suse/carrier/paas/config"
 	"github.com/suse/carrier/paas/ui"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-)
-
-const (
-	DefaultTimeoutSec = 300
 )
 
 // InstallClient provides functionality for talking to Kubernetes for
@@ -105,7 +101,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	if err := c.InstallDeployment(&deployments.Traefik{Timeout: DefaultTimeoutSec}, details); err != nil {
+	if err := c.InstallDeployment(&deployments.Traefik{Timeout: duration.ToDeployment()}, details); err != nil {
 		return err
 	}
 
@@ -127,12 +123,12 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
 
 	for _, deployment := range []kubernetes.Deployment{
-		&deployments.Quarks{Timeout: DefaultTimeoutSec},
-		&deployments.Workloads{Timeout: DefaultTimeoutSec},
-		&deployments.Gitea{Timeout: DefaultTimeoutSec},
-		&deployments.Registry{Timeout: DefaultTimeoutSec},
-		&deployments.Tekton{Timeout: DefaultTimeoutSec},
-		&deployments.ServiceCatalog{Timeout: DefaultTimeoutSec},
+		&deployments.Quarks{Timeout: duration.ToDeployment()},
+		&deployments.Workloads{Timeout: duration.ToDeployment()},
+		&deployments.Gitea{Timeout: duration.ToDeployment()},
+		&deployments.Registry{Timeout: duration.ToDeployment()},
+		&deployments.Tekton{Timeout: duration.ToDeployment()},
+		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
 	} {
 		if err := c.InstallDeployment(deployment, details); err != nil {
 			return err
@@ -154,15 +150,15 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	c.ui.Note().Msg("Carrier uninstalling...")
 
 	for _, deployment := range []kubernetes.Deployment{
-		&deployments.Minibroker{Timeout: DefaultTimeoutSec},
-		&deployments.GoogleServices{Timeout: DefaultTimeoutSec},
-		&deployments.ServiceCatalog{Timeout: DefaultTimeoutSec},
-		&deployments.Workloads{Timeout: DefaultTimeoutSec},
-		&deployments.Tekton{Timeout: DefaultTimeoutSec},
-		&deployments.Registry{Timeout: DefaultTimeoutSec},
-		&deployments.Gitea{Timeout: DefaultTimeoutSec},
-		&deployments.Quarks{Timeout: DefaultTimeoutSec},
-		&deployments.Traefik{Timeout: DefaultTimeoutSec},
+		&deployments.Minibroker{Timeout: duration.ToDeployment()},
+		&deployments.GoogleServices{Timeout: duration.ToDeployment()},
+		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
+		&deployments.Workloads{Timeout: duration.ToDeployment()},
+		&deployments.Tekton{Timeout: duration.ToDeployment()},
+		&deployments.Registry{Timeout: duration.ToDeployment()},
+		&deployments.Gitea{Timeout: duration.ToDeployment()},
+		&deployments.Quarks{Timeout: duration.ToDeployment()},
+		&deployments.Traefik{Timeout: duration.ToDeployment()},
 	} {
 		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err
@@ -212,7 +208,7 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 		err := helpers.RunToSuccessWithTimeout(
 			func() error {
 				return c.fetchIP(&ip)
-			}, time.Duration(2)*time.Minute, 3*time.Second)
+			}, duration.ToSystemDomain(), duration.PollInterval())
 		if err != nil {
 			if strings.Contains(err.Error(), "Timed out after") {
 				return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +

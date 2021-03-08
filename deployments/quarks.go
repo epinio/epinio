@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -16,7 +17,7 @@ import (
 
 type Quarks struct {
 	Debug   bool
-	Timeout int
+	Timeout time.Duration
 }
 
 const (

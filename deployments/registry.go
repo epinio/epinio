@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	"github.com/suse/carrier/paas/ui"
 	corev1 "k8s.io/api/core/v1"
@@ -17,7 +19,7 @@ import (
 
 type Registry struct {
 	Debug   bool
-	Timeout int
+	Timeout time.Duration
 }
 
 const (
@@ -120,10 +122,12 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 	if err != nil {
 		return err
 	}
-	if err := c.WaitUntilPodBySelectorExist(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
+		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry", 180); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
+		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 

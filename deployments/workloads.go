@@ -3,6 +3,7 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -16,7 +17,7 @@ import (
 
 type Workloads struct {
 	Debug   bool
-	Timeout int
+	Timeout time.Duration
 }
 
 const (

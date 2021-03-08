@@ -12,6 +12,7 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	"github.com/suse/carrier/paas/ui"
 	"k8s.io/api/extensions/v1beta1"
@@ -23,7 +24,7 @@ type Tekton struct {
 	Debug      bool
 	Secrets    []string
 	ConfigMaps []string
-	Timeout    int
+	Timeout    time.Duration
 }
 
 const (
@@ -117,6 +118,8 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		return err
 	}
 
+	kTimeout := strconv.Itoa(int(k.Timeout.Seconds()))
+
 	for _, crd := range []string{
 		"clustertasks.tekton.dev",
 		"clustertriggerbindings.triggers.tekton.dev",
@@ -135,7 +138,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 		message := fmt.Sprintf("Establish CRD %s", crd)
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
-				return helpers.Kubectl("wait --for=condition=established --timeout=" + strconv.Itoa(k.Timeout) + "s crd/" + crd)
+				return helpers.Kubectl("wait --for=condition=established --timeout=" + kTimeout + "s crd/" + crd)
 			},
 		)
 		if err != nil {
@@ -146,7 +149,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	message := "Starting tekton triggers webhook pod"
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
+			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + kTimeout + "s -n tekton-pipelines --selector=app=tekton-triggers-webhook pod")
 		},
 	)
 	if err != nil {
@@ -156,7 +159,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	message = "Starting tekton pipelines webhook pod"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + strconv.Itoa(k.Timeout) + "s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
+			return helpers.Kubectl("wait --for=condition=Ready --timeout=" + kTimeout + "s -n tekton-pipelines --selector=app=tekton-pipelines-webhook pod")
 		},
 	)
 	if err != nil {
@@ -189,7 +192,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
 					return helpers.Kubectl("get secret -n carrier-workloads registry-tls-self-ca")
-				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
+				}, k.Timeout, duration.PollInterval())
 			if err != nil {
 				return out1, err
 			}
@@ -197,7 +200,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 			out2, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
 					return helpers.Kubectl("get secret -n carrier-workloads registry-tls-self")
-				}, time.Duration(k.Timeout)*time.Second, 3*time.Second)
+				}, k.Timeout, duration.PollInterval())
 
 			return fmt.Sprintf("%s\n%s", out1, out2), err
 		},

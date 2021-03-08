@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	"github.com/suse/carrier/paas"
 	"github.com/suse/carrier/paas/ui"
@@ -47,7 +48,7 @@ func init() {
 
 func EnableInCluster(cmd *cobra.Command, args []string) error {
 	return InstallDeployment(
-		cmd, &deployments.Minibroker{Timeout: paas.DefaultTimeoutSec},
+		cmd, &deployments.Minibroker{Timeout: duration.ToDeployment()},
 		kubernetes.InstallationOptions{},
 		"You can now use in-cluster services")
 }
@@ -59,7 +60,7 @@ func EnableGoogle(cmd *cobra.Command, args []string) error {
 	}
 
 	return InstallDeployment(
-		cmd, &deployments.GoogleServices{Timeout: paas.DefaultTimeoutSec},
+		cmd, &deployments.GoogleServices{Timeout: duration.ToDeployment()},
 		kubernetes.InstallationOptions{
 			{
 				Name:         "service-account-json",

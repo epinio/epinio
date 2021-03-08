@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/internal/interfaces"
 	"github.com/suse/carrier/kubernetes"
 	corev1 "k8s.io/api/core/v1"
@@ -280,7 +280,8 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName string) (in
 // to an Application.
 func (s *CatalogService) GetBindingSecret(bindingName string) (*corev1.Secret, error) {
 	// TODO: Replace hardcoded timeout with a constant
-	return s.kubeClient.WaitForSecret(deployments.WorkloadsDeploymentID, bindingName, time.Second*300)
+	return s.kubeClient.WaitForSecret(deployments.WorkloadsDeploymentID, bindingName,
+		duration.ToServiceSecret())
 }
 
 // DeleteBinding deletes the ServiceBinding resource. The relevant secret will

@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	"github.com/suse/carrier/paas"
 	"github.com/suse/carrier/paas/ui"
@@ -46,13 +47,13 @@ func init() {
 
 func DisableInCluster(cmd *cobra.Command, args []string) error {
 	return UninstallDeployment(
-		cmd, &deployments.Minibroker{Timeout: paas.DefaultTimeoutSec},
+		cmd, &deployments.Minibroker{Timeout: duration.ToDeployment()},
 		"in-cluster services functionality has been disabled")
 }
 
 func DisableGoogle(cmd *cobra.Command, args []string) error {
 	return UninstallDeployment(
-		cmd, &deployments.GoogleServices{Timeout: paas.DefaultTimeoutSec},
+		cmd, &deployments.GoogleServices{Timeout: duration.ToDeployment()},
 		"Google Cloud services functionality has been disabled")
 }
 

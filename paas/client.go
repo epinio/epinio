@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/internal/application"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
@@ -560,7 +561,7 @@ func (c *CarrierClient) Delete(app string) error {
 	err = c.kubeClient.WaitForPodBySelectorMissing(c.ui,
 		c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", c.config.Org, app),
-		DefaultTimeoutSec)
+		duration.ToDeployment())
 	if err != nil {
 		return errors.Wrap(err, "failed to delete application pod")
 	}
@@ -642,7 +643,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 		Msg("About to push an application with given name and sources into the specified organization")
 
 	c.ui.Exclamation().
-		Timeout(5 * time.Second).
+		Timeout(duration.UserAbort()).
 		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
 
 	details.Info("validate")
@@ -960,7 +961,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            false,
-		Since:                 48 * time.Hour,
+		Since:                 duration.LogHistory(),
 		AllNamespaces:         false,
 		LabelSelector:         labels.Everything(),
 		TailLines:             nil,
@@ -981,7 +982,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
 		c.ui, c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
-		2000)
+		duration.ToAppBuilt())
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
 	}
@@ -991,7 +992,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	err = c.kubeClient.WaitForPodBySelectorRunning(
 		c.ui, c.config.CarrierWorkloadsNamespace,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
-		300)
+		duration.ToPodReady())
 
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to come online failed")

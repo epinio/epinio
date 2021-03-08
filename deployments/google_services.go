@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -18,7 +19,7 @@ import (
 
 type GoogleServices struct {
 	Debug   bool
-	Timeout int
+	Timeout time.Duration
 }
 
 const (
