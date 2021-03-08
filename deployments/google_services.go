@@ -161,7 +161,7 @@ broker:
 		return errors.Wrap(err, "failed waiting GoogleServices to come up")
 	}
 	if err := c.WaitForPodBySelectorRunning(ui, GoogleServicesDeploymentID, "app.kubernetes.io/name=gcp-service-broker", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting GoogleServices to come be running")
+		return errors.Wrap(err, "failed waiting GoogleServices to be running")
 	}
 
 	ui.Success().Msg("GoogleServices deployed")
