@@ -181,11 +181,11 @@ func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc
 // This method should be used when installing a Deployment that is supposed to
 // provide that CRD and want to make sure the CRD is ready for consumption before
 // continuing deploying things that will consume it.
-func (c *Cluster) WaitForCRD(ui *ui.UI, CRDName string, timeout int) error {
+func (c *Cluster) WaitForCRD(ui *ui.UI, CRDName string, timeout time.Duration) error {
 	s := ui.Progressf("Waiting for CRD %s to be ready to use", CRDName)
 	defer s.Stop()
 
-	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, func() (bool, error) {
+	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
 		clientset, err := apiextensions.NewForConfig(c.RestConfig)
 		if err != nil {
 			return false, err
@@ -226,7 +226,7 @@ func (c *Cluster) WaitForSecret(namespace, secretName string, timeout time.Durat
 	return secret, waitErr
 }
 
-// Poll up to timeout seconds for pod to enter running state.
+// Poll up to timeout for pod to enter running state.
 // Returns an error if the pod never enters the running state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
 	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(podName, namespace))
@@ -245,37 +245,37 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 	return podList, nil
 }
 
-// Wait up to timeout seconds for Namespace to be removed.
+// Wait up to timeout for Namespace to be removed.
 // Returns an error if the Namespace is not removed within the allotted time.
-func (c *Cluster) WaitForNamespaceMissing(ui *ui.UI, namespace string, timeout int) error {
+func (c *Cluster) WaitForNamespaceMissing(ui *ui.UI, namespace string, timeout time.Duration) error {
 	s := ui.Progressf("Waiting for namespace %s to be deleted", namespace)
 	defer s.Stop()
 
-	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.NamespaceDoesNotExist(namespace))
+	return wait.PollImmediate(time.Second, timeout, c.NamespaceDoesNotExist(namespace))
 }
 
-// Wait up to timeout seconds for pod to be removed.
+// Wait up to timeout for pod to be removed.
 // Returns an error if the pod is not removed within the allotted time.
-func (c *Cluster) WaitForPodBySelectorMissing(ui *ui.UI, namespace, selector string, timeout int) error {
+func (c *Cluster) WaitForPodBySelectorMissing(ui *ui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Removing %s in %s", selector, namespace)
 	defer s.Stop()
 
-	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodDoesNotExist(namespace, selector))
+	return wait.PollImmediate(time.Second, timeout, c.PodDoesNotExist(namespace, selector))
 }
 
-// Wait up to timeout seconds for all pods in 'namespace' with given 'selector' to enter running state.
+// Wait up to timeout for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
-func (c *Cluster) WaitUntilPodBySelectorExist(ui *ui.UI, namespace, selector string, timeout int) error {
+func (c *Cluster) WaitUntilPodBySelectorExist(ui *ui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Creating %s in %s", selector, namespace)
 	defer s.Stop()
 
-	return wait.PollImmediate(time.Second, time.Duration(timeout)*time.Second, c.PodExists(namespace, selector))
+	return wait.PollImmediate(time.Second, timeout, c.PodExists(namespace, selector))
 }
 
-// WaitForPodBySelectorRunning waits timeout seconds for all pods in 'namespace'
+// WaitForPodBySelectorRunning waits timeout for all pods in 'namespace'
 // with given 'selector' to enter running state. Returns an error if no pods are
 // found or not all discovered pods enter running state.
-func (c *Cluster) WaitForPodBySelectorRunning(ui *ui.UI, namespace, selector string, timeout int) error {
+func (c *Cluster) WaitForPodBySelectorRunning(ui *ui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Starting %s in %s", selector, namespace)
 	defer s.Stop()
 
@@ -290,7 +290,7 @@ func (c *Cluster) WaitForPodBySelectorRunning(ui *ui.UI, namespace, selector str
 
 	for _, pod := range podList.Items {
 		s.ChangeMessagef("  Starting pod %s in %s", pod.Name, namespace)
-		if err := c.WaitForPodRunning(namespace, pod.Name, time.Duration(timeout)*time.Second); err != nil {
+		if err := c.WaitForPodRunning(namespace, pod.Name, timeout); err != nil {
 			events, err2 := c.GetPodEvents(namespace, pod.Name)
 			if err2 != nil {
 				return errors.Wrap(err, err2.Error())

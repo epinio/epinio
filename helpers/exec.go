@@ -112,7 +112,7 @@ func WaitForCommandCompletion(ui *ui.UI, message string, funk ExternalFuncWithSt
 	return funk()
 }
 
-// ExecToSuccessWithTimeout retries the given function with stirng & error return,
+// ExecToSuccessWithTimeout retries the given function with string & error return,
 // until it either succeeds of the timeout is reached. It retries every "interval" duration.
 func ExecToSuccessWithTimeout(funk ExternalFuncWithString, timeout, interval time.Duration) (string, error) {
 	timeoutChan := time.After(timeout)
