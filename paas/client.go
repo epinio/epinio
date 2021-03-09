@@ -407,8 +407,6 @@ func (c *CarrierClient) Info() error {
 // AppsMatching returns all Carrier apps having the specified prefix
 // in their name.
 func (c *CarrierClient) AppsMatching(prefix string) []string {
-	// TODO: change to use application.List()
-
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -416,7 +414,7 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 	result := []string{}
 
-	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
+	apps, err := application.List(c.kubeClient, c.giteaClient, c.config.Org)
 	if err != nil {
 		return result
 	}
@@ -435,8 +433,6 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 // Apps gets all Carrier apps in the targeted org
 func (c *CarrierClient) Apps() error {
-	// TODO: change to use application.List()
-
 	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -453,7 +449,7 @@ func (c *CarrierClient) Apps() error {
 	}
 
 	details.Info("gitea list org repos")
-	apps, _, err := c.giteaClient.ListOrgRepos(c.config.Org, gitea.ListOrgReposOptions{})
+	apps, err := application.List(c.kubeClient, c.giteaClient, c.config.Org)
 	if err != nil {
 		return errors.Wrap(err, "failed to list apps")
 	}
