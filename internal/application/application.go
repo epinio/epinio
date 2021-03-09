@@ -75,6 +75,9 @@ func (a *Application) Unbind(service interfaces.Service) error {
 		deployment,
 		metav1.UpdateOptions{},
 	)
+	if err != nil {
+		return err
+	}
 
 	// delete binding - DeleteBinding(a.Name)
 	return service.DeleteBinding(a.Name)
