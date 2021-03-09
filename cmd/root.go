@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/suse/carrier/cmd/internal/client"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes/config"
 	pconfig "github.com/suse/carrier/paas/config"
 )
@@ -42,6 +43,7 @@ func Execute() {
 
 	config.KubeConfigFlags(pf, argToEnv)
 	config.LoggerFlags(pf, argToEnv)
+	duration.Flags(pf, argToEnv)
 
 	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
 	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))

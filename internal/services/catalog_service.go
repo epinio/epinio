@@ -279,7 +279,6 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName string) (in
 // GetBindingSecret returns the Secret that represents the binding of a Service
 // to an Application.
 func (s *CatalogService) GetBindingSecret(bindingName string) (*corev1.Secret, error) {
-	// TODO: Replace hardcoded timeout with a constant
 	return s.kubeClient.WaitForSecret(deployments.WorkloadsDeploymentID, bindingName,
 		duration.ToServiceSecret())
 }
