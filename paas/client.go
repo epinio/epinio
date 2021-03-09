@@ -30,7 +30,6 @@ import (
 	"github.com/suse/carrier/paas/config"
 	paasgitea "github.com/suse/carrier/paas/gitea"
 	"github.com/suse/carrier/paas/ui"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -41,7 +40,7 @@ var (
 
 	// StagingEventListenerURL should not exist
 	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-staging-listener.carrier-workloads:8080"
+	StagingEventListenerURL = "http://el-staging-listener." + deployments.WorkloadsDeploymentID + ":8080"
 )
 
 // CarrierClient provides functionality for talking to a
@@ -109,13 +108,24 @@ func (c *CarrierClient) Services() error {
 		return errors.Wrap(err, "failed to list services")
 	}
 
+	appsOf, err := c.servicesToApps(c.config.Org)
+	if err != nil {
+		return errors.Wrap(err, "failed to list apps per service")
+	}
+
 	// todo: sort services by name before display
 
 	details.Info("list service secrets")
 
-	msg := c.ui.Success().WithTable("Name")
+	msg := c.ui.Success().WithTable("Name", "Applications")
 	for _, s := range orgServices {
-		msg = msg.WithTableRow(s.Name())
+		var bound string
+		if theapps, found := appsOf[s.Name()]; found {
+			bound = strings.Join(theapps, ", ")
+		} else {
+			bound = ""
+		}
+		msg = msg.WithTableRow(s.Name(), bound)
 	}
 	msg.Msg("Carrier Services:")
 
@@ -273,8 +283,20 @@ func (c *CarrierClient) DeleteService(name string) error {
 		return nil
 	}
 
-	// TODO: Validation. Prevent removal of a service still bound
-	// TODO: to applications.
+	appsOf, err := c.servicesToApps(c.config.Org)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	if boundApps, found := appsOf[service.Name()]; found {
+		msg := c.ui.Exclamation().WithTable("Bound Applications")
+		for _, appName := range boundApps {
+			msg = msg.WithTableRow(appName)
+		}
+		msg.Msg("Unable to delete service. It is still used by")
+		return nil
+	}
 
 	err = service.Delete()
 	if err != nil {
@@ -454,7 +476,7 @@ func (c *CarrierClient) Apps() error {
 		return errors.Wrap(err, "failed to list apps")
 	}
 
-	msg := c.ui.Success().WithTable("Name", "Status", "Routes")
+	msg := c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
 
 	for _, app := range apps {
 		details.Info("kube get status", "App", app.Name)
@@ -474,7 +496,21 @@ func (c *CarrierClient) Apps() error {
 			routes = []string{color.RedString(err.Error())}
 		}
 
-		msg = msg.WithTableRow(app.Name, status, strings.Join(routes, ", "))
+		var bonded = []string{}
+		bound, err := app.Services()
+		if err != nil {
+			bonded = append(bonded, color.RedString(err.Error()))
+		} else {
+			for _, service := range bound {
+				bonded = append(bonded, service.Name())
+			}
+		}
+
+		msg = msg.WithTableRow(
+			app.Name,
+			status,
+			strings.Join(routes, ", "),
+			strings.Join(bonded, ", "))
 	}
 
 	msg.Msg("Carrier Applications:")
@@ -519,35 +555,52 @@ func (c *CarrierClient) CreateOrg(org string) error {
 	return nil
 }
 
-// Delete deletes an app
-func (c *CarrierClient) Delete(app string) error {
+// Delete removes the named application from the cluster
+func (c *CarrierClient) Delete(appname string) error {
 	// TODO: lookup app, (get object), invoke action.
 	// TODO: Move action here into `internal/application`.
 
-	log := c.Log.WithName("Delete").WithValues("Application", app)
+	log := c.Log.WithName("Delete").WithValues("Application", appname)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Name", app).
+		WithStringValue("Name", appname).
+		WithStringValue("Organization", c.config.Org).
 		Msg("Deleting application...")
 
-	details.Info("delete repo")
-	_, err := c.giteaClient.DeleteRepo(c.config.Org, app)
+	app, err := application.Lookup(c.kubeClient, c.giteaClient,
+		c.config.Org, appname)
 	if err != nil {
-		return errors.Wrap(err, "failed to delete repository")
+		return errors.Wrap(err, "failed to find application")
 	}
 
-	c.ui.Normal().Msg("Deleted application code repository.")
-
-	details.Info("delete deployment")
-
-	err = c.kubeClient.Kubectl.AppsV1().Deployments(c.config.CarrierWorkloadsNamespace).
-		Delete(context.Background(), fmt.Sprintf("%s.%s", c.config.Org, app), metav1.DeleteOptions{})
+	bound, err := app.Services()
 	if err != nil {
-		return errors.Wrap(err, "failed to delete application deployment")
+		return errors.Wrap(err, "failed to find bound services")
 	}
+	if len(bound) > 0 {
+		msg := c.ui.Note().WithTable("Currently Bound")
+		for _, bonded := range bound {
+			msg = msg.WithTableRow(bonded.Name())
+		}
+		msg.Msg("Bound Services Found, Unbind Them")
+		for _, bonded := range bound {
+			c.ui.Note().WithStringValue("Service", bonded.Name()).Msg("Unbinding")
+			err = app.Unbind(bonded)
+			if err != nil {
+				c.ui.Exclamation().Msg(err.Error())
+				continue
+			}
+			c.ui.Success().Compact().Msg("Unbound")
+		}
+
+		c.ui.Note().Msg("Back to deleting the application...")
+	}
+
+	c.ui.ProgressNote().KeepLine().Msg("Deleting...")
+
+	err = app.Delete()
 
 	// The command above removes the application's deployment.
 	// This in turn deletes the associated replicaset, and pod, in
@@ -555,14 +608,13 @@ func (c *CarrierClient) Delete(app string) error {
 	// completion, and is therefore what we are waiting on below.
 
 	err = c.kubeClient.WaitForPodBySelectorMissing(c.ui,
-		c.config.CarrierWorkloadsNamespace,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", c.config.Org, app),
+		deployments.WorkloadsDeploymentID,
+		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", c.config.Org, appname),
 		duration.ToDeployment())
 	if err != nil {
 		return errors.Wrap(err, "failed to delete application pod")
 	}
 
-	c.ui.Normal().Msg("Deleted application containers.")
 	c.ui.Success().Msg("Application deleted.")
 
 	return nil
@@ -1013,4 +1065,34 @@ func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
 	}
 
 	return nil
+}
+
+func (c *CarrierClient) servicesToApps(org string) (map[string][]string, error) {
+	// Determine apps bound to services
+	// (inversion of services bound to apps)
+	// Literally query apps in the org for their services and invert.
+
+	var appsOf = map[string][]string{}
+
+	apps, err := application.List(c.kubeClient, c.giteaClient, c.config.Org)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, app := range apps {
+		bound, err := app.Services()
+		if err != nil {
+			return nil, err
+		}
+		for _, bonded := range bound {
+			bname := bonded.Name()
+			if theapps, found := appsOf[bname]; found {
+				appsOf[bname] = append(theapps, app.Name)
+			} else {
+				appsOf[bname] = []string{app.Name}
+			}
+		}
+	}
+
+	return appsOf, nil
 }
