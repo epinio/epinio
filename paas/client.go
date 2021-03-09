@@ -121,7 +121,11 @@ func (c *CarrierClient) Services() error {
 	for _, s := range orgServices {
 		var bound string
 		if theapps, found := appsOf[s.Name()]; found {
-			bound = strings.Join(theapps, ", ")
+			appnames := []string{}
+			for _, app := range theapps {
+				appnames = append(appnames, app.Name)
+			}
+			bound = strings.Join(appnames, ", ")
 		} else {
 			bound = ""
 		}
@@ -259,7 +263,7 @@ func (c *CarrierClient) UnbindService(serviceName, appName string) error {
 }
 
 // DeleteService deletes a service specified by name
-func (c *CarrierClient) DeleteService(name string) error {
+func (c *CarrierClient) DeleteService(name string, unbind bool) error {
 	log := c.Log.WithName("Delete Service").
 		WithValues("Name", name, "Organization", c.config.Org)
 	log.Info("start")
@@ -290,12 +294,40 @@ func (c *CarrierClient) DeleteService(name string) error {
 	}
 
 	if boundApps, found := appsOf[service.Name()]; found {
-		msg := c.ui.Exclamation().WithTable("Bound Applications")
-		for _, appName := range boundApps {
-			msg = msg.WithTableRow(appName)
+		var msg *ui.Message
+		if !unbind {
+			msg = c.ui.Exclamation()
+		} else {
+			msg = c.ui.Note()
 		}
-		msg.Msg("Unable to delete service. It is still used by")
-		return nil
+
+		msg = msg.WithTable("Bound Applications")
+		for _, app := range boundApps {
+			msg = msg.WithTableRow(app.Name)
+		}
+
+		if !unbind {
+			msg.Msg("Unable to delete service. It is still used by")
+			c.ui.Exclamation().Compact().Msg("Use --unbind to force the issue")
+			return nil
+		} else {
+			msg.Msg("Unbinding Service From Using Applications Before Deletion")
+			c.ui.Exclamation().
+				Timeout(5 * time.Second).
+				Msg("Hit Enter to continue or Ctrl+C to abort (removal will continue automatically in 5 seconds)")
+
+			for _, app := range boundApps {
+				c.ui.Note().WithStringValue("Application", app.Name).Msg("Unbinding")
+				err = app.Unbind(service)
+				if err != nil {
+					c.ui.Exclamation().Msg(err.Error())
+					continue
+				}
+				c.ui.Success().Compact().Msg("Unbound")
+			}
+
+			c.ui.Note().Msg("Back to deleting the service...")
+		}
 	}
 
 	err = service.Delete()
@@ -1067,12 +1099,12 @@ func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
 	return nil
 }
 
-func (c *CarrierClient) servicesToApps(org string) (map[string][]string, error) {
+func (c *CarrierClient) servicesToApps(org string) (map[string]application.ApplicationList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
-	var appsOf = map[string][]string{}
+	var appsOf = map[string]application.ApplicationList{}
 
 	apps, err := application.List(c.kubeClient, c.giteaClient, c.config.Org)
 	if err != nil {
@@ -1087,9 +1119,9 @@ func (c *CarrierClient) servicesToApps(org string) (map[string][]string, error) 
 		for _, bonded := range bound {
 			bname := bonded.Name()
 			if theapps, found := appsOf[bname]; found {
-				appsOf[bname] = append(theapps, app.Name)
+				appsOf[bname] = append(theapps, app)
 			} else {
-				appsOf[bname] = []string{app.Name}
+				appsOf[bname] = application.ApplicationList{app}
 			}
 		}
 	}
