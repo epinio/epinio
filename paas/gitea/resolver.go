@@ -88,7 +88,7 @@ func (r *Resolver) GetGiteaURL() (string, error) {
 
 // GetGiteaCredentials resolves Gitea's credentials
 func (r *Resolver) GetGiteaCredentials() (string, string, error) {
-	s, err := r.cluster.GetSecret(r.config.CarrierWorkloadsNamespace, GiteaCredentialsSecret)
+	s, err := r.cluster.GetSecret(deployments.WorkloadsDeploymentID, GiteaCredentialsSecret)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to read gitea credentials")
 	}

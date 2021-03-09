@@ -481,7 +481,7 @@ func (c *CarrierClient) Apps() error {
 	for _, app := range apps {
 		details.Info("kube get status", "App", app.Name)
 		status, err := c.kubeClient.DeploymentStatus(
-			c.config.CarrierWorkloadsNamespace,
+			deployments.WorkloadsDeploymentID,
 			fmt.Sprintf("carrier/app-guid=%s.%s", c.config.Org, app.Name),
 		)
 		if err != nil {
@@ -490,7 +490,7 @@ func (c *CarrierClient) Apps() error {
 
 		details.Info("kube get ingress", "App", app.Name)
 		routes, err := c.kubeClient.ListIngressRoutes(
-			c.config.CarrierWorkloadsNamespace,
+			deployments.WorkloadsDeploymentID,
 			app.Name)
 		if err != nil {
 			routes = []string{color.RedString(err.Error())}
@@ -1016,7 +1016,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 		TailLines:             nil,
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
 
-		Namespace: "carrier-workloads",
+		Namespace: deployments.WorkloadsDeploymentID,
 		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*-%s-.*", name)),
 	}, c.kubeClient)
 	if err != nil {
@@ -1029,7 +1029,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 func (c *CarrierClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.kubeClient.WaitUntilPodBySelectorExist(
-		c.ui, c.config.CarrierWorkloadsNamespace,
+		c.ui, deployments.WorkloadsDeploymentID,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
 		duration.ToAppBuilt())
 	if err != nil {
@@ -1039,7 +1039,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
 
 	err = c.kubeClient.WaitForPodBySelectorRunning(
-		c.ui, c.config.CarrierWorkloadsNamespace,
+		c.ui, deployments.WorkloadsDeploymentID,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
 		duration.ToPodReady())
 
