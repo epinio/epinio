@@ -41,6 +41,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Compiling Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 
 	buildCarrier()
+
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
 	var err error
@@ -55,16 +56,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	copyCarrier()
-	// NOTE: Don't set CARRIER_ACCEPTANCE_KUBECONFIG when using multiple ginkgo
-	// nodes because they will all use the same cluster. This will lead to flaky
-	// tests.
-	if kubeconfigPath := os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG"); kubeconfigPath != "" {
-		os.Setenv("KUBECONFIG", kubeconfigPath)
-	} else {
-		fmt.Printf("Creating a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
-		createCluster()
-		os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
-	}
+
+	fmt.Printf("Ensuring a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
+	ensureCluster()
+	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+	warmupBuilder()
+
 	os.Setenv("CARRIER_CONFIG", nodeTmpDir+"/carrier.yaml")
 
 	if os.Getenv("REGISTRY_USERNAME") != "" && os.Getenv("REGISTRY_PASSWORD") != "" {
@@ -88,25 +85,32 @@ var _ = AfterSuite(func() {
 		panic("Uninstalling carrier failed: " + out)
 	}
 
-	if os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG") == "" {
-		fmt.Printf("Deleting cluster on node %d\n", config.GinkgoConfig.ParallelNode)
-		deleteCluster()
-	}
-
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
 })
 
-func createCluster() {
-	name := fmt.Sprintf("carrier-acceptance-%s", nodeSuffix)
+func ensureCluster() {
+	name := fmt.Sprintf("carrier-acceptance-%d", config.GinkgoConfig.ParallelNode)
 
 	if _, err := exec.LookPath("k3d"); err != nil {
 		panic("Couldn't find k3d in PATH: " + err.Error())
 	}
 
-	_, err := RunProc("k3d cluster create "+name, nodeTmpDir, false)
+	out, err := RunProc("k3d cluster get "+name, nodeTmpDir, false)
 	if err != nil {
-		panic("Creating k3d cluster failed: " + err.Error())
+		notExists, regexpErr := regexp.Match(`No nodes found for given cluster`, []byte(out))
+		if regexpErr != nil {
+			panic(regexpErr)
+		}
+		if notExists {
+			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", name)
+			_, err := RunProc("k3d cluster create "+name, nodeTmpDir, false)
+			if err != nil {
+				panic("Creating k3d cluster failed: " + err.Error())
+			}
+		} else {
+			panic("Looking up k3d cluster failed: " + err.Error())
+		}
 	}
 
 	kubeconfig, err := RunProc("k3d kubeconfig get "+name, nodeTmpDir, false)
@@ -215,6 +219,7 @@ func checkDependencies() error {
 	}{
 		{CommandName: "wget"},
 		{CommandName: "tar"},
+		{CommandName: "k3d"},
 	}
 
 	for _, dependency := range dependencies {
@@ -251,4 +256,37 @@ func FailWithReport(message string, callerSkip ...int) {
 	}
 
 	Fail(message, callerSkip...)
+}
+
+// This function creates a dummy Job using the buildpack builder image
+// in order to avoid pulling it the first time we try to stage an application.
+// This makes tests more reliable avoiding timeouts related to pulling big
+// images.
+func warmupBuilder() {
+	fmt.Println("Creating a warm up job for the builder image")
+	path, err := helpers.CreateTmpFile(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: builder-warmup
+spec:
+  template:
+    spec:
+      containers:
+      - name: builder-warmup
+        image: quay.io/asgardtech/paketobuildpacks-builder:full-cf
+        command: ["/bin/ls"]
+      restartPolicy: Never
+  backoffLimit: 1
+`)
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.Remove(path)
+
+	out, err := helpers.Kubectl("apply -f " + path)
+	Expect(err).ToNot(HaveOccurred(), out)
+	out, err = helpers.Kubectl("wait --for=condition=complete --timeout=1000s job/builder-warmup")
+	Expect(err).ToNot(HaveOccurred(), out)
+	fmt.Println("Builder warmed up")
 }

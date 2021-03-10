@@ -62,7 +62,7 @@ var _ = Describe("Catalog Services", func() {
 				out, err = Carrier("services", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "2m").ShouldNot(MatchRegexp(serviceName))
+			}, "10m").ShouldNot(MatchRegexp(serviceName))
 		})
 
 		PIt("doesn't delete a bound service", func() {
@@ -85,11 +85,20 @@ var _ = Describe("Catalog Services", func() {
 		})
 
 		AfterEach(func() {
-			out, err := Carrier("delete "+appName, "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
+			if err != nil {
+				fmt.Printf("unbinding service failed: %s\n%s", err.Error(), out)
+			}
+
+			out, err = Carrier("delete "+appName, "")
+			if err != nil {
+				fmt.Printf("deleting app failed : %s\n%s", err.Error(), out)
+			}
 
 			out, err = Carrier("delete-service "+serviceName, "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			if err != nil {
+				fmt.Printf("deleting service failed : %s\n%s", err.Error(), out)
+			}
 		})
 
 		It("binds a service to the application deployment", func() {
@@ -125,10 +134,14 @@ var _ = Describe("Catalog Services", func() {
 
 		AfterEach(func() {
 			out, err := Carrier("delete "+appName, "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			if err != nil {
+				fmt.Printf("deleting apps failed : %s\n%s", err.Error(), out)
+			}
 
 			out, err = Carrier("delete-service "+serviceName, "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			if err != nil {
+				fmt.Printf("deleting service failed : %s\n%s", err.Error(), out)
+			}
 		})
 
 		It("unbinds a service from the application deployment", func() {
