@@ -60,6 +60,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Ensuring a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
 	ensureCluster()
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+	warmupBuilder()
 
 	os.Setenv("CARRIER_CONFIG", nodeTmpDir+"/carrier.yaml")
 
@@ -255,4 +256,37 @@ func FailWithReport(message string, callerSkip ...int) {
 	}
 
 	Fail(message, callerSkip...)
+}
+
+// This function creates a dummy Job using the buildpack builder image
+// in order to avoid pulling it the first time we try to stage an application.
+// This makes tests more reliable avoiding timeouts related to pulling big
+// images.
+func warmupBuilder() {
+	fmt.Println("Creating a warm up job for the builder image")
+	path, err := helpers.CreateTmpFile(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: builder-warmup
+spec:
+  template:
+    spec:
+      containers:
+      - name: builder-warmup
+        image: quay.io/asgardtech/paketobuildpacks-builder:full-cf
+        command: ["/bin/ls"]
+      restartPolicy: Never
+  backoffLimit: 1
+`)
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.Remove(path)
+
+	out, err := helpers.Kubectl("apply -f " + path)
+	Expect(err).ToNot(HaveOccurred(), out)
+	out, err = helpers.Kubectl("wait --for=condition=complete --timeout=1000s job/builder-warmup")
+	Expect(err).ToNot(HaveOccurred(), out)
+	fmt.Println("Builder warmed up")
 }
