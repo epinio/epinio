@@ -57,17 +57,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	copyCarrier()
 
-	if kubeconfigDir := os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG_DIR"); kubeconfigDir != "" {
-		files, err := ioutil.ReadDir(kubeconfigDir)
-		Expect(err).ToNot(HaveOccurred())
-		kubeconfigPath := path.Join(kubeconfigDir, files[config.GinkgoConfig.ParallelNode-1].Name())
-		os.Setenv("KUBECONFIG", kubeconfigPath)
-		fmt.Println("Using KUBECONFIG: ", kubeconfigPath)
-	} else {
-		fmt.Printf("Creating a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
-		createCluster()
-		os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
-	}
+	fmt.Printf("Ensuring a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
+	ensureCluster()
+	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+
 	os.Setenv("CARRIER_CONFIG", nodeTmpDir+"/carrier.yaml")
 
 	if os.Getenv("REGISTRY_USERNAME") != "" && os.Getenv("REGISTRY_PASSWORD") != "" {
@@ -91,25 +84,32 @@ var _ = AfterSuite(func() {
 		panic("Uninstalling carrier failed: " + out)
 	}
 
-	if os.Getenv("CARRIER_ACCEPTANCE_KUBECONFIG_DIR") == "" {
-		fmt.Printf("Deleting cluster on node %d\n", config.GinkgoConfig.ParallelNode)
-		deleteCluster()
-	}
-
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
 })
 
-func createCluster() {
-	name := fmt.Sprintf("carrier-acceptance-%s", nodeSuffix)
+func ensureCluster() {
+	name := fmt.Sprintf("carrier-acceptance-%d", config.GinkgoConfig.ParallelNode)
 
 	if _, err := exec.LookPath("k3d"); err != nil {
 		panic("Couldn't find k3d in PATH: " + err.Error())
 	}
 
-	_, err := RunProc("k3d cluster create "+name, nodeTmpDir, false)
+	out, err := RunProc("k3d cluster get "+name, nodeTmpDir, false)
 	if err != nil {
-		panic("Creating k3d cluster failed: " + err.Error())
+		notExists, regexpErr := regexp.Match(`No nodes found for given cluster`, []byte(out))
+		if regexpErr != nil {
+			panic(regexpErr)
+		}
+		if notExists {
+			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", name)
+			_, err := RunProc("k3d cluster create "+name, nodeTmpDir, false)
+			if err != nil {
+				panic("Creating k3d cluster failed: " + err.Error())
+			}
+		} else {
+			panic("Looking up k3d cluster failed: " + err.Error())
+		}
 	}
 
 	kubeconfig, err := RunProc("k3d kubeconfig get "+name, nodeTmpDir, false)
@@ -218,6 +218,7 @@ func checkDependencies() error {
 	}{
 		{CommandName: "wget"},
 		{CommandName: "tar"},
+		{CommandName: "k3d"},
 	}
 
 	for _, dependency := range dependencies {

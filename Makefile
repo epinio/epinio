@@ -33,8 +33,9 @@ compress:
 test: lint
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
+GINKGO_NODES ?= 2
 test-acceptance:
-	@./scripts/test-acceptance.sh
+	ginkgo -nodes ${GINKGO_NODES} -stream acceptance/.
 
 generate:
 	go generate ./...
