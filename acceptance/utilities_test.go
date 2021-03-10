@@ -1,0 +1,154 @@
+package acceptance_test
+
+import (
+	"fmt"
+	"os"
+	"path"
+	"strconv"
+	"time"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
+
+	"github.com/suse/carrier/helpers"
+)
+
+// This file provides a number of utility functions encapsulating often-used sequences.
+// I.e. create/delete applications/services, bind/unbind services, etc.
+// This is done in the hope of enhancing the readability of various before/after blocks.
+
+func newAppName() string {
+	return "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
+func newServiceName() string {
+	return "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
+func setupAndTargetOrg(org string) {
+	By("creating an org")
+
+	out, err := Carrier("create-org "+org, "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	orgs, err := Carrier("orgs", "")
+	Expect(err).ToNot(HaveOccurred())
+	Expect(orgs).To(MatchRegexp(org))
+
+	By("targeting an org")
+
+	out, err = Carrier("target "+org, "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	out, err = Carrier("target", "")
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp("Currently targeted organization: " + org))
+}
+
+func setupInClusterServices() {
+	out, err := Carrier("enable services-incluster", "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// Wait until plans appear
+	Eventually(func() error {
+		_, err = helpers.Kubectl("get clusterserviceclass mariadb")
+		return err
+	}, "5m").ShouldNot(HaveOccurred())
+}
+
+func makeApp(appName string) {
+	currentDir, err := os.Getwd()
+	Expect(err).ToNot(HaveOccurred())
+	appDir := path.Join(currentDir, "../sample-app")
+
+	out, err := Carrier(fmt.Sprintf("push %s --verbosity 1", appName), appDir)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// And check presence
+
+	out, err = Carrier("apps", "")
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
+}
+
+func makeCustomService(serviceName string) {
+	out, err := Carrier(fmt.Sprintf("create-custom-service %s username carrier-user", serviceName), "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// And check presence
+
+	out, err = Carrier("services", "")
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp(serviceName))
+}
+
+func makeCatalogService(serviceName string) {
+	out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// And check presence
+
+	out, err = Carrier("services", "")
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp(serviceName))
+}
+
+func bindAppService(appName, serviceName, org string) {
+	out, err := Carrier(fmt.Sprintf("bind-service %s %s", serviceName, appName), "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// And check deep into the kube structures
+	verifyAppServiceBound(appName, serviceName, org)
+}
+
+func verifyAppServiceBound(appName, serviceName, org string) {
+	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp(serviceName))
+
+	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp("/services/" + serviceName))
+}
+
+func deleteApp(appName string) {
+	out, err := Carrier("delete "+appName, "")
+	Expect(err).ToNot(HaveOccurred(), out)
+	// TODO: Fix `carrier delete` from returning before the app is deleted #131
+
+	Eventually(func() string {
+		out, err := Carrier("apps", "")
+		Expect(err).ToNot(HaveOccurred(), out)
+		return out
+	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
+}
+
+func deleteService(serviceName string) {
+	out, err := Carrier("delete-service "+serviceName, "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// And check non-presence
+	Eventually(func() string {
+		out, err = Carrier("services", "")
+		Expect(err).ToNot(HaveOccurred(), out)
+		return out
+	}, "2m").ShouldNot(MatchRegexp(serviceName))
+}
+
+func unbindAppService(appName, serviceName, org string) {
+	out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// And deep check in kube structures for non-presence
+	verifyAppServiceNotbound(appName, serviceName, org)
+}
+
+func verifyAppServiceNotbound(appName, serviceName, org string) {
+	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).ToNot(MatchRegexp(serviceName))
+
+	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).ToNot(MatchRegexp("/services/" + serviceName))
+}
