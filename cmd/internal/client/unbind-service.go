@@ -28,7 +28,7 @@ var CmdUnbindService = &cobra.Command{
 
 		err = client.UnbindService(args[0], args[1])
 		if err != nil {
-			return errors.Wrap(err, "error creating service")
+			return errors.Wrap(err, "error unbinding service")
 		}
 
 		return nil
