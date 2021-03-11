@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -344,7 +345,7 @@ func (c *CarrierClient) DeleteService(name string, unbind bool) error {
 
 // CreateService creates a service specified by name, class, plan, and optional key/value dictionary
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *CarrierClient) CreateService(name, class, plan string, dict []string) error {
+func (c *CarrierClient) CreateService(name, class, plan string, dict []string, waitForProvision bool) error {
 	log := c.Log.WithName("Create Service").
 		WithValues("Name", name, "Class", class, "Plan", plan, "Organization", c.config.Org)
 	log.Info("start")
@@ -377,16 +378,28 @@ func (c *CarrierClient) CreateService(name, class, plan string, dict []string) e
 		return errors.Wrap(err, "failed to create secret")
 	}
 
-	// TODO : wait for instance to be ready.
-	// service.WaitToBeReady()
-	// progress indicator
-
 	c.ui.Success().
 		WithStringValue("Name", service.Name()).
 		WithStringValue("Organization", service.Org()).
 		WithStringValue("Class", class).
 		WithStringValue("Plan", plan).
 		Msg("Service Saved.")
+
+	if waitForProvision {
+		c.ui.Note().KeeplineUnder(1).Msg("Provisioning...")
+		s := c.ui.Progressf("Provisioning")
+		defer s.Stop()
+
+		err := service.WaitForProvision()
+		if err != nil {
+			return errors.Wrap(err, "failed waiting for the service to be provisioned")
+		}
+
+		c.ui.Success().Msg("Service Provisioned.")
+	} else {
+		c.ui.Note().Msg(fmt.Sprintf("Use `carrier service %s` to watch when it is provisioned", service.Name()))
+	}
+
 	return nil
 }
 
@@ -427,6 +440,58 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 		WithStringValue("Name", service.Name()).
 		WithStringValue("Organization", service.Org()).
 		Msg("Service Saved.")
+	return nil
+}
+
+// ServiceDetails shows the information of a service specified by name
+func (c *CarrierClient) ServiceDetails(name string) error {
+	log := c.Log.WithName("Service Details").
+		WithValues("Name", name, "Organization", c.config.Org)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.config.Org).
+		Msg("Service Details")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to detail service.")
+	if err != nil {
+		return err
+	}
+
+	service, err := services.Lookup(c.kubeClient, c.config.Org, name)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	status, err := service.Status()
+	if err != nil {
+		return errors.Wrap(err, "failed to detail service")
+	}
+
+	serviceDetails, err := service.Details()
+	if err != nil {
+		return errors.Wrap(err, "failed to detail service")
+	}
+
+	msg := c.ui.Success().WithTable("", "")
+	msg = msg.WithTableRow("Status", status)
+
+	// Show the service details in sorted order.
+	keys := make([]string, 0, len(serviceDetails))
+	for k := range serviceDetails {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		msg = msg.WithTableRow(k, serviceDetails[k])
+	}
+
+	msg.Msg("")
 	return nil
 }
 

@@ -8,6 +8,10 @@ import (
 
 var ()
 
+func init() {
+	CmdCreateService.Flags().Bool("dont-wait", false, "Return immediately, without waiting for the service to be provisioned")
+}
+
 // CmdCreateService implements the carrier create-service command
 var CmdCreateService = &cobra.Command{
 	Use:   "create-service NAME CLASS PLAN ?(KEY VALUE)...?",
@@ -34,7 +38,13 @@ var CmdCreateService = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.CreateService(args[0], args[1], args[2], args[3:])
+		dw, err := cmd.Flags().GetBool("dont-wait")
+		if err != nil {
+			return err
+		}
+		waitforProvision := !dw
+
+		err = client.CreateService(args[0], args[1], args[2], args[3:], waitforProvision)
 		if err != nil {
 			return errors.Wrap(err, "error creating service")
 		}
