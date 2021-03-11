@@ -8,6 +8,10 @@ import (
 
 var ()
 
+func init() {
+	CmdDeleteService.Flags().Bool("unbind", false, "Unbind from applications before deleting")
+}
+
 // CmdDeleteService implements the carrier delete-service command
 var CmdDeleteService = &cobra.Command{
 	Use:   "delete-service NAME",
@@ -15,6 +19,11 @@ var CmdDeleteService = &cobra.Command{
 	Long:  `Delete service by name.`,
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		unbind, err := cmd.Flags().GetBool("unbind")
+		if err != nil {
+			return err
+		}
+
 		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
@@ -26,7 +35,7 @@ var CmdDeleteService = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.DeleteService(args[0])
+		err = client.DeleteService(args[0], unbind)
 		if err != nil {
 			return errors.Wrap(err, "error deleting service")
 		}

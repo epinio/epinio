@@ -16,9 +16,8 @@ var (
 
 // Config represents a carrier config
 type Config struct {
-	GiteaProtocol             string `mapstructure:"gitea_protocol"`
-	CarrierWorkloadsNamespace string `mapstructure:"carrier_workloads_namespace"`
-	Org                       string `mapstructure:"org"`
+	GiteaProtocol string `mapstructure:"gitea_protocol"`
+	Org           string `mapstructure:"org"`
 
 	v *viper.Viper
 }
