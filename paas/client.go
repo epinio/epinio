@@ -589,9 +589,6 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 // Delete removes the named application from the cluster
 func (c *CarrierClient) Delete(appname string) error {
-	// TODO: lookup app, (get object), invoke action.
-	// TODO: Move action here into `internal/application`.
-
 	log := c.Log.WithName("Delete").WithValues("Application", appname)
 	log.Info("start")
 	defer log.Info("return")
