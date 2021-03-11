@@ -132,7 +132,7 @@ func deleteService(serviceName string) {
 		out, err = Carrier("services", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
-	}, "2m").ShouldNot(MatchRegexp(serviceName))
+	}, "10m").ShouldNot(MatchRegexp(serviceName))
 }
 
 func unbindAppService(appName, serviceName, org string) {
