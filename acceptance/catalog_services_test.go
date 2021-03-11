@@ -19,7 +19,7 @@ var _ = Describe("Catalog Services", func() {
 			makeCatalogService(serviceName)
 		})
 		AfterEach(func() {
-			deleteService(serviceName)
+			cleanupService(serviceName)
 		})
 	})
 
@@ -81,8 +81,8 @@ var _ = Describe("Catalog Services", func() {
 		})
 
 		AfterEach(func() {
-			deleteApp(appName)
-			deleteService(serviceName)
+			cleanupApp(appName)
+			cleanupService(serviceName)
 		})
 
 		It("binds a service to the application deployment", func() {
@@ -101,8 +101,8 @@ var _ = Describe("Catalog Services", func() {
 		})
 
 		AfterEach(func() {
-			deleteApp(appName)
-			deleteService(serviceName)
+			cleanupApp(appName)
+			cleanupService(serviceName)
 		})
 
 		It("unbinds a service from the application deployment", func() {

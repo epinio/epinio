@@ -33,8 +33,8 @@ var _ = Describe("Bounds between Apps & Services", func() {
 		})
 		AfterEach(func() {
 			// Delete app first, as this also unbinds the service
-			deleteApp(appName)
-			deleteService(serviceName)
+			cleanupApp(appName)
+			cleanupService(serviceName)
 		})
 	})
 })

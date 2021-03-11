@@ -123,6 +123,15 @@ func deleteApp(appName string) {
 	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 }
 
+func cleanupApp(appName string) {
+	out, err := Carrier("delete "+appName, "")
+	// TODO: Fix `carrier delete` from returning before the app is deleted #131
+
+	if err != nil {
+		fmt.Printf("deleting app failed : %s\n%s", err.Error(), out)
+	}
+}
+
 func deleteService(serviceName string) {
 	out, err := Carrier("delete-service "+serviceName, "")
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -135,12 +144,27 @@ func deleteService(serviceName string) {
 	}, "10m").ShouldNot(MatchRegexp(serviceName))
 }
 
+func cleanupService(serviceName string) {
+	out, err := Carrier("delete-service "+serviceName, "")
+
+	if err != nil {
+		fmt.Printf("deleting service failed : %s\n%s", err.Error(), out)
+	}
+}
+
 func unbindAppService(appName, serviceName, org string) {
 	out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And deep check in kube structures for non-presence
 	verifyAppServiceNotbound(appName, serviceName, org)
+}
+
+func cleanUnbindAppService(appName, serviceName, org string) {
+	out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
+	if err != nil {
+		fmt.Printf("unbinding service failed: %s\n%s", err.Error(), out)
+	}
 }
 
 func verifyAppServiceNotbound(appName, serviceName, org string) {
