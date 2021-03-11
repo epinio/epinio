@@ -151,3 +151,30 @@ func (s *CustomService) DeleteBinding(appName string) error {
 func (s *CustomService) Delete() error {
 	return s.kubeClient.DeleteSecret(deployments.WorkloadsDeploymentID, s.SecretName)
 }
+
+func (s *CustomService) Status() (string, error) {
+	return "Provisioned", nil
+}
+
+func (s *CustomService) WaitForProvision() error {
+	// Custom services provision instantly. No waiting
+	return nil
+}
+
+func (s *CustomService) Details() (map[string]string, error) {
+	serviceSecret, err := s.kubeClient.GetSecret(deployments.WorkloadsDeploymentID, s.SecretName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, errors.New("service does not exist")
+		}
+		return nil, err
+	}
+
+	details := map[string]string{}
+
+	for k, v := range serviceSecret.Data {
+		details[k] = string(v)
+	}
+
+	return details, nil
+}
