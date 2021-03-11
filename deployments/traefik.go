@@ -12,6 +12,7 @@ import (
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/kubernetes"
 	"github.com/suse/carrier/paas/ui"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -84,8 +85,34 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", TraefikDeploymentID)
 	}
+	message = "Waiting for Traefik namespace to be gone"
+	warning, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			var err error
+			for err == nil {
+				_, err = c.Kubectl.CoreV1().Namespaces().Get(
+					context.Background(),
+					TraefikDeploymentID,
+					metav1.GetOptions{},
+				)
+			}
+			if serr, ok := err.(*apierrors.StatusError); ok {
+				if serr.ErrStatus.Reason == metav1.StatusReasonNotFound {
+					return "", nil
+				}
+			}
 
-	ui.Success().Msg("Traefik removed")
+			return "", err
+		},
+	)
+	if err != nil {
+		return err
+	}
+	if warning != "" {
+		ui.Exclamation().Msg(warning)
+	} else {
+		ui.Success().Msg("Traefik removed")
+	}
 
 	return nil
 }
