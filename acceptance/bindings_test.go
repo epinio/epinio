@@ -26,10 +26,11 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(serviceName + `.*` + appName))
 
-			out, err = Carrier("apps", "")
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
-
+			Eventually(func() string {
+				out, err = Carrier("apps", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "1m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
 		})
 		AfterEach(func() {
 			// Delete app first, as this also unbinds the service
