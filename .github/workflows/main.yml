@@ -8,7 +8,7 @@ on:
 
 jobs:
   build-hosted:
-    if: github.repository == "SUSE/carrier"
+    if: github.repository == 'SUSE/carrier'
     runs-on: self-hosted
 
     steps:
@@ -44,7 +44,7 @@ jobs:
           make test-acceptance
 
   build-forks:
-    if: github.repository != "SUSE/carrier"
+    if: github.repository != 'SUSE/carrier'
     runs-on: ubuntu-latest
 
     steps:
