@@ -18,10 +18,9 @@ var _ = Describe("Carrier enable/disable features", func() {
 		})
 
 		It("enables minibroker services", func() {
-			out, err := Carrier("enable services-incluster", "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			setupInClusterServices()
 
-			out, err = helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
+			out, err := helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(`minibroker.*1/1.*Running`))
 		})

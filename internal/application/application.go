@@ -6,8 +6,10 @@ import (
 	"fmt"
 
 	"code.gitea.io/sdk/gitea"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/internal/interfaces"
+	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -26,12 +28,43 @@ type Application struct {
 type ApplicationList []Application
 
 func (a *Application) Delete() error {
-	// TODO: delete application
-	// NOTE: has to do the things client does, without UI messages!
-	// Hide the things (repo, hooks, whatnot, ...) from the user.
+	_, err := a.giteaClient.DeleteRepo(a.Organization, a.Name)
+
+	if err != nil {
+		return pkgerrors.Wrap(err, "failed to delete repository")
+	}
+
+	err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).
+		Delete(context.Background(), fmt.Sprintf("%s.%s", a.Organization, a.Name), metav1.DeleteOptions{})
+
+	if err != nil {
+		return pkgerrors.Wrap(err, "failed to delete application deployment")
+	}
+
 	return nil
 }
 
+// Services returns the set of services bound to the application.
+func (a *Application) Services() (interfaces.ServiceList, error) {
+	deployment, err := a.deployment()
+	if err != nil {
+		return nil, err
+	}
+
+	var bound = interfaces.ServiceList{}
+
+	for _, volume := range deployment.Spec.Template.Spec.Volumes {
+		service, err := services.Lookup(a.kubeClient, a.Organization, volume.Name)
+		if err != nil {
+			return nil, err
+		}
+		bound = append(bound, service)
+	}
+
+	return bound, nil
+}
+
+// Unbind dissolves the binding of the service to the application.
 func (a *Application) Unbind(service interfaces.Service) error {
 	deployment, err := a.deployment()
 	if err != nil {
@@ -91,6 +124,7 @@ func (a *Application) deployment() (*appsv1.Deployment, error) {
 	)
 }
 
+// Bind creates a binding of the service to the application.
 func (a *Application) Bind(service interfaces.Service) error {
 	bindSecret, err := service.GetBinding(a.Name)
 	if err != nil {
