@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    if: github.repository == "SUSE/carrier"
     runs-on: ubuntu-latest
 
     steps:
