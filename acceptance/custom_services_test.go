@@ -12,10 +12,15 @@ var _ = Describe("Custom Services", func() {
 		serviceName = newServiceName()
 		setupAndTargetOrg(org)
 	})
+
 	Describe("create-custom-service", func() {
+		// Note: Custom Services provision instantly.
+		// No testing of wait/don't wait required.
+
 		It("creates a custom service", func() {
 			makeCustomService(serviceName)
 		})
+
 		AfterEach(func() {
 			cleanupService(serviceName)
 		})
@@ -105,6 +110,24 @@ var _ = Describe("Custom Services", func() {
 
 		It("unbinds a service from the application deployment", func() {
 			unbindAppService(appName, serviceName, org)
+		})
+	})
+
+	Describe("service", func() {
+		BeforeEach(func() {
+			makeCustomService(serviceName)
+		})
+
+		It("it shows service details", func() {
+			out, err := Carrier("service "+serviceName, "")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Service Details"))
+			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))
+			Expect(out).To(MatchRegexp(`username .*\|.* carrier-user`))
+		})
+
+		AfterEach(func() {
+			cleanupService(serviceName)
 		})
 	})
 })

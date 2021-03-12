@@ -15,9 +15,14 @@ var _ = Describe("Catalog Services", func() {
 	})
 
 	Describe("create-service", func() {
-		It("creates a catalog based service", func() {
+		It("creates a catalog based service, with waiting", func() {
 			makeCatalogService(serviceName)
 		})
+
+		It("creates a catalog based service, without waiting", func() {
+			makeCatalogServiceDontWait(serviceName)
+		})
+
 		AfterEach(func() {
 			cleanupService(serviceName)
 		})
@@ -107,6 +112,25 @@ var _ = Describe("Catalog Services", func() {
 
 		It("unbinds a service from the application deployment", func() {
 			unbindAppService(appName, serviceName, org)
+		})
+	})
+
+	Describe("service", func() {
+		BeforeEach(func() {
+			makeCatalogService(serviceName)
+		})
+
+		It("it shows service details", func() {
+			out, err := Carrier("service "+serviceName, "")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Service Details"))
+			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))
+			Expect(out).To(MatchRegexp(`Class .*\|.* mariadb`))
+			Expect(out).To(MatchRegexp(`Plan .*\|.* 10-3-22`))
+		})
+
+		AfterEach(func() {
+			cleanupService(serviceName)
 		})
 	})
 })

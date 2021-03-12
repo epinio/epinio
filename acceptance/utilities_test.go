@@ -86,11 +86,37 @@ func makeCatalogService(serviceName string) {
 	out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	// And check presence
+	// Look for the messaging indicating that the command waited
+	Expect(out).To(MatchRegexp("Provisioning"))
+	Expect(out).To(MatchRegexp("Service Provisioned"))
+
+	// Check presence
 
 	out, err = Carrier("services", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
+}
+
+func makeCatalogServiceDontWait(serviceName string) {
+	out, err := Carrier(fmt.Sprintf("create-service --dont-wait %s mariadb 10-3-22", serviceName), "")
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// Look for indicator that command did not wait
+	Expect(out).To(MatchRegexp("to watch when it is provisioned"))
+
+	// Check presence
+
+	out, err = Carrier("services", "")
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp(serviceName))
+
+	// And explicitly wait for it being provisioned
+
+	Eventually(func() string {
+		out, err = Carrier("service "+serviceName, "")
+		Expect(err).ToNot(HaveOccurred(), out)
+		return out
+	}, "5m").Should(MatchRegexp(`Status .*\|.* Provisioned`))
 }
 
 func bindAppService(appName, serviceName, org string) {
