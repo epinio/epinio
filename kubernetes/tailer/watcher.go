@@ -47,7 +47,11 @@ func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp, con
 					return
 				}
 
-				pod := e.Object.(*corev1.Pod)
+				pod, ok := e.Object.(*corev1.Pod)
+				if !ok {
+					// Not a Pod
+					return
+				}
 
 				if !podFilter.MatchString(pod.Name) {
 					continue
