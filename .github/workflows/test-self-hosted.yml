@@ -14,7 +14,10 @@ jobs:
 
     steps:
       - name: malicious
-        run: echo "Here be dragons!"
+        run: |
+          echo "Actor ${{ github.actor }}"
+          echo "Repo ${{ github.repository }}"
+          echo "Owner ${{ github.repository_owner }}"
       - name: Checkout
         uses: actions/checkout@v2
       - name: Get all git tags
