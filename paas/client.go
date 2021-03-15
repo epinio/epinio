@@ -99,7 +99,7 @@ func (c *CarrierClient) Services() error {
 		Msg("Listing services")
 
 	details.Info("validate")
-	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to list services.")
 	if err != nil {
 		return err
 	}
