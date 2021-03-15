@@ -920,18 +920,22 @@ kind: Deployment
 metadata:
   name: "{{ .Org }}.{{ .AppName }}"
   labels:
-    carrier/app-guid:  "{{ .Org }}.{{ .AppName }}"
-    carrier/app-name: "{{ .AppName }}"
-    carrier/org: "{{ .Org }}"
+    app.kubernetes.io/name: "{{ .AppName }}"
+    app.kubernetes.io/part-of: "{{ .Org }}"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/managed-by: carrier
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: "{{ .AppName }}"
+      app.kubernetes.io/name: "{{ .AppName }}"
   template:
     metadata:
       labels:
-        app: "{{ .AppName }}"
+        app.kubernetes.io/name: "{{ .AppName }}"
+        app.kubernetes.io/part-of: "{{ .Org }}"
+        app.kubernetes.io/component: application
+        app.kubernetes.io/managed-by: carrier
         # Needed for the ingress extension to work:
         cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
       annotations:
