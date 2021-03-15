@@ -514,8 +514,8 @@ func (c *CarrierClient) Apps() error {
 		details.Info("kube get status", "App", app.Name)
 		status, err := c.kubeClient.DeploymentStatus(
 			deployments.WorkloadsDeploymentID,
-			fmt.Sprintf("carrier/app-guid=%s.%s", c.config.Org, app.Name),
-		)
+			fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
+				c.config.Org, app.Name))
 		if err != nil {
 			status = color.RedString(err.Error())
 		}
