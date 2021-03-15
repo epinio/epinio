@@ -32,14 +32,79 @@ type CatalogService struct {
 	kubeClient   *kubernetes.Cluster
 }
 
-// ServiceClass is a service class managedb y Service catalog
+// ServiceClass is a service class managed by Service catalog
 type ServiceClass struct {
+	Hash        string
 	Name        string
 	Broker      string
 	Description string
+	kubeClient  *kubernetes.Cluster
 }
 
 type ServiceClassList []ServiceClass
+
+// ServicePlan is a service plan managed by Service catalog
+type ServicePlan struct {
+	Name        string
+	Description string
+	Free        bool
+}
+
+type ServicePlanList []ServicePlan
+
+// ListPlans returns a ServicePlanList of all available catalog service plans, for the named class
+func (sc *ServiceClass) ListPlans() (ServicePlanList, error) {
+	servicePlanGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "clusterserviceplans",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(sc.kubeClient.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	labelSelector := fmt.Sprintf("servicecatalog.k8s.io/spec.clusterServiceClassRef.name=%s", sc.Hash)
+
+	servicePlans, err := dynamicClient.Resource(servicePlanGVR).
+		List(context.Background(),
+			metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := ServicePlanList{}
+
+	for _, servicePlan := range servicePlans.Items {
+		spec := servicePlan.Object["spec"].(map[string]interface{})
+
+		externalName := spec["externalName"].(string)
+		description := spec["description"].(string)
+		isAFreePlan := spec["free"].(bool)
+
+		result = append(result, ServicePlan{
+			Name:        externalName,
+			Description: description,
+			Free:        isAFreePlan,
+		})
+	}
+
+	return result, nil
+
+	// spec:
+	//   clusterServiceBrokerName: minibroker
+	//   clusterServiceClassRef:
+	//     name: mongodb
+	//   description: NoSQL document-oriented database that stores JSON-like documents with
+	//     dynamic schemas, simplifying the integration of data in content-driven applications.
+	//   externalID: mongodb-4-0-12
+	//   externalName: 4-0-12
+	//   free: true
+}
 
 // ListClasses returns a ServiceClassList of all available catalog service classes
 func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
@@ -72,35 +137,83 @@ func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
 		description := spec["description"].(string)
 		clusterServiceBrokerName := spec["clusterServiceBrokerName"].(string)
 
+		metadata := serviceClass.Object["metadata"].(map[string]interface{})
+
+		labels := metadata["labels"].(map[string]interface{})
+		hash := labels["servicecatalog.k8s.io/spec.externalID"].(string)
+
 		result = append(result, ServiceClass{
 			Name:        externalName,
 			Broker:      clusterServiceBrokerName,
 			Description: description,
+			Hash:        hash,
+			kubeClient:  kubeClient,
 		})
 	}
 
 	return result, nil
 
-	// minibroker
-	// spec:
-	//   bindable: true
-	//   bindingRetrievable: false
-	//   clusterServiceBrokerName: minibroker
-	//   description: Helm Chart for redis
-	//   externalID: redis
-	//   externalName: redis
-	//   planUpdatable: false
+	//	metadata:
+	//	  creationTimestamp: "2021-03-15T13:06:46Z"
+	//	  generation: 1
+	//	  labels:
+	//	    servicecatalog.k8s.io/spec.clusterServiceBrokerName: d42e833047334b72abd9b8d804264d4dc8077517a5ef767ee76ba44d
+	// *1	    servicecatalog.k8s.io/spec.externalID: 431ba23818d0e82e05612ddd029dfb1506d2f255d96205606e1ee464
+	//	    servicecatalog.k8s.io/spec.externalName: 431ba23818d0e82e05612ddd029dfb1506d2f255d96205606e1ee464
+	//	spec:
+	//	  bindable: true
+	//	  bindingRetrievable: false
+	// **	  clusterServiceBrokerName: minibroker
+	// **	  description: Helm Chart for redis
+	//	  externalID: redis
+	// **	  externalName: redis
+	//	  planUpdatable: false
+	//
+	// Ad *1: This hash is the value of the
+	// 	`servicecatalog.k8s.io/spec.clusterServiceClassRef.name`
+	// label of the assocoiated plans.
+}
 
-	// google
-	// spec:
-	//   bindable: true
-	//   bindingRetrievable: false
-	//   clusterServiceBrokerName: gcp-service-broker
-	//   description: Inspect the state of an app, at any code location, without stopping
-	//     or slowing it down.
-	//   externalID: 83837945-1547-41e0-b661-ea31d76eed11
-	//   externalName: google-stackdriver-debugger
-	//   planUpdatable: false
+func ClassLookup(kubeClient *kubernetes.Cluster, serviceClassName string) (*ServiceClass, error) {
+	serviceClassGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "clusterserviceclasses",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(kubeClient.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceClass, err := dynamicClient.Resource(serviceClassGVR).
+		Get(context.Background(), serviceClassName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	spec := serviceClass.Object["spec"].(map[string]interface{})
+
+	externalName := spec["externalName"].(string)
+	description := spec["description"].(string)
+	clusterServiceBrokerName := spec["clusterServiceBrokerName"].(string)
+
+	metadata := serviceClass.Object["metadata"].(map[string]interface{})
+
+	labels := metadata["labels"].(map[string]interface{})
+	hash := labels["servicecatalog.k8s.io/spec.externalID"].(string)
+
+	return &ServiceClass{
+		Name:        externalName,
+		Broker:      clusterServiceBrokerName,
+		Description: description,
+		Hash:        hash,
+		kubeClient:  kubeClient,
+	}, nil
 }
 
 // CatalogServiceList returns a ServiceList of all available catalog Services
