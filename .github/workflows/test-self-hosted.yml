@@ -5,20 +5,18 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+    types: [ labeled ]
 
 jobs:
-  build:
+  safe_to_test:
     runs-on: self-hosted
+    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Get all git tags
         run: git fetch --prune --unshallow --tags
-      - name: Setup Go for Building
-        uses: actions/setup-go@v2
-        with:
-          go-version: '^1.13.7'
       - name: Setup Ginkgo Test Framework
         run: go get -u github.com/onsi/ginkgo/ginkgo
       - name: Cache Tools
