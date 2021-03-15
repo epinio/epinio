@@ -169,7 +169,6 @@ func (c *CarrierClient) ServiceClasses() error {
 	c.ui.Note().
 		Msg("Listing service classes")
 
-	details.Info("validate")
 	serviceClasses, err := services.ListClasses(c.kubeClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to list service classes")
@@ -177,7 +176,7 @@ func (c *CarrierClient) ServiceClasses() error {
 
 	// todo: sort service classes by name before display
 
-	details.Info("list service secrets")
+	details.Info("list service classes")
 
 	msg := c.ui.Success().WithTable("Name", "Description", "Broker")
 	for _, sc := range serviceClasses {
@@ -244,7 +243,7 @@ func (c *CarrierClient) Services() error {
 
 	// todo: sort services by name before display
 
-	details.Info("list service secrets")
+	details.Info("list services")
 
 	msg := c.ui.Success().WithTable("Name", "Applications")
 	for _, s := range orgServices {
@@ -695,7 +694,7 @@ func (c *CarrierClient) Apps() error {
 		return err
 	}
 
-	details.Info("gitea list org repos")
+	details.Info("list applications")
 	apps, err := application.List(c.kubeClient, c.giteaClient, c.config.Org)
 	if err != nil {
 		return errors.Wrap(err, "failed to list apps")
@@ -954,7 +953,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 	defer stopFunc()
 
-	details.Info("wait for apps")
+	details.Info("wait for app")
 	err = c.waitForApp(c.config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
