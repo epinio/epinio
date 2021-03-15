@@ -3,7 +3,9 @@ package services
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/internal/duration"
@@ -15,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -317,4 +320,78 @@ func (s *CatalogService) Delete() error {
 
 	return dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
 		Delete(context.Background(), s.InstanceName, metav1.DeleteOptions{})
+}
+
+func (s *CatalogService) Status() (string, error) {
+	serviceInstanceGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "serviceinstances",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(s.kubeClient.RestConfig)
+	if err != nil {
+		return "", err
+	}
+
+	serviceInstance, err := dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+		Get(context.Background(), s.InstanceName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return "Not Found", nil
+		} else {
+			return "", err
+		}
+	}
+
+	status := serviceInstance.Object["status"].(map[string]interface{})
+	provisioned := status["provisionStatus"].(string)
+
+	return provisioned, nil
+}
+
+func (s *CatalogService) WaitForProvision() error {
+	serviceInstanceGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "serviceinstances",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(s.kubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	namespace := dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID)
+
+	return wait.PollImmediate(time.Second, duration.ToServiceProvision(), func() (bool, error) {
+		serviceInstance, err := namespace.Get(context.Background(), s.InstanceName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, errors.New("Not Found")
+			}
+			return false, err
+		}
+
+		status, ok := serviceInstance.Object["status"].(map[string]interface{})
+		if !ok {
+			return false, nil
+		}
+
+		provisioned, ok := status["provisionStatus"].(string)
+		if !ok {
+			return false, nil
+		}
+
+		return provisioned == "Provisioned", nil
+	})
+}
+
+func (s *CatalogService) Details() (map[string]string, error) {
+	details := map[string]string{}
+
+	details["Class"] = s.Class
+	details["Plan"] = s.Plan
+
+	return details, nil
 }
