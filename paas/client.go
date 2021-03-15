@@ -514,8 +514,8 @@ func (c *CarrierClient) Apps() error {
 		details.Info("kube get status", "App", app.Name)
 		status, err := c.kubeClient.DeploymentStatus(
 			deployments.WorkloadsDeploymentID,
-			fmt.Sprintf("carrier/app-guid=%s.%s", c.config.Org, app.Name),
-		)
+			fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
+				c.config.Org, app.Name))
 		if err != nil {
 			status = color.RedString(err.Error())
 		}
@@ -920,24 +920,30 @@ kind: Deployment
 metadata:
   name: "{{ .Org }}.{{ .AppName }}"
   labels:
-    carrier/app-guid:  "{{ .Org }}.{{ .AppName }}"
-    carrier/app-name: "{{ .AppName }}"
-    carrier/org: "{{ .Org }}"
+    app.kubernetes.io/name: "{{ .AppName }}"
+    app.kubernetes.io/part-of: "{{ .Org }}"
+    app.kubernetes.io/component: application
+    app.kubernetes.io/managed-by: carrier
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: "{{ .AppName }}"
+      app.kubernetes.io/name: "{{ .AppName }}"
   template:
     metadata:
       labels:
-        app: "{{ .AppName }}"
+        app.kubernetes.io/name: "{{ .AppName }}"
+        app.kubernetes.io/part-of: "{{ .Org }}"
+        app.kubernetes.io/component: application
+        app.kubernetes.io/managed-by: carrier
         # Needed for the ingress extension to work:
         cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
       annotations:
         # Needed for the ingress extension to work:
         cloudfoundry.org/routes: '[{ "hostname": "{{ .Route}}", "port": 8080 }]'
         cloudfoundry.org/application_name:  "{{ .AppName }}"
+        # Needed for putting kubernetes generic labels on svc and ingress
+        eirinix.suse.org/CopyKubeGenericLabels: "true"
     spec:
       serviceAccountName: ` + deployments.WorkloadsDeploymentID + `
       automountServiceAccountToken: false
