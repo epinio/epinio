@@ -70,6 +70,7 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdUnbindService)
 	rootCmd.AddCommand(client.CmdServices)
 	rootCmd.AddCommand(client.CmdService)
+	rootCmd.AddCommand(client.CmdServiceClasses)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

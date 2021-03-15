@@ -32,6 +32,77 @@ type CatalogService struct {
 	kubeClient   *kubernetes.Cluster
 }
 
+// ServiceClass is a service class managedb y Service catalog
+type ServiceClass struct {
+	Name        string
+	Broker      string
+	Description string
+}
+
+type ServiceClassList []ServiceClass
+
+// ListClasses returns a ServiceClassList of all available catalog service classes
+func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
+
+	serviceClassGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "clusterserviceclasses",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(kubeClient.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceClasses, err := dynamicClient.Resource(serviceClassGVR).
+		List(context.Background(),
+			metav1.ListOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	result := ServiceClassList{}
+
+	for _, serviceClass := range serviceClasses.Items {
+		spec := serviceClass.Object["spec"].(map[string]interface{})
+
+		externalName := spec["externalName"].(string)
+		description := spec["description"].(string)
+		clusterServiceBrokerName := spec["clusterServiceBrokerName"].(string)
+
+		result = append(result, ServiceClass{
+			Name:        externalName,
+			Broker:      clusterServiceBrokerName,
+			Description: description,
+		})
+	}
+
+	return result, nil
+
+	// minibroker
+	// spec:
+	//   bindable: true
+	//   bindingRetrievable: false
+	//   clusterServiceBrokerName: minibroker
+	//   description: Helm Chart for redis
+	//   externalID: redis
+	//   externalName: redis
+	//   planUpdatable: false
+
+	// google
+	// spec:
+	//   bindable: true
+	//   bindingRetrievable: false
+	//   clusterServiceBrokerName: gcp-service-broker
+	//   description: Inspect the state of an app, at any code location, without stopping
+	//     or slowing it down.
+	//   externalID: 83837945-1547-41e0-b661-ea31d76eed11
+	//   externalName: google-stackdriver-debugger
+	//   planUpdatable: false
+}
+
 // CatalogServiceList returns a ServiceList of all available catalog Services
 func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", org)

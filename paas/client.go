@@ -87,6 +87,35 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 	}, nil
 }
 
+// ServiceClasses gets all service classes in the cluster
+func (c *CarrierClient) ServiceClasses() error {
+	log := c.Log.WithName("ServiceClasses")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		Msg("Listing service classes")
+
+	details.Info("validate")
+	serviceClasses, err := services.ListClasses(c.kubeClient)
+	if err != nil {
+		return errors.Wrap(err, "failed to list service classes")
+	}
+
+	// todo: sort service classes by name before display
+
+	details.Info("list service secrets")
+
+	msg := c.ui.Success().WithTable("Name", "Description", "Broker")
+	for _, sc := range serviceClasses {
+		msg = msg.WithTableRow(sc.Name, sc.Description, sc.Broker)
+	}
+	msg.Msg("Carrier Service Classes:")
+
+	return nil
+}
+
 // Services gets all Carrier services in the targeted org
 func (c *CarrierClient) Services() error {
 	log := c.Log.WithName("Services").WithValues("Organization", c.config.Org)
