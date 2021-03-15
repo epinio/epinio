@@ -33,7 +33,7 @@ compress:
 test: lint
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
-GINKGO_NODES ?= 2
+GINKGO_NODES ?= 4
 test-acceptance:
 	ginkgo -nodes ${GINKGO_NODES} -stream acceptance/.
 
