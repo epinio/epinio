@@ -942,6 +942,8 @@ spec:
         # Needed for the ingress extension to work:
         cloudfoundry.org/routes: '[{ "hostname": "{{ .Route}}", "port": 8080 }]'
         cloudfoundry.org/application_name:  "{{ .AppName }}"
+        # Needed for putting kubernetes generic labels on svc and ingress
+        eirinix.suse.org/CopyKubeGenericLabels: "true"
     spec:
       serviceAccountName: ` + deployments.WorkloadsDeploymentID + `
       automountServiceAccountToken: false
