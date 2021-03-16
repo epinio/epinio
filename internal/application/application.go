@@ -178,14 +178,17 @@ func (a *Application) Bind(service interfaces.Service) error {
 			metav1.UpdateOptions{},
 		)
 
-		if err == nil || !apierrors.IsConflict(err) {
+		if err == nil {
+			break
+		}
+		if !apierrors.IsConflict(err) {
 			return err
 		}
 
 		// Found a conflict. Try again from the beginning.
 	}
 
-	// Not reachable
+	return nil
 }
 
 // Lookup locates an Application by org and name
