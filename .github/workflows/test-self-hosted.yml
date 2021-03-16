@@ -10,7 +10,7 @@ on:
 jobs:
   safe_to_test_again:
     runs-on: self-hosted
-    if: contains(["kkaempf", "jimmikarily", "andreas-kupries", "rohitsakala", "svollath", "thardeck"], ${{ github.actor }})
+    if: contains(["kkaempf", "jimmikarily", "andreas-kupries", "rohitsakala", "svollath", "thardeck"], "${{ github.actor }}")
 
     steps:
       - name: Checkout
