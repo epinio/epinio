@@ -13,6 +13,7 @@ import (
 	"github.com/suse/carrier/kubernetes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -66,50 +67,57 @@ func (a *Application) Services() (interfaces.ServiceList, error) {
 
 // Unbind dissolves the binding of the service to the application.
 func (a *Application) Unbind(service interfaces.Service) error {
-	deployment, err := a.deployment()
-	if err != nil {
-		return err
-	}
-
-	volumes := deployment.Spec.Template.Spec.Volumes
-	newVolumes := []corev1.Volume{}
-	found := false
-	for _, volume := range volumes {
-		if volume.Name == service.Name() {
-			found = true
-		} else {
-			newVolumes = append(newVolumes, volume)
+	for {
+		deployment, err := a.deployment()
+		if err != nil {
+			return err
 		}
-	}
-	if !found {
-		return errors.New("service is not bound to the application")
-	}
 
-	// TODO: Iterate over containers and find the one matching the app name
-	volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
-	newVolumeMounts := []corev1.VolumeMount{}
-	found = false
-	for _, mount := range volumeMounts {
-		if mount.Name == service.Name() {
-			found = true
-		} else {
-			newVolumeMounts = append(newVolumeMounts, mount)
+		volumes := deployment.Spec.Template.Spec.Volumes
+		newVolumes := []corev1.Volume{}
+		found := false
+		for _, volume := range volumes {
+			if volume.Name == service.Name() {
+				found = true
+			} else {
+				newVolumes = append(newVolumes, volume)
+			}
 		}
-	}
-	if !found {
-		return errors.New("service is not bound to the application")
-	}
+		if !found {
+			return errors.New("service is not bound to the application")
+		}
 
-	deployment.Spec.Template.Spec.Volumes = newVolumes
-	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newVolumeMounts
+		// TODO: Iterate over containers and find the one matching the app name
+		volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
+		newVolumeMounts := []corev1.VolumeMount{}
+		found = false
+		for _, mount := range volumeMounts {
+			if mount.Name == service.Name() {
+				found = true
+			} else {
+				newVolumeMounts = append(newVolumeMounts, mount)
+			}
+		}
+		if !found {
+			return errors.New("service is not bound to the application")
+		}
 
-	_, err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
-		context.Background(),
-		deployment,
-		metav1.UpdateOptions{},
-	)
-	if err != nil {
-		return err
+		deployment.Spec.Template.Spec.Volumes = newVolumes
+		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newVolumeMounts
+
+		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
+			context.Background(),
+			deployment,
+			metav1.UpdateOptions{},
+		)
+		if err == nil {
+			break
+		}
+		if !apierrors.IsConflict(err) {
+			return err
+		}
+
+		// Found a conflict. Try again from the beginning.
 	}
 
 	// delete binding - DeleteBinding(a.Name)
@@ -131,44 +139,53 @@ func (a *Application) Bind(service interfaces.Service) error {
 		return err
 	}
 
-	deployment, err := a.deployment()
-	if err != nil {
-		return err
-	}
-
-	volumes := deployment.Spec.Template.Spec.Volumes
-
-	for _, volume := range volumes {
-		if volume.Name == service.Name() {
-			return errors.New("service already bound")
+	for {
+		deployment, err := a.deployment()
+		if err != nil {
+			return err
 		}
+
+		volumes := deployment.Spec.Template.Spec.Volumes
+
+		for _, volume := range volumes {
+			if volume.Name == service.Name() {
+				return errors.New("service already bound")
+			}
+		}
+
+		volumes = append(volumes, corev1.Volume{
+			Name: service.Name(),
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: bindSecret.Name,
+				},
+			},
+		})
+		// TODO: Iterate over containers and find the one matching the app name
+		volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      service.Name(),
+			ReadOnly:  true,
+			MountPath: fmt.Sprintf("/services/%s", service.Name()),
+		})
+
+		deployment.Spec.Template.Spec.Volumes = volumes
+		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
+
+		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
+			context.Background(),
+			deployment,
+			metav1.UpdateOptions{},
+		)
+
+		if err == nil || !apierrors.IsConflict(err) {
+			return err
+		}
+
+		// Found a conflict. Try again from the beginning.
 	}
 
-	volumes = append(volumes, corev1.Volume{
-		Name: service.Name(),
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: bindSecret.Name,
-			},
-		},
-	})
-	// TODO: Iterate over containers and find the one matching the app name
-	volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
-	volumeMounts = append(volumeMounts, corev1.VolumeMount{
-		Name:      service.Name(),
-		ReadOnly:  true,
-		MountPath: fmt.Sprintf("/services/%s", service.Name()),
-	})
-
-	deployment.Spec.Template.Spec.Volumes = volumes
-	deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
-
-	_, err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
-		context.Background(),
-		deployment,
-		metav1.UpdateOptions{},
-	)
-	return err
+	// Not reachable
 }
 
 // Lookup locates an Application by org and name
