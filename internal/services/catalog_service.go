@@ -208,7 +208,7 @@ func (s *CatalogService) GetBinding(appName string) (*corev1.Secret, error) {
 		return nil, err
 	}
 	if binding == nil {
-		_, err = s.CreateBinding(bindingName, s.OrgName, s.Service)
+		_, err = s.CreateBinding(bindingName, s.OrgName, s.Service, appName)
 		if err != nil {
 			return nil, err
 		}
@@ -245,17 +245,27 @@ func (s *CatalogService) LookupBinding(bindingName string) (interface{}, error) 
 }
 
 // CreateBinding creates a ServiceBinding for the application with name appName.
-func (s *CatalogService) CreateBinding(bindingName, org, serviceName string) (interface{}, error) {
+func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName string) (interface{}, error) {
 	serviceInstanceName := serviceResourceName(org, serviceName)
 
 	data := fmt.Sprintf(`{
 		"apiVersion": "servicecatalog.k8s.io/v1beta1",
 		"kind": "ServiceBinding",
-		"metadata": { "name": "%s", "namespace": "%s" },
+		"metadata": { 
+			"name": "%s", 
+			"namespace": "%s",
+		    "labels": { 
+				"app.kubernetes.io/name": "%s",
+				"app.kubernetes.io/part-of": "%s",
+				"app.kubernetes.io/component": "servicebinding",
+				"app.kubernetes.io/managed-by": "carrier"
+			}
+		},
 		"spec": {
-				"instanceRef": { "name": "%s" },
-				"secretName": "%s" }
-	}`, bindingName, deployments.WorkloadsDeploymentID, serviceInstanceName, bindingName)
+			"instanceRef": { "name": "%s" },
+			"secretName": "%s" 
+		}
+	}`, bindingName, deployments.WorkloadsDeploymentID, appName, org, serviceInstanceName, bindingName)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -275,8 +285,34 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName string) (in
 		return nil, err
 	}
 
-	return dynamicClient.Resource(serviceBindingGVR).Namespace(deployments.WorkloadsDeploymentID).
+	serviceBinding, err := dynamicClient.Resource(serviceBindingGVR).Namespace(deployments.WorkloadsDeploymentID).
 		Create(context.Background(), obj, metav1.CreateOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Update the binding secret with kubernetes app labels
+	secret, err := s.GetBindingSecret(bindingName)
+	if err != nil {
+		return nil, err
+	}
+
+	labels := secret.GetLabels()
+	if labels == nil {
+		labels = map[string]string{}
+	}
+	labels["app.kubernetes.io/name"] = appName
+	labels["app.kubernetes.io/part-of"] = org
+	labels["app.kubernetes.io/component"] = "servicebindingsecret"
+	labels["app.kubernetes.io/managed-by"] = "carrier"
+	secret.SetLabels(labels)
+
+	_, err = s.kubeClient.Kubectl.CoreV1().Secrets(deployments.WorkloadsDeploymentID).Update(context.Background(), secret, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return serviceBinding, nil
 }
 
 // GetBindingSecret returns the Secret that represents the binding of a Service
