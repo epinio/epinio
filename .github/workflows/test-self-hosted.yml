@@ -10,7 +10,7 @@ on:
 jobs:
   safe_to_test_again:
     runs-on: self-hosted
-    if: contains(github.event.pull_request.labels.*.name, 'safe to test')
+    if: contains(["kkaempf", "jimmikarily", "andreas-kupries", "rohitsakala", "svollath", "thardeck"], ${{ github.actor }})
 
     steps:
       - name: Checkout
