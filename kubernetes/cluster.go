@@ -17,6 +17,7 @@ import (
 	minikube "github.com/suse/carrier/kubernetes/platform/minikube"
 	"github.com/suse/carrier/paas/ui"
 
+	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
+	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
@@ -144,6 +146,24 @@ func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
 	}
 }
 
+// IsJobCompleted returns a condition function that indicates whether the given
+// Job is in Completed state.
+func (c *Cluster) IsJobCompleted(client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
+	return func() (bool, error) {
+		job, err := client.Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		for _, condition := range job.Status.Conditions {
+			if condition.Type == apibatchv1.JobComplete && condition.Status == v1.ConditionTrue {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+}
+
 func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
 		podList, err := c.ListPods(namespace, selector)
@@ -230,6 +250,14 @@ func (c *Cluster) WaitForSecret(namespace, secretName string, timeout time.Durat
 // Returns an error if the pod never enters the running state.
 func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
 	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(podName, namespace))
+}
+
+func (c *Cluster) WaitForJobCompleted(namespace, jobName string, timeout time.Duration) error {
+	client, err := typedbatchv1.NewForConfig(c.RestConfig)
+	if err != nil {
+		return err
+	}
+	return wait.PollImmediate(time.Second, timeout, c.IsJobCompleted(client, jobName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector

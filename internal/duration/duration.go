@@ -15,7 +15,8 @@ const (
 	serviceSecret    = 5 * time.Minute
 	serviceProvision = 5 * time.Minute
 	podReady         = 5 * time.Minute
-	appBuilt         = 33 * time.Minute
+	appBuilt         = 10 * time.Minute
+	warmupJobReady   = 30 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	pollInterval = 3 * time.Second
@@ -45,6 +46,13 @@ func ToAppBuilt() time.Duration {
 // a system domain
 func ToPodReady() time.Duration {
 	return Multiplier() * podReady
+}
+
+// ToWarmupJobReady return the duration to wait until the builder image
+// warm up job is Complete. The time it takes for that Job to complete depends
+// on the network speed of the cluster so be generous here.
+func ToWarmupJobReady() time.Duration {
+	return Multiplier() * warmupJobReady
 }
 
 // ToSystemDomain returns the duration to wait until giving on getting

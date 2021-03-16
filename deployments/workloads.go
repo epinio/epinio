@@ -8,11 +8,14 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	"github.com/suse/carrier/paas/ui"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 )
 
 type Workloads struct {
@@ -120,6 +123,13 @@ func (k Workloads) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.I
 	if err != nil {
 		return err
 	}
+
+	s := ui.Progress("Warming up cluster with builder image")
+	err = k.warmupBuilder(c)
+	if err != nil {
+		return err
+	}
+	s.Stop()
 
 	return nil
 }
@@ -271,4 +281,43 @@ func (w Workloads) createWorkloadsServiceAccountWithSecretAccess(c *kubernetes.C
 		}, metav1.CreateOptions{})
 
 	return err
+}
+
+// This function creates a dummy Job using the buildpack builder image
+// in order to avoid pulling it the first time we an application is staged.
+func (w Workloads) warmupBuilder(c *kubernetes.Cluster) error {
+	client, err := typedbatchv1.NewForConfig(c.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	jobName := "buildpack-builder-warmup"
+	var backoffLimit = int32(1)
+	if _, err = client.Jobs(WorkloadsDeploymentID).Create(
+		context.Background(),
+		&batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: jobName,
+				Labels: map[string]string{
+					kubernetes.CarrierDeploymentLabelKey: kubernetes.CarrierDeploymentLabelValue,
+				},
+			},
+			Spec: batchv1.JobSpec{
+				BackoffLimit: &backoffLimit,
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:    "warmup",
+								Image:   "quay.io/asgardtech/paketobuildpacks-builder:full-cf", // TODO: DRY this
+								Command: []string{"/bin/ls"},
+							}},
+						RestartPolicy: "Never",
+					}}}},
+		metav1.CreateOptions{},
+	); err != nil {
+		return err
+	}
+
+	return c.WaitForJobCompleted(WorkloadsDeploymentID, jobName, duration.ToWarmupJobReady())
 }
