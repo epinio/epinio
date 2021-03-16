@@ -256,7 +256,7 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 			"namespace": "%s",
 		    "labels": { 
 				"app.kubernetes.io/name": "%s",
-				"app.kubernetesio/part-of": "%s",
+				"app.kubernetes.io/part-of": "%s",
 				"app.kubernetes.io/component": "servicebinding",
 				"app.kubernetes.io/managed-by": "carrier"
 			}
@@ -302,7 +302,7 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 		labels = map[string]string{}
 	}
 	labels["app.kubernetes.io/name"] = appName
-	labels["app.kubernetesio/part-of"] = org
+	labels["app.kubernetes.io/part-of"] = org
 	labels["app.kubernetes.io/component"] = "servicebindingsecret"
 	labels["app.kubernetes.io/managed-by"] = "carrier"
 	secret.SetLabels(labels)
