@@ -22,8 +22,12 @@ type Quarks struct {
 
 const (
 	QuarksDeploymentID = "quarks"
-	quarksVersion      = "6.1.17+0.gec409fd7"
-	quarksChartURL     = "https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-0.0.755-ge100fdc.tgz"
+	quarksVersion      = "1.0.760"
+)
+
+var (
+	quarksChartURL     = fmt.Sprintf("https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-%s.tgz", quarksVersion)
+	quarksLiteImageTag = fmt.Sprintf("v%s-lite", quarksVersion) // Use the "lite" version of the image.
 )
 
 func (k *Quarks) ID() string {
@@ -108,7 +112,9 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	currentdir, _ := os.Getwd()
 
 	// Setup Quarks helm values
-	var helmArgs []string
+	var helmArgs = []string{
+		"--set image.tag=" + quarksLiteImageTag,
+	}
 
 	helmArgs = append(helmArgs, "--set global.monitoredID=quarks-secret")
 

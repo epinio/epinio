@@ -87,6 +87,138 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 	}, nil
 }
 
+// ServicePlans gets all service classes in the cluster, for the
+// specified class
+func (c *CarrierClient) ServicePlans(serviceClassName string) error {
+	log := c.Log.WithName("ServicePlans").WithValues("ServiceClass", serviceClassName)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		Msg("Listing service plans")
+
+	serviceClass, err := services.ClassLookup(c.kubeClient, serviceClassName)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	if serviceClass == nil {
+		c.ui.Exclamation().Msg("Service Class does not exist")
+		return nil
+	}
+
+	servicePlans, err := serviceClass.ListPlans()
+	if err != nil {
+		return errors.Wrap(err, "failed to list service plans")
+	}
+
+	// todo: sort service plans by name before display
+
+	details.Info("list service plans")
+
+	msg := c.ui.Success().WithTable("Plan", "Free", "Description")
+	for _, sp := range servicePlans {
+		var isFree string
+		if sp.Free {
+			isFree = "yes"
+		} else {
+			isFree = "no"
+		}
+		msg = msg.WithTableRow(sp.Name, isFree, sp.Description)
+	}
+	msg.Msg("Carrier Service Plans:")
+
+	return nil
+}
+
+// ServicePlanMatching gets all service plans in the cluster, for the
+// specified class, and the given prefix
+func (c *CarrierClient) ServicePlanMatching(serviceClassName, prefix string) []string {
+	log := c.Log.WithName("ServicePlans").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	result := []string{}
+
+	serviceClass, err := services.ClassLookup(c.kubeClient, serviceClassName)
+	if err != nil {
+		return result
+	}
+
+	servicePlans, err := serviceClass.ListPlans()
+	if err != nil {
+		return result
+	}
+
+	for _, sp := range servicePlans {
+		details.Info("Found", "Name", sp.Name)
+		if strings.HasPrefix(sp.Name, prefix) {
+			details.Info("Matched", "Name", sp.Name)
+			result = append(result, sp.Name)
+		}
+	}
+
+	return result
+}
+
+// ServiceClasses gets all service classes in the cluster
+func (c *CarrierClient) ServiceClasses() error {
+	log := c.Log.WithName("ServiceClasses")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		Msg("Listing service classes")
+
+	serviceClasses, err := services.ListClasses(c.kubeClient)
+	if err != nil {
+		return errors.Wrap(err, "failed to list service classes")
+	}
+
+	// todo: sort service classes by name before display
+
+	details.Info("list service classes")
+
+	msg := c.ui.Success().WithTable("Name", "Description", "Broker")
+	for _, sc := range serviceClasses {
+		msg = msg.WithTableRow(sc.Name, sc.Description, sc.Broker)
+	}
+	msg.Msg("Carrier Service Classes:")
+
+	return nil
+}
+
+// ServiceClassMatching returns all service classes in the cluster which have the specified prefix in their name
+func (c *CarrierClient) ServiceClassMatching(prefix string) []string {
+	log := c.Log.WithName("ServiceClasses").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	result := []string{}
+
+	serviceClasses, err := services.ListClasses(c.kubeClient)
+	if err != nil {
+		details.Info("Error", err)
+		return result
+	}
+
+	details.Info("Filtering")
+	for _, sc := range serviceClasses {
+		details.Info("Found", "Name", sc.Name)
+		if strings.HasPrefix(sc.Name, prefix) {
+			details.Info("Matched", "Name", sc.Name)
+			result = append(result, sc.Name)
+		}
+	}
+
+	return result
+}
+
 // Services gets all Carrier services in the targeted org
 func (c *CarrierClient) Services() error {
 	log := c.Log.WithName("Services").WithValues("Organization", c.config.Org)
@@ -99,7 +231,7 @@ func (c *CarrierClient) Services() error {
 		Msg("Listing services")
 
 	details.Info("validate")
-	err := c.ensureGoodOrg(c.config.Org, "Unable to list applications.")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to list services.")
 	if err != nil {
 		return err
 	}
@@ -116,7 +248,7 @@ func (c *CarrierClient) Services() error {
 
 	// todo: sort services by name before display
 
-	details.Info("list service secrets")
+	details.Info("list services")
 
 	msg := c.ui.Success().WithTable("Name", "Applications")
 	for _, s := range orgServices {
@@ -567,7 +699,7 @@ func (c *CarrierClient) Apps() error {
 		return err
 	}
 
-	details.Info("gitea list org repos")
+	details.Info("list applications")
 	apps, err := application.List(c.kubeClient, c.giteaClient, c.config.Org)
 	if err != nil {
 		return errors.Wrap(err, "failed to list apps")
@@ -826,7 +958,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 	defer stopFunc()
 
-	details.Info("wait for apps")
+	details.Info("wait for app")
 	err = c.waitForApp(c.config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
