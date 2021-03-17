@@ -49,9 +49,15 @@ func setupInClusterServices() {
 	out, err := Carrier("enable services-incluster", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	// Wait until plans appear
+	// Wait until classes appear
 	Eventually(func() error {
 		_, err = helpers.Kubectl("get clusterserviceclass mariadb")
+		return err
+	}, "5m").ShouldNot(HaveOccurred())
+
+	// Wait until plans appear
+	Eventually(func() error {
+		_, err = helpers.Kubectl("get clusterserviceplan mariadb-10-3-22")
 		return err
 	}, "5m").ShouldNot(HaveOccurred())
 }
