@@ -166,81 +166,50 @@ func ClassLookup(kubeClient *kubernetes.Cluster, serviceClassName string) (*Serv
 		return nil, err
 	}
 
-	serviceClass, err := dynamicClient.Resource(serviceClassGVR).
-		Get(context.Background(), serviceClassName, metav1.GetOptions{})
+	// We always list and then filter for the external name of the
+	// class.  See `ListClasses` above on why.
+	//
+	// Note that there are no labels enabling easy filtering by
+	// kube itself, so it is done here in code. Like
+	// `ServiceClassMatching` (pass/client.go), just for exact
+	// match.
+
+	serviceClasses, err := dynamicClient.Resource(serviceClassGVR).
+		List(context.Background(),
+			metav1.ListOptions{})
+
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			// We are not done yet. Not having found the
-			// class with that name we may find it through
-			// its external name. While for minibroker the
-			// two are same, for the google broker the
-			// regular name is an unfriendly hash/uuid,
-			// while the external-name is friendly.
-			//
-			// Nothing in the labels for easy filtering by
-			// kube, so it is done here in code. Like
-			// `ServiceClassMatching` (pass/client.go),
-			// just for exact match.
-
-			serviceClasses, err := dynamicClient.Resource(serviceClassGVR).
-				List(context.Background(),
-					metav1.ListOptions{})
-
-			if err != nil {
-				return nil, err
-			}
-
-			for _, serviceClass := range serviceClasses.Items {
-				spec := serviceClass.Object["spec"].(map[string]interface{})
-
-				externalName := spec["externalName"].(string)
-
-				if externalName != serviceClassName {
-					continue
-				}
-
-				description := spec["description"].(string)
-				clusterServiceBrokerName := spec["clusterServiceBrokerName"].(string)
-
-				metadata := serviceClass.Object["metadata"].(map[string]interface{})
-
-				labels := metadata["labels"].(map[string]interface{})
-				hash := labels["servicecatalog.k8s.io/spec.externalID"].(string)
-
-				return &ServiceClass{
-					Name:        externalName,
-					Broker:      clusterServiceBrokerName,
-					Description: description,
-					Hash:        hash,
-					kubeClient:  kubeClient,
-				}, nil
-			}
-
-			// Not found via external-name either. Giving up.
-			return nil, nil
-		} else {
-			return nil, err
-		}
+		return nil, err
 	}
 
-	spec := serviceClass.Object["spec"].(map[string]interface{})
+	for _, serviceClass := range serviceClasses.Items {
+		spec := serviceClass.Object["spec"].(map[string]interface{})
 
-	externalName := spec["externalName"].(string)
-	description := spec["description"].(string)
-	clusterServiceBrokerName := spec["clusterServiceBrokerName"].(string)
+		externalName := spec["externalName"].(string)
 
-	metadata := serviceClass.Object["metadata"].(map[string]interface{})
+		if externalName != serviceClassName {
+			continue
+		}
 
-	labels := metadata["labels"].(map[string]interface{})
-	hash := labels["servicecatalog.k8s.io/spec.externalID"].(string)
+		description := spec["description"].(string)
+		clusterServiceBrokerName := spec["clusterServiceBrokerName"].(string)
 
-	return &ServiceClass{
-		Name:        externalName,
-		Broker:      clusterServiceBrokerName,
-		Description: description,
-		Hash:        hash,
-		kubeClient:  kubeClient,
-	}, nil
+		metadata := serviceClass.Object["metadata"].(map[string]interface{})
+
+		labels := metadata["labels"].(map[string]interface{})
+		hash := labels["servicecatalog.k8s.io/spec.externalID"].(string)
+
+		return &ServiceClass{
+			Name:        externalName,
+			Broker:      clusterServiceBrokerName,
+			Description: description,
+			Hash:        hash,
+			kubeClient:  kubeClient,
+		}, nil
+	}
+
+	// Not found
+	return nil, nil
 }
 
 // CatalogServiceList returns a ServiceList of all available catalog Services
