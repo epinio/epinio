@@ -40,28 +40,24 @@ var CmdUnbindService = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		if len(args) == 1 {
-			// #args == 1: app name.
-			app, cleanup, _ := paas.NewCarrierClient(cmd.Flags())
-			defer func() {
-				if cleanup != nil {
-					cleanup()
-				}
-			}()
-
-			matches := app.AppsMatching(toComplete)
-			return matches, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		// #args == 0: service name.
-
-		app, cleanup, _ := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
 			}
 		}()
 
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		if len(args) == 1 {
+			// #args == 1: app name.
+			matches := app.AppsMatching(toComplete)
+			return matches, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		// #args == 0: service name.
 		matches := app.ServiceMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp

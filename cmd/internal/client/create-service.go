@@ -58,37 +58,30 @@ var CmdCreateService = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
+		if len(args) == 0 {
+			// #args == 0: service name. new. nothing to match
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		defer func() {
+			if cleanup != nil {
+				cleanup()
+			}
+		}()
+
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
 		if len(args) == 2 {
 			// #args == 2: service plan name.
-
-			app, cleanup, _ := paas.NewCarrierClient(cmd.Flags())
-			defer func() {
-				if cleanup != nil {
-					cleanup()
-				}
-			}()
-
 			matches := app.ServicePlanMatching(args[1], toComplete)
-
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		if len(args) == 1 {
-			// #args == 2: service class name.
-
-			app, cleanup, _ := paas.NewCarrierClient(cmd.Flags())
-			defer func() {
-				if cleanup != nil {
-					cleanup()
-				}
-			}()
-
-			matches := app.ServiceClassMatching(toComplete)
-
-			return matches, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		// #args == 0: service name. new. nothing to match
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		// #args == 1: service class name.
+		matches := app.ServiceClassMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }

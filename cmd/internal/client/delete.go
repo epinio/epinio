@@ -38,12 +38,16 @@ var CmdDeleteApp = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, cleanup, _ := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
 			}
 		}()
+
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
 
 		matches := app.AppsMatching(toComplete)
 
