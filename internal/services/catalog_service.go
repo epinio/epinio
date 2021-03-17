@@ -94,16 +94,6 @@ func (sc *ServiceClass) ListPlans() (ServicePlanList, error) {
 	}
 
 	return result, nil
-
-	// spec:
-	//   clusterServiceBrokerName: minibroker
-	//   clusterServiceClassRef:
-	//     name: mongodb
-	//   description: NoSQL document-oriented database that stores JSON-like documents with
-	//     dynamic schemas, simplifying the integration of data in content-driven applications.
-	//   externalID: mongodb-4-0-12
-	//   externalName: 4-0-12
-	//   free: true
 }
 
 // ListClasses returns a ServiceClassList of all available catalog service classes
@@ -152,26 +142,6 @@ func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
 	}
 
 	return result, nil
-
-	//	metadata:
-	//	  creationTimestamp: "2021-03-15T13:06:46Z"
-	//	  generation: 1
-	//	  labels:
-	//	    servicecatalog.k8s.io/spec.clusterServiceBrokerName: d42e833047334b72abd9b8d804264d4dc8077517a5ef767ee76ba44d
-	// *1	    servicecatalog.k8s.io/spec.externalID: 431ba23818d0e82e05612ddd029dfb1506d2f255d96205606e1ee464
-	//	    servicecatalog.k8s.io/spec.externalName: 431ba23818d0e82e05612ddd029dfb1506d2f255d96205606e1ee464
-	//	spec:
-	//	  bindable: true
-	//	  bindingRetrievable: false
-	// **	  clusterServiceBrokerName: minibroker
-	// **	  description: Helm Chart for redis
-	//	  externalID: redis
-	// **	  externalName: redis
-	//	  planUpdatable: false
-	//
-	// Ad *1: This hash is the value of the
-	// 	`servicecatalog.k8s.io/spec.clusterServiceClassRef.name`
-	// label of the assocoiated plans.
 }
 
 func ClassLookup(kubeClient *kubernetes.Cluster, serviceClassName string) (*ServiceClass, error) {
