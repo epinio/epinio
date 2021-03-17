@@ -104,6 +104,11 @@ func (c *CarrierClient) ServicePlans(serviceClassName string) error {
 		return nil
 	}
 
+	if serviceClass == nil {
+		c.ui.Exclamation().Msg("Service Class does not exist")
+		return nil
+	}
+
 	servicePlans, err := serviceClass.ListPlans()
 	if err != nil {
 		return errors.Wrap(err, "failed to list service plans")
