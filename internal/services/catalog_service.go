@@ -130,8 +130,9 @@ func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
 		// external name also.
 		//
 		// Consequence of hiding the hash/uuid name from the
-		// user here: `ClassLookup` has to try twice when
-		// searching for a class.
+		// user here: `ClassLookup` finds a class by listing
+		// all and filtering, instead of `get`ing it directly
+		// by its name.
 
 		externalName := spec["externalName"].(string)
 		description := spec["description"].(string)
