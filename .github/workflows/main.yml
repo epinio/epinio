@@ -8,7 +8,8 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
+    if: contains(["kkaempf", "jimmykarily", "andreas-kupries", "rohitsakala", "svollath", "thardeck"], "${{ github.actor }}")
 
     steps:
       - name: Checkout
@@ -40,4 +41,4 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          make test-acceptance
+          GINKGO_NODES=6 make test-acceptance
