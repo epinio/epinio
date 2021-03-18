@@ -27,7 +27,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			Expect(out).To(MatchRegexp(serviceName + `.*` + appName))
 
 			Eventually(func() string {
-				out, err = Carrier("apps", "")
+				out, err = Carrier("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
