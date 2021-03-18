@@ -125,6 +125,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
+		&deployments.CertManager{Timeout: duration.ToDeployment()},
 	} {
 		if err := c.InstallDeployment(deployment, details); err != nil {
 			return err
@@ -155,6 +156,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
+		&deployments.CertManager{Timeout: duration.ToDeployment()},
 	} {
 		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err
