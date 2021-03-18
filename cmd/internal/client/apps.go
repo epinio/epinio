@@ -10,8 +10,8 @@ var ()
 
 // CmdApp implements the carrier -app command
 var CmdApp = &cobra.Command{
-	Use:           "apps",
-	Aliases:       []string{"app"},
+	Use:           "app",
+	Aliases:       []string{"apps"},
 	Short:         "Carrier application features",
 	Long:          `Manage carrier application`,
 	Args:          cobra.ExactArgs(0),
