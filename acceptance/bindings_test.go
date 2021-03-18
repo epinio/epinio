@@ -21,8 +21,8 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			makeCustomService(serviceName)
 			bindAppService(appName, serviceName, org)
 		})
-		It("shows the bound app for services, and vice versa", func() {
-			out, err := Carrier("services", "")
+		It("shows the bound app for services list, and vice versa", func() {
+			out, err := Carrier("service list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(serviceName + `.*` + appName))
 

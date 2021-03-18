@@ -16,14 +16,14 @@ var _ = Describe("Services", func() {
 		setupInClusterServices()
 	})
 
-	Describe("services", func() {
+	Describe("service list", func() {
 		BeforeEach(func() {
 			makeCatalogService(serviceCatalogName)
 			makeCustomService(serviceCustomName)
 		})
 
 		It("shows all created services", func() {
-			out, err := Carrier("services", "")
+			out, err := Carrier("service list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(serviceCustomName))
 			Expect(out).To(MatchRegexp(serviceCatalogName))

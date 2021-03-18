@@ -13,7 +13,7 @@ var _ = Describe("Custom Services", func() {
 		setupAndTargetOrg(org)
 	})
 
-	Describe("create-custom-service", func() {
+	Describe("service create-custom", func() {
 		// Note: Custom Services provision instantly.
 		// No testing of wait/don't wait required.
 
@@ -26,7 +26,7 @@ var _ = Describe("Custom Services", func() {
 		})
 	})
 
-	Describe("delete service", func() {
+	Describe("service delete", func() {
 		BeforeEach(func() {
 			makeCustomService(serviceName)
 		})
@@ -40,7 +40,7 @@ var _ = Describe("Custom Services", func() {
 			makeApp(appName)
 			bindAppService(appName, serviceName, org)
 
-			out, err := Carrier("delete-service "+serviceName, "")
+			out, err := Carrier("service delete "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Unable to delete service. It is still used by"))
@@ -51,7 +51,7 @@ var _ = Describe("Custom Services", func() {
 
 			// Delete again, and force unbind
 
-			out, err = Carrier("delete-service --unbind "+serviceName, "")
+			out, err = Carrier("service delete --unbind "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Unbinding Service From Using Applications Before Deletion"))
@@ -67,14 +67,14 @@ var _ = Describe("Custom Services", func() {
 
 			// And check non-presence
 			Eventually(func() string {
-				out, err = Carrier("services", "")
+				out, err = Carrier("service list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "2m").ShouldNot(MatchRegexp(serviceName))
 		})
 	})
 
-	Describe("bind-service", func() {
+	Describe("service bind", func() {
 		var appName string
 		BeforeEach(func() {
 			appName = newAppName()
@@ -93,7 +93,7 @@ var _ = Describe("Custom Services", func() {
 		})
 	})
 
-	Describe("unbind-service", func() {
+	Describe("service unbind", func() {
 		var appName string
 		BeforeEach(func() {
 			appName = newAppName()
@@ -119,7 +119,7 @@ var _ = Describe("Custom Services", func() {
 		})
 
 		It("it shows service details", func() {
-			out, err := Carrier("service "+serviceName, "")
+			out, err := Carrier("service show "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Service Details"))
 			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))
