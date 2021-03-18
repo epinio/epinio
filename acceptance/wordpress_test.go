@@ -96,7 +96,7 @@ var _ = Describe("Wordpress", func() {
 		out, err := Carrier(fmt.Sprintf("push %s --verbosity 1", wordpress.Name), wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		out, err = Carrier("apps list", "")
+		out, err = Carrier("app list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Expect(out).To(MatchRegexp(wordpress.Name + `.*\|.*1\/1.*\|.*`))
 

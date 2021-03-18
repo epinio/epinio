@@ -43,7 +43,7 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp("Unbound"))
 
 			Eventually(func() string {
-				out, err := Carrier("apps list", "")
+				out, err := Carrier("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
@@ -67,7 +67,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("lists all apps", func() {
-			out, err := Carrier("apps list", "")
+			out, err := Carrier("app list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing applications"))
 			Expect(out).To(MatchRegexp(" " + appName + " "))
@@ -75,7 +75,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("shows the details of an app", func() {
-			out, err := Carrier("apps show "+appName, "")
+			out, err := Carrier("app show "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Show application details"))
@@ -84,7 +84,7 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
 
 			Eventually(func() string {
-				out, err = Carrier("apps show "+appName, "")
+				out, err = Carrier("app show "+appName, "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
