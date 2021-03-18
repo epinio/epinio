@@ -72,7 +72,7 @@ func makeApp(appName string) {
 
 	// And check presence
 
-	out, err = Carrier("apps", "")
+	out, err = Carrier("apps list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
 }
@@ -149,7 +149,7 @@ func deleteApp(appName string) {
 	// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
 	Eventually(func() string {
-		out, err := Carrier("apps", "")
+		out, err := Carrier("apps list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))

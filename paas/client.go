@@ -747,6 +747,71 @@ func (c *CarrierClient) Apps() error {
 	return nil
 }
 
+// AppShow displays the information of the named app, in the targeted org
+func (c *CarrierClient) AppShow(appName string) error {
+	log := c.Log.WithName("Apps").WithValues("Organization", c.config.Org, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Organization", c.config.Org).
+		WithStringValue("Application", appName).
+		Msg("Show application details")
+
+	details.Info("validate")
+	err := c.ensureGoodOrg(c.config.Org, "Unable to show application details.")
+	if err != nil {
+		return err
+	}
+
+	details.Info("list applications")
+
+	app, err := application.Lookup(c.kubeClient, c.giteaClient, c.config.Org, appName)
+	if err != nil {
+		return errors.Wrap(err, "failed to retrieve app")
+	}
+
+	msg := c.ui.Success().WithTable("Key", "Value")
+
+	details.Info("kube get status", "App", app.Name)
+	status, err := c.kubeClient.DeploymentStatus(
+		deployments.WorkloadsDeploymentID,
+		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
+			c.config.Org, app.Name))
+	if err != nil {
+		status = color.RedString(err.Error())
+	}
+
+	msg = msg.WithTableRow("Status", status)
+
+	details.Info("kube get ingress", "App", app.Name)
+	routes, err := c.kubeClient.ListIngressRoutes(
+		deployments.WorkloadsDeploymentID,
+		app.Name)
+	if err != nil {
+		routes = []string{color.RedString(err.Error())}
+	}
+
+	msg = msg.WithTableRow("Routes", strings.Join(routes, ", "))
+
+	var bonded = []string{}
+	bound, err := app.Services()
+	if err != nil {
+		bonded = append(bonded, color.RedString(err.Error()))
+	} else {
+		for _, service := range bound {
+			bonded = append(bonded, service.Name())
+		}
+	}
+
+	msg = msg.WithTableRow("Services", strings.Join(bonded, ", "))
+
+	msg.Msg("Details:")
+
+	return nil
+}
+
 // CreateOrg creates an Org in gitea
 func (c *CarrierClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)

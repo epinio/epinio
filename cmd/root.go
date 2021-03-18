@@ -59,7 +59,7 @@ func Execute() {
 	rootCmd.AddCommand(client.CmdCreateOrg)
 	rootCmd.AddCommand(client.CmdPush)
 	rootCmd.AddCommand(client.CmdDeleteApp)
-	rootCmd.AddCommand(client.CmdApps)
+	rootCmd.AddCommand(client.CmdApp)
 	rootCmd.AddCommand(client.CmdTarget)
 	rootCmd.AddCommand(client.CmdEnable)
 	rootCmd.AddCommand(client.CmdDisable)
