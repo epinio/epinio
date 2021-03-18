@@ -6,16 +6,6 @@ import (
 	"github.com/suse/carrier/paas"
 )
 
-// CmdService implements the carrier -service command
-var CmdService = &cobra.Command{
-	Use:           "service",
-	Short:         "Carrier service features",
-	Long:          `Handle service features with Carrier`,
-	Args:          cobra.ExactArgs(0),
-	SilenceErrors: true,
-	SilenceUsage:  true,
-}
-
 func init() {
 	CmdServiceCreate.Flags().Bool("dont-wait", false, "Return immediately, without waiting for the service to be provisioned")
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
@@ -30,31 +20,23 @@ func init() {
 	CmdService.AddCommand(CmdServiceList)
 }
 
-// CmdServiceShow implements the carrier -service show command
+// CmdService implements the carrier service command
+var CmdService = &cobra.Command{
+	Use:           "service",
+	Short:         "Carrier service features",
+	Long:          `Handle service features with Carrier`,
+	Args:          cobra.ExactArgs(0),
+	SilenceErrors: true,
+	SilenceUsage:  true,
+}
+
+// CmdServiceShow implements the carrier service show command
 var CmdServiceShow = &cobra.Command{
-	Use:   "show NAME",
-	Short: "Service information",
-	Long:  `Show detailed information of the named service.`,
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.ServiceDetails(args[0])
-		if err != nil {
-			return errors.Wrap(err, "error retrieving service")
-		}
-
-		return nil
-	},
+	Use:           "show NAME",
+	Short:         "Service information",
+	Long:          `Show detailed information of the named service.`,
+	Args:          cobra.ExactArgs(1),
+	RunE:          ServiceShow,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -79,7 +61,7 @@ var CmdServiceShow = &cobra.Command{
 	},
 }
 
-// CmdServiceCreate implements the carrier create-service command
+// CmdServiceCreate implements the carrier service create command
 var CmdServiceCreate = &cobra.Command{
 	Use:   "create NAME CLASS PLAN ?(KEY VALUE)...?",
 	Short: "Create a service",
@@ -93,31 +75,7 @@ var CmdServiceCreate = &cobra.Command{
 		}
 		return nil
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		dw, err := cmd.Flags().GetBool("dont-wait")
-		if err != nil {
-			return err
-		}
-		waitforProvision := !dw
-
-		err = client.CreateService(args[0], args[1], args[2], args[3:], waitforProvision)
-		if err != nil {
-			return errors.Wrap(err, "error creating service")
-		}
-
-		return nil
-	},
+	RunE:          ServiceCreate,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -153,7 +111,7 @@ var CmdServiceCreate = &cobra.Command{
 	},
 }
 
-// CmdServiceCreateCustom implements the carrier create-custom-service command
+// CmdServiceCreateCustom implements the carrier service create-custom command
 var CmdServiceCreateCustom = &cobra.Command{
 	Use:   "create-custom NAME (KEY VALUE)...",
 	Short: "Create a custom service",
@@ -167,59 +125,18 @@ var CmdServiceCreateCustom = &cobra.Command{
 		}
 		return nil
 	},
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.CreateCustomService(args[0], args[1:])
-		if err != nil {
-			return errors.Wrap(err, "error creating service")
-		}
-
-		return nil
-	},
+	RunE:          ServiceCreateCustom,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
 
-// CmdServiceDelete implements the carrier delete-service command
+// CmdServiceDelete implements the carrier service delete command
 var CmdServiceDelete = &cobra.Command{
-	Use:   "delete NAME",
-	Short: "Delete a service",
-	Long:  `Delete service by name.`,
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		unbind, err := cmd.Flags().GetBool("unbind")
-		if err != nil {
-			return err
-		}
-
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.DeleteService(args[0], unbind)
-		if err != nil {
-			return errors.Wrap(err, "error deleting service")
-		}
-
-		return nil
-	},
+	Use:           "delete NAME",
+	Short:         "Delete a service",
+	Long:          `Delete service by name.`,
+	Args:          cobra.ExactArgs(1),
+	RunE:          ServiceDelete,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -244,31 +161,13 @@ var CmdServiceDelete = &cobra.Command{
 	},
 }
 
-// CmdServiceBind implements the carrier bind-service command
+// CmdServiceBind implements the carrier service bind command
 var CmdServiceBind = &cobra.Command{
-	Use:   "bind NAME APP",
-	Short: "Bind a service to an application",
-	Long:  `Bind service by name, to named application.`,
-	Args:  cobra.ExactArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.BindService(args[0], args[1])
-		if err != nil {
-			return errors.Wrap(err, "error binding service")
-		}
-
-		return nil
-	},
+	Use:           "bind NAME APP",
+	Short:         "Bind a service to an application",
+	Long:          `Bind service by name, to named application.`,
+	Args:          cobra.ExactArgs(2),
+	RunE:          ServiceBind,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -301,31 +200,13 @@ var CmdServiceBind = &cobra.Command{
 	},
 }
 
-// CmdServiceUnbind implements the carrier unbind-service command
+// CmdServiceUnbind implements the carrier service unbind command
 var CmdServiceUnbind = &cobra.Command{
-	Use:   "unbind NAME APP",
-	Short: "Unbind service from an application",
-	Long:  `Unbind service by name, from named application.`,
-	Args:  cobra.ExactArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.UnbindService(args[0], args[1])
-		if err != nil {
-			return errors.Wrap(err, "error unbinding service")
-		}
-
-		return nil
-	},
+	Use:           "unbind NAME APP",
+	Short:         "Unbind service from an application",
+	Long:          `Unbind service by name, from named application.`,
+	Args:          cobra.ExactArgs(2),
+	RunE:          ServiceUnbind,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -357,57 +238,21 @@ var CmdServiceUnbind = &cobra.Command{
 	},
 }
 
-// CmdServiceListClasses implements the carrier service-classes command
+// CmdServiceListClasses implements the carrier service classes command
 var CmdServiceListClasses = &cobra.Command{
-	Use:   "list-classes",
-	Short: "Lists the available service classes",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.ServiceClasses()
-		if err != nil {
-			return errors.Wrap(err, "error listing service classes")
-		}
-
-		return nil
-	},
+	Use:           "list-classes",
+	Short:         "Lists the available service classes",
+	RunE:          ServiceListClasses,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
 
-// CmdServiceListPlans implements the carrier service-plans command
+// CmdServiceListPlans implements the carrier service plans command
 var CmdServiceListPlans = &cobra.Command{
-	Use:   "list-plans CLASS",
-	Short: "Lists all plans provided by the named service class",
-	Args:  cobra.ExactArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.ServicePlans(args[0])
-		if err != nil {
-			return errors.Wrap(err, "error listing plan")
-		}
-
-		return nil
-	},
+	Use:           "list-plans CLASS",
+	Short:         "Lists all plans provided by the named service class",
+	Args:          cobra.ExactArgs(1),
+	RunE:          ServiceListPlans,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -432,29 +277,211 @@ var CmdServiceListPlans = &cobra.Command{
 	},
 }
 
-// CmdServiceList implements the carrier services command
+// CmdServiceList implements the carrier service list command
 var CmdServiceList = &cobra.Command{
-	Use:   "list",
-	Short: "Lists all services",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
-		if err != nil {
-			return errors.Wrap(err, "error initializing cli")
-		}
-
-		err = client.Services()
-		if err != nil {
-			return errors.Wrap(err, "error listing services")
-		}
-
-		return nil
-	},
+	Use:           "list",
+	Short:         "Lists all services",
+	RunE:          ServiceList,
 	SilenceErrors: true,
 	SilenceUsage:  true,
+}
+
+// ServiceShow implements the carrier service show command
+func ServiceShow(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.ServiceDetails(args[0])
+	if err != nil {
+		return errors.Wrap(err, "error retrieving service")
+	}
+
+	return nil
+}
+
+// ServiceCreate implements the carrier service create command
+func ServiceCreate(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	dw, err := cmd.Flags().GetBool("dont-wait")
+	if err != nil {
+		return err
+	}
+	waitforProvision := !dw
+
+	err = client.CreateService(args[0], args[1], args[2], args[3:], waitforProvision)
+	if err != nil {
+		return errors.Wrap(err, "error creating service")
+	}
+
+	return nil
+}
+
+// ServiceCreateCustom implements the carrier service create-custom command
+func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.CreateCustomService(args[0], args[1:])
+	if err != nil {
+		return errors.Wrap(err, "error creating service")
+	}
+
+	return nil
+}
+
+// ServiceDelete implements the carrier service delete command
+func ServiceDelete(cmd *cobra.Command, args []string) error {
+	unbind, err := cmd.Flags().GetBool("unbind")
+	if err != nil {
+		return err
+	}
+
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.DeleteService(args[0], unbind)
+	if err != nil {
+		return errors.Wrap(err, "error deleting service")
+	}
+
+	return nil
+}
+
+// ServiceBind implements the carrier service bind command
+func ServiceBind(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.BindService(args[0], args[1])
+	if err != nil {
+		return errors.Wrap(err, "error binding service")
+	}
+
+	return nil
+}
+
+// ServiceUnbind implements the carrier service unbind command
+func ServiceUnbind(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.UnbindService(args[0], args[1])
+	if err != nil {
+		return errors.Wrap(err, "error unbinding service")
+	}
+
+	return nil
+}
+
+// ServiceListClasses implements the carrier service list-classes command
+func ServiceListClasses(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.ServiceClasses()
+	if err != nil {
+		return errors.Wrap(err, "error listing service classes")
+	}
+
+	return nil
+}
+
+// ServiceListPlans implements the carrier service list-plans command
+func ServiceListPlans(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.ServicePlans(args[0])
+	if err != nil {
+		return errors.Wrap(err, "error listing plan")
+	}
+
+	return nil
+}
+
+// ServiceList implements the carrier service list command
+func ServiceList(cmd *cobra.Command, args []string) error {
+	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = client.Services()
+	if err != nil {
+		return errors.Wrap(err, "error listing services")
+	}
+
+	return nil
 }
