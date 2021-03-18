@@ -23,6 +23,7 @@ func init() {
 // CmdService implements the carrier service command
 var CmdService = &cobra.Command{
 	Use:           "service",
+	Aliases:       []string{"services"},
 	Short:         "Carrier service features",
 	Long:          `Handle service features with Carrier`,
 	Args:          cobra.ExactArgs(0),
