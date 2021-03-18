@@ -20,12 +20,12 @@ var CmdApp = &cobra.Command{
 }
 
 func init() {
-	CmdApp.AddCommand(CmdAppsShow)
-	CmdApp.AddCommand(CmdAppsList)
+	CmdApp.AddCommand(CmdAppShow)
+	CmdApp.AddCommand(CmdAppList)
 }
 
-// CmdAppsList implements the carrier `apps list` command
-var CmdAppsList = &cobra.Command{
+// CmdAppList implements the carrier `apps list` command
+var CmdAppList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all applications",
 	Args:  cobra.ExactArgs(0),
@@ -52,8 +52,8 @@ var CmdAppsList = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-// CmdAppsShow implements the carrier `apps show` command
-var CmdAppsShow = &cobra.Command{
+// CmdAppShow implements the carrier `apps show` command
+var CmdAppShow = &cobra.Command{
 	Use:   "show NAME",
 	Short: "Describe the named application",
 	Args:  cobra.ExactArgs(1),
