@@ -34,8 +34,11 @@ test: lint
 	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
 GINKGO_NODES ?= 2
-test-acceptance:
+test-acceptance: showfocus
 	ginkgo -nodes ${GINKGO_NODES} -stream --flakeAttempts=2 acceptance/.
+
+showfocus:
+	@if test `cat acceptance/*.go | grep -c FIt` -gt 0 ; then echo ; echo 'Focus:' ; grep FIt acceptance/* ; echo ; fi
 
 generate:
 	go generate ./...
