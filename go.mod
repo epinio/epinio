@@ -13,6 +13,7 @@ require (
 	github.com/go-logr/stdr v0.4.0
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
+	github.com/julienschmidt/httprouter v1.2.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/olekukonko/tablewriter v0.0.4
@@ -25,6 +26,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
+	github.com/webview/webview v0.0.0-20210216142346-e0bfdf0e5d90
 	golang.org/x/mod v0.4.0 // indirect
 	golang.org/x/sys v0.0.0-20201214210602-f9fddec55a1e // indirect
 	golang.org/x/tools v0.0.0-20201215192005-fa10ef0b8743 // indirect
