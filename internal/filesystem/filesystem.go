@@ -33,11 +33,11 @@ func (f *Filesystem) Open(path string) (io.Reader, error) {
 	}
 }
 
-func Dir(path string, local bool) http.FileSystem {
+func Dir(dirPath string, local bool) http.FileSystem {
 	if local {
-		return http.Dir("." + path)
+		return http.Dir("." + dirPath)
 	} else {
-		dir, err := fs.NewWithNamespace(path)
+		dir, err := fs.NewWithNamespace("web")
 		if err != nil {
 			panic(err)
 		}

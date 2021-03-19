@@ -1,0 +1,28 @@
+[[define "title"]]GoFeedMe[[end]]
+
+[[define "body"]]
+<div class=".container-fluid">
+  <div class="col-12">
+    <form id="searchForm">
+      <div class="form-label-group">
+        <input v-on:keyup="search" id="searchBox" class="form-control" type="text" placeholder="Search for a password..."></input>
+      </div>
+    </form>
+  </div>
+  <div class="col-12">
+    <table class="table">
+
+    <!-- https://v3.vuejs.org/guide/migration/custom-elements-interop.html#_3-x-syntax-2 -->
+    <tr v-is="'result-item'" v-for="item in results"
+            v-bind:result="item"
+            v-bind:key="item.id"
+    ></tr>
+    </table>
+  </div>
+</div>
+
+[[ end ]]
+
+[[define "page-javascript"]]
+<script type="module" src="/assets/js/home.js"></script>
+[[ end ]]

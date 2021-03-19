@@ -16,6 +16,7 @@ func StartServer(listener net.Listener) error {
 	// TODO: Use `ui` package
 	fmt.Println("listening on", listener.Addr().String())
 
+	//localFilesystem = true
 	http.Handle("/", setupRouter())
 	// Static files
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(filesystem.Dir("/assets", localFilesystem))))
