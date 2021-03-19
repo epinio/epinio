@@ -13,11 +13,12 @@ import (
 
 var localFilesystem bool
 
-func StartServer(listener net.Listener) error {
+func StartServer(listener net.Listener, userLocalFilesystem bool) error {
 	// TODO: Use `ui` package
 	fmt.Println("listening on", listener.Addr().String())
 
-	//localFilesystem = true
+	localFilesystem = userLocalFilesystem
+
 	http.Handle("/", setupRouter())
 	// Static files
 	var assetsDir http.FileSystem

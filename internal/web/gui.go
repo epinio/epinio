@@ -8,14 +8,14 @@ import (
 	"github.com/webview/webview"
 )
 
-func StartGui(listeningPort int) error {
+func StartGui(listeningPort int, useLocalFilesystem bool) error {
 	// TODO: use 0.0.0.0 to allow access from outside?
 	listener, err := net.Listen("tcp", "127.0.0.1:"+strconv.Itoa(listeningPort))
 	if err != nil {
 		return err
 	}
 
-	go api.StartServer(listener)
+	go api.StartServer(listener, useLocalFilesystem)
 
 	debug := true
 	w := webview.New(debug)
