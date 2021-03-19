@@ -4,43 +4,27 @@
 package filesystem
 
 import (
-	"io"
 	"net/http"
-	"os"
 
 	"github.com/rakyll/statik/fs"
+	_ "github.com/suse/carrier/statikWebAssets"
+	_ "github.com/suse/carrier/statikWebViews"
 )
 
-type Filesystem struct {
-	local bool
+func Views() http.FileSystem {
+	fs, err := fs.NewWithNamespace("webViews")
+	if err != nil {
+		panic(err)
+	}
+
+	return fs
 }
 
-func NewFilesystem(local bool) *Filesystem {
-	return &Filesystem{
-		local: local,
+func Assets() http.FileSystem {
+	fs, err := fs.NewWithNamespace("webAssets")
+	if err != nil {
+		panic(err)
 	}
-}
 
-func (f *Filesystem) Open(path string) (io.Reader, error) {
-	if f.local {
-		return os.Open(path)
-	} else {
-		statikFS, err := fs.New()
-		if err != nil {
-			return nil, err
-		}
-		return statikFS.Open(path)
-	}
-}
-
-func Dir(dirPath string, local bool) http.FileSystem {
-	if local {
-		return http.Dir("." + dirPath)
-	} else {
-		dir, err := fs.NewWithNamespace("web")
-		if err != nil {
-			panic(err)
-		}
-		return dir
-	}
+	return fs
 }

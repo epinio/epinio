@@ -83,7 +83,8 @@ update_tekton:
 
 embed_files:
 	statik -m -f -src=./embedded-files
-	statik -m -f -src=./embedded-web-files -ns web
+	statik -m -f -src=./embedded-web-files/views -ns webViews -p statikWebViews
+	statik -m -f -src=./embedded-web-files/assets -ns webAssets -p statikWebAssets
 
 help:
 	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee HELP

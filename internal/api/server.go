@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"path"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/suse/carrier/internal/filesystem"
@@ -19,7 +20,13 @@ func StartServer(listener net.Listener) error {
 	//localFilesystem = true
 	http.Handle("/", setupRouter())
 	// Static files
-	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(filesystem.Dir("/assets", localFilesystem))))
+	var assetsDir http.FileSystem
+	if localFilesystem {
+		assetsDir = http.Dir(path.Join(".", "embedded-web-files", "assets"))
+	} else {
+		assetsDir = filesystem.Assets()
+	}
+	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(assetsDir)))
 
 	return http.Serve(listener, nil)
 }
