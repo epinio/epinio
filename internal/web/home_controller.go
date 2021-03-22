@@ -1,9 +1,10 @@
-package api
+package web
 
 import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 
 	"github.com/suse/carrier/internal/filesystem"
@@ -20,7 +21,7 @@ func (hc HomeController) Index(w http.ResponseWriter, r *http.Request) {
 // to the provided ResponseWriter.
 func Render(templates []string, w http.ResponseWriter, data interface{}) {
 	var viewsDir http.FileSystem
-	if localFilesystem {
+	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
 		viewsDir = http.Dir(path.Join(".", "embedded-web-files", "views"))
 	} else {
 		viewsDir = filesystem.Views()

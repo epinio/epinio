@@ -63,7 +63,7 @@ func Execute() {
 	rootCmd.AddCommand(CmdEnable)
 	rootCmd.AddCommand(CmdDisable)
 	rootCmd.AddCommand(CmdService)
-	rootCmd.AddCommand(CmdGui)
+	rootCmd.AddCommand(CmdServer)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
