@@ -60,10 +60,10 @@ gitlint:
 	gitlint --commits "origin..HEAD"
 
 prepare_version:
-	echo >  internal/cli/version.go "package cli"
-	echo >> internal/cli/version.go ""
-	echo >> internal/cli/version.go "const Version = \"$$(git describe --tags)\""
-	cat internal/cli/version.go
+	echo >  version/version.go "package version"
+	echo >> version/version.go ""
+	echo >> version/version.go "const Version = \"$$(git describe --tags)\""
+	cat version/version.go
 
 .PHONY: tools
 tools:

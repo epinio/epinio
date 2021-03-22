@@ -3,19 +3,38 @@ package v1
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/julienschmidt/httprouter"
+	"github.com/suse/carrier/internal/application"
+	"github.com/suse/carrier/internal/cli/clients"
 )
 
 type ApplicationsController struct {
 }
 
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
-	applications := map[string]string{
-		"application1": "running",
-		"application2": "running",
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+
+	client, cleanup, err := clients.NewCarrierClient(nil)
+	if handleError(w, err, 500) {
+		return
+	}
+	defer func() {
+		if cleanup != nil {
+			cleanup()
+		}
+	}()
+
+	apps, err := application.List(client.KubeClient, client.GiteaClient, org)
+	if handleError(w, err, 500) {
+		return
 	}
 
-	js, err := json.Marshal(applications)
-	handleError(w, err, 500)
+	js, err := json.Marshal(apps)
+	if handleError(w, err, 500) {
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
 }

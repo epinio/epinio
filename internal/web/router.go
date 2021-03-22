@@ -1,3 +1,4 @@
+// Package web implements the Carrier dashboard
 package web
 
 import (
