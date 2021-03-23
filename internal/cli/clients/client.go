@@ -31,7 +31,12 @@ import (
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
 	"github.com/suse/carrier/kubernetes/tailer"
 	"github.com/suse/carrier/termui"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/client-go/dynamic"
 )
 
 var (
@@ -837,11 +842,17 @@ func (c *CarrierClient) Delete(appname string) error {
 		return err
 	}
 
+	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
+		err = c.deleteCertificate(appname)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete the certificate")
+		}
+	}
+
 	unboundServices, ok := response["UnboundServices"]
 	if !ok {
 		return errors.Errorf("bad response, expected key missing: %v", response)
 	}
-
 	if len(unboundServices) > 0 {
 		s.Stop()
 		msg := c.ui.Note().WithTable("Unbound Services")
@@ -956,6 +967,15 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Create production certificate if it is provided by user
+	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
+		details.Info("create certificate")
+		err = c.createCertificate(app, c.GiteaClient.Domain)
+		if err != nil {
+			return errors.Wrap(err, "create ssl certificate failed")
+		}
+	}
+
 	details.Info("git push")
 	err = c.gitPush(app, tmpDir)
 	if err != nil {
@@ -1027,6 +1047,84 @@ func (c *CarrierClient) Target(org string) error {
 
 func (c *CarrierClient) check() {
 	c.GiteaClient.Client.GetMyUserInfo()
+}
+
+func (c *CarrierClient) createCertificate(appName, systemDomain string) error {
+	data := fmt.Sprintf(`{
+		"apiVersion": "cert-manager.io/v1alpha2",
+		"kind": "Certificate",
+		"metadata": {
+			"name": "%s.%s.ssl-certificate",
+			"namespace": "%s"
+		},
+		"spec": {
+			"commonName" : "%s.%s",
+			"secretName" : "%s-tls",
+			"dnsNames": [
+				"%s.%s"
+			],
+			"issuerRef" : {
+				"name" : "letsencrypt-production",
+				"kind" : "ClusterIssuer"
+			}
+		}
+    }`, c.Config.Org, appName, deployments.WorkloadsDeploymentID, appName, systemDomain, appName, appName, systemDomain)
+
+	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	obj := &unstructured.Unstructured{}
+	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	certificateInstanceGVR := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1alpha2",
+		Resource: "certificates",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	_, err = dynamicClient.Resource(certificateInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+		Create(context.Background(),
+			obj,
+			metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *CarrierClient) deleteCertificate(appName string) error {
+	certificateInstanceGVR := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1alpha2",
+		Resource: "certificates",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	err = dynamicClient.Resource(certificateInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+		Delete(context.Background(),
+			fmt.Sprintf("%s.%s.ssl-certificate", c.Config.Org, appName),
+			metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	err = c.KubeClient.Kubectl.CoreV1().Secrets(deployments.WorkloadsDeploymentID).Delete(context.Background(), fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (c *CarrierClient) createRepo(name string) error {
