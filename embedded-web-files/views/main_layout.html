@@ -75,12 +75,24 @@
               <i class="icon-button">[[ template "icon-plus-rectangle" ]]</i>
             </button>
           </li>
-          <li class="nav-item [[ if eq .request.URL.Path "/"]][[ "active"]][[ end ]]">
-            <a class="nav-link" href="/">Applications</a>
-          </li>
-          <li class="nav-item [[ if eq .request.URL.Path "/info"]][[ "active"]][[ end ]]">
-            <a class="nav-link" href="/info">About<span class="sr-only">(current)</span></a>
-          </li>
+          [[ if eq .request.URL.Path "/" ]]
+            <li class="nav-item active">
+              <a class="nav-link" href="/">Applications<span class="sr-only">(current)</span></a>
+            </li>
+          [[ else ]]
+            <li class="nav-item">
+              <a class="nav-link" href="/">Applications</a>
+            </li>
+          [[ end ]]
+          [[ if eq .request.URL.Path "/info" ]]
+            <li class="nav-item active">
+              <a class="nav-link" href="/info">About<span class="sr-only">(current)</span></a>
+            </li>
+          [[ else ]]
+            <li class="nav-item">
+              <a class="nav-link" href="/info">About</a>
+            </li>
+          [[ end ]]
         </ul>
       </div>
     </nav>
