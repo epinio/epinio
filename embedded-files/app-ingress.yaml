@@ -89,3 +89,5 @@ spec:
             - name: ANNOTATIONS
               value: '{ "traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
                 "traefik.ingress.kubernetes.io/router.tls": "true" }'
+            - name: ENABLE_TLS
+              value: "true"
