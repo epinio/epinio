@@ -14,12 +14,12 @@ type ApplicationsController struct {
 }
 
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
-	Render([]string{"main_layout", "icons", "modals", "applications_index"}, w, map[string]string{"serverUrl": r.Host})
+	Render([]string{"main_layout", "icons", "modals", "applications_index"}, w, r, map[string]interface{}{"serverUrl": r.Host})
 }
 
 // Render renders the given templates using the provided data and writes the result
 // to the provided ResponseWriter.
-func Render(templates []string, w http.ResponseWriter, data interface{}) {
+func Render(templates []string, w http.ResponseWriter, r *http.Request, data map[string]interface{}) {
 	var viewsDir http.FileSystem
 	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
 		viewsDir = http.Dir(path.Join(".", "embedded-web-files", "views"))
@@ -57,6 +57,9 @@ func Render(templates []string, w http.ResponseWriter, data interface{}) {
 	}
 	w.WriteHeader(http.StatusOK)
 
+	// Inject the request in the data. It can be used in the templates to find the
+	// current url
+	data["request"] = r
 	err = tmpl.ExecuteTemplate(w, "main_layout", data)
 	if handleError(w, err, 500) {
 		return
