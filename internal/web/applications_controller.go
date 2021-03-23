@@ -10,11 +10,11 @@ import (
 	"github.com/suse/carrier/internal/filesystem"
 )
 
-type HomeController struct {
+type ApplicationsController struct {
 }
 
-func (hc HomeController) Index(w http.ResponseWriter, r *http.Request) {
-	Render([]string{"main_layout", "icons", "modals", "home"}, w, nil)
+func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
+	Render([]string{"main_layout", "icons", "modals", "applications_index"}, w, map[string]string{"serverUrl": r.Host})
 }
 
 // Render renders the given templates using the provided data and writes the result

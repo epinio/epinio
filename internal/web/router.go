@@ -9,7 +9,7 @@ import (
 
 func Router() *httprouter.Router {
 	router := httprouter.New()
-	router.HandlerFunc("GET", "/", HomeController{}.Index)
+	router.HandlerFunc("GET", "/", ApplicationsController{}.Index)
 	router.NotFound = http.NotFoundHandler()
 
 	return router
