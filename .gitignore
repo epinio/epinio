@@ -12,7 +12,6 @@ personal-setup
 /output
 /local
 /tmp
-/shim/shim
 /dist
 /resources
 acceptance/acceptance.test
