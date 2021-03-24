@@ -60,6 +60,7 @@ gitlint:
 	gitlint --commits "origin..HEAD"
 
 prepare_version:
+	mkdir -p version
 	echo >  version/version.go "package version"
 	echo >> version/version.go ""
 	echo >> version/version.go "const Version = \"$$(git describe --tags)\""
