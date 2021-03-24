@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/paas"
+	"github.com/suse/carrier/internal/cli/clients"
 )
 
 var ()
@@ -14,7 +14,7 @@ var CmdTarget = &cobra.Command{
 	Short: "Targets an organization in Carrier.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -44,7 +44,7 @@ var CmdTarget = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()

@@ -1,4 +1,4 @@
-package paas
+package clients
 
 import (
 	"context"

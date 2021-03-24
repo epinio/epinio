@@ -3,8 +3,8 @@ package cli
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/suse/carrier/internal/cli/clients"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas"
 )
 
 var NeededOptions = kubernetes.InstallationOptions{
@@ -39,7 +39,7 @@ func init() {
 
 // Install command installs carrier on a configured cluster
 func Install(cmd *cobra.Command, args []string) error {
-	installClient, installCleanup, err := paas.NewInstallClient(cmd.Flags(), &NeededOptions)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Flags(), &NeededOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -57,7 +57,7 @@ func Install(cmd *cobra.Command, args []string) error {
 
 	// Installation complete. Run `create-org`
 
-	carrier_client, carrier_cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	carrier_client, carrier_cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if carrier_cleanup != nil {
 			carrier_cleanup()

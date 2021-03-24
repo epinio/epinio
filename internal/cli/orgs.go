@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/paas"
+	"github.com/suse/carrier/internal/cli/clients"
 )
 
 var ()
@@ -13,7 +13,7 @@ var CmdOrgs = &cobra.Command{
 	Use:   "orgs",
 	Short: "Lists all organizations",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()

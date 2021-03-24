@@ -3,7 +3,7 @@ package cli
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/paas"
+	"github.com/suse/carrier/internal/cli/clients"
 )
 
 var CmdUninstall = &cobra.Command{
@@ -18,7 +18,7 @@ var CmdUninstall = &cobra.Command{
 
 // Uninstall command removes carrier from a configured cluster
 func Uninstall(cmd *cobra.Command, args []string) error {
-	installClient, _, err := paas.NewInstallClient(cmd.Flags(), nil)
+	installClient, _, err := clients.NewInstallClient(cmd.Flags(), nil)
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
