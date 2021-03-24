@@ -1,5 +1,3 @@
-import { debounce } from './modules/debounce.js';
-
 'use strict';
 
 class Applications {
