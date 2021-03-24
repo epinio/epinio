@@ -25,11 +25,11 @@ import (
 	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/cli/config"
 	"github.com/suse/carrier/internal/duration"
+	carriergitea "github.com/suse/carrier/internal/gitea"
 	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
 	"github.com/suse/carrier/kubernetes/tailer"
-	paasgitea "github.com/suse/carrier/paas/gitea"
 	"github.com/suse/carrier/termui"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -51,7 +51,7 @@ type CarrierClient struct {
 	kubeClient    *kubernetes.Cluster
 	ui            *termui.UI
 	config        *config.Config
-	giteaResolver *paasgitea.Resolver
+	giteaResolver *carriergitea.Resolver
 	Log           logr.Logger
 }
 
@@ -68,8 +68,8 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	resolver := paasgitea.NewResolver(configConfig, cluster)
-	client, err := paasgitea.NewGiteaClient(resolver)
+	resolver := carriergitea.NewResolver(configConfig, cluster)
+	client, err := carriergitea.NewGiteaClient(resolver)
 	if err != nil {
 		return nil, nil, err
 	}
