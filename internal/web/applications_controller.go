@@ -14,7 +14,7 @@ type ApplicationsController struct {
 }
 
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
-	Render([]string{"main_layout", "icons", "modals", "applications_index"}, w, r, map[string]interface{}{"serverUrl": r.Host})
+	Render([]string{"main_layout", "icons", "applications_index"}, w, r, map[string]interface{}{"serverUrl": r.Host})
 }
 
 // Render renders the given templates using the provided data and writes the result

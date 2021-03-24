@@ -35,5 +35,5 @@ func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
 		"giteaVersion": giteaVersion,
 	}
 
-	Render([]string{"main_layout", "icons", "modals", "info"}, w, r, data)
+	Render([]string{"main_layout", "icons", "info"}, w, r, data)
 }
