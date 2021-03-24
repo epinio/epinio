@@ -13,7 +13,7 @@ import (
 	"github.com/codeskyblue/kexec"
 	"github.com/pkg/errors"
 
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 )
 
 type ExternalFuncWithString func() (output string, err error)
@@ -105,7 +105,7 @@ func Kubectl(command string) (string, error) {
 	return RunProc(cmd, currentdir, false)
 }
 
-func WaitForCommandCompletion(ui *ui.UI, message string, funk ExternalFuncWithString) (string, error) {
+func WaitForCommandCompletion(ui *termui.UI, message string, funk ExternalFuncWithString) (string, error) {
 	s := ui.Progressf(" %s", message)
 	defer s.Stop()
 

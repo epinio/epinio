@@ -16,7 +16,7 @@ import (
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -26,7 +26,7 @@ import (
 type InstallClient struct {
 	kubeClient *kubernetes.Cluster
 	options    *kubernetes.InstallationOptions
-	ui         *ui.UI
+	ui         *termui.UI
 	config     *config.Config
 	Log        logr.Logger
 }
@@ -40,7 +40,7 @@ func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOpti
 	if err != nil {
 		return nil, nil, err
 	}
-	uiUI := ui.NewUI()
+	uiUI := termui.NewUI()
 	configConfig, err := config.Load(flags)
 	if err != nil {
 		return nil, nil, err

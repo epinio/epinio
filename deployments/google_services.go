@@ -13,7 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -32,11 +32,11 @@ func (k *GoogleServices) ID() string {
 	return GoogleServicesDeploymentID
 }
 
-func (k *GoogleServices) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *GoogleServices) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *GoogleServices) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *GoogleServices) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -45,7 +45,7 @@ func (k GoogleServices) Describe() string {
 }
 
 // Delete removes GoogleServices from kubernetes cluster
-func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing GoogleServices...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(GoogleServicesDeploymentID)
@@ -97,7 +97,7 @@ func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k GoogleServices) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k GoogleServices) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -173,7 +173,7 @@ func (k GoogleServices) GetVersion() string {
 	return googleServicesVersion
 }
 
-func (k GoogleServices) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k GoogleServices) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	existsAndOwned, err := c.NamespaceExistsAndOwned(GoogleServicesDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", MinibrokerDeploymentID)
@@ -193,7 +193,7 @@ func (k GoogleServices) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kuberne
 	return nil
 }
 
-func (k GoogleServices) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k GoogleServices) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		GoogleServicesDeploymentID,

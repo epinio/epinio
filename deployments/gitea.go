@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,11 +30,11 @@ func (k *Gitea) ID() string {
 	return GiteaDeploymentID
 }
 
-func (k *Gitea) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Gitea) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Gitea) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Gitea) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -43,7 +43,7 @@ func (k Gitea) Describe() string {
 }
 
 // Delete removes Gitea from kubernetes cluster
-func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k Gitea) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Gitea...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(GiteaDeploymentID)
@@ -90,7 +90,7 @@ func (k Gitea) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k Gitea) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Gitea) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -194,7 +194,7 @@ func (k Gitea) GetVersion() string {
 	return giteaVersion
 }
 
-func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Gitea) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -215,7 +215,7 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	return nil
 }
 
-func (k Gitea) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Gitea) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		GiteaDeploymentID,

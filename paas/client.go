@@ -30,7 +30,7 @@ import (
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
 	"github.com/suse/carrier/kubernetes/tailer"
 	paasgitea "github.com/suse/carrier/paas/gitea"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -49,7 +49,7 @@ var (
 type CarrierClient struct {
 	giteaClient   *gitea.Client
 	kubeClient    *kubernetes.Cluster
-	ui            *ui.UI
+	ui            *termui.UI
 	config        *config.Config
 	giteaResolver *paasgitea.Resolver
 	Log           logr.Logger
@@ -73,7 +73,7 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	uiUI := ui.NewUI()
+	uiUI := termui.NewUI()
 	logger := kubeconfig.NewClientLogger()
 	carrierClient := &CarrierClient{
 		giteaClient:   client,
@@ -427,7 +427,7 @@ func (c *CarrierClient) DeleteService(name string, unbind bool) error {
 	}
 
 	if boundApps, found := appsOf[service.Name()]; found {
-		var msg *ui.Message
+		var msg *termui.Message
 		if !unbind {
 			msg = c.ui.Exclamation()
 		} else {
