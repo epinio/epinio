@@ -31,7 +31,7 @@ compress:
 	upx --brute -1 ./dist/carrier-darwin-amd64
 
 test: lint
-	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
+	ginkgo ./cli/internal/client/ ./tools/ ./helpers/ ./kubernetes/
 
 GINKGO_NODES ?= 2
 test-acceptance: showfocus
@@ -58,10 +58,10 @@ gitlint:
 	gitlint --commits "origin..HEAD"
 
 prepare_version:
-	echo >  cmd/version.go "package cmd"
-	echo >> cmd/version.go ""
-	echo >> cmd/version.go "const Version = \"$$(git describe --tags)\""
-	cat cmd/version.go
+	echo >  internal/cli/version.go "package cli"
+	echo >> internal/cli/version.go ""
+	echo >> internal/cli/version.go "const Version = \"$$(git describe --tags)\""
+	cat internal/cli/version.go
 
 .PHONY: tools
 tools:

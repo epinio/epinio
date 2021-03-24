@@ -1,4 +1,4 @@
-package cmd
+package cli
 
 import (
 	"errors"
@@ -9,7 +9,6 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/suse/carrier/cmd/internal/client"
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes/config"
 	pconfig "github.com/suse/carrier/paas/config"
@@ -52,18 +51,18 @@ func Execute() {
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)
-	rootCmd.AddCommand(client.CmdInstall)
-	rootCmd.AddCommand(client.CmdUninstall)
-	rootCmd.AddCommand(client.CmdInfo)
-	rootCmd.AddCommand(client.CmdOrgs)
-	rootCmd.AddCommand(client.CmdCreateOrg)
-	rootCmd.AddCommand(client.CmdPush)
-	rootCmd.AddCommand(client.CmdDeleteApp)
-	rootCmd.AddCommand(client.CmdApp)
-	rootCmd.AddCommand(client.CmdTarget)
-	rootCmd.AddCommand(client.CmdEnable)
-	rootCmd.AddCommand(client.CmdDisable)
-	rootCmd.AddCommand(client.CmdService)
+	rootCmd.AddCommand(CmdInstall)
+	rootCmd.AddCommand(CmdUninstall)
+	rootCmd.AddCommand(CmdInfo)
+	rootCmd.AddCommand(CmdOrgs)
+	rootCmd.AddCommand(CmdCreateOrg)
+	rootCmd.AddCommand(CmdPush)
+	rootCmd.AddCommand(CmdDeleteApp)
+	rootCmd.AddCommand(CmdApp)
+	rootCmd.AddCommand(CmdTarget)
+	rootCmd.AddCommand(CmdEnable)
+	rootCmd.AddCommand(CmdDisable)
+	rootCmd.AddCommand(CmdService)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
