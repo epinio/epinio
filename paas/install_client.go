@@ -12,10 +12,10 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/internal/cli/config"
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
-	"github.com/suse/carrier/paas/config"
 	"github.com/suse/carrier/paas/ui"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
