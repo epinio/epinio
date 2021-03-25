@@ -31,7 +31,9 @@ compress:
 	upx --brute -1 ./dist/carrier-darwin-amd64
 
 test: lint
-	ginkgo ./cli/internal/client/ ./tools/ ./helpers/ ./kubernetes/
+	ginkgo helpers internal/cli internal/services kubernetes
+
+# acceptance is not part of the unit tests, and has its own target, see below.
 
 GINKGO_NODES ?= 2
 test-acceptance: showfocus
