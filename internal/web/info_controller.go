@@ -3,7 +3,7 @@ package web
 import (
 	"net/http"
 
-	"github.com/suse/carrier/paas"
+	"github.com/suse/carrier/internal/cli/clients"
 	"github.com/suse/carrier/version"
 )
 
@@ -12,7 +12,7 @@ type InfoController struct {
 
 func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
 	// TODO: Second return value is always nil (the cleanup function)?
-	client, _, err := paas.NewCarrierClient(nil)
+	client, _, err := clients.NewCarrierClient(nil)
 	if handleError(w, err, 500) {
 		return
 	}
