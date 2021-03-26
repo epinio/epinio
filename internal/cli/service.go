@@ -1,9 +1,9 @@
-package client
+package cli
 
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/paas"
+	"github.com/suse/carrier/internal/cli/clients"
 )
 
 func init() {
@@ -45,7 +45,7 @@ var CmdServiceShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -89,7 +89,7 @@ var CmdServiceCreate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -145,7 +145,7 @@ var CmdServiceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -176,7 +176,7 @@ var CmdServiceBind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -215,7 +215,7 @@ var CmdServiceUnbind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -261,7 +261,7 @@ var CmdServiceListPlans = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -289,7 +289,7 @@ var CmdServiceList = &cobra.Command{
 
 // ServiceShow implements the carrier service show command
 func ServiceShow(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -310,7 +310,7 @@ func ServiceShow(cmd *cobra.Command, args []string) error {
 
 // ServiceCreate implements the carrier service create command
 func ServiceCreate(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -337,7 +337,7 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 
 // ServiceCreateCustom implements the carrier service create-custom command
 func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -363,7 +363,7 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -384,7 +384,7 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 
 // ServiceBind implements the carrier service bind command
 func ServiceBind(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -405,7 +405,7 @@ func ServiceBind(cmd *cobra.Command, args []string) error {
 
 // ServiceUnbind implements the carrier service unbind command
 func ServiceUnbind(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -426,7 +426,7 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 
 // ServiceListClasses implements the carrier service list-classes command
 func ServiceListClasses(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -447,7 +447,7 @@ func ServiceListClasses(cmd *cobra.Command, args []string) error {
 
 // ServiceListPlans implements the carrier service list-plans command
 func ServiceListPlans(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()
@@ -468,7 +468,7 @@ func ServiceListPlans(cmd *cobra.Command, args []string) error {
 
 // ServiceList implements the carrier service list command
 func ServiceList(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 	defer func() {
 		if cleanup != nil {
 			cleanup()

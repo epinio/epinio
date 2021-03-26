@@ -6,8 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/cli/config"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/config"
 )
 
 const (

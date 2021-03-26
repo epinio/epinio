@@ -15,7 +15,7 @@ import (
 	k3s "github.com/suse/carrier/kubernetes/platform/k3s"
 	kind "github.com/suse/carrier/kubernetes/platform/kind"
 	minikube "github.com/suse/carrier/kubernetes/platform/minikube"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -201,7 +201,7 @@ func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc
 // This method should be used when installing a Deployment that is supposed to
 // provide that CRD and want to make sure the CRD is ready for consumption before
 // continuing deploying things that will consume it.
-func (c *Cluster) WaitForCRD(ui *ui.UI, CRDName string, timeout time.Duration) error {
+func (c *Cluster) WaitForCRD(ui *termui.UI, CRDName string, timeout time.Duration) error {
 	s := ui.Progressf("Waiting for CRD %s to be ready to use", CRDName)
 	defer s.Stop()
 
@@ -275,7 +275,7 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 
 // Wait up to timeout for Namespace to be removed.
 // Returns an error if the Namespace is not removed within the allotted time.
-func (c *Cluster) WaitForNamespaceMissing(ui *ui.UI, namespace string, timeout time.Duration) error {
+func (c *Cluster) WaitForNamespaceMissing(ui *termui.UI, namespace string, timeout time.Duration) error {
 	s := ui.Progressf("Waiting for namespace %s to be deleted", namespace)
 	defer s.Stop()
 
@@ -284,7 +284,7 @@ func (c *Cluster) WaitForNamespaceMissing(ui *ui.UI, namespace string, timeout t
 
 // Wait up to timeout for pod to be removed.
 // Returns an error if the pod is not removed within the allotted time.
-func (c *Cluster) WaitForPodBySelectorMissing(ui *ui.UI, namespace, selector string, timeout time.Duration) error {
+func (c *Cluster) WaitForPodBySelectorMissing(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Removing %s in %s", selector, namespace)
 	defer s.Stop()
 
@@ -293,7 +293,7 @@ func (c *Cluster) WaitForPodBySelectorMissing(ui *ui.UI, namespace, selector str
 
 // Wait up to timeout for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
-func (c *Cluster) WaitUntilPodBySelectorExist(ui *ui.UI, namespace, selector string, timeout time.Duration) error {
+func (c *Cluster) WaitUntilPodBySelectorExist(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Creating %s in %s", selector, namespace)
 	defer s.Stop()
 
@@ -303,7 +303,7 @@ func (c *Cluster) WaitUntilPodBySelectorExist(ui *ui.UI, namespace, selector str
 // WaitForPodBySelectorRunning waits timeout for all pods in 'namespace'
 // with given 'selector' to enter running state. Returns an error if no pods are
 // found or not all discovered pods enter running state.
-func (c *Cluster) WaitForPodBySelectorRunning(ui *ui.UI, namespace, selector string, timeout time.Duration) error {
+func (c *Cluster) WaitForPodBySelectorRunning(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Starting %s in %s", selector, namespace)
 	defer s.Stop()
 

@@ -1,20 +1,20 @@
-package client
+package cli
 
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/paas"
+	"github.com/suse/carrier/internal/cli/clients"
 )
 
 var ()
 
-// CmdDeleteApp implements the carrier delete command
-var CmdDeleteApp = &cobra.Command{
-	Use:   "delete NAME",
-	Short: "Deletes an application",
-	Args:  cobra.ExactArgs(1),
+// CmdTarget implements the carrier target command
+var CmdTarget = &cobra.Command{
+	Use:   "target [org]",
+	Short: "Targets an organization in Carrier.",
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+		client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -25,9 +25,14 @@ var CmdDeleteApp = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.Delete(args[0])
+		org := ""
+		if len(args) > 0 {
+			org = args[0]
+		}
+
+		err = client.Target(org)
 		if err != nil {
-			return errors.Wrap(err, "error deleting app")
+			return errors.Wrap(err, "failed to set target")
 		}
 
 		return nil
@@ -38,7 +43,8 @@ var CmdDeleteApp = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, cleanup, err := paas.NewCarrierClient(cmd.Flags())
+
+		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
 		defer func() {
 			if cleanup != nil {
 				cleanup()
@@ -49,7 +55,7 @@ var CmdDeleteApp = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(toComplete)
+		matches := app.OrgsMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

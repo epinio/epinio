@@ -1,13 +1,13 @@
-package client
+package cli
 
 import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/suse/carrier/deployments"
+	"github.com/suse/carrier/internal/cli/clients"
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 )
 
 var CmdEnable = &cobra.Command{
@@ -75,8 +75,8 @@ func EnableGoogle(cmd *cobra.Command, args []string) error {
 }
 
 func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, opts kubernetes.InstallationOptions, successMessage string) error {
-	uiUI := ui.NewUI()
-	installClient, installCleanup, err := paas.NewInstallClient(cmd.Flags(), &opts)
+	uiUI := termui.NewUI()
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Flags(), &opts)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()

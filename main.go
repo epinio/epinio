@@ -1,7 +1,7 @@
 package main
 
-import cmd "github.com/suse/carrier/cmd"
+import "github.com/suse/carrier/internal/cli"
 
 func main() {
-	cmd.Execute()
+	cli.Execute()
 }

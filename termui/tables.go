@@ -1,4 +1,4 @@
-package ui
+package termui
 
 // WithTable prints a new table
 func (u *Message) WithTable(headers ...string) *Message {

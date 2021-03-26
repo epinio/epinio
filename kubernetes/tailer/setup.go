@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -37,7 +37,7 @@ type Config struct {
 //   - For log entries `Exclude` is applied before `Include`.
 
 // Run starts the log watching
-func Run(ui *ui.UI, ctx context.Context, config *Config, cluster *kubernetes.Cluster) error {
+func Run(ui *termui.UI, ctx context.Context, config *Config, cluster *kubernetes.Cluster) error {
 	var namespace string
 
 	if config.AllNamespaces {

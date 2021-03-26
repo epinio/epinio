@@ -10,7 +10,7 @@ import (
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,11 +33,11 @@ func (k *Workloads) ID() string {
 	return WorkloadsDeploymentID
 }
 
-func (k *Workloads) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Workloads) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Workloads) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Workloads) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -46,7 +46,7 @@ func (k Workloads) Describe() string {
 }
 
 // Delete removes Workloads from kubernetes cluster
-func (w Workloads) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (w Workloads) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Workloads...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(WorkloadsDeploymentID)
@@ -80,7 +80,7 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (w Workloads) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (w Workloads) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	if err := w.createWorkloadsNamespace(c, ui); err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (k Workloads) GetVersion() string {
 	return WorkloadsIngressVersion
 }
 
-func (k Workloads) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Workloads) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		WorkloadsDeploymentID,
@@ -134,12 +134,12 @@ func (k Workloads) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.I
 	return nil
 }
 
-func (k Workloads) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Workloads) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	// NOTE: Not implemented yet
 	return nil
 }
 
-func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) error {
+func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *termui.UI) error {
 	if _, err := c.Kubectl.CoreV1().Namespaces().Create(
 		context.Background(),
 		&corev1.Namespace{
@@ -172,7 +172,7 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) er
 	return nil
 }
 
-func (w Workloads) deleteWorkloadsNamespace(c *kubernetes.Cluster, ui *ui.UI) error {
+func (w Workloads) deleteWorkloadsNamespace(c *kubernetes.Cluster, ui *termui.UI) error {
 	message := "Deleting Workloads namespace " + WorkloadsDeploymentID
 	_, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {

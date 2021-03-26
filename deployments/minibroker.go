@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,11 +30,11 @@ func (k *Minibroker) ID() string {
 	return MinibrokerDeploymentID
 }
 
-func (k *Minibroker) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Minibroker) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Minibroker) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Minibroker) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -43,7 +43,7 @@ func (k Minibroker) Describe() string {
 }
 
 // Delete removes Minibroker from kubernetes cluster
-func (k Minibroker) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k Minibroker) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Minibroker...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(MinibrokerDeploymentID)
@@ -95,7 +95,7 @@ func (k Minibroker) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k Minibroker) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Minibroker) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -137,7 +137,7 @@ func (k Minibroker) GetVersion() string {
 	return minibrokerVersion
 }
 
-func (k Minibroker) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Minibroker) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	existsAndOwned, err := c.NamespaceExistsAndOwned(MinibrokerDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", MinibrokerDeploymentID)
@@ -157,7 +157,7 @@ func (k Minibroker) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.
 	return nil
 }
 
-func (k Minibroker) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Minibroker) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		MinibrokerDeploymentID,

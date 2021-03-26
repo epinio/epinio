@@ -1,4 +1,4 @@
-package paas
+package clients
 
 import (
 	"context"
@@ -23,14 +23,14 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/internal/application"
+	"github.com/suse/carrier/internal/cli/config"
 	"github.com/suse/carrier/internal/duration"
+	carriergitea "github.com/suse/carrier/internal/gitea"
 	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
 	"github.com/suse/carrier/kubernetes/tailer"
-	"github.com/suse/carrier/paas/config"
-	paasgitea "github.com/suse/carrier/paas/gitea"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
@@ -49,9 +49,9 @@ var (
 type CarrierClient struct {
 	giteaClient   *gitea.Client
 	kubeClient    *kubernetes.Cluster
-	ui            *ui.UI
+	ui            *termui.UI
 	config        *config.Config
-	giteaResolver *paasgitea.Resolver
+	giteaResolver *carriergitea.Resolver
 	Log           logr.Logger
 }
 
@@ -68,12 +68,12 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	resolver := paasgitea.NewResolver(configConfig, cluster)
-	client, err := paasgitea.NewGiteaClient(resolver)
+	resolver := carriergitea.NewResolver(configConfig, cluster)
+	client, err := carriergitea.NewGiteaClient(resolver)
 	if err != nil {
 		return nil, nil, err
 	}
-	uiUI := ui.NewUI()
+	uiUI := termui.NewUI()
 	logger := kubeconfig.NewClientLogger()
 	carrierClient := &CarrierClient{
 		giteaClient:   client,
@@ -427,7 +427,7 @@ func (c *CarrierClient) DeleteService(name string, unbind bool) error {
 	}
 
 	if boundApps, found := appsOf[service.Name()]; found {
-		var msg *ui.Message
+		var msg *termui.Message
 		if !unbind {
 			msg = c.ui.Exclamation()
 		} else {
