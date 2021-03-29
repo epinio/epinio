@@ -22,7 +22,7 @@ import (
 // This is done in the hope of enhancing the readability of various before/after blocks.
 
 func newOrgName() string {
-	return "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
+	return "orgs-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
 func newAppName() string {
