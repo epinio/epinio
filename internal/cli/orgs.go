@@ -13,13 +13,7 @@ var CmdOrgs = &cobra.Command{
 	Use:   "orgs",
 	Short: "Lists all organizations",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		client, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

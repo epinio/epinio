@@ -14,13 +14,7 @@ var CmdTarget = &cobra.Command{
 	Short: "Targets an organization in Carrier.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		client, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -44,13 +38,7 @@ var CmdTarget = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		app, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
