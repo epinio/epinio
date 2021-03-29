@@ -56,10 +56,10 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		result = append(result, map[string]interface{}{
-			"name":     app.Name,
-			"status":   status,
-			"routes":   routes,
-			"services": bonded,
+			"name":          app.Name,
+			"status":        status,
+			"routes":        routes,
+			"boundServices": bonded,
 		})
 	}
 

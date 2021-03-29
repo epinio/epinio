@@ -2,9 +2,11 @@ package clients
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -49,10 +51,11 @@ var (
 type CarrierClient struct {
 	GiteaClient   *gitea.Client
 	KubeClient    *kubernetes.Cluster
-	ui            *termui.UI
 	Config        *config.Config
-	giteaResolver *carriergitea.Resolver
 	Log           logr.Logger
+	ui            *termui.UI
+	giteaResolver *carriergitea.Resolver
+	serverURL     string
 }
 
 func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
@@ -74,6 +77,15 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
 		return nil, err
 	}
 	uiUI := termui.NewUI()
+	// TODO: This is a hack. We won't need it when the server will be running
+	// in-cluster. Then server-url will never empty.
+	serverURL := ""
+	if flags != nil {
+		if urlFromFlags, err := flags.GetString("server-url"); err == nil {
+			serverURL = urlFromFlags
+		}
+	}
+
 	logger := kubeconfig.NewClientLogger()
 	carrierClient := &CarrierClient{
 		GiteaClient:   client,
@@ -82,6 +94,7 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
 		Config:        configConfig,
 		giteaResolver: resolver,
 		Log:           logger,
+		serverURL:     serverURL,
 	}
 	return carrierClient, nil
 }
@@ -693,52 +706,31 @@ func (c *CarrierClient) Apps() error {
 		Msg("Listing applications")
 
 	details.Info("validate")
+	// TODO: remove this
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to list applications.")
 	if err != nil {
 		return err
 	}
 
 	details.Info("list applications")
-	apps, err := application.List(c.KubeClient, c.GiteaClient, c.Config.Org)
+
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/org/%s/applications", c.Config.Org), "GET", "")
 	if err != nil {
-		return errors.Wrap(err, "failed to list apps")
+		return err
+	}
+	var apps application.ApplicationList
+	if err := json.Unmarshal(jsonResponse, &apps); err != nil {
+		return err
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
 
 	for _, app := range apps {
-		details.Info("kube get status", "App", app.Name)
-		status, err := c.KubeClient.DeploymentStatus(
-			deployments.WorkloadsDeploymentID,
-			fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
-				c.Config.Org, app.Name))
-		if err != nil {
-			status = color.RedString(err.Error())
-		}
-
-		details.Info("kube get ingress", "App", app.Name)
-		routes, err := c.KubeClient.ListIngressRoutes(
-			deployments.WorkloadsDeploymentID,
-			app.Name)
-		if err != nil {
-			routes = []string{color.RedString(err.Error())}
-		}
-
-		var bonded = []string{}
-		bound, err := app.Services()
-		if err != nil {
-			bonded = append(bonded, color.RedString(err.Error()))
-		} else {
-			for _, service := range bound {
-				bonded = append(bonded, service.Name())
-			}
-		}
-
 		msg = msg.WithTableRow(
 			app.Name,
-			status,
-			strings.Join(routes, ", "),
-			strings.Join(bonded, ", "))
+			app.Status,
+			strings.Join(app.Routes, ", "),
+			strings.Join(app.BoundServices, ", "))
 	}
 
 	msg.Msg("Carrier Applications:")
@@ -1391,4 +1383,27 @@ func (c *CarrierClient) servicesToApps(org string) (map[string]application.Appli
 	}
 
 	return appsOf, nil
+}
+
+func (c *CarrierClient) curl(endpoint, method, requestBody string) ([]byte, error) {
+	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
+	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
+	if err != nil {
+		return []byte{}, err
+	}
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer response.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return bodyBytes, errors.Wrapf(err, "Api responded with %d: ", response.StatusCode)
+	}
+
+	return bodyBytes, nil
 }

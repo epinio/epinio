@@ -20,10 +20,13 @@ import (
 // Application manages applications.
 // Implements the Application interface.
 type Application struct {
-	Name         string
-	Organization string
-	giteaClient  *gitea.Client
-	kubeClient   *kubernetes.Cluster
+	Name          string
+	Organization  string
+	Status        string
+	Routes        []string
+	BoundServices []string
+	giteaClient   *gitea.Client
+	kubeClient    *kubernetes.Cluster
 }
 
 type ApplicationList []Application
