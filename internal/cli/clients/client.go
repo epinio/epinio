@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"code.gitea.io/sdk/gitea"
-	"github.com/fatih/color"
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
@@ -242,6 +241,7 @@ func (c *CarrierClient) Services() error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Listing services")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to list services.")
 	if err != nil {
@@ -323,6 +323,7 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Bind Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to bind service.")
 	if err != nil {
@@ -371,6 +372,7 @@ func (c *CarrierClient) UnbindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Unbind Service from Application")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to unbind service.")
 	if err != nil {
@@ -420,6 +422,7 @@ func (c *CarrierClient) DeleteService(name string, unbind bool) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Delete Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to remove service.")
 	if err != nil {
@@ -511,6 +514,7 @@ func (c *CarrierClient) CreateService(name, class, plan string, dict []string, w
 	}
 	msg.Msg("Create Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to create service.")
 	if err != nil {
@@ -569,6 +573,7 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 	}
 	msg.Msg("Create Custom Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to create service.")
 	if err != nil {
@@ -600,6 +605,7 @@ func (c *CarrierClient) ServiceDetails(name string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Service Details")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to detail service.")
 	if err != nil {
@@ -706,6 +712,7 @@ func (c *CarrierClient) Apps() error {
 		Msg("Listing applications")
 
 	details.Info("validate")
+	// todo: fix, remove, move to server
 	// TODO: remove this
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to list applications.")
 	if err != nil {
@@ -750,6 +757,7 @@ func (c *CarrierClient) AppShow(appName string) error {
 		WithStringValue("Application", appName).
 		Msg("Show application details")
 
+	// todo: fix, move into server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to show application details.")
 	if err != nil {
@@ -758,45 +766,20 @@ func (c *CarrierClient) AppShow(appName string) error {
 
 	details.Info("list applications")
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient, c.Config.Org, appName)
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/org/%s/applications/%s", c.Config.Org, appName), "GET", "")
 	if err != nil {
-		return errors.Wrap(err, "failed to retrieve app")
+		return err
+	}
+	var app application.Application
+	if err := json.Unmarshal(jsonResponse, &app); err != nil {
+		return err
 	}
 
 	msg := c.ui.Success().WithTable("Key", "Value")
 
-	details.Info("kube get status", "App", app.Name)
-	status, err := c.KubeClient.DeploymentStatus(
-		deployments.WorkloadsDeploymentID,
-		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
-			c.Config.Org, app.Name))
-	if err != nil {
-		status = color.RedString(err.Error())
-	}
-
-	msg = msg.WithTableRow("Status", status)
-
-	details.Info("kube get ingress", "App", app.Name)
-	routes, err := c.KubeClient.ListIngressRoutes(
-		deployments.WorkloadsDeploymentID,
-		app.Name)
-	if err != nil {
-		routes = []string{color.RedString(err.Error())}
-	}
-
-	msg = msg.WithTableRow("Routes", strings.Join(routes, ", "))
-
-	var bonded = []string{}
-	bound, err := app.Services()
-	if err != nil {
-		bonded = append(bonded, color.RedString(err.Error()))
-	} else {
-		for _, service := range bound {
-			bonded = append(bonded, service.Name())
-		}
-	}
-
-	msg = msg.WithTableRow("Services", strings.Join(bonded, ", "))
+	msg = msg.WithTableRow("Status", app.Status)
+	msg = msg.WithTableRow("Routes", strings.Join(app.Routes, ", "))
+	msg = msg.WithTableRow("Services", strings.Join(app.BoundServices, ", "))
 
 	msg.Msg("Details:")
 
@@ -976,6 +959,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 		Timeout(duration.UserAbort()).
 		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to push.")
 	if err != nil {
@@ -1054,6 +1038,7 @@ func (c *CarrierClient) Target(org string) error {
 		WithStringValue("Name", org).
 		Msg("Targeting organization...")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(org, "Unable to target.")
 	if err != nil {

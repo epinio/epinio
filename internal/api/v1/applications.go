@@ -71,6 +71,62 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 	w.Write(js)
 }
 
+func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+	appName := params.ByName("app")
+
+	// TODO: fix, create and memoize kube/gitea clients
+	client, err := clients.NewCarrierClient(nil)
+	if handleError(w, err, 500) {
+		return
+	}
+
+	app, err := application.Lookup(client.KubeClient, client.GiteaClient, org, appName)
+	if handleError(w, err, 500) {
+		return
+	}
+
+	status, err := client.KubeClient.DeploymentStatus(
+		deployments.WorkloadsDeploymentID,
+		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
+			org, app.Name))
+	if handleError(w, err, 500) {
+		return
+	}
+
+	routes, err := client.KubeClient.ListIngressRoutes(
+		deployments.WorkloadsDeploymentID,
+		app.Name)
+	if err != nil {
+		routes = []string{err.Error()}
+	}
+
+	var bonded = []string{}
+	bound, err := app.Services()
+	if err != nil {
+		bonded = append(bonded, color.RedString(err.Error()))
+	} else {
+		for _, service := range bound {
+			bonded = append(bonded, service.Name())
+		}
+	}
+
+	result := map[string]interface{}{
+		"name":          app.Name,
+		"status":        status,
+		"routes":        routes,
+		"boundServices": bonded,
+	}
+
+	js, err := json.Marshal(result)
+	if handleError(w, err, 500) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
 // Write the error to the response writer and return  true if there was an error
 func handleError(w http.ResponseWriter, err error, code int) bool {
 	if err != nil {

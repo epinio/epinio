@@ -12,7 +12,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("api/v1/org/:org/applications", func() {
+var _ = Describe("API Application Endpoints", func() {
+
 	var org = newOrgName()
 	var serverProcess *kexec.KCommand
 	var err error
@@ -41,15 +42,30 @@ var _ = Describe("api/v1/org/:org/applications", func() {
 		Expect(serverProcess.Process.Kill()).ToNot(HaveOccurred())
 	})
 
-	It("lists all applications belonging to the org", func() {
-		response, err := Curl(fmt.Sprintf("%s/api/v1/org/%s/applications", serverURL, org), strings.NewReader(""))
-		Expect(err).ToNot(HaveOccurred())
-		Expect(response).ToNot(BeNil())
-		defer response.Body.Close()
-		Expect(response.StatusCode).To(Equal(http.StatusOK))
-		bodyBytes, err := ioutil.ReadAll(response.Body)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(bodyBytes).To(MatchRegexp(app1))
-		Expect(bodyBytes).To(MatchRegexp(app2))
+	Describe("GET api/v1/org/:org/applications", func() {
+		It("lists all applications belonging to the org", func() {
+			response, err := Curl(fmt.Sprintf("%s/api/v1/org/%s/applications", serverURL, org), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(bodyBytes).To(MatchRegexp(app1))
+			Expect(bodyBytes).To(MatchRegexp(app2))
+		})
+	})
+
+	Describe("GET api/v1/org/:org/applications/:app", func() {
+		It("lists the application data", func() {
+			response, err := Curl(fmt.Sprintf("%s/api/v1/org/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(bodyBytes).To(MatchRegexp(app1))
+		})
 	})
 })

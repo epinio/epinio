@@ -40,7 +40,7 @@ test-acceptance: showfocus
 	ginkgo -nodes ${GINKGO_NODES} -stream --flakeAttempts=2 acceptance/.
 
 showfocus:
-	@if test `cat acceptance/*.go | grep -c FIt` -gt 0 ; then echo ; echo 'Focus:' ; grep FIt acceptance/* ; echo ; fi
+	@if test `cat acceptance/*.go | grep -c 'FIt\|FWhen\|FDescribe'` -gt 0 ; then echo ; echo 'Focus:' ; grep FIt acceptance/* ; echo ; fi
 
 generate:
 	go generate ./...

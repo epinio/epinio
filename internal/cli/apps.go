@@ -75,6 +75,19 @@ var CmdAppShow = &cobra.Command{
 	Short: "Describe the named application",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// TODO: Target remote carrier server instead of starting one
+		port := viper.GetInt("port")
+		httpServerWg := &sync.WaitGroup{}
+		httpServerWg.Add(1)
+		ui := termui.NewUI()
+		srv, listeningPort, err := startCarrierServer(httpServerWg, port, ui)
+		if err != nil {
+			return err
+		}
+
+		// TODO: NOTE: This is a hack until the server is running inside the cluster
+		cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
+
 		client, err := clients.NewCarrierClient(cmd.Flags())
 
 		if err != nil {
@@ -85,6 +98,11 @@ var CmdAppShow = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "error listing apps")
 		}
+
+		if err := srv.Shutdown(context.Background()); err != nil {
+			return err
+		}
+		httpServerWg.Wait()
 
 		return nil
 	},
