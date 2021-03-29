@@ -16,6 +16,7 @@ import (
 	apiv1 "github.com/suse/carrier/internal/api/v1"
 	"github.com/suse/carrier/internal/filesystem"
 	"github.com/suse/carrier/internal/web"
+	"github.com/suse/carrier/termui"
 )
 
 func init() {
@@ -33,7 +34,8 @@ var CmdServer = &cobra.Command{
 		httpServerWg := &sync.WaitGroup{}
 		httpServerWg.Add(1)
 		port := viper.GetInt("port")
-		_, listeningPort, err := startCarrierServer(httpServerWg, port)
+		ui := termui.NewUI()
+		_, listeningPort, err := startCarrierServer(httpServerWg, port, ui)
 		if err != nil {
 			return err
 		}
@@ -46,7 +48,7 @@ var CmdServer = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-func startCarrierServer(wg *sync.WaitGroup, port int) (*http.Server, string, error) {
+func startCarrierServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Server, string, error) {
 	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
 	if err != nil {
 		return nil, "", err
@@ -55,8 +57,8 @@ func startCarrierServer(wg *sync.WaitGroup, port int) (*http.Server, string, err
 	elements := strings.Split(listener.Addr().String(), ":")
 	listeningPort := elements[len(elements)-1]
 
-	http.Handle("/api/v1/", logRequestHandler(apiv1.Router()))
-	http.Handle("/", logRequestHandler(web.Router()))
+	http.Handle("/api/v1/", logRequestHandler(apiv1.Router(), ui))
+	http.Handle("/", logRequestHandler(web.Router(), ui))
 	// Static files
 	var assetsDir http.FileSystem
 	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
@@ -79,7 +81,7 @@ func startCarrierServer(wg *sync.WaitGroup, port int) (*http.Server, string, err
 }
 
 // loggingmiddleware for requests
-func logRequestHandler(h http.Handler) http.Handler {
+func logRequestHandler(h http.Handler, ui *termui.UI) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
 		// call the original http.Handler
@@ -88,8 +90,7 @@ func logRequestHandler(h http.Handler) http.Handler {
 		// log the request
 		uri := r.URL.String()
 		method := r.Method
-		// TODO: Use verbosity level to decide if we print or not
-		fmt.Printf("%s %s\n", method, uri)
+		ui.Normal().V(1).Msgf("%s %s", method, uri)
 	}
 
 	return http.HandlerFunc(fn)

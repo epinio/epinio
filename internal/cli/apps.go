@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/suse/carrier/internal/cli/clients"
+	"github.com/suse/carrier/termui"
 )
 
 var ()
@@ -38,7 +39,8 @@ var CmdAppList = &cobra.Command{
 		port := viper.GetInt("port")
 		httpServerWg := &sync.WaitGroup{}
 		httpServerWg.Add(1)
-		srv, listeningPort, err := startCarrierServer(httpServerWg, port)
+		ui := termui.NewUI()
+		srv, listeningPort, err := startCarrierServer(httpServerWg, port, ui)
 		if err != nil {
 			return err
 		}
