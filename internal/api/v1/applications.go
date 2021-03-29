@@ -19,15 +19,10 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
-	client, cleanup, err := clients.NewCarrierClient(nil)
+	client, err := clients.NewCarrierClient(nil)
 	if handleError(w, err, 500) {
 		return
 	}
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
 
 	apps, err := application.List(client.KubeClient, client.GiteaClient, org)
 	if handleError(w, err, 500) {

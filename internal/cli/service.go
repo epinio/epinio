@@ -45,13 +45,7 @@ var CmdServiceShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		app, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -89,13 +83,7 @@ var CmdServiceCreate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		app, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -145,13 +133,7 @@ var CmdServiceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		app, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -176,13 +158,7 @@ var CmdServiceBind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		app, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -215,13 +191,7 @@ var CmdServiceUnbind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		app, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -261,13 +231,7 @@ var CmdServiceListPlans = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-		defer func() {
-			if cleanup != nil {
-				cleanup()
-			}
-		}()
-
+		app, err := clients.NewCarrierClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -289,13 +253,7 @@ var CmdServiceList = &cobra.Command{
 
 // ServiceShow implements the carrier service show command
 func ServiceShow(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -310,13 +268,7 @@ func ServiceShow(cmd *cobra.Command, args []string) error {
 
 // ServiceCreate implements the carrier service create command
 func ServiceCreate(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -337,13 +289,7 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 
 // ServiceCreateCustom implements the carrier service create-custom command
 func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -363,13 +309,7 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -384,13 +324,7 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 
 // ServiceBind implements the carrier service bind command
 func ServiceBind(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -405,13 +339,7 @@ func ServiceBind(cmd *cobra.Command, args []string) error {
 
 // ServiceUnbind implements the carrier service unbind command
 func ServiceUnbind(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -426,13 +354,7 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 
 // ServiceListClasses implements the carrier service list-classes command
 func ServiceListClasses(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -447,13 +369,7 @@ func ServiceListClasses(cmd *cobra.Command, args []string) error {
 
 // ServiceListPlans implements the carrier service list-plans command
 func ServiceListPlans(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -468,13 +384,7 @@ func ServiceListPlans(cmd *cobra.Command, args []string) error {
 
 // ServiceList implements the carrier service list command
 func ServiceList(cmd *cobra.Command, args []string) error {
-	client, cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if cleanup != nil {
-			cleanup()
-		}
-	}()
-
+	client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}

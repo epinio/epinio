@@ -11,8 +11,7 @@ type InfoController struct {
 }
 
 func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
-	// TODO: Second return value is always nil (the cleanup function)?
-	client, _, err := clients.NewCarrierClient(nil)
+	client, err := clients.NewCarrierClient(nil)
 	if handleError(w, err, 500) {
 		return
 	}

@@ -57,13 +57,7 @@ func Install(cmd *cobra.Command, args []string) error {
 
 	// Installation complete. Run `create-org`
 
-	carrier_client, carrier_cleanup, err := clients.NewCarrierClient(cmd.Flags())
-	defer func() {
-		if carrier_cleanup != nil {
-			carrier_cleanup()
-		}
-	}()
-
+	carrier_client, err := clients.NewCarrierClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}

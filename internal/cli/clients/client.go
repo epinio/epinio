@@ -55,23 +55,23 @@ type CarrierClient struct {
 	Log           logr.Logger
 }
 
-func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
+func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
 	configConfig, err := config.Load(flags)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	restConfig, err := kubeconfig.KubeConfig()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	cluster, err := kubernetes.NewClusterFromClient(restConfig)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	resolver := carriergitea.NewResolver(configConfig, cluster)
 	client, err := carriergitea.NewGiteaClient(resolver)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	uiUI := termui.NewUI()
 	logger := kubeconfig.NewClientLogger()
@@ -83,8 +83,7 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, func(), error) {
 		giteaResolver: resolver,
 		Log:           logger,
 	}
-	return carrierClient, func() {
-	}, nil
+	return carrierClient, nil
 }
 
 // ServicePlans gets all service classes in the cluster, for the
