@@ -12,6 +12,7 @@ import (
 	pconfig "github.com/suse/carrier/internal/cli/config"
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes/config"
+	"github.com/suse/carrier/version"
 )
 
 var (
@@ -28,7 +29,7 @@ func Execute() {
 		Use:           "carrier",
 		Short:         "Carrier cli",
 		Long:          `carrier cli is the official command line interface for Carrier PaaS `,
-		Version:       fmt.Sprintf("%s", Version),
+		Version:       fmt.Sprintf("%s", version.Version),
 		SilenceErrors: true,
 	}
 
@@ -63,6 +64,7 @@ func Execute() {
 	rootCmd.AddCommand(CmdEnable)
 	rootCmd.AddCommand(CmdDisable)
 	rootCmd.AddCommand(CmdService)
+	rootCmd.AddCommand(CmdServer)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

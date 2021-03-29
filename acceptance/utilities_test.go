@@ -1,12 +1,16 @@
 package acceptance_test
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/codeskyblue/kexec"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -17,12 +21,43 @@ import (
 // I.e. create/delete applications/services, bind/unbind services, etc.
 // This is done in the hope of enhancing the readability of various before/after blocks.
 
+func newOrgName() string {
+	return "orgs-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
 func newAppName() string {
 	return "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
 func newServiceName() string {
 	return "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
+// func Curl is used to make requests against a server
+func Curl(uri string, requestBody *strings.Reader) (*http.Response, error) {
+	request, err := http.NewRequest("GET", uri, requestBody)
+	if err != nil {
+		return nil, err
+	}
+	return (&http.Client{}).Do(request)
+}
+
+func startCarrierServer(port int) (*kexec.KCommand, error) {
+	commandDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	cmd := fmt.Sprintf("%s/carrier server --port %d", nodeTmpDir, port)
+
+	p := kexec.CommandString(cmd)
+
+	var b bytes.Buffer
+	p.Stdout = &b
+	p.Stderr = &b
+	p.Dir = commandDir
+	p.Start()
+
+	return p, nil
 }
 
 func setupAndTargetOrg(org string) {

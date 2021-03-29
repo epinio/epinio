@@ -13,6 +13,7 @@ require (
 	github.com/go-logr/stdr v0.4.0
 	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
+	github.com/julienschmidt/httprouter v1.2.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/olekukonko/tablewriter v0.0.4

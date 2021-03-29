@@ -60,10 +60,11 @@ gitlint:
 	gitlint --commits "origin..HEAD"
 
 prepare_version:
-	echo >  internal/cli/version.go "package cli"
-	echo >> internal/cli/version.go ""
-	echo >> internal/cli/version.go "const Version = \"$$(git describe --tags)\""
-	cat internal/cli/version.go
+	mkdir -p version
+	echo >  version/version.go "package version"
+	echo >> version/version.go ""
+	echo >> version/version.go "const Version = \"$$(git describe --tags)\""
+	cat version/version.go
 
 .PHONY: tools
 tools:
@@ -83,6 +84,8 @@ update_tekton:
 
 embed_files:
 	statik -m -f -src=./embedded-files
+	statik -m -f -src=./embedded-web-files/views -ns webViews -p statikWebViews
+	statik -m -f -src=./embedded-web-files/assets -ns webAssets -p statikWebAssets
 
 help:
 	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee HELP

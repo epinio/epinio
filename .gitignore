@@ -15,4 +15,4 @@ personal-setup
 /dist
 /resources
 acceptance/acceptance.test
-internal/cli/version.go
+version/version.go
