@@ -207,12 +207,16 @@ func Lookup(
 
 	for _, anApp := range apps {
 		if anApp.Name == app {
-			return Application{
+			app, err := (&Application{
 				Organization: org,
 				Name:         app,
 				kubeClient:   kubeClient,
 				giteaClient:  giteaClient,
-			}, nil
+			}).Complete()
+			if err != nil {
+				return Application{}, err
+			}
+			return *app, nil
 		}
 	}
 
@@ -233,13 +237,47 @@ func List(
 	result := ApplicationList{}
 
 	for _, app := range apps {
-		result = append(result, Application{
+		appCarrier, err := (&Application{
 			Organization: org,
 			Name:         app.Name,
 			kubeClient:   kubeClient,
 			giteaClient:  giteaClient,
-		})
+		}).Complete()
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, *appCarrier)
 	}
 
 	return result, nil
+}
+
+func (app *Application) Complete() (*Application, error) {
+	var err error
+	app.Status, err = app.kubeClient.DeploymentStatus(
+		deployments.WorkloadsDeploymentID,
+		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
+			app.Organization, app.Name))
+	if err != nil {
+		app.Status = err.Error()
+	}
+
+	app.Routes, err = app.kubeClient.ListIngressRoutes(
+		deployments.WorkloadsDeploymentID,
+		app.Name)
+	if err != nil {
+		app.Routes = []string{err.Error()}
+	}
+
+	bound, err := app.Services()
+	if err != nil {
+		app.BoundServices = append(app.BoundServices, err.Error())
+	} else {
+		for _, service := range bound {
+			app.BoundServices = append(app.BoundServices, service.Name())
+		}
+	}
+
+	return app, nil
 }
