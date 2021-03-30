@@ -62,11 +62,8 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
 	if err != nil {
 		return nil, err
 	}
-	restConfig, err := kubeconfig.KubeConfig()
-	if err != nil {
-		return nil, err
-	}
-	cluster, err := kubernetes.NewClusterFromClient(restConfig)
+
+	cluster, err := kubernetes.NewCluster()
 	if err != nil {
 		return nil, err
 	}

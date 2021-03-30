@@ -7,6 +7,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/cli/clients"
+	"github.com/suse/carrier/kubernetes"
 )
 
 type ApplicationsController struct {
@@ -39,13 +40,18 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
+	cluster, err := kubernetes.NewCluster()
+	if handleError(w, err, 500) {
+		return
+	}
+
 	// TODO: fix, create and memoize kube/gitea clients
 	client, err := clients.NewCarrierClient(nil)
 	if handleError(w, err, 500) {
 		return
 	}
 
-	app, err := application.Lookup(client.KubeClient, client.GiteaClient, org, appName)
+	app, err := application.Lookup(cluster, client.GiteaClient, org, appName)
 	if handleError(w, err, 500) {
 		return
 	}

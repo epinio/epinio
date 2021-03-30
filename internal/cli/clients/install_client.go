@@ -32,11 +32,7 @@ type InstallClient struct {
 }
 
 func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
-	restConfig, err := kubeconfig.KubeConfig()
-	if err != nil {
-		return nil, nil, err
-	}
-	cluster, err := kubernetes.NewClusterFromClient(restConfig)
+	cluster, err := kubernetes.NewCluster()
 	if err != nil {
 		return nil, nil, err
 	}
