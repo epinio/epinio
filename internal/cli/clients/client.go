@@ -709,14 +709,6 @@ func (c *CarrierClient) Apps() error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Listing applications")
 
-	details.Info("validate")
-	// todo: fix, remove, move to server
-	// TODO: remove this
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to list applications.")
-	if err != nil {
-		return err
-	}
-
 	details.Info("list applications")
 
 	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/org/%s/applications", c.Config.Org), "GET", "")
@@ -754,13 +746,6 @@ func (c *CarrierClient) AppShow(appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		WithStringValue("Application", appName).
 		Msg("Show application details")
-
-	// todo: fix, move into server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to show application details.")
-	if err != nil {
-		return err
-	}
 
 	details.Info("list applications")
 
@@ -1300,6 +1285,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	return nil
 }
 
+// TODO: Delete after all commands go through the api
 func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
 	_, resp, err := c.GiteaClient.Client.GetOrg(org)
 	if resp == nil && err != nil {

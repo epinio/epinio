@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/julienschmidt/httprouter"
@@ -24,6 +25,15 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 
 	gitea, err := clients.GetGiteaClient()
 	if handleError(w, err, 500) {
+		return
+	}
+
+	exists, err := gitea.OrgExists(org)
+	if handleError(w, err, 500) {
+		return
+	}
+	if !exists {
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
 		return
 	}
 
@@ -52,6 +62,15 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 
 	gitea, err := clients.GetGiteaClient()
 	if handleError(w, err, 500) {
+		return
+	}
+
+	exists, err := gitea.OrgExists(org)
+	if handleError(w, err, 500) {
+		return
+	}
+	if !exists {
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
 		return
 	}
 

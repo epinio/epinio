@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	"github.com/onsi/ginkgo/config"
 	. "github.com/onsi/gomega"
+	"github.com/suse/carrier/internal/application"
 )
 
 var _ = Describe("API Application Endpoints", func() {
@@ -51,8 +53,23 @@ var _ = Describe("API Application Endpoints", func() {
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(bodyBytes).To(MatchRegexp(app1))
-			Expect(bodyBytes).To(MatchRegexp(app2))
+
+			var apps application.ApplicationList
+			err = json.Unmarshal(bodyBytes, &apps)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(apps[0].Name).To(Equal(app1))
+			Expect(apps[0].Organization).To(Equal(org))
+			Expect(apps[0].Status).To(Equal("1/1"))
+			Expect(apps[1].Name).To(Equal(app2))
+			Expect(apps[1].Organization).To(Equal(org))
+			Expect(apps[1].Status).To(Equal("1/1"))
+		})
+
+		It("returns a 404 when the org does not exist", func() {
+			response, err := Curl(fmt.Sprintf("%s/api/v1/org/idontexist/applications", serverURL), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound))
 		})
 	})
 
@@ -66,6 +83,20 @@ var _ = Describe("API Application Endpoints", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(bodyBytes).To(MatchRegexp(app1))
+
+			var app application.Application
+			err = json.Unmarshal(bodyBytes, &app)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(app.Name).To(Equal(app1))
+			Expect(app.Organization).To(Equal(org))
+			Expect(app.Status).To(Equal("1/1"))
+		})
+
+		It("returns a 404 when the org does not exist", func() {
+			response, err := Curl(fmt.Sprintf("%s/api/v1/org/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound))
 		})
 	})
 })

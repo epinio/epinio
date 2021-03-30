@@ -159,3 +159,20 @@ func getGiteaCredentials(cluster *kubernetes.Cluster) (string, string, error) {
 
 	return string(username), string(password), nil
 }
+
+func (c *GiteaClient) OrgExists(org string) (bool, error) {
+	_, resp, err := c.Client.GetOrg(org)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to make get org request")
+	}
+
+	if resp.StatusCode == 404 {
+		return false, nil
+	}
+
+	if resp.StatusCode != 200 {
+		return false, errors.Errorf("Unexpected response from Gitea: %d", resp.StatusCode)
+	}
+
+	return true, nil
+}
