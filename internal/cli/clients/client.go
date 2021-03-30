@@ -26,7 +26,6 @@ import (
 	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/cli/config"
 	"github.com/suse/carrier/internal/duration"
-	carriergitea "github.com/suse/carrier/internal/gitea"
 	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
@@ -48,33 +47,36 @@ var (
 // CarrierClient provides functionality for talking to a
 // Carrier installation on Kubernetes
 type CarrierClient struct {
-	GiteaClient   *gitea.Client
-	KubeClient    *kubernetes.Cluster
-	Config        *config.Config
-	Log           logr.Logger
-	ui            *termui.UI
-	giteaResolver *carriergitea.Resolver
-	serverURL     string
+	GiteaClient *GiteaClient
+	KubeClient  *kubernetes.Cluster
+	Config      *config.Config
+	Log         logr.Logger
+	ui          *termui.UI
+	serverURL   string
 }
 
 func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
-	configConfig, err := config.Load(flags)
+	configConfig, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	cluster, err := kubernetes.NewCluster()
+	cluster, err := kubernetes.GetCluster()
 	if err != nil {
 		return nil, err
 	}
-	resolver := carriergitea.NewResolver(configConfig, cluster)
-	client, err := carriergitea.NewGiteaClient(resolver)
+
+	client, err := GetGiteaClient()
+
 	if err != nil {
 		return nil, err
 	}
+
 	uiUI := termui.NewUI()
 	// TODO: This is a hack. We won't need it when the server will be running
 	// in-cluster. Then server-url will never empty.
+	// TODO: Better: Retrieve from viper (env.var, global cobra option)
+
 	serverURL := ""
 	if flags != nil {
 		if urlFromFlags, err := flags.GetString("server-url"); err == nil {
@@ -84,13 +86,12 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
 
 	logger := kubeconfig.NewClientLogger()
 	carrierClient := &CarrierClient{
-		GiteaClient:   client,
-		KubeClient:    cluster,
-		ui:            uiUI,
-		Config:        configConfig,
-		giteaResolver: resolver,
-		Log:           logger,
-		serverURL:     serverURL,
+		GiteaClient: client,
+		KubeClient:  cluster,
+		ui:          uiUI,
+		Config:      configConfig,
+		Log:         logger,
+		serverURL:   serverURL,
 	}
 	return carrierClient, nil
 }
@@ -329,7 +330,7 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 
 	// Lookup app and service. Conversion from name to internal objects.
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient, c.Config.Org, appName)
+	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client, c.Config.Org, appName)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -378,7 +379,7 @@ func (c *CarrierClient) UnbindService(serviceName, appName string) error {
 
 	// Lookup app and service. Conversion from names to internal objects.
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient, c.Config.Org, appName)
+	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client, c.Config.Org, appName)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -656,7 +657,7 @@ func (c *CarrierClient) Info() error {
 
 	giteaVersion := "unavailable"
 
-	version, resp, err := c.GiteaClient.ServerVersion()
+	version, resp, err := c.GiteaClient.Client.ServerVersion()
 	if err == nil && resp != nil && resp.StatusCode == 200 {
 		giteaVersion = version
 	}
@@ -680,7 +681,7 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 	result := []string{}
 
-	apps, err := application.List(c.KubeClient, c.GiteaClient, c.Config.Org)
+	apps, err := application.List(c.KubeClient, c.GiteaClient.Client, c.Config.Org)
 	if err != nil {
 		return result
 	}
@@ -796,7 +797,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 	details.Info("validate")
 	details.Info("gitea get-org")
-	_, resp, err := c.GiteaClient.GetOrg(org)
+	_, resp, err := c.GiteaClient.Client.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")
 	}
@@ -807,7 +808,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 	}
 
 	details.Info("gitea create-org")
-	_, _, err = c.GiteaClient.CreateOrg(gitea.CreateOrgOption{
+	_, _, err = c.GiteaClient.Client.CreateOrg(gitea.CreateOrgOption{
 		Name: org,
 	})
 
@@ -831,7 +832,7 @@ func (c *CarrierClient) Delete(appname string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Deleting application...")
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient,
+	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client,
 		c.Config.Org, appname)
 	if err != nil {
 		return errors.Wrap(err, "failed to find application")
@@ -892,7 +893,7 @@ func (c *CarrierClient) OrgsMatching(prefix string) []string {
 
 	result := []string{}
 
-	orgs, _, err := c.GiteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	orgs, _, err := c.GiteaClient.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
 	if err != nil {
 		return result
 	}
@@ -919,7 +920,7 @@ func (c *CarrierClient) Orgs() error {
 	c.ui.Note().Msg("Listing organizations")
 
 	details.Info("gitea admin list orgs")
-	orgs, _, err := c.GiteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	orgs, _, err := c.GiteaClient.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list orgs")
 	}
@@ -1002,10 +1003,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 
 	details.Info("get app default route")
-	route, err := c.appDefaultRoute(app)
-	if err != nil {
-		return errors.Wrap(err, "failed to determine default app route")
-	}
+	route := c.appDefaultRoute(app)
 
 	c.ui.Success().
 		WithStringValue("Name", app).
@@ -1055,11 +1053,11 @@ func (c *CarrierClient) Target(org string) error {
 }
 
 func (c *CarrierClient) check() {
-	c.GiteaClient.GetMyUserInfo()
+	c.GiteaClient.Client.GetMyUserInfo()
 }
 
 func (c *CarrierClient) createRepo(name string) error {
-	_, resp, err := c.GiteaClient.GetRepo(c.Config.Org, name)
+	_, resp, err := c.GiteaClient.Client.GetRepo(c.Config.Org, name)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get repo request")
 	}
@@ -1069,7 +1067,7 @@ func (c *CarrierClient) createRepo(name string) error {
 		return nil
 	}
 
-	_, _, err = c.GiteaClient.CreateOrgRepo(c.Config.Org, gitea.CreateRepoOption{
+	_, _, err = c.GiteaClient.Client.CreateOrgRepo(c.Config.Org, gitea.CreateRepoOption{
 		Name:          name,
 		AutoInit:      true,
 		Private:       true,
@@ -1086,7 +1084,7 @@ func (c *CarrierClient) createRepo(name string) error {
 }
 
 func (c *CarrierClient) createRepoWebhook(name string) error {
-	hooks, _, err := c.GiteaClient.ListRepoHooks(c.Config.Org, name, gitea.ListHooksOptions{})
+	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, gitea.ListHooksOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list webhooks")
 	}
@@ -1101,7 +1099,7 @@ func (c *CarrierClient) createRepoWebhook(name string) error {
 
 	c.ui.Normal().Msg("Creating webhook in the repo...")
 
-	c.GiteaClient.CreateRepoHook(c.Config.Org, name, gitea.CreateHookOption{
+	c.GiteaClient.Client.CreateRepoHook(c.Config.Org, name, gitea.CreateHookOption{
 		Active:       true,
 		BranchFilter: "*",
 		Config: map[string]string{
@@ -1116,13 +1114,8 @@ func (c *CarrierClient) createRepoWebhook(name string) error {
 	return nil
 }
 
-func (c *CarrierClient) appDefaultRoute(name string) (string, error) {
-	domain, err := c.giteaResolver.GetMainDomain()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to determine carrier domain")
-	}
-
-	return fmt.Sprintf("%s.%s", name, domain), nil
+func (c *CarrierClient) appDefaultRoute(name string) string {
+	return fmt.Sprintf("%s.%s", name, c.GiteaClient.Domain)
 }
 
 func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
@@ -1143,10 +1136,7 @@ func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, er
 		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
-	route, err := c.appDefaultRoute(name)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to calculate default app route")
-	}
+	route := c.appDefaultRoute(name)
 
 	deploymentTmpl, err := template.New("deployment").Parse(`
 ---
@@ -1220,22 +1210,12 @@ spec:
 func (c *CarrierClient) gitPush(name, tmpDir string) error {
 	c.ui.Normal().Msg("Pushing application code ...")
 
-	giteaURL, err := c.giteaResolver.GetGiteaURL()
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve gitea host")
-	}
-
-	u, err := url.Parse(giteaURL)
+	u, err := url.Parse(c.GiteaClient.URL)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse gitea url")
 	}
 
-	username, password, err := c.giteaResolver.GetGiteaCredentials()
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve gitea credentials")
-	}
-
-	u.User = url.UserPassword(username, password)
+	u.User = url.UserPassword(c.GiteaClient.Username, c.GiteaClient.Password)
 	u.Path = path.Join(u.Path, c.Config.Org, name)
 
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
@@ -1321,7 +1301,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 }
 
 func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
-	_, resp, err := c.GiteaClient.GetOrg(org)
+	_, resp, err := c.GiteaClient.Client.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")
 	}
@@ -1344,7 +1324,7 @@ func (c *CarrierClient) servicesToApps(org string) (map[string]application.Appli
 
 	var appsOf = map[string]application.ApplicationList{}
 
-	apps, err := application.List(c.KubeClient, c.GiteaClient, c.Config.Org)
+	apps, err := application.List(c.KubeClient, c.GiteaClient.Client, c.Config.Org)
 	if err != nil {
 		return nil, err
 	}

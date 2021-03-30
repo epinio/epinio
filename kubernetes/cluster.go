@@ -46,7 +46,7 @@ var (
 	CarrierDeploymentLabelValue = "true"
 )
 
-// Memoization of NewCluster
+// Memoization of GetCluster
 var clusterMemo *Cluster
 
 type Platform interface {
@@ -72,8 +72,10 @@ type Cluster struct {
 	platform   Platform
 }
 
-// NewCluster creates a new Cluster from a Kubernetes rest client config
-func NewCluster() (*Cluster, error) {
+// GetCluster returns the Cluster needed to talk to it. On first call it
+// creates it from a Kubernetes rest client config and cli arguments /
+// environment variables.
+func GetCluster() (*Cluster, error) {
 	if clusterMemo != nil {
 		return clusterMemo, nil
 	}

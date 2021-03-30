@@ -17,12 +17,17 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
-	client, err := clients.NewCarrierClient(nil)
+	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, 500) {
 		return
 	}
 
-	apps, err := application.List(client.KubeClient, client.GiteaClient, org)
+	gitea, err := clients.GetGiteaClient()
+	if handleError(w, err, 500) {
+		return
+	}
+
+	apps, err := application.List(cluster, gitea.Client, org)
 	if handleError(w, err, 500) {
 		return
 	}
@@ -40,18 +45,17 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	cluster, err := kubernetes.NewCluster()
+	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, 500) {
 		return
 	}
 
-	// TODO: fix, create and memoize kube/gitea clients
-	client, err := clients.NewCarrierClient(nil)
+	gitea, err := clients.GetGiteaClient()
 	if handleError(w, err, 500) {
 		return
 	}
 
-	app, err := application.Lookup(cluster, client.GiteaClient, org, appName)
+	app, err := application.Lookup(cluster, gitea.Client, org, appName)
 	if handleError(w, err, 500) {
 		return
 	}

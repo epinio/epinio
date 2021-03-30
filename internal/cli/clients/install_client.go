@@ -32,12 +32,12 @@ type InstallClient struct {
 }
 
 func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
-	cluster, err := kubernetes.NewCluster()
+	cluster, err := kubernetes.GetCluster()
 	if err != nil {
 		return nil, nil, err
 	}
 	uiUI := termui.NewUI()
-	configConfig, err := config.Load(flags)
+	configConfig, err := config.Load()
 	if err != nil {
 		return nil, nil, err
 	}

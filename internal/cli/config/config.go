@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
@@ -28,7 +27,7 @@ func DefaultLocation() string {
 }
 
 // Load loads the Carrier config
-func Load(flags *pflag.FlagSet) (*Config, error) {
+func Load() (*Config, error) {
 	v := viper.New()
 	file := location()
 

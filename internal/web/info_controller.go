@@ -22,7 +22,7 @@ func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	giteaVersion := "unavailable"
-	giteaFetchedVersion, resp, err := client.GiteaClient.ServerVersion()
+	giteaFetchedVersion, resp, err := client.GiteaClient.Client.ServerVersion()
 	if err == nil && resp != nil && resp.StatusCode == 200 {
 		giteaVersion = giteaFetchedVersion
 	}
