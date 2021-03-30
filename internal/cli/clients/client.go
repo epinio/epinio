@@ -1274,8 +1274,8 @@ git fetch --all
 git reset --soft carrier/main
 git add --all
 git commit -m "pushed at %s"
-git push carrier master:main
-`, tmpDir, u.String(), time.Now().Format("20060102150405")))
+git push carrier %s:main
+`, tmpDir, u.String(), time.Now().Format("20060102150405"), "`git branch --show-current`"))
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
