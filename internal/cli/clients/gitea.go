@@ -162,7 +162,9 @@ func getGiteaCredentials(cluster *kubernetes.Cluster) (string, string, error) {
 
 func (c *GiteaClient) OrgExists(org string) (bool, error) {
 	_, resp, err := c.Client.GetOrg(org)
-	if err != nil {
+	// if gitea sends us a 404 it's both an error and a response with 404.
+	// We handle that below.
+	if resp == nil && err != nil {
 		return false, errors.Wrap(err, "failed to make get org request")
 	}
 
