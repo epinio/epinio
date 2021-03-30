@@ -278,8 +278,10 @@ func (c *Cluster) WaitForNamespaceMissing(ui *termui.UI, namespace string, timeo
 // Wait up to timeout for pod to be removed.
 // Returns an error if the pod is not removed within the allotted time.
 func (c *Cluster) WaitForPodBySelectorMissing(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
-	s := ui.Progressf("Removing %s in %s", selector, namespace)
-	defer s.Stop()
+	if ui != nil {
+		s := ui.Progressf("Removing %s in %s", selector, namespace)
+		defer s.Stop()
+	}
 
 	return wait.PollImmediate(time.Second, timeout, c.PodDoesNotExist(namespace, selector))
 }

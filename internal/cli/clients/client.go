@@ -817,50 +817,30 @@ func (c *CarrierClient) Delete(appname string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Deleting application...")
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client,
-		c.Config.Org, appname)
+	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
+	defer s.Stop()
+
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/org/%s/applications/%s", c.Config.Org, appname), "DELETE", "")
 	if err != nil {
-		return errors.Wrap(err, "failed to find application")
+		return err
+	}
+	var response map[string][]string
+	if err := json.Unmarshal(jsonResponse, &response); err != nil {
+		return err
 	}
 
-	bound, err := app.Services()
-	if err != nil {
-		return errors.Wrap(err, "failed to find bound services")
+	unboundServices, ok := response["UnboundServices"]
+	if !ok {
+		return errors.Errorf("bad response, expected key missing: %v", response)
 	}
-	if len(bound) > 0 {
-		msg := c.ui.Note().WithTable("Currently Bound")
-		for _, bonded := range bound {
-			msg = msg.WithTableRow(bonded.Name())
+
+	if len(unboundServices) > 0 {
+		s.Stop()
+		msg := c.ui.Note().WithTable("Unbound Services")
+		for _, bonded := range unboundServices {
+			msg = msg.WithTableRow(bonded)
 		}
-		msg.Msg("Bound Services Found, Unbind Them")
-		for _, bonded := range bound {
-			c.ui.Note().WithStringValue("Service", bonded.Name()).Msg("Unbinding")
-			err = app.Unbind(bonded)
-			if err != nil {
-				c.ui.Exclamation().Msg(err.Error())
-				continue
-			}
-			c.ui.Success().Compact().Msg("Unbound")
-		}
-
-		c.ui.Note().Msg("Back to deleting the application...")
-	}
-
-	c.ui.ProgressNote().KeepLine().Msg("Deleting...")
-
-	err = app.Delete()
-
-	// The command above removes the application's deployment.
-	// This in turn deletes the associated replicaset, and pod, in
-	// this order. The pod being gone thus indicates command
-	// completion, and is therefore what we are waiting on below.
-
-	err = c.KubeClient.WaitForPodBySelectorMissing(c.ui,
-		deployments.WorkloadsDeploymentID,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", c.Config.Org, appname),
-		duration.ToDeployment())
-	if err != nil {
-		return errors.Wrap(err, "failed to delete application pod")
+		msg.Msg("")
 	}
 
 	c.ui.Success().Msg("Application deleted.")

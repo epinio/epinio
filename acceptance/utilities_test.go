@@ -34,8 +34,8 @@ func newServiceName() string {
 }
 
 // func Curl is used to make requests against a server
-func Curl(uri string, requestBody *strings.Reader) (*http.Response, error) {
-	request, err := http.NewRequest("GET", uri, requestBody)
+func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, error) {
+	request, err := http.NewRequest(method, uri, requestBody)
 	if err != nil {
 		return nil, err
 	}
