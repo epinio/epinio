@@ -198,11 +198,11 @@ func (a *Application) Bind(service interfaces.Service) error {
 func Lookup(
 	kubeClient *kubernetes.Cluster,
 	giteaClient *gitea.Client,
-	org, app string) (Application, error) {
+	org, app string) (*Application, error) {
 
 	apps, _, err := giteaClient.ListOrgRepos(org, gitea.ListOrgReposOptions{})
 	if err != nil {
-		return Application{}, err
+		return nil, err
 	}
 
 	for _, anApp := range apps {
@@ -214,13 +214,13 @@ func Lookup(
 				giteaClient:  giteaClient,
 			}).Complete()
 			if err != nil {
-				return Application{}, err
+				return nil, err
 			}
-			return *app, nil
+			return app, nil
 		}
 	}
 
-	return Application{}, errors.New("Application not found")
+	return nil, nil
 }
 
 // List returns an ApplicationList of all available applications (in the org)

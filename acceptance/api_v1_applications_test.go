@@ -41,6 +41,8 @@ var _ = Describe("API Application Endpoints", func() {
 	})
 
 	AfterEach(func() {
+		deleteApp(app1)
+		deleteApp(app2)
 		Expect(serverProcess.Process.Kill()).ToNot(HaveOccurred())
 	})
 
@@ -124,6 +126,11 @@ var _ = Describe("API Application Endpoints", func() {
 			bindAppService(app1, service, org)
 		})
 
+		AfterEach(func() {
+			unbindAppService(app1, service, org)
+			cleanupService(service)
+		})
+
 		It("removes the application, unbinds bound services", func() {
 			response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/org/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
@@ -148,6 +155,7 @@ var _ = Describe("API Application Endpoints", func() {
 
 			defer response.Body.Close()
 			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
 
@@ -158,6 +166,7 @@ var _ = Describe("API Application Endpoints", func() {
 
 			defer response.Body.Close()
 			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
 	})

@@ -335,6 +335,10 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
+	if app == nil {
+		c.ui.Exclamation().Msg("application not found")
+		return nil
+	}
 
 	service, err := services.Lookup(c.KubeClient, c.Config.Org, serviceName)
 	if err != nil {
@@ -382,6 +386,10 @@ func (c *CarrierClient) UnbindService(serviceName, appName string) error {
 	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client, c.Config.Org, appName)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+	if app == nil {
+		c.ui.Exclamation().Msg("application not found")
 		return nil
 	}
 

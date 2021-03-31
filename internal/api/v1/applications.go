@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -81,6 +82,10 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 	if handleError(w, err, 500) {
 		return
 	}
+	if app == nil {
+		handleError(w, errors.New("application not found"), 404)
+		return
+	}
 
 	js, err := json.Marshal(app)
 	if handleError(w, err, 500) {
@@ -116,6 +121,10 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 
 	app, err := application.Lookup(cluster, gitea.Client, org, appName)
 	if handleError(w, err, 500) {
+		return
+	}
+	if app == nil {
+		handleError(w, errors.New("application not found"), 404)
 		return
 	}
 
@@ -165,7 +174,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 // Write the error to the response writer and return  true if there was an error
 func handleError(w http.ResponseWriter, err error, code int) bool {
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), code)
 		return true
 	}
 	return false
