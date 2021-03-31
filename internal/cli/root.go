@@ -78,6 +78,7 @@ func checkDependencies() error {
 	dependencies := []struct {
 		CommandName string
 	}{
+		// update the 'prerequisites' of docs/install.md if you make changes here
 		{CommandName: "kubectl"},
 		{CommandName: "helm"},
 		{CommandName: "sh"},
