@@ -1,7 +1,6 @@
 package acceptance_test
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"os"
@@ -51,11 +50,12 @@ func startCarrierServer(port int) (*kexec.KCommand, error) {
 
 	p := kexec.CommandString(cmd)
 
-	var b bytes.Buffer
-	p.Stdout = &b
-	p.Stderr = &b
+	p.Stdout = os.Stdout
+	p.Stderr = os.Stdout
 	p.Dir = commandDir
-	p.Start()
+	if err = p.Start(); err != nil {
+		return nil, err
+	}
 
 	return p, nil
 }
