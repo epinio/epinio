@@ -14,6 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
+	"github.com/suse/carrier/internal/duration"
 )
 
 type WordpressApp struct {
@@ -110,13 +111,10 @@ var _ = Describe("Wordpress", func() {
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			},
 		}
-		resp, err := client.Do(request)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		defer resp.Body.Close()
-
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		Expect(err).ToNot(HaveOccurred())
-		Expect(string(bodyBytes)).To(MatchRegexp("Select a default language"))
+		Eventually(func() int {
+			resp, err := client.Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			return resp.StatusCode
+		}, duration.ToAppReady()).Should(Equal(http.StatusOK))
 	})
 })
