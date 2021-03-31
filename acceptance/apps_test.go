@@ -37,8 +37,8 @@ var _ = Describe("Apps", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
-			Expect(out).To(MatchRegexp("Unbound Services"))
-			Expect(out).To(MatchRegexp("Service: " + serviceName))
+			Expect(out).To(MatchRegexp("UNBOUND SERVICES"))
+			Expect(out).To(MatchRegexp(serviceName))
 
 			Eventually(func() string {
 				out, err := Carrier("app list", "")

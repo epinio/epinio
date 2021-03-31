@@ -41,12 +41,15 @@ var _ = Describe("API Application Endpoints", func() {
 	})
 
 	AfterEach(func() {
-		deleteApp(app1)
-		deleteApp(app2)
 		Expect(serverProcess.Process.Kill()).ToNot(HaveOccurred())
 	})
 
 	Describe("GET api/v1/org/:org/applications", func() {
+		AfterEach(func() {
+			deleteApp(app1)
+			deleteApp(app2)
+		})
+
 		It("lists all applications belonging to the org", func() {
 			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/org/%s/applications", serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
@@ -79,6 +82,11 @@ var _ = Describe("API Application Endpoints", func() {
 	})
 
 	Describe("GET api/v1/org/:org/applications/:app", func() {
+		AfterEach(func() {
+			deleteApp(app1)
+			deleteApp(app2)
+		})
+
 		It("lists the application data", func() {
 			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/org/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
@@ -103,6 +111,7 @@ var _ = Describe("API Application Endpoints", func() {
 
 			defer response.Body.Close()
 			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
 
@@ -127,7 +136,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 
 		AfterEach(func() {
-			unbindAppService(app1, service, org)
+			deleteApp(app2) // This one was not deleted in the test
 			cleanupService(service)
 		})
 
