@@ -13,7 +13,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -30,7 +30,7 @@ type Tail struct {
 	podColor       *color.Color
 	containerColor *color.Color
 	tmpl           *template.Template
-	ui             *ui.UI
+	ui             *termui.UI
 }
 
 type TailOptions struct {
@@ -43,7 +43,7 @@ type TailOptions struct {
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
-func NewTail(ui *ui.UI, namespace, podName, containerName string, tmpl *template.Template, options *TailOptions) *Tail {
+func NewTail(ui *termui.UI, namespace, podName, containerName string, tmpl *template.Template, options *TailOptions) *Tail {
 	return &Tail{
 		Namespace:     namespace,
 		PodName:       podName,

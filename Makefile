@@ -31,11 +31,16 @@ compress:
 	upx --brute -1 ./dist/carrier-darwin-amd64
 
 test: lint
-	ginkgo ./cmd/internal/client/ ./tools/ ./helpers/ ./kubernetes/
+	ginkgo helpers internal/cli internal/services kubernetes
+
+# acceptance is not part of the unit tests, and has its own target, see below.
 
 GINKGO_NODES ?= 2
-test-acceptance:
-	ginkgo -nodes ${GINKGO_NODES} -stream acceptance/.
+test-acceptance: showfocus
+	ginkgo -nodes ${GINKGO_NODES} -stream --flakeAttempts=2 acceptance/.
+
+showfocus:
+	@if test `cat acceptance/*.go | grep -c FIt` -gt 0 ; then echo ; echo 'Focus:' ; grep FIt acceptance/* ; echo ; fi
 
 generate:
 	go generate ./...
@@ -55,10 +60,11 @@ gitlint:
 	gitlint --commits "origin..HEAD"
 
 prepare_version:
-	echo >  cmd/version.go "package cmd"
-	echo >> cmd/version.go ""
-	echo >> cmd/version.go "const Version = \"$$(git describe --tags)\""
-	cat cmd/version.go
+	mkdir -p version
+	echo >  version/version.go "package version"
+	echo >> version/version.go ""
+	echo >> version/version.go "const Version = \"$$(git describe --tags)\""
+	cat version/version.go
 
 .PHONY: tools
 tools:
@@ -78,6 +84,8 @@ update_tekton:
 
 embed_files:
 	statik -m -f -src=./embedded-files
+	statik -m -f -src=./embedded-web-files/views -ns webViews -p statikWebViews
+	statik -m -f -src=./embedded-web-files/assets -ns webAssets -p statikWebAssets
 
 help:
 	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee HELP

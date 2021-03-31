@@ -21,13 +21,13 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			makeCustomService(serviceName)
 			bindAppService(appName, serviceName, org)
 		})
-		It("shows the bound app for services, and vice versa", func() {
-			out, err := Carrier("services", "")
+		It("shows the bound app for services list, and vice versa", func() {
+			out, err := Carrier("service list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(serviceName + `.*` + appName))
 
 			Eventually(func() string {
-				out, err = Carrier("apps", "")
+				out, err = Carrier("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))

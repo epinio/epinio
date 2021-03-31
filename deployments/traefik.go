@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,11 +30,11 @@ func (k *Traefik) ID() string {
 	return TraefikDeploymentID
 }
 
-func (k *Traefik) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Traefik) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Traefik) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Traefik) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -43,7 +43,7 @@ func (k Traefik) Describe() string {
 }
 
 // Delete removes traefik from kubernetes cluster
-func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k Traefik) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Traefik...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(TraefikDeploymentID)
@@ -90,7 +90,7 @@ func (k Traefik) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k Traefik) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Traefik) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -135,7 +135,7 @@ func (k Traefik) GetVersion() string {
 	return traefikVersion
 }
 
-func (k Traefik) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Traefik) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -162,7 +162,7 @@ func (k Traefik) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 	return k.apply(c, ui, options, false)
 }
 
-func (k Traefik) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Traefik) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		TraefikDeploymentID,

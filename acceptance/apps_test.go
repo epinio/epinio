@@ -10,6 +10,7 @@ var _ = Describe("Apps", func() {
 	BeforeEach(func() {
 		setupAndTargetOrg(org)
 	})
+
 	Describe("push and delete", func() {
 		var appName string
 		BeforeEach(func() {
@@ -42,10 +43,51 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp("Unbound"))
 
 			Eventually(func() string {
-				out, err := Carrier("apps", "")
+				out, err := Carrier("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
+		})
+	})
+
+	Describe("list and show", func() {
+		var appName string
+		var serviceCustomName string
+		BeforeEach(func() {
+			appName = newAppName()
+			serviceCustomName = newServiceName()
+			makeApp(appName)
+			makeCustomService(serviceCustomName)
+			bindAppService(appName, serviceCustomName, org)
+		})
+
+		AfterEach(func() {
+			deleteApp(appName)
+			cleanupService(serviceCustomName)
+		})
+
+		It("lists all apps", func() {
+			out, err := Carrier("app list", "")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Listing applications"))
+			Expect(out).To(MatchRegexp(" " + appName + " "))
+			Expect(out).To(MatchRegexp(" " + serviceCustomName + " "))
+		})
+
+		It("shows the details of an app", func() {
+			out, err := Carrier("app show "+appName, "")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp("Show application details"))
+			Expect(out).To(MatchRegexp("Application: " + appName))
+			Expect(out).To(MatchRegexp(`Services .*\|.* ` + serviceCustomName))
+			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
+
+			Eventually(func() string {
+				out, err = Carrier("app show "+appName, "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
 		})
 	})
 })

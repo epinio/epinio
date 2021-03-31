@@ -1,12 +1,16 @@
 package acceptance_test
 
 import (
+	"bytes"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/codeskyblue/kexec"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -17,12 +21,43 @@ import (
 // I.e. create/delete applications/services, bind/unbind services, etc.
 // This is done in the hope of enhancing the readability of various before/after blocks.
 
+func newOrgName() string {
+	return "orgs-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
 func newAppName() string {
 	return "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
 func newServiceName() string {
 	return "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
+// func Curl is used to make requests against a server
+func Curl(uri string, requestBody *strings.Reader) (*http.Response, error) {
+	request, err := http.NewRequest("GET", uri, requestBody)
+	if err != nil {
+		return nil, err
+	}
+	return (&http.Client{}).Do(request)
+}
+
+func startCarrierServer(port int) (*kexec.KCommand, error) {
+	commandDir, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	cmd := fmt.Sprintf("%s/carrier server --port %d", nodeTmpDir, port)
+
+	p := kexec.CommandString(cmd)
+
+	var b bytes.Buffer
+	p.Stdout = &b
+	p.Stderr = &b
+	p.Dir = commandDir
+	p.Start()
+
+	return p, nil
 }
 
 func setupAndTargetOrg(org string) {
@@ -49,9 +84,15 @@ func setupInClusterServices() {
 	out, err := Carrier("enable services-incluster", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	// Wait until plans appear
+	// Wait until classes appear
 	Eventually(func() error {
 		_, err = helpers.Kubectl("get clusterserviceclass mariadb")
+		return err
+	}, "5m").ShouldNot(HaveOccurred())
+
+	// Wait until plans appear
+	Eventually(func() error {
+		_, err = helpers.Kubectl("get clusterserviceplan mariadb-10-3-22")
 		return err
 	}, "5m").ShouldNot(HaveOccurred())
 }
@@ -66,24 +107,24 @@ func makeApp(appName string) {
 
 	// And check presence
 
-	out, err = Carrier("apps", "")
+	out, err = Carrier("app list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
 }
 
 func makeCustomService(serviceName string) {
-	out, err := Carrier(fmt.Sprintf("create-custom-service %s username carrier-user", serviceName), "")
+	out, err := Carrier(fmt.Sprintf("service create-custom %s username carrier-user", serviceName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check presence
 
-	out, err = Carrier("services", "")
+	out, err = Carrier("service list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
 }
 
 func makeCatalogService(serviceName string) {
-	out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
+	out, err := Carrier(fmt.Sprintf("service create %s mariadb 10-3-22", serviceName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Look for the messaging indicating that the command waited
@@ -92,13 +133,13 @@ func makeCatalogService(serviceName string) {
 
 	// Check presence
 
-	out, err = Carrier("services", "")
+	out, err = Carrier("service list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
 }
 
 func makeCatalogServiceDontWait(serviceName string) {
-	out, err := Carrier(fmt.Sprintf("create-service --dont-wait %s mariadb 10-3-22", serviceName), "")
+	out, err := Carrier(fmt.Sprintf("service create --dont-wait %s mariadb 10-3-22", serviceName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Look for indicator that command did not wait
@@ -106,21 +147,21 @@ func makeCatalogServiceDontWait(serviceName string) {
 
 	// Check presence
 
-	out, err = Carrier("services", "")
+	out, err = Carrier("service list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
 
 	// And explicitly wait for it being provisioned
 
 	Eventually(func() string {
-		out, err = Carrier("service "+serviceName, "")
+		out, err = Carrier("service show "+serviceName, "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "5m").Should(MatchRegexp(`Status .*\|.* Provisioned`))
 }
 
 func bindAppService(appName, serviceName, org string) {
-	out, err := Carrier(fmt.Sprintf("bind-service %s %s", serviceName, appName), "")
+	out, err := Carrier(fmt.Sprintf("service bind %s %s", serviceName, appName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check deep into the kube structures
@@ -143,7 +184,7 @@ func deleteApp(appName string) {
 	// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
 	Eventually(func() string {
-		out, err := Carrier("apps", "")
+		out, err := Carrier("app list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
@@ -159,19 +200,19 @@ func cleanupApp(appName string) {
 }
 
 func deleteService(serviceName string) {
-	out, err := Carrier("delete-service "+serviceName, "")
+	out, err := Carrier("service delete "+serviceName, "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check non-presence
 	Eventually(func() string {
-		out, err = Carrier("services", "")
+		out, err = Carrier("service list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "10m").ShouldNot(MatchRegexp(serviceName))
 }
 
 func cleanupService(serviceName string) {
-	out, err := Carrier("delete-service "+serviceName, "")
+	out, err := Carrier("service delete "+serviceName, "")
 
 	if err != nil {
 		fmt.Printf("deleting service failed : %s\n%s", err.Error(), out)
@@ -179,7 +220,7 @@ func cleanupService(serviceName string) {
 }
 
 func unbindAppService(appName, serviceName, org string) {
-	out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
+	out, err := Carrier(fmt.Sprintf("service unbind %s %s", serviceName, appName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And deep check in kube structures for non-presence
@@ -187,7 +228,7 @@ func unbindAppService(appName, serviceName, org string) {
 }
 
 func cleanUnbindAppService(appName, serviceName, org string) {
-	out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
+	out, err := Carrier(fmt.Sprintf("service unbind %s %s", serviceName, appName), "")
 	if err != nil {
 		fmt.Printf("unbinding service failed: %s\n%s", err.Error(), out)
 	}

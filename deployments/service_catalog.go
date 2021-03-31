@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -30,11 +30,11 @@ func (k *ServiceCatalog) ID() string {
 	return ServiceCatalogDeploymentID
 }
 
-func (k *ServiceCatalog) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *ServiceCatalog) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *ServiceCatalog) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *ServiceCatalog) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -43,7 +43,7 @@ func (k ServiceCatalog) Describe() string {
 }
 
 // Delete removes ServiceCatalog from kubernetes cluster
-func (k ServiceCatalog) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k ServiceCatalog) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing ServiceCatalog...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(ServiceCatalogDeploymentID)
@@ -90,7 +90,7 @@ func (k ServiceCatalog) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k ServiceCatalog) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k ServiceCatalog) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -144,7 +144,7 @@ func (k ServiceCatalog) GetVersion() string {
 	return serviceCatalogVersion
 }
 
-func (k ServiceCatalog) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k ServiceCatalog) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -165,7 +165,7 @@ func (k ServiceCatalog) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kuberne
 	return nil
 }
 
-func (k ServiceCatalog) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k ServiceCatalog) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		ServiceCatalogDeploymentID,

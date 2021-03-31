@@ -1,0 +1,84 @@
+[[define "main_layout"]]
+<!doctype html>
+<html lang="en" class="h-100">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+    <meta name="generator" content="Jekyll v4.1.1">
+    <title>[[template "title" .]]</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="/assets/stylesheets/vendor/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+
+    <link rel="stylesheet" href="/assets/stylesheets/common.css">
+    <link rel="stylesheet" href="/assets/stylesheets/main.css">
+
+        <!-- Favicons -->
+        <!-- TODO -->
+    <!-- <link rel="apple-touch-icon" href="/assets/favicons/apple-touch-icon.png" sizes="180x180"> -->
+    <!-- <link rel="icon" href="/assets/favicons/favicon-32x32.png" sizes="32x32" type="image/png"> -->
+    <!-- <link rel="icon" href="/assets/favicons/favicon-16x16.png" sizes="16x16" type="image/png"> -->
+    <!-- <link rel="manifest" href="/assets/favicons/manifest.json"> -->
+    <!-- <link rel="mask-icon" href="/assets/favicons/safari-pinned-tab.svg" color="#563d7c"> -->
+    <!-- <link rel="icon" href="/assets/favicons/favicon.ico"> -->
+    <!-- <meta name="msapplication-config" content="/assets/favicons/browserconfig.xml"> -->
+    <!-- <meta name="theme-color" content="#563d7c"> -->
+  </head>
+  <body class="d-flex flex-column h-100">
+    <header>
+    <!-- Fixed navbar -->
+    <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+      <a class="navbar-brand" href="#">Carrier</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav mr-auto">
+          [[ if eq .request.URL.Path "/" ]]
+            <li class="nav-item active">
+              <a class="nav-link" href="/">Applications<span class="sr-only">(current)</span></a>
+            </li>
+          [[ else ]]
+            <li class="nav-item">
+              <a class="nav-link" href="/">Applications</a>
+            </li>
+          [[ end ]]
+          [[ if eq .request.URL.Path "/info" ]]
+            <li class="nav-item active">
+              <a class="nav-link" href="/info">About<span class="sr-only">(current)</span></a>
+            </li>
+          [[ else ]]
+            <li class="nav-item">
+              <a class="nav-link" href="/info">About</a>
+            </li>
+          [[ end ]]
+        </ul>
+      </div>
+    </nav>
+    </header>
+
+    <!-- Begin page content -->
+    <main role="main" class="flex-shrink-0" id="app">
+      <div class="container">
+        [[template "body" .]]
+      </div>
+    </main>
+
+    <footer class="footer mt-auto py-3">
+      <div class="container">
+        <span class="text-muted">Copyright SUSE - Released under Apache 2.0 license.</span>
+      </div>
+    </footer>
+
+    <!-- Optional JavaScript -->
+    <!-- jQuery first, then Popper.js, then Bootstrap JS -->
+    <script src="/assets/js/vendor/jquery-3.5.1.min.js"></script>
+    <script src="/assets/js/vendor/popper.min.js"></script>
+    <script src="/assets/js/vendor/bootstrap.min.js"></script>
+    <script src="/assets/js/vendor/vue.js"></script>
+    [[template "page-javascript" .]]
+</body>
+</html>
+[[end]]
