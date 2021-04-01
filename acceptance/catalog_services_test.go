@@ -1,159 +1,136 @@
 package acceptance_test
 
 import (
-	"fmt"
-	"os"
-	"path"
-	"strconv"
-	"time"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/suse/carrier/helpers"
 )
 
 var _ = Describe("Catalog Services", func() {
 	var org = "apps-org"
 	var serviceName string
 	BeforeEach(func() {
-		serviceName = "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
-
-		out, err := Carrier("create-org "+org, "")
-		Expect(err).ToNot(HaveOccurred(), out)
-		out, err = Carrier("target "+org, "")
-		Expect(err).ToNot(HaveOccurred(), out)
-
-		out, err = Carrier("enable services-incluster", "")
-		Expect(err).ToNot(HaveOccurred(), out)
-
-		// Wait until plans appear
-		Eventually(func() error {
-			_, err = helpers.Kubectl("get clusterserviceclass mariadb")
-			return err
-		}, "5m").ShouldNot(HaveOccurred())
+		serviceName = newServiceName()
+		setupAndTargetOrg(org)
+		setupInClusterServices()
 	})
 
-	Describe("create-service", func() {
+	Describe("service create", func() {
+		It("creates a catalog based service, with waiting", func() {
+			makeCatalogService(serviceName)
+		})
+
+		It("creates a catalog based service, without waiting", func() {
+			makeCatalogServiceDontWait(serviceName)
+		})
+
 		AfterEach(func() {
-			out, err := Carrier(fmt.Sprintf("delete-service %s", serviceName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
-		})
-
-		It("creates a catalog based service", func() {
-			out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
-			out, err = Carrier("services", "")
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(serviceName))
+			cleanupService(serviceName)
 		})
 	})
 
-	Describe("delete service", func() {
+	Describe("service delete", func() {
 		BeforeEach(func() {
-			out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			makeCatalogService(serviceName)
 		})
 
 		It("deletes a catalog based service", func() {
-			out, err := Carrier("delete-service "+serviceName, "")
+			deleteService(serviceName)
+		})
+
+		It("doesn't delete a bound service", func() {
+			appName := newAppName()
+			makeApp(appName)
+			bindAppService(appName, serviceName, org)
+
+			out, err := Carrier("service delete "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
+			Expect(out).To(MatchRegexp("Unable to delete service. It is still used by"))
+			Expect(out).To(MatchRegexp(appName))
+			Expect(out).To(MatchRegexp("Use --unbind to force the issue"))
+
+			verifyAppServiceBound(appName, serviceName, org)
+
+			// Delete again, and force unbind
+
+			out, err = Carrier("service delete --unbind "+serviceName, "")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp("Unbinding Service From Using Applications Before Deletion"))
+			Expect(out).To(MatchRegexp(appName))
+
+			Expect(out).To(MatchRegexp("Unbinding"))
+			Expect(out).To(MatchRegexp("Application: " + appName))
+			Expect(out).To(MatchRegexp("Unbound"))
+
+			Expect(out).To(MatchRegexp("Service Removed"))
+
+			verifyAppServiceNotbound(appName, serviceName, org)
+
+			// And check non-presence
 			Eventually(func() string {
-				out, err = Carrier("services", "")
+				out, err = Carrier("service list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "10m").ShouldNot(MatchRegexp(serviceName))
 		})
-
-		PIt("doesn't delete a bound service", func() {
-		})
 	})
 
-	Describe("bind-service", func() {
+	Describe("service bind", func() {
 		var appName string
 		BeforeEach(func() {
-			appName = "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
+			appName = newAppName()
 
-			out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			currentDir, err := os.Getwd()
-			Expect(err).ToNot(HaveOccurred())
-			appDir := path.Join(currentDir, "../sample-app")
-			out, err = Carrier(fmt.Sprintf("push %s --verbosity 1", appName), appDir)
-			Expect(err).ToNot(HaveOccurred(), out)
+			makeCatalogService(serviceName)
+			makeApp(appName)
 		})
 
 		AfterEach(func() {
-			out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
-			if err != nil {
-				fmt.Printf("unbinding service failed: %s\n%s", err.Error(), out)
-			}
-
-			out, err = Carrier("delete "+appName, "")
-			if err != nil {
-				fmt.Printf("deleting app failed : %s\n%s", err.Error(), out)
-			}
-
-			out, err = Carrier("delete-service "+serviceName, "")
-			if err != nil {
-				fmt.Printf("deleting service failed : %s\n%s", err.Error(), out)
-			}
+			cleanupApp(appName)
+			cleanupService(serviceName)
 		})
 
 		It("binds a service to the application deployment", func() {
-			out, err := Carrier(fmt.Sprintf("bind-service %s %s", serviceName, appName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
-			out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(serviceName))
-
-			out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("/services/" + serviceName))
+			bindAppService(appName, serviceName, org)
 		})
 	})
 
-	Describe("unbind-service", func() {
+	Describe("service unbind", func() {
 		var appName string
 		BeforeEach(func() {
-			appName = "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
+			appName = newAppName()
 
-			out, err := Carrier(fmt.Sprintf("create-service %s mariadb 10-3-22", serviceName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			currentDir, err := os.Getwd()
-			Expect(err).ToNot(HaveOccurred())
-			appDir := path.Join(currentDir, "../sample-app")
-			out, err = Carrier(fmt.Sprintf("push %s --verbosity 1", appName), appDir)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			out, err = Carrier(fmt.Sprintf("bind-service %s %s", serviceName, appName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			makeCatalogService(serviceName)
+			makeApp(appName)
+			bindAppService(appName, serviceName, org)
 		})
 
 		AfterEach(func() {
-			out, err := Carrier("delete "+appName, "")
-			if err != nil {
-				fmt.Printf("deleting apps failed : %s\n%s", err.Error(), out)
-			}
-
-			out, err = Carrier("delete-service "+serviceName, "")
-			if err != nil {
-				fmt.Printf("deleting service failed : %s\n%s", err.Error(), out)
-			}
+			cleanupApp(appName)
+			cleanupService(serviceName)
 		})
 
 		It("unbinds a service from the application deployment", func() {
-			out, err := Carrier(fmt.Sprintf("unbind-service %s %s", serviceName, appName), "")
-			Expect(err).ToNot(HaveOccurred(), out)
-			out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp(serviceName))
+			unbindAppService(appName, serviceName, org)
+		})
+	})
 
-			out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
+	Describe("service show", func() {
+		BeforeEach(func() {
+			makeCatalogService(serviceName)
+		})
+
+		It("it shows service details", func() {
+			out, err := Carrier("service show "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp("/services/" + serviceName))
+			Expect(out).To(MatchRegexp("Service Details"))
+			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))
+			Expect(out).To(MatchRegexp(`Class .*\|.* mariadb`))
+			Expect(out).To(MatchRegexp(`Plan .*\|.* 10-3-22`))
+		})
+
+		AfterEach(func() {
+			cleanupService(serviceName)
 		})
 	})
 })

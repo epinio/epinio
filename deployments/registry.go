@@ -12,7 +12,7 @@ import (
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -32,11 +32,11 @@ func (k *Registry) ID() string {
 	return RegistryDeploymentID
 }
 
-func (k *Registry) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Registry) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Registry) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Registry) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -45,7 +45,7 @@ func (k Registry) Describe() string {
 }
 
 // Delete removes Registry from kubernetes cluster
-func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k Registry) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Registry...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(RegistryDeploymentID)
@@ -92,7 +92,7 @@ func (k Registry) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k Registry) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -140,7 +140,7 @@ func (k Registry) GetVersion() string {
 	return registryVersion
 }
 
-func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Registry) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -161,7 +161,7 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.In
 	return nil
 }
 
-func (k Registry) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Registry) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		RegistryDeploymentID,

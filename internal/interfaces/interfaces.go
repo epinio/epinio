@@ -12,6 +12,9 @@ type Service interface {
 	GetBinding(appName string) (*corev1.Secret, error)
 	DeleteBinding(appName string) error
 	Delete() error
+	Status() (string, error)
+	Details() (map[string]string, error)
+	WaitForProvision() error
 }
 
 type ServiceList []Service

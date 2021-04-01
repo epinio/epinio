@@ -12,8 +12,7 @@ personal-setup
 /output
 /local
 /tmp
-/shim/shim
 /dist
 /resources
 acceptance/acceptance.test
-cmd/version.go
+version/version.go

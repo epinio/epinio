@@ -10,11 +10,13 @@ import (
 )
 
 const (
-	systemDomain  = 2 * time.Minute
-	deployment    = 5 * time.Minute
-	serviceSecret = 5 * time.Minute
-	podReady      = 5 * time.Minute
-	appBuilt      = 33 * time.Minute
+	systemDomain     = 2 * time.Minute
+	deployment       = 5 * time.Minute
+	serviceSecret    = 5 * time.Minute
+	serviceProvision = 5 * time.Minute
+	podReady         = 5 * time.Minute
+	appBuilt         = 10 * time.Minute
+	warmupJobReady   = 30 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	pollInterval = 3 * time.Second
@@ -46,6 +48,13 @@ func ToPodReady() time.Duration {
 	return Multiplier() * podReady
 }
 
+// ToWarmupJobReady return the duration to wait until the builder image
+// warm up job is Complete. The time it takes for that Job to complete depends
+// on the network speed of the cluster so be generous here.
+func ToWarmupJobReady() time.Duration {
+	return Multiplier() * warmupJobReady
+}
+
 // ToSystemDomain returns the duration to wait until giving on getting
 // the system domain
 func ToSystemDomain() time.Duration {
@@ -62,6 +71,12 @@ func ToDeployment() time.Duration {
 // catalog service binding to appear
 func ToServiceSecret() time.Duration {
 	return Multiplier() * serviceSecret
+}
+
+// ToServiceProvision returns the duration to wait for a catalog
+// service instance to be provisioned
+func ToServiceProvision() time.Duration {
+	return Multiplier() * serviceProvision
 }
 
 //

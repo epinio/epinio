@@ -11,7 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -22,19 +22,23 @@ type Quarks struct {
 
 const (
 	QuarksDeploymentID = "quarks"
-	quarksVersion      = "6.1.17+0.gec409fd7"
-	quarksChartURL     = "https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-0.0.755-ge100fdc.tgz"
+	quarksVersion      = "1.0.760"
+)
+
+var (
+	quarksChartURL     = fmt.Sprintf("https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-%s.tgz", quarksVersion)
+	quarksLiteImageTag = fmt.Sprintf("v%s-lite", quarksVersion) // Use the "lite" version of the image.
 )
 
 func (k *Quarks) ID() string {
 	return QuarksDeploymentID
 }
 
-func (k *Quarks) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Quarks) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Quarks) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Quarks) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -43,7 +47,7 @@ func (k Quarks) Describe() string {
 }
 
 // Delete removes Quarks from kubernetes cluster
-func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k Quarks) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Quarks...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(QuarksDeploymentID)
@@ -99,7 +103,7 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -108,7 +112,9 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Insta
 	currentdir, _ := os.Getwd()
 
 	// Setup Quarks helm values
-	var helmArgs []string
+	var helmArgs = []string{
+		"--set image.tag=" + quarksLiteImageTag,
+	}
 
 	helmArgs = append(helmArgs, "--set global.monitoredID=quarks-secret")
 
@@ -138,7 +144,7 @@ func (k Quarks) GetVersion() string {
 	return quarksVersion
 }
 
-func (k Quarks) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Quarks) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -154,7 +160,7 @@ func (k Quarks) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	return k.apply(c, ui, options, false)
 }
 
-func (k Quarks) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Quarks) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		QuarksDeploymentID,

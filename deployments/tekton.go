@@ -14,7 +14,7 @@ import (
 	"github.com/suse/carrier/helpers"
 	"github.com/suse/carrier/internal/duration"
 	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/paas/ui"
+	"github.com/suse/carrier/termui"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -42,11 +42,11 @@ func (k *Tekton) ID() string {
 	return TektonDeploymentID
 }
 
-func (k *Tekton) Backup(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Tekton) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Tekton) Restore(c *kubernetes.Cluster, ui *ui.UI, d string) error {
+func (k *Tekton) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -56,7 +56,7 @@ func (k Tekton) Describe() string {
 }
 
 // Delete removes Tekton from kubernetes cluster
-func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
+func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Tekton...")
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(tektonNamespace)
@@ -96,7 +96,7 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *ui.UI) error {
 	return nil
 }
 
-func (k Tekton) apply(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 
 	// action := "install"
 	// if upgrade {
@@ -258,7 +258,7 @@ func (k Tekton) GetVersion() string {
 		tektonPipelineReleaseYamlPath, tektonTriggersReleaseYamlPath, tektonDashboardYamlPath)
 }
 
-func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Tekton) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
@@ -279,7 +279,7 @@ func (k Tekton) Deploy(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Inst
 	return nil
 }
 
-func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.InstallationOptions) error {
+func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		TektonDeploymentID,
@@ -297,7 +297,7 @@ func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *ui.UI, options kubernetes.Ins
 // The equivalent of:
 // kubectl get secret -n carrier-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
+func getRegistryCAHash(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets("carrier-workloads").
 		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
 	if err != nil {
@@ -307,7 +307,7 @@ func getRegistryCAHash(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
 	return helpers.OpenSSLSubjectHash(string(secret.Data["ca"]))
 }
 
-func applyTektonStaging(c *kubernetes.Cluster, ui *ui.UI) (string, error) {
+func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	caHash, err := getRegistryCAHash(c, ui)
 	if err != nil {
 		return "", errors.Wrap(err, "Failed to get registry CA from carrier-workloads namespace")

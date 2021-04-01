@@ -6,6 +6,7 @@
     - [Minikube](#minikube)
     - [Kind](#kind)
     - [MircoK8s](#mircok8s)
+  - [Prerequisites for Carrier](#prerequisites)
 
 ## Provision of External IP for LoadBalancer service type in Kubernetes
 
@@ -81,3 +82,6 @@ microk8s enable metallb:${IP}/16
 ```
 
 
+## Prerequisites
+
+- git 2.22 or later
