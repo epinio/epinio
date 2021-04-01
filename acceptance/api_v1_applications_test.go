@@ -34,14 +34,14 @@ var _ = Describe("API Application Endpoints", func() {
 		}, "1m").ShouldNot(HaveOccurred())
 	})
 
-	Describe("GET api/v1/org/:org/applications", func() {
+	Describe("GET api/v1/orgs/:orgs/applications", func() {
 		AfterEach(func() {
 			deleteApp(app1)
 			deleteApp(app2)
 		})
 
 		It("lists all applications belonging to the org", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/org/%s/applications", serverURL, org), strings.NewReader(""))
+			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications", serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
@@ -61,7 +61,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the org does not exist", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/org/idontexist/applications", serverURL), strings.NewReader(""))
+			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications", serverURL), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -71,14 +71,14 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 	})
 
-	Describe("GET api/v1/org/:org/applications/:app", func() {
+	Describe("GET api/v1/orgs/:org/applications/:app", func() {
 		AfterEach(func() {
 			deleteApp(app1)
 			deleteApp(app2)
 		})
 
 		It("lists the application data", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/org/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
+			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
@@ -95,7 +95,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the org does not exist", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/org/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
+			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -106,7 +106,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the app does not exist", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/org/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -116,7 +116,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 	})
 
-	Describe("DELETE api/v1/org/:org/applications/:app", func() {
+	Describe("DELETE api/v1/orgs/:org/applications/:app", func() {
 		var service string
 
 		BeforeEach(func() {
@@ -131,7 +131,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 
 		It("removes the application, unbinds bound services", func() {
-			response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/org/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
+			response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
@@ -148,7 +148,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the org does not exist", func() {
-			response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/org/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
+			response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -159,7 +159,7 @@ var _ = Describe("API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the app does not exist", func() {
-			response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/org/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+			response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 

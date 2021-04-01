@@ -719,7 +719,7 @@ func (c *CarrierClient) Apps() error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/org/%s/applications", c.Config.Org), "GET", "")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications", c.Config.Org), "GET", "")
 	if err != nil {
 		return err
 	}
@@ -757,7 +757,7 @@ func (c *CarrierClient) AppShow(appName string) error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/org/%s/applications/%s", c.Config.Org, appName), "GET", "")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appName), "GET", "")
 	if err != nil {
 		return err
 	}
@@ -828,7 +828,7 @@ func (c *CarrierClient) Delete(appname string) error {
 	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
 	defer s.Stop()
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/org/%s/applications/%s", c.Config.Org, appname), "DELETE", "")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appname), "DELETE", "")
 	if err != nil {
 		return err
 	}
