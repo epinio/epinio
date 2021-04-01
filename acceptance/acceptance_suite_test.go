@@ -82,6 +82,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	serverURL = fmt.Sprintf("http://127.0.0.1:%d", serverPort)
 	serverProcess, err := startCarrierServer(serverPort)
 	Expect(err).ToNot(HaveOccurred())
+
+	// Let the routine below write to it anyway, even when we won't read it
+	// because the other go routine has returned already (when normally stopping
+	// the server).
+	diedServerChan = make(chan bool, 1)
+	stopServerChan = make(chan bool)
 	go func() {
 		err := serverProcess.Wait()
 		if err != nil {
@@ -101,12 +107,14 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 				// is considered ok. The above go routine may still send true to the
 				// diedServerChan but we ignore it here.
 				Expect(serverProcess.Process.Kill()).ToNot(HaveOccurred())
+				return
 			}
 		}
 	}()
 })
 
 var _ = AfterSuite(func() {
+	fmt.Println("Suite done, will now stop the server")
 	stopServerChan <- true
 
 	fmt.Printf("Uninstall carrier on node %d\n", config.GinkgoConfig.ParallelNode)
