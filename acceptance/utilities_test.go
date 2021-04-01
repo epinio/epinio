@@ -179,7 +179,7 @@ func verifyAppServiceBound(appName, serviceName, org string) {
 }
 
 func deleteApp(appName string) {
-	out, err := Carrier("delete "+appName, "")
+	out, err := Carrier("app delete "+appName, "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
@@ -191,7 +191,7 @@ func deleteApp(appName string) {
 }
 
 func cleanupApp(appName string) {
-	out, err := Carrier("delete "+appName, "")
+	out, err := Carrier("app delete "+appName, "")
 	// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
 	if err != nil {

@@ -33,7 +33,7 @@ var _ = Describe("Apps", func() {
 			bindAppService(appName, serviceName, org)
 
 			By("deleting the app")
-			out, err := Carrier("delete "+appName, "")
+			out, err := Carrier("app delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `carrier delete` from returning before the app is deleted #131
 

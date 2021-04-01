@@ -27,6 +27,7 @@ var CmdApp = &cobra.Command{
 func init() {
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppList)
+	CmdApp.AddCommand(CmdDeleteApp)
 }
 
 // CmdAppList implements the carrier `apps list` command
