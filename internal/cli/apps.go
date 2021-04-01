@@ -28,6 +28,7 @@ func init() {
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdDeleteApp)
+	CmdApp.AddCommand(CmdPush)
 }
 
 // CmdAppList implements the carrier `apps list` command

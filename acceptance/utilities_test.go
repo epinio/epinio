@@ -102,7 +102,7 @@ func makeApp(appName string) {
 	Expect(err).ToNot(HaveOccurred())
 	appDir := path.Join(currentDir, "../sample-app")
 
-	out, err := Carrier(fmt.Sprintf("push %s --verbosity 1", appName), appDir)
+	out, err := Carrier(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check presence
