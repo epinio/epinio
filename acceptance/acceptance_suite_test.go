@@ -28,6 +28,8 @@ func TestAcceptance(t *testing.T) {
 }
 
 var nodeSuffix, nodeTmpDir string
+var serverURL string
+var stopServerChan, diedServerChan chan bool
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
@@ -74,9 +76,39 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	fmt.Printf("Installing Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 	installCarrier()
+
+	// Start Carrier server for the api tests
+	serverPort := 8080 + config.GinkgoConfig.ParallelNode
+	serverURL = fmt.Sprintf("http://127.0.0.1:%d", serverPort)
+	serverProcess, err := startCarrierServer(serverPort)
+	Expect(err).ToNot(HaveOccurred())
+	go func() {
+		err := serverProcess.Wait()
+		if err != nil {
+			diedServerChan <- true
+		}
+	}()
+
+	go func() {
+		for {
+			select {
+			case <-diedServerChan:
+				// The above monitoring go routine sent us this
+				panic("Carrier server died unexpectedly")
+			case <-stopServerChan:
+				// No panic in this case, it's the normal stop in AfterSuite.
+				// This is the only part of the code that stops the server and that
+				// is considered ok. The above go routine may still send true to the
+				// diedServerChan but we ignore it here.
+				Expect(serverProcess.Process.Kill()).ToNot(HaveOccurred())
+			}
+		}
+	}()
 })
 
 var _ = AfterSuite(func() {
+	stopServerChan <- true
+
 	fmt.Printf("Uninstall carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 	out, _ := uninstallCarrier()
 	match, _ := regexp.MatchString(`Carrier uninstalled`, out)

@@ -7,9 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/codeskyblue/kexec"
 	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/config"
 	. "github.com/onsi/gomega"
 	"github.com/suse/carrier/internal/application"
 )
@@ -17,15 +15,11 @@ import (
 var _ = Describe("API Application Endpoints", func() {
 
 	var org = newOrgName()
-	var serverProcess *kexec.KCommand
 	var err error
-	var serverPort = 8080 + config.GinkgoConfig.ParallelNode
-	var serverURL = fmt.Sprintf("http://127.0.0.1:%d", serverPort)
 	var app1, app2 string
 
 	BeforeEach(func() {
 		setupAndTargetOrg(org)
-		serverProcess, err = startCarrierServer(serverPort)
 		Expect(err).ToNot(HaveOccurred())
 
 		app1 = newAppName()
@@ -38,10 +32,6 @@ var _ = Describe("API Application Endpoints", func() {
 			_, err := Curl("GET", serverURL+"/api/v1/info", strings.NewReader(""))
 			return err
 		}, "1m").ShouldNot(HaveOccurred())
-	})
-
-	AfterEach(func() {
-		Expect(serverProcess.Process.Kill()).ToNot(HaveOccurred())
 	})
 
 	Describe("GET api/v1/org/:org/applications", func() {
