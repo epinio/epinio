@@ -20,7 +20,7 @@ import (
 
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -504,14 +504,14 @@ func (c *Cluster) ListIngressRoutes(namespace, name string) ([]string, error) {
 }
 
 // ListIngress returns the list of available ingresses in `namespace` with the given selector
-func (c *Cluster) ListIngress(namespace, selector string) (*v1beta1.IngressList, error) {
+func (c *Cluster) ListIngress(namespace, selector string) (*networkingv1.IngressList, error) {
 	listOptions := metav1.ListOptions{}
 	if len(selector) > 0 {
 		listOptions.LabelSelector = selector
 	}
 
 	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
-	ingressList, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).List(context.Background(), listOptions)
+	ingressList, err := c.Kubectl.NetworkingV1().Ingresses(namespace).List(context.Background(), listOptions)
 	if err != nil {
 		return nil, err
 	}
