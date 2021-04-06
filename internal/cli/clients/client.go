@@ -903,16 +903,21 @@ func (c *CarrierClient) Orgs() error {
 
 	c.ui.Note().Msg("Listing organizations")
 
-	details.Info("gitea admin list orgs")
-	orgs, _, err := c.GiteaClient.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	details.Info("list organisations")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/"), "GET", "")
 	if err != nil {
-		return errors.Wrap(err, "failed to list orgs")
+		return err
+	}
+
+	var orgs []string
+	if err := json.Unmarshal(jsonResponse, &orgs); err != nil {
+		return err
 	}
 
 	msg := c.ui.Success().WithTable("Name")
 
 	for _, org := range orgs {
-		msg = msg.WithTableRow(org.UserName)
+		msg = msg.WithTableRow(org)
 	}
 
 	msg.Msg("Carrier Organizations:")
