@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	kubeconfig "github.com/suse/carrier/kubernetes/config"
 	generic "github.com/suse/carrier/kubernetes/platform/generic"
 	ibm "github.com/suse/carrier/kubernetes/platform/ibm"
 	k3s "github.com/suse/carrier/kubernetes/platform/k3s"
@@ -29,7 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 	restclient "k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/remotecommand"
 
 	// https://github.com/kubernetes/client-go/issues/345
@@ -45,6 +45,9 @@ var (
 	CarrierDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
 	CarrierDeploymentLabelValue = "true"
 )
+
+// Memoization of GetCluster
+var clusterMemo *Cluster
 
 type Platform interface {
 	Detect(*kubernetes.Clientset) bool
@@ -69,9 +72,20 @@ type Cluster struct {
 	platform   Platform
 }
 
-// NewClusterFromClient creates a new Cluster from a Kubernetes rest client config
-func NewClusterFromClient(restConfig *restclient.Config) (*Cluster, error) {
+// GetCluster returns the Cluster needed to talk to it. On first call it
+// creates it from a Kubernetes rest client config and cli arguments /
+// environment variables.
+func GetCluster() (*Cluster, error) {
+	if clusterMemo != nil {
+		return clusterMemo, nil
+	}
+
 	c := &Cluster{}
+
+	restConfig, err := kubeconfig.KubeConfig()
+	if err != nil {
+		return nil, err
+	}
 
 	c.RestConfig = restConfig
 	clientset, err := kubernetes.NewForConfig(restConfig)
@@ -84,39 +98,18 @@ func NewClusterFromClient(restConfig *restclient.Config) (*Cluster, error) {
 		c.platform = generic.NewPlatform()
 	}
 
-	return c, c.platform.Load(clientset)
-}
+	err = c.platform.Load(clientset)
+	if err != nil {
+		return nil, err
+	}
 
-func NewCluster(kubeconfig string) (*Cluster, error) {
-	c := &Cluster{}
-	return c, c.Connect(kubeconfig)
+	clusterMemo = c
+
+	return clusterMemo, nil
 }
 
 func (c *Cluster) GetPlatform() Platform {
 	return c.platform
-}
-
-func (c *Cluster) Connect(config string) error {
-	restConfig, err := clientcmd.BuildConfigFromFlags("", config)
-	if err != nil {
-		return err
-	}
-	c.RestConfig = restConfig
-	clientset, err := kubernetes.NewForConfig(restConfig)
-	if err != nil {
-		return err
-	}
-	c.Kubectl = clientset
-	c.detectPlatform()
-	if c.platform == nil {
-		c.platform = generic.NewPlatform()
-	}
-
-	err = c.platform.Load(clientset)
-	if err == nil {
-		fmt.Println(c.platform.Describe())
-	}
-	return err
 }
 
 func (c *Cluster) detectPlatform() {
@@ -285,8 +278,10 @@ func (c *Cluster) WaitForNamespaceMissing(ui *termui.UI, namespace string, timeo
 // Wait up to timeout for pod to be removed.
 // Returns an error if the pod is not removed within the allotted time.
 func (c *Cluster) WaitForPodBySelectorMissing(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
-	s := ui.Progressf("Removing %s in %s", selector, namespace)
-	defer s.Stop()
+	if ui != nil {
+		s := ui.Progressf("Removing %s in %s", selector, namespace)
+		defer s.Stop()
+	}
 
 	return wait.PollImmediate(time.Second, timeout, c.PodDoesNotExist(namespace, selector))
 }

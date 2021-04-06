@@ -2,14 +2,17 @@ package v1
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
-	"github.com/fatih/color"
 	"github.com/julienschmidt/httprouter"
 	"github.com/suse/carrier/deployments"
 	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/cli/clients"
+	"github.com/suse/carrier/internal/duration"
+	"github.com/suse/carrier/internal/services"
+	"github.com/suse/carrier/kubernetes"
 )
 
 type ApplicationsController struct {
@@ -19,51 +22,148 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
-	client, err := clients.NewCarrierClient(nil)
+	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, 500) {
 		return
 	}
 
-	apps, err := application.List(client.KubeClient, client.GiteaClient, org)
+	gitea, err := clients.GetGiteaClient()
 	if handleError(w, err, 500) {
 		return
 	}
 
-	result := []map[string]interface{}{}
-	for _, app := range apps {
-		status, err := client.KubeClient.DeploymentStatus(
-			deployments.WorkloadsDeploymentID,
-			fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
-				org, app.Name))
-		if handleError(w, err, 500) {
-			return
-		}
+	exists, err := gitea.OrgExists(org)
+	if handleError(w, err, 500) {
+		return
+	}
+	if !exists {
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
+		return
+	}
 
-		routes, err := client.KubeClient.ListIngressRoutes(
-			deployments.WorkloadsDeploymentID,
-			app.Name)
-		if err != nil {
-			routes = []string{err.Error()}
-		}
+	apps, err := application.List(cluster, gitea.Client, org)
+	if handleError(w, err, 500) {
+		return
+	}
 
-		var bonded = []string{}
-		bound, err := app.Services()
-		if err != nil {
-			bonded = append(bonded, color.RedString(err.Error()))
-		} else {
-			for _, service := range bound {
-				bonded = append(bonded, service.Name())
+	js, err := json.Marshal(apps)
+	if handleError(w, err, 500) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+	appName := params.ByName("app")
+
+	cluster, err := kubernetes.GetCluster()
+	if handleError(w, err, 500) {
+		return
+	}
+
+	gitea, err := clients.GetGiteaClient()
+	if handleError(w, err, 500) {
+		return
+	}
+
+	exists, err := gitea.OrgExists(org)
+	if handleError(w, err, 500) {
+		return
+	}
+	if !exists {
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
+		return
+	}
+
+	app, err := application.Lookup(cluster, gitea.Client, org, appName)
+	if handleError(w, err, 500) {
+		return
+	}
+	if app == nil {
+		handleError(w, errors.New("application not found"), 404)
+		return
+	}
+
+	js, err := json.Marshal(app)
+	if handleError(w, err, 500) {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+	appName := params.ByName("app")
+
+	cluster, err := kubernetes.GetCluster()
+	if handleError(w, err, 500) {
+		return
+	}
+
+	gitea, err := clients.GetGiteaClient()
+	if handleError(w, err, 500) {
+		return
+	}
+
+	exists, err := gitea.OrgExists(org)
+	if handleError(w, err, 500) {
+		return
+	}
+	if !exists {
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
+		return
+	}
+
+	app, err := application.Lookup(cluster, gitea.Client, org, appName)
+	if handleError(w, err, 500) {
+		return
+	}
+	if app == nil {
+		handleError(w, errors.New("application not found"), 404)
+		return
+	}
+
+	if len(app.BoundServices) > 0 {
+		for _, bonded := range app.BoundServices {
+			bound, err := services.Lookup(cluster, org, bonded)
+			if handleError(w, err, 500) {
+				return
+			}
+
+			err = app.Unbind(bound)
+			if handleError(w, err, 500) {
+				return
 			}
 		}
-		result = append(result, map[string]interface{}{
-			"name":     app.Name,
-			"status":   status,
-			"routes":   routes,
-			"services": bonded,
-		})
 	}
 
-	js, err := json.Marshal(result)
+	err = app.Delete()
+	if handleError(w, err, 500) {
+		return
+	}
+
+	// The command above removes the application's deployment.
+	// This in turn deletes the associated replicaset, and pod, in
+	// this order. The pod being gone thus indicates command
+	// completion, and is therefore what we are waiting on below.
+
+	err = cluster.WaitForPodBySelectorMissing(nil,
+		deployments.WorkloadsDeploymentID,
+		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, appName),
+		duration.ToDeployment())
+	if handleError(w, err, 500) {
+		return
+	}
+
+	response := map[string][]string{}
+	response["UnboundServices"] = app.BoundServices
+
+	js, err := json.Marshal(response)
 	if handleError(w, err, 500) {
 		return
 	}
@@ -74,7 +174,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 // Write the error to the response writer and return  true if there was an error
 func handleError(w http.ResponseWriter, err error, code int) bool {
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		http.Error(w, err.Error(), code)
 		return true
 	}
 	return false

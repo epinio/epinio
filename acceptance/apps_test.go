@@ -33,14 +33,12 @@ var _ = Describe("Apps", func() {
 			bindAppService(appName, serviceName, org)
 
 			By("deleting the app")
-			out, err := Carrier("delete "+appName, "")
+			out, err := Carrier("app delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
-			Expect(out).To(MatchRegexp("Bound Services Found, Unbind Them"))
-			Expect(out).To(MatchRegexp("Unbinding"))
-			Expect(out).To(MatchRegexp("Service: " + serviceName))
-			Expect(out).To(MatchRegexp("Unbound"))
+			Expect(out).To(MatchRegexp("UNBOUND SERVICES"))
+			Expect(out).To(MatchRegexp(serviceName))
 
 			Eventually(func() string {
 				out, err := Carrier("app list", "")

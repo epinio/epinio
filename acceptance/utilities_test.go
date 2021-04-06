@@ -1,7 +1,6 @@
 package acceptance_test
 
 import (
-	"bytes"
 	"fmt"
 	"net/http"
 	"os"
@@ -34,8 +33,8 @@ func newServiceName() string {
 }
 
 // func Curl is used to make requests against a server
-func Curl(uri string, requestBody *strings.Reader) (*http.Response, error) {
-	request, err := http.NewRequest("GET", uri, requestBody)
+func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, error) {
+	request, err := http.NewRequest(method, uri, requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -51,11 +50,12 @@ func startCarrierServer(port int) (*kexec.KCommand, error) {
 
 	p := kexec.CommandString(cmd)
 
-	var b bytes.Buffer
-	p.Stdout = &b
-	p.Stderr = &b
+	p.Stdout = os.Stdout
+	p.Stderr = os.Stdout
 	p.Dir = commandDir
-	p.Start()
+	if err = p.Start(); err != nil {
+		return nil, err
+	}
 
 	return p, nil
 }
@@ -102,7 +102,7 @@ func makeApp(appName string) {
 	Expect(err).ToNot(HaveOccurred())
 	appDir := path.Join(currentDir, "../sample-app")
 
-	out, err := Carrier(fmt.Sprintf("push %s --verbosity 1", appName), appDir)
+	out, err := Carrier(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check presence
@@ -179,7 +179,7 @@ func verifyAppServiceBound(appName, serviceName, org string) {
 }
 
 func deleteApp(appName string) {
-	out, err := Carrier("delete "+appName, "")
+	out, err := Carrier("app delete "+appName, "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
@@ -191,7 +191,7 @@ func deleteApp(appName string) {
 }
 
 func cleanupApp(appName string) {
-	out, err := Carrier("delete "+appName, "")
+	out, err := Carrier("app delete "+appName, "")
 	// TODO: Fix `carrier delete` from returning before the app is deleted #131
 
 	if err != nil {

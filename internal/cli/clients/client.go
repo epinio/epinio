@@ -2,9 +2,11 @@ package clients
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
@@ -16,7 +18,6 @@ import (
 	"time"
 
 	"code.gitea.io/sdk/gitea"
-	"github.com/fatih/color"
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
@@ -25,7 +26,6 @@ import (
 	"github.com/suse/carrier/internal/application"
 	"github.com/suse/carrier/internal/cli/config"
 	"github.com/suse/carrier/internal/duration"
-	carriergitea "github.com/suse/carrier/internal/gitea"
 	"github.com/suse/carrier/internal/services"
 	"github.com/suse/carrier/kubernetes"
 	kubeconfig "github.com/suse/carrier/kubernetes/config"
@@ -47,41 +47,51 @@ var (
 // CarrierClient provides functionality for talking to a
 // Carrier installation on Kubernetes
 type CarrierClient struct {
-	GiteaClient   *gitea.Client
-	KubeClient    *kubernetes.Cluster
-	ui            *termui.UI
-	Config        *config.Config
-	giteaResolver *carriergitea.Resolver
-	Log           logr.Logger
+	GiteaClient *GiteaClient
+	KubeClient  *kubernetes.Cluster
+	Config      *config.Config
+	Log         logr.Logger
+	ui          *termui.UI
+	serverURL   string
 }
 
 func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
-	configConfig, err := config.Load(flags)
+	configConfig, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
-	restConfig, err := kubeconfig.KubeConfig()
+
+	cluster, err := kubernetes.GetCluster()
 	if err != nil {
 		return nil, err
 	}
-	cluster, err := kubernetes.NewClusterFromClient(restConfig)
+
+	client, err := GetGiteaClient()
+
 	if err != nil {
 		return nil, err
 	}
-	resolver := carriergitea.NewResolver(configConfig, cluster)
-	client, err := carriergitea.NewGiteaClient(resolver)
-	if err != nil {
-		return nil, err
-	}
+
 	uiUI := termui.NewUI()
+	// TODO: This is a hack. We won't need it when the server will be running
+	// in-cluster. Then server-url will never empty.
+	// TODO: Better: Retrieve from viper (env.var, global cobra option)
+
+	serverURL := ""
+	if flags != nil {
+		if urlFromFlags, err := flags.GetString("server-url"); err == nil {
+			serverURL = urlFromFlags
+		}
+	}
+
 	logger := kubeconfig.NewClientLogger()
 	carrierClient := &CarrierClient{
-		GiteaClient:   client,
-		KubeClient:    cluster,
-		ui:            uiUI,
-		Config:        configConfig,
-		giteaResolver: resolver,
-		Log:           logger,
+		GiteaClient: client,
+		KubeClient:  cluster,
+		ui:          uiUI,
+		Config:      configConfig,
+		Log:         logger,
+		serverURL:   serverURL,
 	}
 	return carrierClient, nil
 }
@@ -229,6 +239,7 @@ func (c *CarrierClient) Services() error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Listing services")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to list services.")
 	if err != nil {
@@ -310,6 +321,7 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Bind Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to bind service.")
 	if err != nil {
@@ -318,9 +330,13 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 
 	// Lookup app and service. Conversion from name to internal objects.
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient, c.Config.Org, appName)
+	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client, c.Config.Org, appName)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+	if app == nil {
+		c.ui.Exclamation().Msg("application not found")
 		return nil
 	}
 
@@ -358,6 +374,7 @@ func (c *CarrierClient) UnbindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Unbind Service from Application")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to unbind service.")
 	if err != nil {
@@ -366,9 +383,13 @@ func (c *CarrierClient) UnbindService(serviceName, appName string) error {
 
 	// Lookup app and service. Conversion from names to internal objects.
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient, c.Config.Org, appName)
+	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client, c.Config.Org, appName)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+	if app == nil {
+		c.ui.Exclamation().Msg("application not found")
 		return nil
 	}
 
@@ -407,6 +428,7 @@ func (c *CarrierClient) DeleteService(name string, unbind bool) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Delete Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to remove service.")
 	if err != nil {
@@ -498,6 +520,7 @@ func (c *CarrierClient) CreateService(name, class, plan string, dict []string, w
 	}
 	msg.Msg("Create Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to create service.")
 	if err != nil {
@@ -556,6 +579,7 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 	}
 	msg.Msg("Create Custom Service")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to create service.")
 	if err != nil {
@@ -587,6 +611,7 @@ func (c *CarrierClient) ServiceDetails(name string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Service Details")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to detail service.")
 	if err != nil {
@@ -640,7 +665,7 @@ func (c *CarrierClient) Info() error {
 
 	giteaVersion := "unavailable"
 
-	version, resp, err := c.GiteaClient.ServerVersion()
+	version, resp, err := c.GiteaClient.Client.ServerVersion()
 	if err == nil && resp != nil && resp.StatusCode == 200 {
 		giteaVersion = version
 	}
@@ -664,7 +689,7 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 
 	result := []string{}
 
-	apps, err := application.List(c.KubeClient, c.GiteaClient, c.Config.Org)
+	apps, err := application.List(c.KubeClient, c.GiteaClient.Client, c.Config.Org)
 	if err != nil {
 		return result
 	}
@@ -692,53 +717,25 @@ func (c *CarrierClient) Apps() error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Listing applications")
 
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to list applications.")
+	details.Info("list applications")
+
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications", c.Config.Org), "GET", "")
 	if err != nil {
 		return err
 	}
-
-	details.Info("list applications")
-	apps, err := application.List(c.KubeClient, c.GiteaClient, c.Config.Org)
-	if err != nil {
-		return errors.Wrap(err, "failed to list apps")
+	var apps application.ApplicationList
+	if err := json.Unmarshal(jsonResponse, &apps); err != nil {
+		return err
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
 
 	for _, app := range apps {
-		details.Info("kube get status", "App", app.Name)
-		status, err := c.KubeClient.DeploymentStatus(
-			deployments.WorkloadsDeploymentID,
-			fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
-				c.Config.Org, app.Name))
-		if err != nil {
-			status = color.RedString(err.Error())
-		}
-
-		details.Info("kube get ingress", "App", app.Name)
-		routes, err := c.KubeClient.ListIngressRoutes(
-			deployments.WorkloadsDeploymentID,
-			app.Name)
-		if err != nil {
-			routes = []string{color.RedString(err.Error())}
-		}
-
-		var bonded = []string{}
-		bound, err := app.Services()
-		if err != nil {
-			bonded = append(bonded, color.RedString(err.Error()))
-		} else {
-			for _, service := range bound {
-				bonded = append(bonded, service.Name())
-			}
-		}
-
 		msg = msg.WithTableRow(
 			app.Name,
-			status,
-			strings.Join(routes, ", "),
-			strings.Join(bonded, ", "))
+			app.Status,
+			strings.Join(app.Routes, ", "),
+			strings.Join(app.BoundServices, ", "))
 	}
 
 	msg.Msg("Carrier Applications:")
@@ -758,53 +755,22 @@ func (c *CarrierClient) AppShow(appName string) error {
 		WithStringValue("Application", appName).
 		Msg("Show application details")
 
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to show application details.")
+	details.Info("list applications")
+
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appName), "GET", "")
 	if err != nil {
 		return err
 	}
-
-	details.Info("list applications")
-
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient, c.Config.Org, appName)
-	if err != nil {
-		return errors.Wrap(err, "failed to retrieve app")
+	var app application.Application
+	if err := json.Unmarshal(jsonResponse, &app); err != nil {
+		return err
 	}
 
 	msg := c.ui.Success().WithTable("Key", "Value")
 
-	details.Info("kube get status", "App", app.Name)
-	status, err := c.KubeClient.DeploymentStatus(
-		deployments.WorkloadsDeploymentID,
-		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
-			c.Config.Org, app.Name))
-	if err != nil {
-		status = color.RedString(err.Error())
-	}
-
-	msg = msg.WithTableRow("Status", status)
-
-	details.Info("kube get ingress", "App", app.Name)
-	routes, err := c.KubeClient.ListIngressRoutes(
-		deployments.WorkloadsDeploymentID,
-		app.Name)
-	if err != nil {
-		routes = []string{color.RedString(err.Error())}
-	}
-
-	msg = msg.WithTableRow("Routes", strings.Join(routes, ", "))
-
-	var bonded = []string{}
-	bound, err := app.Services()
-	if err != nil {
-		bonded = append(bonded, color.RedString(err.Error()))
-	} else {
-		for _, service := range bound {
-			bonded = append(bonded, service.Name())
-		}
-	}
-
-	msg = msg.WithTableRow("Services", strings.Join(bonded, ", "))
+	msg = msg.WithTableRow("Status", app.Status)
+	msg = msg.WithTableRow("Routes", strings.Join(app.Routes, ", "))
+	msg = msg.WithTableRow("Services", strings.Join(app.BoundServices, ", "))
 
 	msg.Msg("Details:")
 
@@ -824,7 +790,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 
 	details.Info("validate")
 	details.Info("gitea get-org")
-	_, resp, err := c.GiteaClient.GetOrg(org)
+	_, resp, err := c.GiteaClient.Client.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")
 	}
@@ -835,7 +801,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 	}
 
 	details.Info("gitea create-org")
-	_, _, err = c.GiteaClient.CreateOrg(gitea.CreateOrgOption{
+	_, _, err = c.GiteaClient.Client.CreateOrg(gitea.CreateOrgOption{
 		Name: org,
 	})
 
@@ -859,50 +825,30 @@ func (c *CarrierClient) Delete(appname string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Deleting application...")
 
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient,
-		c.Config.Org, appname)
+	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
+	defer s.Stop()
+
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appname), "DELETE", "")
 	if err != nil {
-		return errors.Wrap(err, "failed to find application")
+		return err
+	}
+	var response map[string][]string
+	if err := json.Unmarshal(jsonResponse, &response); err != nil {
+		return err
 	}
 
-	bound, err := app.Services()
-	if err != nil {
-		return errors.Wrap(err, "failed to find bound services")
+	unboundServices, ok := response["UnboundServices"]
+	if !ok {
+		return errors.Errorf("bad response, expected key missing: %v", response)
 	}
-	if len(bound) > 0 {
-		msg := c.ui.Note().WithTable("Currently Bound")
-		for _, bonded := range bound {
-			msg = msg.WithTableRow(bonded.Name())
+
+	if len(unboundServices) > 0 {
+		s.Stop()
+		msg := c.ui.Note().WithTable("Unbound Services")
+		for _, bonded := range unboundServices {
+			msg = msg.WithTableRow(bonded)
 		}
-		msg.Msg("Bound Services Found, Unbind Them")
-		for _, bonded := range bound {
-			c.ui.Note().WithStringValue("Service", bonded.Name()).Msg("Unbinding")
-			err = app.Unbind(bonded)
-			if err != nil {
-				c.ui.Exclamation().Msg(err.Error())
-				continue
-			}
-			c.ui.Success().Compact().Msg("Unbound")
-		}
-
-		c.ui.Note().Msg("Back to deleting the application...")
-	}
-
-	c.ui.ProgressNote().KeepLine().Msg("Deleting...")
-
-	err = app.Delete()
-
-	// The command above removes the application's deployment.
-	// This in turn deletes the associated replicaset, and pod, in
-	// this order. The pod being gone thus indicates command
-	// completion, and is therefore what we are waiting on below.
-
-	err = c.KubeClient.WaitForPodBySelectorMissing(c.ui,
-		deployments.WorkloadsDeploymentID,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", c.Config.Org, appname),
-		duration.ToDeployment())
-	if err != nil {
-		return errors.Wrap(err, "failed to delete application pod")
+		msg.Msg("")
 	}
 
 	c.ui.Success().Msg("Application deleted.")
@@ -920,7 +866,7 @@ func (c *CarrierClient) OrgsMatching(prefix string) []string {
 
 	result := []string{}
 
-	orgs, _, err := c.GiteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	orgs, _, err := c.GiteaClient.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
 	if err != nil {
 		return result
 	}
@@ -947,7 +893,7 @@ func (c *CarrierClient) Orgs() error {
 	c.ui.Note().Msg("Listing organizations")
 
 	details.Info("gitea admin list orgs")
-	orgs, _, err := c.GiteaClient.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	orgs, _, err := c.GiteaClient.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list orgs")
 	}
@@ -984,6 +930,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 		Timeout(duration.UserAbort()).
 		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to push.")
 	if err != nil {
@@ -1029,10 +976,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 	}
 
 	details.Info("get app default route")
-	route, err := c.appDefaultRoute(app)
-	if err != nil {
-		return errors.Wrap(err, "failed to determine default app route")
-	}
+	route := c.appDefaultRoute(app)
 
 	c.ui.Success().
 		WithStringValue("Name", app).
@@ -1062,6 +1006,7 @@ func (c *CarrierClient) Target(org string) error {
 		WithStringValue("Name", org).
 		Msg("Targeting organization...")
 
+	// todo: fix, remove, move to server
 	details.Info("validate")
 	err := c.ensureGoodOrg(org, "Unable to target.")
 	if err != nil {
@@ -1081,11 +1026,11 @@ func (c *CarrierClient) Target(org string) error {
 }
 
 func (c *CarrierClient) check() {
-	c.GiteaClient.GetMyUserInfo()
+	c.GiteaClient.Client.GetMyUserInfo()
 }
 
 func (c *CarrierClient) createRepo(name string) error {
-	_, resp, err := c.GiteaClient.GetRepo(c.Config.Org, name)
+	_, resp, err := c.GiteaClient.Client.GetRepo(c.Config.Org, name)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get repo request")
 	}
@@ -1095,7 +1040,7 @@ func (c *CarrierClient) createRepo(name string) error {
 		return nil
 	}
 
-	_, _, err = c.GiteaClient.CreateOrgRepo(c.Config.Org, gitea.CreateRepoOption{
+	_, _, err = c.GiteaClient.Client.CreateOrgRepo(c.Config.Org, gitea.CreateRepoOption{
 		Name:          name,
 		AutoInit:      true,
 		Private:       true,
@@ -1112,7 +1057,7 @@ func (c *CarrierClient) createRepo(name string) error {
 }
 
 func (c *CarrierClient) createRepoWebhook(name string) error {
-	hooks, _, err := c.GiteaClient.ListRepoHooks(c.Config.Org, name, gitea.ListHooksOptions{})
+	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, gitea.ListHooksOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list webhooks")
 	}
@@ -1127,7 +1072,7 @@ func (c *CarrierClient) createRepoWebhook(name string) error {
 
 	c.ui.Normal().Msg("Creating webhook in the repo...")
 
-	c.GiteaClient.CreateRepoHook(c.Config.Org, name, gitea.CreateHookOption{
+	c.GiteaClient.Client.CreateRepoHook(c.Config.Org, name, gitea.CreateHookOption{
 		Active:       true,
 		BranchFilter: "*",
 		Config: map[string]string{
@@ -1142,13 +1087,8 @@ func (c *CarrierClient) createRepoWebhook(name string) error {
 	return nil
 }
 
-func (c *CarrierClient) appDefaultRoute(name string) (string, error) {
-	domain, err := c.giteaResolver.GetMainDomain()
-	if err != nil {
-		return "", errors.Wrap(err, "failed to determine carrier domain")
-	}
-
-	return fmt.Sprintf("%s.%s", name, domain), nil
+func (c *CarrierClient) appDefaultRoute(name string) string {
+	return fmt.Sprintf("%s.%s", name, c.GiteaClient.Domain)
 }
 
 func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
@@ -1169,10 +1109,7 @@ func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, er
 		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
-	route, err := c.appDefaultRoute(name)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to calculate default app route")
-	}
+	route := c.appDefaultRoute(name)
 
 	deploymentTmpl, err := template.New("deployment").Parse(`
 ---
@@ -1246,22 +1183,12 @@ spec:
 func (c *CarrierClient) gitPush(name, tmpDir string) error {
 	c.ui.Normal().Msg("Pushing application code ...")
 
-	giteaURL, err := c.giteaResolver.GetGiteaURL()
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve gitea host")
-	}
-
-	u, err := url.Parse(giteaURL)
+	u, err := url.Parse(c.GiteaClient.URL)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse gitea url")
 	}
 
-	username, password, err := c.giteaResolver.GetGiteaCredentials()
-	if err != nil {
-		return errors.Wrap(err, "failed to resolve gitea credentials")
-	}
-
-	u.User = url.UserPassword(username, password)
+	u.User = url.UserPassword(c.GiteaClient.Username, c.GiteaClient.Password)
 	u.Path = path.Join(u.Path, c.Config.Org, name)
 
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
@@ -1346,8 +1273,9 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 	return nil
 }
 
+// TODO: Delete after all commands go through the api
 func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
-	_, resp, err := c.GiteaClient.GetOrg(org)
+	_, resp, err := c.GiteaClient.Client.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")
 	}
@@ -1370,7 +1298,7 @@ func (c *CarrierClient) servicesToApps(org string) (map[string]application.Appli
 
 	var appsOf = map[string]application.ApplicationList{}
 
-	apps, err := application.List(c.KubeClient, c.GiteaClient, c.Config.Org)
+	apps, err := application.List(c.KubeClient, c.GiteaClient.Client, c.Config.Org)
 	if err != nil {
 		return nil, err
 	}
@@ -1391,4 +1319,27 @@ func (c *CarrierClient) servicesToApps(org string) (map[string]application.Appli
 	}
 
 	return appsOf, nil
+}
+
+func (c *CarrierClient) curl(endpoint, method, requestBody string) ([]byte, error) {
+	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
+	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
+	if err != nil {
+		return []byte{}, err
+	}
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer response.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return bodyBytes, errors.Wrapf(err, "Api responded with %d: ", response.StatusCode)
+	}
+
+	return bodyBytes, nil
 }

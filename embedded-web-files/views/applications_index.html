@@ -16,11 +16,11 @@
         <!-- https://v3.vuejs.org/guide/migration/custom-elements-interop.html#_3-x-syntax-2 -->
         <tr v-is="'application'"
             v-for="app in applications"
-            v-bind:name="app.name"
-            v-bind:status="app.status"
-            v-bind:routes="app.routes"
-            v-bind:services="app.services"
-            v-bind:key="app.name">
+            v-bind:name="app.Name"
+            v-bind:status="app.Status"
+            v-bind:routes="app.Routes"
+            v-bind:services="app.BoundServices"
+            v-bind:key="app.Name">
         </tr>
       </tbody>
     </table>

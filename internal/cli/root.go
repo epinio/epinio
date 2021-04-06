@@ -58,7 +58,6 @@ func Execute() {
 	rootCmd.AddCommand(CmdOrgs)
 	rootCmd.AddCommand(CmdCreateOrg)
 	rootCmd.AddCommand(CmdPush)
-	rootCmd.AddCommand(CmdDeleteApp)
 	rootCmd.AddCommand(CmdApp)
 	rootCmd.AddCommand(CmdTarget)
 	rootCmd.AddCommand(CmdEnable)
