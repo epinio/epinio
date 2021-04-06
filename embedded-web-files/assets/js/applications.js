@@ -5,7 +5,7 @@ class Applications {
     this.methods = {
       fetchApplications() {
         var that = this
-        $.get("/api/v1/org/workspace/applications", function(data) {
+        $.get("/api/v1/orgs/workspace/applications", function(data) {
           that.applications = data;
         }).fail(function() {
           console.log("failed to fetch applications");
