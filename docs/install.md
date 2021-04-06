@@ -18,6 +18,8 @@ Local kubernetes platforms do not have the ability to provide external IP addres
 
 ### Minikube
 
+:warning: Minikube on podman (`minikube start --driver podman`) is currently unsupported. :warning:
+
 * Install and configure MetalLB
 ```
 minikube addons enable metallb
