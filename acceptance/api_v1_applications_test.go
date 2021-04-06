@@ -186,7 +186,66 @@ var _ = Describe("API Application Endpoints", func() {
 				var orgs []string
 				err = json.Unmarshal(bodyBytes, &orgs)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(orgs[0]).To(Equal("workspace"))
+				Expect(orgs[0]).To(Equal(org))
+			})
+		})
+
+		Describe("POST api/v1/orgs", func() {
+			It("fails for non JSON body", func() {
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(``))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal("unexpected end of JSON input\n"))
+			})
+
+			It("fails for non-object JSON body", func() {
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(`[]`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type map[string]string\n"))
+			})
+
+			It("fails for JSON object without name key", func() {
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(`{}`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal("Name of organization to create not found\n"))
+			})
+
+			It("fails for a known organization", func() {
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(`{"name":"workspace"}`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal("Organization 'workspace' already exists\n"))
+			})
+
+			It("creates a new organization", func() {
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(`{"name":"birdwatcher"}`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal(""))
 			})
 		})
 	})
