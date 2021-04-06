@@ -12,7 +12,7 @@ var _ = Describe("Orgs", func() {
 		Expect(orgs).To(MatchRegexp("workspace"))
 	})
 
-	Describe("create-org", func() {
+	Describe("org create", func() {
 		It("creates and targets an org", func() {
 			setupAndTargetOrg("mycreatedorg")
 
