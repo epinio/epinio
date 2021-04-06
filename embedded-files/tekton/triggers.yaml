@@ -77,6 +77,14 @@ spec:
       - ref: staging-pipelinebinding
       template:
         ref: staging-triggertemplate
+      interceptors:
+        - cel:
+            # TODO: This is a reminder that this should match the HookSecret
+            # on internal/cli/clients/client.go
+            # If this filter is not set, anyone can trigger a staging job simply
+            # by posting to the webhook.
+            # More here: https://github.com/SUSE/carrier/issues/130#issuecomment-813314112
+            filter: "body.secret == '74tZTBHkhjMT5Klj6Ik6PqmM'"
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline

@@ -82,4 +82,11 @@ microk8s enable metallb:${IP}/16
 
 ## Prerequisites
 
+- bash
 - git 2.22 or later
+- helm (3.0 or later)
+- kubectl (1.18 or later)
+- openssl
+
+Where no explicit version number is given, a release not older than
+~2 years is assumed.
