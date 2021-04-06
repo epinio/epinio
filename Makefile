@@ -23,6 +23,9 @@ build-windows: lint
 build-darwin: lint
 	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/carrier-darwin-amd64
 
+build-images:
+	@./scripts/build-images.sh
+
 compress:
 	upx --brute -1 ./dist/carrier-linux-arm32
 	upx --brute -1 ./dist/carrier-linux-arm64
@@ -65,6 +68,9 @@ prepare_version:
 	echo >> version/version.go ""
 	echo >> version/version.go "const Version = \"$$(git describe --tags)\""
 	cat version/version.go
+
+patch-carrier-deployment:
+	@./scripts/patch-carrier-deployment.sh
 
 .PHONY: tools
 tools:

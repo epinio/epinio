@@ -3,6 +3,9 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"regexp"
 	"time"
 
 	"github.com/kyokomi/emoji"
@@ -76,37 +79,21 @@ func (k Carrier) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 		return err
 	}
 
-	// Create persistent volume
-	if out, err := helpers.KubectlApplyEmbeddedYaml(carrierBinaryPVCYaml); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", carrierBinaryPVCYaml, out))
+	if out, err := applyCarrierServerYaml(c, ui); err != nil {
+		return errors.Wrap(err, out)
 	}
 
-	// Create a tmp pod with the above volume mounted
-	if out, err := helpers.KubectlApplyEmbeddedYaml(carrierCopierPodYaml); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", carrierCopierPodYaml, out))
-	}
-
-	// TODO:
-	// - kubectl cp the current binary on the volume through the tmp pod
-	//   https://stackoverflow.com/questions/51686986/how-to-copy-file-to-container-with-kubernetes-client-go
-	//   https://github.com/kubernetes/kubernetes/blob/master/staging/src/k8s.io/kubectl/pkg/cmd/cp/cp.go#L192
-
-	// Stop the tmp pod
-	// TODO: Wait until it's stopped? (not necessary but what if it never gets deleted?)
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(carrierCopierPodYaml, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", carrierCopierPodYaml, out))
-	}
-
-	// Create the carrier deployment with the above volume mounted and cmd being the binary from the volume
-	if out, err := helpers.KubectlApplyEmbeddedYaml(carrierServerYaml); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", carrierServerYaml, out))
-	}
-
-	if err := c.WaitUntilPodBySelectorExist(ui, CarrierDeploymentID, "app.kubernetes.io/name=carrier-server", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Carrier carrier-server deployment to exist")
-	}
-	if err := c.WaitForPodBySelectorRunning(ui, CarrierDeploymentID, "app.kubernetes.io/name=carrier-server", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Carrier carrier-server deployment to be running")
+	// NOTE: Set CARRIER_DONT_WAIT_FOR_DEPLOYMENT when doing development to let
+	// the installation continue. You can use the `make patch-carrier-deployment` target
+	// later to fix the failing deployment.
+	// TODO: Add link to docs
+	if os.Getenv("CARRIER_DONT_WAIT_FOR_DEPLOYMENT") == "" {
+		if err := c.WaitUntilPodBySelectorExist(ui, CarrierDeploymentID, "app.kubernetes.io/name=carrier-server", k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting Carrier carrier-server deployment to exist")
+		}
+		if err := c.WaitForPodBySelectorRunning(ui, CarrierDeploymentID, "app.kubernetes.io/name=carrier-server", k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting Carrier carrier-server deployment to be running")
+		}
 	}
 
 	ui.Success().Msg("Carrier deployed")
@@ -169,4 +156,29 @@ func (k Carrier) createCarrierNamespace(c *kubernetes.Cluster, ui *termui.UI) er
 	)
 
 	return err
+}
+
+// Replaces {{version}} with version.Version and applies the embedded yaml
+func applyCarrierServerYaml(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
+	yamlPathOnDisk, err := helpers.ExtractFile(carrierServerYaml)
+	if err != nil {
+		return "", errors.New("Failed to extract embedded file: " + carrierServerYaml + " - " + err.Error())
+	}
+	defer os.Remove(yamlPathOnDisk)
+
+	fileContents, err := ioutil.ReadFile(yamlPathOnDisk)
+	if err != nil {
+		return "", err
+	}
+
+	re := regexp.MustCompile(`{{version}}`)
+	renderedFileContents := re.ReplaceAll(fileContents, []byte(version.Version))
+
+	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
+	if err != nil {
+		return "", err
+	}
+	defer os.Remove(tmpFilePath)
+
+	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", CarrierDeploymentID, tmpFilePath))
 }

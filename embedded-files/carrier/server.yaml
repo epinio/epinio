@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/name: carrier-server
     app.kubernetes.io/part-of: carrier
-    app.kubernetes.io/version: 0.0.0 # TODO: {{ version }}
+    app.kubernetes.io/version: {{version}}
   name: carrier-server
   namespace: carrier
 spec:
@@ -25,33 +25,24 @@ spec:
         app.kubernetes.io/instance: default
         app.kubernetes.io/name: carrier-server
         app.kubernetes.io/part-of: carrier
-        app.kubernetes.io/version: 0.0.0 # TODO: {{ version }}
+        app.kubernetes.io/version: {{version}}
       name: carrier-server
     spec:
-      volumes:
-        - name: carrier-binary
-          persistentVolumeClaim:
-            claimName: carrier-binary
       containers:
         - command: ["/carrier/carrier", "server"]
           args: ["--port", "8080"]
-          # TODO: Create a base image
-          #image: carrier/base:{{ version }}
-          image: jimmykarily/carrier-baseimage
+          image: carrier/base:{{version}}
           livenessProbe:
             httpGet:
-              path: /health
+              path: /
               port: 8080
           name: carrier-server
           ports:
             - containerPort: 8080
           readinessProbe:
             httpGet:
-              path: /readiness
+              path: /
               port: 8080
-          volumeMounts:
-            - mountPath: "/carrier"
-              name: carrier-binary
       # securityContext:
       #   runAsNonRoot: true
       #   runAsUser: 65532
