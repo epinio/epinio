@@ -11,6 +11,7 @@ import (
 
 const (
 	systemDomain     = 2 * time.Minute
+	appReady         = 2 * time.Minute
 	deployment       = 5 * time.Minute
 	serviceSecret    = 5 * time.Minute
 	serviceProvision = 5 * time.Minute
@@ -59,6 +60,12 @@ func ToWarmupJobReady() time.Duration {
 // the system domain
 func ToSystemDomain() time.Duration {
 	return Multiplier() * systemDomain
+}
+
+// ToAppReady returns the duration to wait until the curl request
+// on app url
+func ToAppReady() time.Duration {
+	return Multiplier() * appReady
 }
 
 // ToDeployment returns the duration to wait for parts of a deployment

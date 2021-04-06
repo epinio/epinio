@@ -15,6 +15,13 @@ var NeededOptions = kubernetes.InstallationOptions{
 		Default:     "",
 		Value:       "",
 	},
+	{
+		Name:        "email_address",
+		Description: "The email address you are planning to use for getting notifications about your certificates",
+		Type:        kubernetes.StringType,
+		Default:     "carrier@suse.com",
+		Value:       "",
+	},
 }
 
 const (
