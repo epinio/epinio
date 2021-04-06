@@ -13,22 +13,23 @@ type OrganisationsController struct {
 
 func (oc OrganisationsController) Index(w http.ResponseWriter, r *http.Request) {
 	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	// TODO: Wrap AdminListOrgs into a local gitea client method (See OrgExists)
+	orgs, _, err := gitea.Client.AdminListOrgs(giteaSDK.AdminListOrgsOptions{})
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	var orgList []string
-	orgs, _, err := gitea.Client.AdminListOrgs(giteaSDK.AdminListOrgsOptions{})
-	if handleError(w, err, 500) {
-		return
-	}
-
 	for _, org := range orgs {
 		orgList = append(orgList, org.UserName)
 	}
 
 	js, err := json.Marshal(orgList)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

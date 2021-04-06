@@ -17,7 +17,7 @@ func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) {
 		Version: version.Version,
 	}
 	js, err := json.Marshal(info)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
