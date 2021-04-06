@@ -8,9 +8,9 @@ import (
 
 var ()
 
-// CmdCreateOrg implements the carrier orgs command
-var CmdCreateOrg = &cobra.Command{
-	Use:   "create-org NAME",
+// CmdOrgCreate implements the carrier `orgs create` command
+var CmdOrgCreate = &cobra.Command{
+	Use:   "create NAME",
 	Short: "Creates an organization",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

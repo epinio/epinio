@@ -43,10 +43,10 @@ func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, erro
 func setupAndTargetOrg(org string) {
 	By("creating an org")
 
-	out, err := Carrier("create-org "+org, "")
+	out, err := Carrier("org create "+org, "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	orgs, err := Carrier("orgs", "")
+	orgs, err := Carrier("org list", "")
 	Expect(err).ToNot(HaveOccurred())
 	Expect(orgs).To(MatchRegexp(org))
 

@@ -7,7 +7,7 @@ import (
 
 var _ = Describe("Orgs", func() {
 	It("has a default org", func() {
-		orgs, err := Carrier("orgs", "")
+		orgs, err := Carrier("org list", "")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(orgs).To(MatchRegexp("workspace"))
 	})

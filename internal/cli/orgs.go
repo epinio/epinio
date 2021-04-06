@@ -13,9 +13,25 @@ import (
 
 var ()
 
-// CmdOrgs implements the carrier orgs command
-var CmdOrgs = &cobra.Command{
-	Use:   "orgs",
+// CmdOrg implements the carrier -app command
+var CmdOrg = &cobra.Command{
+	Use:           "org",
+	Aliases:       []string{"orgs"},
+	Short:         "Carrier organizations",
+	Long:          `Manage carrier organizations`,
+	Args:          cobra.ExactArgs(0),
+	SilenceErrors: true,
+	SilenceUsage:  true,
+}
+
+func init() {
+	CmdOrg.AddCommand(CmdOrgCreate)
+	CmdOrg.AddCommand(CmdOrgList)
+}
+
+// CmdOrgs implements the carrier `orgs list` command
+var CmdOrgList = &cobra.Command{
+	Use:   "list",
 	Short: "Lists all organizations",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// TODO: Target remote carrier server instead of starting one
