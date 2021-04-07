@@ -30,20 +30,41 @@ spec:
     spec:
       containers:
         - command: ["/carrier/carrier", "server"]
-          args: ["--port", "8080"]
+          args: ["--port", "80"]
           image: carrier/base:{{version}}
           livenessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: 80
           name: carrier-server
           ports:
-            - containerPort: 8080
+            - containerPort: 80
           readinessProbe:
             httpGet:
               path: /
-              port: 8080
+              port: 80
       # securityContext:
       #   runAsNonRoot: true
       #   runAsUser: 65532
       # TODO Create an appropriate server account: serviceAccountName: cluster-admin
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: carrier
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: carrier-server
+    app.kubernetes.io/part-of: carrier
+    app.kubernetes.io/version: {{version}}
+  name: carrier-server
+  namespace: carrier
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app.kubernetes.io/name: carrier-server

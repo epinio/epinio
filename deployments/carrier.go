@@ -15,7 +15,9 @@ import (
 	"github.com/suse/carrier/termui"
 	"github.com/suse/carrier/version"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Carrier struct {
@@ -81,6 +83,21 @@ func (k Carrier) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 
 	if out, err := applyCarrierServerYaml(c, ui); err != nil {
 		return errors.Wrap(err, out)
+	}
+
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get system_domain option")
+	}
+
+	message := "Creating Carrier server ingress"
+	_, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return "", k.createIngress(c, CarrierDeploymentID+"."+domain)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
 	// NOTE: Set CARRIER_DONT_WAIT_FOR_DEPLOYMENT when doing development to let
@@ -181,4 +198,40 @@ func applyCarrierServerYaml(c *kubernetes.Cluster, ui *termui.UI) (string, error
 	defer os.Remove(tmpFilePath)
 
 	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", CarrierDeploymentID, tmpFilePath))
+}
+
+func (k *Carrier) createIngress(c *kubernetes.Cluster, subdomain string) error {
+	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses(CarrierDeploymentID).Create(
+		context.Background(),
+		// TODO: Switch to networking v1 when we don't care about <1.18 clusters
+		// Like this (which has been reverted):
+		// https://github.com/SUSE/carrier/commit/7721d610fdf27a79be980af522783671d3ffc198
+		&v1beta1.Ingress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "carrier",
+				Namespace: CarrierDeploymentID,
+				Annotations: map[string]string{
+					"kubernetes.io/ingress.class": "traefik",
+				},
+			},
+			Spec: v1beta1.IngressSpec{
+				Rules: []v1beta1.IngressRule{
+					{
+						Host: subdomain,
+						IngressRuleValue: v1beta1.IngressRuleValue{
+							HTTP: &v1beta1.HTTPIngressRuleValue{
+								Paths: []v1beta1.HTTPIngressPath{
+									{
+										Path: "/",
+										Backend: v1beta1.IngressBackend{
+											ServiceName: "carrier-server",
+											ServicePort: intstr.IntOrString{
+												Type:   intstr.Int,
+												IntVal: 80,
+											},
+										}}}}}}}}},
+		metav1.CreateOptions{},
+	)
+
+	return err
 }

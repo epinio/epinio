@@ -54,14 +54,14 @@ spec:
           name: carrier-binary
 EOF
 
-echo "Waiting for dummy pods to be ready"
+echo "Waiting for dummy pod to be ready"
 kubectl wait --for=condition=ready pod -n carrier carrier-copier
 
 echo "Copying the binary on the PVC"
 kubectl cp dist/carrier-linux-amd64 carrier/carrier-copier:/carrier/carrier
 
 echo "Patching the carrier-server deployment to use the copied binary"
-read -r -d '' PATCH <<'EOF'
+read -r -d '' PATCH <<EOF
 {
   "spec": { "template": {
       "spec": {
