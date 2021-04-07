@@ -27,6 +27,10 @@ jobs:
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: |
           make build-all-small
+      - name: Build Carrier images
+        if: steps.branch.outputs.BRANCH_NAME == 'main'
+        run: |
+          make build-images
       - name: Create CHECKSUMS
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: ( cd dist ; sha256sum -b carrier* > SHA256SUM.txt )
