@@ -15,7 +15,6 @@ import (
 var _ = Describe("API Application Endpoints", func() {
 
 	var org string
-	var err error
 
 	BeforeEach(func() {
 		org = newOrgName()
