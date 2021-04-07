@@ -75,7 +75,7 @@ read -r -d '' PATCH <<EOF
         ],
         "containers": [{
           "name": "carrier-server",
-          "image": "splatform/epinio-base",
+          "image": "splatform/epinio-base:$(git describe --tags --abbrev=0)",
           "command": [
             "/carrier-binary/carrier",
             "server"
