@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/codeskyblue/kexec"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -39,25 +38,6 @@ func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, erro
 		return nil, err
 	}
 	return (&http.Client{}).Do(request)
-}
-
-func startCarrierServer(port int) (*kexec.KCommand, error) {
-	commandDir, err := os.Getwd()
-	if err != nil {
-		return nil, err
-	}
-	cmd := fmt.Sprintf("%s/carrier server --port %d", nodeTmpDir, port)
-
-	p := kexec.CommandString(cmd)
-
-	p.Stdout = os.Stdout
-	p.Stderr = os.Stdout
-	p.Dir = commandDir
-	if err = p.Start(); err != nil {
-		return nil, err
-	}
-
-	return p, nil
 }
 
 func setupAndTargetOrg(org string) {

@@ -16,6 +16,8 @@
 # Patching the deployment forces the pod to restart with a now existing image
 # and the correct binary is in place.
 
+export CARRIER_BINARY_PATH=${CARRIER_BINARY_PATH:-'dist/carrier-linux-amd64'}
+
 echo "Creating the PVC"
 cat <<EOF | kubectl apply -f -
 ---
@@ -58,7 +60,7 @@ echo "Waiting for dummy pod to be ready"
 kubectl wait --for=condition=ready pod -n carrier carrier-copier
 
 echo "Copying the binary on the PVC"
-kubectl cp dist/carrier-linux-amd64 carrier/carrier-copier:/carrier/carrier
+kubectl cp ${CARRIER_BINARY_PATH} carrier/carrier-copier:/carrier/carrier
 
 echo "Patching the carrier-server deployment to use the copied binary"
 read -r -d '' PATCH <<EOF
