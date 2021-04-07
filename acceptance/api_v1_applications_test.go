@@ -186,7 +186,7 @@ var _ = Describe("API Application Endpoints", func() {
 				var orgs []string
 				err = json.Unmarshal(bodyBytes, &orgs)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(orgs[0]).To(Equal(org))
+				Expect(orgs).Should(ContainElements("workspace"))
 			})
 		})
 
