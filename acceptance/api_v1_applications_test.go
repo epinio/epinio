@@ -20,7 +20,6 @@ var _ = Describe("API Application Endpoints", func() {
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
-		Expect(err).ToNot(HaveOccurred())
 
 		// Wait for server to be up and running
 		Eventually(func() error {
