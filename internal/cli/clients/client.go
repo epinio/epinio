@@ -1440,8 +1440,9 @@ func (c *CarrierClient) curl(endpoint, method, requestBody string) ([]byte, erro
 	if err != nil {
 		return []byte{}, err
 	}
+
 	if response.StatusCode != http.StatusOK {
-		return bodyBytes, errors.Wrapf(err, "Api responded with %d: ", response.StatusCode)
+		return []byte{}, errors.New(fmt.Sprintf("%s: %s", http.StatusText(response.StatusCode), string(bodyBytes)))
 	}
 
 	return bodyBytes, nil
