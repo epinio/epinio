@@ -14,18 +14,13 @@ import (
 
 var _ = Describe("API Application Endpoints", func() {
 
-	var org = newOrgName()
+	var org string
 	var err error
-	var app1, app2 string
 
 	BeforeEach(func() {
+		org = newOrgName()
 		setupAndTargetOrg(org)
 		Expect(err).ToNot(HaveOccurred())
-
-		app1 = newAppName()
-		app2 = newAppName()
-		makeApp(app1)
-		makeApp(app2)
 
 		// Wait for server to be up and running
 		Eventually(func() error {
@@ -35,6 +30,15 @@ var _ = Describe("API Application Endpoints", func() {
 	})
 
 	Context("Apps", func() {
+		var app1, app2 string
+
+		BeforeEach(func() {
+			app1 = newAppName()
+			app2 = newAppName()
+			makeApp(app1)
+			makeApp(app2)
+		})
+
 		Describe("GET api/v1/orgs/:orgs/applications", func() {
 			AfterEach(func() {
 				deleteApp(app1)
@@ -42,7 +46,8 @@ var _ = Describe("API Application Endpoints", func() {
 			})
 
 			It("lists all applications belonging to the org", func() {
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications", serverURL, org), strings.NewReader(""))
+				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications",
+					serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -175,7 +180,8 @@ var _ = Describe("API Application Endpoints", func() {
 	Context("Orgs", func() {
 		Describe("GET api/v1/orgs", func() {
 			It("lists all organisations", func() {
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(""))
+				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -186,13 +192,16 @@ var _ = Describe("API Application Endpoints", func() {
 				var orgs []string
 				err = json.Unmarshal(bodyBytes, &orgs)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(orgs).Should(ContainElements("workspace"))
+
+				// See global BeforeEach for where this org is set up.
+				Expect(orgs).Should(ContainElements(org))
 			})
 		})
 
 		Describe("POST api/v1/orgs", func() {
 			It("fails for non JSON body", func() {
-				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(``))
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -203,7 +212,8 @@ var _ = Describe("API Application Endpoints", func() {
 			})
 
 			It("fails for non-object JSON body", func() {
-				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(`[]`))
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(`[]`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -214,7 +224,8 @@ var _ = Describe("API Application Endpoints", func() {
 			})
 
 			It("fails for JSON object without name key", func() {
-				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(`{}`))
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(`{}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -225,15 +236,30 @@ var _ = Describe("API Application Endpoints", func() {
 			})
 
 			It("fails for a known organization", func() {
+				// Create the org
+
 				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
-					strings.NewReader(`{"name":"workspace"}`))
+					strings.NewReader(`{"name":"birdy"}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal(""))
+
+				// And the 2nd attempt should now fail
+				By("creating the same org a second time")
+
+				response, err = Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(`{"name":"birdy"}`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err = ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("Organization 'workspace' already exists\n"))
+				Expect(string(bodyBytes)).To(Equal("Organization 'birdy' already exists\n"))
 			})
 
 			It("creates a new organization", func() {

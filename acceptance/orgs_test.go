@@ -20,5 +20,14 @@ var _ = Describe("Orgs", func() {
 			out, err := Carrier("target workspace", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
+
+		It("rejects creating an existing org", func() {
+			setupAndTargetOrg("neworg")
+
+			out, err := Carrier("org create neworg", "")
+			Expect(err).To(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp("Organization 'neworg' already exists"))
+		})
 	})
 })
