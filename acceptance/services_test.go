@@ -6,10 +6,11 @@ import (
 )
 
 var _ = Describe("Services", func() {
-	var org = "apps-org"
+	var org string
 	var serviceCatalogName string
 	var serviceCustomName string
 	BeforeEach(func() {
+		org = newOrgName()
 		serviceCatalogName = newServiceName()
 		serviceCustomName = newServiceName()
 		setupAndTargetOrg(org)
