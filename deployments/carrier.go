@@ -61,6 +61,13 @@ func (k Carrier) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return nil
 	}
 
+	// We are taking a shortcut here. When we applied the file we had to replace
+	// ##current_carrier_version## with the correct version. No need to do any parsing when
+	// deleting though.
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(carrierServerYaml, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", carrierServerYaml, out))
+	}
+
 	message := "Deleting Carrier namespace " + CarrierDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
@@ -175,7 +182,7 @@ func (k Carrier) createCarrierNamespace(c *kubernetes.Cluster, ui *termui.UI) er
 	return err
 }
 
-// Replaces {{version}} with version.Version and applies the embedded yaml
+// Replaces ##current_carrier_version## with version.Version and applies the embedded yaml
 func applyCarrierServerYaml(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	yamlPathOnDisk, err := helpers.ExtractFile(carrierServerYaml)
 	if err != nil {
@@ -188,7 +195,7 @@ func applyCarrierServerYaml(c *kubernetes.Cluster, ui *termui.UI) (string, error
 		return "", err
 	}
 
-	re := regexp.MustCompile(`{{version}}`)
+	re := regexp.MustCompile(`##current_carrier_version##`)
 	renderedFileContents := re.ReplaceAll(fileContents, []byte(version.Version))
 
 	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))

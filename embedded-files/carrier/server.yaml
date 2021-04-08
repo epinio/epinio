@@ -1,4 +1,65 @@
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: carrier-server
+  namespace: carrier
+
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: carrier-server
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - list
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs:
+  - list
+- apiGroups:
+  - networking.k8s.io
+  resources:
+  - ingresses
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - list
+  - get
+  - delete
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: carrier-server-cluster-role
+  namespace: carrier
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: carrier-server
+subjects:
+- kind: ServiceAccount
+  name: carrier-server
+  namespace: carrier
+
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,7 +68,7 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/name: carrier-server
     app.kubernetes.io/part-of: carrier
-    app.kubernetes.io/version: {{version}}
+    app.kubernetes.io/version: ##current_carrier_version##
   name: carrier-server
   namespace: carrier
 spec:
@@ -25,13 +86,14 @@ spec:
         app.kubernetes.io/instance: default
         app.kubernetes.io/name: carrier-server
         app.kubernetes.io/part-of: carrier
-        app.kubernetes.io/version: {{version}}
+        app.kubernetes.io/version: ##current_carrier_version##
       name: carrier-server
     spec:
+      serviceAccountName: carrier-server
       containers:
         - command: ["/carrier/carrier", "server"]
           args: ["--port", "80"]
-          image: carrier/base:{{version}}
+          image: carrier/base:##current_carrier_version##
           livenessProbe:
             httpGet:
               path: /
@@ -46,7 +108,6 @@ spec:
       # securityContext:
       #   runAsNonRoot: true
       #   runAsUser: 65532
-      # TODO Create an appropriate server account: serviceAccountName: cluster-admin
 
 ---
 apiVersion: v1
@@ -57,7 +118,7 @@ metadata:
     app.kubernetes.io/instance: default
     app.kubernetes.io/name: carrier-server
     app.kubernetes.io/part-of: carrier
-    app.kubernetes.io/version: {{version}}
+    app.kubernetes.io/version: ##current_carrier_version##
   name: carrier-server
   namespace: carrier
 spec:
