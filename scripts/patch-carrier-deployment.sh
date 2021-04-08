@@ -95,3 +95,11 @@ read -r -d '' PATCH <<EOF
 } 
 EOF
 kubectl patch deployment -n carrier carrier-server -p "${PATCH}"
+
+
+echo "Ensuring the deployment is restarted"
+kubectl rollout restart deployment -n carrier carrier-server
+
+# https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-status-em-
+echo "Waiting for the rollout of the deployment to complete"
+kubectl rollout status deployment -n carrier carrier-server  --timeout=120s
