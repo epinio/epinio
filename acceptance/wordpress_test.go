@@ -14,7 +14,6 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/internal/duration"
 )
 
 type WordpressApp struct {
@@ -115,6 +114,6 @@ var _ = Describe("Wordpress", func() {
 			resp, err := client.Do(request)
 			Expect(err).ToNot(HaveOccurred())
 			return resp.StatusCode
-		}, duration.ToAppReady()).Should(Equal(http.StatusOK))
+		}, 5*time.Minute, 1*time.Second).Should(Equal(http.StatusOK))
 	})
 })
