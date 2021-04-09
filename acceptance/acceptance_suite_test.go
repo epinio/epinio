@@ -29,7 +29,6 @@ func TestAcceptance(t *testing.T) {
 
 var nodeSuffix, nodeTmpDir string
 var serverURL string
-var stopServerChan, diedServerChan chan bool
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
@@ -75,48 +74,22 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	fmt.Printf("Installing Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
+	// Allow the installation to continue
+	os.Setenv("CARRIER_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	installCarrier()
 
-	// Start Carrier server for the api tests
-	serverPort := 8080 + config.GinkgoConfig.ParallelNode
-	serverURL = fmt.Sprintf("http://127.0.0.1:%d", serverPort)
-	serverProcess, err := startCarrierServer(serverPort)
-	Expect(err).ToNot(HaveOccurred())
+	os.Setenv("CARRIER_BINARY_PATH", path.Join(nodeTmpDir, "carrier"))
+	// Patch Carrier deployment to inject the current binary
+	out, err := RunProc("make patch-carrier-deployment", "..", false)
+	Expect(err).ToNot(HaveOccurred(), out)
 
-	// Let the routine below write to it anyway, even when we won't read it
-	// because the other go routine has returned already (when normally stopping
-	// the server).
-	diedServerChan = make(chan bool, 1)
-	stopServerChan = make(chan bool)
-	go func() {
-		err := serverProcess.Wait()
-		if err != nil {
-			diedServerChan <- true
-		}
-	}()
+	out, err = RunProc("kubectl get ingress -n carrier carrier -o=jsonpath='{.spec.rules[0].host}'", "..", false)
+	Expect(err).ToNot(HaveOccurred(), out)
 
-	go func() {
-		for {
-			select {
-			case <-diedServerChan:
-				// The above monitoring go routine sent us this
-				panic("Carrier server died unexpectedly")
-			case <-stopServerChan:
-				// No panic in this case, it's the normal stop in AfterSuite.
-				// This is the only part of the code that stops the server and that
-				// is considered ok. The above go routine may still send true to the
-				// diedServerChan but we ignore it here.
-				Expect(serverProcess.Process.Kill()).ToNot(HaveOccurred())
-				return
-			}
-		}
-	}()
+	serverURL = "http://" + out
 })
 
 var _ = AfterSuite(func() {
-	fmt.Println("Suite done, will now stop the server")
-	stopServerChan <- true
-
 	fmt.Printf("Uninstall carrier on node %d\n", config.GinkgoConfig.ParallelNode)
 	out, _ := uninstallCarrier()
 	match, _ := regexp.MatchString(`Carrier uninstalled`, out)

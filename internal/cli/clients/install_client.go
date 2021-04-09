@@ -119,6 +119,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
 
 	for _, deployment := range []kubernetes.Deployment{
+		&deployments.Carrier{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Workloads{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
@@ -157,6 +158,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
+		&deployments.Carrier{Timeout: duration.ToDeployment()},
 	} {
 		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err

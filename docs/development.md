@@ -14,3 +14,85 @@ The hook can be setup by running the following command inside of the `carrier` g
 ```bash
 gitlint install-hook
 ```
+
+## Local development environment
+
+### Get a cluster
+
+There are many options on how to get a local cluster for development. Here are a few:
+
+- [k3d](https://k3d.io/)
+- [k3s](https://github.com/k3s-io/k3s)
+- [kind](https://github.com/kubernetes-sigs/kind)
+- [minikube](https://minikube.sigs.k8s.io/docs/start/)
+
+Assuming you have `k3d` installed, you can create a cluster with this command:
+
+```
+k3d cluster create carrier
+```
+
+This command should automatically update your default kubeconfig to point to
+the new cluster but if you need to save your kubeconfig manually you can do it with:
+
+```
+k3d kubeconfig get carrier > carrier_kubeconfig
+```
+
+### Build Carrier
+
+You can build Carrier with the following make target:
+
+```
+make build
+```
+
+This is building Carrier for linux on amd64 architecture. If you are on a
+different OS or architecture you can use one of the available `build-*` targets.
+Look at the Makefile at the root of the project to see what is available.
+
+
+### Installing Carrier
+
+You can have a look at [the dedicated document](/docs/install.md) for cluster
+specific instructions, but generally this should be sufficient to get you running:
+
+```
+./dist/carrier-linux-amd64 install
+```
+
+When you build Carrier, the binary will assumes there is a container image for
+the Carrier components with a tag that matches the commit you built from.
+For example, when calling `make build` on commit `7bfb700`, the version reported
+by Carrier is `v0.0.5-75-g7bfb700` and an image `carrier/server:v0.0.5-75-g7bfb700`
+is expected.
+
+This works fine for released version, because the pipeline ensures such an image
+is built and published. But when you are building locally you don't want to
+build and publish an image for every little change you make. For that reason
+you can tell `carrier install` command to not wait for the carrier server deployment
+(since it will be failing) by setting the CARRIER_DONT_WAIT_FOR_DEPLOYMENT environment
+variable:
+
+```
+export CARRIER_DONT_WAIT_FOR_DEPLOYMENT=1
+```
+
+When you run `carrier install` now, it will deploy the carrier server, but if you
+inspect the cluster you can see it is failing to start because the image does not
+exist:
+
+```
+kubectl get pod -n carrier --selector=app.kubernetes.io/name=carrier-server
+```
+
+To fix this, just call `make patch-carrier-deployment`. This make target will
+patch the carrier server deployment to use an existing image and will copy
+the file `dist/carrier-linux-amd64` inside the image making sure you run the same
+binary you built locally.
+
+If you built for another OS or architecture then `dist/carrier-linux-amd64` may
+not exist so adjust the script accordingly.
+
+If you make changes to your binary you can upload your new built by simply calling
+`make patch-carrier-deployment` again.
