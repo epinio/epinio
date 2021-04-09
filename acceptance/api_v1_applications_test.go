@@ -235,7 +235,6 @@ var _ = Describe("API Application Endpoints", func() {
 
 			It("fails for a known organization", func() {
 				// Create the org
-
 				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
 					strings.NewReader(`{"name":"birdy"}`))
 				Expect(err).ToNot(HaveOccurred())
