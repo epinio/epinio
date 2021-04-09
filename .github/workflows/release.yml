@@ -33,7 +33,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          docker login -u "$REGISTRY_USERNAME" -p "$REGISTRY_PASSWORD"
+          docker login -u "$CFCIBOT_DOCKERHUB_USERNAME" -p "$CFCIBOT_DOCKERHUB_PASSWORD"
           make build-images
       - name: Create CHECKSUMS
         if: steps.branch.outputs.BRANCH_NAME == 'main'
