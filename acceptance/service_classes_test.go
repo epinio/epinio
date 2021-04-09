@@ -6,8 +6,9 @@ import (
 )
 
 var _ = Describe("Service Classes, and Plans", func() {
-	var org = "apps-org"
+	var org string
 	BeforeEach(func() {
+		org = newOrgName()
 		setupAndTargetOrg(org)
 		setupInClusterServices()
 	})

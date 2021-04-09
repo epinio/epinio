@@ -23,31 +23,32 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 	org := params.ByName("org")
 
 	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	exists, err := gitea.OrgExists(org)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
+			http.StatusNotFound)
 		return
 	}
 
 	apps, err := application.List(cluster, gitea.Client, org)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	js, err := json.Marshal(apps)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -60,35 +61,37 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 	appName := params.ByName("app")
 
 	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	exists, err := gitea.OrgExists(org)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
+			http.StatusNotFound)
 		return
 	}
 
 	app, err := application.Lookup(cluster, gitea.Client, org, appName)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if app == nil {
-		handleError(w, errors.New("application not found"), 404)
+		handleError(w, errors.New("application not found"),
+			http.StatusNotFound)
 		return
 	}
 
 	js, err := json.Marshal(app)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -101,49 +104,51 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	appName := params.ByName("app")
 
 	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
 	exists, err := gitea.OrgExists(org)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org), 404)
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
+			http.StatusNotFound)
 		return
 	}
 
 	app, err := application.Lookup(cluster, gitea.Client, org, appName)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if app == nil {
-		handleError(w, errors.New("application not found"), 404)
+		handleError(w, errors.New("application not found"),
+			http.StatusNotFound)
 		return
 	}
 
 	if len(app.BoundServices) > 0 {
 		for _, bonded := range app.BoundServices {
 			bound, err := services.Lookup(cluster, org, bonded)
-			if handleError(w, err, 500) {
+			if handleError(w, err, http.StatusInternalServerError) {
 				return
 			}
 
 			err = app.Unbind(bound)
-			if handleError(w, err, 500) {
+			if handleError(w, err, http.StatusInternalServerError) {
 				return
 			}
 		}
 	}
 
 	err = app.Delete()
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
@@ -156,7 +161,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		deployments.WorkloadsDeploymentID,
 		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, appName),
 		duration.ToDeployment())
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
@@ -164,7 +169,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	response["UnboundServices"] = app.BoundServices
 
 	js, err := json.Marshal(response)
-	if handleError(w, err, 500) {
+	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

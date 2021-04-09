@@ -787,31 +787,14 @@ func (c *CarrierClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Name", org).
 		Msg("Creating organization...")
 
-	details.Info("validate")
-	details.Info("gitea get-org")
-	_, resp, err := c.GiteaClient.Client.GetOrg(org)
-	if resp == nil && err != nil {
-		return errors.Wrap(err, "failed to make get org request")
-	}
-
-	if resp.StatusCode == 200 {
-		c.ui.Exclamation().Msg("Organization already exists.")
-		return nil
-	}
-
-	details.Info("gitea create-org")
-	_, _, err = c.GiteaClient.Client.CreateOrg(gitea.CreateOrgOption{
-		Name: org,
-	})
-
+	_, err := c.curl("api/v1/orgs", "POST", fmt.Sprintf(`{ "name": "%s" }`, org))
 	if err != nil {
-		return errors.Wrap(err, "failed to create org")
+		return err
 	}
 
 	c.ui.Success().Msg("Organization created.")
@@ -903,16 +886,21 @@ func (c *CarrierClient) Orgs() error {
 
 	c.ui.Note().Msg("Listing organizations")
 
-	details.Info("gitea admin list orgs")
-	orgs, _, err := c.GiteaClient.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	details.Info("list organizations")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/"), "GET", "")
 	if err != nil {
-		return errors.Wrap(err, "failed to list orgs")
+		return err
+	}
+
+	var orgs []string
+	if err := json.Unmarshal(jsonResponse, &orgs); err != nil {
+		return err
 	}
 
 	msg := c.ui.Success().WithTable("Name")
 
 	for _, org := range orgs {
-		msg = msg.WithTableRow(org.UserName)
+		msg = msg.WithTableRow(org)
 	}
 
 	msg.Msg("Carrier Organizations:")
@@ -1435,8 +1423,13 @@ func (c *CarrierClient) curl(endpoint, method, requestBody string) ([]byte, erro
 	if err != nil {
 		return []byte{}, err
 	}
+
+	if response.StatusCode == http.StatusCreated {
+		return bodyBytes, nil
+	}
+
 	if response.StatusCode != http.StatusOK {
-		return bodyBytes, errors.Wrapf(err, "Api responded with %d: ", response.StatusCode)
+		return []byte{}, errors.New(fmt.Sprintf("%s: %s", http.StatusText(response.StatusCode), string(bodyBytes)))
 	}
 
 	return bodyBytes, nil
