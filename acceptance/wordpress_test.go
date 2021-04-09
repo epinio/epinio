@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strconv"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -85,7 +84,7 @@ var _ = Describe("Wordpress", func() {
 	BeforeEach(func() {
 		wordpress = WordpressApp{
 			SourceURL: "https://wordpress.org/wordpress-5.6.1.tar.gz",
-			Name:      "apps-" + strconv.Itoa(int(time.Now().Nanosecond())),
+			Name:      newAppName(),
 		}
 
 		err := wordpress.CreateDir()
@@ -113,6 +112,8 @@ var _ = Describe("Wordpress", func() {
 		Eventually(func() int {
 			resp, err := client.Do(request)
 			Expect(err).ToNot(HaveOccurred())
+			resp.Body.Close() // https://golang.org/pkg/net/http/#Client.Do
+
 			return resp.StatusCode
 		}, 5*time.Minute, 1*time.Second).Should(Equal(http.StatusOK))
 	})
