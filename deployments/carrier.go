@@ -109,8 +109,7 @@ func (k Carrier) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 
 	// NOTE: Set CARRIER_DONT_WAIT_FOR_DEPLOYMENT when doing development to let
 	// the installation continue. You can use the `make patch-carrier-deployment` target
-	// later to fix the failing deployment.
-	// TODO: Add link to docs
+	// later to fix the failing deployment. See also docs/development.md
 	if os.Getenv("CARRIER_DONT_WAIT_FOR_DEPLOYMENT") == "" {
 		if err := c.WaitUntilPodBySelectorExist(ui, CarrierDeploymentID, "app.kubernetes.io/name=carrier-server", k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Carrier carrier-server deployment to exist")
