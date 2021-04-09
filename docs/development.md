@@ -96,3 +96,9 @@ not exist so adjust the script accordingly.
 
 If you make changes to your binary you can upload your new built by simply calling
 `make patch-carrier-deployment` again.
+
+If your cluster is not running on linux-x64 you may need to set `CARRIER_BINARY_PATH` to the right binary ([See here](https://github.com/SUSE/carrier/blob/2c3c93f79b1019fe7895273b94f40b725ede2996/scripts/patch-carrier-deployment.sh#L19)). Also, the default `make build` target builds a dynamically linked binary. This can cause issued if for example the glibc library in the base image doesn't match the one on your system. To get past that issue, you can build a statically linked binary with something like this:
+
+```
+GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go build -o dist/carrier-linux-amd64
+```
