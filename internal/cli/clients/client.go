@@ -886,7 +886,7 @@ func (c *CarrierClient) Orgs() error {
 
 	c.ui.Note().Msg("Listing organizations")
 
-	details.Info("list organisations")
+	details.Info("list organizations")
 	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/"), "GET", "")
 	if err != nil {
 		return err

@@ -10,10 +10,10 @@ import (
 	"github.com/suse/carrier/internal/cli/clients"
 )
 
-type OrganisationsController struct {
+type OrganizationsController struct {
 }
 
-func (oc OrganisationsController) Index(w http.ResponseWriter, r *http.Request) {
+func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) {
 	gitea, err := clients.GetGiteaClient()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
@@ -38,7 +38,7 @@ func (oc OrganisationsController) Index(w http.ResponseWriter, r *http.Request) 
 	w.Write(js)
 }
 
-func (oc OrganisationsController) Create(w http.ResponseWriter, r *http.Request) {
+func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request) {
 	gitea, err := clients.GetGiteaClient()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return

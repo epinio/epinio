@@ -177,7 +177,7 @@ var _ = Describe("API Application Endpoints", func() {
 
 	Context("Orgs", func() {
 		Describe("GET api/v1/orgs", func() {
-			It("lists all organisations", func() {
+			It("lists all organizations", func() {
 				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs", serverURL),
 					strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
