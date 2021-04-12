@@ -826,9 +826,14 @@ func (c *EpinioClient) Delete(appname string) error {
 	}
 
 	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
-		err = c.deleteCertificate(appname)
+		err = c.deleteProductionCertificate(appname)
 		if err != nil {
-			return errors.Wrap(err, "failed to delete the certificate")
+			return errors.Wrap(err, "failed to delete production certificate")
+		}
+	} else {
+		err = c.deleteLocalCertificate(appname)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete local certificate")
 		}
 	}
 
@@ -956,11 +961,18 @@ func (c *EpinioClient) Push(app string, path string) error {
 	defer os.RemoveAll(tmpDir)
 
 	// Create production certificate if it is provided by user
+	// else create a local cluster self-signed tls secret.
 	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
-		details.Info("create certificate")
-		err = c.createCertificate(app, c.GiteaClient.Domain)
+		details.Info("create production ready ssl certificate")
+		err = c.createProductionCertificate(app, c.GiteaClient.Domain)
 		if err != nil {
-			return errors.Wrap(err, "create ssl certificate failed")
+			return errors.Wrap(err, "create production ssl certificate failed")
+		}
+	} else {
+		details.Info("create local ssl certificate")
+		err = c.createLocalCertificate(app, c.GiteaClient.Domain)
+		if err != nil {
+			return errors.Wrap(err, "create local ssl certificate failed")
 		}
 	}
 
@@ -1037,7 +1049,7 @@ func (c *EpinioClient) check() {
 	c.GiteaClient.Client.GetMyUserInfo()
 }
 
-func (c *EpinioClient) createCertificate(appName, systemDomain string) error {
+func (c *EpinioClient) createProductionCertificate(appName, systemDomain string) error {
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",
@@ -1087,7 +1099,96 @@ func (c *EpinioClient) createCertificate(appName, systemDomain string) error {
 	return nil
 }
 
-func (c *EpinioClient) deleteCertificate(appName string) error {
+func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) error {
+	data := fmt.Sprintf(`{
+		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
+		"kind": "QuarksSecret",
+		"metadata": {
+			"name": "%s.%s.generate-certificate",
+			"namespace": "%s"
+		},
+		"spec": {
+			"request" : {
+				"certificate" : {
+					"CAKeyRef" : {
+						"key" : "private_key",
+						"name" : "ca-cert"
+					},
+					"CARef" : {
+						"key" : "certificate",
+						"name" : "ca-cert"
+					},
+					"commonName" : "%s.%s",
+					"isCA" : false,
+					"alternativeNames": [
+						"%s.%s"
+					],
+					"signerType" : "local"
+				}
+			},
+			"secretName" : "%s-tls",
+			"type" : "tls"
+		}
+    }`, c.Config.Org, appName, deployments.WorkloadsDeploymentID, appName, systemDomain, appName, systemDomain, appName)
+
+	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	obj := &unstructured.Unstructured{}
+	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	quarksSecretInstanceGVR := schema.GroupVersionResource{
+		Group:    "quarks.cloudfoundry.org",
+		Version:  "v1alpha1",
+		Resource: "quarkssecrets",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = decoderUnstructured.Decode([]byte(data), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+		Create(context.Background(),
+			obj,
+			metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *EpinioClient) deleteLocalCertificate(appName string) error {
+	quarksSecretInstanceGVR := schema.GroupVersionResource{
+		Group:    "quarks.cloudfoundry.org",
+		Version:  "v1alpha1",
+		Resource: "quarkssecrets",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+		Delete(context.Background(),
+			fmt.Sprintf("%s.%s.generate-certificate", c.Config.Org, appName),
+			metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *EpinioClient) deleteProductionCertificate(appName string) error {
 	certificateInstanceGVR := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
 		Version:  "v1alpha2",
