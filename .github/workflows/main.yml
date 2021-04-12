@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Get all git tags
-        run: git fetch --prune --unshallow --tags
+        run: git fetch --force --prune --unshallow --tags
       - name: Setup Go for Building
         uses: actions/setup-go@v2
         with:
