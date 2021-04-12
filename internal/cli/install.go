@@ -1,8 +1,8 @@
 package cli
 
 import (
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/clients"
-	"github.com/epinio/epinio/kubernetes"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )

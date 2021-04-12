@@ -10,13 +10,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	kubeconfig "github.com/epinio/epinio/kubernetes/config"
-	generic "github.com/epinio/epinio/kubernetes/platform/generic"
-	ibm "github.com/epinio/epinio/kubernetes/platform/ibm"
-	k3s "github.com/epinio/epinio/kubernetes/platform/k3s"
-	kind "github.com/epinio/epinio/kubernetes/platform/kind"
-	minikube "github.com/epinio/epinio/kubernetes/platform/minikube"
-	"github.com/epinio/epinio/termui"
+	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
+	generic "github.com/epinio/epinio/helpers/kubernetes/platform/generic"
+	ibm "github.com/epinio/epinio/helpers/kubernetes/platform/ibm"
+	k3s "github.com/epinio/epinio/helpers/kubernetes/platform/k3s"
+	kind "github.com/epinio/epinio/helpers/kubernetes/platform/kind"
+	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
+	"github.com/epinio/epinio/helpers/termui"
 
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"

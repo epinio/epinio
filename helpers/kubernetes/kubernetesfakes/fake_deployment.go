@@ -4,8 +4,8 @@ package kubernetesfakes
 import (
 	"sync"
 
-	"github.com/epinio/epinio/kubernetes"
-	"github.com/epinio/epinio/termui"
+	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/termui"
 )
 
 type FakeDeployment struct {

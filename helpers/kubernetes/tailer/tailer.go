@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/epinio/epinio/termui"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"

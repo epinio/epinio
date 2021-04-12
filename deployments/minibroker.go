@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/kubernetes"
-	"github.com/epinio/epinio/termui"
+	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

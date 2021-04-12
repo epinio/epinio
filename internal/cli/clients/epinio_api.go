@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/config"
-	"github.com/epinio/epinio/kubernetes"
 	"github.com/pkg/errors"
 )
 

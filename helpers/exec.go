@@ -13,7 +13,7 @@ import (
 	"github.com/codeskyblue/kexec"
 	"github.com/pkg/errors"
 
-	"github.com/epinio/epinio/termui"
+	"github.com/epinio/epinio/helpers/termui"
 )
 
 type ExternalFuncWithString func() (output string, err error)

@@ -2,10 +2,10 @@ package cli
 
 import (
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/kubernetes"
-	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )

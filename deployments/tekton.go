@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/kubernetes"
-	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"k8s.io/api/extensions/v1beta1"
