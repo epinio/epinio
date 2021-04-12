@@ -11,12 +11,12 @@ import (
 	"strings"
 	"sync"
 
+	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/filesystem"
+	"github.com/epinio/epinio/internal/web"
+	"github.com/epinio/epinio/termui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	apiv1 "github.com/suse/carrier/internal/api/v1"
-	"github.com/suse/carrier/internal/filesystem"
-	"github.com/suse/carrier/internal/web"
-	"github.com/suse/carrier/termui"
 )
 
 func init() {
@@ -26,16 +26,16 @@ func init() {
 	viper.BindEnv("port", "PORT")
 }
 
-// CmdServer implements the carrier server command
+// CmdServer implements the epinio server command
 var CmdServer = &cobra.Command{
 	Use:   "server",
-	Short: "starts the Carrier server. You can connect to it using either your browser or the Carrier client.",
+	Short: "starts the Epinio server. You can connect to it using either your browser or the Epinio client.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		httpServerWg := &sync.WaitGroup{}
 		httpServerWg.Add(1)
 		port := viper.GetInt("port")
 		ui := termui.NewUI()
-		_, listeningPort, err := startCarrierServer(httpServerWg, port, ui)
+		_, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
 		if err != nil {
 			return err
 		}
@@ -48,7 +48,7 @@ var CmdServer = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-func startCarrierServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Server, string, error) {
+func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Server, string, error) {
 	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
 	if err != nil {
 		return nil, "", err
@@ -73,7 +73,7 @@ func startCarrierServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Serv
 
 		// always returns error. ErrServerClosed on graceful close
 		if err := srv.Serve(listener); err != http.ErrServerClosed {
-			log.Fatalf("Carrier server failed to start: %v", err)
+			log.Fatalf("Epinio server failed to start: %v", err)
 		}
 	}()
 

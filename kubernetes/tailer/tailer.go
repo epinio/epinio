@@ -11,9 +11,9 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/epinio/epinio/termui"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/termui"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"

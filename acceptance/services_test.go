@@ -24,7 +24,7 @@ var _ = Describe("Services", func() {
 		})
 
 		It("shows all created services", func() {
-			out, err := Carrier("service list", "")
+			out, err := Epinio("service list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(serviceCustomName))
 			Expect(out).To(MatchRegexp(serviceCatalogName))

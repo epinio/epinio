@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -24,7 +24,7 @@ type Workloads struct {
 }
 
 const (
-	WorkloadsDeploymentID   = "carrier-workloads"
+	WorkloadsDeploymentID   = "epinio-workloads"
 	WorkloadsIngressVersion = "0.1"
 	appIngressYamlPath      = "app-ingress.yaml"
 )
@@ -54,7 +54,7 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", WorkloadsDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Workspace because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Workspace because namespace either doesn't exist or not owned by Epinio")
 		return nil
 	}
 
@@ -67,7 +67,7 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace 'app-ingress' is owned or not")
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping app-ingress namespace deletion because either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping app-ingress namespace deletion because either doesn't exist or not owned by Epinio")
 		return nil
 	}
 
@@ -89,7 +89,7 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", appIngressYamlPath, out))
 	}
 
-	if err := c.LabelNamespace("app-ingress", kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue); err != nil {
+	if err := c.LabelNamespace("app-ingress", kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue); err != nil {
 		return err
 	}
 
@@ -103,7 +103,7 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 }
 
 func (k Workloads) GetVersion() string {
-	// TODO: Maybe this should be the Carrier version itself?
+	// TODO: Maybe this should be the Epinio version itself?
 	return WorkloadsIngressVersion
 }
 
@@ -146,8 +146,8 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *termui.UI
 			ObjectMeta: metav1.ObjectMeta{
 				Name: WorkloadsDeploymentID,
 				Labels: map[string]string{
-					"quarks.cloudfoundry.org/monitored":  "quarks-secret",
-					kubernetes.CarrierDeploymentLabelKey: kubernetes.CarrierDeploymentLabelValue,
+					"quarks.cloudfoundry.org/monitored": "quarks-secret",
+					kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 				},
 			},
 		},
@@ -156,7 +156,7 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *termui.UI
 		return nil
 	}
 
-	if err := c.LabelNamespace(WorkloadsDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue); err != nil {
+	if err := c.LabelNamespace(WorkloadsDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue); err != nil {
 		return err
 	}
 	if err := w.createGiteaCredsSecret(c); err != nil {
@@ -219,8 +219,8 @@ func (w Workloads) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error
 	auths := `{ "auths": {
 		"https://127.0.0.1:30500":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
 		"http://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
-		 "registry.carrier-registry":{"username":"admin","password":"password"},
-		 "registry.carrier-registry:444":{"username":"admin","password":"password"} } }`
+		 "registry.epinio-registry":{"username":"admin","password":"password"},
+		 "registry.epinio-registry:444":{"username":"admin","password":"password"} } }`
 
 	_, err := c.Kubectl.CoreV1().Secrets(WorkloadsDeploymentID).Create(context.Background(),
 		&corev1.Secret{
@@ -299,7 +299,7 @@ func (w Workloads) warmupBuilder(c *kubernetes.Cluster) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: jobName,
 				Labels: map[string]string{
-					kubernetes.CarrierDeploymentLabelKey: kubernetes.CarrierDeploymentLabelValue,
+					kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 				},
 			},
 			Spec: batchv1.JobSpec{

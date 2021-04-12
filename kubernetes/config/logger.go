@@ -24,7 +24,7 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 
 // New creates a new logger with our setup
 func NewClientLogger() logr.Logger {
-	return NewLogger().WithName("CarrierClient")
+	return NewLogger().WithName("EpinioClient")
 }
 
 // New creates a new logger with our setup

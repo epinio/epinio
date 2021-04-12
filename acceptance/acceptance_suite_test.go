@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/codeskyblue/kexec"
+	"github.com/epinio/epinio/helpers"
 	"github.com/onsi/ginkgo/config"
-	"github.com/suse/carrier/helpers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -39,9 +39,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		panic("Missing dependencies: " + err.Error())
 	}
 
-	fmt.Printf("Compiling Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
+	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
 
-	buildCarrier()
+	buildEpinio()
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
@@ -51,18 +51,18 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	nodeSuffix = fmt.Sprintf("%d-%s",
 		config.GinkgoConfig.ParallelNode, string(randomSuffix))
-	nodeTmpDir, err = ioutil.TempDir("", "carrier-"+nodeSuffix)
+	nodeTmpDir, err = ioutil.TempDir("", "epinio-"+nodeSuffix)
 	if err != nil {
 		panic("Could not create temp dir: " + err.Error())
 	}
 
-	copyCarrier()
+	copyEpinio()
 
 	fmt.Printf("Ensuring a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
 	ensureCluster()
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
 
-	os.Setenv("CARRIER_CONFIG", nodeTmpDir+"/carrier.yaml")
+	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
 	if os.Getenv("REGISTRY_USERNAME") != "" && os.Getenv("REGISTRY_PASSWORD") != "" {
 		fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
@@ -73,28 +73,28 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		))
 	}
 
-	fmt.Printf("Installing Carrier on node %d\n", config.GinkgoConfig.ParallelNode)
+	fmt.Printf("Installing Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
 	// Allow the installation to continue
-	os.Setenv("CARRIER_DONT_WAIT_FOR_DEPLOYMENT", "1")
-	installCarrier()
+	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
+	installEpinio()
 
-	os.Setenv("CARRIER_BINARY_PATH", path.Join(nodeTmpDir, "carrier"))
-	// Patch Carrier deployment to inject the current binary
-	out, err := RunProc("make patch-carrier-deployment", "..", false)
+	os.Setenv("EPINIO_BINARY_PATH", path.Join(nodeTmpDir, "epinio"))
+	// Patch Epinio deployment to inject the current binary
+	out, err := RunProc("make patch-epinio-deployment", "..", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	out, err = RunProc("kubectl get ingress -n carrier carrier -o=jsonpath='{.spec.rules[0].host}'", "..", false)
+	out, err = RunProc("kubectl get ingress -n epinio epinio -o=jsonpath='{.spec.rules[0].host}'", "..", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	serverURL = "http://" + out
 })
 
 var _ = AfterSuite(func() {
-	fmt.Printf("Uninstall carrier on node %d\n", config.GinkgoConfig.ParallelNode)
-	out, _ := uninstallCarrier()
-	match, _ := regexp.MatchString(`Carrier uninstalled`, out)
+	fmt.Printf("Uninstall epinio on node %d\n", config.GinkgoConfig.ParallelNode)
+	out, _ := uninstallEpinio()
+	match, _ := regexp.MatchString(`Epinio uninstalled`, out)
 	if !match {
-		panic("Uninstalling carrier failed: " + out)
+		panic("Uninstalling epinio failed: " + out)
 	}
 
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
@@ -102,7 +102,7 @@ var _ = AfterSuite(func() {
 })
 
 func ensureCluster() {
-	name := fmt.Sprintf("carrier-acceptance-%d", config.GinkgoConfig.ParallelNode)
+	name := fmt.Sprintf("epinio-acceptance-%d", config.GinkgoConfig.ParallelNode)
 
 	if _, err := exec.LookPath("k3d"); err != nil {
 		panic("Couldn't find k3d in PATH: " + err.Error())
@@ -136,7 +136,7 @@ func ensureCluster() {
 }
 
 func deleteCluster() {
-	name := fmt.Sprintf("carrier-acceptance-%s", nodeSuffix)
+	name := fmt.Sprintf("epinio-acceptance-%s", nodeSuffix)
 
 	if _, err := exec.LookPath("k3d"); err != nil {
 		panic("Couldn't find k3d in PATH: " + err.Error())
@@ -179,33 +179,33 @@ func RunProc(cmd, dir string, toStdout bool) (string, error) {
 	return b.String(), err
 }
 
-func buildCarrier() {
+func buildEpinio() {
 	output, err := RunProc("make", "..", false)
 	if err != nil {
-		panic(fmt.Sprintf("Couldn't build Carrier: %s\n %s\n"+err.Error(), output))
+		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
 	}
 }
 
-func copyCarrier() {
-	output, err := RunProc("cp dist/carrier-* "+nodeTmpDir+"/carrier", "..", false)
+func copyEpinio() {
+	output, err := RunProc("cp dist/epinio-* "+nodeTmpDir+"/epinio", "..", false)
 	if err != nil {
-		panic(fmt.Sprintf("Couldn't copy Carrier: %s\n %s\n"+err.Error(), output))
+		panic(fmt.Sprintf("Couldn't copy Epinio: %s\n %s\n"+err.Error(), output))
 	}
 }
 
-func installCarrier() (string, error) {
-	return Carrier("install", "")
+func installEpinio() (string, error) {
+	return Epinio("install", "")
 }
 
-func uninstallCarrier() (string, error) {
-	return Carrier("uninstall", "")
+func uninstallEpinio() (string, error) {
+	return Epinio("uninstall", "")
 }
 
-// Carrier invokes the `carrier` binary, running the specified command.
+// Epinio invokes the `epinio` binary, running the specified command.
 // It returns the command output and/or error.
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
-func Carrier(command string, dir string) (string, error) {
+func Epinio(command string, dir string) (string, error) {
 	var commandDir string
 	var err error
 
@@ -218,7 +218,7 @@ func Carrier(command string, dir string) (string, error) {
 		commandDir = dir
 	}
 
-	cmd := fmt.Sprintf(nodeTmpDir+"/carrier %s", command)
+	cmd := fmt.Sprintf(nodeTmpDir+"/epinio %s", command)
 
 	return RunProc(cmd, commandDir, false)
 }

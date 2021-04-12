@@ -4,8 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/epinio/epinio/kubernetes/platform/generic"
 	"github.com/kyokomi/emoji"
-	"github.com/suse/carrier/kubernetes/platform/generic"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"

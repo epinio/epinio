@@ -6,13 +6,13 @@ import (
 	"os"
 	"os/exec"
 
+	pconfig "github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/kubernetes/config"
+	"github.com/epinio/epinio/version"
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	pconfig "github.com/suse/carrier/internal/cli/config"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/kubernetes/config"
-	"github.com/suse/carrier/version"
 )
 
 var (
@@ -26,9 +26,9 @@ func Execute() {
 	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	rootCmd := &cobra.Command{
-		Use:           "carrier",
-		Short:         "Carrier cli",
-		Long:          `carrier cli is the official command line interface for Carrier PaaS `,
+		Use:           "epinio",
+		Short:         "Epinio cli",
+		Long:          `epinio cli is the official command line interface for Epinio PaaS `,
 		Version:       fmt.Sprintf("%s", version.Version),
 		SilenceErrors: true,
 	}
@@ -39,7 +39,7 @@ func Execute() {
 	pf.StringVarP(&flagConfigFile, "config-file", "", pconfig.DefaultLocation(),
 		"set path of configuration file")
 	viper.BindPFlag("config-file", pf.Lookup("config-file"))
-	argToEnv["config-file"] = "CARRIER_CONFIG"
+	argToEnv["config-file"] = "EPINIO_CONFIG"
 
 	config.KubeConfigFlags(pf, argToEnv)
 	config.LoggerFlags(pf, argToEnv)

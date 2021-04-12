@@ -1,22 +1,22 @@
 package cli
 
 import (
+	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/internal/cli/clients"
 )
 
 var CmdUninstall = &cobra.Command{
 	Use:           "uninstall",
-	Short:         "uninstall Carrier from your configured kubernetes cluster",
-	Long:          `uninstall Carrier PaaS from your configured kubernetes cluster`,
+	Short:         "uninstall Epinio from your configured kubernetes cluster",
+	Long:          `uninstall Epinio PaaS from your configured kubernetes cluster`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          Uninstall,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
 
-// Uninstall command removes carrier from a configured cluster
+// Uninstall command removes epinio from a configured cluster
 func Uninstall(cmd *cobra.Command, args []string) error {
 	installClient, _, err := clients.NewInstallClient(cmd.Flags(), nil)
 	if err != nil {

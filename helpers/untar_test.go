@@ -5,9 +5,9 @@ import (
 	"os"
 	"path"
 
+	. "github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/suse/carrier/helpers"
 )
 
 var _ = Describe("Untar", func() {
@@ -15,7 +15,7 @@ var _ = Describe("Untar", func() {
 	var err error
 
 	BeforeEach(func() {
-		targetDirectory, err = ioutil.TempDir("", "carrier-test")
+		targetDirectory, err = ioutil.TempDir("", "epinio-test")
 		Expect(err).ToNot(HaveOccurred())
 		tarFile = FixturePath("untar.tgz")
 	})

@@ -9,12 +9,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -64,7 +64,7 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", tektonNamespace)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Tekton because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Tekton because namespace either doesn't exist or not owned by Epinio")
 		return nil
 	}
 
@@ -113,7 +113,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
 	}
 
-	err := c.LabelNamespace(tektonNamespace, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err := c.LabelNamespace(tektonNamespace, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
 	if err != nil {
 		return err
 	}
@@ -186,12 +186,12 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Creating registry certificates in carrier-workloads"
+	message = "Creating registry certificates in epinio-workloads"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					return helpers.Kubectl("get secret -n carrier-workloads registry-tls-self-ca")
+					return helpers.Kubectl("get secret -n epinio-workloads registry-tls-self-ca")
 				}, k.Timeout, duration.PollInterval())
 			if err != nil {
 				return out1, err
@@ -199,7 +199,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 
 			out2, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					return helpers.Kubectl("get secret -n carrier-workloads registry-tls-self")
+					return helpers.Kubectl("get secret -n epinio-workloads registry-tls-self")
 				}, k.Timeout, duration.PollInterval())
 
 			return fmt.Sprintf("%s\n%s", out1, out2), err
@@ -295,10 +295,10 @@ func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 }
 
 // The equivalent of:
-// kubectl get secret -n carrier-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n epinio-workloads registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
 func getRegistryCAHash(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
-	secret, err := c.Kubectl.CoreV1().Secrets("carrier-workloads").
+	secret, err := c.Kubectl.CoreV1().Secrets("epinio-workloads").
 		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
 	if err != nil {
 		return "", err
@@ -310,7 +310,7 @@ func getRegistryCAHash(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	caHash, err := getRegistryCAHash(c, ui)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed to get registry CA from carrier-workloads namespace")
+		return "", errors.Wrap(err, "Failed to get registry CA from epinio-workloads namespace")
 	}
 
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
@@ -335,7 +335,7 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	}
 	defer os.Remove(tmpFilePath)
 
-	return helpers.Kubectl(fmt.Sprintf("apply -n carrier-workloads --filename %s", tmpFilePath))
+	return helpers.Kubectl(fmt.Sprintf("apply -n epinio-workloads --filename %s", tmpFilePath))
 }
 
 func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
@@ -343,7 +343,7 @@ func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
 		context.Background(),
 		// TODO: Switch to networking v1 when we don't care about <1.18 clusters
 		// Like this (which has been reverted):
-		// https://github.com/SUSE/carrier/commit/7721d610fdf27a79be980af522783671d3ffc198
+		// https://github.com/epinio/epiniocommit/7721d610fdf27a79be980af522783671d3ffc198
 		&v1beta1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "tekton-dashboard",

@@ -1,10 +1,10 @@
-# carrier
+# epinio
 
 Opinionated platform that runs on Kubernetes, that takes you from App to URL in one step.
 
-![CI](https://github.com/SUSE/carrier/workflows/CI/badge.svg)
+![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg)
 
-<img src="./docs/carrier.svg" width="50%" height="50%">
+<img src="./docs/epinio.svg" width="50%" height="50%">
 
 ## Principles
 
@@ -24,12 +24,12 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 ### Install
 
 ```bash
-$ carrier install
+$ epinio install
 ```
 ### Uninstall
 
 ```bash
-$ carrier uninstall
+$ epinio uninstall
 ```
 
 ### Push an application
@@ -37,7 +37,7 @@ $ carrier uninstall
 Run the following command for any supported application directory (e.g. inside [sample-app directory](sample-app)).
 
 ```bash
-$ carrier push NAME PATH_TO_APPLICATION_SOURCES
+$ epinio push NAME PATH_TO_APPLICATION_SOURCES
 ```
 
 Note that the path argument is __optional__.
@@ -47,38 +47,38 @@ Always ensure that the chosen directory contains a supported application.
 ### Delete an application
 
 ```bash
-$ carrier delete NAME
+$ epinio delete NAME
 ```
 
 ### Create a separate org
 
 ```bash
-$ carrier create-org NAME
+$ epinio create-org NAME
 ```
 
 ### Target an org
 
 ```bash
-$ carrier target NAME
+$ epinio target NAME
 ```
 
 ### List all commands
 
 ```bash
-$ carrier help
+$ epinio help
 ```
 ### Detailed help for each command
 
 ```bash
-$ carrier COMMAND --help
+$ epinio COMMAND --help
 ```
 
 ## Configuration
 
-Carrier places its configuration at `$HOME/.config/carrier/config.yaml` by default.
+Epinio places its configuration at `$HOME/.config/epinio/config.yaml` by default.
 
 For exceptional situations this can be overriden by either specifying
 
   - The global command-line option `--config-file`, or
 
-  - The environment variable `CARRIER_CONFIG`.
+  - The environment variable `EPINIO_CONFIG`.

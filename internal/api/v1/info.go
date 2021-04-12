@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/suse/carrier/version"
+	"github.com/epinio/epinio/version"
 )
 
 type InfoController struct {

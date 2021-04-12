@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	"code.gitea.io/sdk/gitea"
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/kubernetes"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/cli/config"
-	"github.com/suse/carrier/kubernetes"
 )
 
 // GiteaClient provides functionality for talking to a
@@ -50,7 +50,7 @@ func GetGiteaClient() (*GiteaClient, error) {
 
 	domain, err := getMainDomain(cluster)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to determine carrier domain")
+		return nil, errors.Wrap(err, "failed to determine epinio domain")
 	}
 
 	giteaURL, err := getGiteaURL(configConfig, cluster)
@@ -82,7 +82,7 @@ func GetGiteaClient() (*GiteaClient, error) {
 	return giteaClient, nil
 }
 
-// getMainDomain finds the main domain for Carrier
+// getMainDomain finds the main domain for Epinio
 func getMainDomain(cluster *kubernetes.Cluster) (string, error) {
 	// Get the ingress
 	ingresses, err := cluster.ListIngress(deployments.GiteaDeploymentID, "app.kubernetes.io/name=gitea")

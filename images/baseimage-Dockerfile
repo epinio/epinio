@@ -1,5 +1,5 @@
 FROM opensuse/leap:15.2
-LABEL org.opencontainers.image.source https://github.com/SUSE/carrier
+LABEL org.opencontainers.image.source https://github.com/epinio/epinio
 RUN zypper ref && zypper install -y git curl tar gzip
 
 # Get kubectl

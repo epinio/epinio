@@ -1,6 +1,6 @@
 package main
 
-import "github.com/suse/carrier/internal/cli"
+import "github.com/epinio/epinio/internal/cli"
 
 func main() {
 	cli.Execute()

@@ -13,7 +13,7 @@ import (
 	"github.com/codeskyblue/kexec"
 	"github.com/pkg/errors"
 
-	"github.com/suse/carrier/termui"
+	"github.com/epinio/epinio/termui"
 )
 
 type ExternalFuncWithString func() (output string, err error)
@@ -73,7 +73,7 @@ func RunProcNoErr(cmd, dir string, toStdout bool) (string, error) {
 // CreateTmpFile creates a temporary file on the disk with the given contents
 // and returns the path to it and an error if something goes wrong.
 func CreateTmpFile(contents string) (string, error) {
-	tmpfile, err := ioutil.TempFile("", "carrier")
+	tmpfile, err := ioutil.TempFile("", "epinio")
 	if err != nil {
 		return tmpfile.Name(), err
 	}

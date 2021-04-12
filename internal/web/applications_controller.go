@@ -7,7 +7,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/suse/carrier/internal/filesystem"
+	"github.com/epinio/epinio/internal/filesystem"
 )
 
 type ApplicationsController struct {

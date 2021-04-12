@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/services"
+	"github.com/epinio/epinio/kubernetes"
 	"github.com/julienschmidt/httprouter"
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/application"
-	"github.com/suse/carrier/internal/cli/clients"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/internal/services"
-	"github.com/suse/carrier/kubernetes"
 )
 
 type ApplicationsController struct {

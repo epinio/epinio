@@ -10,13 +10,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	kubeconfig "github.com/suse/carrier/kubernetes/config"
-	generic "github.com/suse/carrier/kubernetes/platform/generic"
-	ibm "github.com/suse/carrier/kubernetes/platform/ibm"
-	k3s "github.com/suse/carrier/kubernetes/platform/k3s"
-	kind "github.com/suse/carrier/kubernetes/platform/kind"
-	minikube "github.com/suse/carrier/kubernetes/platform/minikube"
-	"github.com/suse/carrier/termui"
+	kubeconfig "github.com/epinio/epinio/kubernetes/config"
+	generic "github.com/epinio/epinio/kubernetes/platform/generic"
+	ibm "github.com/epinio/epinio/kubernetes/platform/ibm"
+	k3s "github.com/epinio/epinio/kubernetes/platform/k3s"
+	kind "github.com/epinio/epinio/kubernetes/platform/kind"
+	minikube "github.com/epinio/epinio/kubernetes/platform/minikube"
+	"github.com/epinio/epinio/termui"
 
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,13 +37,13 @@ import (
 )
 
 const (
-	// APISGroupName is the api name used for carrier
-	APISGroupName = "carrier.suse.org"
+	// APISGroupName is the api name used for epinio
+	APISGroupName = "epinio.suse.org"
 )
 
 var (
-	CarrierDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
-	CarrierDeploymentLabelValue = "true"
+	EpinioDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
+	EpinioDeploymentLabelValue = "true"
 )
 
 // Memoization of GetCluster
@@ -573,7 +573,7 @@ func (c *Cluster) LabelNamespace(namespace, labelKey, labelValue string) error {
 }
 
 // NamespaceExistsAndOwned checks if the namespace exists
-// and is created by carrier or not.
+// and is created by epinio or not.
 func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 	exists, err := c.NamespaceExists(namespaceName)
 	if err != nil {
@@ -583,7 +583,7 @@ func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 		return false, nil
 	}
 
-	owned, err := c.NamespaceLabelExists(namespaceName, CarrierDeploymentLabelKey)
+	owned, err := c.NamespaceLabelExists(namespaceName, EpinioDeploymentLabelKey)
 	if err != nil {
 		return false, err
 	}

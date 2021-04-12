@@ -23,7 +23,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: '^1.13.7'
-      - name: Build Carrier
+      - name: Build Epinio
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: |
           make build-all-small
@@ -32,13 +32,13 @@ jobs:
         with:
           username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
-      - name: Build Carrier images
+      - name: Build Epinio images
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: |
           make build-images
       - name: Create CHECKSUMS
         if: steps.branch.outputs.BRANCH_NAME == 'main'
-        run: ( cd dist ; sha256sum -b carrier* > SHA256SUM.txt )
+        run: ( cd dist ; sha256sum -b epinio* > SHA256SUM.txt )
       - name: Generate Changelog
         uses: heinrichreimer/github-changelog-generator-action@v2.1.1
         with:
@@ -48,7 +48,7 @@ jobs:
           stripGeneratorNotice: "true"
           issuesWoLabels: "true"
           stripHeaders: "true"
-      - name: Release Carrier
+      - name: Release Epinio
         uses: softprops/action-gh-release@v1
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         with:

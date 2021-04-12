@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/internal/interfaces"
-	"github.com/suse/carrier/kubernetes"
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/interfaces"
+	"github.com/epinio/epinio/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -215,7 +215,7 @@ func ClassLookup(kubeClient *kubernetes.Cluster, serviceClassName string) (*Serv
 
 // CatalogServiceList returns a ServiceList of all available catalog Services
 func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", org)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/organization=%s", org)
 
 	serviceInstanceGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
@@ -249,8 +249,8 @@ func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.
 		metadata := serviceInstance.Object["metadata"].(map[string]interface{})
 		instanceName := metadata["name"].(string)
 		labels := metadata["labels"].(map[string]interface{})
-		org := labels["carrier.suse.org/organization"].(string)
-		service := labels["carrier.suse.org/service"].(string)
+		org := labels["epinio.suse.org/organization"].(string)
+		service := labels["epinio.suse.org/service"].(string)
 
 		result = append(result, &CatalogService{
 			InstanceName: instanceName,
@@ -318,10 +318,10 @@ func CreateCatalogService(kubeClient *kubernetes.Cluster, name, org, class, plan
 			"name": "%s",
 			"namespace": "%s",
 			"labels": {
-				"carrier.suse.org/service-type": "catalog",
-				"carrier.suse.org/service":      "%s",
-				"carrier.suse.org/organization": "%s",
-				"app.kubernetes.io/name":        "carrier"
+				"epinio.suse.org/service-type": "catalog",
+				"epinio.suse.org/service":      "%s",
+				"epinio.suse.org/organization": "%s",
+				"app.kubernetes.io/name":        "epinio"
 			}
 		},
 		"spec": {
@@ -439,7 +439,7 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 				"app.kubernetes.io/name": "%s",
 				"app.kubernetes.io/part-of": "%s",
 				"app.kubernetes.io/component": "servicebinding",
-				"app.kubernetes.io/managed-by": "carrier"
+				"app.kubernetes.io/managed-by": "epinio"
 			}
 		},
 		"spec": {
@@ -485,7 +485,7 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 	labels["app.kubernetes.io/name"] = appName
 	labels["app.kubernetes.io/part-of"] = org
 	labels["app.kubernetes.io/component"] = "servicebindingsecret"
-	labels["app.kubernetes.io/managed-by"] = "carrier"
+	labels["app.kubernetes.io/managed-by"] = "epinio"
 	secret.SetLabels(labels)
 
 	_, err = s.kubeClient.Kubectl.CoreV1().Secrets(deployments.WorkloadsDeploymentID).Update(context.Background(), secret, metav1.UpdateOptions{})

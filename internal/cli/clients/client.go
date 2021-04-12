@@ -18,19 +18,19 @@ import (
 	"time"
 
 	"code.gitea.io/sdk/gitea"
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/services"
+	"github.com/epinio/epinio/kubernetes"
+	kubeconfig "github.com/epinio/epinio/kubernetes/config"
+	"github.com/epinio/epinio/kubernetes/tailer"
+	"github.com/epinio/epinio/termui"
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/application"
-	"github.com/suse/carrier/internal/cli/config"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/internal/services"
-	"github.com/suse/carrier/kubernetes"
-	kubeconfig "github.com/suse/carrier/kubernetes/config"
-	"github.com/suse/carrier/kubernetes/tailer"
-	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -49,9 +49,9 @@ var (
 	StagingEventListenerURL = "http://el-staging-listener." + deployments.WorkloadsDeploymentID + ":8080"
 )
 
-// CarrierClient provides functionality for talking to a
-// Carrier installation on Kubernetes
-type CarrierClient struct {
+// EpinioClient provides functionality for talking to a
+// Epinio installation on Kubernetes
+type EpinioClient struct {
 	GiteaClient *GiteaClient
 	KubeClient  *kubernetes.Cluster
 	Config      *config.Config
@@ -60,7 +60,7 @@ type CarrierClient struct {
 	serverURL   string
 }
 
-func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
+func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 	configConfig, err := config.Load()
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
 	}
 
 	logger := kubeconfig.NewClientLogger()
-	carrierClient := &CarrierClient{
+	epinioClient := &EpinioClient{
 		GiteaClient: client,
 		KubeClient:  cluster,
 		ui:          uiUI,
@@ -98,12 +98,12 @@ func NewCarrierClient(flags *pflag.FlagSet) (*CarrierClient, error) {
 		Log:         logger,
 		serverURL:   serverURL,
 	}
-	return carrierClient, nil
+	return epinioClient, nil
 }
 
 // ServicePlans gets all service classes in the cluster, for the
 // specified class
-func (c *CarrierClient) ServicePlans(serviceClassName string) error {
+func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 	log := c.Log.WithName("ServicePlans").WithValues("ServiceClass", serviceClassName)
 	log.Info("start")
 	defer log.Info("return")
@@ -142,14 +142,14 @@ func (c *CarrierClient) ServicePlans(serviceClassName string) error {
 		}
 		msg = msg.WithTableRow(sp.Name, isFree, sp.Description)
 	}
-	msg.Msg("Carrier Service Plans:")
+	msg.Msg("Epinio Service Plans:")
 
 	return nil
 }
 
 // ServicePlanMatching gets all service plans in the cluster, for the
 // specified class, and the given prefix
-func (c *CarrierClient) ServicePlanMatching(serviceClassName, prefix string) []string {
+func (c *EpinioClient) ServicePlanMatching(serviceClassName, prefix string) []string {
 	log := c.Log.WithName("ServicePlans").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -179,7 +179,7 @@ func (c *CarrierClient) ServicePlanMatching(serviceClassName, prefix string) []s
 }
 
 // ServiceClasses gets all service classes in the cluster
-func (c *CarrierClient) ServiceClasses() error {
+func (c *EpinioClient) ServiceClasses() error {
 	log := c.Log.WithName("ServiceClasses")
 	log.Info("start")
 	defer log.Info("return")
@@ -201,13 +201,13 @@ func (c *CarrierClient) ServiceClasses() error {
 	for _, sc := range serviceClasses {
 		msg = msg.WithTableRow(sc.Name, sc.Description, sc.Broker)
 	}
-	msg.Msg("Carrier Service Classes:")
+	msg.Msg("Epinio Service Classes:")
 
 	return nil
 }
 
 // ServiceClassMatching returns all service classes in the cluster which have the specified prefix in their name
-func (c *CarrierClient) ServiceClassMatching(prefix string) []string {
+func (c *EpinioClient) ServiceClassMatching(prefix string) []string {
 	log := c.Log.WithName("ServiceClasses").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -233,8 +233,8 @@ func (c *CarrierClient) ServiceClassMatching(prefix string) []string {
 	return result
 }
 
-// Services gets all Carrier services in the targeted org
-func (c *CarrierClient) Services() error {
+// Services gets all Epinio services in the targeted org
+func (c *EpinioClient) Services() error {
 	log := c.Log.WithName("Services").WithValues("Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -279,14 +279,14 @@ func (c *CarrierClient) Services() error {
 		}
 		msg = msg.WithTableRow(s.Name(), bound)
 	}
-	msg.Msg("Carrier Services:")
+	msg.Msg("Epinio Services:")
 
 	return nil
 }
 
-// ServiceMatching returns all Carrier services having the specified prefix
+// ServiceMatching returns all Epinio services having the specified prefix
 // in their name.
-func (c *CarrierClient) ServiceMatching(prefix string) []string {
+func (c *EpinioClient) ServiceMatching(prefix string) []string {
 	log := c.Log.WithName("ServiceMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -313,7 +313,7 @@ func (c *CarrierClient) ServiceMatching(prefix string) []string {
 
 // BindService attaches a service specified by name to the named application,
 // both in the targeted organization.
-func (c *CarrierClient) BindService(serviceName, appName string) error {
+func (c *EpinioClient) BindService(serviceName, appName string) error {
 	log := c.Log.WithName("Bind Service To Application").
 		WithValues("Name", serviceName, "Application", appName, "Organization", c.Config.Org)
 	log.Info("start")
@@ -366,7 +366,7 @@ func (c *CarrierClient) BindService(serviceName, appName string) error {
 
 // UnbindService detaches the service specified by name from the named
 // application, both in the targeted organization.
-func (c *CarrierClient) UnbindService(serviceName, appName string) error {
+func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 	log := c.Log.WithName("Unbind Service").
 		WithValues("Name", serviceName, "Application", appName, "Organization", c.Config.Org)
 	log.Info("start")
@@ -421,7 +421,7 @@ func (c *CarrierClient) UnbindService(serviceName, appName string) error {
 }
 
 // DeleteService deletes a service specified by name
-func (c *CarrierClient) DeleteService(name string, unbind bool) error {
+func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	log := c.Log.WithName("Delete Service").
 		WithValues("Name", name, "Organization", c.Config.Org)
 	log.Info("start")
@@ -503,7 +503,7 @@ func (c *CarrierClient) DeleteService(name string, unbind bool) error {
 
 // CreateService creates a service specified by name, class, plan, and optional key/value dictionary
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *CarrierClient) CreateService(name, class, plan string, dict []string, waitForProvision bool) error {
+func (c *EpinioClient) CreateService(name, class, plan string, dict []string, waitForProvision bool) error {
 	log := c.Log.WithName("Create Service").
 		WithValues("Name", name, "Class", class, "Plan", plan, "Organization", c.Config.Org)
 	log.Info("start")
@@ -556,7 +556,7 @@ func (c *CarrierClient) CreateService(name, class, plan string, dict []string, w
 
 		c.ui.Success().Msg("Service Provisioned.")
 	} else {
-		c.ui.Note().Msg(fmt.Sprintf("Use `carrier service %s` to watch when it is provisioned", service.Name()))
+		c.ui.Note().Msg(fmt.Sprintf("Use `epinio service %s` to watch when it is provisioned", service.Name()))
 	}
 
 	return nil
@@ -564,7 +564,7 @@ func (c *CarrierClient) CreateService(name, class, plan string, dict []string, w
 
 // CreateCustomService creates a service specified by name and key/value dictionary
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
+func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 	log := c.Log.WithName("Create Custom Service").
 		WithValues("Name", name, "Organization", c.Config.Org)
 	log.Info("start")
@@ -604,7 +604,7 @@ func (c *CarrierClient) CreateCustomService(name string, dict []string) error {
 }
 
 // ServiceDetails shows the information of a service specified by name
-func (c *CarrierClient) ServiceDetails(name string) error {
+func (c *EpinioClient) ServiceDetails(name string) error {
 	log := c.Log.WithName("Service Details").
 		WithValues("Name", name, "Organization", c.Config.Org)
 	log.Info("start")
@@ -657,7 +657,7 @@ func (c *CarrierClient) ServiceDetails(name string) error {
 }
 
 // Info displays information about environment
-func (c *CarrierClient) Info() error {
+func (c *EpinioClient) Info() error {
 	log := c.Log.WithName("Info")
 	log.Info("start")
 	defer log.Info("return")
@@ -679,14 +679,14 @@ func (c *CarrierClient) Info() error {
 		WithStringValue("Platform", platform.String()).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
-		Msg("Carrier Environment")
+		Msg("Epinio Environment")
 
 	return nil
 }
 
-// AppsMatching returns all Carrier apps having the specified prefix
+// AppsMatching returns all Epinio apps having the specified prefix
 // in their name.
-func (c *CarrierClient) AppsMatching(prefix string) []string {
+func (c *EpinioClient) AppsMatching(prefix string) []string {
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -711,8 +711,8 @@ func (c *CarrierClient) AppsMatching(prefix string) []string {
 	return result
 }
 
-// Apps gets all Carrier apps in the targeted org
-func (c *CarrierClient) Apps() error {
+// Apps gets all Epinio apps in the targeted org
+func (c *EpinioClient) Apps() error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -743,13 +743,13 @@ func (c *CarrierClient) Apps() error {
 			strings.Join(app.BoundServices, ", "))
 	}
 
-	msg.Msg("Carrier Applications:")
+	msg.Msg("Epinio Applications:")
 
 	return nil
 }
 
 // AppShow displays the information of the named app, in the targeted org
-func (c *CarrierClient) AppShow(appName string) error {
+func (c *EpinioClient) AppShow(appName string) error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -783,7 +783,7 @@ func (c *CarrierClient) AppShow(appName string) error {
 }
 
 // CreateOrg creates an Org in gitea
-func (c *CarrierClient) CreateOrg(org string) error {
+func (c *EpinioClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
 	log.Info("start")
 	defer log.Info("return")
@@ -803,7 +803,7 @@ func (c *CarrierClient) CreateOrg(org string) error {
 }
 
 // Delete removes the named application from the cluster
-func (c *CarrierClient) Delete(appname string) error {
+func (c *EpinioClient) Delete(appname string) error {
 	log := c.Log.WithName("Delete").WithValues("Application", appname)
 	log.Info("start")
 	defer log.Info("return")
@@ -850,9 +850,9 @@ func (c *CarrierClient) Delete(appname string) error {
 	return nil
 }
 
-// OrgsMatching returns all Carrier orgs having the specified prefix
+// OrgsMatching returns all Epinio orgs having the specified prefix
 // in their name
-func (c *CarrierClient) OrgsMatching(prefix string) []string {
+func (c *EpinioClient) OrgsMatching(prefix string) []string {
 	log := c.Log.WithName("OrgsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -878,7 +878,7 @@ func (c *CarrierClient) OrgsMatching(prefix string) []string {
 }
 
 // Orgs get a list of all orgs in gitea
-func (c *CarrierClient) Orgs() error {
+func (c *EpinioClient) Orgs() error {
 	log := c.Log.WithName("Orgs")
 	log.Info("start")
 	defer log.Info("return")
@@ -903,13 +903,13 @@ func (c *CarrierClient) Orgs() error {
 		msg = msg.WithTableRow(org)
 	}
 
-	msg.Msg("Carrier Organizations:")
+	msg.Msg("Epinio Organizations:")
 
 	return nil
 }
 
 // Push pushes an app
-func (c *CarrierClient) Push(app string, path string) error {
+func (c *EpinioClient) Push(app string, path string) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", app,
@@ -996,7 +996,7 @@ func (c *CarrierClient) Push(app string, path string) error {
 }
 
 // Target targets an org in gitea
-func (c *CarrierClient) Target(org string) error {
+func (c *EpinioClient) Target(org string) error {
 	log := c.Log.WithName("Target").WithValues("Organization", org)
 	log.Info("start")
 	defer log.Info("return")
@@ -1033,11 +1033,11 @@ func (c *CarrierClient) Target(org string) error {
 	return nil
 }
 
-func (c *CarrierClient) check() {
+func (c *EpinioClient) check() {
 	c.GiteaClient.Client.GetMyUserInfo()
 }
 
-func (c *CarrierClient) createCertificate(appName, systemDomain string) error {
+func (c *EpinioClient) createCertificate(appName, systemDomain string) error {
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",
@@ -1087,7 +1087,7 @@ func (c *CarrierClient) createCertificate(appName, systemDomain string) error {
 	return nil
 }
 
-func (c *CarrierClient) deleteCertificate(appName string) error {
+func (c *EpinioClient) deleteCertificate(appName string) error {
 	certificateInstanceGVR := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
 		Version:  "v1alpha2",
@@ -1115,7 +1115,7 @@ func (c *CarrierClient) deleteCertificate(appName string) error {
 	return nil
 }
 
-func (c *CarrierClient) createRepo(name string) error {
+func (c *EpinioClient) createRepo(name string) error {
 	_, resp, err := c.GiteaClient.Client.GetRepo(c.Config.Org, name)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get repo request")
@@ -1142,7 +1142,7 @@ func (c *CarrierClient) createRepo(name string) error {
 	return nil
 }
 
-func (c *CarrierClient) createRepoWebhook(name string) error {
+func (c *EpinioClient) createRepoWebhook(name string) error {
 	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, gitea.ListHooksOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list webhooks")
@@ -1173,14 +1173,14 @@ func (c *CarrierClient) createRepoWebhook(name string) error {
 	return nil
 }
 
-func (c *CarrierClient) appDefaultRoute(name string) string {
+func (c *EpinioClient) appDefaultRoute(name string) string {
 	return fmt.Sprintf("%s.%s", name, c.GiteaClient.Domain)
 }
 
-func (c *CarrierClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
+func (c *EpinioClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
 	c.ui.Normal().Msg("Preparing code ...")
 
-	tmpDir, err = ioutil.TempDir("", "carrier-app")
+	tmpDir, err = ioutil.TempDir("", "epinio-app")
 	if err != nil {
 		return "", errors.Wrap(err, "can't create temp directory")
 	}
@@ -1207,7 +1207,7 @@ metadata:
     app.kubernetes.io/name: "{{ .AppName }}"
     app.kubernetes.io/part-of: "{{ .Org }}"
     app.kubernetes.io/component: application
-    app.kubernetes.io/managed-by: carrier
+    app.kubernetes.io/managed-by: epinio
 spec:
   replicas: 1
   selector:
@@ -1219,7 +1219,7 @@ spec:
         app.kubernetes.io/name: "{{ .AppName }}"
         app.kubernetes.io/part-of: "{{ .Org }}"
         app.kubernetes.io/component: application
-        app.kubernetes.io/managed-by: carrier
+        app.kubernetes.io/managed-by: epinio
         # Needed for the ingress extension to work:
         cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
       annotations:
@@ -1266,7 +1266,7 @@ spec:
 	return
 }
 
-func (c *CarrierClient) gitPush(name, tmpDir string) error {
+func (c *EpinioClient) gitPush(name, tmpDir string) error {
 	c.ui.Normal().Msg("Pushing application code ...")
 
 	u, err := url.Parse(c.GiteaClient.URL)
@@ -1280,14 +1280,14 @@ func (c *CarrierClient) gitPush(name, tmpDir string) error {
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
 cd "%s" 
 git init
-git config user.name "Carrier"
-git config user.email ci@carrier
-git remote add carrier "%s"
+git config user.name "Epinio"
+git config user.email ci@epinio
+git remote add epinio "%s"
 git fetch --all
-git reset --soft carrier/main
+git reset --soft epinio/main
 git add --all
 git commit -m "pushed at %s"
-git push carrier %s:main
+git push epinio %s:main
 `, tmpDir, u.String(), time.Now().Format("20060102150405"), "`git branch --show-current`"))
 
 	output, err := cmd.CombinedOutput()
@@ -1305,7 +1305,7 @@ git push carrier %s:main
 	return nil
 }
 
-func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
+func (c *EpinioClient) logs(name string) (context.CancelFunc, error) {
 	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1335,7 +1335,7 @@ func (c *CarrierClient) logs(name string) (context.CancelFunc, error) {
 	return cancelFunc, nil
 }
 
-func (c *CarrierClient) waitForApp(org, name string) error {
+func (c *EpinioClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.KubeClient.WaitUntilPodBySelectorExist(
 		c.ui, deployments.WorkloadsDeploymentID,
@@ -1360,7 +1360,7 @@ func (c *CarrierClient) waitForApp(org, name string) error {
 }
 
 // TODO: Delete after all commands go through the api
-func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
+func (c *EpinioClient) ensureGoodOrg(org, msg string) error {
 	_, resp, err := c.GiteaClient.Client.GetOrg(org)
 	if resp == nil && err != nil {
 		return errors.Wrap(err, "failed to make get org request")
@@ -1377,7 +1377,7 @@ func (c *CarrierClient) ensureGoodOrg(org, msg string) error {
 	return nil
 }
 
-func (c *CarrierClient) servicesToApps(org string) (map[string]application.ApplicationList, error) {
+func (c *EpinioClient) servicesToApps(org string) (map[string]application.ApplicationList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
@@ -1407,7 +1407,7 @@ func (c *CarrierClient) servicesToApps(org string) (map[string]application.Appli
 	return appsOf, nil
 }
 
-func (c *CarrierClient) curl(endpoint, method, requestBody string) ([]byte, error) {
+func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
 	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
 	if err != nil {

@@ -6,9 +6,9 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 	"k8s.io/apimachinery/pkg/labels"
 )
 

@@ -1,4 +1,4 @@
-// Package v1 is the implementation of Carrier's API v1
+// Package v1 is the implementation of Epinio's API v1
 package v1
 
 import (

@@ -6,9 +6,9 @@ package filesystem
 import (
 	"net/http"
 
+	_ "github.com/epinio/epinio/statikWebAssets"
+	_ "github.com/epinio/epinio/statikWebViews"
 	"github.com/rakyll/statik/fs"
-	_ "github.com/suse/carrier/statikWebAssets"
-	_ "github.com/suse/carrier/statikWebViews"
 )
 
 func Views() http.FileSystem {

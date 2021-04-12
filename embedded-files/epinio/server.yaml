@@ -2,14 +2,14 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: carrier-server
-  namespace: carrier
+  name: epinio-server
+  namespace: epinio
 
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: carrier-server
+  name: epinio-server
 rules:
 - apiGroups:
   - ""
@@ -49,57 +49,57 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: carrier-server-cluster-role
-  namespace: carrier
+  name: epinio-server-cluster-role
+  namespace: epinio
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: carrier-server
+  name: epinio-server
 subjects:
 - kind: ServiceAccount
-  name: carrier-server
-  namespace: carrier
+  name: epinio-server
+  namespace: epinio
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/component: carrier
+    app.kubernetes.io/component: epinio
     app.kubernetes.io/instance: default
-    app.kubernetes.io/name: carrier-server
-    app.kubernetes.io/part-of: carrier
-    app.kubernetes.io/version: ##current_carrier_version##
-  name: carrier-server
-  namespace: carrier
+    app.kubernetes.io/name: epinio-server
+    app.kubernetes.io/part-of: epinio
+    app.kubernetes.io/version: ##current_epinio_version##
+  name: epinio-server
+  namespace: epinio
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/component: carrier-server
+      app.kubernetes.io/component: epinio-server
       app.kubernetes.io/instance: default
-      app.kubernetes.io/name: carrier-server
-      app.kubernetes.io/part-of: carrier
+      app.kubernetes.io/name: epinio-server
+      app.kubernetes.io/part-of: epinio
   template:
     metadata:
       labels:
-        app.kubernetes.io/component: carrier-server
+        app.kubernetes.io/component: epinio-server
         app.kubernetes.io/instance: default
-        app.kubernetes.io/name: carrier-server
-        app.kubernetes.io/part-of: carrier
-        app.kubernetes.io/version: ##current_carrier_version##
-      name: carrier-server
+        app.kubernetes.io/name: epinio-server
+        app.kubernetes.io/part-of: epinio
+        app.kubernetes.io/version: ##current_epinio_version##
+      name: epinio-server
     spec:
-      serviceAccountName: carrier-server
+      serviceAccountName: epinio-server
       containers:
-        - command: ["/carrier", "server"]
+        - command: ["/epinio", "server"]
           args: ["--port", "80"]
-          image: splatform/epinio-server:##current_carrier_version##
+          image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:
               path: /
               port: 80
-          name: carrier-server
+          name: epinio-server
           ports:
             - containerPort: 80
           readinessProbe:
@@ -115,13 +115,13 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/component: carrier
+    app.kubernetes.io/component: epinio
     app.kubernetes.io/instance: default
-    app.kubernetes.io/name: carrier-server
-    app.kubernetes.io/part-of: carrier
-    app.kubernetes.io/version: ##current_carrier_version##
-  name: carrier-server
-  namespace: carrier
+    app.kubernetes.io/name: epinio-server
+    app.kubernetes.io/part-of: epinio
+    app.kubernetes.io/version: ##current_epinio_version##
+  name: epinio-server
+  namespace: epinio
 spec:
   ports:
     - name: http
@@ -129,4 +129,4 @@ spec:
       protocol: TCP
       targetPort: 80
   selector:
-    app.kubernetes.io/name: carrier-server
+    app.kubernetes.io/name: epinio-server

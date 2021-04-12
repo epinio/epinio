@@ -3,15 +3,15 @@ package web
 import (
 	"net/http"
 
-	"github.com/suse/carrier/internal/cli/clients"
-	"github.com/suse/carrier/version"
+	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/version"
 )
 
 type InfoController struct {
 }
 
 func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
-	client, err := clients.NewCarrierClient(nil)
+	client, err := clients.NewEpinioClient(nil)
 	if handleError(w, err, 500) {
 		return
 	}

@@ -9,29 +9,29 @@ build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
 
 build-arm32: lint
-	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/carrier-linux-arm32
+	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm32
 
 build-arm64: lint
-	GOARCH="arm64" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/carrier-linux-arm64
+	GOARCH="arm64" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm64
 
 build-amd64: lint
-	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/carrier-linux-amd64
+	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
 
 build-windows: lint
-	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/carrier-windows-amd64
+	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/epinio-windows-amd64
 
 build-darwin: lint
-	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/carrier-darwin-amd64
+	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-amd64
 
 build-images:
 	@./scripts/build-images.sh
 
 compress:
-	upx --brute -1 ./dist/carrier-linux-arm32
-	upx --brute -1 ./dist/carrier-linux-arm64
-	upx --brute -1 ./dist/carrier-linux-amd64
-	upx --brute -1 ./dist/carrier-windows-amd64
-	upx --brute -1 ./dist/carrier-darwin-amd64
+	upx --brute -1 ./dist/epinio-linux-arm32
+	upx --brute -1 ./dist/epinio-linux-arm64
+	upx --brute -1 ./dist/epinio-linux-amd64
+	upx --brute -1 ./dist/epinio-windows-amd64
+	upx --brute -1 ./dist/epinio-darwin-amd64
 
 test: lint
 	ginkgo helpers internal/cli internal/services kubernetes
@@ -69,8 +69,8 @@ prepare_version:
 	echo >> version/version.go "const Version = \"$$(git describe --tags)\""
 	cat version/version.go
 
-patch-carrier-deployment:
-	@./scripts/patch-carrier-deployment.sh
+patch-epinio-deployment:
+	@./scripts/patch-epinio-deployment.sh
 
 .PHONY: tools
 tools:
@@ -94,7 +94,7 @@ embed_files:
 	statik -m -f -src=./embedded-web-files/assets -ns webAssets -p statikWebAssets
 
 help:
-	( echo _ _ ___ _____ ________ Overview ; carrier help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; carrier $$cmd --help ; done ; echo ) | tee HELP
+	( echo _ _ ___ _____ ________ Overview ; epinio help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; epinio $$cmd --help ; done ; echo ) | tee HELP
 
 ########################################################################
 # Support

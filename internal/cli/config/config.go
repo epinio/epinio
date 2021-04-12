@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	defaultConfigFilePath = os.ExpandEnv("${HOME}/.config/carrier/config.yaml")
+	defaultConfigFilePath = os.ExpandEnv("${HOME}/.config/epinio/config.yaml")
 )
 
-// Config represents a carrier config
+// Config represents a epinio config
 type Config struct {
 	GiteaProtocol string `mapstructure:"gitea_protocol"`
 	Org           string `mapstructure:"org"`
@@ -26,19 +26,19 @@ func DefaultLocation() string {
 	return defaultConfigFilePath
 }
 
-// Load loads the Carrier config
+// Load loads the Epinio config
 func Load() (*Config, error) {
 	v := viper.New()
 	file := location()
 
 	v.SetConfigType("yaml")
 	v.SetConfigFile(file)
-	v.SetEnvPrefix("CARRIER")
+	v.SetEnvPrefix("EPINIO")
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
 	v.SetDefault("gitea_namespace", "gitea")
 	v.SetDefault("gitea_protocol", "http")
-	v.SetDefault("carrier_workloads_namespace", "carrier-workloads")
+	v.SetDefault("epinio_workloads_namespace", "epinio-workloads")
 	v.SetDefault("org", "workspace")
 
 	configExists, err := fileExists(file)
@@ -64,7 +64,7 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// Save saves the Carrier config
+// Save saves the Epinio config
 func (c *Config) Save() error {
 	c.v.Set("org", c.Org)
 

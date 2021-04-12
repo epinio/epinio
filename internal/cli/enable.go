@@ -1,19 +1,19 @@
 package cli
 
 import (
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/cli/clients"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 )
 
 var CmdEnable = &cobra.Command{
 	Use:           "enable",
-	Short:         "enable Carrier features",
-	Long:          `enable Carrier features that are not enabled by default`,
+	Short:         "enable Epinio features",
+	Long:          `enable Epinio features that are not enabled by default`,
 	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -21,8 +21,8 @@ var CmdEnable = &cobra.Command{
 
 var CmdEnableInCluster = &cobra.Command{
 	Use:           "services-incluster",
-	Short:         "enable in-cluster services in Carrier",
-	Long:          `enable in-cluster services in Carrier which allows provisioning services which run on the same cluster as Carrier. Should be used mostly for development.`,
+	Short:         "enable in-cluster services in Epinio",
+	Long:          `enable in-cluster services in Epinio which allows provisioning services which run on the same cluster as Epinio. Should be used mostly for development.`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          EnableInCluster,
 	SilenceErrors: true,
@@ -31,8 +31,8 @@ var CmdEnableInCluster = &cobra.Command{
 
 var CmdEnableGoogle = &cobra.Command{
 	Use:           "services-google",
-	Short:         "enable Google Cloud services in Carrier",
-	Long:          `enable Google Cloud services in Carrier which allows provisioning those kind of services.`,
+	Short:         "enable Google Cloud services in Epinio",
+	Long:          `enable Google Cloud services in Epinio which allows provisioning those kind of services.`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          EnableGoogle,
 	SilenceErrors: true,

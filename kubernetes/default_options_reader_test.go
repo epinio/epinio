@@ -6,7 +6,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/suse/carrier/kubernetes"
+	. "github.com/epinio/epinio/kubernetes"
 )
 
 var _ = Describe("DefaultOptionsReader", func() {
