@@ -4,7 +4,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 ![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg)
 
-<img src="./docs/epinio.svg" width="50%" height="50%">
+<img src="./docs/epinio.png" width="50%" height="50%">
 
 ## Principles
 
