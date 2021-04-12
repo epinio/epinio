@@ -16,3 +16,4 @@ personal-setup
 /resources
 acceptance/acceptance.test
 version/version.go
+.vscode
