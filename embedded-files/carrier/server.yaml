@@ -92,7 +92,7 @@ spec:
     spec:
       serviceAccountName: carrier-server
       containers:
-        - command: ["/carrier/carrier", "server"]
+        - command: ["/carrier", "server"]
           args: ["--port", "80"]
           image: splatform/epinio-server:##current_carrier_version##
           livenessProbe:
