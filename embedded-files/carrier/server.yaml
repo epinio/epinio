@@ -94,7 +94,7 @@ spec:
       containers:
         - command: ["/carrier/carrier", "server"]
           args: ["--port", "80"]
-          image: carrier/base:##current_carrier_version##
+          image: splatform/epinio-server:##current_carrier_version##
           livenessProbe:
             httpGet:
               path: /
