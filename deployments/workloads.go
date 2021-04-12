@@ -15,6 +15,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/client-go/dynamic"
 	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 )
 
@@ -58,6 +62,11 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return nil
 	}
 
+	err = w.deleteCACertificate(c)
+	if err != nil {
+		return errors.Wrapf(err, "failed deleting ca-cert certificate")
+	}
+
 	if err := w.deleteWorkloadsNamespace(c, ui); err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", WorkloadsDeploymentID)
 	}
@@ -95,6 +104,20 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 
 	if err := c.WaitUntilPodBySelectorExist(ui, "app-ingress", "name=app-ingress", w.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting app-ingress deployment to exist")
+	}
+
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get system_domain option")
+	}
+
+	if err := w.createCACertificate(c, domain); err != nil {
+		return err
+	}
+
+	_, err = c.WaitForSecret(WorkloadsDeploymentID, "ca-cert", duration.ToServiceSecret())
+	if err != nil {
+		return err
 	}
 
 	ui.Success().Msg("Workloads deployed")
@@ -236,6 +259,81 @@ func (w Workloads) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (w Workloads) createCACertificate(c *kubernetes.Cluster, domain string) error {
+	data := fmt.Sprintf(`{
+		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
+		"kind": "QuarksSecret",
+		"metadata": {
+			"name": "generate-ca-certificate",
+			"namespace": "%s"
+		},
+		"spec": {
+			"request" : {
+				"certificate" : {
+					"commonName" : "%s",
+					"isCA" : true,
+					"alternativeNames": [
+						"%s"
+					],
+					"signerType" : "cluster"
+				}
+			},
+			"secretName" : "ca-cert",
+			"type" : "certificate"
+		}
+    }`, WorkloadsDeploymentID, domain, domain)
+
+	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	obj := &unstructured.Unstructured{}
+	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	quarksSecretInstanceGVR := schema.GroupVersionResource{
+		Group:    "quarks.cloudfoundry.org",
+		Version:  "v1alpha1",
+		Resource: "quarkssecrets",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
+	if err != nil {
+		return err
+	}
+	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(WorkloadsDeploymentID).
+		Create(context.Background(),
+			obj,
+			metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w Workloads) deleteCACertificate(c *kubernetes.Cluster) error {
+	quarksSecretInstanceGVR := schema.GroupVersionResource{
+		Group:    "quarks.cloudfoundry.org",
+		Version:  "v1alpha1",
+		Resource: "quarkssecrets",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(WorkloadsDeploymentID).
+		Delete(context.Background(),
+			"generate-ca-certificate",
+			metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
