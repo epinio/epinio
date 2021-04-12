@@ -96,6 +96,16 @@ embed_files:
 help:
 	( echo _ _ ___ _____ ________ Overview ; epinio help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; epinio $$cmd --help ; done ; echo ) | tee HELP
 
+
+########################################################################
+# Docs
+
+swagger:
+	swagger generate spec > swagger.json
+
+swagger-serve:
+	swagger serve swagger.json
+
 ########################################################################
 # Support
 
