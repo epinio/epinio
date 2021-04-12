@@ -5,10 +5,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Carrier maintenance operations", func() {
+var _ = Describe("Epinio maintenance operations", func() {
 	Describe("info", func() {
-		It("prints information about the Carrier components and platform", func() {
-			info, err := Carrier("info", "")
+		It("prints information about the Epinio components and platform", func() {
+			info, err := Epinio("info", "")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(info).To(MatchRegexp("Platform: k3s"))
 			Expect(info).To(MatchRegexp("Kubernetes Version: v1.20"))

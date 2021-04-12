@@ -35,15 +35,15 @@ var _ = Describe("Apps", func() {
 			bindAppService(appName, serviceName, org)
 
 			By("deleting the app")
-			out, err := Carrier("app delete "+appName, "")
+			out, err := Epinio("app delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
-			// TODO: Fix `carrier delete` from returning before the app is deleted #131
+			// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 			Expect(out).To(MatchRegexp("UNBOUND SERVICES"))
 			Expect(out).To(MatchRegexp(serviceName))
 
 			Eventually(func() string {
-				out, err := Carrier("app list", "")
+				out, err := Epinio("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
@@ -67,7 +67,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("lists all apps", func() {
-			out, err := Carrier("app list", "")
+			out, err := Epinio("app list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing applications"))
 			Expect(out).To(MatchRegexp(" " + appName + " "))
@@ -75,7 +75,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("shows the details of an app", func() {
-			out, err := Carrier("app show "+appName, "")
+			out, err := Epinio("app show "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Show application details"))
@@ -84,7 +84,7 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
 
 			Eventually(func() string {
-				out, err = Carrier("app show "+appName, "")
+				out, err = Epinio("app show "+appName, "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))

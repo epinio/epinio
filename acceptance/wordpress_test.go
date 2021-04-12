@@ -9,10 +9,10 @@ import (
 	"path"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/helpers"
 )
 
 type WordpressApp struct {
@@ -24,7 +24,7 @@ type WordpressApp struct {
 // CreateDir sets up a directory for a Wordpress application
 func (w *WordpressApp) CreateDir() error {
 	var err error
-	if w.Dir, err = ioutil.TempDir("", "carrier-acceptance"); err != nil {
+	if w.Dir, err = ioutil.TempDir("", "epinio-acceptance"); err != nil {
 		return err
 	}
 	if out, err := helpers.RunProc("wget "+w.SourceURL, w.Dir, false); err != nil {
@@ -69,8 +69,8 @@ extension=mysqli
 
 // Uri Finds the application ingress and returns the url to the app.
 func (w *WordpressApp) AppURL() (string, error) {
-	helpers.Kubectl(`get ingress  -n carrier-workloads --field-selector=metadata.name=` + w.Name + ` -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`)
-	host, err := helpers.Kubectl(`get ingress  -n carrier-workloads --field-selector=metadata.name=` + w.Name + ` -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`)
+	helpers.Kubectl(`get ingress  -n epinio-workloads --field-selector=metadata.name=` + w.Name + ` -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`)
+	host, err := helpers.Kubectl(`get ingress  -n epinio-workloads --field-selector=metadata.name=` + w.Name + ` -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`)
 	if err != nil {
 		return "", err
 	}
@@ -92,10 +92,10 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	It("can deploy Wordpress", func() {
-		out, err := Carrier(fmt.Sprintf("apps push %s --verbosity 1", wordpress.Name), wordpress.Dir)
+		out, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", wordpress.Name), wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		out, err = Carrier("app list", "")
+		out, err = Epinio("app list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Expect(out).To(MatchRegexp(wordpress.Name + `.*\|.*1\/1.*\|.*`))
 

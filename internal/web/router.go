@@ -1,4 +1,4 @@
-// Package web implements the Carrier dashboard
+// Package web implements the Epinio dashboard
 package web
 
 import (

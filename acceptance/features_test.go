@@ -3,17 +3,17 @@ package acceptance_test
 import (
 	"os"
 
-	"github.com/suse/carrier/helpers"
+	"github.com/epinio/epinio/helpers"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Carrier enable/disable features", func() {
+var _ = Describe("Epinio enable/disable features", func() {
 	Describe("services-incluster", func() {
 		BeforeEach(func() {
 			// Make sure they are not already enabled
-			out, err := Carrier("disable services-incluster", "")
+			out, err := Epinio("disable services-incluster", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
@@ -32,7 +32,7 @@ var _ = Describe("Carrier enable/disable features", func() {
 
 		BeforeEach(func() {
 			// Make sure they aren't already enabled
-			out, err := Carrier("disable services-google", "")
+			out, err := Epinio("disable services-google", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			serviceAccountJson, err = helpers.CreateTmpFile(`
@@ -58,7 +58,7 @@ var _ = Describe("Carrier enable/disable features", func() {
 		})
 
 		It("enables google services", func() {
-			out, err := Carrier("enable services-google --service-account-json "+serviceAccountJson, "")
+			out, err := Epinio("enable services-google --service-account-json "+serviceAccountJson, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			out, err = helpers.Kubectl(`get pods -n google-service-broker --selector=app.kubernetes.io/name=gcp-service-broker`)

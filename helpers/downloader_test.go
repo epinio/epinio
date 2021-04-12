@@ -7,9 +7,9 @@ import (
 	"os"
 	"path"
 
+	. "github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	. "github.com/suse/carrier/helpers"
 )
 
 var _ = Describe("DownloadFile", func() {
@@ -18,7 +18,7 @@ var _ = Describe("DownloadFile", func() {
 	var err error
 
 	BeforeEach(func() {
-		sourceDirectory, err = ioutil.TempDir("", "carrier-test")
+		sourceDirectory, err = ioutil.TempDir("", "epinio-test")
 
 		file, err := os.Create(path.Join(sourceDirectory, "thefile"))
 		Expect(err).ToNot(HaveOccurred())
@@ -33,7 +33,7 @@ var _ = Describe("DownloadFile", func() {
 	})
 
 	It("downloads a url with filename under directory", func() {
-		targetDirectory, err = ioutil.TempDir("", "carrier-test")
+		targetDirectory, err = ioutil.TempDir("", "epinio-test")
 
 		err = DownloadFile(url, "downloadedFile", targetDirectory)
 		Expect(err).ToNot(HaveOccurred())

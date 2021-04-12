@@ -1,5 +1,5 @@
 // Package duration defines the various durations used throughout
-// Carrier, as timeouts, and other.
+// Epinio, as timeouts, and other.
 package duration
 
 import (
@@ -29,7 +29,7 @@ const (
 func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 	pf.IntP("timeout-multiplier", "", 1, "Multiply timeouts by this factor")
 	viper.BindPFlag("timeout-multiplier", pf.Lookup("timeout-multiplier"))
-	argToEnv["timeout-multiplier"] = "CARRIER_TIMEOUT_MULTIPLIER"
+	argToEnv["timeout-multiplier"] = "EPINIO_TIMEOUT_MULTIPLIER"
 }
 
 // Multiplier returns the timeout-multiplier argument

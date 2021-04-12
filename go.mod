@@ -1,4 +1,4 @@
-module github.com/suse/carrier
+module github.com/epinio/epinio
 
 go 1.13
 

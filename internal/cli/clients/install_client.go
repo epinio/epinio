@@ -6,23 +6,23 @@ import (
 	"os"
 	"strings"
 
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/kubernetes"
+	kubeconfig "github.com/epinio/epinio/kubernetes/config"
+	"github.com/epinio/epinio/termui"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/internal/cli/config"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/kubernetes"
-	kubeconfig "github.com/suse/carrier/kubernetes/config"
-	"github.com/suse/carrier/termui"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // InstallClient provides functionality for talking to Kubernetes for
-// installing Carrier on it.
+// installing Epinio on it.
 type InstallClient struct {
 	kubeClient *kubernetes.Cluster
 	options    *kubernetes.InstallationOptions
@@ -53,14 +53,14 @@ func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOpti
 	}, nil
 }
 
-// Install deploys carrier to the cluster.
+// Install deploys epinio to the cluster.
 func (c *InstallClient) Install(cmd *cobra.Command) error {
 	log := c.Log.WithName("Install")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Carrier installing...")
+	c.ui.Note().Msg("Epinio installing...")
 
 	var err error
 	details.Info("process cli options")
@@ -119,7 +119,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
 
 	for _, deployment := range []kubernetes.Deployment{
-		&deployments.Carrier{Timeout: duration.ToDeployment()},
+		&deployments.Epinio{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Workloads{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
@@ -133,19 +133,19 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		}
 	}
 
-	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("Carrier installed.")
+	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("Epinio installed.")
 
 	return nil
 }
 
-// Uninstall removes carrier from the cluster.
+// Uninstall removes epinio from the cluster.
 func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	log := c.Log.WithName("Uninstall")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Carrier uninstalling...")
+	c.ui.Note().Msg("Epinio uninstalling...")
 
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Minibroker{Timeout: duration.ToDeployment()},
@@ -158,14 +158,14 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
-		&deployments.Carrier{Timeout: duration.ToDeployment()},
+		&deployments.Epinio{Timeout: duration.ToDeployment()},
 	} {
 		if err := c.UninstallDeployment(deployment, details); err != nil {
 			return err
 		}
 	}
 
-	c.ui.Success().Msg("Carrier uninstalled.")
+	c.ui.Success().Msg("Epinio uninstalled.")
 
 	return nil
 }
@@ -214,7 +214,7 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 				return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +
 					"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
 					"Follow these steps to enable this ability\n" +
-					"https://github.com/SUSE/carrier/blob/main/docs/install.md")
+					"https://github.com/epinio/epinio/blob/main/docs/install.md")
 			}
 			return err
 		}

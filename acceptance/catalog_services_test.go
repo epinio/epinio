@@ -43,7 +43,7 @@ var _ = Describe("Catalog Services", func() {
 			makeApp(appName)
 			bindAppService(appName, serviceName, org)
 
-			out, err := Carrier("service delete "+serviceName, "")
+			out, err := Epinio("service delete "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Unable to delete service. It is still used by"))
@@ -54,7 +54,7 @@ var _ = Describe("Catalog Services", func() {
 
 			// Delete again, and force unbind
 
-			out, err = Carrier("service delete --unbind "+serviceName, "")
+			out, err = Epinio("service delete --unbind "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Unbinding Service From Using Applications Before Deletion"))
@@ -70,7 +70,7 @@ var _ = Describe("Catalog Services", func() {
 
 			// And check non-presence
 			Eventually(func() string {
-				out, err = Carrier("service list", "")
+				out, err = Epinio("service list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "10m").ShouldNot(MatchRegexp(serviceName))
@@ -122,7 +122,7 @@ var _ = Describe("Catalog Services", func() {
 		})
 
 		It("it shows service details", func() {
-			out, err := Carrier("service show "+serviceName, "")
+			out, err := Epinio("service show "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Service Details"))
 			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))

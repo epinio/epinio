@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -51,7 +51,7 @@ func (k ServiceCatalog) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", ServiceCatalogDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping ServiceCatalog because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping ServiceCatalog because namespace either doesn't exist or not owned by Epinio")
 		return nil
 	}
 
@@ -112,7 +112,7 @@ func (k ServiceCatalog) apply(c *kubernetes.Cluster, ui *termui.UI, options kube
 		return errors.New("Failed installing ServiceCatalog: " + out)
 	}
 
-	err = c.LabelNamespace(ServiceCatalogDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(ServiceCatalogDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

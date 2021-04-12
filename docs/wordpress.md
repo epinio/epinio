@@ -1,4 +1,4 @@
-# Installing Wordpress with Carrier
+# Installing Wordpress with Epinio
 
 ## Create a directory for your application:
 
@@ -49,7 +49,7 @@ EOF
 ## Deploy
 
 ```
-carrier push wordpress
+epinio push wordpress
 ```
 
 ## Additional steps

@@ -3,20 +3,20 @@ package cli
 import (
 	"os"
 
+	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/internal/cli/clients"
 )
 
 var ()
 
-// CmdPush implements the carrier orgs command
+// CmdPush implements the epinio orgs command
 var CmdPush = &cobra.Command{
 	Use:   "push NAME [PATH_TO_APPLICATION_SOURCES]",
 	Short: "Push an application from the specified directory, or the current working directory",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewCarrierClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

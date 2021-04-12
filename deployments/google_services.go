@@ -9,11 +9,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -53,7 +53,7 @@ func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", GoogleServicesDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping GoogleServices because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping GoogleServices because namespace either doesn't exist or not owned by Epinio")
 		return nil
 	}
 
@@ -145,7 +145,7 @@ broker:
 		return errors.New("Failed installing GoogleServices: " + out)
 	}
 
-	err = c.LabelNamespace(GoogleServicesDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(GoogleServicesDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

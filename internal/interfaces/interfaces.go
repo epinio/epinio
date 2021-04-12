@@ -1,4 +1,4 @@
-// Package interfaces defines the various interfaces needed by Carrier.
+// Package interfaces defines the various interfaces needed by Epinio.
 // e.g. Service, Application etc
 package interfaces
 

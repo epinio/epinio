@@ -1,9 +1,9 @@
 package cli
 
 import (
+	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/internal/cli/clients"
 )
 
 func init() {
@@ -20,18 +20,18 @@ func init() {
 	CmdService.AddCommand(CmdServiceList)
 }
 
-// CmdService implements the carrier service command
+// CmdService implements the epinio service command
 var CmdService = &cobra.Command{
 	Use:           "service",
 	Aliases:       []string{"services"},
-	Short:         "Carrier service features",
-	Long:          `Handle service features with Carrier`,
+	Short:         "Epinio service features",
+	Long:          `Handle service features with Epinio`,
 	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
 
-// CmdServiceShow implements the carrier service show command
+// CmdServiceShow implements the epinio service show command
 var CmdServiceShow = &cobra.Command{
 	Use:           "show NAME",
 	Short:         "Service information",
@@ -45,7 +45,7 @@ var CmdServiceShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewCarrierClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -56,7 +56,7 @@ var CmdServiceShow = &cobra.Command{
 	},
 }
 
-// CmdServiceCreate implements the carrier service create command
+// CmdServiceCreate implements the epinio service create command
 var CmdServiceCreate = &cobra.Command{
 	Use:   "create NAME CLASS PLAN ?(KEY VALUE)...?",
 	Short: "Create a service",
@@ -83,7 +83,7 @@ var CmdServiceCreate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewCarrierClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -100,7 +100,7 @@ var CmdServiceCreate = &cobra.Command{
 	},
 }
 
-// CmdServiceCreateCustom implements the carrier service create-custom command
+// CmdServiceCreateCustom implements the epinio service create-custom command
 var CmdServiceCreateCustom = &cobra.Command{
 	Use:   "create-custom NAME (KEY VALUE)...",
 	Short: "Create a custom service",
@@ -119,7 +119,7 @@ var CmdServiceCreateCustom = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-// CmdServiceDelete implements the carrier service delete command
+// CmdServiceDelete implements the epinio service delete command
 var CmdServiceDelete = &cobra.Command{
 	Use:           "delete NAME",
 	Short:         "Delete a service",
@@ -133,7 +133,7 @@ var CmdServiceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewCarrierClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -144,7 +144,7 @@ var CmdServiceDelete = &cobra.Command{
 	},
 }
 
-// CmdServiceBind implements the carrier service bind command
+// CmdServiceBind implements the epinio service bind command
 var CmdServiceBind = &cobra.Command{
 	Use:           "bind NAME APP",
 	Short:         "Bind a service to an application",
@@ -158,7 +158,7 @@ var CmdServiceBind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewCarrierClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -177,7 +177,7 @@ var CmdServiceBind = &cobra.Command{
 	},
 }
 
-// CmdServiceUnbind implements the carrier service unbind command
+// CmdServiceUnbind implements the epinio service unbind command
 var CmdServiceUnbind = &cobra.Command{
 	Use:           "unbind NAME APP",
 	Short:         "Unbind service from an application",
@@ -191,7 +191,7 @@ var CmdServiceUnbind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewCarrierClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -209,7 +209,7 @@ var CmdServiceUnbind = &cobra.Command{
 	},
 }
 
-// CmdServiceListClasses implements the carrier service classes command
+// CmdServiceListClasses implements the epinio service classes command
 var CmdServiceListClasses = &cobra.Command{
 	Use:           "list-classes",
 	Short:         "Lists the available service classes",
@@ -218,7 +218,7 @@ var CmdServiceListClasses = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-// CmdServiceListPlans implements the carrier service plans command
+// CmdServiceListPlans implements the epinio service plans command
 var CmdServiceListPlans = &cobra.Command{
 	Use:           "list-plans CLASS",
 	Short:         "Lists all plans provided by the named service class",
@@ -231,7 +231,7 @@ var CmdServiceListPlans = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewCarrierClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -242,7 +242,7 @@ var CmdServiceListPlans = &cobra.Command{
 	},
 }
 
-// CmdServiceList implements the carrier service list command
+// CmdServiceList implements the epinio service list command
 var CmdServiceList = &cobra.Command{
 	Use:           "list",
 	Short:         "Lists all services",
@@ -251,9 +251,9 @@ var CmdServiceList = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-// ServiceShow implements the carrier service show command
+// ServiceShow implements the epinio service show command
 func ServiceShow(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -266,9 +266,9 @@ func ServiceShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceCreate implements the carrier service create command
+// ServiceCreate implements the epinio service create command
 func ServiceCreate(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -287,9 +287,9 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceCreateCustom implements the carrier service create-custom command
+// ServiceCreateCustom implements the epinio service create-custom command
 func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -302,14 +302,14 @@ func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceDelete implements the carrier service delete command
+// ServiceDelete implements the epinio service delete command
 func ServiceDelete(cmd *cobra.Command, args []string) error {
 	unbind, err := cmd.Flags().GetBool("unbind")
 	if err != nil {
 		return err
 	}
 
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -322,9 +322,9 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceBind implements the carrier service bind command
+// ServiceBind implements the epinio service bind command
 func ServiceBind(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -337,9 +337,9 @@ func ServiceBind(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceUnbind implements the carrier service unbind command
+// ServiceUnbind implements the epinio service unbind command
 func ServiceUnbind(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -352,9 +352,9 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceListClasses implements the carrier service list-classes command
+// ServiceListClasses implements the epinio service list-classes command
 func ServiceListClasses(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -367,9 +367,9 @@ func ServiceListClasses(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceListPlans implements the carrier service list-plans command
+// ServiceListPlans implements the epinio service list-plans command
 func ServiceListPlans(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -382,9 +382,9 @@ func ServiceListPlans(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceList implements the carrier service list command
+// ServiceList implements the epinio service list command
 func ServiceList(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewCarrierClient(cmd.Flags())
+	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}

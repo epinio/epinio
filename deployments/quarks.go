@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -55,7 +55,7 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", QuarksDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Quarks because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Quarks because namespace either doesn't exist or not owned by Epinio")
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
 	}
 
-	err := c.LabelNamespace(QuarksDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err := c.LabelNamespace(QuarksDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

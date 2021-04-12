@@ -4,21 +4,21 @@ import (
 	"context"
 	"sync"
 
+	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/suse/carrier/internal/cli/clients"
-	"github.com/suse/carrier/termui"
 )
 
 var ()
 
-// CmdApp implements the carrier -app command
+// CmdApp implements the epinio -app command
 var CmdApp = &cobra.Command{
 	Use:           "app",
 	Aliases:       []string{"apps"},
-	Short:         "Carrier application features",
-	Long:          `Manage carrier application`,
+	Short:         "Epinio application features",
+	Long:          `Manage epinio application`,
 	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -31,18 +31,18 @@ func init() {
 	CmdApp.AddCommand(CmdPush)
 }
 
-// CmdAppList implements the carrier `apps list` command
+// CmdAppList implements the epinio `apps list` command
 var CmdAppList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all applications",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: Target remote carrier server instead of starting one
+		// TODO: Target remote epinio server instead of starting one
 		port := viper.GetInt("port")
 		httpServerWg := &sync.WaitGroup{}
 		httpServerWg.Add(1)
 		ui := termui.NewUI()
-		srv, listeningPort, err := startCarrierServer(httpServerWg, port, ui)
+		srv, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
 		if err != nil {
 			return err
 		}
@@ -50,7 +50,7 @@ var CmdAppList = &cobra.Command{
 		// TODO: NOTE: This is a hack until the server is running inside the cluster
 		cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
 
-		client, err := clients.NewCarrierClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -71,18 +71,18 @@ var CmdAppList = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-// CmdAppShow implements the carrier `apps show` command
+// CmdAppShow implements the epinio `apps show` command
 var CmdAppShow = &cobra.Command{
 	Use:   "show NAME",
 	Short: "Describe the named application",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// TODO: Target remote carrier server instead of starting one
+		// TODO: Target remote epinio server instead of starting one
 		port := viper.GetInt("port")
 		httpServerWg := &sync.WaitGroup{}
 		httpServerWg.Add(1)
 		ui := termui.NewUI()
-		srv, listeningPort, err := startCarrierServer(httpServerWg, port, ui)
+		srv, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
 		if err != nil {
 			return err
 		}
@@ -90,7 +90,7 @@ var CmdAppShow = &cobra.Command{
 		// TODO: NOTE: This is a hack until the server is running inside the cluster
 		cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
 
-		client, err := clients.NewCarrierClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Flags())
 
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -115,7 +115,7 @@ var CmdAppShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewCarrierClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}

@@ -48,7 +48,7 @@ func (g *getter) Get(configPath string) (*rest.Config, error) {
 	}
 
 	// Default loading rules are replaced by configPath provided
-	// by the carrier user.
+	// by the epinio user.
 	if len(configPath) > 0 {
 		paths := filepath.SplitList(configPath)
 		if len(paths) == 1 {

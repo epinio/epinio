@@ -51,7 +51,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: watch-app-1
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -83,7 +83,7 @@ spec:
           image: "quay.io/mudler/eirinix-ingress:v0.2"
           env:
             - name: NAMESPACE
-              value: "carrier-workloads"
+              value: "epinio-workloads"
             - name: LABELS
               value: '{ "eirinix-ingress": "true", "kubernetes.io/ingress.class": "traefik" }'
             - name: ANNOTATIONS

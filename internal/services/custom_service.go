@@ -8,9 +8,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/interfaces"
-	"github.com/suse/carrier/kubernetes"
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/interfaces"
+	"github.com/epinio/epinio/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +27,7 @@ type CustomService struct {
 
 // CustomServiceList returns a ServiceList of all available custom Services
 func CustomServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=carrier, carrier.suse.org/organization=%s", org)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/organization=%s", org)
 
 	secrets, err := kubeClient.Kubectl.CoreV1().
 		Secrets(deployments.WorkloadsDeploymentID).
@@ -43,8 +43,8 @@ func CustomServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.S
 	result := interfaces.ServiceList{}
 
 	for _, s := range secrets.Items {
-		service := s.ObjectMeta.Labels["carrier.suse.org/service"]
-		org := s.ObjectMeta.Labels["carrier.suse.org/organization"]
+		service := s.ObjectMeta.Labels["epinio.suse.org/service"]
+		org := s.ObjectMeta.Labels["epinio.suse.org/organization"]
 		secretName := s.ObjectMeta.Name
 
 		result = append(result, &CustomService{
@@ -98,13 +98,13 @@ func CreateCustomService(kubeClient *kubernetes.Cluster, name, org string,
 		sdata[k] = []byte(v)
 	}
 
-	err = kubeClient.CreateLabeledSecret("carrier-workloads",
+	err = kubeClient.CreateLabeledSecret("epinio-workloads",
 		secretName, sdata,
 		map[string]string{
-			"carrier.suse.org/service-type": "custom",
-			"carrier.suse.org/service":      name,
-			"carrier.suse.org/organization": org,
-			"app.kubernetes.io/name":        "carrier",
+			"epinio.suse.org/service-type": "custom",
+			"epinio.suse.org/service":      name,
+			"epinio.suse.org/organization": org,
+			"app.kubernetes.io/name":       "epinio",
 			// "app.kubernetes.io/version":     cmd.Version
 			// FIXME: Importing cmd causes cycle
 			// FIXME: Move version info to separate package!

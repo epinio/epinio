@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	"github.com/suse/carrier/helpers"
+	"github.com/epinio/epinio/helpers"
 )
 
 // This file provides a number of utility functions encapsulating often-used sequences.
@@ -43,25 +43,25 @@ func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, erro
 func setupAndTargetOrg(org string) {
 	By("creating an org")
 
-	out, err := Carrier("org create "+org, "")
+	out, err := Epinio("org create "+org, "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	orgs, err := Carrier("org list", "")
+	orgs, err := Epinio("org list", "")
 	Expect(err).ToNot(HaveOccurred())
 	Expect(orgs).To(MatchRegexp(org))
 
 	By("targeting an org")
 
-	out, err = Carrier("target "+org, "")
+	out, err = Epinio("target "+org, "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	out, err = Carrier("target", "")
+	out, err = Epinio("target", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp("Currently targeted organization: " + org))
 }
 
 func setupInClusterServices() {
-	out, err := Carrier("enable services-incluster", "")
+	out, err := Epinio("enable services-incluster", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Wait until classes appear
@@ -82,29 +82,29 @@ func makeApp(appName string) {
 	Expect(err).ToNot(HaveOccurred())
 	appDir := path.Join(currentDir, "../sample-app")
 
-	out, err := Carrier(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
+	out, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check presence
 
-	out, err = Carrier("app list", "")
+	out, err = Epinio("app list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
 }
 
 func makeCustomService(serviceName string) {
-	out, err := Carrier(fmt.Sprintf("service create-custom %s username carrier-user", serviceName), "")
+	out, err := Epinio(fmt.Sprintf("service create-custom %s username epinio-user", serviceName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check presence
 
-	out, err = Carrier("service list", "")
+	out, err = Epinio("service list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
 }
 
 func makeCatalogService(serviceName string) {
-	out, err := Carrier(fmt.Sprintf("service create %s mariadb 10-3-22", serviceName), "")
+	out, err := Epinio(fmt.Sprintf("service create %s mariadb 10-3-22", serviceName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Look for the messaging indicating that the command waited
@@ -113,13 +113,13 @@ func makeCatalogService(serviceName string) {
 
 	// Check presence
 
-	out, err = Carrier("service list", "")
+	out, err = Epinio("service list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
 }
 
 func makeCatalogServiceDontWait(serviceName string) {
-	out, err := Carrier(fmt.Sprintf("service create --dont-wait %s mariadb 10-3-22", serviceName), "")
+	out, err := Epinio(fmt.Sprintf("service create --dont-wait %s mariadb 10-3-22", serviceName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Look for indicator that command did not wait
@@ -127,21 +127,21 @@ func makeCatalogServiceDontWait(serviceName string) {
 
 	// Check presence
 
-	out, err = Carrier("service list", "")
+	out, err = Epinio("service list", "")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
 
 	// And explicitly wait for it being provisioned
 
 	Eventually(func() string {
-		out, err = Carrier("service show "+serviceName, "")
+		out, err = Epinio("service show "+serviceName, "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "5m").Should(MatchRegexp(`Status .*\|.* Provisioned`))
 }
 
 func bindAppService(appName, serviceName, org string) {
-	out, err := Carrier(fmt.Sprintf("service bind %s %s", serviceName, appName), "")
+	out, err := Epinio(fmt.Sprintf("service bind %s %s", serviceName, appName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check deep into the kube structures
@@ -149,30 +149,30 @@ func bindAppService(appName, serviceName, org string) {
 }
 
 func verifyAppServiceBound(appName, serviceName, org string) {
-	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
+	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(serviceName))
 
-	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
+	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp("/services/" + serviceName))
 }
 
 func deleteApp(appName string) {
-	out, err := Carrier("app delete "+appName, "")
+	out, err := Epinio("app delete "+appName, "")
 	Expect(err).ToNot(HaveOccurred(), out)
-	// TODO: Fix `carrier delete` from returning before the app is deleted #131
+	// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 	Eventually(func() string {
-		out, err := Carrier("app list", "")
+		out, err := Epinio("app list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 }
 
 func cleanupApp(appName string) {
-	out, err := Carrier("app delete "+appName, "")
-	// TODO: Fix `carrier delete` from returning before the app is deleted #131
+	out, err := Epinio("app delete "+appName, "")
+	// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 	if err != nil {
 		fmt.Printf("deleting app failed : %s\n%s", err.Error(), out)
@@ -180,19 +180,19 @@ func cleanupApp(appName string) {
 }
 
 func deleteService(serviceName string) {
-	out, err := Carrier("service delete "+serviceName, "")
+	out, err := Epinio("service delete "+serviceName, "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And check non-presence
 	Eventually(func() string {
-		out, err = Carrier("service list", "")
+		out, err = Epinio("service list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "10m").ShouldNot(MatchRegexp(serviceName))
 }
 
 func cleanupService(serviceName string) {
-	out, err := Carrier("service delete "+serviceName, "")
+	out, err := Epinio("service delete "+serviceName, "")
 
 	if err != nil {
 		fmt.Printf("deleting service failed : %s\n%s", err.Error(), out)
@@ -200,7 +200,7 @@ func cleanupService(serviceName string) {
 }
 
 func unbindAppService(appName, serviceName, org string) {
-	out, err := Carrier(fmt.Sprintf("service unbind %s %s", serviceName, appName), "")
+	out, err := Epinio(fmt.Sprintf("service unbind %s %s", serviceName, appName), "")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// And deep check in kube structures for non-presence
@@ -208,18 +208,18 @@ func unbindAppService(appName, serviceName, org string) {
 }
 
 func cleanUnbindAppService(appName, serviceName, org string) {
-	out, err := Carrier(fmt.Sprintf("service unbind %s %s", serviceName, appName), "")
+	out, err := Epinio(fmt.Sprintf("service unbind %s %s", serviceName, appName), "")
 	if err != nil {
 		fmt.Printf("unbinding service failed: %s\n%s", err.Error(), out)
 	}
 }
 
 func verifyAppServiceNotbound(appName, serviceName, org string) {
-	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
+	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).ToNot(MatchRegexp(serviceName))
 
-	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n carrier-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
+	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).ToNot(MatchRegexp("/services/" + serviceName))
 }

@@ -1,19 +1,19 @@
 package cli
 
 import (
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/cli/clients"
-	"github.com/suse/carrier/internal/duration"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 )
 
 var CmdDisable = &cobra.Command{
 	Use:           "disable",
-	Short:         "disable Carrier features",
-	Long:          `disable Carrier features which where enabled with "carrier enable"`,
+	Short:         "disable Epinio features",
+	Long:          `disable Epinio features which where enabled with "epinio enable"`,
 	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
@@ -22,8 +22,8 @@ var CmdDisable = &cobra.Command{
 // TODO: Implement a flag to also delete provisioned services [TBD]
 var CmdDisableInCluster = &cobra.Command{
 	Use:           "services-incluster",
-	Short:         "disable in-cluster services in Carrier",
-	Long:          `disable in-cluster services in Carrier which will disable provisioning services on the same cluster as Carrier. Doesn't delete already provisioned services by default.`,
+	Short:         "disable in-cluster services in Epinio",
+	Long:          `disable in-cluster services in Epinio which will disable provisioning services on the same cluster as Epinio. Doesn't delete already provisioned services by default.`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          DisableInCluster,
 	SilenceErrors: true,
@@ -32,8 +32,8 @@ var CmdDisableInCluster = &cobra.Command{
 
 var CmdDisableGoogle = &cobra.Command{
 	Use:           "services-google",
-	Short:         "disable Google Cloud service in Carrier",
-	Long:          `disable Google Cloud services in Carrier which will disable the provisioning of those services. Doesn't delete already provisioned services by default.`,
+	Short:         "disable Google Cloud service in Epinio",
+	Long:          `disable Google Cloud services in Epinio which will disable the provisioning of those services. Doesn't delete already provisioned services by default.`,
 	Args:          cobra.ExactArgs(0),
 	RunE:          DisableGoogle,
 	SilenceErrors: true,

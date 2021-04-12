@@ -69,7 +69,7 @@ spec:
   type: certificate
   copies:
   - name: registry-tls
-    namespace: carrier-workloads
+    namespace: epinio-workloads
 ---
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret
@@ -89,7 +89,7 @@ spec:
   type: certificate
   copies:
   - name: registry-tls-self-ca
-    namespace: carrier-workloads
+    namespace: epinio-workloads
 ---
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret
@@ -116,7 +116,7 @@ spec:
   type: certificate
   copies:
   - name: registry-tls-self
-    namespace: carrier-workloads
+    namespace: epinio-workloads
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -290,9 +290,9 @@ metadata:
   labels:
     quarks.cloudfoundry.org/secret-kind: generated
   annotations:
-    quarks.cloudfoundry.org/secret-copy-of: carrier-registry/registry-tls
+    quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls
   name: registry-tls
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   type: copy
   secretName: registry-tls
@@ -303,9 +303,9 @@ metadata:
   labels:
     quarks.cloudfoundry.org/secret-kind: generated
   annotations:
-    quarks.cloudfoundry.org/secret-copy-of: carrier-registry/registry-tls-self
+    quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls-self
   name: registry-tls-self
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   type: copy
   secretName: registry-tls-self
@@ -316,9 +316,9 @@ metadata:
   labels:
     quarks.cloudfoundry.org/secret-kind: generated
   annotations:
-    quarks.cloudfoundry.org/secret-copy-of: carrier-registry/registry-tls-self-ca
+    quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls-self-ca
   name: registry-tls-self-ca
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   type: copy
   secretName: registry-tls-self-ca

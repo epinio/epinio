@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/kubernetes"
+	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"github.com/suse/carrier/helpers"
-	"github.com/suse/carrier/kubernetes"
-	"github.com/suse/carrier/termui"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -51,7 +51,7 @@ func (k Gitea) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", GiteaDeploymentID)
 	}
 	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Gitea because namespace either doesn't exist or not owned by Carrier")
+		ui.Exclamation().Msg("Skipping Gitea because namespace either doesn't exist or not owned by Epinio")
 		return nil
 	}
 
@@ -130,9 +130,9 @@ gitea:
   admin:
     username: "dev"
     password: "changeme"
-    email: "admin@carrier.sh"
+    email: "admin@epinio.sh"
   config:
-    APP_NAME: "Carrier"
+    APP_NAME: "Epinio"
     RUN_MODE: prod
     repository:
       ROOT:  "/data/git/gitea-repositories"
@@ -167,7 +167,7 @@ gitea:
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Gitea: " + out)
 	}
-	err = c.LabelNamespace(GiteaDeploymentID, kubernetes.CarrierDeploymentLabelKey, kubernetes.CarrierDeploymentLabelValue)
+	err = c.LabelNamespace(GiteaDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
 	if err != nil {
 		return err
 	}

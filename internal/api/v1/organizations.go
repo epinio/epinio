@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	giteaSDK "code.gitea.io/sdk/gitea"
-	"github.com/suse/carrier/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/clients"
 )
 
 type OrganizationsController struct {

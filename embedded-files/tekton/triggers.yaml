@@ -2,7 +2,7 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
   name: staging-triggertemplate
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   params:
     - name: gitrevision
@@ -19,7 +19,7 @@ spec:
       kind: PipelineRun
       metadata:
         name: staging-pipeline-run-$(tt.params.appname)-$(uid)
-        namespace: carrier-workloads
+        namespace: epinio-workloads
       spec:
         serviceAccountName: staging-triggers-admin
         pipelineRef:
@@ -47,19 +47,19 @@ spec:
             type: image
             params:
             - name: url
-              value: registry.carrier-registry/apps/$(tt.params.appname)
+              value: registry.epinio-registry/apps/$(tt.params.appname)
 ---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerBinding
 metadata:
   name: staging-pipelinebinding
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   params:
     - name: gitrevision
       value: $(body.head_commit.id)
     - name: namespace
-      value: carrier-workloads
+      value: epinio-workloads
     - name: gitrepositoryurl
       value: "http://gitea-http.gitea:10080/$(body.repository.full_name)"
     - name: appname
@@ -69,7 +69,7 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: EventListener
 metadata:
   name: staging-listener
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   serviceAccountName: staging-triggers-admin
   triggers:
@@ -83,14 +83,14 @@ spec:
             # on internal/cli/clients/client.go
             # If this filter is not set, anyone can trigger a staging job simply
             # by posting to the webhook.
-            # More here: https://github.com/SUSE/carrier/issues/130#issuecomment-813314112
+            # More here: https://github.com/epinio/epinio/issues/130#issuecomment-813314112
             filter: "body.secret == '74tZTBHkhjMT5Klj6Ik6PqmM'"
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: staging-pipeline
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   workspaces:
   - name: source
@@ -140,7 +140,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: clone
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   workspaces:
   - name: source
@@ -165,7 +165,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: run
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 spec:
   workspaces:
   - name: source

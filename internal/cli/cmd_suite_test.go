@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestCarrier(t *testing.T) {
+func TestEpinio(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Carrier Suite")
+	RunSpecs(t, "Epinio Suite")
 }

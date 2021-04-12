@@ -1,22 +1,22 @@
 #!/bin/bash
 
-# This script should be used while doing development on Carrier.
-# When running `carrier install`, the Carrier Deployment will try to apply
-# this file: embedded-files/carrier/server.yaml . This file assumes an image
+# This script should be used while doing development on Epinio.
+# When running `epinio install`, the Epinio Deployment will try to apply
+# this file: embedded-files/epinio/server.yaml . This file assumes an image
 # with the current binary has been built and pushed to Dockerhub. While developing
 # though, we don't always build and push such an image so the deployment will fail.
-# By setting CARRIER_DONT_WAIT_FOR_DEPLOYMENT we allow the installation to continue
-# and by calling `make patch-carrier-deployment` (which calls this script), we
+# By setting EPINIO_DONT_WAIT_FOR_DEPLOYMENT we allow the installation to continue
+# and by calling `make patch-epinio-deployment` (which calls this script), we
 # fix the deployment as this:
 # - We use an image that exists (the base image used when building the final image)
 # - We create a PVC and a dummy pod that mounts that PVC.
 # - We copy the built binary on the PVC by calling `kubectl cp` on the dummy pod.
-# - We mount the same PVC on the carrier server deployment at the location where
+# - We mount the same PVC on the epinio server deployment at the location where
 #   the binary is expected.
 # Patching the deployment forces the pod to restart with a now existing image
 # and the correct binary is in place.
 
-export CARRIER_BINARY_PATH=${CARRIER_BINARY_PATH:-'dist/carrier-linux-amd64'}
+export EPINIO_BINARY_PATH=${EPINIO_BINARY_PATH:-'dist/epinio-linux-amd64'}
 
 echo "Creating the PVC"
 cat <<EOF | kubectl apply -f -
@@ -24,8 +24,8 @@ cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: carrier-binary
-  namespace: carrier
+  name: epinio-binary
+  namespace: epinio
 spec:
   accessModes:
     - ReadWriteOnce
@@ -40,52 +40,52 @@ cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: Pod
 metadata:
-  name: carrier-copier
-  namespace: carrier
+  name: epinio-copier
+  namespace: epinio
 spec:
   volumes:
-    - name: carrier-binary
+    - name: epinio-binary
       persistentVolumeClaim:
-        claimName: carrier-binary
+        claimName: epinio-binary
   containers:
     - name: copier
       image: busybox
       command: ["/bin/sh", "-ec", "while :; do printf '.'; sleep 5 ; done"]
       volumeMounts:
-        - mountPath: "/carrier"
-          name: carrier-binary
+        - mountPath: "/epinio"
+          name: epinio-binary
 EOF
 
 echo "Waiting for dummy pod to be ready"
-kubectl wait --for=condition=ready pod -n carrier carrier-copier
+kubectl wait --for=condition=ready pod -n epinio epinio-copier
 
 echo "Copying the binary on the PVC"
-kubectl cp ${CARRIER_BINARY_PATH} carrier/carrier-copier:/carrier/carrier
+kubectl cp ${EPINIO_BINARY_PATH} epinio/epinio-copier:/epinio/epinio
 
-echo "Patching the carrier-server deployment to use the copied binary"
+echo "Patching the epinio-server deployment to use the copied binary"
 read -r -d '' PATCH <<EOF
 {
   "spec": { "template": {
       "spec": {
         "volumes": [
           {
-            "name":"carrier-binary",
+            "name":"epinio-binary",
             "persistentVolumeClaim": {
-              "claimName": "carrier-binary"
+              "claimName": "epinio-binary"
             }
           }
         ],
         "containers": [{
-          "name": "carrier-server",
+          "name": "epinio-server",
           "image": "splatform/epinio-base:$(git describe --tags --abbrev=0)",
           "command": [
-            "/carrier-binary/carrier",
+            "/epinio-binary/epinio",
             "server"
           ],
           "volumeMounts": [
             {
-              "name": "carrier-binary",
-              "mountPath": "/carrier-binary"
+              "name": "epinio-binary",
+              "mountPath": "/epinio-binary"
             }
           ]
         }]
@@ -94,12 +94,12 @@ read -r -d '' PATCH <<EOF
   }
 } 
 EOF
-kubectl patch deployment -n carrier carrier-server -p "${PATCH}"
+kubectl patch deployment -n epinio epinio-server -p "${PATCH}"
 
 
 echo "Ensuring the deployment is restarted"
-kubectl rollout restart deployment -n carrier carrier-server
+kubectl rollout restart deployment -n epinio epinio-server
 
 # https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-status-em-
 echo "Waiting for the rollout of the deployment to complete"
-kubectl rollout status deployment -n carrier carrier-server  --timeout=120s
+kubectl rollout status deployment -n epinio epinio-server  --timeout=120s

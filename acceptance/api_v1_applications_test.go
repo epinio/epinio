@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/internal/application"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/suse/carrier/internal/application"
 )
 
 var _ = Describe("Apps API Application Endpoints", func() {

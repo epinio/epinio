@@ -6,11 +6,11 @@ import (
 	"fmt"
 
 	"code.gitea.io/sdk/gitea"
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/internal/interfaces"
+	"github.com/epinio/epinio/internal/services"
+	"github.com/epinio/epinio/kubernetes"
 	pkgerrors "github.com/pkg/errors"
-	"github.com/suse/carrier/deployments"
-	"github.com/suse/carrier/internal/interfaces"
-	"github.com/suse/carrier/internal/services"
-	"github.com/suse/carrier/kubernetes"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -237,7 +237,7 @@ func List(
 	result := ApplicationList{}
 
 	for _, app := range apps {
-		appCarrier, err := (&Application{
+		appEpinio, err := (&Application{
 			Organization: org,
 			Name:         app.Name,
 			kubeClient:   kubeClient,
@@ -247,7 +247,7 @@ func List(
 			return nil, err
 		}
 
-		result = append(result, *appCarrier)
+		result = append(result, *appEpinio)
 	}
 
 	return result, nil

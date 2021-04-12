@@ -17,7 +17,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: staging-triggers-admin
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 rules:
 - apiGroups:
   - triggers.tekton.dev
@@ -50,7 +50,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: staging-triggers-admin
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 secrets:
   - name: gitea-creds
   - name: registry-creds
@@ -59,7 +59,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: staging-triggers-admin-binding
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 subjects:
   - kind: ServiceAccount
     name: staging-triggers-admin
@@ -75,7 +75,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: staging-triggers-admin
-    namespace: carrier-workloads
+    namespace: epinio-workloads
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -86,11 +86,11 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: carrier-staging
+  name: epinio-staging
 subjects:
 - kind: ServiceAccount
   name: staging-triggers-admin
-  namespace: carrier-workloads
+  namespace: epinio-workloads
 roleRef:
   kind: ClusterRole
   name: cluster-admin

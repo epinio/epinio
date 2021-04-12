@@ -1,12 +1,12 @@
-// Package services package incapsulates all the functionality around Carrier services
+// Package services package incapsulates all the functionality around Epinio services
 package services
 
 import (
 	"errors"
 	"fmt"
 
-	"github.com/suse/carrier/internal/interfaces"
-	"github.com/suse/carrier/kubernetes"
+	"github.com/epinio/epinio/internal/interfaces"
+	"github.com/epinio/epinio/kubernetes"
 )
 
 // Lookup locates a Service by org and name

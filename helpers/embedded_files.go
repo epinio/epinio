@@ -8,8 +8,8 @@ import (
 	"os"
 	"path"
 
+	_ "github.com/epinio/epinio/statik"
 	"github.com/rakyll/statik/fs"
-	_ "github.com/suse/carrier/statik"
 )
 
 // ExtractFile creates a file in a temporary directory on disk from a file
