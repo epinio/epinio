@@ -1,0 +1,44 @@
+run:
+  deadline: 20s
+
+  # don't report issues from these dirs
+  skip-dirs:
+    - vendor
+    - statik
+
+  # skip generated files
+  skip-files:
+  - ".*_fake.go$"
+  - "fake_.*.go$"
+
+linters-settings:
+  dupl:
+    # duplication warning after 400 tokens, increased from 150
+    threshold: 400
+
+issues:
+  exclude-rules:
+  - linters: [errcheck]
+    text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv|viper.BindPFlag|viper.BindEnv). is not checked"
+
+linters:
+  disable-all: true
+  enable:
+  - misspell
+  - structcheck
+  - golint
+  - govet
+  - staticcheck
+  - deadcode
+  - errcheck
+  - varcheck
+  - unparam
+  - ineffassign
+  - nakedret
+  - gocyclo
+  - dupl
+  - goimports
+  - golint
+  - gosimple
+  - typecheck
+  - unused
