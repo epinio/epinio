@@ -1,3 +1,6 @@
+VERSION = $(shell git describe --tags)
+LDFLAGS += -X github.com/epinio/epinio/version.Version=$(VERSION)
+
 ########################################################################
 ## Development
 
@@ -48,7 +51,7 @@ showfocus:
 generate:
 	go generate ./...
 
-lint:	prepare_version fmt vet tidy
+lint:	fmt vet tidy
 
 vet:
 	go vet ./...
@@ -61,13 +64,6 @@ fmt:
 
 gitlint:
 	gitlint --commits "origin..HEAD"
-
-prepare_version:
-	mkdir -p version
-	echo >  version/version.go "package version"
-	echo >> version/version.go ""
-	echo >> version/version.go "const Version = \"$$(git describe --tags)\""
-	cat version/version.go
 
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
