@@ -30,6 +30,11 @@ func TestAcceptance(t *testing.T) {
 var nodeSuffix, nodeTmpDir string
 var serverURL string
 
+const (
+	registryMirrorName = "epinio-acceptance-registry-mirror"
+	networkName        = "epinio-acceptance"
+)
+
 var _ = SynchronizedBeforeSuite(func() []byte {
 	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
 		fmt.Println("REGISTRY_USERNAME or REGISTRY_PASSWORD environment variables are empty. Pulling from dockerhub will be subject to rate limiting.")
@@ -42,6 +47,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
 
 	buildEpinio()
+	fmt.Println("Ensuring a docker network")
+	ensureRegistryNetwork()
+	fmt.Println("Ensuring a registry mirror")
+	ensureRegistryMirror()
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
@@ -101,7 +110,47 @@ var _ = AfterSuite(func() {
 	deleteTmpDir()
 })
 
+func ensureRegistryNetwork() {
+	out, err := RunProc(fmt.Sprintf("docker network create %s", networkName), "", false)
+	if err != nil {
+		alreadyExists, regexpErr := regexp.Match(`already exists`, []byte(out))
+		if regexpErr != nil {
+			panic(regexpErr)
+		}
+		if !alreadyExists {
+			panic(err.Error())
+		}
+	}
+}
+
+func ensureRegistryMirror() {
+	out, err := RunProc(fmt.Sprintf("docker ps --filter name=%s -q", registryMirrorName), "", false)
+	if err != nil {
+		panic(err)
+	}
+	if out == "" {
+		fmt.Printf("Registry mirror %s is not running. I will try to create it.\n", registryMirrorName)
+		_, err := RunProc(fmt.Sprintf("docker run -d --network %s --name %s -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io registry:2", networkName, registryMirrorName),
+			nodeTmpDir, false)
+		if err != nil {
+			panic("Creating registry mirror failed: " + err.Error())
+		}
+	}
+}
+
 func ensureCluster() {
+	k3dConfigContents := fmt.Sprintf(`
+mirrors:
+  "docker.io":
+    endpoint:
+      - http://%s:5000`, registryMirrorName)
+
+	tmpk3dConfig, err := helpers.CreateTmpFile(k3dConfigContents)
+	if err != nil {
+		panic(err.Error())
+	}
+	defer os.Remove(tmpk3dConfig)
+
 	name := fmt.Sprintf("epinio-acceptance-%d", config.GinkgoConfig.ParallelNode)
 
 	if _, err := exec.LookPath("k3d"); err != nil {
@@ -116,9 +165,12 @@ func ensureCluster() {
 		}
 		if notExists {
 			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", name)
-			_, err := RunProc("k3d cluster create "+name, nodeTmpDir, false)
+			out, err := RunProc(
+				fmt.Sprintf("k3d cluster create %s --registry-config %s --network %s",
+					name, tmpk3dConfig, networkName),
+				nodeTmpDir, false)
 			if err != nil {
-				panic("Creating k3d cluster failed: " + err.Error())
+				panic(fmt.Sprintf("Creating k3d cluster failed: %s \n%s", err.Error(), out))
 			}
 		} else {
 			panic("Looking up k3d cluster failed: " + err.Error())
