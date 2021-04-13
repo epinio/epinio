@@ -1,15 +1,10 @@
 package cli
 
 import (
-	"context"
-	"sync"
-
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/kubernetes"
-	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var NeededOptions = kubernetes.InstallationOptions{
@@ -69,19 +64,6 @@ func Install(cmd *cobra.Command, args []string) error {
 
 	// Installation complete. Run `org create`, and `target`.
 
-	// TODO: Target remote epinio server instead of starting one
-	port := viper.GetInt("port")
-	httpServerWg := &sync.WaitGroup{}
-	httpServerWg.Add(1)
-	ui := termui.NewUI()
-	srv, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
-	if err != nil {
-		return err
-	}
-
-	// TODO: NOTE: This is a hack until the server is running inside the cluster
-	cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
-
 	epinio_client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -101,11 +83,6 @@ func Install(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "error creating org")
 	}
-
-	if err := srv.Shutdown(context.Background()); err != nil {
-		return err
-	}
-	httpServerWg.Wait()
 
 	err = epinio_client.Target(DefaultOrganization)
 	if err != nil {
