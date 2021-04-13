@@ -34,24 +34,20 @@ rules:
   resources:
   - secrets
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
 - apiGroups:
   - apps
   resources:
   - deployments
   verbs:
-  - list
-  - get
   - delete
-  - update
-- apiGroups:
-  - servicecatalog.k8s.io
-  resources:
-  - serviceinstances
-  verbs:
   - get
   - list
+  - update
 - apiGroups:
   - servicecatalog.k8s.io
   resources:
@@ -62,13 +58,16 @@ rules:
 - apiGroups:
   - servicecatalog.k8s.io
   resources:
-  - clusterserviceclasses
+  - serviceinstances
   verbs:
+  - create
+  - delete
   - get
   - list
 - apiGroups:
   - servicecatalog.k8s.io
   resources:
+  - clusterserviceclasses
   - clusterserviceplans
   verbs:
   - get

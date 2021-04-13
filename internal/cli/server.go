@@ -80,7 +80,7 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Serve
 	return srv, listeningPort, nil
 }
 
-// loggingmiddleware for requests
+// logging middleware for requests
 func logRequestHandler(h http.Handler, ui *termui.UI) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 
