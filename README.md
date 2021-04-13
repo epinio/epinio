@@ -1,4 +1,4 @@
-# epinio
+# Epinio
 
 Opinionated platform that runs on Kubernetes, that takes you from App to URL in one step.
 
@@ -6,17 +6,43 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 <img src="./docs/epinio.png" width="50%" height="50%">
 
+## What
+
+Epinio makes it easy for developers to deploy their applications to Kubernetes. Easy means:
+
+- No previous experience with Kubernetes is required
+- No steep learning curve
+- Quick local setup with zero configuration
+- Deploying to production similar to development
+
+## Why
+
+Kubernetes is becoming the de-facto standard for container orchestration.
+Developers may want to use Kubernetes for all the benefits it provides or may
+have to do so because that's what their Ops team has chosen. Whatever the case,
+using Kubernetes is not simple. It has a steep learning curve and doing it right
+is a full time job. Developers should spend their time working on their applications,
+not doing operations.
+
+Epinio is adding the needed abstractions and intelligence to allow Developers
+to use Kubernetes as a PaaS (Platform as a Service).
+
 ## Principles
+
+Epinio's development is governed by the following principles:
 
 - must fit in less than 4GB of RAM
 - must install in less than 5 minutes when images are warm
-- must install with a one-line command and zero config
-- must completely uninstall and leave the cluster in its previous state with a one-line command
+- must install with an one-line command and zero config
+- must completely uninstall and leave the cluster in its previous state with an one-line command
 - must work on local clusters (edge friendly)
 
-### Guidelines
+### Guidelines (soft-principles)
 
-- if possible, choose components that are written in go
+- When possible, prefer:
+  - components that are written in go
+  - Kubernetes primitives over custom resources
+  - Well known components with active community over custom code
 - all acceptance tests should run in less than 10 minutes
 - all tests should be able to run on the minimal cluster
 
