@@ -21,12 +21,6 @@ type GiteaClient struct {
 	Password string
 }
 
-// Resolver figures out where Gitea lives and how to login to it
-type Resolver struct {
-	cluster *kubernetes.Cluster
-	config  *config.Config
-}
-
 const (
 	GiteaCredentialsSecret = "gitea-creds"
 )
