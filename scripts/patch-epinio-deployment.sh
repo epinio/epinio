@@ -49,7 +49,7 @@ spec:
         claimName: epinio-binary
   containers:
     - name: copier
-      image: busybox
+      image: busybox:stable
       command: ["/bin/sh", "-ec", "while :; do printf '.'; sleep 5 ; done"]
       volumeMounts:
         - mountPath: "/epinio"
