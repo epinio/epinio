@@ -78,7 +78,7 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 	}
 
 	uiUI := termui.NewUI()
-	epClient, err := GetEpinioApiClient()
+	epClient, err := GetEpinioAPIClient()
 	if err != nil {
 		return nil, err
 	}

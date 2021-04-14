@@ -9,15 +9,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-// EpinioApiClient provides functionality for talking to an Epinio API
+// EpinioAPIClient provides functionality for talking to an Epinio API
 // server on Kubernetes
-type EpinioApiClient struct {
+type EpinioAPIClient struct {
 	URL string
 }
 
-var epinioClientMemo *EpinioApiClient
+var epinioClientMemo *EpinioAPIClient
 
-func GetEpinioApiClient() (*EpinioApiClient, error) {
+func GetEpinioAPIClient() (*EpinioAPIClient, error) {
 	if epinioClientMemo != nil {
 		return epinioClientMemo, nil
 	}
@@ -37,7 +37,7 @@ func GetEpinioApiClient() (*EpinioApiClient, error) {
 		return nil, errors.Wrap(err, "failed to resolve epinio api host")
 	}
 
-	epinioClient := &EpinioApiClient{
+	epinioClient := &EpinioAPIClient{
 		URL: epinioURL,
 	}
 
