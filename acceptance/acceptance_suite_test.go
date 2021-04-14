@@ -87,10 +87,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Allow the installation to continue
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	installEpinio()
+	out, err := installEpinio()
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	os.Setenv("EPINIO_BINARY_PATH", path.Join(nodeTmpDir, "epinio"))
 	// Patch Epinio deployment to inject the current binary
-	out, err := RunProc("make patch-epinio-deployment", "..", false)
+	out, err = RunProc("make patch-epinio-deployment", "..", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = RunProc("kubectl get ingress -n epinio epinio -o=jsonpath='{.spec.rules[0].host}'", "..", false)
