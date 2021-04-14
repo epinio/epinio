@@ -219,6 +219,9 @@ func (k *Epinio) createIngress(c *kubernetes.Cluster, subdomain string) error {
 				Annotations: map[string]string{
 					"kubernetes.io/ingress.class": "traefik",
 				},
+				Labels: map[string]string{
+					"app.kubernetes.io/name": "epinio",
+				},
 			},
 			Spec: v1beta1.IngressSpec{
 				Rules: []v1beta1.IngressRule{

@@ -1,15 +1,10 @@
 package cli
 
 import (
-	"context"
-	"sync"
-
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/kubernetes"
-	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var NeededOptions = kubernetes.InstallationOptions{
@@ -45,6 +40,7 @@ var CmdInstall = &cobra.Command{
 
 func init() {
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
+	CmdInstall.Flags().BoolP("skip-default-org", "s", false, "Set this to skip creating a default org")
 
 	NeededOptions.AsCobraFlagsFor(CmdInstall)
 }
@@ -69,19 +65,6 @@ func Install(cmd *cobra.Command, args []string) error {
 
 	// Installation complete. Run `org create`, and `target`.
 
-	// TODO: Target remote epinio server instead of starting one
-	port := viper.GetInt("port")
-	httpServerWg := &sync.WaitGroup{}
-	httpServerWg.Add(1)
-	ui := termui.NewUI()
-	srv, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
-	if err != nil {
-		return err
-	}
-
-	// TODO: NOTE: This is a hack until the server is running inside the cluster
-	cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
-
 	epinio_client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -97,19 +80,21 @@ func Install(cmd *cobra.Command, args []string) error {
 	// now invalid organization from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
-	err = epinio_client.CreateOrg(DefaultOrganization)
+	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-org")
 	if err != nil {
-		return errors.Wrap(err, "error creating org")
-	}
-
-	if err := srv.Shutdown(context.Background()); err != nil {
 		return err
 	}
-	httpServerWg.Wait()
 
-	err = epinio_client.Target(DefaultOrganization)
-	if err != nil {
-		return errors.Wrap(err, "failed to set target")
+	if !skipDefaultOrg {
+		err = epinio_client.CreateOrg(DefaultOrganization)
+		if err != nil {
+			return errors.Wrap(err, "error creating org")
+		}
+
+		err = epinio_client.Target(DefaultOrganization)
+		if err != nil {
+			return errors.Wrap(err, "failed to set target")
+		}
 	}
 
 	return nil

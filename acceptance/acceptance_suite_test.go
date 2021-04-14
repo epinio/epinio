@@ -94,6 +94,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	out, err = RunProc("make patch-epinio-deployment", "..", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
+	// Now create the default org which we skipped because it would fail before
+	// patching.
+	// NOTE: Unfortunately this prevents us from testing if the `install` command
+	// really creates a default workspace. Needs a better solution that allows
+	// install to do it's thing without needing the patch script to run first.
+	out, err = Epinio("org create workspace", nodeTmpDir)
+	Expect(err).ToNot(HaveOccurred(), out)
+	out, err = Epinio("target workspace", nodeTmpDir)
+	Expect(err).ToNot(HaveOccurred(), out)
+
 	out, err = RunProc("kubectl get ingress -n epinio epinio -o=jsonpath='{.spec.rules[0].host}'", "..", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
@@ -253,7 +263,7 @@ func copyEpinio() {
 }
 
 func installEpinio() (string, error) {
-	return Epinio("install", "")
+	return Epinio("install --skip-default-org", "")
 }
 
 func uninstallEpinio() (string, error) {

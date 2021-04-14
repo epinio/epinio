@@ -78,16 +78,11 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 	}
 
 	uiUI := termui.NewUI()
-	// TODO: This is a hack. We won't need it when the server will be running
-	// in-cluster. Then server-url will never empty.
-	// TODO: Better: Retrieve from viper (env.var, global cobra option)
-
-	serverURL := ""
-	if flags != nil {
-		if urlFromFlags, err := flags.GetString("server-url"); err == nil {
-			serverURL = urlFromFlags
-		}
+	epClient, err := GetEpinioAPIClient()
+	if err != nil {
+		return nil, err
 	}
+	serverURL := epClient.URL
 
 	logger := kubeconfig.NewClientLogger()
 	epinioClient := &EpinioClient{
