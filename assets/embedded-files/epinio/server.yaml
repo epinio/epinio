@@ -35,6 +35,7 @@ rules:
   - secrets
   verbs:
   - get
+  - list
 - apiGroups:
   - apps
   resources:
@@ -50,12 +51,28 @@ rules:
   - serviceinstances
   verbs:
   - get
+  - list
 - apiGroups:
   - servicecatalog.k8s.io
   resources:
   - servicebindings
   verbs:
   - delete
+  - list
+- apiGroups:
+  - servicecatalog.k8s.io
+  resources:
+  - clusterserviceclasses
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - servicecatalog.k8s.io
+  resources:
+  - clusterserviceplans
+  verbs:
+  - get
+  - list
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
