@@ -63,10 +63,7 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
+	w.Write(js)
 }
 
 func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
@@ -117,8 +114,5 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
+	w.Write(js)
 }
