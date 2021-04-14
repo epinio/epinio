@@ -37,13 +37,13 @@ compress:
 	upx --brute -1 ./dist/epinio-darwin-amd64
 
 test: lint
-	ginkgo helpers internal/cli internal/services kubernetes
+	ginkgo -r -p -race -failOnPending helpers internal kubernetes
 
 # acceptance is not part of the unit tests, and has its own target, see below.
 
 GINKGO_NODES ?= 2
 test-acceptance: showfocus
-	ginkgo -nodes ${GINKGO_NODES} -stream --flakeAttempts=2 acceptance/.
+	ginkgo -nodes ${GINKGO_NODES} -stream --flakeAttempts=2 -failOnPending acceptance/.
 
 showfocus:
 	@if test `cat acceptance/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/* ; echo ; fi
