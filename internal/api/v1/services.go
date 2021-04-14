@@ -14,7 +14,7 @@ import (
 type ServicesController struct {
 }
 
-func (sc ServicesController) ServiceInfo(w http.ResponseWriter, r *http.Request) {
+func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	serviceName := params.ByName("service")
