@@ -598,7 +598,7 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Service Details")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/%s/info", c.Config.Org, name), "GET", "")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/%s", c.Config.Org, name), "GET", "")
 	if err != nil {
 		return err
 	}

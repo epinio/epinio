@@ -11,12 +11,13 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type ServiceClassesController struct {
+type ServicePlansController struct {
 }
 
-func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request) {
+func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
+	serviceClassName := params.ByName("serviceclass")
 
 	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, http.StatusInternalServerError) {
@@ -36,12 +37,22 @@ func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request
 			http.StatusNotFound)
 		return
 	}
-	serviceClasses, err := services.ListClasses(cluster)
+
+	serviceClass, err := services.ClassLookup(cluster, serviceClassName)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+	if serviceClass == nil {
+		http.Error(w, fmt.Sprintf("ServiceClass '%s' does not exist", serviceClassName),
+			http.StatusNotFound)
+		return
+	}
+	servicePlans, err := serviceClass.ListPlans()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
-	js, err := json.Marshal(serviceClasses)
+	js, err := json.Marshal(servicePlans)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
