@@ -17,6 +17,12 @@ func Router() *httprouter.Router {
 	router.HandlerFunc("GET", "/api/v1/orgs", OrganizationsController{}.Index)
 	router.HandlerFunc("POST", "/api/v1/orgs", OrganizationsController{}.Create)
 
+	router.HandlerFunc("GET", "/api/v1/orgs/:org/services", ServicesController{}.Index)
+	router.HandlerFunc("GET", "/api/v1/orgs/:org/services/:service/info", ServicesController{}.ServiceInfo)
+
+	router.HandlerFunc("GET", "/api/v1/orgs/:org/serviceclasses", ServiceClassesController{}.Index)
+	router.HandlerFunc("GET", "/api/v1/orgs/:org/serviceclasses/:serviceclass/serviceplans", ServiceClassesController{}.ServicePlanList)
+
 	router.NotFound = http.NotFoundHandler()
 
 	return router
