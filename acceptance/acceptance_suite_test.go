@@ -86,7 +86,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Installing Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
 	// Allow the installation to continue
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
-	installEpinio()
 	out, err := installEpinio()
 	Expect(err).ToNot(HaveOccurred(), out)
 

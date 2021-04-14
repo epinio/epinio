@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -266,7 +267,7 @@ func (cm CertManager) DeleteClusterIssuer(c *kubernetes.Cluster) error {
 		Delete(context.Background(),
 			"letsencrypt-production",
 			metav1.DeleteOptions{})
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
