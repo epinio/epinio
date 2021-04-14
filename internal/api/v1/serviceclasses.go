@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/services"
-	"github.com/epinio/epinio/kubernetes"
 	"github.com/julienschmidt/httprouter"
 )
 

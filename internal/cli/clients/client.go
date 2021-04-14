@@ -240,8 +240,8 @@ func (c *EpinioClient) Services() error {
 	if err != nil {
 		return err
 	}
-	var appsOf map[string]application.ApplicationList
-	if err := json.Unmarshal(jsonResponse, &appsOf); err != nil {
+	var response map[string]interface{}
+	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return err
 	}
 
@@ -249,18 +249,25 @@ func (c *EpinioClient) Services() error {
 	details.Info("list services")
 
 	msg := c.ui.Success().WithTable("Name", "Applications")
-	for serviceName, apps := range appsOf {
+	orgServices := response["Services"].([]interface{})
+	appsOf := response["ServiceApps"].(map[string]interface{})
+
+	// todo: sort services by name before display
+	details.Info("list services")
+
+	for _, s := range orgServices {
 		var bound string
-		if apps != nil {
+		if theapps, found := appsOf[s.(map[string]interface{})["Service"].(string)]; found {
 			appnames := []string{}
-			for _, app := range apps {
-				appnames = append(appnames, app.Name)
+			for _, app := range theapps.([]interface{}) {
+				appMap := app.(map[string]interface{})
+				appnames = append(appnames, appMap["Name"].(string))
 			}
 			bound = strings.Join(appnames, ", ")
 		} else {
 			bound = ""
 		}
-		msg = msg.WithTableRow(serviceName, bound)
+		msg = msg.WithTableRow(s.(map[string]interface{})["Service"].(string), bound)
 	}
 	msg.Msg("Epinio Services:")
 
