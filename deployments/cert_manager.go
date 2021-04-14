@@ -272,7 +272,7 @@ func (cm CertManager) DeleteClusterIssuer(c *kubernetes.Cluster) error {
 	}
 
 	err = c.Kubectl.CoreV1().Secrets(CertManagerDeploymentID).Delete(context.Background(), "letsencrypt-production", metav1.DeleteOptions{})
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
