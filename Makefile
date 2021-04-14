@@ -1,5 +1,6 @@
-VERSION = $(shell git describe --tags)
+VERSION ?= $(shell git describe --tags)
 LDFLAGS += -X github.com/epinio/epinio/version.Version=$(VERSION)
+CGO_ENABLED ?= 0
 
 ########################################################################
 ## Development
@@ -12,19 +13,19 @@ build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
 
 build-arm32: lint
-	GOARCH="arm" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm32
+	GOARCH="arm" GOOS="linux" go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm32
 
 build-arm64: lint
-	GOARCH="arm64" GOOS="linux" go build -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm64
+	GOARCH="arm64" GOOS="linux" go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm64
 
 build-amd64: lint
-	GOARCH="amd64" GOOS="linux" go build -race -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
+	GOARCH="amd64" GOOS="linux" go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
 
 build-windows: lint
-	GOARCH="amd64" GOOS="windows" go build -ldflags '$(LDFLAGS)' -o dist/epinio-windows-amd64
+	GOARCH="amd64" GOOS="windows" go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-windows-amd64
 
 build-darwin: lint
-	GOARCH="amd64" GOOS="darwin" go build -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-amd64
+	GOARCH="amd64" GOOS="darwin" go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-amd64
 
 build-images:
 	@./scripts/build-images.sh
