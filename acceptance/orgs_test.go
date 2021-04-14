@@ -1,6 +1,8 @@
 package acceptance_test
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -14,7 +16,8 @@ var _ = Describe("Orgs", func() {
 
 	Describe("org create", func() {
 		It("creates and targets an org", func() {
-			setupAndTargetOrg("mycreatedorg")
+			org := newOrgName()
+			setupAndTargetOrg(org)
 
 			By("switching org back to default")
 			out, err := Epinio("target workspace", "")
@@ -22,12 +25,13 @@ var _ = Describe("Orgs", func() {
 		})
 
 		It("rejects creating an existing org", func() {
-			setupAndTargetOrg("neworg")
+			org := newOrgName()
+			setupAndTargetOrg(org)
 
-			out, err := Epinio("org create neworg", "")
+			out, err := Epinio("org create "+org, "")
 			Expect(err).To(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Organization 'neworg' already exists"))
+			Expect(out).To(MatchRegexp(fmt.Sprintf("Organization '%s' already exists", org)))
 		})
 	})
 })
