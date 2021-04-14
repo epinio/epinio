@@ -1,14 +1,9 @@
 package cli
 
 import (
-	"context"
-	"sync"
-
 	"github.com/epinio/epinio/internal/cli/clients"
-	"github.com/epinio/epinio/termui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func init() {
@@ -258,19 +253,6 @@ var CmdServiceList = &cobra.Command{
 
 // ServiceShow implements the epinio service show command
 func ServiceShow(cmd *cobra.Command, args []string) error {
-	// TODO: Target remote epinio server instead of starting one
-	port := viper.GetInt("port")
-	httpServerWg := &sync.WaitGroup{}
-	httpServerWg.Add(1)
-	ui := termui.NewUI()
-	srv, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
-	if err != nil {
-		return err
-	}
-
-	// TODO: NOTE: This is a hack until the server is running inside the cluster
-	cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
-
 	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -281,29 +263,11 @@ func ServiceShow(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error retrieving service")
 	}
 
-	if err := srv.Shutdown(context.Background()); err != nil {
-		return err
-	}
-	httpServerWg.Wait()
-
 	return nil
 }
 
 // ServiceList implements the epinio service list command
 func ServiceList(cmd *cobra.Command, args []string) error {
-	// TODO: Target remote epinio server instead of starting one
-	port := viper.GetInt("port")
-	httpServerWg := &sync.WaitGroup{}
-	httpServerWg.Add(1)
-	ui := termui.NewUI()
-	srv, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
-	if err != nil {
-		return err
-	}
-
-	// TODO: NOTE: This is a hack until the server is running inside the cluster
-	cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
-
 	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -313,11 +277,6 @@ func ServiceList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "error listing services")
 	}
-
-	if err := srv.Shutdown(context.Background()); err != nil {
-		return err
-	}
-	httpServerWg.Wait()
 
 	return nil
 }
@@ -425,19 +384,6 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 
 // ServiceListClasses implements the epinio service list-classes command
 func ServiceListClasses(cmd *cobra.Command, args []string) error {
-	// TODO: Target remote epinio server instead of starting one
-	port := viper.GetInt("port")
-	httpServerWg := &sync.WaitGroup{}
-	httpServerWg.Add(1)
-	ui := termui.NewUI()
-	srv, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
-	if err != nil {
-		return err
-	}
-
-	// TODO: NOTE: This is a hack until the server is running inside the cluster
-	cmd.Flags().String("server-url", "http://127.0.0.1:"+listeningPort, "")
-
 	client, err := clients.NewEpinioClient(cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -447,11 +393,6 @@ func ServiceListClasses(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "error listing service classes")
 	}
-
-	if err := srv.Shutdown(context.Background()); err != nil {
-		return err
-	}
-	httpServerWg.Wait()
 
 	return nil
 }
