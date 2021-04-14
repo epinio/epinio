@@ -107,23 +107,15 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 	c.ui.Note().
 		Msg("Listing service plans")
 
-	serviceClass, err := services.ClassLookup(c.KubeClient, serviceClassName)
-	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-
-	if serviceClass == nil {
-		c.ui.Exclamation().Msg("Service Class does not exist")
-		return nil
-	}
-
-	servicePlans, err := serviceClass.ListPlans()
-	if err != nil {
-		return errors.Wrap(err, "failed to list service plans")
-	}
-
 	// todo: sort service plans by name before display
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/serviceclasses/%s/serviceplans", c.Config.Org, serviceClassName), "GET", "")
+	if err != nil {
+		return err
+	}
+	var servicePlans services.ServicePlanList
+	if err := json.Unmarshal(jsonResponse, &servicePlans); err != nil {
+		return err
+	}
 
 	details.Info("list service plans")
 
@@ -173,34 +165,6 @@ func (c *EpinioClient) ServicePlanMatching(serviceClassName, prefix string) []st
 	return result
 }
 
-// ServiceClasses gets all service classes in the cluster
-func (c *EpinioClient) ServiceClasses() error {
-	log := c.Log.WithName("ServiceClasses")
-	log.Info("start")
-	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	c.ui.Note().
-		Msg("Listing service classes")
-
-	serviceClasses, err := services.ListClasses(c.KubeClient)
-	if err != nil {
-		return errors.Wrap(err, "failed to list service classes")
-	}
-
-	// todo: sort service classes by name before display
-
-	details.Info("list service classes")
-
-	msg := c.ui.Success().WithTable("Name", "Description", "Broker")
-	for _, sc := range serviceClasses {
-		msg = msg.WithTableRow(sc.Name, sc.Description, sc.Broker)
-	}
-	msg.Msg("Epinio Service Classes:")
-
-	return nil
-}
-
 // ServiceClassMatching returns all service classes in the cluster which have the specified prefix in their name
 func (c *EpinioClient) ServiceClassMatching(prefix string) []string {
 	log := c.Log.WithName("ServiceClasses").WithValues("PrefixToMatch", prefix)
@@ -228,6 +192,37 @@ func (c *EpinioClient) ServiceClassMatching(prefix string) []string {
 	return result
 }
 
+// ServiceClasses gets all service classes in the cluster
+func (c *EpinioClient) ServiceClasses() error {
+	log := c.Log.WithName("ServiceClasses")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		Msg("Listing service classes")
+
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/serviceclasses", c.Config.Org), "GET", "")
+	if err != nil {
+		return err
+	}
+	var serviceClasses services.ServiceClassList
+	if err := json.Unmarshal(jsonResponse, &serviceClasses); err != nil {
+		return err
+	}
+
+	// todo: sort service classes by name before display
+	details.Info("list service classes")
+
+	msg := c.ui.Success().WithTable("Name", "Description", "Broker")
+	for _, sc := range serviceClasses {
+		msg = msg.WithTableRow(sc.Name, sc.Description, sc.Broker)
+	}
+	msg.Msg("Epinio Service Classes:")
+
+	return nil
+}
+
 // Services gets all Epinio services in the targeted org
 func (c *EpinioClient) Services() error {
 	log := c.Log.WithName("Services").WithValues("Organization", c.Config.Org)
@@ -239,40 +234,40 @@ func (c *EpinioClient) Services() error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Listing services")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to list services.")
+	details.Info("list applications")
+
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/", c.Config.Org), "GET", "")
 	if err != nil {
 		return err
 	}
-
-	orgServices, err := services.List(c.KubeClient, c.Config.Org)
-	if err != nil {
-		return errors.Wrap(err, "failed to list services")
-	}
-
-	appsOf, err := c.servicesToApps(c.Config.Org)
-	if err != nil {
-		return errors.Wrap(err, "failed to list apps per service")
+	var response map[string]interface{}
+	if err := json.Unmarshal(jsonResponse, &response); err != nil {
+		return err
 	}
 
 	// todo: sort services by name before display
-
 	details.Info("list services")
 
 	msg := c.ui.Success().WithTable("Name", "Applications")
+	orgServices := response["Services"].([]interface{})
+	appsOf := response["ServiceApps"].(map[string]interface{})
+
+	// todo: sort services by name before display
+	details.Info("list services")
+
 	for _, s := range orgServices {
 		var bound string
-		if theapps, found := appsOf[s.Name()]; found {
+		if theapps, found := appsOf[s.(map[string]interface{})["Service"].(string)]; found {
 			appnames := []string{}
-			for _, app := range theapps {
-				appnames = append(appnames, app.Name)
+			for _, app := range theapps.([]interface{}) {
+				appMap := app.(map[string]interface{})
+				appnames = append(appnames, appMap["Name"].(string))
 			}
 			bound = strings.Join(appnames, ", ")
 		} else {
 			bound = ""
 		}
-		msg = msg.WithTableRow(s.Name(), bound)
+		msg = msg.WithTableRow(s.(map[string]interface{})["Service"].(string), bound)
 	}
 	msg.Msg("Epinio Services:")
 
@@ -441,7 +436,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		return nil
 	}
 
-	appsOf, err := c.servicesToApps(c.Config.Org)
+	appsOf, err := c.ServicesToApps(c.Config.Org)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -604,40 +599,22 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 		WithValues("Name", name, "Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Service Details")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to detail service.")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/%s/info", c.Config.Org, name), "GET", "")
 	if err != nil {
 		return err
 	}
-
-	service, err := services.Lookup(c.KubeClient, c.Config.Org, name)
-	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-
-	status, err := service.Status()
-	if err != nil {
-		return errors.Wrap(err, "failed to detail service")
-	}
-
-	serviceDetails, err := service.Details()
-	if err != nil {
-		return errors.Wrap(err, "failed to detail service")
+	var serviceDetails map[string]string
+	if err := json.Unmarshal(jsonResponse, &serviceDetails); err != nil {
+		return err
 	}
 
 	msg := c.ui.Success().WithTable("", "")
-	msg = msg.WithTableRow("Status", status)
-
-	// Show the service details in sorted order.
 	keys := make([]string, 0, len(serviceDetails))
 	for k := range serviceDetails {
 		keys = append(keys, k)
@@ -1473,7 +1450,7 @@ func (c *EpinioClient) ensureGoodOrg(org, msg string) error {
 	return nil
 }
 
-func (c *EpinioClient) servicesToApps(org string) (map[string]application.ApplicationList, error) {
+func (c *EpinioClient) ServicesToApps(org string) (map[string]application.ApplicationList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/services"
-	"github.com/epinio/epinio/kubernetes"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -102,14 +102,12 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, svc := range orgServices {
-		serviceName := svc.Name()
-		if _, found := appsOf[serviceName]; !found {
-			appsOf[serviceName] = nil
-		}
+	responseData := map[string]interface{}{
+		"Services":    orgServices,
+		"ServiceApps": appsOf,
 	}
 
-	js, err := json.Marshal(appsOf)
+	js, err := json.Marshal(responseData)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}

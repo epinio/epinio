@@ -11,45 +11,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-type ServiceClassesController struct {
+type ServicePlansController struct {
 }
 
-func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
-	org := params.ByName("org")
-
-	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
-		return
-	}
-	serviceClasses, err := services.ListClasses(cluster)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	js, err := json.Marshal(serviceClasses)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
-}
-
-func (scc ServiceClassesController) ServicePlanList(w http.ResponseWriter, r *http.Request) {
+func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	serviceClassName := params.ByName("serviceclass")
@@ -92,5 +57,8 @@ func (scc ServiceClassesController) ServicePlanList(w http.ResponseWriter, r *ht
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
