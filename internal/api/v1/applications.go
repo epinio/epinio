@@ -52,7 +52,10 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
@@ -95,7 +98,10 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) {
@@ -173,7 +179,10 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 // Write the error to the response writer and return  true if there was an error
