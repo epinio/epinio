@@ -21,5 +21,8 @@ func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }

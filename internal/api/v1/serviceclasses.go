@@ -46,7 +46,10 @@ func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 func (scc ServiceClassesController) ServicePlanList(w http.ResponseWriter, r *http.Request) {
@@ -92,5 +95,8 @@ func (scc ServiceClassesController) ServicePlanList(w http.ResponseWriter, r *ht
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
