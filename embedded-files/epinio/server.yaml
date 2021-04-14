@@ -35,6 +35,7 @@ rules:
   - secrets
   verbs:
   - get
+  - list
 - apiGroups:
   - apps
   resources:
@@ -56,6 +57,7 @@ rules:
   - servicebindings
   verbs:
   - delete
+  - list
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
