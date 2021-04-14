@@ -40,6 +40,7 @@ var CmdInstall = &cobra.Command{
 
 func init() {
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
+	CmdInstall.Flags().BoolP("skip-default-org", "s", false, "Set this to skip creating a default org")
 
 	NeededOptions.AsCobraFlagsFor(CmdInstall)
 }
@@ -79,14 +80,21 @@ func Install(cmd *cobra.Command, args []string) error {
 	// now invalid organization from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
-	err = epinio_client.CreateOrg(DefaultOrganization)
+	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-org")
 	if err != nil {
-		return errors.Wrap(err, "error creating org")
+		return err
 	}
 
-	err = epinio_client.Target(DefaultOrganization)
-	if err != nil {
-		return errors.Wrap(err, "failed to set target")
+	if !skipDefaultOrg {
+		err = epinio_client.CreateOrg(DefaultOrganization)
+		if err != nil {
+			return errors.Wrap(err, "error creating org")
+		}
+
+		err = epinio_client.Target(DefaultOrganization)
+		if err != nil {
+			return errors.Wrap(err, "failed to set target")
+		}
 	}
 
 	return nil

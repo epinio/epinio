@@ -94,7 +94,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	out, err = RunProc("make patch-epinio-deployment", "..", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	// Now create the default org because it failed when installing (and before patching)
+	// Now create the default org which we skipped because it would fail before
+	// patching.
 	// NOTE: Unfortunately this prevents us from testing if the `install` command
 	// really creates a default workspace. Needs a better solution that allows
 	// install to do it's thing without needing the patch script to run first.
@@ -262,7 +263,7 @@ func copyEpinio() {
 }
 
 func installEpinio() (string, error) {
-	return Epinio("install", "")
+	return Epinio("install --skip-default-org", "")
 }
 
 func uninstallEpinio() (string, error) {
