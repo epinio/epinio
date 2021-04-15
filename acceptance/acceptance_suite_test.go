@@ -50,8 +50,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	buildEpinio()
 	fmt.Println("Ensuring a docker network")
-	ensureRegistryNetwork()
-	ensureRegistryMirror()
+	out, err := ensureRegistryNetwork()
+	Expect(err).ToNot(HaveOccurred(), out)
+	out, err = ensureRegistryMirror()
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
@@ -99,8 +101,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// NOTE: Unfortunately this prevents us from testing if the `install` command
 	// really creates a default workspace. Needs a better solution that allows
 	// install to do it's thing without needing the patch script to run first.
-	out, err = Epinio("org create workspace", nodeTmpDir)
-	Expect(err).ToNot(HaveOccurred(), out)
+	// Eventually is used to retry in case the rollout of the patched deployment
+	// is not completely done yet.
+	Eventually(func() error {
+		_, err = Epinio("org create workspace", nodeTmpDir)
+		return err
+	}, "1m").ShouldNot(HaveOccurred())
+
 	out, err = Epinio("target workspace", nodeTmpDir)
 	Expect(err).ToNot(HaveOccurred(), out)
 
@@ -122,37 +129,42 @@ var _ = AfterSuite(func() {
 	deleteTmpDir()
 })
 
-func ensureRegistryNetwork() {
+func ensureRegistryNetwork() (string, error) {
 	out, err := RunProc(fmt.Sprintf("docker network create %s", networkName), "", false)
 	if err != nil {
 		alreadyExists, regexpErr := regexp.Match(`already exists`, []byte(out))
 		if regexpErr != nil {
-			panic(regexpErr)
+			return "", regexpErr
 		}
-		if !alreadyExists {
-			panic(err.Error())
+		if alreadyExists {
+			return "", nil
 		}
+
+		return "", err
 	}
+
+	return out, err
 }
 
-func ensureRegistryMirror() {
+func ensureRegistryMirror() (string, error) {
 	if os.Getenv(registryMirrorEnv) != "" {
-		return
+		return "", nil
 	}
 	fmt.Println("Ensuring a registry mirror")
 
 	out, err := RunProc(fmt.Sprintf("docker ps --filter name=%s -q", registryMirrorName), "", false)
 	if err != nil {
-		panic(err)
+		return out, err
 	}
 	if out == "" {
 		fmt.Printf("Registry mirror %s is not running. I will try to create it.\n", registryMirrorName)
-		_, err := RunProc(fmt.Sprintf("docker run -d --network %s --name %s -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io registry:2", networkName, registryMirrorName),
-			nodeTmpDir, false)
-		if err != nil {
-			panic("Creating registry mirror failed: " + err.Error())
-		}
+		command := fmt.Sprintf("docker run -d --network %s --name %s -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io -e REGISTRY_PROXY_USERNAME=%s -e REGISTRY_PROXY_PASSWORD=%s registry:2",
+			networkName, registryMirrorName, os.Getenv("REGISTRY_USERNAME"), os.Getenv("REGISTRY_PASSWORD"))
+
+		return RunProc(command, nodeTmpDir, false)
 	}
+
+	return out, err
 }
 
 func ensureCluster() {
