@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -268,7 +269,8 @@ func buildEpinio() {
 }
 
 func copyEpinio() {
-	output, err := RunProc("cp dist/epinio-* "+nodeTmpDir+"/epinio", "..", false)
+	binary_path := "dist/epinio-" + runtime.GOOS + "-" + runtime.GOARCH
+	output, err := RunProc("cp "+binary_path+" "+nodeTmpDir+"/epinio", "..", false)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't copy Epinio: %s\n %s\n"+err.Error(), output))
 	}
