@@ -11,10 +11,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/epinio/epinio/helpers/termui"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/filesystem"
 	"github.com/epinio/epinio/internal/web"
-	"github.com/epinio/epinio/termui"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

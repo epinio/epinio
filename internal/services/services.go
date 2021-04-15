@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/interfaces"
-	"github.com/epinio/epinio/kubernetes"
 )
 
 // Lookup locates a Service by org and name

@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
-	"github.com/epinio/epinio/kubernetes"
 	"github.com/julienschmidt/httprouter"
 )
 
