@@ -69,7 +69,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		panic("Could not create temp dir: " + err.Error())
 	}
 
-	copyEpinio()
+	out, err := copyEpinio()
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	fmt.Printf("Ensuring a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
 	ensureCluster()
@@ -89,7 +90,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Installing Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
 	// Allow the installation to continue
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
-	out, err := installEpinio()
+	out, err = installEpinio()
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	os.Setenv("EPINIO_BINARY_PATH", path.Join(nodeTmpDir, "epinio"))
@@ -268,12 +269,9 @@ func buildEpinio() {
 	}
 }
 
-func copyEpinio() {
-	binary_path := "dist/epinio-" + runtime.GOOS + "-" + runtime.GOARCH
-	output, err := RunProc("cp "+binary_path+" "+nodeTmpDir+"/epinio", "..", false)
-	if err != nil {
-		panic(fmt.Sprintf("Couldn't copy Epinio: %s\n %s\n"+err.Error(), output))
-	}
+func copyEpinio() (string, error) {
+	binaryPath := "dist/epinio-" + runtime.GOOS + "-" + runtime.GOARCH
+	return RunProc("cp "+binaryPath+" "+nodeTmpDir+"/epinio", "..", false)
 }
 
 func installEpinio() (string, error) {
