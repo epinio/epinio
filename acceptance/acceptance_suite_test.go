@@ -101,8 +101,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// NOTE: Unfortunately this prevents us from testing if the `install` command
 	// really creates a default workspace. Needs a better solution that allows
 	// install to do it's thing without needing the patch script to run first.
-	out, err = Epinio("org create workspace", nodeTmpDir)
-	Expect(err).ToNot(HaveOccurred(), out)
+	// Eventually is used to retry in case the rollout of the patched deployment
+	// is not completely done yet.
+	Eventually(func() error {
+		_, err = Epinio("org create workspace", nodeTmpDir)
+		return err
+	}, "1m").ShouldNot(HaveOccurred())
+
 	out, err = Epinio("target workspace", nodeTmpDir)
 	Expect(err).ToNot(HaveOccurred(), out)
 
