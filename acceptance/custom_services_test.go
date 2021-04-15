@@ -55,12 +55,8 @@ var _ = Describe("Custom Services", func() {
 			out, err = Epinio("service delete --unbind "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Unbinding Service From Using Applications Before Deletion"))
+			Expect(out).To(MatchRegexp("PREVIOUSLY BOUND TO"))
 			Expect(out).To(MatchRegexp(appName))
-
-			Expect(out).To(MatchRegexp("Unbinding"))
-			Expect(out).To(MatchRegexp("Application: " + appName))
-			Expect(out).To(MatchRegexp("Unbound"))
 
 			Expect(out).To(MatchRegexp("Service Removed"))
 
