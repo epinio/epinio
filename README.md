@@ -100,7 +100,7 @@ NOTE: If you want to know the details of the `epinio push` process, read this
 page: [detailed push docs](/docs/detailed-push-process.md)
 
 Run the following command for any supported application directory. If you just
-want an application that works use the one inside the [sample-app directory](sample-app).
+want an application that works use the one inside the [sample-app directory](assets/sample-app).
 
 ```bash
 $ epinio push sample sample-app
