@@ -281,21 +281,6 @@ func ServiceList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceList implements the epinio service list command
-func ServiceList(cmd *cobra.Command, args []string) error {
-	client, err := clients.NewEpinioClient(cmd.Flags())
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	err = client.Services()
-	if err != nil {
-		return errors.Wrap(err, "error listing services")
-	}
-
-	return nil
-}
-
 // ServiceCreate implements the epinio service create command
 func ServiceCreate(cmd *cobra.Command, args []string) error {
 	client, err := clients.NewEpinioClient(cmd.Flags())
