@@ -6,8 +6,8 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/epinio/epinio/kubernetes"
-	"github.com/epinio/epinio/termui"
+	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/labels"
 )

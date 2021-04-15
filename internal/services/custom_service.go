@@ -9,8 +9,8 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/interfaces"
-	"github.com/epinio/epinio/kubernetes"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

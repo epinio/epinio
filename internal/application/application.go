@@ -7,9 +7,9 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/services"
-	"github.com/epinio/epinio/kubernetes"
 	pkgerrors "github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"

@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	"github.com/epinio/epinio/termui"
+	"github.com/epinio/epinio/helpers/termui"
 )
 
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 . Deployment

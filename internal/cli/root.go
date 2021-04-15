@@ -6,10 +6,10 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/epinio/epinio/helpers/kubernetes/config"
 	pconfig "github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/kubernetes/config"
-	"github.com/epinio/epinio/version"
+	"github.com/epinio/epinio/internal/version"
 	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

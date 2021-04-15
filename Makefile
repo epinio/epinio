@@ -1,5 +1,5 @@
 VERSION ?= $(shell git describe --tags)
-LDFLAGS += -X github.com/epinio/epinio/version.Version=$(VERSION)
+LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 CGO_ENABLED ?= 0
 
 ########################################################################
@@ -38,7 +38,7 @@ compress:
 	upx --brute -1 ./dist/epinio-darwin-amd64
 
 test: lint
-	ginkgo -r -p -race -failOnPending helpers internal kubernetes
+	ginkgo -r -p -race -failOnPending helpers internal
 
 # acceptance is not part of the unit tests, and has its own target, see below.
 
