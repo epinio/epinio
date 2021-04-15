@@ -46,54 +46,144 @@ Epinio's development is governed by the following principles:
 - all acceptance tests should run in less than 10 minutes
 - all tests should be able to run on the minimal cluster
 
-## Usage
-### Install
+## Quick start
+
+Follow the instructions here to get started with Epinio.
+
+### Install dependencies
+
+- `git`: Installation method depends on your OS (https://git-scm.com/)
+- `kubectl`: Follow instructions here: https://kubernetes.io/docs/tasks/tools/#kubectl
+- `helm`: Follow instructions here: https://helm.sh/docs/intro/install/
+- `openssl`: Installation method depends on your OS (https://www.openssl.org/)
+- `sh`: TODO: Get rid of this dependency ([used here](https://github.com/epinio/epinio/blob/3429bb76af42ea2604631849e3834271fc917359/internal/cli/clients/client.go#L1376))
+
+### Get yourself a cluster
+
+You may already have a Kubernetes cluster you want to use to deploy Epinio. If
+not, you can create one with [k3d](https://k3d.io/). Follow the instructions on
+[the k3d.io website](https://k3d.io/) to install k3d on your system. Then get
+youself a cluster with the following command:
+
+```bash
+$ k3d cluster create epinio
+```
+
+After the command returns, `kubectl` should already be talking to your new cluster:
+
+```bash
+$ kubectl get nodes
+NAME                  STATUS   ROLES                  AGE   VERSION
+k3d-epinio-server-0   Ready    control-plane,master   38s   v1.20.0+k3s2
+```
+
+### Install Epinio
+
+Get the latest version of the binary that matches your Operating System here:
+https://github.com/epinio/epinio/releases
+
+Install in on your system and make sure it is in your `PATH` (or othewise
+available in your command line).
+
+Now install Epinio on your cluster with this command:
 
 ```bash
 $ epinio install
 ```
-### Uninstall
 
-```bash
-$ epinio uninstall
-```
+That's it! If everything worked as expected you are now ready to push your first
+application to your Kubernetes cluster using Epinio.
 
 ### Push an application
 
-Run the following command for any supported application directory (e.g. inside [sample-app directory](assets/sample-app)).
+Run the following command for any supported application directory. If you just
+want an application that works use the one inside the [sample-app directory](sample-app).
 
 ```bash
-$ epinio push NAME PATH_TO_APPLICATION_SOURCES
+$ epinio push sample sample-app
 ```
 
 Note that the path argument is __optional__.
 If not specified the __current working directory__ will be used.
 Always ensure that the chosen directory contains a supported application.
 
-### Delete an application
+TODO: Add a link to supported buildpacks
+
+### Check that your application is working
+
+After the application has been pushed, a unique URL is printed which you can use
+to access your application. If you forgot that URL you can find that again by
+running:
 
 ```bash
-$ epinio delete NAME
+$ epinio app show sample
+```
+
+(Look for "Routes")
+
+Go ahead an open the route in your browser!
+
+### List all commands
+
+To see all the applications you have deployed use the following command:
+
+```bash
+$ epinio apps list
+```
+
+### Delete an application
+
+To delete the application you just deployed run the following command:
+
+```bash
+$ epinio delete sample
 ```
 
 ### Create a separate org
 
-```bash
-$ epinio create-org NAME
-```
-
-### Target an org
+If you want to keep your various application separated, you can use the concept
+of orgs (aka organizations). Create a new organization with this command:
 
 ```bash
-$ epinio target NAME
+$ epinio create-org neworg
 ```
 
-### List all commands
+To start deploying application to this new organization you need to "target" it:
+
 
 ```bash
-$ epinio help
+$ epinio target neworg
 ```
-### Detailed help for each command
+
+After this and until you target another organization, whenever you run `epinio push`
+you will be deploying to this new organization.
+
+### Uninstall
+
+NOTE: The command below will delete all the components Epinio originally installed.
+**This includes all the deployed applications.**
+If after installing Epinio, you deployed other things on the same cluster
+that depended on those Epinio deployed components (e.g. Traefik, Tekton etc),
+then removing Epinio will remove those components and this may break your other
+workloads that depended on these. Make sure you understand the implications of
+uninstalling Epinion before you proceed.
+
+If you want to completely uninstall Epinio from your kubernetes cluster, you
+can do this with this command:
+
+```bash
+$ epinio uninstall
+```
+
+### Read command help
+
+Run
+
+```bash
+$ epinio --help
+```
+
+or
 
 ```bash
 $ epinio COMMAND --help
