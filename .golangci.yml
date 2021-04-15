@@ -4,7 +4,7 @@ run:
   # don't report issues from these dirs
   skip-dirs:
     - vendor
-    - statik
+    - assets
 
   # skip generated files
   skip-files:

@@ -62,7 +62,7 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Serve
 	// Static files
 	var assetsDir http.FileSystem
 	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
-		assetsDir = http.Dir(path.Join(".", "embedded-web-files", "assets"))
+		assetsDir = http.Dir(path.Join(".", "assets", "embedded-web-files", "assets"))
 	} else {
 		assetsDir = filesystem.Assets()
 	}

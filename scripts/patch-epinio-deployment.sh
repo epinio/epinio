@@ -2,7 +2,7 @@
 
 # This script should be used while doing development on Epinio.
 # When running `epinio install`, the Epinio Deployment will try to apply
-# this file: embedded-files/epinio/server.yaml . This file assumes an image
+# this file: assets/embedded-files/epinio/server.yaml . This file assumes an image
 # with the current binary has been built and pushed to Dockerhub. While developing
 # though, we don't always build and push such an image so the deployment will fail.
 # By setting EPINIO_DONT_WAIT_FOR_DEPLOYMENT we allow the installation to continue
@@ -92,7 +92,7 @@ read -r -d '' PATCH <<EOF
       }
     }
   }
-} 
+}
 EOF
 kubectl patch deployment -n epinio epinio-server -p "${PATCH}"
 
