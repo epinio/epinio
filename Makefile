@@ -102,9 +102,6 @@ tools-install:
 tools-versions:
 	@./scripts/tools-versions.sh
 
-version:
-	@./scripts/version.sh
-
 ########################################################################
 # Kube dev environments
 
