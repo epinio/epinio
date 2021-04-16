@@ -14,7 +14,20 @@ You can see a simplified diagram of the process in the image below:
 
 ![epinio-push-simplified](/docs/images/epinio-push-simple.svg?raw=true "Epinio push")
 
-## Credits
+After pushing your code, Epinio triggers a Tekton pipeline which uses the [paketo buildpacks](https://paketo.io/) to build an runtime image for your application.
+If you are not familiar with how buildpacks work, you should have a look at the official docs: https://buildpacks.io/docs/
 
-- Icons from: https://materialdesignicons.com/ (Source: https://github.com/Templarian/MaterialDesign)
+## Supported buildpacks
 
+Epinio uses the [full stack paketo builder image](https://github.com/paketo-buildpacks/full-stack-release) which means you can make use of any of the buildpacks
+documented here: https://paketo.io/docs/buildpacks/language-family-buildpacks/
+
+The various buildpacks provide various configuration options. You can read on how to generally configure a buildpack here: https://paketo.io/docs/buildpacks/configuration/
+Each buildpack may support more configuration options so you may have to read the documentation of the buildpacks you are interested in.
+
+E.g. [Instructions on how to add custom php.ini files for php-web buildpack](https://github.com/paketo-buildpacks/php-web#configuring-custom-ini-files)
+
+## Detailed push process
+
+The above image is a simplified explanation of the `epinio push` process. If you don't want to know all the details on how that works, the above diagram should
+be all the information you need. If you are curious about the details then read here: [Detailed push docs](/docs/detailed-push-process.md)
