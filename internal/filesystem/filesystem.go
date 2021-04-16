@@ -6,8 +6,8 @@ package filesystem
 import (
 	"net/http"
 
-	_ "github.com/epinio/epinio/statikWebAssets"
-	_ "github.com/epinio/epinio/statikWebViews"
+	_ "github.com/epinio/epinio/assets/statikWebAssets"
+	_ "github.com/epinio/epinio/assets/statikWebViews"
 	"github.com/rakyll/statik/fs"
 )
 

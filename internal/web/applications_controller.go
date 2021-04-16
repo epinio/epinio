@@ -22,7 +22,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 func Render(templates []string, w http.ResponseWriter, r *http.Request, data map[string]interface{}) {
 	var viewsDir http.FileSystem
 	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
-		viewsDir = http.Dir(path.Join(".", "embedded-web-files", "views"))
+		viewsDir = http.Dir(path.Join(".", "assets", "embedded-web-files", "views"))
 	} else {
 		viewsDir = filesystem.Views()
 	}

@@ -80,7 +80,7 @@ func setupInClusterServices() {
 func makeApp(appName string) {
 	currentDir, err := os.Getwd()
 	Expect(err).ToNot(HaveOccurred())
-	appDir := path.Join(currentDir, "../sample-app")
+	appDir := path.Join(currentDir, "../assets/sample-app")
 
 	out, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
 	Expect(err).ToNot(HaveOccurred(), out)

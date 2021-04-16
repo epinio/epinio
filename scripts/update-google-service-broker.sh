@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-TARGET_DIR="${SCRIPT_DIR}/../embedded-files"
+TARGET_DIR="${SCRIPT_DIR}/../assets/embedded-files"
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf -- "$WORKDIR"' EXIT
 

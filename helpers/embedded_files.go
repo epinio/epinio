@@ -8,7 +8,7 @@ import (
 	"os"
 	"path"
 
-	_ "github.com/epinio/epinio/statik"
+	_ "github.com/epinio/epinio/assets/statik"
 	"github.com/rakyll/statik/fs"
 )
 

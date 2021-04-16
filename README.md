@@ -18,7 +18,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 - if possible, choose components that are written in go
 - all acceptance tests should run in less than 10 minutes
-- all tests should be able to run on the minimal cluster 
+- all tests should be able to run on the minimal cluster
 
 ## Usage
 ### Install
@@ -34,7 +34,7 @@ $ epinio uninstall
 
 ### Push an application
 
-Run the following command for any supported application directory (e.g. inside [sample-app directory](sample-app)).
+Run the following command for any supported application directory (e.g. inside [sample-app directory](assets/sample-app)).
 
 ```bash
 $ epinio push NAME PATH_TO_APPLICATION_SOURCES
