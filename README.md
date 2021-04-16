@@ -96,6 +96,9 @@ application to your Kubernetes cluster using Epinio.
 
 ### Push an application
 
+NOTE: If you want to know the details of the `epinio push` process, read this
+page: [detailed push docs](/docs/detailed-push-process.md)
+
 Run the following command for any supported application directory. If you just
 want an application that works use the one inside the [sample-app directory](sample-app).
 
@@ -107,7 +110,7 @@ Note that the path argument is __optional__.
 If not specified the __current working directory__ will be used.
 Always ensure that the chosen directory contains a supported application.
 
-TODO: Add a link to supported buildpacks
+If you want to know what applications are supported in Epinio, read this page: [supported applications](/docs/supported-apps.md)
 
 ### Check that your application is working
 
