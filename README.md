@@ -37,7 +37,7 @@ Epinio's development is governed by the following principles:
 - must completely uninstall and leave the cluster in its previous state with an one-line command
 - must work on local clusters (edge friendly)
 
-### Guidelines (soft-principles)
+### Guidelines (Soft Principles)
 
 - When possible, prefer:
   - components that are written in go
@@ -82,7 +82,7 @@ k3d-epinio-server-0   Ready    control-plane,master   38s   v1.20.0+k3s2
 Get the latest version of the binary that matches your Operating System here:
 https://github.com/epinio/epinio/releases
 
-Install it on your system and make sure it is in your `PATH` (or othewise
+Install it on your system and make sure it is in your `PATH` (or otherwise
 available in your command line).
 
 Now install Epinio on your cluster with this command:
@@ -92,7 +92,7 @@ $ epinio install
 ```
 
 That's it! If everything worked as expected you are now ready to push your first
-application to your Kubernetes cluster using Epinio.
+application to your Kubernetes cluster with Epinio.
 
 ### Push an application
 
@@ -115,7 +115,7 @@ If you want to know what applications are supported in Epinio, read this page: [
 ### Check that your application is working
 
 After the application has been pushed, a unique URL is printed which you can use
-to access your application. If you don't have URL available you can find it again by
+to access your application. If you don't have this URL available anymore you can find it again by
 running:
 
 ```bash
@@ -124,7 +124,7 @@ $ epinio app show sample
 
 ("Routes" is the part your are looking for)
 
-Go ahead an open the application route in your browser!
+Go ahead and open the application route in your browser!
 
 ### List all commands
 
@@ -172,7 +172,7 @@ workloads that depended on these. Make sure you understand the implications of
 uninstalling Epinio before you proceed.
 
 If you want to completely uninstall Epinio from your kubernetes cluster, you
-can do this with this command:
+can do this with the command:
 
 ```bash
 $ epinio uninstall

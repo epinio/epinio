@@ -1,17 +1,17 @@
 # Epinio push in detail
 
-Epinio strives to make use of well supported, well known and loved projects instead of re-inventing the wheel ([link](README.md#guidelines-soft-principles)).
-But while doing so, it makes sure those components are deployed correctly and work together seamlessly. Let's go through the `epinio push` process in detail
+Epinio strives to make use of well supported, well known, and loved projects instead of re-inventing the wheel ([link](README.md#guidelines-soft-principles)).
+But while doing so, it makes sure those components are deployed correctly and work together seamlessly. Let's go through the `epinio push` process in detail,
 so you can understand what each components does.
 
-You can see an image that visualises the process lower in this page. Refer to it while reading the text to help you understand the process more.
+You can see an image that visualises the process later in this page. Refer to it while reading the text to help you understand the process more.
 
 ## 1. Uploading the code
 
 One of the components Epinio installs on your cluster is [Gitea](https://gitea.io/en-us/). Gitea is an Open Source code hosting solution. Among other things it allows
-us to create repositories and organizations using API calls. It also used to store your application's code using which Epinio pushes using [`git`](https://git-scm.com/).
+us to create repositories and organizations using API calls. It is also used to store your application's code which Epinio pushes using [`git`](https://git-scm.com/).
 
-So the first thing Epinio does when you push your application for the first time is to create a new project on Gitea and by using `git` to push your code there.
+So the first thing Epinio does when you push your application for the first time is to create a new project on Gitea and uses `git` to push your code there.
 This doesn't mean you should be using `git` yourself. Epinio will create a tmp directory which will be the local git repository, copy your code over and then
 commit all the local changes you may have (even if you haven't commited those yet on your own git branch).
 Then it will push your code to Gitea.
@@ -36,7 +36,7 @@ So an image is generated, but where is it stored? Read on.
 
 Epinio installs a container registry inside your cluster and that is where the application images are stored. This was installed when you first did `epinio install` and is
 used to make the setup easier (by not having to configure an external registry) and staging faster (by keeping all image transferring local to the cluster).
-There is not much to tell about it but if you want to look on how the registry is installed, have a look at the helm chart here:
+There is not much to tell about it but if you want to look at how the registry is installed, have a look at the helm chart here:
 https://github.com/epinio/epinio/tree/main/assets/container-registry/chart/container-registry
 
 ## 4. Creation of the Application Kubernetes Resources
@@ -53,9 +53,9 @@ container. In Kubernetes, the thing that reads that description and implements t
 
 ## 5. Ingress implementation (Traefik)
 
-When you installed Epinio, it looked on your cluster to see if you had [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/) running. If it wasn't there it installed it. Traefik among other things, is an Ingress Controller. As explained above, the Ingress Controller reads your Ingress Resource Definitions and implements the desired routing to the appropriate Services/Pods.
+When you installed Epinio, it looked at your cluster to see if you had [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/) running. If it wasn't there it installed it. Traefik among other things, is an Ingress Controller. As explained above, the Ingress Controller reads your Ingress Resource Definitions and implements the desired routing to the appropriate Services/Pods.
 
-In Epinio, for every application we create an Ingress that routes the traffic to you application through a subdomain that looks something like this:
+In Epinio, for every application we create an Ingress that routes the traffic for this application through a subdomain that looks something like this:
 
 ```
 myapplication.my_epinio_system_domain.com
@@ -67,9 +67,9 @@ You can get the route of your application with `epinio apps list` or `epinio app
 
 During installation, if you specified a system domain using the `--system-domain` parameter, then your application routes will be sudomains of that domain.
 Epinio considers this domain to be a production server and thus creates a production level TLS certificate for your application using [Let's Encrypt](https://letsencrypt.org/).
-This happens using the [cert-manager](https://cert-manager.io/docs/installation/kubernetes/) which is one more of the components Epinio installs with `epinio install`.
+This happens to use the [cert-manager](https://cert-manager.io/docs/installation/kubernetes/) which is one more of the components Epinio installs with `epinio install`.
 
-If you didn't specify a system domain then Epinio uses a "magic DNS" service running on `omg.howdoi.website` which is similar to [nip.io](https://nip.io/), and [xip.io](http://xip.io/).
+If you didn't specify a system domain then Epinio uses a "magic DNS" service running on the `omg.howdoi.website` which is similar to [nip.io](https://nip.io/), and [xip.io](http://xip.io/).
 These services resolve all subdomains of the root domain to the subdomain IP address. E.g. `1.2.3.4.omg.howdoi.website` simply resolves to `1.2.3.4`. They are useful when you don't have
 a real domain but you still need a wildcard domain to create subdomains to. Depending on your setup, the IP address of the cluster which Epinio discovers automatically may not be accessible
 by your browser and thus you may need to set the system domain when installing to use another IP. This is the case for example when you run a Kubernetes cluster with docker (e.g. [k3d](https://k3d.io/) or [kind](https://github.com/kubernetes-sigs/kind)) inside a VM (for example when using docker on Mac). Then the IP address which Epinio detects is the IP address of the docker container but that is not accessible from your host. You will need to bind the container's ports `80` and `443` to the VMs ports `80` and `443` and then use the VMs IP address instead.

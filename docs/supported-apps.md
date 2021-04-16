@@ -1,7 +1,7 @@
 # Epinio supported applications
 
-This sections describes what kind of application you can expect to work with Epinio.
-To understand what makes an application work with Epinio, you need to know how staging works.
+This section describes what kind of application you can expect to work with Epinio.
+To understand what enables an application to work with Epinio, you need to know how staging works.
 
 
 ## How it works
