@@ -11,7 +11,7 @@ You can see an image that visualises the process lower in this page. Refer to it
 One of the components Epinio installs on your cluster is [Gitea](https://gitea.io/en-us/). Gitea is an Open Source code hosting solution. Among other things it allows
 us to create repositories and organizations using API calls. It also used to store your application's code using which Epinio pushes using [`git`](https://git-scm.com/).
 
-So the first thing Epinio does when you push your applicatio for the first time is to create a new project on Gitea and by using `git` to push your code there.
+So the first thing Epinio does when you push your application for the first time is to create a new project on Gitea and by using `git` to push your code there.
 This doesn't mean you should be using `git` yourself. Epinio will create a tmp directory which will be the local git repository, copy your code over and then
 commit all the local changes you may have (even if you haven't commited those yet on your own git branch).
 Then it will push your code to Gitea.
@@ -49,13 +49,13 @@ That is enough to get a Pod running but you still don't have access to your appl
 registered a [Kubernetes webhook](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/) which monitors the workloads namespace for new apps.
 When a new application appears, it creates a [Service](https://kubernetes.io/docs/concepts/services-networking/service/) and an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) for it.
 You can read how these work in Kubernetes following the provided links but if you have to know one thing is that Ingress is the thing that describes how a request that uses the Application's url is routed to the application
-container. In Kubernetes, the thing that reads that description and implements the routing is called and Ingress Controller. Such an Ingress Controller is provided by [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/).
+container. In Kubernetes, the thing that reads that description and implements the routing is called an Ingress Controller. Such an Ingress Controller is provided by [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/).
 
 ## 5. Ingress implementation (Traefik)
 
-When you installed Epinio, it looked on your cluster to see if you had [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/) running. If it wasn't there it installed it. Traefik among other things, it an Ingress Controller. As explained above, the Ingress Controller reads your Ingress Resource Definitions and implements the desired routing to the appropriate Services/Pods.
+When you installed Epinio, it looked on your cluster to see if you had [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/) running. If it wasn't there it installed it. Traefik among other things, is an Ingress Controller. As explained above, the Ingress Controller reads your Ingress Resource Definitions and implements the desired routing to the appropriate Services/Pods.
 
-In Epinio, for every application we create an Ingress that routes the traffic to you application through an subdomain that looks something like this:
+In Epinio, for every application we create an Ingress that routes the traffic to you application through a subdomain that looks something like this:
 
 ```
 myapplication.my_epinio_system_domain.com
