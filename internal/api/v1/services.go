@@ -40,9 +40,17 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	service, err := services.Lookup(cluster, org, serviceName)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		if err.Error() == "service not found" {
+			http.Error(w, fmt.Sprintf("Service '%s' does not exist", serviceName),
+				http.StatusNotFound)
+			return
+		}
+		if handleError(w, err, http.StatusInternalServerError) {
+			return
+		}
 	}
+
 	status, err := service.Status()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
