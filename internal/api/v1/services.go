@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
@@ -73,10 +74,6 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
-	epinioClient, err := clients.NewEpinioClient(nil)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
 	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
@@ -100,7 +97,7 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
-	appsOf, err := epinioClient.ServicesToApps(org)
+	appsOf, err := servicesToApps(cluster, gitea, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -119,4 +116,34 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
+}
+
+func servicesToApps(cluster *kubernetes.Cluster, gitea *clients.GiteaClient, org string) (map[string]application.ApplicationList, error) {
+	// Determine apps bound to services
+	// (inversion of services bound to apps)
+	// Literally query apps in the org for their services and invert.
+
+	var appsOf = map[string]application.ApplicationList{}
+
+	apps, err := application.List(cluster, gitea.Client, org)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, app := range apps {
+		bound, err := app.Services()
+		if err != nil {
+			return nil, err
+		}
+		for _, bonded := range bound {
+			bname := bonded.Name()
+			if theapps, found := appsOf[bname]; found {
+				appsOf[bname] = append(theapps, app)
+			} else {
+				appsOf[bname] = application.ApplicationList{app}
+			}
+		}
+	}
+
+	return appsOf, nil
 }
