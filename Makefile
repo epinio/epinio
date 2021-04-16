@@ -1,6 +1,6 @@
 VERSION ?= $(shell git describe --tags)
-LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 CGO_ENABLED ?= 0
+export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 
 ########################################################################
 ## Development
