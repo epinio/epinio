@@ -1,12 +1,9 @@
 name: golangci-lint
 
 on:
-  push:
-    tags:
-      - v*
-    branches:
-      - main
   pull_request:
+    paths-ignore:
+    - 'docs/**'
 
 jobs:
   golangci:
