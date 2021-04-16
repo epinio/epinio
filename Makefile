@@ -5,9 +5,9 @@ CGO_ENABLED ?= 0
 ########################################################################
 ## Development
 
-build: tools embed_files lint build-amd64
+build: embed_files lint build-amd64
 
-build-all: tools embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
+build-all: embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
@@ -37,13 +37,13 @@ compress:
 	upx --brute -1 ./dist/epinio-windows-amd64
 	upx --brute -1 ./dist/epinio-darwin-amd64
 
-test: lint
+test: embed_files lint
 	ginkgo -r -p -race -failOnPending helpers internal
 
 # acceptance is not part of the unit tests, and has its own target, see below.
 
 GINKGO_NODES ?= 2
-test-acceptance: showfocus
+test-acceptance: showfocus embed_files
 	ginkgo -nodes ${GINKGO_NODES} -stream --flakeAttempts=2 -failOnPending acceptance/.
 
 showfocus:
@@ -54,7 +54,7 @@ generate:
 
 lint:	fmt vet tidy
 
-vet:
+vet: embed_files
 	go vet ./...
 
 tidy:
@@ -69,9 +69,8 @@ gitlint:
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
 
-.PHONY: tools
-tools:
-	go get github.com/rakyll/statik
+getstatik:
+	( [ -x "$$(command -v statik)" ] || go get github.com/rakyll/statik@v0.1.7 )
 
 update_registry:
 	helm package ./assets/container-registry/chart/container-registry/ -d embedded-files
@@ -85,7 +84,7 @@ update_tekton:
 	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.11.1/release.yaml -O embedded-files/tekton/triggers-v0.11.1.yaml
 	wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O embedded-files/tekton/dashboard-v0.11.1.yaml
 
-embed_files:
+embed_files: getstatik
 	statik -m -f -src=./embedded-files
 	statik -m -f -src=./embedded-web-files/views -ns webViews -p statikWebViews
 	statik -m -f -src=./embedded-web-files/assets -ns webAssets -p statikWebAssets
