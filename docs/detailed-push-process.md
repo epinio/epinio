@@ -67,7 +67,7 @@ You can get the route of your application with `epinio apps list` or `epinio app
 
 During installation, if you specified a system domain using the `--system-domain` parameter, then your application routes will be sudomains of that domain.
 Epinio considers this domain to be a production server and thus creates a production level TLS certificate for your application using [Let's Encrypt](https://letsencrypt.org/).
-This happens to use the [cert-manager](https://cert-manager.io/docs/installation/kubernetes/) which is one more of the components Epinio installs with `epinio install`.
+This happens by using the [cert-manager](https://cert-manager.io/docs/installation/kubernetes/) which is one more of the components Epinio installs with `epinio install`.
 
 If you didn't specify a system domain then Epinio uses a "magic DNS" service running on the `omg.howdoi.website` which is similar to [nip.io](https://nip.io/), and [xip.io](http://xip.io/).
 These services resolve all subdomains of the root domain to the subdomain IP address. E.g. `1.2.3.4.omg.howdoi.website` simply resolves to `1.2.3.4`. They are useful when you don't have
