@@ -30,7 +30,7 @@ func TestAcceptance(t *testing.T) {
 
 var nodeSuffix, nodeTmpDir string
 var serverURL string
-
+var k3dClusterName string
 var registryMirrorName = "epinio-acceptance-registry-mirror"
 
 const (
@@ -70,6 +70,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	if err != nil {
 		panic("Could not create temp dir: " + err.Error())
 	}
+	k3dClusterName = fmt.Sprintf("epinio-acceptance-%s", nodeSuffix)
 
 	out, err := copyEpinio()
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -129,6 +130,9 @@ var _ = AfterSuite(func() {
 		panic("Uninstalling epinio failed: " + out)
 	}
 
+	err := uninstallCluster()
+	Expect(err).NotTo(HaveOccurred())
+
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
 })
@@ -171,6 +175,11 @@ func ensureRegistryMirror() (string, error) {
 	return out, err
 }
 
+func uninstallCluster() error {
+	_, err := RunProc("k3d cluster delete "+k3dClusterName, "", false)
+	return err
+}
+
 func ensureCluster() {
 	k3dConfigContents := fmt.Sprintf(`{"mirrors":{"docker.io":{"endpoint":["http://%s:5000"]}}}`, registryMirrorName)
 	if os.Getenv(registryMirrorEnv) != "" {
@@ -184,23 +193,21 @@ func ensureCluster() {
 	}
 	defer os.Remove(tmpk3dConfig)
 
-	name := fmt.Sprintf("epinio-acceptance-%d", config.GinkgoConfig.ParallelNode)
-
 	if _, err := exec.LookPath("k3d"); err != nil {
 		panic("Couldn't find k3d in PATH: " + err.Error())
 	}
 
-	out, err := RunProc("k3d cluster get "+name, nodeTmpDir, false)
+	out, err := RunProc("k3d cluster get "+k3dClusterName, nodeTmpDir, false)
 	if err != nil {
 		notExists, regexpErr := regexp.Match(`No nodes found for given cluster`, []byte(out))
 		if regexpErr != nil {
 			panic(regexpErr)
 		}
 		if notExists {
-			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", name)
+			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", k3dClusterName)
 			out, err := RunProc(
 				fmt.Sprintf("k3d cluster create %s --registry-config %s --network %s",
-					name, tmpk3dConfig, networkName),
+					k3dClusterName, tmpk3dConfig, networkName),
 				nodeTmpDir, false)
 			if err != nil {
 				panic(fmt.Sprintf("Creating k3d cluster failed: %s \n%s", err.Error(), out))
@@ -210,7 +217,7 @@ func ensureCluster() {
 		}
 	}
 
-	kubeconfig, err := RunProc("k3d kubeconfig get "+name, nodeTmpDir, false)
+	kubeconfig, err := RunProc("k3d kubeconfig get "+k3dClusterName, nodeTmpDir, false)
 	if err != nil {
 		panic("Getting kubeconfig failed: " + err.Error())
 	}
