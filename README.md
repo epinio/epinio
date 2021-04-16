@@ -82,7 +82,7 @@ k3d-epinio-server-0   Ready    control-plane,master   38s   v1.20.0+k3s2
 Get the latest version of the binary that matches your Operating System here:
 https://github.com/epinio/epinio/releases
 
-Install in on your system and make sure it is in your `PATH` (or othewise
+Install it on your system and make sure it is in your `PATH` (or othewise
 available in your command line).
 
 Now install Epinio on your cluster with this command:
@@ -112,16 +112,16 @@ TODO: Add a link to supported buildpacks
 ### Check that your application is working
 
 After the application has been pushed, a unique URL is printed which you can use
-to access your application. If you forgot that URL you can find that again by
+to access your application. If you don't have URL available you can find it again by
 running:
 
 ```bash
 $ epinio app show sample
 ```
 
-(Look for "Routes")
+("Routes" is the part your are looking for)
 
-Go ahead an open the route in your browser!
+Go ahead an open the application route in your browser!
 
 ### List all commands
 
@@ -145,7 +145,7 @@ If you want to keep your various application separated, you can use the concept
 of orgs (aka organizations). Create a new organization with this command:
 
 ```bash
-$ epinio create-org neworg
+$ epinio orgs create neworg
 ```
 
 To start deploying application to this new organization you need to "target" it:
@@ -166,7 +166,7 @@ If after installing Epinio, you deployed other things on the same cluster
 that depended on those Epinio deployed components (e.g. Traefik, Tekton etc),
 then removing Epinio will remove those components and this may break your other
 workloads that depended on these. Make sure you understand the implications of
-uninstalling Epinion before you proceed.
+uninstalling Epinio before you proceed.
 
 If you want to completely uninstall Epinio from your kubernetes cluster, you
 can do this with this command:
