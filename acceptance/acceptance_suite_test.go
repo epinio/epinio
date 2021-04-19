@@ -123,13 +123,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = AfterSuite(func() {
-	fmt.Printf("Uninstall epinio on node %d\n", config.GinkgoConfig.ParallelNode)
-	out, _ := uninstallEpinio()
-	match, _ := regexp.MatchString(`Epinio uninstalled`, out)
-	if !match {
-		panic("Uninstalling epinio failed: " + out)
-	}
-
 	err := uninstallCluster()
 	Expect(err).NotTo(HaveOccurred())
 
@@ -288,10 +281,6 @@ func copyEpinio() (string, error) {
 
 func installEpinio() (string, error) {
 	return Epinio("install --skip-default-org", "")
-}
-
-func uninstallEpinio() (string, error) {
-	return Epinio("uninstall", "")
 }
 
 // Remove all tmp directories from /tmp/epinio-* . Test should try to cleanup
