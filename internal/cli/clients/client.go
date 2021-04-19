@@ -357,12 +357,17 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Delete Service")
 
-	type DeleteResponse struct {
-		BoundApps []string
+	request := models.DeleteRequest{
+		Unbind: unbind,
+	}
+
+	js, err := json.Marshal(request)
+	if err != nil {
+		return err
 	}
 
 	jsonResponse, err := c.curlWithCustomErrorHandling(fmt.Sprintf("api/v1/orgs/%s/services/%s", c.Config.Org, name),
-		"DELETE", fmt.Sprintf(`{ "unbind" : %t }`, unbind),
+		"DELETE", string(js),
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
 			if response.StatusCode != http.StatusBadRequest {
@@ -374,7 +379,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			// and the response contains an array of their
 			// names.
 
-			var deleteResponse DeleteResponse
+			var deleteResponse models.DeleteResponse
 			if err := json.Unmarshal(bodyBytes, &deleteResponse); err != nil {
 				return err
 			}
@@ -396,7 +401,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	}
 
 	if len(jsonResponse) > 0 {
-		var deleteResponse DeleteResponse
+		var deleteResponse models.DeleteResponse
 		if err := json.Unmarshal(jsonResponse, &deleteResponse); err != nil {
 			return err
 		}
@@ -441,25 +446,18 @@ func (c *EpinioClient) CreateService(name, class, plan string, dict []string, wa
 	}
 	msg.Msg("Create Service")
 
-	// Cannot use v1 "github.com/epinio/epinio/internal/api/v1"
-	// and v1.CatalogCreateRequest here. Would generate an import
-	// cycle.
-	//
-	// TODO: See to separating these (request) types into their
-	// own package usable by both front and backends.
+	request := models.CatalogCreateRequest{
+		Name:             name,
+		Class:            class,
+		Plan:             plan,
+		Data:             data,
+		WaitForProvision: waitForProvision,
+	}
 
-	datajs, err := json.Marshal(data)
+	js, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
-
-	request := fmt.Sprintf(`{
-		"name": "%s",
-		"class": "%s",
-		"plan": "%s",
-		"data": %s,
-		"waitForProvision": %t
-	}`, name, class, plan, string(datajs), waitForProvision)
 
 	if waitForProvision {
 		c.ui.Note().KeeplineUnder(1).Msg("Provisioning...")
@@ -468,7 +466,7 @@ func (c *EpinioClient) CreateService(name, class, plan string, dict []string, wa
 	}
 
 	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/services", c.Config.Org),
-		"POST", request)
+		"POST", string(js))
 	if err != nil {
 		return err
 	}
@@ -510,18 +508,18 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 	}
 	msg.Msg("Create Custom Service")
 
-	datajs, err := json.Marshal(data)
+	request := models.CustomCreateRequest{
+		Name: name,
+		Data: data,
+	}
+
+	js, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
 
-	request := fmt.Sprintf(`{
-		"name": "%s",
-		"data": %s
-	}`, name, string(datajs))
-
 	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/custom-services", c.Config.Org),
-		"POST", request)
+		"POST", string(js))
 	if err != nil {
 		return err
 	}

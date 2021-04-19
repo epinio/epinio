@@ -17,23 +17,6 @@ import (
 type ServicesController struct {
 }
 
-type CatalogCreateRequest struct {
-	Name             string            `json:"name"`
-	Class            string            `json:"class"`
-	Plan             string            `json:"plan"`
-	Data             map[string]string `json:"data"`
-	WaitForProvision bool              `json:"waitforprovision"`
-}
-
-type CustomCreateRequest struct {
-	Name string            `json:"name"`
-	Data map[string]string `json:"data"`
-}
-
-type DeleteRequest struct {
-	Unbind bool `json:"unbind"`
-}
-
 func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
@@ -167,7 +150,7 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	var createRequest CustomCreateRequest
+	var createRequest models.CustomCreateRequest
 	err = json.Unmarshal(bodyBytes, &createRequest)
 	if handleError(w, err, http.StatusBadRequest) {
 		return
@@ -233,7 +216,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var createRequest CatalogCreateRequest
+	var createRequest models.CatalogCreateRequest
 	err = json.Unmarshal(bodyBytes, &createRequest)
 	if handleError(w, err, http.StatusBadRequest) {
 		return
@@ -339,7 +322,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var deleteRequest DeleteRequest
+	var deleteRequest models.DeleteRequest
 	err = json.Unmarshal(bodyBytes, &deleteRequest)
 	if handleError(w, err, http.StatusBadRequest) {
 		return
@@ -380,23 +363,23 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 	// If it is, and automatic unbind was requested, do that.
 	// Without automatic unbind such applications are reported as error.
 
-	var js []byte
+	deleteResponse := models.DeleteResponse{}
+
 	appsOf, err := servicesToApps(cluster, gitea, org)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 	if boundApps, found := appsOf[service.Name()]; found {
-		var bound []string
 		for _, app := range boundApps {
-			bound = append(bound, app.Name)
-		}
-
-		response := map[string][]string{}
-		response["BoundApps"] = bound
-
-		js, err = json.Marshal(response)
-		if handleError(w, err, http.StatusInternalServerError) {
-			return
+			deleteResponse.BoundApps = append(deleteResponse.BoundApps, app.Name)
 		}
 
 		if !deleteRequest.Unbind {
+			js, err := json.Marshal(deleteResponse)
+			if handleError(w, err, http.StatusInternalServerError) {
+				return
+			}
+
 			w.Header().Set("Content-Type", "application/json")
 			http.Error(w, string(js), http.StatusBadRequest)
 			return
@@ -413,6 +396,11 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 	// Everything looks to be ok. Delete.
 
 	err = service.Delete()
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	js, err := json.Marshal(deleteResponse)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
