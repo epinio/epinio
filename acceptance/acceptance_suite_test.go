@@ -79,6 +79,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	ensureCluster()
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
 
+	out, err = waitUntilClusterNodeReady()
+	Expect(err).ToNot(HaveOccurred(), out)
+
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
 	if os.Getenv("REGISTRY_USERNAME") != "" && os.Getenv("REGISTRY_PASSWORD") != "" {
@@ -220,6 +223,15 @@ func ensureCluster() {
 	if err != nil {
 		panic("Writing kubeconfig failed: " + err.Error())
 	}
+}
+
+func waitUntilClusterNodeReady() (string, error) {
+	nodeName, err := RunProc("kubectl get nodes -o name", nodeTmpDir, false)
+	if err != nil {
+		return "", err
+	}
+
+	return RunProc("kubectl wait --for=condition=Ready "+nodeName, nodeTmpDir, false)
 }
 
 func deleteCluster() {
