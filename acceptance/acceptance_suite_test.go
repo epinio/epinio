@@ -125,14 +125,15 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	serverURL = "http://" + out
 })
 
-var _ = AfterSuite(func() {
-	defer cleanupTmp() // Delete left-overs no matter what
-
+var _ = SynchronizedAfterSuite(func() {
 	err := uninstallCluster()
 	Expect(err).NotTo(HaveOccurred())
 
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
+}, func() { // Runs only on one node after all are done
+	// Delete left-overs no matter what
+	defer cleanupTmp()
 })
 
 func ensureRegistryNetwork() (string, error) {
