@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/services"
@@ -110,9 +111,18 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	responseData := map[string]interface{}{
-		"Services":    orgServices,
-		"ServiceApps": appsOf,
+	var responseData models.ServiceResponseList
+
+	for _, service := range orgServices {
+		var appNames []string
+
+		for _, app := range appsOf[service.Name()] {
+			appNames = append(appNames, app.Name)
+		}
+		responseData = append(responseData, models.ServiceResponse{
+			Name:      service.Name(),
+			BoundApps: appNames,
+		})
 	}
 
 	js, err := json.Marshal(responseData)

@@ -23,6 +23,7 @@ import (
 	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
@@ -108,7 +109,7 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 		Msg("Listing service plans")
 
 	// todo: sort service plans by name before display
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/serviceclasses/%s/serviceplans", c.Config.Org, serviceClassName), "GET", "")
+	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/serviceclasses/%s/serviceplans", serviceClassName), "GET", "")
 	if err != nil {
 		return err
 	}
@@ -202,7 +203,7 @@ func (c *EpinioClient) ServiceClasses() error {
 	c.ui.Note().
 		Msg("Listing service classes")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/serviceclasses", c.Config.Org), "GET", "")
+	jsonResponse, err := c.curl("api/v1/serviceclasses", "GET", "")
 	if err != nil {
 		return err
 	}
@@ -240,7 +241,7 @@ func (c *EpinioClient) Services() error {
 	if err != nil {
 		return err
 	}
-	var response map[string]interface{}
+	var response models.ServiceResponseList
 	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return err
 	}
@@ -249,25 +250,11 @@ func (c *EpinioClient) Services() error {
 	details.Info("list services")
 
 	msg := c.ui.Success().WithTable("Name", "Applications")
-	orgServices := response["Services"].([]interface{})
-	appsOf := response["ServiceApps"].(map[string]interface{})
 
 	// todo: sort services by name before display
 	details.Info("list services")
-
-	for _, s := range orgServices {
-		var bound string
-		if theapps, found := appsOf[s.(map[string]interface{})["Service"].(string)]; found {
-			appnames := []string{}
-			for _, app := range theapps.([]interface{}) {
-				appMap := app.(map[string]interface{})
-				appnames = append(appnames, appMap["Name"].(string))
-			}
-			bound = strings.Join(appnames, ", ")
-		} else {
-			bound = ""
-		}
-		msg = msg.WithTableRow(s.(map[string]interface{})["Service"].(string), bound)
+	for _, service := range response {
+		msg = msg.WithTableRow(service.Name, strings.Join(service.BoundApps, ", "))
 	}
 	msg.Msg("Epinio Services:")
 

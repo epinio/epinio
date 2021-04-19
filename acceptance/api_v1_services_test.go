@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/internal/api/v1/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -38,6 +39,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 
 		Describe("GET /api/v1/orgs/:org/services", func() {
+			var serviceNames []string
 			AfterEach(func() {
 				deleteService(svc1)
 				deleteService(svc2)
@@ -53,15 +55,11 @@ var _ = Describe("Services API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				var data map[string]interface{}
+				var data models.ServiceResponseList
 				err = json.Unmarshal(bodyBytes, &data)
 				Expect(err).ToNot(HaveOccurred())
-
-				orgServices := data["Services"].([]interface{})
-				Expect(err).ToNot(HaveOccurred())
-				serviceNames := []string{}
-				serviceNames = append(serviceNames, orgServices[0].(map[string]interface{})["Service"].(string))
-				serviceNames = append(serviceNames, orgServices[1].(map[string]interface{})["Service"].(string))
+				serviceNames = append(serviceNames, data[0].Name)
+				serviceNames = append(serviceNames, data[1].Name)
 				Expect(serviceNames).Should(ContainElements(svc1, svc2))
 			})
 
