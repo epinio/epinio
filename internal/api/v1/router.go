@@ -20,8 +20,8 @@ func Router() *httprouter.Router {
 	router.HandlerFunc("GET", "/api/v1/orgs/:org/services", ServicesController{}.Index)
 	router.HandlerFunc("GET", "/api/v1/orgs/:org/services/:service", ServicesController{}.Show)
 
-	router.HandlerFunc("GET", "/api/v1/orgs/:org/serviceclasses", ServiceClassesController{}.Index)
-	router.HandlerFunc("GET", "/api/v1/orgs/:org/serviceclasses/:serviceclass/serviceplans", ServicePlansController{}.Index)
+	router.HandlerFunc("GET", "/api/v1/serviceclasses", ServiceClassesController{}.Index)
+	router.HandlerFunc("GET", "/api/v1/serviceclasses/:serviceclass/serviceplans", ServicePlansController{}.Index)
 
 	router.NotFound = http.NotFoundHandler()
 
