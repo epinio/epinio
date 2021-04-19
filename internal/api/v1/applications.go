@@ -263,8 +263,10 @@ func (hc ApplicationsController) Bind(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte{})
-
+	_, err = w.Write([]byte{})
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 func (hc ApplicationsController) Unbind(w http.ResponseWriter, r *http.Request) {
@@ -324,7 +326,10 @@ func (hc ApplicationsController) Unbind(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte{})
+	_, err = w.Write([]byte{})
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 // Write the error to the response writer and return  true if there was an error

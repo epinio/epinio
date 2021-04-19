@@ -203,7 +203,10 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte{})
+	_, err = w.Write([]byte{})
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
@@ -308,7 +311,10 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte{})
+	_, err = w.Write([]byte{})
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
@@ -406,7 +412,10 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }
 
 func servicesToApps(cluster *kubernetes.Cluster, gitea *clients.GiteaClient, org string) (map[string]application.ApplicationList, error) {
