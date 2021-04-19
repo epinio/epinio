@@ -407,7 +407,7 @@ func (w Workloads) warmupBuilder(c *kubernetes.Cluster) error {
 						Containers: []corev1.Container{
 							{
 								Name:    "warmup",
-								Image:   "quay.io/asgardtech/paketobuildpacks-builder:full-cf", // TODO: DRY this
+								Image:   "paketobuildpacks/builder:full", // TODO: DRY this
 								Command: []string{"/bin/ls"},
 							}},
 						RestartPolicy: "Never",
