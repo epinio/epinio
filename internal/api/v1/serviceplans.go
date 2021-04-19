@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
 )
@@ -16,25 +15,10 @@ type ServicePlansController struct {
 
 func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
-	org := params.ByName("org")
 	serviceClassName := params.ByName("serviceclass")
 
 	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
 		return
 	}
 
