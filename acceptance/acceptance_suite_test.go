@@ -133,6 +133,9 @@ var _ = AfterSuite(func() {
 	err := uninstallCluster()
 	Expect(err).NotTo(HaveOccurred())
 
+	out, err = cleanupTmp()
+	Expect(err).NotTo(HaveOccurred(), out)
+
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
 })
@@ -289,6 +292,13 @@ func installEpinio() (string, error) {
 
 func uninstallEpinio() (string, error) {
 	return Epinio("uninstall", "")
+}
+
+// Remove all tmp directories from /tmp/epinio-* . Test should try to cleanup
+// after themselves but that sometimes doesn't happen, either because we forgot
+// the cleanup code or because the test failed before that happened.
+func cleanupTmp() (string, error) {
+	return RunProc("rm -rf /tmp/epinio-*", "", false)
 }
 
 // Epinio invokes the `epinio` binary, running the specified command.
