@@ -123,11 +123,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = AfterSuite(func() {
+	defer cleanupTmp() // Delete left-overs no matter what
+
 	err := uninstallCluster()
 	Expect(err).NotTo(HaveOccurred())
-
-	out, err = cleanupTmp()
-	Expect(err).NotTo(HaveOccurred(), out)
 
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
@@ -287,7 +286,7 @@ func installEpinio() (string, error) {
 // after themselves but that sometimes doesn't happen, either because we forgot
 // the cleanup code or because the test failed before that happened.
 func cleanupTmp() (string, error) {
-	return RunProc("rm -rf /tmp/epinio-*", "", false)
+	return RunProc("rm -rf /tmp/epinio-*", "", true)
 }
 
 // Epinio invokes the `epinio` binary, running the specified command.
