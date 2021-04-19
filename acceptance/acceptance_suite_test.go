@@ -39,6 +39,8 @@ const (
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
+	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
+
 	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
 		fmt.Println("REGISTRY_USERNAME or REGISTRY_PASSWORD environment variables are empty. Pulling from dockerhub will be subject to rate limiting.")
 	}
