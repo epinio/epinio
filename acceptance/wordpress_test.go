@@ -91,6 +91,11 @@ var _ = Describe("Wordpress", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
+	AfterEach(func() {
+		err := os.RemoveAll(wordpress.Dir)
+		Expect(err).ToNot(HaveOccurred())
+	})
+
 	It("can deploy Wordpress", func() {
 		out, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", wordpress.Name), wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred(), out)
