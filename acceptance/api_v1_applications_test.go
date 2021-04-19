@@ -71,6 +71,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				defer response.Body.Close()
 				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 			})
 		})
