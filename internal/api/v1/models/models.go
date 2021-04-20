@@ -30,3 +30,9 @@ type DeleteRequest struct {
 type DeleteResponse struct {
 	BoundApps []string
 }
+
+type BindRequest struct {
+	Name string `json:"name"`
+}
+
+// TODO: CreateOrgRequest

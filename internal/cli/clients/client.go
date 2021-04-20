@@ -302,9 +302,17 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Bind Service")
 
-	_, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/services", c.Config.Org, appName),
-		"POST",
-		fmt.Sprintf(`{"name":"%s"}`, serviceName))
+	request := models.BindRequest{
+		Name: serviceName,
+	}
+
+	js, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/services", c.Config.Org, appName),
+		"POST", string(js))
 	if err != nil {
 		return err
 	}

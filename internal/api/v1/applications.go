@@ -8,16 +8,13 @@ import (
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
 )
-
-type BindRequest struct {
-	Name string
-}
 
 type ApplicationsController struct {
 }
@@ -200,7 +197,7 @@ func (hc ApplicationsController) Bind(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var bindRequest BindRequest
+	var bindRequest models.BindRequest
 	err = json.Unmarshal(bodyBytes, &bindRequest)
 	if handleError(w, err, http.StatusBadRequest) {
 		return
