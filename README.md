@@ -11,6 +11,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 - [What problem does Epinio solve](#what-problem-does-epinio-solve)
 - [Principles](#principles)
   - [Guidelines (Soft Principles)](#guidelines-soft-principles)
+- [Future Plans](#future-plans)
 - [Quick Start](#quick-start)
   - [Install dependencies](#install-dependencies)
   - [Get yourself a cluster](#get-yourself-a-cluster)
@@ -63,6 +64,29 @@ Epinio's development is governed by the following principles:
   - Well known components with active community over custom code
 - all acceptance tests should run in less than 10 minutes
 - all tests should be able to run on the minimal cluster
+
+## Future Plans
+
+Epinio's development is driven by real world problems. That means, if something
+is not a solution to a real user's problem then it is not a priority. This guideline
+helps avoid over-engineering and meaningless work.
+
+Epinio's main goal is to make existing solutions accessible, to the application
+developer. Those solutions include:
+
+- Kubernetes
+- External Cloud Services
+- In-cluster services
+- TLS Certificate Signers
+- more
+
+With so many communities working on the same problems at the same time, it's rare
+that a problem doesn't already have a solution. Most of the time, seamless integration
+is the challenge and that's Epinio's domain.
+
+You can see what the team is up to on our [Github Project board](https://github.com/epinio/epinio/projects/1).
+Feel free to add issues if you want to discuss future work or comment on existing
+ones.
 
 ## Quick start
 
