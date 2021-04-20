@@ -222,6 +222,10 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(""))
+
+				out, err := Epinio("service list", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(service))
 			})
 
 			It("creates the catalog service and returns immediately", func() {
@@ -243,6 +247,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(""))
 
+				// Explicit wait in the test itself for the service to be provisioned/appear.
+				// This takes the place of the `service list` command in the previous test,
+				// which simply checks for presence.
 				Eventually(func() string {
 					out, err := Epinio("service show "+service, "")
 					Expect(err).ToNot(HaveOccurred(), out)
