@@ -126,7 +126,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(string(bodyBytes)).To(Equal("Organization 'bogus' does not exist\n"))
 		})
 
-		Context("On conflict", func() {
+		Context("with conflicting service", func() {
 			var service string
 
 			BeforeEach(func() {
@@ -138,7 +138,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				cleanupService(service)
 			})
 
-			It("returns a 'conflict' when the service already exists", func() {
+			It("returns a 'conflict'", func() {
 				response, err := Curl("POST",
 					fmt.Sprintf("%s/api/v1/orgs/%s/services",
 						serverURL, org),
@@ -199,7 +199,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(string(bodyBytes)).To(Equal("Service plan 'meh' does not exist for class 'mariadb'\n"))
 		})
 
-		Context("Creation", func() {
+		Describe("Creation", func() {
 			AfterEach(func() {
 				cleanupService(service)
 			})
@@ -333,7 +333,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(string(bodyBytes)).To(Equal("Organization 'bogus' does not exist\n"))
 		})
 
-		Context("On conflict", func() {
+		Context("with conflicting service", func() {
 			var service string
 
 			BeforeEach(func() {
@@ -345,7 +345,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				cleanupService(service)
 			})
 
-			It("returns a 'conflict' when the service already exists", func() {
+			It("returns a 'conflict'", func() {
 				response, err := Curl("POST",
 					fmt.Sprintf("%s/api/v1/orgs/%s/custom-services",
 						serverURL, org),
@@ -364,7 +364,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			})
 		})
 
-		Context("Creation", func() {
+		Describe("Creation", func() {
 			var service string
 
 			BeforeEach(func() {
@@ -461,7 +461,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(string(bodyBytes)).To(Equal("service 'bogus' not found\n"))
 		})
 
-		Context("With bound applications", func() {
+		Context("with bound applications", func() {
 			var app string
 			var service string
 
@@ -509,7 +509,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			})
 		})
 
-		Context("Without bound applications", func() {
+		Context("without bound applications", func() {
 			var service string
 
 			BeforeEach(func() {
@@ -599,7 +599,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(string(bodyBytes)).To(Equal("Organization 'bogus' does not exist\n"))
 		})
 
-		Context("Needs application", func() {
+		Context("with application", func() {
 			var app string
 			var service string
 
@@ -630,12 +630,12 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Expect(string(bodyBytes)).To(Equal("service 'bogus' not found\n"))
 			})
 
-			Context("Already bound", func() {
+			Context("and already bound", func() {
 				BeforeEach(func() {
 					bindAppService(app, service, org)
 				})
 
-				It("returns a 'conflict' when the service is already bound", func() {
+				It("returns a 'conflict'", func() {
 					response, err := Curl("POST",
 						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s/services",
 							serverURL, org, app),
@@ -707,7 +707,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(string(bodyBytes)).To(Equal("application 'bogus' not found\n"))
 		})
 
-		Context("Needs application", func() {
+		Context("with application", func() {
 			var app string
 
 			BeforeEach(func() {
@@ -734,7 +734,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Expect(string(bodyBytes)).To(Equal("service 'bogus' not found\n"))
 			})
 
-			Context("Needs service", func() {
+			Context("with service", func() {
 				var service string
 
 				BeforeEach(func() {
@@ -746,7 +746,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					cleanupService(service)
 				})
 
-				Context("Bound service", func() {
+				Context("already bound", func() {
 					BeforeEach(func() {
 						bindAppService(app, service, org)
 					})
