@@ -191,10 +191,17 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	// Verify that the requested name is not yet used by a different service.
 	_, err = services.Lookup(cluster, org, createRequest.Name)
 	if err == nil {
+		// no error, service is found, conflict
 		http.Error(w, fmt.Sprintf("Service '%s' already exists", createRequest.Name),
 			http.StatusConflict)
 		return
 	}
+	if err != nil && err.Error() != "service not found" {
+		// some internal error
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// any error here is `service not found`, and we can continue
 
 	// Create the new service. At last.
 	_, err = services.CreateCustomService(cluster, createRequest.Name, org, createRequest.Data)
@@ -266,10 +273,17 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 	// Verify that the requested name is not yet used by a different service.
 	_, err = services.Lookup(cluster, org, createRequest.Name)
 	if err == nil {
+		// no error, service is found, conflict
 		http.Error(w, fmt.Sprintf("Service '%s' already exists", createRequest.Name),
 			http.StatusConflict)
 		return
 	}
+	if err != nil && err.Error() != "service not found" {
+		// some internal error
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	// any error here is `service not found`, and we can continue
 
 	// Verify that the requested class is supported
 	serviceClass, err := services.ClassLookup(cluster, createRequest.Class)
