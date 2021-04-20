@@ -4,8 +4,8 @@ package models
 // response data used by the communication between cli and api server.
 
 type ServiceResponse struct {
-	Name      string
-	BoundApps []string
+	Name      string   `json:"name"`
+	BoundApps []string `json:"boundapps"`
 }
 
 type ServiceResponseList []ServiceResponse
@@ -28,7 +28,7 @@ type DeleteRequest struct {
 }
 
 type DeleteResponse struct {
-	BoundApps []string
+	BoundApps []string `json:"boundapps"`
 }
 
 type BindRequest struct {
