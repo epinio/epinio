@@ -6,7 +6,27 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 <img src="./docs/epinio.png" width="50%" height="50%">
 
-## What
+## Contents
+
+- [What problem does Epinio solve](#what-problem-does-epinio-solve)
+- [Principles](#principles)
+  - [Guidelines (Soft Principles)](#guidelines-soft-principles)
+- [Quick Start](#quick-start)
+  - [Install dependencies](#install-dependencies)
+  - [Get yourself a cluster](#get-yourself-a-cluster)
+  - [Install Epinio](#install-epinio)
+  - [Push an application](#push-an-application)
+  - [Check that your application is working](#check-that-your-application-is-working)
+  - [List all commands](#list-all-commands)
+  - [Delete an application](#delete-an-application)
+  - [Create a separate org](#create-a-separate-org)
+  - [Uninstall](#uninstall)
+  - [Read command help](#read-command-help)
+- [Configuration](#configuration)
+- [Troubleshooting](#troubleshooting)
+    - [k3d inside a VM](#k3d-inside-a-vm)
+
+## What problem does Epinio solve
 
 Epinio makes it easy for developers to deploy their applications to Kubernetes. Easy means:
 
@@ -14,8 +34,6 @@ Epinio makes it easy for developers to deploy their applications to Kubernetes. 
 - No steep learning curve
 - Quick local setup with zero configuration
 - Deploying to production similar to development
-
-## Why
 
 Kubernetes is becoming the de-facto standard for container orchestration.
 Developers may want to use Kubernetes for all the benefits it provides or may
