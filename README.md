@@ -117,12 +117,24 @@ application to your Kubernetes cluster with Epinio.
 NOTE: If you want to know the details of the `epinio push` process, read this
 page: [detailed push docs](/docs/detailed-push-process.md)
 
-Run the following command for any supported application directory. If you just
-want an application that works use the one inside the [sample-app directory](assets/sample-app).
+If you just want an application that works use the one inside the
+[sample-app directory](assets/sample-app). You can copy it on your system with
+the following commands:
+
+```
+$ git clone https://github.com/epinio/epinio.git
+$ cd epinio/assets/
+```
+
+To push the application run the following command:
 
 ```bash
 $ epinio push sample sample-app
 ```
+
+where `sample` is the name you want to give to your application. This name has
+to be unique within Epinio. `sample-app` is path to the directory where your
+application's code resides.
 
 Note that the path argument is __optional__.
 If not specified the __current working directory__ will be used.
