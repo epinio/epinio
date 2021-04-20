@@ -142,7 +142,7 @@ NOTE: If you want to know the details of the `epinio push` process, read this
 page: [detailed push docs](/docs/detailed-push-process.md)
 
 If you just want an application that works use the one inside the
-[sample-app directory](assets/sample-app). You can copy it on your system with
+[sample-app directory](assets/sample-app). You can copy it to your system with
 the following commands:
 
 ```
@@ -157,8 +157,8 @@ $ epinio push sample sample-app
 ```
 
 where `sample` is the name you want to give to your application. This name has
-to be unique within Epinio. `sample-app` is path to the directory where your
-application's code resides.
+to be unique within the targeted organization in Epinio. `sample-app` is path
+to the directory where your application's code resides.
 
 Note that the path argument is __optional__.
 If not specified the __current working directory__ will be used.
