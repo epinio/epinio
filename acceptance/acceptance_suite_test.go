@@ -298,6 +298,9 @@ func installEpinio() (string, error) {
 // Remove all tmp directories from /tmp/epinio-* . Test should try to cleanup
 // after themselves but that sometimes doesn't happen, either because we forgot
 // the cleanup code or because the test failed before that happened.
+// NOTE: This code will create problems if more than one acceptance_suite_test.go
+// is run in parallel (e.g. two PRs on one worker). However we keep it as an
+// extra measure.
 func cleanupTmp() (string, error) {
 	return RunProc("rm -rf /tmp/epinio-*", "", true)
 }
