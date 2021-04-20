@@ -606,6 +606,20 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(string(bodyBytes)).To(Equal("Organization 'bogus' does not exist\n"))
 		})
 
+		It("returns a 'not found' when the application does not exist", func() {
+			response, err := Curl("POST",
+				fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus/services", serverURL, org),
+				strings.NewReader(`{ "name": "meh" }`))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+			Expect(string(bodyBytes)).To(Equal("application 'bogus' does not exist\n"))
+		})
+
 		Context("with application", func() {
 			var app string
 			var service string
