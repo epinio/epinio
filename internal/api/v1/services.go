@@ -109,8 +109,8 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
-	appsOf, err := servicesToApps(cluster, gitea, org)
 
+	appsOf, err := servicesToApps(cluster, gitea, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
