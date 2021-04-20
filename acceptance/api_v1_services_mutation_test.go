@@ -53,7 +53,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type v1.CatalogCreateRequest\n"))
+			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type models.CatalogCreateRequest\n"))
 		})
 
 		It("returns a 'bad request' for JSON object without `name` key", func() {
@@ -280,7 +280,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type v1.CustomCreateRequest\n"))
+			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type models.CustomCreateRequest\n"))
 		})
 
 		It("returns a 'bad request' for JSON object without `name` key", func() {
@@ -429,7 +429,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type v1.DeleteRequest\n"))
+			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type models.DeleteRequest\n"))
 		})
 
 		It("returns a 'not found' when the org does not exist", func() {
@@ -490,7 +490,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("{\"BoundApps\":[\"" + app + "\"]}\n"))
+				Expect(string(bodyBytes)).To(Equal("{\"boundapps\":[\"" + app + "\"]}\n"))
 			})
 
 			It("unbinds and removes the service, when former is requested", func() {
@@ -505,7 +505,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("{\"BoundApps\":[\"" + app + "\"]}"))
+				Expect(string(bodyBytes)).To(Equal("{\"boundapps\":[\"" + app + "\"]}"))
 			})
 		})
 
@@ -529,7 +529,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal("{\"boundapps\":null}"))
 			})
 		})
 	})
@@ -568,7 +568,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type v1.BindRequest\n"))
+			Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type models.BindRequest\n"))
 		})
 
 		It("returns a 'bad request' for JSON object without `name` key", func() {

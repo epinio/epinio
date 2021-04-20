@@ -39,6 +39,7 @@ rules:
   - get
   - list
   - patch
+  - update
 - apiGroups:
   - apps
   resources:
@@ -53,6 +54,8 @@ rules:
   resources:
   - servicebindings
   verbs:
+  - create
+  - get
   - delete
   - list
 - apiGroups:
