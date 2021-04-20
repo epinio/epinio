@@ -617,7 +617,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			Expect(string(bodyBytes)).To(Equal("application 'bogus' does not exist\n"))
+			Expect(string(bodyBytes)).To(Equal("application 'bogus' not found\n"))
 		})
 
 		Context("with application", func() {
