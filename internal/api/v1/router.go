@@ -16,9 +16,9 @@ func Router() *httprouter.Router {
 	router.HandlerFunc("GET", "/api/v1/orgs/:org/applications/:app", ApplicationsController{}.Show)
 	router.HandlerFunc("DELETE", "/api/v1/orgs/:org/applications/:app", ApplicationsController{}.Delete)
 
-	// Bind and unbind services to/from applications
-	router.HandlerFunc("POST", "/api/v1/orgs/:org/applications/:app/services", ApplicationsController{}.Bind)
-	router.HandlerFunc("DELETE", "/api/v1/orgs/:org/applications/:app/services/:service", ApplicationsController{}.Unbind)
+	// Bind and unbind services to/from applications, by means of servicebindings in applications
+	router.HandlerFunc("POST", "/api/v1/orgs/:org/applications/:app/servicebindings", ServicebindingsController{}.Create)
+	router.HandlerFunc("DELETE", "/api/v1/orgs/:org/applications/:app/servicebindings/:service", ServicebindingsController{}.Delete)
 
 	// List and create organizations
 	router.HandlerFunc("GET", "/api/v1/orgs", OrganizationsController{}.Index)

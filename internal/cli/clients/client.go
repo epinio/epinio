@@ -311,7 +311,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		return err
 	}
 
-	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/services", c.Config.Org, appName),
+	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings", c.Config.Org, appName),
 		"POST", string(js))
 	if err != nil {
 		return err
@@ -339,7 +339,7 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Unbind Service from Application")
 
-	_, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/services/%s",
+	_, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings/%s",
 		c.Config.Org, appName, serviceName), "DELETE", "")
 	if err != nil {
 		return err
