@@ -29,3 +29,21 @@ main > .container {
 code {
   font-size: 80%;
 }
+
+.sidebar-sticky {
+  position: -webkit-sticky;
+  position: sticky;
+  top: 48px; /* Height of navbar */
+  height: calc(100vh - 100.5px);
+  padding-top: .5rem;
+  overflow-x: hidden;
+  overflow-y: auto; /* Scrollable contents if viewport is shorter than content. */
+}
+
+li a {
+  color: #555;
+}
+
+li.active a {
+  color: #007bff;
+}
