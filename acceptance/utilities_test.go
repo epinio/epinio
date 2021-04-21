@@ -44,34 +44,34 @@ func setupAndTargetOrg(org string) {
 	By("creating an org")
 
 	out, err := Epinio("org create "+org, "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	orgs, err := Epinio("org list", "")
-	Expect(err).ToNot(HaveOccurred())
-	Expect(orgs).To(MatchRegexp(org))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, orgs).To(MatchRegexp(org))
 
 	By("targeting an org")
 
 	out, err = Epinio("target "+org, "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = Epinio("target", "")
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp("Currently targeted organization: " + org))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted organization: " + org))
 }
 
 func setupInClusterServices() {
 	out, err := Epinio("enable services-incluster", "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// Wait until classes appear
-	Eventually(func() error {
+	EventuallyWithOffset(1, func() error {
 		_, err = helpers.Kubectl("get clusterserviceclass mariadb")
 		return err
 	}, "5m").ShouldNot(HaveOccurred())
 
 	// Wait until plans appear
-	Eventually(func() error {
+	EventuallyWithOffset(1, func() error {
 		_, err = helpers.Kubectl("get clusterserviceplan mariadb-10-3-22")
 		return err
 	}, "5m").ShouldNot(HaveOccurred())
@@ -79,61 +79,61 @@ func setupInClusterServices() {
 
 func makeApp(appName string) {
 	currentDir, err := os.Getwd()
-	Expect(err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	appDir := path.Join(currentDir, "../assets/sample-app")
 
 	out, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check presence
 
 	out, err = Epinio("app list", "")
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
 }
 
 func makeCustomService(serviceName string) {
 	out, err := Epinio(fmt.Sprintf("service create-custom %s username epinio-user", serviceName), "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check presence
 
 	out, err = Epinio("service list", "")
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp(serviceName))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp(serviceName))
 }
 
 func makeCatalogService(serviceName string) {
 	out, err := Epinio(fmt.Sprintf("service create %s mariadb 10-3-22", serviceName), "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// Look for the messaging indicating that the command waited
-	Expect(out).To(MatchRegexp("Provisioning"))
-	Expect(out).To(MatchRegexp("Service Provisioned"))
+	ExpectWithOffset(1, out).To(MatchRegexp("Provisioning"))
+	ExpectWithOffset(1, out).To(MatchRegexp("Service Provisioned"))
 
 	// Check presence
 
 	out, err = Epinio("service list", "")
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp(serviceName))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp(serviceName))
 }
 
 func makeCatalogServiceDontWait(serviceName string) {
 	out, err := Epinio(fmt.Sprintf("service create --dont-wait %s mariadb 10-3-22", serviceName), "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// Look for indicator that command did not wait
-	Expect(out).To(MatchRegexp("to watch when it is provisioned"))
+	ExpectWithOffset(1, out).To(MatchRegexp("to watch when it is provisioned"))
 
 	// Check presence
 
 	out, err = Epinio("service list", "")
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp(serviceName))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp(serviceName))
 
 	// And explicitly wait for it being provisioned
 
-	Eventually(func() string {
+	EventuallyWithOffset(1, func() string {
 		out, err = Epinio("service show "+serviceName, "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
@@ -142,28 +142,28 @@ func makeCatalogServiceDontWait(serviceName string) {
 
 func bindAppService(appName, serviceName, org string) {
 	out, err := Epinio(fmt.Sprintf("service bind %s %s", serviceName, appName), "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check deep into the kube structures
-	verifyAppServiceBound(appName, serviceName, org)
+	verifyAppServiceBound(appName, serviceName, org, 2)
 }
 
-func verifyAppServiceBound(appName, serviceName, org string) {
+func verifyAppServiceBound(appName, serviceName, org string, offset int) {
 	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp(serviceName))
+	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(offset, out).To(MatchRegexp(serviceName))
 
 	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp("/services/" + serviceName))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp("/services/" + serviceName))
 }
 
 func deleteApp(appName string) {
 	out, err := Epinio("app delete "+appName, "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
-	Eventually(func() string {
+	EventuallyWithOffset(1, func() string {
 		out, err := Epinio("app list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
@@ -181,10 +181,10 @@ func cleanupApp(appName string) {
 
 func deleteService(serviceName string) {
 	out, err := Epinio("service delete "+serviceName, "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check non-presence
-	Eventually(func() string {
+	EventuallyWithOffset(1, func() string {
 		out, err = Epinio("service list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
@@ -201,10 +201,10 @@ func cleanupService(serviceName string) {
 
 func unbindAppService(appName, serviceName, org string) {
 	out, err := Epinio(fmt.Sprintf("service unbind %s %s", serviceName, appName), "")
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And deep check in kube structures for non-presence
-	verifyAppServiceNotbound(appName, serviceName, org)
+	verifyAppServiceNotbound(appName, serviceName, org, 2)
 }
 
 func cleanUnbindAppService(appName, serviceName, org string) {
@@ -214,12 +214,12 @@ func cleanUnbindAppService(appName, serviceName, org string) {
 	}
 }
 
-func verifyAppServiceNotbound(appName, serviceName, org string) {
+func verifyAppServiceNotbound(appName, serviceName, org string, offset int) {
 	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).ToNot(MatchRegexp(serviceName))
+	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(offset, out).ToNot(MatchRegexp(serviceName))
 
 	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
-	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).ToNot(MatchRegexp("/services/" + serviceName))
+	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(offset, out).ToNot(MatchRegexp("/services/" + serviceName))
 }
