@@ -5,6 +5,7 @@ class Applications {
     this.methods = {
       fetchApplications() {
         var that = this
+        // TODO: Hardcoded org!
         $.get("/api/v1/orgs/workspace/applications", function(data) {
           that.applications = data;
         }).fail(function() {
