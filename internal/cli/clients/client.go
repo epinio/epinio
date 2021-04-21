@@ -295,7 +295,6 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		WithValues("Name", serviceName, "Application", appName, "Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Service", serviceName).
@@ -303,34 +302,19 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Bind Service")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to bind service.")
+	request := models.BindRequest{
+		Name: serviceName,
+	}
+
+	js, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
 
-	// Lookup app and service. Conversion from name to internal objects.
-
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client, c.Config.Org, appName)
+	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings", c.Config.Org, appName),
+		"POST", string(js))
 	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-	if app == nil {
-		c.ui.Exclamation().Msg("application not found")
-		return nil
-	}
-
-	service, err := services.Lookup(c.KubeClient, c.Config.Org, serviceName)
-	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-
-	err = app.Bind(service)
-	if err != nil {
-		return errors.Wrap(err, "failed to bind service")
+		return err
 	}
 
 	c.ui.Success().
@@ -348,7 +332,6 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 		WithValues("Name", serviceName, "Application", appName, "Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Service", serviceName).
@@ -356,37 +339,10 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Unbind Service from Application")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to unbind service.")
+	_, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings/%s",
+		c.Config.Org, appName, serviceName), "DELETE", "")
 	if err != nil {
 		return err
-	}
-
-	// Lookup app and service. Conversion from names to internal objects.
-
-	app, err := application.Lookup(c.KubeClient, c.GiteaClient.Client, c.Config.Org, appName)
-	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-	if app == nil {
-		c.ui.Exclamation().Msg("application not found")
-		return nil
-	}
-
-	service, err := services.Lookup(c.KubeClient, c.Config.Org, serviceName)
-	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-
-	// Do the task
-
-	err = app.Unbind(service)
-
-	if err != nil {
-		return errors.Wrap(err, "failed to unbind service")
 	}
 
 	c.ui.Success().
@@ -403,72 +359,69 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		WithValues("Name", name, "Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Delete Service")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to remove service.")
+	request := models.DeleteRequest{
+		Unbind: unbind,
+	}
+
+	js, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
 
-	service, err := services.Lookup(c.KubeClient, c.Config.Org, name)
-	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-
-	appsOf, err := c.ServicesToApps(c.Config.Org)
-	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-
-	if boundApps, found := appsOf[service.Name()]; found {
-		var msg *termui.Message
-		if !unbind {
-			msg = c.ui.Exclamation()
-		} else {
-			msg = c.ui.Note()
-		}
-
-		msg = msg.WithTable("Bound Applications")
-		for _, app := range boundApps {
-			msg = msg.WithTableRow(app.Name)
-		}
-
-		if !unbind {
-			msg.Msg("Unable to delete service. It is still used by")
-			c.ui.Exclamation().Compact().Msg("Use --unbind to force the issue")
-			return nil
-		} else {
-			msg.Msg("Unbinding Service From Using Applications Before Deletion")
-			c.ui.Exclamation().
-				Timeout(5 * time.Second).
-				Msg("Hit Enter to continue or Ctrl+C to abort (removal will continue automatically in 5 seconds)")
-
-			for _, app := range boundApps {
-				c.ui.Note().WithStringValue("Application", app.Name).Msg("Unbinding")
-				err = app.Unbind(service)
-				if err != nil {
-					c.ui.Exclamation().Msg(err.Error())
-					continue
-				}
-				c.ui.Success().Compact().Msg("Unbound")
+	jsonResponse, err := c.curlWithCustomErrorHandling(fmt.Sprintf("api/v1/orgs/%s/services/%s", c.Config.Org, name),
+		"DELETE", string(js),
+		func(response *http.Response, bodyBytes []byte, err error) error {
+			// nothing special for internal errors and the like
+			if response.StatusCode != http.StatusBadRequest {
+				return err
 			}
 
-			c.ui.Note().Msg("Back to deleting the service...")
+			// A bad request happens when the service is
+			// still bound to one or omre applications,
+			// and the response contains an array of their
+			// names.
+
+			var deleteResponse models.DeleteResponse
+			if err := json.Unmarshal(bodyBytes, &deleteResponse); err != nil {
+				return err
+			}
+			msg := c.ui.Exclamation().WithTable("Bound Applications")
+			for _, app := range deleteResponse.BoundApps {
+				msg = msg.WithTableRow(app)
+			}
+
+			msg.Msg("Unable to delete service. It is still used by")
+			c.ui.Exclamation().Compact().Msg("Use --unbind to force the issue")
+
+			return errors.New(http.StatusText(response.StatusCode))
+		})
+	if err != nil {
+		if err.Error() != "Bad Request" {
+			return err
 		}
+		return nil
 	}
 
-	err = service.Delete()
-	if err != nil {
-		return errors.Wrap(err, "failed to delete service")
+	if len(jsonResponse) > 0 {
+		var deleteResponse models.DeleteResponse
+		if err := json.Unmarshal(jsonResponse, &deleteResponse); err != nil {
+			return err
+		}
+		if len(deleteResponse.BoundApps) > 0 {
+			msg := c.ui.Note().WithTable("Previously Bound To")
+
+			for _, app := range deleteResponse.BoundApps {
+				msg = msg.WithTableRow(app)
+			}
+
+			msg.Msg("")
+		}
 	}
 
 	c.ui.Success().
@@ -485,7 +438,6 @@ func (c *EpinioClient) CreateService(name, class, plan string, dict []string, wa
 		WithValues("Name", name, "Class", class, "Plan", plan, "Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	data := make(map[string]string)
 	msg := c.ui.Note().
@@ -502,38 +454,42 @@ func (c *EpinioClient) CreateService(name, class, plan string, dict []string, wa
 	}
 	msg.Msg("Create Service")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to create service.")
+	request := models.CatalogCreateRequest{
+		Name:             name,
+		Class:            class,
+		Plan:             plan,
+		Data:             data,
+		WaitForProvision: waitForProvision,
+	}
+
+	js, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
-
-	service, err := services.CreateCatalogService(c.KubeClient, name, c.Config.Org, class, plan, data)
-	if err != nil {
-		return errors.Wrap(err, "failed to create secret")
-	}
-
-	c.ui.Success().
-		WithStringValue("Name", service.Name()).
-		WithStringValue("Organization", service.Org()).
-		WithStringValue("Class", class).
-		WithStringValue("Plan", plan).
-		Msg("Service Saved.")
 
 	if waitForProvision {
 		c.ui.Note().KeeplineUnder(1).Msg("Provisioning...")
 		s := c.ui.Progressf("Provisioning")
 		defer s.Stop()
+	}
 
-		err := service.WaitForProvision()
-		if err != nil {
-			return errors.Wrap(err, "failed waiting for the service to be provisioned")
-		}
+	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/services", c.Config.Org),
+		"POST", string(js))
+	if err != nil {
+		return err
+	}
 
+	c.ui.Success().
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Class", class).
+		WithStringValue("Plan", plan).
+		Msg("Service Saved.")
+
+	if waitForProvision {
 		c.ui.Success().Msg("Service Provisioned.")
 	} else {
-		c.ui.Note().Msg(fmt.Sprintf("Use `epinio service %s` to watch when it is provisioned", service.Name()))
+		c.ui.Note().Msg(fmt.Sprintf("Use `epinio service %s` to watch when it is provisioned", name))
 	}
 
 	return nil
@@ -546,7 +502,6 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 		WithValues("Name", name, "Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	data := make(map[string]string)
 	msg := c.ui.Note().
@@ -561,21 +516,25 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 	}
 	msg.Msg("Create Custom Service")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to create service.")
+	request := models.CustomCreateRequest{
+		Name: name,
+		Data: data,
+	}
+
+	js, err := json.Marshal(request)
 	if err != nil {
 		return err
 	}
 
-	service, err := services.CreateCustomService(c.KubeClient, name, c.Config.Org, data)
+	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/custom-services", c.Config.Org),
+		"POST", string(js))
 	if err != nil {
-		return errors.Wrap(err, "failed to create secret")
+		return err
 	}
 
 	c.ui.Success().
-		WithStringValue("Name", service.Name()).
-		WithStringValue("Organization", service.Org()).
+		WithStringValue("Name", name).
+		WithStringValue("Organization", c.Config.Org).
 		Msg("Service Saved.")
 	return nil
 }
@@ -1490,6 +1449,37 @@ func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error
 
 	if response.StatusCode != http.StatusOK {
 		return []byte{}, errors.New(fmt.Sprintf("%s: %s", http.StatusText(response.StatusCode), string(bodyBytes)))
+	}
+
+	return bodyBytes, nil
+}
+
+func (c *EpinioClient) curlWithCustomErrorHandling(endpoint, method, requestBody string,
+	f func(response *http.Response, bodyBytes []byte, err error) error) ([]byte, error) {
+
+	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
+	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
+	if err != nil {
+		return []byte{}, err
+	}
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return []byte{}, err
+	}
+	defer response.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if response.StatusCode == http.StatusCreated {
+		return bodyBytes, nil
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return []byte{}, f(response, bodyBytes,
+			errors.New(fmt.Sprintf("%s: %s", http.StatusText(response.StatusCode), string(bodyBytes))))
 	}
 
 	return bodyBytes, nil

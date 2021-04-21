@@ -52,6 +52,53 @@ type ServicePlan struct {
 
 type ServicePlanList []ServicePlan
 
+// LookupPlan returns the named ServicePlan, for the specified class
+func (sc *ServiceClass) LookupPlan(plan string) (*ServicePlan, error) {
+	servicePlanGVR := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: "clusterserviceplans",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(sc.kubeClient.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	labelSelector := fmt.Sprintf("servicecatalog.k8s.io/spec.clusterServiceClassRef.name=%s", sc.Hash)
+
+	servicePlans, err := dynamicClient.Resource(servicePlanGVR).
+		List(context.Background(),
+			metav1.ListOptions{
+				LabelSelector: labelSelector,
+			})
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, servicePlan := range servicePlans.Items {
+		spec := servicePlan.Object["spec"].(map[string]interface{})
+
+		externalName := spec["externalName"].(string)
+
+		if externalName != plan {
+			continue
+		}
+
+		description := spec["description"].(string)
+		isAFreePlan := spec["free"].(bool)
+
+		return &ServicePlan{
+			Name:        externalName,
+			Description: description,
+			Free:        isAFreePlan,
+		}, nil
+	}
+
+	return nil, nil
+}
+
 // ListPlans returns a ServicePlanList of all available catalog service plans, for the named class
 func (sc *ServiceClass) ListPlans() (ServicePlanList, error) {
 	servicePlanGVR := schema.GroupVersionResource{

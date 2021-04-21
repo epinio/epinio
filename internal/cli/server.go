@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -80,18 +82,41 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Serve
 	return srv, listeningPort, nil
 }
 
-// loggingmiddleware for requests
+// logging middleware for requests
 func logRequestHandler(h http.Handler, ui *termui.UI) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		// log the request first, then ...
+		logRequest(r, ui)
 
-		// call the original http.Handler
+		// ... call the original http.Handler
 		h.ServeHTTP(w, r)
-
-		// log the request
-		uri := r.URL.String()
-		method := r.Method
-		ui.Normal().V(1).Msgf("%s %s", method, uri)
 	}
 
 	return http.HandlerFunc(fn)
+}
+
+func logRequest(r *http.Request, ui *termui.UI) {
+	uri := r.URL.String()
+	method := r.Method
+	ui.Normal().V(1).Msgf("%s %s", method, uri)
+
+	msg := ui.Normal().V(1).Compact()
+
+	// Read request body for logging
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		msg.Msgf("RequestBody Error: %v", err)
+		return
+	}
+	r.Body.Close()
+
+	// Recreate body for the actual handler
+	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	if len(bodyBytes) == 0 {
+		msg.Msg("RequestBody: n/a")
+		return
+	}
+
+	msg.Msgf("RequestBody\n%s\n/RequestBody", string(bodyBytes))
 }
