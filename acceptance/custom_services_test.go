@@ -48,7 +48,7 @@ var _ = Describe("Custom Services", func() {
 			Expect(out).To(MatchRegexp(appName))
 			Expect(out).To(MatchRegexp("Use --unbind to force the issue"))
 
-			verifyAppServiceBound(appName, serviceName, org)
+			verifyAppServiceBound(appName, serviceName, org, 1)
 
 			// Delete again, and force unbind
 
@@ -60,7 +60,7 @@ var _ = Describe("Custom Services", func() {
 
 			Expect(out).To(MatchRegexp("Service Removed"))
 
-			verifyAppServiceNotbound(appName, serviceName, org)
+			verifyAppServiceNotbound(appName, serviceName, org, 1)
 
 			// And check non-presence
 			Eventually(func() string {
