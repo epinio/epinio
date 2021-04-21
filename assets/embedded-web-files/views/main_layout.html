@@ -36,6 +36,18 @@
       </button>
       <div class="collapse navbar-collapse" id="navbarCollapse">
         <ul class="navbar-nav mr-auto">
+          <li class="nav-item dropdown">
+            [[ if .currentOrg  ]]
+            <a class="nav-link dropdown-toggle" href="" id="orgDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Organization: [[ .currentOrg ]]</a>
+            <div class="dropdown-menu" aria-labelledby="orgDropdown">
+              [[ range $index, $org := .orgs ]]
+              <a class="dropdown-item" href="#">[[ $org ]]</a>
+              [[ end ]]
+            </div>
+            [[ else ]]
+            <a class="nav-link dropdown-toggle" href="" id="orgDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Organization: None</a>
+            [[ end ]]
+          </li>
           [[ if eq .request.URL.Path "/" ]]
             <li class="nav-item active">
               <a class="nav-link" href="/">Applications<span class="sr-only">(current)</span></a>
@@ -45,6 +57,8 @@
               <a class="nav-link" href="/">Applications</a>
             </li>
           [[ end ]]
+        </ul>
+        <ul class="navbar-nav">
           [[ if eq .request.URL.Path "/info" ]]
             <li class="nav-item active">
               <a class="nav-link" href="/info">About<span class="sr-only">(current)</span></a>
