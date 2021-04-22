@@ -105,7 +105,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 		"currentOrg": currentOrg,
 		"orgs":       otherOrgs,
 	}
-	Render([]string{"main_layout", "icons", "applications_index"}, w, r, data)
+	Render([]string{"main_layout", "icons", "modals", "applications_index"}, w, r, data)
 }
 
 // Render renders the given templates using the provided data and writes the result
