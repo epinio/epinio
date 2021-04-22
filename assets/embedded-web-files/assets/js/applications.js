@@ -5,7 +5,6 @@ class Applications {
     this.methods = {
       fetchApplications() {
         var that = this
-        // TODO: Hardcoded org!
         var org = this.getOrg();
         $.get("/api/v1/orgs/"+org+"/applications", function(data) {
           that.applications = data;
@@ -48,12 +47,12 @@ class Applications {
 const app = Vue.createApp(new Applications)
 
 app.component('application', {
-props: ['name', 'status', 'routes', 'services'],
+props: ['name', 'status', 'route', 'services'],
 template: `
   <tr>
   <th scope="row">{{ name }}</th>
   <td>{{ status }}</td>
-  <td>{{ routes }}</td>
+  <td><a target="_blank" v-bind:href="route">{{ route }}</a></td>
   <td>{{ services }}</td>
   </tr>
 `

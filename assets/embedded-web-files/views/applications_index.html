@@ -18,7 +18,7 @@
             v-for="app in applications"
             v-bind:name="app.Name"
             v-bind:status="app.Status"
-            v-bind:routes="app.Routes"
+            v-bind:route="'https://' + app.Routes[0]"
             v-bind:services="app.BoundServices"
             v-bind:key="app.Name">
         </tr>
