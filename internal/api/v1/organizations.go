@@ -19,15 +19,9 @@ func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// TODO: Wrap AdminListOrgs into a local gitea client method (See OrgExists)
-	orgs, _, err := gitea.Client.AdminListOrgs(giteaSDK.AdminListOrgsOptions{})
+	orgList, err := gitea.OrgNames()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
-	}
-
-	var orgList []string
-	for _, org := range orgs {
-		orgList = append(orgList, org.UserName)
 	}
 
 	js, err := json.Marshal(orgList)

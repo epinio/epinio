@@ -154,6 +154,20 @@ func getGiteaCredentials(cluster *kubernetes.Cluster) (string, string, error) {
 	return string(username), string(password), nil
 }
 
+func (c *GiteaClient) OrgNames() ([]string, error) {
+	orgs, _, err := c.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	if err != nil {
+		return []string{}, err
+	}
+
+	orgNames := []string{}
+	for _, org := range orgs {
+		orgNames = append(orgNames, org.UserName)
+	}
+
+	return orgNames, nil
+}
+
 func (c *GiteaClient) OrgExists(org string) (bool, error) {
 	_, resp, err := c.Client.GetOrg(org)
 	// if gitea sends us a 404 it's both an error and a response with 404.
