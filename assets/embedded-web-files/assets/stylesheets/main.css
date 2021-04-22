@@ -47,3 +47,9 @@ li a {
 li.active a {
   color: #007bff;
 }
+
+#logo-link svg {
+  fill: #d9d9d9;
+  height: 30px;
+  width: 30px;
+}
