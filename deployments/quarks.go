@@ -119,8 +119,8 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	helmArgs = append(helmArgs, "--set global.monitoredID=quarks-secret")
 
 	helmCmd := fmt.Sprintf("helm %s quarks --create-namespace --namespace %s %s %s", action, QuarksDeploymentID, quarksChartURL, strings.Join(helmArgs, " "))
-	if _, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
-		return errors.New("Failed installing Quarks")
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Failed installing Quarks:\n%s\nReturning\n%s", helmCmd, out))
 	}
 
 	if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
