@@ -86,22 +86,6 @@
                     </a>
                   </li>
                 [[ end ]]
-
-                [[ if eq .request.URL.Path "/services" ]]
-                  <li class="nav-item active">
-                    <a class="nav-link" href="/">
-                      [[ template "icon-feather-database" ]]
-                      Services<span class="sr-only">(current)</span
-                      ></a>
-                  </li>
-                [[ else ]]
-                  <li class="nav-item">
-                    <a class="nav-link" href="/">
-                      [[ template "icon-feather-database" ]]
-                      Services
-                    </a>
-                  </li>
-                [[ end ]]
               </ul>
             </div>
           </nav>
