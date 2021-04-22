@@ -50,6 +50,11 @@
             <a class="nav-link dropdown-toggle" href="" id="orgDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Organization: None</a>
             [[ end ]]
           </li>
+          <li>
+            <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#newOrgModal">
+              <i class="icon-button">[[ template "icon-plus-rectangle" ]]</i>
+            </button>
+          </li>
         </ul>
         <ul class="navbar-nav">
           [[ if eq .request.URL.Path "/info" ]]
@@ -105,12 +110,15 @@
       </div>
     </footer>
 
+    [[template "new-org-modal"]]
+
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->
     <script src="/assets/js/vendor/jquery-3.5.1.min.js"></script>
     <script src="/assets/js/vendor/popper.min.js"></script>
     <script src="/assets/js/vendor/bootstrap.min.js"></script>
     <script src="/assets/js/vendor/vue.js"></script>
+    <script type="module" src="/assets/js/modals.js"></script>
     [[template "page-javascript" .]]
 </body>
 </html>
