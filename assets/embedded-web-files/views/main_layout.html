@@ -41,7 +41,7 @@
             <a class="nav-link dropdown-toggle" href="" id="orgDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Organization: [[ .currentOrg ]]</a>
             <div class="dropdown-menu" aria-labelledby="orgDropdown">
               [[ range $index, $org := .orgs ]]
-              <a class="dropdown-item" href="#">[[ $org ]]</a>
+              <a class="dropdown-item" href="/orgs/target/[[ $org ]]">[[ $org ]]</a>
               [[ end ]]
             </div>
             [[ else ]]

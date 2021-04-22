@@ -6,7 +6,8 @@ class Applications {
       fetchApplications() {
         var that = this
         // TODO: Hardcoded org!
-        $.get("/api/v1/orgs/workspace/applications", function(data) {
+        var org = this.getOrg();
+        $.get("/api/v1/orgs/"+org+"/applications", function(data) {
           that.applications = data;
         }).fail(function() {
           console.log("failed to fetch applications");
@@ -15,6 +16,21 @@ class Applications {
       poll() {
         this.fetchApplications();
         setInterval(this.fetchApplications, 5000);
+      },
+      getOrg() {
+        var name = "currentOrg";
+        var decodedCookie = decodeURIComponent(document.cookie);
+        var ca = decodedCookie.split(';');
+        for(var i = 0; i <ca.length; i++) {
+          var c = ca[i];
+          while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+          }
+          if (c.indexOf(name) == 0) {
+            return c.substring(name.length+1, c.length);
+          }
+        }
+        return "";
       }
     }
   } 

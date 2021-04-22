@@ -8,12 +8,23 @@ import (
 	"path"
 	"time"
 
-	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/filesystem"
 )
 
 type ApplicationsController struct {
+}
+
+func setCurrentOrgInCookie(org, cookieName string, w http.ResponseWriter) error {
+	cookie := http.Cookie{
+		Name:    cookieName,
+		Value:   org,
+		Path:    "/",
+		Expires: time.Now().Add(365 * 24 * time.Hour),
+	}
+	http.SetCookie(w, &cookie)
+
+	return nil
 }
 
 // getOrgs tries to decide what the current organization is.
@@ -29,53 +40,50 @@ func getOrgs(w http.ResponseWriter, r *http.Request) (string, []string, error) {
 		return "", []string{}, err
 	}
 
-	orgs, _, err := gitea.Client.AdminListOrgs(giteaSDK.AdminListOrgsOptions{})
+	orgNames, err := gitea.OrgNames()
 	if err != nil {
 		return "", []string{}, err
 	}
-	if len(orgs) == 0 {
+	if len(orgNames) == 0 {
 		return "", []string{}, nil
 	}
 
-	otherOrgs := func(current string, orgs []*giteaSDK.Organization) []string {
-		orgNames := []string{}
-		for _, org := range orgs {
-			if org.UserName != current {
-				orgNames = append(orgNames, org.UserName)
+	otherOrgs := func(current string, orgNames []string) []string {
+		otherOrgs := []string{}
+		for _, org := range orgNames {
+			if org != current {
+				otherOrgs = append(otherOrgs, org)
 			}
 		}
-		return orgNames
+		return otherOrgs
 	}
 
 	cookie, err := r.Cookie("currentOrg")
 	if err != nil {
 		// There was no cookie, let's create one
 		if err == http.ErrNoCookie {
-			currentOrg := orgs[0].UserName
-			restOrgs := otherOrgs(currentOrg, orgs)
-			expiration := time.Now().Add(365 * 24 * time.Hour)
-			cookie := http.Cookie{Name: "currentOrg", Value: currentOrg, Expires: expiration}
-			http.SetCookie(w, &cookie)
+			currentOrg := orgNames[0]
+			restOrgs := otherOrgs(currentOrg, orgNames)
+			setCurrentOrgInCookie(currentOrg, "currentOrg", w)
 			return currentOrg, restOrgs, nil
 		} else {
 			return "", []string{}, err
 		}
 	}
-	orgExists := func(cookieOrg string, orgs []*giteaSDK.Organization) bool {
-		for _, org := range orgs {
-			if org.UserName == cookieOrg {
+	orgExists := func(cookieOrg string, orgNames []string) bool {
+		for _, org := range orgNames {
+			if org == cookieOrg {
 				return true
 			}
 		}
 		return false
-	}(cookie.Value, orgs)
+	}(cookie.Value, orgNames)
 
 	// If the cookie org no longer exists, set currentOrg to the first existing one.
 	if !orgExists {
-		cookie.Value = orgs[0].UserName
-		http.SetCookie(w, cookie)
+		setCurrentOrgInCookie(orgNames[0], "currentOrg", w)
 	}
-	restOrgs := otherOrgs(cookie.Value, orgs)
+	restOrgs := otherOrgs(cookie.Value, orgNames)
 
 	return cookie.Value, restOrgs, nil
 }
