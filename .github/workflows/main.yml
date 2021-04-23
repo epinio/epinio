@@ -50,4 +50,4 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          GINKGO_NODES=4 make test-acceptance
+          GINKGO_NODES=8 make test-acceptance
