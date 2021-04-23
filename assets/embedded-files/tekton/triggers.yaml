@@ -18,7 +18,7 @@ spec:
     - apiVersion: tekton.dev/v1beta1
       kind: PipelineRun
       metadata:
-        name: staging-pipeline-run-$(tt.params.appname)-$(uid)
+        name: staging-$(uid)
         namespace: epinio-workloads
       spec:
         serviceAccountName: staging-triggers-admin
