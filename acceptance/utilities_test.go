@@ -52,16 +52,16 @@ func setupAndTargetOrg(org string) {
 
 	By("targeting an org")
 
-	out, err = Epinio("target "+org, "")
+	out, err = Epinio(fmt.Sprintf("target %s", org), nodeTmpDir)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	out, err = Epinio("target", "")
+	out, err = Epinio("target", nodeTmpDir)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted organization: " + org))
 }
 
 func setupInClusterServices() {
-	out, err := Epinio("enable services-incluster", "")
+	out, err := RunProc("../dist/epinio-linux-amd64 enable services-incluster", "", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// Wait until classes appear

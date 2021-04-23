@@ -17,8 +17,6 @@ var _ = Describe("Services API Application Endpoints", func() {
 	var svc1, svc2 string
 
 	BeforeEach(func() {
-		setupInClusterServices()
-
 		org = newOrgName()
 		setupAndTargetOrg(org)
 
