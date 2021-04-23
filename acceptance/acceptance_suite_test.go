@@ -54,9 +54,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	buildEpinio()
 	fmt.Println("Ensuring a docker network")
 	out, err := ensureRegistryNetwork()
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	out, err = ensureRegistryMirror()
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
@@ -73,14 +73,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	k3dClusterName = fmt.Sprintf("epinio-acceptance-%s", nodeSuffix)
 
 	out, err := copyEpinio()
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	fmt.Printf("Ensuring a cluster for node %d\n", config.GinkgoConfig.ParallelNode)
 	ensureCluster()
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
 
-	out, err = waitUntilClusterNodeReady()
-	Expect(err).ToNot(HaveOccurred(), out)
+	EventuallyWithOffset(1, func() error {
+		out, err = waitUntilClusterNodeReady()
+		return err
+	}, "3m").ShouldNot(HaveOccurred(), out)
 
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
@@ -97,12 +99,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Allow the installation to continue
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	out, err = installEpinio()
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	os.Setenv("EPINIO_BINARY_PATH", path.Join(nodeTmpDir, "epinio"))
 	// Patch Epinio deployment to inject the current binary
 	out, err = RunProc("make patch-epinio-deployment", "..", false)
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// Now create the default org which we skipped because it would fail before
 	// patching.
@@ -117,17 +119,17 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}, "1m").ShouldNot(HaveOccurred())
 
 	out, err = Epinio("target workspace", nodeTmpDir)
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = RunProc("kubectl get ingress -n epinio epinio -o=jsonpath='{.spec.rules[0].host}'", "..", false)
-	Expect(err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	serverURL = "http://" + out
 })
 
 var _ = SynchronizedAfterSuite(func() {
 	err := uninstallCluster()
-	Expect(err).NotTo(HaveOccurred())
+	ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
 	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
 	deleteTmpDir()
@@ -229,7 +231,7 @@ func ensureCluster() {
 func waitUntilClusterNodeReady() (string, error) {
 	nodeName, err := RunProc("kubectl get nodes -o name", nodeTmpDir, false)
 	if err != nil {
-		return "", err
+		return nodeName, err
 	}
 
 	return RunProc("kubectl wait --for=condition=Ready "+nodeName, nodeTmpDir, false)
