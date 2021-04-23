@@ -128,14 +128,14 @@ spec:
           image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:
-              path: /
+              path: /api/v1/info
               port: 80
           name: epinio-server
           ports:
             - containerPort: 80
           readinessProbe:
             httpGet:
-              path: /
+              path: /api/v1/info
               port: 80
       # securityContext:
       #   runAsNonRoot: true
