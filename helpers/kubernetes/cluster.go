@@ -204,7 +204,7 @@ func (c *Cluster) WaitForCRD(ui *termui.UI, CRDName string, timeout time.Duratio
 			return false, err
 		}
 
-		_, err = clientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(context.Background(), CRDName, metav1.GetOptions{})
+		_, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), CRDName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return false, nil

@@ -30,10 +30,10 @@ type Tekton struct {
 const (
 	TektonDeploymentID            = "tekton"
 	tektonNamespace               = "tekton-pipelines"
-	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.19.0.yaml"
-	tektonDashboardYamlPath       = "tekton/dashboard-v0.11.1.yaml"
+	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.23.0.yaml"
+	tektonDashboardYamlPath       = "tekton/dashboard-v0.15.0.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
-	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.11.1.yaml"
+	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.12.1.yaml"
 	tektonTriggersYamlPath        = "tekton/triggers.yaml"
 	tektonStagingYamlPath         = "tekton/staging.yaml"
 )

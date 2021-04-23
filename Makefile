@@ -81,9 +81,9 @@ update_google_service_broker:
 
 update_tekton:
 	mkdir -p assets/embedded-files/tekton
-	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.19.0/release.yaml -O assets/embedded-files/tekton/pipeline-v0.19.0.yaml
-	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.11.1/release.yaml -O assets/embedded-files/tekton/triggers-v0.11.1.yaml
-	wget https://github.com/tektoncd/dashboard/releases/download/v0.11.1/tekton-dashboard-release.yaml -O assets/embedded-files/tekton/dashboard-v0.11.1.yaml
+	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.23.0/release.yaml -O assets/embedded-files/tekton/pipeline-v0.23.0.yaml
+	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.12.1/release.yaml -O assets/embedded-files/tekton/triggers-v0.12.1.yaml
+	wget https://github.com/tektoncd/dashboard/releases/download/v0.15.0/tekton-dashboard-release.yaml -O assets/embedded-files/tekton/dashboard-v0.15.0.yaml
 
 embed_files: getstatik
 	statik -m -f -src=./assets/embedded-files -dest assets
