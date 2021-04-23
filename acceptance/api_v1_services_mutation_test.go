@@ -252,7 +252,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				// which simply checks for presence.
 				Eventually(func() string {
 					out, err := Epinio("service show "+service, "")
-					Expect(err).ToNot(HaveOccurred(), out)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
 				}, "5m").Should(MatchRegexp(`Status .*\|.* Provisioned`))
 			})
