@@ -12,7 +12,6 @@ var _ = Describe("Catalog Services", func() {
 		org = newOrgName()
 		serviceName = newServiceName()
 		setupAndTargetOrg(org)
-		setupInClusterServices()
 	})
 
 	Describe("service create", func() {

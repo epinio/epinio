@@ -10,7 +10,6 @@ var _ = Describe("Service Classes, and Plans", func() {
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
-		setupInClusterServices()
 	})
 
 	Describe("service list-classes", func() {

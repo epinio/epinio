@@ -116,7 +116,7 @@ var _ = Describe("Wordpress", func() {
 		}
 		Eventually(func() int {
 			resp, err := client.Do(request)
-			Expect(err).ToNot(HaveOccurred())
+			ExpectWithOffset(1, err).ToNot(HaveOccurred())
 			resp.Body.Close() // https://golang.org/pkg/net/http/#Client.Do
 
 			return resp.StatusCode

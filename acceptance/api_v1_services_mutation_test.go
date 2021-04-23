@@ -16,7 +16,6 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
-		setupInClusterServices()
 	})
 
 	Describe("POST api/v1/orgs/:org/services/", func() {

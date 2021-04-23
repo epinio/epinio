@@ -13,10 +13,6 @@ import (
 )
 
 var _ = Describe("ServicePlans API Application Endpoints", func() {
-	BeforeEach(func() {
-		setupInClusterServices()
-	})
-
 	Describe("GET /api/v1/serviceclasses/:serviceclass/serviceplans", func() {
 		var servicePlanNames []string
 		var servicePlanDescs []string
