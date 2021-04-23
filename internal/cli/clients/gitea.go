@@ -172,3 +172,8 @@ func (c *GiteaClient) OrgExists(org string) (bool, error) {
 
 	return true, nil
 }
+
+func (c *GiteaClient) CreateOrg(org string) error {
+	_, _, err := c.Client.CreateOrg(gitea.CreateOrgOption{Name: org})
+	return err
+}

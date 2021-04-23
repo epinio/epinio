@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	giteaSDK "code.gitea.io/sdk/gitea"
+	backoff "github.com/cenkalti/backoff/v4"
 	"github.com/epinio/epinio/internal/cli/clients"
 )
 
@@ -78,9 +79,7 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 	}
 
 	// TODO: Wrap CreateOrg into a local gitea client method (See OrgExists)
-	_, _, err = gitea.Client.CreateOrg(giteaSDK.CreateOrgOption{
-		Name: org,
-	})
+	err = backoff.Retry(func() { gitea.CreateOrg(org) }, backoff.NewExponentialBackOff())
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
