@@ -36,6 +36,7 @@ const (
 	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.12.1.yaml"
 	tektonTriggersYamlPath        = "tekton/triggers.yaml"
 	tektonStagingYamlPath         = "tekton/staging.yaml"
+	tektonEventListenerYamlPath   = "tekton/event-listener.yaml"
 )
 
 func (k *Tekton) ID() string {
@@ -170,6 +171,29 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath)
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Waiting for TriggerBinding to be there"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return helpers.ExecToSuccessWithTimeout(
+				func() (string, error) {
+					return helpers.Kubectl("get triggerbinding -n epinio-workloads staging-pipelinebinding")
+				}, k.Timeout, duration.PollInterval())
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	message = "Installing tekton event listener"
+	out, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return helpers.KubectlApplyEmbeddedYaml(tektonEventListenerYamlPath)
 		},
 	)
 	if err != nil {
