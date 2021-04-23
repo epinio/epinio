@@ -79,6 +79,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	ensureCluster()
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
 
+	fmt.Println("Waiting for kubernetes node to be ready")
 	EventuallyWithOffset(1, func() error {
 		out, err = waitUntilClusterNodeReady()
 		return err
@@ -229,12 +230,12 @@ func ensureCluster() {
 }
 
 func waitUntilClusterNodeReady() (string, error) {
-	nodeName, err := RunProc("kubectl get nodes -o name", nodeTmpDir, false)
+	nodeName, err := RunProc("kubectl get nodes -o name", nodeTmpDir, true)
 	if err != nil {
 		return nodeName, err
 	}
 
-	return RunProc("kubectl wait --for=condition=Ready "+nodeName, nodeTmpDir, false)
+	return RunProc("kubectl wait --for=condition=Ready "+nodeName, nodeTmpDir, true)
 }
 
 func deleteCluster() {
