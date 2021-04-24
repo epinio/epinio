@@ -101,6 +101,10 @@ func (k Minibroker) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernet
 		action = "upgrade"
 	}
 
+	if err := c.CreateLabeledNamespace(MinibrokerDeploymentID); err != nil {
+		return err
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -112,15 +116,11 @@ func (k Minibroker) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernet
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s %s", action, MinibrokerDeploymentID, MinibrokerDeploymentID, tarPath)
+	helmCmd := fmt.Sprintf("helm %s %s --namespace %s %s", action, MinibrokerDeploymentID, MinibrokerDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Minibroker: " + out)
 	}
 
-	err = c.LabelNamespace(MinibrokerDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
-	}
 	if err := c.WaitUntilPodBySelectorExist(ui, MinibrokerDeploymentID, "app=minibroker-minibroker", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Minibroker to come up")
 	}

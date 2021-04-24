@@ -624,3 +624,20 @@ func (c *Cluster) DeleteNamespace(namespace string) error {
 	}
 	return nil
 }
+
+func (c *Cluster) CreateLabeledNamespace(name string) error {
+	_, err := c.Kubectl.CoreV1().Namespaces().Create(
+		context.Background(),
+		&v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+				Labels: map[string]string{
+					EpinioDeploymentLabelKey: EpinioDeploymentLabelValue,
+				},
+			},
+		},
+		metav1.CreateOptions{},
+	)
+
+	return err
+}

@@ -103,6 +103,10 @@ func (k GoogleServices) apply(c *kubernetes.Cluster, ui *termui.UI, options kube
 		action = "upgrade"
 	}
 
+	if err := c.CreateLabeledNamespace(GoogleServicesDeploymentID); err != nil {
+		return err
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -140,14 +144,9 @@ broker:
 		return err
 	}
 
-	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s --values %s %s", action, GoogleServicesDeploymentID, GoogleServicesDeploymentID, valuesYamlPath, tarPath)
+	helmCmd := fmt.Sprintf("helm %s %s --namespace %s --values %s %s", action, GoogleServicesDeploymentID, GoogleServicesDeploymentID, valuesYamlPath, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing GoogleServices: " + out)
-	}
-
-	err = c.LabelNamespace(GoogleServicesDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
 	}
 
 	if err := c.WaitUntilPodBySelectorExist(ui, GoogleServicesDeploymentID, "app=google-service-broker-mysql", k.Timeout); err != nil {

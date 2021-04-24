@@ -14,7 +14,6 @@ import (
 	"github.com/epinio/epinio/internal/version"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -26,10 +25,8 @@ type Epinio struct {
 }
 
 const (
-	EpinioDeploymentID  = "epinio"
-	epinioBinaryPVCYaml = "epinio/binary-pvc.yaml"
-	epinioCopierPodYaml = "epinio/copier-pod.yaml"
-	epinioServerYaml    = "epinio/server.yaml"
+	EpinioDeploymentID = "epinio"
+	epinioServerYaml   = "epinio/server.yaml"
 )
 
 func (k *Epinio) ID() string {
@@ -84,7 +81,7 @@ func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 }
 
 func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-	if err := k.createEpinioNamespace(c, ui); err != nil {
+	if err := c.CreateLabeledNamespace(EpinioDeploymentID); err != nil {
 		return err
 	}
 
@@ -162,23 +159,6 @@ func (k Epinio) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 	ui.Note().Msg("Upgrading Epinio...")
 
 	return k.apply(c, ui, options, true)
-}
-
-func (k Epinio) createEpinioNamespace(c *kubernetes.Cluster, ui *termui.UI) error {
-	_, err := c.Kubectl.CoreV1().Namespaces().Create(
-		context.Background(),
-		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: EpinioDeploymentID,
-				Labels: map[string]string{
-					kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-				},
-			},
-		},
-		metav1.CreateOptions{},
-	)
-
-	return err
 }
 
 // Replaces ##current_epinio_version## with version.Version and applies the embedded yaml

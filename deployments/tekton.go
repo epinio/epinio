@@ -98,10 +98,9 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 
 func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 
-	// action := "install"
-	// if upgrade {
-	// 	action = "upgrade"
-	// }
+	if err := c.CreateLabeledNamespace(tektonNamespace); err != nil {
+		return err
+	}
 
 	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonPipelineReleaseYamlPath); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
@@ -111,11 +110,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	}
 	if out, err := helpers.KubectlApplyEmbeddedYaml(tektonAdminRoleYamlPath); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
-	}
-
-	err := c.LabelNamespace(tektonNamespace, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
 	}
 
 	kTimeout := strconv.Itoa(int(k.Timeout.Seconds()))

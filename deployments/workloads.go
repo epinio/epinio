@@ -90,7 +90,17 @@ func (w Workloads) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 }
 
 func (w Workloads) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
-	if err := w.createWorkloadsNamespace(c, ui); err != nil {
+	if err := c.CreateLabeledNamespace(WorkloadsDeploymentID); err != nil {
+		return err
+	}
+
+	if err := w.createGiteaCredsSecret(c); err != nil {
+		return err
+	}
+	if err := w.createClusterRegistryCredsSecret(c); err != nil {
+		return err
+	}
+	if err := w.createWorkloadsServiceAccountWithSecretAccess(c); err != nil {
 		return err
 	}
 
@@ -177,19 +187,6 @@ func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *termui.UI
 		metav1.CreateOptions{},
 	); err != nil {
 		return nil
-	}
-
-	if err := c.LabelNamespace(WorkloadsDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue); err != nil {
-		return err
-	}
-	if err := w.createGiteaCredsSecret(c); err != nil {
-		return err
-	}
-	if err := w.createClusterRegistryCredsSecret(c); err != nil {
-		return err
-	}
-	if err := w.createWorkloadsServiceAccountWithSecretAccess(c); err != nil {
-		return err
 	}
 
 	return nil
