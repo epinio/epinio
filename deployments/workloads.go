@@ -93,6 +93,9 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 	if err := c.CreateLabeledNamespace(WorkloadsDeploymentID); err != nil {
 		return err
 	}
+	if err := c.LabelNamespace(WorkloadsDeploymentID, "quarks.cloudfoundry.org/monitored", "quarks-secret"); err != nil {
+		return err
+	}
 
 	if err := w.createGiteaCredsSecret(c); err != nil {
 		return err
@@ -177,26 +180,6 @@ func (k Workloads) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernet
 
 func (k Workloads) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	// NOTE: Not implemented yet
-	return nil
-}
-
-func (w Workloads) createWorkloadsNamespace(c *kubernetes.Cluster, ui *termui.UI) error {
-	if _, err := c.Kubectl.CoreV1().Namespaces().Create(
-		context.Background(),
-		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: WorkloadsDeploymentID,
-				Labels: map[string]string{
-					"quarks.cloudfoundry.org/monitored": "quarks-secret",
-					kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-				},
-			},
-		},
-		metav1.CreateOptions{},
-	); err != nil {
-		return nil
-	}
-
 	return nil
 }
 
