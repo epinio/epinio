@@ -327,7 +327,7 @@ func (w Workloads) deleteCACertificate(c *kubernetes.Cluster) error {
 		Delete(context.Background(),
 			"generate-ca-certificate",
 			metav1.DeleteOptions{})
-	if err != nil {
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
