@@ -96,6 +96,10 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.In
 		action = "upgrade"
 	}
 
+	if err := c.CreateLabeledNamespace(GiteaDeploymentID); err != nil {
+		return err
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -162,14 +166,10 @@ gitea:
 	}
 	defer os.Remove(configPath)
 
-	helmCmd := fmt.Sprintf("helm %s gitea --create-namespace --values %s --namespace %s %s %s", action, configPath, GiteaDeploymentID, giteaChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s gitea --values %s --namespace %s %s %s", action, configPath, GiteaDeploymentID, giteaChartURL, strings.Join(helmArgs, " "))
 
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Gitea: " + out)
-	}
-	err = c.LabelNamespace(GiteaDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
 	}
 
 	for _, podname := range []string{

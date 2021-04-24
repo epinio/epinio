@@ -96,6 +96,10 @@ func (k ServiceCatalog) apply(c *kubernetes.Cluster, ui *termui.UI, options kube
 		action = "upgrade"
 	}
 
+	if err := c.CreateLabeledNamespace(ServiceCatalogDeploymentID); err != nil {
+		return err
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -107,15 +111,11 @@ func (k ServiceCatalog) apply(c *kubernetes.Cluster, ui *termui.UI, options kube
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --create-namespace --namespace %s %s", action, ServiceCatalogDeploymentID, ServiceCatalogDeploymentID, tarPath)
+	helmCmd := fmt.Sprintf("helm %s %s --namespace %s %s", action, ServiceCatalogDeploymentID, ServiceCatalogDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing ServiceCatalog: " + out)
 	}
 
-	err = c.LabelNamespace(ServiceCatalogDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
-	}
 	if err := c.WaitUntilPodBySelectorExist(ui, ServiceCatalogDeploymentID, "app=service-catalog-catalog-controller-manager", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting ServiceCatalog controller manager to come up")
 	}

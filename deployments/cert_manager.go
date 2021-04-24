@@ -142,11 +142,15 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 		return err
 	}
 
+	if err := c.CreateLabeledNamespace(CertManagerDeploymentID); err != nil {
+		return err
+	}
+
 	// Setup CertManager helm values
 	var helmArgs []string
 
 	helmArgs = append(helmArgs, `--set installCRDs=true`)
-	helmCmd := fmt.Sprintf("helm %s cert-manager --create-namespace --namespace %s %s %s", action, CertManagerDeploymentID, certManagerChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s cert-manager --namespace %s %s %s", action, CertManagerDeploymentID, certManagerChartURL, strings.Join(helmArgs, " "))
 
 	if out, err := helpers.RunProc(helmCmd, currentdir, cm.Debug); err != nil {
 		return errors.New("Failed installing CertManager: " + out)
@@ -163,11 +167,6 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 		if err := c.WaitForPodBySelectorRunning(ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to come up")
 		}
-	}
-
-	err = c.LabelNamespace(CertManagerDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
 	}
 
 	emailAddress, err := options.GetOpt("email_address", "")

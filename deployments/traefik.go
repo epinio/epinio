@@ -96,6 +96,10 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 		action = "upgrade"
 	}
 
+	if err := c.CreateLabeledNamespace(TraefikDeploymentID); err != nil {
+		return err
+	}
+
 	currentdir, err := os.Getwd()
 	if err != nil {
 		return err
@@ -109,14 +113,9 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 	// Overwrite globalArguments until https://github.com/traefik/traefik-helm-chart/issues/357 is fixed
 	helmArgs = append(helmArgs, `--set "globalArguments="`)
 
-	helmCmd := fmt.Sprintf("helm %s traefik --create-namespace --namespace %s %s %s", action, TraefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s traefik --namespace %s %s %s", action, TraefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Traefik: %s\n", out))
-	}
-
-	err = c.LabelNamespace(TraefikDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
 	}
 
 	if err := c.WaitUntilPodBySelectorExist(ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {

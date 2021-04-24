@@ -109,6 +109,10 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		action = "upgrade"
 	}
 
+	if err := c.CreateLabeledNamespace(QuarksDeploymentID); err != nil {
+		return err
+	}
+
 	currentdir, _ := os.Getwd()
 
 	// Setup Quarks helm values
@@ -118,7 +122,7 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 
 	helmArgs = append(helmArgs, "--set global.monitoredID=quarks-secret")
 
-	helmCmd := fmt.Sprintf("helm %s quarks --create-namespace --namespace %s %s %s", action, QuarksDeploymentID, quarksChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s quarks --namespace %s %s %s", action, QuarksDeploymentID, quarksChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Quarks:\n%s\nReturning\n%s", helmCmd, out))
 	}
@@ -128,11 +132,6 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	}
 	if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
-	}
-
-	err := c.LabelNamespace(QuarksDeploymentID, kubernetes.EpinioDeploymentLabelKey, kubernetes.EpinioDeploymentLabelValue)
-	if err != nil {
-		return err
 	}
 
 	ui.Success().Msg("Quarks deployed")
