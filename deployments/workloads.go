@@ -121,6 +121,14 @@ func (w Workloads) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
+	// Wait until quarks is ready because we need it to create the secret
+	if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name=quarks-secret", w.Timeout); err != nil {
+		return errors.Wrap(err, "Epinio-workloads failed waiting Quarks quarks-secret deployment to exist")
+	}
+	if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name=quarks-secret", w.Timeout); err != nil {
+		return errors.Wrap(err, "Epinio-workloads failed waiting Quarks quarks-secret deployment to come up")
+	}
+
 	if err := w.createCACertificate(c, domain); err != nil {
 		return err
 	}
