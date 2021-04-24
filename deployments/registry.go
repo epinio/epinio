@@ -107,6 +107,14 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 		return err
 	}
 
+	// Wait until quarks is ready because we need it to create the secret
+	if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+		return errors.Wrap(err, "Epinio-workloads failed waiting Quarks quarks-secret deployment to exist")
+	}
+	if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+		return errors.Wrap(err, "Epinio-workloads failed waiting Quarks quarks-secret deployment to come up")
+	}
+
 	tarPath, err := helpers.ExtractFile(registryChartFile)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tarPath + " - " + err.Error())

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
@@ -118,6 +119,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 
 	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
 
+	installationWg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
@@ -128,10 +130,17 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
 	} {
-		if err := c.InstallDeployment(deployment, details); err != nil {
-			return err
-		}
+		installationWg.Add(1)
+		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
+			defer wg.Done()
+			if err := c.InstallDeployment(deployment, details); err != nil {
+				panic(fmt.Sprintf("Deployment %s failed with error: %s\n", deployment.ID(), err.Error()))
+			}
+		}(deployment, installationWg)
 	}
+
+	fmt.Println("Waiting for the thing")
+	installationWg.Wait()
 
 	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("Epinio installed.")
 
