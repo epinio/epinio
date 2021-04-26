@@ -9,7 +9,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
 )
@@ -27,12 +27,7 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -90,12 +85,7 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -110,7 +100,7 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	appsOf, err := servicesToApps(cluster, gitea, org)
+	appsOf, err := servicesToApps(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -168,23 +158,18 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
+	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if !exists {
 		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
 			http.StatusNotFound)
-		return
-	}
-
-	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
@@ -220,6 +205,11 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
+	cluster, err := kubernetes.GetCluster()
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if handleError(w, err, http.StatusInternalServerError) {
@@ -250,23 +240,13 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if !exists {
 		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
 			http.StatusNotFound)
-		return
-	}
-
-	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
@@ -353,12 +333,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -385,7 +360,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 
 	deleteResponse := models.DeleteResponse{}
 
-	appsOf, err := servicesToApps(cluster, gitea, org)
+	appsOf, err := servicesToApps(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -432,14 +407,14 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func servicesToApps(cluster *kubernetes.Cluster, gitea *clients.GiteaClient, org string) (map[string]application.ApplicationList, error) {
+func servicesToApps(cluster *kubernetes.Cluster, org string) (map[string]application.ApplicationList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
 	var appsOf = map[string]application.ApplicationList{}
 
-	apps, err := application.List(cluster, gitea.Client, org)
+	apps, err := application.List(cluster, org)
 	if err != nil {
 		return nil, err
 	}

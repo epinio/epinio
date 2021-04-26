@@ -8,8 +8,9 @@ import (
 	"path"
 	"time"
 
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/filesystem"
+	"github.com/epinio/epinio/internal/organizations"
 )
 
 type ApplicationsController struct {
@@ -35,24 +36,24 @@ func setCurrentOrgInCookie(org, cookieName string, w http.ResponseWriter) error 
 // updated. If no orgs exist, then an empty string is returned as the org name.
 // The function also returns the rest of the available orgs.
 func getOrgs(w http.ResponseWriter, r *http.Request) (string, []string, error) {
-	gitea, err := clients.GetGiteaClient()
+	cluster, err := kubernetes.GetCluster()
 	if err != nil {
 		return "", []string{}, err
 	}
 
-	orgNames, err := gitea.OrgNames()
+	orgs, err := organizations.List(cluster)
 	if err != nil {
 		return "", []string{}, err
 	}
-	if len(orgNames) == 0 {
+	if len(orgs) == 0 {
 		return "", []string{}, nil
 	}
 
-	otherOrgs := func(current string, orgNames []string) []string {
+	otherOrgs := func(current string, orgs []organizations.Organization) []string {
 		otherOrgs := []string{}
-		for _, org := range orgNames {
-			if org != current {
-				otherOrgs = append(otherOrgs, org)
+		for _, org := range orgs {
+			if org.Name != current {
+				otherOrgs = append(otherOrgs, org.Name)
 			}
 		}
 		return otherOrgs
@@ -62,28 +63,28 @@ func getOrgs(w http.ResponseWriter, r *http.Request) (string, []string, error) {
 	if err != nil {
 		// There was no cookie, let's create one
 		if err == http.ErrNoCookie {
-			currentOrg := orgNames[0]
-			restOrgs := otherOrgs(currentOrg, orgNames)
+			currentOrg := orgs[0].Name
+			restOrgs := otherOrgs(currentOrg, orgs)
 			setCurrentOrgInCookie(currentOrg, "currentOrg", w)
 			return currentOrg, restOrgs, nil
 		} else {
 			return "", []string{}, err
 		}
 	}
-	orgExists := func(cookieOrg string, orgNames []string) bool {
-		for _, org := range orgNames {
-			if org == cookieOrg {
+	orgExists := func(cookieOrg string, orgs []organizations.Organization) bool {
+		for _, org := range orgs {
+			if org.Name == cookieOrg {
 				return true
 			}
 		}
 		return false
-	}(cookie.Value, orgNames)
+	}(cookie.Value, orgs)
 
 	// If the cookie org no longer exists, set currentOrg to the first existing one.
 	if !orgExists {
-		setCurrentOrgInCookie(orgNames[0], "currentOrg", w)
+		setCurrentOrgInCookie(orgs[0].Name, "currentOrg", w)
 	}
-	restOrgs := otherOrgs(cookie.Value, orgNames)
+	restOrgs := otherOrgs(cookie.Value, orgs)
 
 	return cookie.Value, restOrgs, nil
 }

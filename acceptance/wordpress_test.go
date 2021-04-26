@@ -17,6 +17,7 @@ import (
 
 type WordpressApp struct {
 	Name      string
+	Org       string
 	Dir       string
 	SourceURL string
 }
@@ -69,8 +70,8 @@ extension=mysqli
 
 // Uri Finds the application ingress and returns the url to the app.
 func (w *WordpressApp) AppURL() (string, error) {
-	helpers.Kubectl(`get ingress  -n epinio-workloads --field-selector=metadata.name=` + w.Name + ` -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`)
-	host, err := helpers.Kubectl(`get ingress  -n epinio-workloads --field-selector=metadata.name=` + w.Name + ` -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`)
+	helpers.Kubectl(fmt.Sprintf(`get ingress  -n %s --field-selector=metadata.name=%s -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`, w.Org, w.Name))
+	host, err := helpers.Kubectl(fmt.Sprintf(`get ingress  -n %s --field-selector=metadata.name=%s -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`, w.Org, w.Name))
 	if err != nil {
 		return "", err
 	}
@@ -82,10 +83,14 @@ var _ = Describe("Wordpress", func() {
 	var wordpress WordpressApp
 
 	BeforeEach(func() {
+		org := newOrgName()
 		wordpress = WordpressApp{
 			SourceURL: "https://wordpress.org/wordpress-5.6.1.tar.gz",
 			Name:      newAppName(),
+			Org:       org,
 		}
+
+		setupAndTargetOrg(org)
 
 		err := wordpress.CreateDir()
 		Expect(err).ToNot(HaveOccurred())

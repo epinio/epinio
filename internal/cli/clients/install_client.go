@@ -18,7 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -123,7 +123,6 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
-		&deployments.Workloads{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
@@ -159,7 +158,6 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Minibroker{Timeout: duration.ToDeployment()},
 		&deployments.GoogleServices{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
-		&deployments.Workloads{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
@@ -173,8 +171,33 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		}
 	}
 
+	if err := c.DeleteWorkloads(c.ui); err != nil {
+		return err
+	}
+
 	c.ui.Success().Msg("Epinio uninstalled.")
 
+	return nil
+}
+
+func (c *InstallClient) DeleteWorkloads(ui *termui.UI) error {
+	var nsList *corev1.NamespaceList
+	var err error
+
+	nsList, err = c.kubeClient.Kubectl.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", kubernetes.EpinioOrgLabelKey, kubernetes.EpinioOrgLabelValue),
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, ns := range nsList.Items {
+		ui.Note().KeeplineUnder(1).Msg("Removing namespace" + ns.Name)
+		if err := c.kubeClient.Kubectl.CoreV1().Namespaces().
+			Delete(context.Background(), ns.Name, metav1.DeleteOptions{}); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

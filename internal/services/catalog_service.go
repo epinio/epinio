@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/interfaces"
@@ -276,7 +275,7 @@ func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.
 	}
 
 	serviceInstances, err := dynamicClient.Resource(serviceInstanceGVR).
-		Namespace(deployments.WorkloadsDeploymentID).
+		Namespace(org).
 		List(context.Background(),
 			metav1.ListOptions{
 				LabelSelector: labelSelector,
@@ -326,7 +325,7 @@ func CatalogServiceLookup(kubeClient *kubernetes.Cluster, org, service string) (
 		return nil, err
 	}
 
-	serviceInstance, err := dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+	serviceInstance, err := dynamicClient.Resource(serviceInstanceGVR).Namespace(org).
 		Get(context.Background(), instanceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -375,8 +374,7 @@ func CreateCatalogService(kubeClient *kubernetes.Cluster, name, org, class, plan
 			"clusterServiceClassExternalName": "%s",
 			"clusterServicePlanExternalName": "%s" },
 		"parameters": %s
-	}`, resourceName, deployments.WorkloadsDeploymentID,
-		name, org, class, plan, param)
+	}`, resourceName, org, name, org, class, plan, param)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -398,10 +396,8 @@ func CreateCatalogService(kubeClient *kubernetes.Cluster, name, org, class, plan
 
 	// todo validations - check service instance existence
 
-	_, err = dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
-		Create(context.Background(),
-			obj,
-			metav1.CreateOptions{})
+	_, err = dynamicClient.Resource(serviceInstanceGVR).Namespace(org).
+		Create(context.Background(), obj, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -431,7 +427,7 @@ func (s *CatalogService) GetBinding(appName string) (*corev1.Secret, error) {
 
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
 
-	binding, err := s.LookupBinding(bindingName)
+	binding, err := s.LookupBinding(bindingName, s.OrgName)
 	if err != nil {
 		return nil, err
 	}
@@ -442,12 +438,12 @@ func (s *CatalogService) GetBinding(appName string) (*corev1.Secret, error) {
 		}
 	}
 
-	return s.GetBindingSecret(bindingName)
+	return s.GetBindingSecret(bindingName, s.OrgName)
 }
 
 // LookupBinding finds a ServiceBinding object for the application with Name
 // appName if there is one.
-func (s *CatalogService) LookupBinding(bindingName string) (interface{}, error) {
+func (s *CatalogService) LookupBinding(bindingName, org string) (interface{}, error) {
 	serviceBindingGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -459,7 +455,7 @@ func (s *CatalogService) LookupBinding(bindingName string) (interface{}, error) 
 		return nil, err
 	}
 
-	serviceBinding, err := dynamicClient.Resource(serviceBindingGVR).Namespace(deployments.WorkloadsDeploymentID).
+	serviceBinding, err := dynamicClient.Resource(serviceBindingGVR).Namespace(org).
 		Get(context.Background(), bindingName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -493,7 +489,7 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 			"instanceRef": { "name": "%s" },
 			"secretName": "%s" 
 		}
-	}`, bindingName, deployments.WorkloadsDeploymentID, appName, org, serviceInstanceName, bindingName)
+	}`, bindingName, org, appName, org, serviceInstanceName, bindingName)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -513,14 +509,14 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 		return nil, err
 	}
 
-	serviceBinding, err := dynamicClient.Resource(serviceBindingGVR).Namespace(deployments.WorkloadsDeploymentID).
+	serviceBinding, err := dynamicClient.Resource(serviceBindingGVR).Namespace(org).
 		Create(context.Background(), obj, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Update the binding secret with kubernetes app labels
-	secret, err := s.GetBindingSecret(bindingName)
+	secret, err := s.GetBindingSecret(bindingName, org)
 	if err != nil {
 		return nil, err
 	}
@@ -535,7 +531,7 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 	labels["app.kubernetes.io/managed-by"] = "epinio"
 	secret.SetLabels(labels)
 
-	_, err = s.kubeClient.Kubectl.CoreV1().Secrets(deployments.WorkloadsDeploymentID).Update(context.Background(), secret, metav1.UpdateOptions{})
+	_, err = s.kubeClient.Kubectl.CoreV1().Secrets(org).Update(context.Background(), secret, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -545,14 +541,13 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 
 // GetBindingSecret returns the Secret that represents the binding of a Service
 // to an Application.
-func (s *CatalogService) GetBindingSecret(bindingName string) (*corev1.Secret, error) {
-	return s.kubeClient.WaitForSecret(deployments.WorkloadsDeploymentID, bindingName,
-		duration.ToServiceSecret())
+func (s *CatalogService) GetBindingSecret(bindingName, org string) (*corev1.Secret, error) {
+	return s.kubeClient.WaitForSecret(org, bindingName, duration.ToServiceSecret())
 }
 
 // DeleteBinding deletes the ServiceBinding resource. The relevant secret will
 // also be deleted automatically.
-func (s *CatalogService) DeleteBinding(appName string) error {
+func (s *CatalogService) DeleteBinding(appName, org string) error {
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
 
 	serviceBindingGVR := schema.GroupVersionResource{
@@ -566,7 +561,7 @@ func (s *CatalogService) DeleteBinding(appName string) error {
 		return err
 	}
 
-	return dynamicClient.Resource(serviceBindingGVR).Namespace(deployments.WorkloadsDeploymentID).
+	return dynamicClient.Resource(serviceBindingGVR).Namespace(org).
 		Delete(context.Background(), bindingName, metav1.DeleteOptions{})
 }
 
@@ -582,7 +577,7 @@ func (s *CatalogService) Delete() error {
 		return err
 	}
 
-	return dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+	return dynamicClient.Resource(serviceInstanceGVR).Namespace(s.OrgName).
 		Delete(context.Background(), s.InstanceName, metav1.DeleteOptions{})
 }
 
@@ -598,7 +593,7 @@ func (s *CatalogService) Status() (string, error) {
 		return "", err
 	}
 
-	serviceInstance, err := dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+	serviceInstance, err := dynamicClient.Resource(serviceInstanceGVR).Namespace(s.OrgName).
 		Get(context.Background(), s.InstanceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -626,7 +621,7 @@ func (s *CatalogService) WaitForProvision() error {
 		return err
 	}
 
-	namespace := dynamicClient.Resource(serviceInstanceGVR).Namespace(deployments.WorkloadsDeploymentID)
+	namespace := dynamicClient.Resource(serviceInstanceGVR).Namespace(s.OrgName)
 
 	return wait.PollImmediate(time.Second, duration.ToServiceProvision(), func() (bool, error) {
 		serviceInstance, err := namespace.Get(context.Background(), s.InstanceName, metav1.GetOptions{})

@@ -69,7 +69,7 @@ spec:
   type: certificate
   copies:
   - name: registry-tls
-    namespace: epinio-workloads
+    namespace: tekton-staging
 ---
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret
@@ -89,7 +89,7 @@ spec:
   type: certificate
   copies:
   - name: registry-tls-self-ca
-    namespace: epinio-workloads
+    namespace: tekton-staging
 ---
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret
@@ -116,7 +116,7 @@ spec:
   type: certificate
   copies:
   - name: registry-tls-self
-    namespace: epinio-workloads
+    namespace: tekton-staging
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -292,7 +292,7 @@ metadata:
   annotations:
     quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls
   name: registry-tls
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   type: copy
   secretName: registry-tls
@@ -305,7 +305,7 @@ metadata:
   annotations:
     quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls-self
   name: registry-tls-self
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   type: copy
   secretName: registry-tls-self
@@ -318,7 +318,7 @@ metadata:
   annotations:
     quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls-self-ca
   name: registry-tls-self-ca
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   type: copy
   secretName: registry-tls-self-ca
