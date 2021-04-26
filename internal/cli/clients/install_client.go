@@ -139,7 +139,6 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		}(deployment, installationWg)
 	}
 
-	fmt.Println("Waiting for the thing")
 	installationWg.Wait()
 
 	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("Epinio installed.")
