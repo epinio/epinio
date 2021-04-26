@@ -149,11 +149,11 @@ func bindAppService(appName, serviceName, org string) {
 }
 
 func verifyAppServiceBound(appName, serviceName, org string, offset int) {
-	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
+	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n %s %s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).To(MatchRegexp(serviceName))
 
-	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
+	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n %s %s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("/services/" + serviceName))
 }
@@ -215,11 +215,11 @@ func cleanUnbindAppService(appName, serviceName, org string) {
 }
 
 func verifyAppServiceNotbound(appName, serviceName, org string, offset int) {
-	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
+	out, err := helpers.Kubectl(fmt.Sprintf("get deployment -n %s %s -o=jsonpath='{.spec.template.spec.volumes}'", org, appName))
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp(serviceName))
 
-	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n epinio-workloads %s.%s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
+	out, err = helpers.Kubectl(fmt.Sprintf("get deployment -n %s %s -o=jsonpath='{.spec.template.spec.containers[0].volumeMounts}'", org, appName))
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp("/services/" + serviceName))
 }

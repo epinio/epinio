@@ -39,7 +39,6 @@ func Load() (*Config, error) {
 
 	v.SetDefault("gitea_namespace", "gitea")
 	v.SetDefault("gitea_protocol", "http")
-	v.SetDefault("epinio_workloads_namespace", "epinio-workloads")
 	v.SetDefault("epinio_protocol", "http")
 	v.SetDefault("org", "workspace")
 

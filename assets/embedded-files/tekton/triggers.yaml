@@ -2,7 +2,7 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerTemplate
 metadata:
   name: staging-triggertemplate
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   params:
     - name: gitrevision
@@ -19,7 +19,7 @@ spec:
       kind: PipelineRun
       metadata:
         name: staging-$(uid)
-        namespace: epinio-workloads
+        namespace: tekton-staging
       spec:
         serviceAccountName: staging-triggers-admin
         pipelineRef:
@@ -53,13 +53,13 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerBinding
 metadata:
   name: staging-pipelinebinding
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   params:
     - name: gitrevision
       value: $(body.head_commit.id)
     - name: namespace
-      value: epinio-workloads
+      value: tekton-staging
     - name: gitrepositoryurl
       value: "http://gitea-http.gitea:10080/$(body.repository.full_name)"
     - name: appname
@@ -69,7 +69,7 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: EventListener
 metadata:
   name: staging-listener
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   serviceAccountName: staging-triggers-admin
   triggers:
@@ -90,7 +90,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
   name: staging-pipeline
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   workspaces:
   - name: source
@@ -140,7 +140,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: clone
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   workspaces:
   - name: source
@@ -165,7 +165,7 @@ apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
   name: run
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   workspaces:
   - name: source
@@ -178,4 +178,4 @@ spec:
     args:
       - -c
       - |
-        kubectl apply -f ./.kube/*
+        kubectl apply -f ./.kube/

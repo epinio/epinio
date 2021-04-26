@@ -1,4 +1,4 @@
-// Package services package incapsulates all the functionality around Epinio services
+// Package services incapsulates all the functionality around Epinio services
 package services
 
 import (

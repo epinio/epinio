@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
 )
@@ -26,12 +26,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -41,7 +36,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	apps, err := application.List(cluster, gitea.Client, org)
+	apps, err := application.List(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -67,12 +62,7 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -82,7 +72,7 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	app, err := application.Lookup(cluster, gitea.Client, org, appName)
+	app, err := application.Lookup(cluster, org, appName)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -108,17 +98,17 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
 	gitea, err := clients.GetGiteaClient()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
-	exists, err := gitea.OrgExists(org)
+	cluster, err := kubernetes.GetCluster()
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -128,7 +118,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	app, err := application.Lookup(cluster, gitea.Client, org, appName)
+	app, err := application.Lookup(cluster, org, appName)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -152,7 +142,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	err = app.Delete()
+	err = app.Delete(gitea)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -162,9 +152,10 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	// this order. The pod being gone thus indicates command
 	// completion, and is therefore what we are waiting on below.
 
+	// TODO: Implement a WaitForDeletion on the Application
 	err = cluster.WaitForPodBySelectorMissing(nil,
-		deployments.WorkloadsDeploymentID,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, appName),
+		app.Organization,
+		fmt.Sprintf("app.kubernetes.io/name=%s", appName),
 		duration.ToDeployment())
 	if handleError(w, err, http.StatusInternalServerError) {
 		return

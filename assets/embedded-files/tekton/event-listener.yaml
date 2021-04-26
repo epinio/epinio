@@ -3,7 +3,7 @@ apiVersion: triggers.tekton.dev/v1alpha1
 kind: EventListener
 metadata:
   name: staging-listener
-  namespace: epinio-workloads
+  namespace: tekton-staging
 spec:
   serviceAccountName: staging-triggers-admin
   triggers:

@@ -47,7 +47,7 @@ var (
 
 	// StagingEventListenerURL should not exist
 	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-staging-listener." + deployments.WorkloadsDeploymentID + ":8080"
+	StagingEventListenerURL = "http://el-staging-listener." + deployments.TektonStagingNamespace + ":8080"
 )
 
 // EpinioClient provides functionality for talking to a
@@ -612,7 +612,7 @@ func (c *EpinioClient) AppsMatching(prefix string) []string {
 
 	result := []string{}
 
-	apps, err := application.List(c.KubeClient, c.GiteaClient.Client, c.Config.Org)
+	apps, err := application.List(c.KubeClient, c.Config.Org)
 	if err != nil {
 		return result
 	}
@@ -813,7 +813,7 @@ func (c *EpinioClient) Orgs() error {
 	c.ui.Note().Msg("Listing organizations")
 
 	details.Info("list organizations")
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/"), "GET", "")
+	jsonResponse, err := c.curl("api/v1/orgs/", "GET", "")
 	if err != nil {
 		return err
 	}
@@ -874,8 +874,11 @@ func (c *EpinioClient) Push(app string, path string) error {
 		return errors.Wrap(err, "webhook configuration failed")
 	}
 
+	details.Info("get app default route")
+	route := c.appDefaultRoute(app)
+
 	details.Info("prepare code")
-	tmpDir, err := c.prepareCode(app, c.Config.Org, path)
+	tmpDir, err := c.prepareCode(app, route, c.Config.Org, path)
 	if err != nil {
 		return errors.Wrap(err, "failed to prepare code")
 	}
@@ -904,7 +907,7 @@ func (c *EpinioClient) Push(app string, path string) error {
 	}
 
 	details.Info("start tailing logs")
-	stopFunc, err := c.logs(app)
+	stopFunc, err := c.logs(app, c.Config.Org)
 	if err != nil {
 		return errors.Wrap(err, "failed to tail logs")
 	}
@@ -915,9 +918,6 @@ func (c *EpinioClient) Push(app string, path string) error {
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
-
-	details.Info("get app default route")
-	route := c.appDefaultRoute(app)
 
 	c.ui.Success().
 		WithStringValue("Name", app).
@@ -989,7 +989,7 @@ func (c *EpinioClient) createProductionCertificate(appName, systemDomain string)
 				"kind" : "ClusterIssuer"
 			}
 		}
-    }`, c.Config.Org, appName, deployments.WorkloadsDeploymentID, appName, systemDomain, appName, appName, systemDomain)
+    }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, appName, systemDomain)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -1009,7 +1009,7 @@ func (c *EpinioClient) createProductionCertificate(appName, systemDomain string)
 		return err
 	}
 
-	_, err = dynamicClient.Resource(certificateInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+	_, err = dynamicClient.Resource(certificateInstanceGVR).Namespace(c.Config.Org).
 		Create(context.Background(),
 			obj,
 			metav1.CreateOptions{})
@@ -1050,7 +1050,7 @@ func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) erro
 			"secretName" : "%s-tls",
 			"type" : "tls"
 		}
-    }`, c.Config.Org, appName, deployments.WorkloadsDeploymentID, appName, systemDomain, appName, systemDomain, appName)
+    }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, systemDomain, appName)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -1075,7 +1075,7 @@ func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) erro
 		return err
 	}
 
-	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(c.Config.Org).
 		Create(context.Background(),
 			obj,
 			metav1.CreateOptions{})
@@ -1098,7 +1098,7 @@ func (c *EpinioClient) deleteLocalCertificate(appName string) error {
 		return err
 	}
 
-	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(c.Config.Org).
 		Delete(context.Background(),
 			fmt.Sprintf("%s.%s.generate-certificate", c.Config.Org, appName),
 			metav1.DeleteOptions{})
@@ -1121,7 +1121,7 @@ func (c *EpinioClient) deleteProductionCertificate(appName string) error {
 		return err
 	}
 
-	err = dynamicClient.Resource(certificateInstanceGVR).Namespace(deployments.WorkloadsDeploymentID).
+	err = dynamicClient.Resource(certificateInstanceGVR).Namespace(c.Config.Org).
 		Delete(context.Background(),
 			fmt.Sprintf("%s.%s.ssl-certificate", c.Config.Org, appName),
 			metav1.DeleteOptions{})
@@ -1129,7 +1129,7 @@ func (c *EpinioClient) deleteProductionCertificate(appName string) error {
 		return err
 	}
 
-	err = c.KubeClient.Kubectl.CoreV1().Secrets(deployments.WorkloadsDeploymentID).Delete(context.Background(), fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
+	err = c.KubeClient.Kubectl.CoreV1().Secrets(c.Config.Org).Delete(context.Background(), fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -1199,7 +1199,7 @@ func (c *EpinioClient) appDefaultRoute(name string) string {
 	return fmt.Sprintf("%s.%s", name, c.GiteaClient.Domain)
 }
 
-func (c *EpinioClient) prepareCode(name, org, appDir string) (tmpDir string, err error) {
+func (c *EpinioClient) prepareCode(name, route, org, appDir string) (tmpDir string, err error) {
 	c.ui.Normal().Msg("Preparing code ...")
 
 	tmpDir, err = ioutil.TempDir("", "epinio-app")
@@ -1217,14 +1217,29 @@ func (c *EpinioClient) prepareCode(name, org, appDir string) (tmpDir string, err
 		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
-	route := c.appDefaultRoute(name)
+	if err := c.renderDeployment(filepath.Join(tmpDir, ".kube", "app.yml"), name); err != nil {
+		return "", err
+	}
+	if err := c.renderService(filepath.Join(tmpDir, ".kube", "service.yml"), name); err != nil {
+		return "", err
+	}
+	if err := c.renderIngress(filepath.Join(tmpDir, ".kube", "ingress.yml"), name, route); err != nil {
+		return "", err
+	}
+
+	return
+}
+
+func (c *EpinioClient) renderDeployment(filePath, appName string) error {
+	route := c.appDefaultRoute(appName)
 
 	deploymentTmpl, err := template.New("deployment").Parse(`
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: "{{ .Org }}.{{ .AppName }}"
+  name: "{{ .AppName }}"
+  namespace: {{ .Org }}
   labels:
     app.kubernetes.io/name: "{{ .AppName }}"
     app.kubernetes.io/part-of: "{{ .Org }}"
@@ -1242,16 +1257,11 @@ spec:
         app.kubernetes.io/part-of: "{{ .Org }}"
         app.kubernetes.io/component: application
         app.kubernetes.io/managed-by: epinio
-        # Needed for the ingress extension to work:
-        cloudfoundry.org/guid:  "{{ .Org }}.{{ .AppName }}"
       annotations:
-        # Needed for the ingress extension to work:
-        cloudfoundry.org/routes: '[{ "hostname": "{{ .Route}}", "port": 8080 }]'
-        cloudfoundry.org/application_name:  "{{ .AppName }}"
-        # Needed for putting kubernetes generic labels on svc and ingress
-        eirinix.suse.org/CopyKubeGenericLabels: "true"
+        app.kubernetes.io/name: "{{ .AppName }}"
     spec:
-      serviceAccountName: ` + deployments.WorkloadsDeploymentID + `
+      # TODO: Do these when you create an org
+      serviceAccountName: {{ .Org }}
       automountServiceAccountToken: false
       containers:
       - name: "{{ .AppName }}"
@@ -1263,12 +1273,12 @@ spec:
           value: "8080"
   `)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to parse deployment template for app")
+		return errors.Wrap(err, "failed to parse deployment template for app")
 	}
 
-	appFile, err := os.Create(filepath.Join(tmpDir, ".kube", "app.yml"))
+	appFile, err := os.Create(filePath)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to create file for kube resource definitions")
+		return errors.Wrap(err, "failed to create file for kube resource definitions")
 	}
 	defer func() { err = appFile.Close() }()
 
@@ -1277,15 +1287,124 @@ spec:
 		Route   string
 		Org     string
 	}{
-		AppName: name,
+		AppName: appName,
 		Route:   route,
 		Org:     c.Config.Org,
 	})
+
 	if err != nil {
-		return "", errors.Wrap(err, "failed to render kube resource definition")
+		return errors.Wrap(err, "failed to render kube resource definition")
 	}
 
-	return
+	return nil
+}
+
+func (c *EpinioClient) renderService(filePath, appName string) error {
+	serviceTmpl, err := template.New("service").Parse(`
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  labels:
+    app.kubernetes.io/component: application
+    app.kubernetes.io/managed-by: epinio
+    app.kubernetes.io/name: {{ .AppName }}
+    app.kubernetes.io/part-of: {{ .Org }}
+    kubernetes.io/ingress.class: traefik
+  name: {{ .AppName }}
+  namespace: {{ .Org }}
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app.kubernetes.io/name: "{{ .AppName }}"
+  type: ClusterIP
+  `)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse service template for app")
+	}
+
+	serviceFile, err := os.Create(filePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to create file for application Service definition")
+	}
+	defer func() { _ = serviceFile.Close() }()
+
+	err = serviceTmpl.Execute(serviceFile, struct {
+		AppName string
+		Org     string
+	}{
+		AppName: appName,
+		Org:     c.Config.Org,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to render application Service definition")
+	}
+
+	return nil
+}
+
+func (c *EpinioClient) renderIngress(filePath, appName, route string) error {
+	ingressTmpl, err := template.New("ingress").Parse(`
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  labels:
+    app.kubernetes.io/component: application
+    app.kubernetes.io/managed-by: epinio
+    app.kubernetes.io/name: {{ .AppName }}
+    app.kubernetes.io/part-of: {{ .Org }}
+    kubernetes.io/ingress.class: traefik
+  name: {{ .AppName }}
+  namespace: {{ .Org }}
+spec:
+  rules:
+  - host: {{ .Route }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: {{ .AppName }}
+            port:
+              number: 8080
+        path: /
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - {{ .Route }}
+    secretName: {{ .AppName }}-tls
+  `)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse ingress template for app")
+	}
+
+	ingressFile, err := os.Create(filePath)
+	if err != nil {
+		return errors.Wrap(err, "failed to create file for application Ingress definition")
+	}
+	defer func() { err = ingressFile.Close() }()
+
+	err = ingressTmpl.Execute(ingressFile, struct {
+		AppName string
+		Org     string
+		Route   string
+	}{
+		AppName: appName,
+		Org:     c.Config.Org,
+		Route:   route,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to render application Ingress definition")
+	}
+
+	return nil
 }
 
 func (c *EpinioClient) gitPush(name, tmpDir string) error {
@@ -1327,7 +1446,7 @@ git push epinio %s:main
 	return nil
 }
 
-func (c *EpinioClient) logs(name string) (context.CancelFunc, error) {
+func (c *EpinioClient) logs(appName, org string) (context.CancelFunc, error) {
 	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -1346,9 +1465,8 @@ func (c *EpinioClient) logs(name string) (context.CancelFunc, error) {
 		LabelSelector:         labels.Everything(),
 		TailLines:             nil,
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
-
-		Namespace: deployments.WorkloadsDeploymentID,
-		PodQuery:  regexp.MustCompile(fmt.Sprintf(".*-%s-.*", name)),
+		Namespace:             org,
+		PodQuery:              regexp.MustCompile(fmt.Sprintf(".*-%s-.*", appName)),
 	}, c.KubeClient)
 	if err != nil {
 		return cancelFunc, errors.Wrap(err, "failed to start log tail")
@@ -1360,8 +1478,7 @@ func (c *EpinioClient) logs(name string) (context.CancelFunc, error) {
 func (c *EpinioClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.KubeClient.WaitUntilPodBySelectorExist(
-		c.ui, deployments.WorkloadsDeploymentID,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
+		c.ui, org, fmt.Sprintf("app.kubernetes.io/name=%s", name),
 		duration.ToAppBuilt())
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")
@@ -1370,8 +1487,7 @@ func (c *EpinioClient) waitForApp(org, name string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
 
 	err = c.KubeClient.WaitForPodBySelectorRunning(
-		c.ui, deployments.WorkloadsDeploymentID,
-		fmt.Sprintf("cloudfoundry.org/guid=%s.%s", org, name),
+		c.ui, org, fmt.Sprintf("app.kubernetes.io/name=%s", name),
 		duration.ToPodReady())
 
 	if err != nil {
@@ -1406,7 +1522,7 @@ func (c *EpinioClient) ServicesToApps(org string) (map[string]application.Applic
 
 	var appsOf = map[string]application.ApplicationList{}
 
-	apps, err := application.List(c.KubeClient, c.GiteaClient.Client, c.Config.Org)
+	apps, err := application.List(c.KubeClient, c.Config.Org)
 	if err != nil {
 		return nil, err
 	}

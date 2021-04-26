@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/interfaces"
 	corev1 "k8s.io/api/core/v1"
@@ -30,11 +29,10 @@ func CustomServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.S
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/organization=%s", org)
 
 	secrets, err := kubeClient.Kubectl.CoreV1().
-		Secrets(deployments.WorkloadsDeploymentID).
-		List(context.Background(),
-			metav1.ListOptions{
-				LabelSelector: labelSelector,
-			})
+		Secrets(org).List(context.Background(),
+		metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
 
 	if err != nil {
 		return nil, err
@@ -62,7 +60,7 @@ func CustomServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.S
 func CustomServiceLookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
 	secretName := serviceResourceName(org, service)
 
-	_, err := kubeClient.GetSecret(deployments.WorkloadsDeploymentID, secretName)
+	_, err := kubeClient.GetSecret(org, secretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -86,7 +84,7 @@ func CreateCustomService(kubeClient *kubernetes.Cluster, name, org string,
 
 	secretName := serviceResourceName(org, name)
 
-	_, err := kubeClient.GetSecret(deployments.WorkloadsDeploymentID, secretName)
+	_, err := kubeClient.GetSecret(org, secretName)
 	if err == nil {
 		return nil, errors.New("Service of this name already exists.")
 	}
@@ -98,7 +96,7 @@ func CreateCustomService(kubeClient *kubernetes.Cluster, name, org string,
 		sdata[k] = []byte(v)
 	}
 
-	err = kubeClient.CreateLabeledSecret("epinio-workloads",
+	err = kubeClient.CreateLabeledSecret(org,
 		secretName, sdata,
 		map[string]string{
 			"epinio.suse.org/service-type": "custom",
@@ -131,7 +129,7 @@ func (s *CustomService) Org() string {
 
 func (s *CustomService) GetBinding(appName string) (*corev1.Secret, error) {
 	kubeClient := s.kubeClient
-	serviceSecret, err := kubeClient.GetSecret(deployments.WorkloadsDeploymentID, s.SecretName)
+	serviceSecret, err := kubeClient.GetSecret(s.OrgName, s.SecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, errors.New("service does not exist")
@@ -144,12 +142,12 @@ func (s *CustomService) GetBinding(appName string) (*corev1.Secret, error) {
 
 // DeleteBinding does nothing in the case of custom services because the custom
 // service is just a secret which may be re-used later.
-func (s *CustomService) DeleteBinding(appName string) error {
+func (s *CustomService) DeleteBinding(appName, org string) error {
 	return nil
 }
 
 func (s *CustomService) Delete() error {
-	return s.kubeClient.DeleteSecret(deployments.WorkloadsDeploymentID, s.SecretName)
+	return s.kubeClient.DeleteSecret(s.OrgName, s.SecretName)
 }
 
 func (s *CustomService) Status() (string, error) {
@@ -162,7 +160,7 @@ func (s *CustomService) WaitForProvision() error {
 }
 
 func (s *CustomService) Details() (map[string]string, error) {
-	serviceSecret, err := s.kubeClient.GetSecret(deployments.WorkloadsDeploymentID, s.SecretName)
+	serviceSecret, err := s.kubeClient.GetSecret(s.OrgName, s.SecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, errors.New("service does not exist")

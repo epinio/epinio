@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"code.gitea.io/sdk/gitea"
+	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/config"
@@ -136,7 +137,7 @@ func getGiteaURL(config *config.Config, cluster *kubernetes.Cluster) (string, er
 
 // getGiteaCredentials resolves Gitea's credentials
 func getGiteaCredentials(cluster *kubernetes.Cluster) (string, string, error) {
-	s, err := cluster.GetSecret(deployments.WorkloadsDeploymentID, GiteaCredentialsSecret)
+	s, err := cluster.GetSecret(deployments.TektonStagingNamespace, GiteaCredentialsSecret)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to read gitea credentials")
 	}
@@ -154,35 +155,16 @@ func getGiteaCredentials(cluster *kubernetes.Cluster) (string, string, error) {
 	return string(username), string(password), nil
 }
 
-func (c *GiteaClient) OrgNames() ([]string, error) {
-	orgs, _, err := c.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
-	if err != nil {
-		return []string{}, err
-	}
+func (c *GiteaClient) DeleteRepo(org, repo string) error {
+	_, err := c.Client.DeleteRepo(org, repo)
 
-	orgNames := []string{}
-	for _, org := range orgs {
-		orgNames = append(orgNames, org.UserName)
-	}
-
-	return orgNames, nil
+	return err
 }
 
-func (c *GiteaClient) OrgExists(org string) (bool, error) {
-	_, resp, err := c.Client.GetOrg(org)
-	// if gitea sends us a 404 it's both an error and a response with 404.
-	// We handle that below.
-	if resp == nil && err != nil {
-		return false, errors.Wrap(err, "failed to make get org request")
-	}
+func (c *GiteaClient) CreateOrg(org string) error {
+	_, _, err := c.Client.CreateOrg(giteaSDK.CreateOrgOption{
+		Name: org,
+	})
 
-	if resp.StatusCode == 404 {
-		return false, nil
-	}
-
-	if resp.StatusCode != 200 {
-		return false, errors.Errorf("Unexpected response from Gitea: %d", resp.StatusCode)
-	}
-
-	return true, nil
+	return err
 }

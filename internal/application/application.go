@@ -5,10 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"code.gitea.io/sdk/gitea"
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/interfaces"
+	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	pkgerrors "github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
@@ -25,21 +24,23 @@ type Application struct {
 	Status        string
 	Routes        []string
 	BoundServices []string
-	giteaClient   *gitea.Client
 	kubeClient    *kubernetes.Cluster
 }
 
 type ApplicationList []Application
 
-func (a *Application) Delete() error {
-	_, err := a.giteaClient.DeleteRepo(a.Organization, a.Name)
+type GiteaInterface interface {
+	DeleteRepo(org, repo string) error
+	CreateOrg(org string) error
+}
 
-	if err != nil {
+func (a *Application) Delete(gitea GiteaInterface) error {
+	if err := gitea.DeleteRepo(a.Organization, a.Name); err != nil {
 		return pkgerrors.Wrap(err, "failed to delete repository")
 	}
 
-	err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).
-		Delete(context.Background(), fmt.Sprintf("%s.%s", a.Organization, a.Name), metav1.DeleteOptions{})
+	err := a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).
+		Delete(context.Background(), a.Name, metav1.DeleteOptions{})
 
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application deployment")
@@ -108,7 +109,7 @@ func (a *Application) Unbind(service interfaces.Service) error {
 		deployment.Spec.Template.Spec.Volumes = newVolumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newVolumeMounts
 
-		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
+		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
 			context.Background(),
 			deployment,
 			metav1.UpdateOptions{},
@@ -124,14 +125,12 @@ func (a *Application) Unbind(service interfaces.Service) error {
 	}
 
 	// delete binding - DeleteBinding(a.Name)
-	return service.DeleteBinding(a.Name)
+	return service.DeleteBinding(a.Name, a.Organization)
 }
 
 func (a *Application) deployment() (*appsv1.Deployment, error) {
-	return a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Get(
-		context.Background(),
-		fmt.Sprintf("%s.%s", a.Organization, a.Name),
-		metav1.GetOptions{},
+	return a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Get(
+		context.Background(), a.Name, metav1.GetOptions{},
 	)
 }
 
@@ -175,7 +174,7 @@ func (a *Application) Bind(service interfaces.Service) error {
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
-		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(deployments.WorkloadsDeploymentID).Update(
+		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
 			context.Background(),
 			deployment,
 			metav1.UpdateOptions{},
@@ -195,28 +194,15 @@ func (a *Application) Bind(service interfaces.Service) error {
 }
 
 // Lookup locates an Application by org and name
-func Lookup(
-	kubeClient *kubernetes.Cluster,
-	giteaClient *gitea.Client,
-	org, app string) (*Application, error) {
-
-	apps, _, err := giteaClient.ListOrgRepos(org, gitea.ListOrgReposOptions{})
+func Lookup(kubeClient *kubernetes.Cluster, org, lookupApp string) (*Application, error) {
+	apps, err := List(kubeClient, org)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, anApp := range apps {
-		if anApp.Name == app {
-			app, err := (&Application{
-				Organization: org,
-				Name:         app,
-				kubeClient:   kubeClient,
-				giteaClient:  giteaClient,
-			}).Complete()
-			if err != nil {
-				return nil, err
-			}
-			return app, nil
+	for _, app := range apps {
+		if app.Name == lookupApp {
+			return &app, nil // It's already "Complete()" by the List call above
 		}
 	}
 
@@ -224,27 +210,34 @@ func Lookup(
 }
 
 // List returns an ApplicationList of all available applications (in the org)
-func List(
-	kubeClient *kubernetes.Cluster,
-	giteaClient *gitea.Client,
-	org string) (ApplicationList, error) {
-
-	apps, _, err := giteaClient.ListOrgRepos(org, gitea.ListOrgReposOptions{})
-	if err != nil {
-		return nil, err
+func List(kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
+	listOptions := metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
 	}
 
 	result := ApplicationList{}
 
-	for _, app := range apps {
+	exists, err := organizations.Exists(kubeClient, org)
+	if err != nil {
+		return result, err
+	}
+	if !exists {
+		return result, fmt.Errorf("organization %s does not exist", org)
+	}
+
+	deployments, err := kubeClient.Kubectl.AppsV1().Deployments(org).List(context.Background(), listOptions)
+	if err != nil {
+		return result, err
+	}
+
+	for _, deployment := range deployments.Items {
 		appEpinio, err := (&Application{
 			Organization: org,
-			Name:         app.Name,
+			Name:         deployment.ObjectMeta.Name,
 			kubeClient:   kubeClient,
-			giteaClient:  giteaClient,
 		}).Complete()
 		if err != nil {
-			return nil, err
+			return result, err
 		}
 
 		result = append(result, *appEpinio)
@@ -256,7 +249,7 @@ func List(
 func (app *Application) Complete() (*Application, error) {
 	var err error
 	app.Status, err = app.kubeClient.DeploymentStatus(
-		deployments.WorkloadsDeploymentID,
+		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
 			app.Organization, app.Name))
 	if err != nil {
@@ -264,12 +257,12 @@ func (app *Application) Complete() (*Application, error) {
 	}
 
 	app.Routes, err = app.kubeClient.ListIngressRoutes(
-		deployments.WorkloadsDeploymentID,
-		app.Name)
+		app.Organization, app.Name)
 	if err != nil {
 		app.Routes = []string{err.Error()}
 	}
 
+	app.BoundServices = []string{}
 	bound, err := app.Services()
 	if err != nil {
 		app.BoundServices = append(app.BoundServices, err.Error())

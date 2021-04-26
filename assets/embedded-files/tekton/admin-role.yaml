@@ -17,7 +17,8 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: staging-triggers-admin
-  namespace: epinio-workloads
+  # TODO: Delete the orgs/namespaces on uninstallation
+  namespace: tekton-staging
 rules:
 - apiGroups:
   - triggers.tekton.dev
@@ -50,7 +51,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: staging-triggers-admin
-  namespace: epinio-workloads
+  namespace: tekton-staging
 secrets:
   - name: gitea-creds
   - name: registry-creds
@@ -59,7 +60,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: staging-triggers-admin-binding
-  namespace: epinio-workloads
+  namespace: tekton-staging
 subjects:
   - kind: ServiceAccount
     name: staging-triggers-admin
@@ -75,7 +76,7 @@ metadata:
 subjects:
   - kind: ServiceAccount
     name: staging-triggers-admin
-    namespace: epinio-workloads
+    namespace: tekton-staging
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -90,7 +91,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: staging-triggers-admin
-  namespace: epinio-workloads
+  namespace: tekton-staging
 roleRef:
   kind: ClusterRole
   name: cluster-admin

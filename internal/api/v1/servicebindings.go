@@ -9,7 +9,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
 )
@@ -45,12 +45,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -60,7 +55,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	app, err := application.Lookup(cluster, gitea.Client, org, appName)
+	app, err := application.Lookup(cluster, org, appName)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -108,12 +103,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	gitea, err := clients.GetGiteaClient()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
-	}
-
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -123,7 +113,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	app, err := application.Lookup(cluster, gitea.Client, org, appName)
+	app, err := application.Lookup(cluster, org, appName)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}

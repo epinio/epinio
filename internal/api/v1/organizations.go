@@ -6,25 +6,33 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	giteaSDK "code.gitea.io/sdk/gitea"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/organizations"
 )
 
 type OrganizationsController struct {
 }
 
+// Index return a list of all Epinio orgs
+// An Epinio org is nothing but a kubernetes namespace which has a special
+// Label (Look at the code to see which).
 func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) {
-	gitea, err := clients.GetGiteaClient()
+	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
-	orgList, err := gitea.OrgNames()
+	orgList, err := organizations.List(cluster)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
+	orgNames := []string{}
+	for _, org := range orgList {
+		orgNames = append(orgNames, org.Name)
+	}
 
-	js, err := json.Marshal(orgList)
+	js, err := json.Marshal(orgNames)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -37,6 +45,11 @@ func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) 
 
 func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request) {
 	gitea, err := clients.GetGiteaClient()
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	cluster, err := kubernetes.GetCluster()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -61,7 +74,7 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	exists, err := gitea.OrgExists(org)
+	exists, err := organizations.Exists(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
@@ -71,10 +84,8 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// TODO: Wrap CreateOrg into a local gitea client method (See OrgExists)
-	_, _, err = gitea.Client.CreateOrg(giteaSDK.CreateOrgOption{
-		Name: org,
-	})
+	err = organizations.Create(cluster, gitea, org)
+
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
