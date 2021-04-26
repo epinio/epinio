@@ -773,8 +773,7 @@ func (c *EpinioClient) Delete(appname string) error {
 	return nil
 }
 
-// OrgsMatching returns all Epinio orgs having the specified prefix
-// in their name
+// OrgsMatching returns all Epinio orgs having the specified prefix in their name
 func (c *EpinioClient) OrgsMatching(prefix string) []string {
 	log := c.Log.WithName("OrgsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
@@ -783,24 +782,28 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 
 	result := []string{}
 
-	orgs, _, err := c.GiteaClient.Client.AdminListOrgs(gitea.AdminListOrgsOptions{})
+	jsonResponse, err := c.curl("api/v1/orgs/", "GET", "")
 	if err != nil {
 		return result
 	}
 
-	for _, org := range orgs {
-		details.Info("Found", "Name", org.UserName)
+	var orgs []string
+	if err := json.Unmarshal(jsonResponse, &orgs); err != nil {
+		return result
+	}
 
-		if strings.HasPrefix(org.UserName, prefix) {
-			details.Info("Matched", "Name", org.UserName)
-			result = append(result, org.UserName)
+	for _, org := range orgs {
+		details.Info("Found", "Name", org)
+
+		if strings.HasPrefix(org, prefix) {
+			details.Info("Matched", "Name", org)
+			result = append(result, org)
 		}
 	}
 
 	return result
 }
 
-// Orgs get a list of all orgs in gitea
 func (c *EpinioClient) Orgs() error {
 	log := c.Log.WithName("Orgs")
 	log.Info("start")
