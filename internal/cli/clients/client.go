@@ -39,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -711,6 +712,11 @@ func (c *EpinioClient) CreateOrg(org string) error {
 	c.ui.Note().
 		WithStringValue("Name", org).
 		Msg("Creating organization...")
+
+	errorMsgs := validation.IsDNS1123Subdomain(org)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "/n"))
+	}
 
 	_, err := c.curl("api/v1/orgs", "POST", fmt.Sprintf(`{ "name": "%s" }`, org))
 	if err != nil {
