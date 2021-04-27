@@ -27,6 +27,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
@@ -972,11 +973,12 @@ func (c *EpinioClient) check() {
 }
 
 func (c *EpinioClient) createProductionCertificate(appName, systemDomain string) error {
+	resourceName := names.GenerateDNS1123SubDomainName(c.Config.Org, appName, "ssl-certificate")
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",
 		"metadata": {
-			"name": "%s.%s.ssl-certificate",
+			"name": "%s",
 			"namespace": "%s"
 		},
 		"spec": {
@@ -990,7 +992,7 @@ func (c *EpinioClient) createProductionCertificate(appName, systemDomain string)
 				"kind" : "ClusterIssuer"
 			}
 		}
-    }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, appName, systemDomain)
+        }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, appName, systemDomain)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -1022,11 +1024,12 @@ func (c *EpinioClient) createProductionCertificate(appName, systemDomain string)
 }
 
 func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) error {
+	resourceName := names.GenerateDNS1123SubDomainName(c.Config.Org, appName, "generate-certificate")
 	data := fmt.Sprintf(`{
 		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
 		"kind": "QuarksSecret",
 		"metadata": {
-			"name": "%s.%s.generate-certificate",
+			"name": "%s",
 			"namespace": "%s"
 		},
 		"spec": {
@@ -1051,7 +1054,7 @@ func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) erro
 			"secretName" : "%s-tls",
 			"type" : "tls"
 		}
-    }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, systemDomain, appName)
+        }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, systemDomain, appName)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
