@@ -870,6 +870,12 @@ func (c *EpinioClient) Push(app string, path string) error {
 		return err
 	}
 
+	details.Info("validate app")
+	errorMsgs := validation.IsDNS1123Subdomain(app)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "/n"))
+	}
+
 	details.Info("create repo")
 	err = c.createRepo(app)
 	if err != nil {
