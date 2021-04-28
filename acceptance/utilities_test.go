@@ -83,7 +83,7 @@ func makeApp(appName string) string {
 	appDir := path.Join(currentDir, "../assets/sample-app")
 
 	pushOutput, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
+	ExpectWithOffset(2, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
 

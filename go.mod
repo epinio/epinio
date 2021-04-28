@@ -16,11 +16,11 @@ require (
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
+	github.com/mholt/archiver/v3 v3.5.0
 	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.15.0
 	github.com/onsi/gomega v1.10.5
-	github.com/otiai10/copy v1.0.2
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
 	github.com/smartystreets/assertions v1.0.1 // indirect
