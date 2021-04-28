@@ -29,7 +29,7 @@ type CertManager struct {
 const (
 	CertManagerDeploymentID = "cert-manager"
 	certManagerVersion      = "1.2.0"
-	certManagerChartURL     = "https://charts.jetstack.io/charts/cert-manager-v1.2.0.tgz"
+	certManagerChartFile    = "cert-manager-v1.2.0.tgz"
 )
 
 func (cm *CertManager) ID() string {
@@ -45,7 +45,7 @@ func (cm *CertManager) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) e
 }
 
 func (cm CertManager) Describe() string {
-	return emoji.Sprintf(":cloud:CertManager version: %s\n:clipboard:CertManager chart: %s", certManagerVersion, certManagerChartURL)
+	return emoji.Sprintf(":cloud:CertManager version: %s\n:clipboard:CertManager chart: %s", certManagerVersion, certManagerChartFile)
 }
 
 func (cm CertManager) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
@@ -149,8 +149,14 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 	// Setup CertManager helm values
 	var helmArgs []string
 
+	tarPath, err := helpers.ExtractFile(certManagerChartFile)
+	if err != nil {
+		return errors.New("Failed to extract embedded file: " + tarPath + " - " + err.Error())
+	}
+	defer os.Remove(tarPath)
+
 	helmArgs = append(helmArgs, `--set installCRDs=true`)
-	helmCmd := fmt.Sprintf("helm %s cert-manager --namespace %s %s %s", action, CertManagerDeploymentID, certManagerChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s cert-manager --namespace %s %s %s", action, CertManagerDeploymentID, tarPath, strings.Join(helmArgs, " "))
 
 	if out, err := helpers.RunProc(helmCmd, currentdir, cm.Debug); err != nil {
 		return errors.New("Failed installing CertManager: " + out)
