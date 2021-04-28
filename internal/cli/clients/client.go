@@ -17,7 +17,7 @@ import (
 	"strings"
 	"time"
 
-	"code.gitea.io/sdk/gitea"
+	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
@@ -55,7 +56,7 @@ var (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	GiteaClient *GiteaClient
+	GiteaClient *gitea.Client
 	KubeClient  *kubernetes.Cluster
 	Config      *config.Config
 	Log         logr.Logger
@@ -74,8 +75,7 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 		return nil, err
 	}
 
-	client, err := GetGiteaClient()
-
+	client, err := gitea.New()
 	if err != nil {
 		return nil, err
 	}
@@ -1157,7 +1157,7 @@ func (c *EpinioClient) createRepo(name string) error {
 		return nil
 	}
 
-	_, _, err = c.GiteaClient.Client.CreateOrgRepo(c.Config.Org, gitea.CreateRepoOption{
+	_, _, err = c.GiteaClient.Client.CreateOrgRepo(c.Config.Org, giteaSDK.CreateRepoOption{
 		Name:          name,
 		AutoInit:      true,
 		Private:       true,
@@ -1174,7 +1174,7 @@ func (c *EpinioClient) createRepo(name string) error {
 }
 
 func (c *EpinioClient) createRepoWebhook(name string) error {
-	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, gitea.ListHooksOptions{})
+	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, giteaSDK.ListHooksOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list webhooks")
 	}
@@ -1189,7 +1189,7 @@ func (c *EpinioClient) createRepoWebhook(name string) error {
 
 	c.ui.Normal().Msg("Creating webhook in the repo...")
 
-	c.GiteaClient.Client.CreateRepoHook(c.Config.Org, name, gitea.CreateHookOption{
+	c.GiteaClient.Client.CreateRepoHook(c.Config.Org, name, giteaSDK.CreateHookOption{
 		Active:       true,
 		BranchFilter: "*",
 		Config: map[string]string{

@@ -1,10 +1,9 @@
-package clients
+package gitea
 
 import (
 	"fmt"
 	"strings"
 
-	"code.gitea.io/sdk/gitea"
 	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -12,10 +11,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GiteaClient provides functionality for talking to a
+// Client provides functionality for talking to a
 // Gitea installation on Kubernetes
-type GiteaClient struct {
-	Client   *gitea.Client
+type Client struct {
+	Client   *giteaSDK.Client
 	Domain   string
 	URL      string
 	Username string
@@ -26,11 +25,12 @@ const (
 	GiteaCredentialsSecret = "gitea-creds"
 )
 
-var giteaClientMemo *GiteaClient
+var clientMemo *Client
 
-func GetGiteaClient() (*GiteaClient, error) {
-	if giteaClientMemo != nil {
-		return giteaClientMemo, nil
+// New loads the config and returns a new gitea client
+func New() (*Client, error) {
+	if clientMemo != nil {
+		return clientMemo, nil
 	}
 
 	configConfig, err := config.Load()
@@ -58,13 +58,13 @@ func GetGiteaClient() (*GiteaClient, error) {
 		return nil, errors.Wrap(err, "failed to resolve gitea credentials")
 	}
 
-	client, err := gitea.NewClient(giteaURL)
+	client, err := giteaSDK.NewClient(giteaURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "gitea client failed")
 	}
 	client.SetBasicAuth(username, password)
 
-	giteaClient := &GiteaClient{
+	c := &Client{
 		Client:   client,
 		Domain:   domain,
 		URL:      giteaURL,
@@ -72,9 +72,9 @@ func GetGiteaClient() (*GiteaClient, error) {
 		Password: password,
 	}
 
-	giteaClientMemo = giteaClient
+	clientMemo = c
 
-	return giteaClient, nil
+	return c, nil
 }
 
 // getMainDomain finds the main domain for Epinio
@@ -155,13 +155,13 @@ func getGiteaCredentials(cluster *kubernetes.Cluster) (string, string, error) {
 	return string(username), string(password), nil
 }
 
-func (c *GiteaClient) DeleteRepo(org, repo string) error {
+func (c *Client) DeleteRepo(org, repo string) error {
 	_, err := c.Client.DeleteRepo(org, repo)
 
 	return err
 }
 
-func (c *GiteaClient) CreateOrg(org string) error {
+func (c *Client) CreateOrg(org string) error {
 	_, _, err := c.Client.CreateOrg(giteaSDK.CreateOrgOption{
 		Name: org,
 	})
