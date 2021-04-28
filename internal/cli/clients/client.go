@@ -23,6 +23,7 @@ import (
 	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
+	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
@@ -111,7 +112,7 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 		Msg("Listing service plans")
 
 	// todo: sort service plans by name before display
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/serviceclasses/%s/serviceplans", serviceClassName), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("ServicePlans", serviceClassName))
 	if err != nil {
 		return err
 	}
@@ -205,7 +206,7 @@ func (c *EpinioClient) ServiceClasses() error {
 	c.ui.Note().
 		Msg("Listing service classes")
 
-	jsonResponse, err := c.curl("api/v1/serviceclasses", "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("ServiceClasses"))
 	if err != nil {
 		return err
 	}
@@ -239,7 +240,7 @@ func (c *EpinioClient) Services() error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/", c.Config.Org), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
 	if err != nil {
 		return err
 	}
@@ -313,8 +314,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		return err
 	}
 
-	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings", c.Config.Org, appName),
-		"POST", string(js))
+	_, err = c.post(api.Routes.Path("ServiceBindingCreate", c.Config.Org, appName), string(js))
 	if err != nil {
 		return err
 	}
@@ -341,8 +341,8 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Unbind Service from Application")
 
-	_, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings/%s",
-		c.Config.Org, appName, serviceName), "DELETE", "")
+	_, err := c.delete(api.Routes.Path("ServiceBindingDelete",
+		c.Config.Org, appName, serviceName))
 	if err != nil {
 		return err
 	}
@@ -376,7 +376,8 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		return err
 	}
 
-	jsonResponse, err := c.curlWithCustomErrorHandling(fmt.Sprintf("api/v1/orgs/%s/services/%s", c.Config.Org, name),
+	jsonResponse, err := c.curlWithCustomErrorHandling(
+		api.Routes.Path("ServiceDelete", c.Config.Org, name),
 		"DELETE", string(js),
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
@@ -385,7 +386,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			}
 
 			// A bad request happens when the service is
-			// still bound to one or omre applications,
+			// still bound to one or more applications,
 			// and the response contains an array of their
 			// names.
 
@@ -475,8 +476,7 @@ func (c *EpinioClient) CreateService(name, class, plan string, dict []string, wa
 		defer s.Stop()
 	}
 
-	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/services", c.Config.Org),
-		"POST", string(js))
+	_, err = c.post(api.Routes.Path("ServiceCreate", c.Config.Org), string(js))
 	if err != nil {
 		return err
 	}
@@ -528,8 +528,8 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 		return err
 	}
 
-	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/custom-services", c.Config.Org),
-		"POST", string(js))
+	_, err = c.post(api.Routes.Path("ServiceCreateCustom", c.Config.Org),
+		string(js))
 	if err != nil {
 		return err
 	}
@@ -553,7 +553,7 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Service Details")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/%s", c.Config.Org, name), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("ServiceShow", c.Config.Org, name))
 	if err != nil {
 		return err
 	}
@@ -644,7 +644,7 @@ func (c *EpinioClient) Apps() error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications", c.Config.Org), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Apps", c.Config.Org))
 	if err != nil {
 		return err
 	}
@@ -682,7 +682,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appName), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("AppShow", c.Config.Org, appName))
 	if err != nil {
 		return err
 	}
@@ -717,7 +717,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	_, err := c.curl("api/v1/orgs", "POST", fmt.Sprintf(`{ "name": "%s" }`, org))
+	_, err := c.post(api.Routes.Path("Orgs"), fmt.Sprintf(`{ "name": "%s" }`, org))
 	if err != nil {
 		return err
 	}
@@ -741,7 +741,7 @@ func (c *EpinioClient) Delete(appname string) error {
 	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
 	defer s.Stop()
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appname), "DELETE", "")
+	jsonResponse, err := c.delete(api.Routes.Path("AppDelete", c.Config.Org, appname))
 	if err != nil {
 		return err
 	}
@@ -789,7 +789,7 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 
 	result := []string{}
 
-	jsonResponse, err := c.curl("api/v1/orgs/", "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
 	if err != nil {
 		return result
 	}
@@ -820,7 +820,7 @@ func (c *EpinioClient) Orgs() error {
 	c.ui.Note().Msg("Listing organizations")
 
 	details.Info("list organizations")
-	jsonResponse, err := c.curl("api/v1/orgs/", "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
 	if err != nil {
 		return err
 	}
@@ -1564,6 +1564,18 @@ func (c *EpinioClient) ServicesToApps(org string) (map[string]application.Applic
 	}
 
 	return appsOf, nil
+}
+
+func (c *EpinioClient) get(endpoint string) ([]byte, error) {
+	return c.curl(endpoint, "GET", "")
+}
+
+func (c *EpinioClient) post(endpoint string, data string) ([]byte, error) {
+	return c.curl(endpoint, "POST", data)
+}
+
+func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
+	return c.curl(endpoint, "DELETE", "")
 }
 
 func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {
