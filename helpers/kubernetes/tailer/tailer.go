@@ -155,6 +155,9 @@ func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
 
 	go func() {
 		<-ctx.Done()
+		defer func() {
+			_ = recover() // Ignore the case when t.closed is already closed (race conditions)
+		}()
 		close(t.closed)
 	}()
 }
