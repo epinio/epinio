@@ -25,9 +25,6 @@ spec:
   - name: registry-tls
     port: 443
     targetPort: 443
-  - name: registry-tls-self
-    port: 444
-    targetPort: 444
 ---
 apiVersion: v1
 kind: Service
@@ -67,9 +64,6 @@ spec:
       signerType: cluster
   secretName: registry-tls
   type: certificate
-  copies:
-  - name: registry-tls
-    namespace: tekton-staging
 ---
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret
@@ -187,9 +181,6 @@ spec:
           mountPath: /etc/nginx/conf.d/default.conf
           subPath: default.conf
           readOnly: true
-        - name: tls
-          mountPath: /etc/nginx/certs
-          readOnly: true
         - name: tls-self
           mountPath: /etc/nginx/certs-self
           readOnly: true
@@ -242,26 +233,6 @@ data:
       server 127.0.0.1:5000;
     }
     server {
-      listen                444 ssl;
-      server_name           {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc;
-      client_max_body_size  0;
-      ssl_certificate           /etc/nginx/certs/cert.pem;
-      ssl_certificate_key       /etc/nginx/certs/key.pem;
-      ssl_session_cache         builtin:1000  shared:SSL:10m;
-      ssl_protocols             TLSv1 TLSv1.1 TLSv1.2;
-      ssl_ciphers               HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
-      ssl_prefer_server_ciphers on;
-      access_log  /var/log/nginx/registry.access.log;
-      location / {
-        proxy_set_header  Host $host;
-        proxy_set_header  X-Real-IP $remote_addr;
-        proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header  X-Forwarded-Proto $scheme;
-        proxy_pass          http://registry;
-        proxy_read_timeout  90;
-      }
-    }
-    server {
       listen                443 ssl;
       server_name           {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc;
       client_max_body_size  0;
@@ -283,19 +254,6 @@ data:
     }
 ---
 # COPIES --------------------------
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  labels:
-    quarks.cloudfoundry.org/secret-kind: generated
-  annotations:
-    quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls
-  name: registry-tls
-  namespace: tekton-staging
-spec:
-  type: copy
-  secretName: registry-tls
 ---
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret

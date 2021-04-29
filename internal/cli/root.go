@@ -81,7 +81,6 @@ func checkDependencies() error {
 		{CommandName: "helm"},
 		{CommandName: "sh"},
 		{CommandName: "git"},
-		{CommandName: "openssl"},
 	}
 
 	for _, dependency := range dependencies {
