@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
 	pconfig "github.com/epinio/epinio/internal/cli/config"
@@ -63,11 +64,21 @@ func Execute() {
 	rootCmd.AddCommand(CmdDisable)
 	rootCmd.AddCommand(CmdService)
 	rootCmd.AddCommand(CmdServer)
+	rootCmd.AddCommand(cmdVersion)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
+}
+
+var cmdVersion = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("Epinio Version: %s\n", version.Version)
+		fmt.Printf("Go Version: %s\n", runtime.Version())
+	},
 }
 
 func checkDependencies() error {
