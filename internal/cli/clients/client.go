@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -1451,8 +1452,20 @@ func (c *EpinioClient) logs(appName, org string) (context.CancelFunc, error) {
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
 
-	// TODO: improve the way we look for pods, use selectors
-	// and watch staging as well
+	selector := labels.NewSelector()
+
+	for _, req := range [][]string{
+		{"app.kubernetes.io/managed-by", "epinio"},
+		{"app.kubernetes.io/part-of", org},
+		{"app.kubernetes.io/name", appName},
+	} {
+		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
+		if err != nil {
+			return cancelFunc, err
+		}
+		selector = selector.Add(*req)
+	}
+
 	err := tailer.Run(c.ui, ctx, &tailer.Config{
 		ContainerQuery:        regexp.MustCompile(".*"),
 		ExcludeContainerQuery: nil,
@@ -1461,12 +1474,12 @@ func (c *EpinioClient) logs(appName, org string) (context.CancelFunc, error) {
 		Include:               nil,
 		Timestamps:            false,
 		Since:                 duration.LogHistory(),
-		AllNamespaces:         false,
-		LabelSelector:         labels.Everything(),
+		AllNamespaces:         true,
+		LabelSelector:         selector,
 		TailLines:             nil,
 		Template:              tailer.DefaultSingleNamespaceTemplate(),
-		Namespace:             org,
-		PodQuery:              regexp.MustCompile(fmt.Sprintf(".*-%s-.*", appName)),
+		Namespace:             "",
+		PodQuery:              regexp.MustCompile(".*"),
 	}, c.KubeClient)
 	if err != nil {
 		return cancelFunc, errors.Wrap(err, "failed to start log tail")

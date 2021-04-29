@@ -19,6 +19,14 @@ var _ = Describe("Apps", func() {
 			appName = newAppName()
 		})
 
+		It("shows the staging logs", func() {
+			By("pushing the app")
+			out := makeApp(appName)
+
+			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
+			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
+		})
+
 		It("pushes and deletes an app", func() {
 			By("pushing the app")
 			makeApp(appName)
