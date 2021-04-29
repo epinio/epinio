@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/codeskyblue/kexec"
@@ -146,33 +145,4 @@ func RunToSuccessWithTimeout(funk ExternalFunc, timeout, interval time.Duration)
 			}
 		}
 	}
-}
-
-// OpenSSLSubjectHash return the subject_hash of the given CA certificate as
-// returned by this command:
-// openssl x509 -hash -noout
-// https://www.openssl.org/docs/man1.0.2/man1/x509.html
-// TODO: The way this function is implemented, it makes a system call to openssl
-// thus making openssl a dependency. There must be a way to calculate the hash
-// in Go so we don't need openssl.
-func OpenSSLSubjectHash(cert string) (string, error) {
-	_, err := exec.LookPath("openssl")
-	if err != nil {
-		return "", errors.Wrap(err, "openssl not in path")
-	}
-
-	cmd := exec.Command("openssl", "x509", "-hash", "-noout")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return "", err
-	}
-
-	go func() {
-		defer stdin.Close()
-		io.WriteString(stdin, cert)
-	}()
-
-	out, err := cmd.CombinedOutput()
-
-	return strings.TrimSpace(string(out)), err
 }
