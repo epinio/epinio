@@ -110,10 +110,6 @@ spec:
         - name: $(params.PLATFORM_DIR)
           mountPath: /platform
         - name: registry-certs-self
-          mountPath: /etc/ssl/cert.pem
-          subPath: ca
-          readOnly: true
-        - name: registry-certs-self2
           mountPath: /etc/ssl/certs/{{CA_SELF_HASHED_NAME}}
           subPath: ca
           readOnly: true
@@ -129,8 +125,5 @@ spec:
       secret:
         secretName: registry-tls
     - name: registry-certs-self
-      secret:
-        secretName: registry-tls-self
-    - name: registry-certs-self2
       secret:
         secretName: registry-tls-self
