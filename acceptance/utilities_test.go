@@ -77,19 +77,21 @@ func setupInClusterServices() {
 	}, "5m").ShouldNot(HaveOccurred())
 }
 
-func makeApp(appName string) {
+func makeApp(appName string) string {
 	currentDir, err := os.Getwd()
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	appDir := path.Join(currentDir, "../assets/sample-app")
 
-	out, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	pushOutput, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
 
-	out, err = Epinio("app list", "")
+	out, err := Epinio("app list", "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
+
+	return pushOutput
 }
 
 func makeCustomService(serviceName string) {
