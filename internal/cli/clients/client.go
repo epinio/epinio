@@ -595,10 +595,19 @@ func (c *EpinioClient) Info() error {
 		giteaVersion = version
 	}
 
+	epinioVersion := "unavailable"
+	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {
+		v := struct{ Version string }{}
+		if err := json.Unmarshal(jsonResponse, &v); err == nil {
+			epinioVersion = v.Version
+		}
+	}
+
 	c.ui.Success().
 		WithStringValue("Platform", platform.String()).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
+		WithStringValue("Epinio Version", epinioVersion).
 		Msg("Epinio Environment")
 
 	return nil
