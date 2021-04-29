@@ -20,9 +20,9 @@ import (
 	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
@@ -88,7 +88,7 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 	}
 	serverURL := epClient.URL
 
-	logger := kubeconfig.NewClientLogger()
+	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
 		GiteaClient: client,
 		KubeClient:  cluster,
@@ -1580,6 +1580,8 @@ func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
 
 func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
+	c.Log.Info(fmt.Sprintf("%s %s", method, uri))
+	c.Log.V(1).Info(requestBody)
 	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
 	if err != nil {
 		return []byte{}, err

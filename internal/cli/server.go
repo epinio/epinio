@@ -2,9 +2,11 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"os"
@@ -14,9 +16,11 @@ import (
 	"sync"
 
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/helpers/tracelog"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/filesystem"
 	"github.com/epinio/epinio/internal/web"
+	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -37,11 +41,12 @@ var CmdServer = &cobra.Command{
 		httpServerWg.Add(1)
 		port := viper.GetInt("port")
 		ui := termui.NewUI()
-		_, listeningPort, err := startEpinioServer(httpServerWg, port, ui)
+		logger := tracelog.NewServerLogger()
+		_, listeningPort, err := startEpinioServer(httpServerWg, port, ui, logger)
 		if err != nil {
 			return err
 		}
-		fmt.Println("listening on localhost on port " + listeningPort)
+		ui.Normal().Msg("listening on localhost on port " + listeningPort)
 		httpServerWg.Wait()
 
 		return nil
@@ -50,7 +55,7 @@ var CmdServer = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Server, string, error) {
+func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.Logger) (*http.Server, string, error) {
 	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
 	if err != nil {
 		return nil, "", err
@@ -59,8 +64,8 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Serve
 	elements := strings.Split(listener.Addr().String(), ":")
 	listeningPort := elements[len(elements)-1]
 
-	http.Handle("/api/v1/", logRequestHandler(apiv1.Router(), ui))
-	http.Handle("/", logRequestHandler(web.Router(), ui))
+	http.Handle("/api/v1/", logRequestHandler(apiv1.Router(), logger))
+	http.Handle("/", logRequestHandler(web.Router(), logger))
 	// Static files
 	var assetsDir http.FileSystem
 	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
@@ -83,10 +88,18 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI) (*http.Serve
 }
 
 // logging middleware for requests
-func logRequestHandler(h http.Handler, ui *termui.UI) http.Handler {
+func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
+		id := fmt.Sprintf("%d", rand.Intn(10000))
+		log := logger.WithName(id)
+
+		// add our logger
+		ctx := r.Context()
+		ctx = context.WithValue(ctx, apiv1.CtxLoggerKey{}, log)
+		r = r.WithContext(ctx)
+
 		// log the request first, then ...
-		logRequest(r, ui)
+		logRequest(r, log)
 
 		// ... call the original http.Handler
 		h.ServeHTTP(w, r)
@@ -95,17 +108,15 @@ func logRequestHandler(h http.Handler, ui *termui.UI) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
-func logRequest(r *http.Request, ui *termui.UI) {
+func logRequest(r *http.Request, log logr.Logger) {
 	uri := r.URL.String()
 	method := r.Method
-	ui.Normal().V(1).Msgf("%s %s", method, uri)
-
-	msg := ui.Normal().V(1).Compact()
+	log.V(1).Info(fmt.Sprintf("%s %s", method, uri))
 
 	// Read request body for logging
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		msg.Msgf("RequestBody Error: %v", err)
+		log.Error(err, "RequestBody Error")
 		return
 	}
 	r.Body.Close()
@@ -114,9 +125,9 @@ func logRequest(r *http.Request, ui *termui.UI) {
 	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	if len(bodyBytes) == 0 {
-		msg.Msg("RequestBody: n/a")
+		log.Info("RequestBody: n/a")
 		return
 	}
 
-	msg.Msgf("RequestBody\n%s\n/RequestBody", string(bodyBytes))
+	log.V(1).Info("RequestBody\n%s\n/RequestBody", string(bodyBytes))
 }

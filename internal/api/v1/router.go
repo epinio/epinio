@@ -8,6 +8,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+type CtxLoggerKey struct{}
+
 const v = "/api/v1"
 
 func get(path string, h http.HandlerFunc) routes.Route {
