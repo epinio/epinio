@@ -34,8 +34,10 @@ var k3dClusterName string
 var registryMirrorName = "epinio-acceptance-registry-mirror"
 
 const (
-	networkName       = "epinio-acceptance"
-	registryMirrorEnv = "EPINIO_REGISTRY_CONFIG"
+	networkName        = "epinio-acceptance"
+	registryMirrorEnv  = "EPINIO_REGISTRY_CONFIG"
+	skipCleanupPath    = "../tmp/skip_cleanup"
+	afterEachSleepPath = "../tmp/after_each_sleep"
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -146,15 +148,40 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 })
 
 var _ = SynchronizedAfterSuite(func() {
-	fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
-	deleteTmpDir()
+	if !skipCleanup() {
+		fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
+		deleteTmpDir()
+	}
 }, func() { // Runs only on one node after all are done
-	err := uninstallCluster()
-	ExpectWithOffset(1, err).NotTo(HaveOccurred())
+	if skipCleanup() {
+		fmt.Printf("Found '%s', skipping all cleanup", skipCleanupPath)
+	} else {
+		err := uninstallCluster()
+		ExpectWithOffset(1, err).NotTo(HaveOccurred())
 
-	// Delete left-overs no matter what
-	defer cleanupTmp()
+		// Delete left-overs no matter what
+		defer func() { _, _ = cleanupTmp() }()
+	}
 })
+
+var _ = AfterEach(func() {
+	if _, err := os.Stat(afterEachSleepPath); err == nil {
+		if data, err := os.ReadFile(afterEachSleepPath); err == nil {
+			if s, err := strconv.Atoi(string(data)); err == nil {
+				t := time.Duration(s) * time.Second
+				fmt.Printf("Found '%s', sleeping for '%s'", afterEachSleepPath, t)
+				time.Sleep(t)
+			}
+		}
+	}
+})
+
+// skipCleanup returns true if the file exists, false if some error occurred
+// while checking
+func skipCleanup() bool {
+	_, err := os.Stat(skipCleanupPath)
+	return err == nil
+}
 
 func ensureRegistryNetwork() (string, error) {
 	out, err := RunProc(fmt.Sprintf("docker network create %s", networkName), "", false)
