@@ -14,12 +14,19 @@ spec:
       description: The namespace to create the resources
     - name: appname
       description: Name of the app to stage/run
+    - name: organization
+      description: The Organization under which the app is running
   resourcetemplates:
     - apiVersion: tekton.dev/v1beta1
       kind: PipelineRun
       metadata:
         name: staging-$(uid)
         namespace: tekton-staging
+        labels:
+          app.kubernetes.io/name: $(tt.params.appname)
+          app.kubernetes.io/part-of: $(tt.params.organization)
+          app.kubernetes.io/managed-by: epinio
+          app.kubernetes.io/component: staging
       spec:
         serviceAccountName: staging-triggers-admin
         pipelineRef:
@@ -64,6 +71,8 @@ spec:
       value: "http://gitea-http.gitea:10080/$(body.repository.full_name)"
     - name: appname
       value: "$(body.repository.name)"
+    - name: organization
+      value: "$(body.repository.owner.login)"
 ---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: EventListener

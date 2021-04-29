@@ -192,7 +192,7 @@ func (c *InstallClient) DeleteWorkloads(ui *termui.UI) error {
 	}
 
 	for _, ns := range nsList.Items {
-		ui.Note().KeeplineUnder(1).Msg("Removing namespace" + ns.Name)
+		ui.Note().KeeplineUnder(1).Msg("Removing namespace " + ns.Name)
 		if err := c.kubeClient.Kubectl.CoreV1().Namespaces().
 			Delete(context.Background(), ns.Name, metav1.DeleteOptions{}); err != nil {
 			return err
