@@ -64,9 +64,6 @@ tidy:
 fmt:
 	go fmt ./...
 
-gitlint:
-	gitlint --commits "origin..HEAD"
-
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
 
