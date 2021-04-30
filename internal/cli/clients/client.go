@@ -715,7 +715,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 
 	errorMsgs := validation.IsDNS1123Subdomain(org)
 	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "/n"))
+		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
 	_, err := c.curl("api/v1/orgs", "POST", fmt.Sprintf(`{ "name": "%s" }`, org))
@@ -873,7 +873,7 @@ func (c *EpinioClient) Push(app string, path string) error {
 	details.Info("validate app")
 	errorMsgs := validation.IsDNS1123Subdomain(app)
 	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "/n"))
+		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
 	details.Info("create repo")
