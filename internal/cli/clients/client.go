@@ -27,7 +27,6 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/go-logr/logr"
 	"github.com/otiai10/copy"
@@ -985,7 +984,6 @@ func (c *EpinioClient) check() {
 }
 
 func (c *EpinioClient) createProductionCertificate(appName, systemDomain string) error {
-	resourceName := names.GenerateDNS1123SubDomainName(c.Config.Org, appName, "ssl-certificate")
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",
@@ -1036,7 +1034,6 @@ func (c *EpinioClient) createProductionCertificate(appName, systemDomain string)
 }
 
 func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) error {
-	resourceName := names.GenerateDNS1123SubDomainName(c.Config.Org, appName, "generate-certificate")
 	data := fmt.Sprintf(`{
 		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
 		"kind": "QuarksSecret",
