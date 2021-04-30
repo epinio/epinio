@@ -9,12 +9,7 @@ import (
 )
 
 func GenerateDNS1123SubDomainName(names ...string) string {
-	generatedName := strings.Join(names, ".")
-	if len(generatedName) > validation.DNS1123SubdomainMaxLength {
-		generatedName = TruncateMD5(generatedName, validation.DNS1123SubdomainMaxLength)
-	}
-
-	return generatedName
+	return TruncateMD5(strings.Join(names, "."), validation.DNS1123SubdomainMaxLength)
 }
 
 // TruncateMD5 is called when the string length > maxLen
