@@ -38,6 +38,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -711,6 +712,11 @@ func (c *EpinioClient) CreateOrg(org string) error {
 		WithStringValue("Name", org).
 		Msg("Creating organization...")
 
+	errorMsgs := validation.IsDNS1123Subdomain(org)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "\n"))
+	}
+
 	_, err := c.curl("api/v1/orgs", "POST", fmt.Sprintf(`{ "name": "%s" }`, org))
 	if err != nil {
 		return err
@@ -863,6 +869,12 @@ func (c *EpinioClient) Push(app string, path string) error {
 		return err
 	}
 
+	details.Info("validate app")
+	errorMsgs := validation.IsDNS1123Subdomain(app)
+	if len(errorMsgs) > 0 {
+		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
+	}
+
 	details.Info("create repo")
 	err = c.createRepo(app)
 	if err != nil {
@@ -976,7 +988,7 @@ func (c *EpinioClient) createProductionCertificate(appName, systemDomain string)
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",
 		"metadata": {
-			"name": "%s.%s.ssl-certificate",
+			"name": "%s",
 			"namespace": "%s"
 		},
 		"spec": {
@@ -990,7 +1002,7 @@ func (c *EpinioClient) createProductionCertificate(appName, systemDomain string)
 				"kind" : "ClusterIssuer"
 			}
 		}
-    }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, appName, systemDomain)
+        }`, appName, c.Config.Org, appName, systemDomain, appName, appName, systemDomain)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -1026,7 +1038,7 @@ func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) erro
 		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
 		"kind": "QuarksSecret",
 		"metadata": {
-			"name": "%s.%s.generate-certificate",
+			"name": "%s",
 			"namespace": "%s"
 		},
 		"spec": {
@@ -1051,7 +1063,7 @@ func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) erro
 			"secretName" : "%s-tls",
 			"type" : "tls"
 		}
-    }`, c.Config.Org, appName, c.Config.Org, appName, systemDomain, appName, systemDomain, appName)
+        }`, appName, c.Config.Org, appName, systemDomain, appName, systemDomain, appName)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -1100,9 +1112,7 @@ func (c *EpinioClient) deleteLocalCertificate(appName string) error {
 	}
 
 	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(c.Config.Org).
-		Delete(context.Background(),
-			fmt.Sprintf("%s.%s.generate-certificate", c.Config.Org, appName),
-			metav1.DeleteOptions{})
+		Delete(context.Background(), appName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -1123,9 +1133,7 @@ func (c *EpinioClient) deleteProductionCertificate(appName string) error {
 	}
 
 	err = dynamicClient.Resource(certificateInstanceGVR).Namespace(c.Config.Org).
-		Delete(context.Background(),
-			fmt.Sprintf("%s.%s.ssl-certificate", c.Config.Org, appName),
-			metav1.DeleteOptions{})
+		Delete(context.Background(), appName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}

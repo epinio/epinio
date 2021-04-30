@@ -166,7 +166,7 @@ var _ = SynchronizedAfterSuite(func() {
 
 var _ = AfterEach(func() {
 	if _, err := os.Stat(afterEachSleepPath); err == nil {
-		if data, err := os.ReadFile(afterEachSleepPath); err == nil {
+		if data, err := ioutil.ReadFile(afterEachSleepPath); err == nil {
 			if s, err := strconv.Atoi(string(data)); err == nil {
 				t := time.Duration(s) * time.Second
 				fmt.Printf("Found '%s', sleeping for '%s'", afterEachSleepPath, t)
