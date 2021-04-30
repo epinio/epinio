@@ -31,6 +31,7 @@ import (
 	archiver "github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -1093,7 +1094,12 @@ func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) erro
 			obj,
 			metav1.CreateOptions{})
 	if err != nil {
-		return err
+		if apierrors.IsAlreadyExists(err) {
+			c.ui.Normal().Msg("SSL certificate already exists.")
+			return nil
+		} else {
+			return err
+		}
 	}
 
 	return nil
