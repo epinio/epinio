@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
+	"github.com/epinio/epinio/helpers/tracelog"
 	pconfig "github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
@@ -42,7 +44,7 @@ func Execute() {
 	argToEnv["config-file"] = "EPINIO_CONFIG"
 
 	config.KubeConfigFlags(pf, argToEnv)
-	config.LoggerFlags(pf, argToEnv)
+	tracelog.LoggerFlags(pf, argToEnv)
 	duration.Flags(pf, argToEnv)
 
 	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
@@ -63,11 +65,21 @@ func Execute() {
 	rootCmd.AddCommand(CmdDisable)
 	rootCmd.AddCommand(CmdService)
 	rootCmd.AddCommand(CmdServer)
+	rootCmd.AddCommand(cmdVersion)
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(-1)
 	}
+}
+
+var cmdVersion = &cobra.Command{
+	Use:   "version",
+	Short: "Print the version number",
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Printf("Epinio Version: %s\n", version.Version)
+		fmt.Printf("Go Version: %s\n", runtime.Version())
+	},
 }
 
 func checkDependencies() error {

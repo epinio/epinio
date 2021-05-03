@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/organizations"
 )
 
@@ -44,7 +44,7 @@ func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) 
 }
 
 func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request) {
-	gitea, err := clients.GetGiteaClient()
+	gitea, err := gitea.New()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}

@@ -17,14 +17,16 @@ import (
 	"strings"
 	"time"
 
-	"code.gitea.io/sdk/gitea"
+	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/helpers/tracelog"
+	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
@@ -55,7 +57,7 @@ var (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	GiteaClient *GiteaClient
+	GiteaClient *gitea.Client
 	KubeClient  *kubernetes.Cluster
 	Config      *config.Config
 	Log         logr.Logger
@@ -74,8 +76,7 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 		return nil, err
 	}
 
-	client, err := GetGiteaClient()
-
+	client, err := gitea.New()
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +88,7 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 	}
 	serverURL := epClient.URL
 
-	logger := kubeconfig.NewClientLogger()
+	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
 		GiteaClient: client,
 		KubeClient:  cluster,
@@ -111,7 +112,7 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 		Msg("Listing service plans")
 
 	// todo: sort service plans by name before display
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/serviceclasses/%s/serviceplans", serviceClassName), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("ServicePlans", serviceClassName))
 	if err != nil {
 		return err
 	}
@@ -205,7 +206,7 @@ func (c *EpinioClient) ServiceClasses() error {
 	c.ui.Note().
 		Msg("Listing service classes")
 
-	jsonResponse, err := c.curl("api/v1/serviceclasses", "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("ServiceClasses"))
 	if err != nil {
 		return err
 	}
@@ -239,7 +240,7 @@ func (c *EpinioClient) Services() error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/", c.Config.Org), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
 	if err != nil {
 		return err
 	}
@@ -313,8 +314,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		return err
 	}
 
-	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings", c.Config.Org, appName),
-		"POST", string(js))
+	_, err = c.post(api.Routes.Path("ServiceBindingCreate", c.Config.Org, appName), string(js))
 	if err != nil {
 		return err
 	}
@@ -341,8 +341,8 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Unbind Service from Application")
 
-	_, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s/servicebindings/%s",
-		c.Config.Org, appName, serviceName), "DELETE", "")
+	_, err := c.delete(api.Routes.Path("ServiceBindingDelete",
+		c.Config.Org, appName, serviceName))
 	if err != nil {
 		return err
 	}
@@ -376,7 +376,8 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		return err
 	}
 
-	jsonResponse, err := c.curlWithCustomErrorHandling(fmt.Sprintf("api/v1/orgs/%s/services/%s", c.Config.Org, name),
+	jsonResponse, err := c.curlWithCustomErrorHandling(
+		api.Routes.Path("ServiceDelete", c.Config.Org, name),
 		"DELETE", string(js),
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
@@ -385,7 +386,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			}
 
 			// A bad request happens when the service is
-			// still bound to one or omre applications,
+			// still bound to one or more applications,
 			// and the response contains an array of their
 			// names.
 
@@ -475,8 +476,7 @@ func (c *EpinioClient) CreateService(name, class, plan string, dict []string, wa
 		defer s.Stop()
 	}
 
-	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/services", c.Config.Org),
-		"POST", string(js))
+	_, err = c.post(api.Routes.Path("ServiceCreate", c.Config.Org), string(js))
 	if err != nil {
 		return err
 	}
@@ -528,8 +528,8 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 		return err
 	}
 
-	_, err = c.curl(fmt.Sprintf("api/v1/orgs/%s/custom-services", c.Config.Org),
-		"POST", string(js))
+	_, err = c.post(api.Routes.Path("ServiceCreateCustom", c.Config.Org),
+		string(js))
 	if err != nil {
 		return err
 	}
@@ -553,7 +553,7 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Service Details")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/services/%s", c.Config.Org, name), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("ServiceShow", c.Config.Org, name))
 	if err != nil {
 		return err
 	}
@@ -595,10 +595,19 @@ func (c *EpinioClient) Info() error {
 		giteaVersion = version
 	}
 
+	epinioVersion := "unavailable"
+	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {
+		v := struct{ Version string }{}
+		if err := json.Unmarshal(jsonResponse, &v); err == nil {
+			epinioVersion = v.Version
+		}
+	}
+
 	c.ui.Success().
 		WithStringValue("Platform", platform.String()).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
+		WithStringValue("Epinio Version", epinioVersion).
 		Msg("Epinio Environment")
 
 	return nil
@@ -644,7 +653,7 @@ func (c *EpinioClient) Apps() error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications", c.Config.Org), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Apps", c.Config.Org))
 	if err != nil {
 		return err
 	}
@@ -682,7 +691,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appName), "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("AppShow", c.Config.Org, appName))
 	if err != nil {
 		return err
 	}
@@ -717,7 +726,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	_, err := c.curl("api/v1/orgs", "POST", fmt.Sprintf(`{ "name": "%s" }`, org))
+	_, err := c.post(api.Routes.Path("Orgs"), fmt.Sprintf(`{ "name": "%s" }`, org))
 	if err != nil {
 		return err
 	}
@@ -741,7 +750,7 @@ func (c *EpinioClient) Delete(appname string) error {
 	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
 	defer s.Stop()
 
-	jsonResponse, err := c.curl(fmt.Sprintf("api/v1/orgs/%s/applications/%s", c.Config.Org, appname), "DELETE", "")
+	jsonResponse, err := c.delete(api.Routes.Path("AppDelete", c.Config.Org, appname))
 	if err != nil {
 		return err
 	}
@@ -789,7 +798,7 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 
 	result := []string{}
 
-	jsonResponse, err := c.curl("api/v1/orgs/", "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
 	if err != nil {
 		return result
 	}
@@ -820,7 +829,7 @@ func (c *EpinioClient) Orgs() error {
 	c.ui.Note().Msg("Listing organizations")
 
 	details.Info("list organizations")
-	jsonResponse, err := c.curl("api/v1/orgs/", "GET", "")
+	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
 	if err != nil {
 		return err
 	}
@@ -1157,7 +1166,7 @@ func (c *EpinioClient) createRepo(name string) error {
 		return nil
 	}
 
-	_, _, err = c.GiteaClient.Client.CreateOrgRepo(c.Config.Org, gitea.CreateRepoOption{
+	_, _, err = c.GiteaClient.Client.CreateOrgRepo(c.Config.Org, giteaSDK.CreateRepoOption{
 		Name:          name,
 		AutoInit:      true,
 		Private:       true,
@@ -1174,7 +1183,7 @@ func (c *EpinioClient) createRepo(name string) error {
 }
 
 func (c *EpinioClient) createRepoWebhook(name string) error {
-	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, gitea.ListHooksOptions{})
+	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, giteaSDK.ListHooksOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to list webhooks")
 	}
@@ -1189,7 +1198,7 @@ func (c *EpinioClient) createRepoWebhook(name string) error {
 
 	c.ui.Normal().Msg("Creating webhook in the repo...")
 
-	c.GiteaClient.Client.CreateRepoHook(c.Config.Org, name, gitea.CreateHookOption{
+	c.GiteaClient.Client.CreateRepoHook(c.Config.Org, name, giteaSDK.CreateHookOption{
 		Active:       true,
 		BranchFilter: "*",
 		Config: map[string]string{
@@ -1566,8 +1575,22 @@ func (c *EpinioClient) ServicesToApps(org string) (map[string]application.Applic
 	return appsOf, nil
 }
 
+func (c *EpinioClient) get(endpoint string) ([]byte, error) {
+	return c.curl(endpoint, "GET", "")
+}
+
+func (c *EpinioClient) post(endpoint string, data string) ([]byte, error) {
+	return c.curl(endpoint, "POST", data)
+}
+
+func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
+	return c.curl(endpoint, "DELETE", "")
+}
+
 func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
+	c.Log.Info(fmt.Sprintf("%s %s", method, uri))
+	c.Log.V(1).Info(requestBody)
 	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
 	if err != nil {
 		return []byte{}, err

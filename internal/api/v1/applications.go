@@ -7,7 +7,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
@@ -98,7 +98,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	gitea, err := clients.GetGiteaClient()
+	gitea, err := gitea.New()
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}

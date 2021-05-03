@@ -10,8 +10,8 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	kubeconfig "github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
@@ -42,7 +42,7 @@ func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOpti
 	if err != nil {
 		return nil, nil, err
 	}
-	logger := kubeconfig.NewInstallClientLogger()
+	logger := tracelog.NewInstallClientLogger()
 	installClient := &InstallClient{
 		kubeClient: cluster,
 		ui:         uiUI,

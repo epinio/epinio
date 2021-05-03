@@ -31,6 +31,10 @@ var CmdPush = &cobra.Command{
 			path = args[1]
 		}
 
+		if _, err := os.Stat(path); err != nil {
+			return errors.Wrap(err, "path not accessible")
+		}
+
 		err = client.Push(args[0], path)
 		if err != nil {
 			return errors.Wrap(err, "error pushing app")

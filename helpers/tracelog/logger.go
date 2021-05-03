@@ -1,4 +1,6 @@
-package config
+// Package tracelog provides a logger for debugging and tracing
+// This logger will not print anything, unless TRACE_LEVEL is at least 1
+package tracelog
 
 import (
 	"log"
@@ -22,17 +24,22 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	argToEnv["trace-level"] = "TRACE_LEVEL"
 }
 
-// New creates a new logger with our setup
+// NewServerLogger creates a new logger for server subcommand
+func NewServerLogger() logr.Logger {
+	return NewLogger().WithName("epinio")
+}
+
+// NewClientLogger creates a new logger with our setup
 func NewClientLogger() logr.Logger {
 	return NewLogger().WithName("EpinioClient")
 }
 
-// New creates a new logger with our setup
+// NewInstallClientLogger creates a new logger for the install subcommand
 func NewInstallClientLogger() logr.Logger {
 	return NewLogger().WithName("InstallClient")
 }
 
-// New creates a new logger with our setup
+// NewLogger creates a new logger with our setup
 func NewLogger() logr.Logger {
 	stdr.SetVerbosity(TraceLevel())
 	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
