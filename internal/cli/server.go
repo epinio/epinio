@@ -95,7 +95,7 @@ func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 
 		// add our logger
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, apiv1.CtxLoggerKey{}, log)
+		ctx = context.WithValue(ctx, tracelog.CtxLoggerKey{}, log)
 		r = r.WithContext(ctx)
 
 		// log the request first, then ...
@@ -111,12 +111,12 @@ func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 func logRequest(r *http.Request, log logr.Logger) {
 	uri := r.URL.String()
 	method := r.Method
-	log.V(1).Info(fmt.Sprintf("%s %s", method, uri))
+	log.V(1).Info("received request", "method", method, "uri", uri)
 
 	// Read request body for logging
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Error(err, "RequestBody Error")
+		log.Error(err, "request", "body", "error")
 		return
 	}
 	r.Body.Close()
@@ -125,9 +125,9 @@ func logRequest(r *http.Request, log logr.Logger) {
 	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	if len(bodyBytes) == 0 {
-		log.Info("RequestBody: n/a")
+		log.V(2).Info("request", "body", "n/a")
 		return
 	}
 
-	log.V(1).Info("RequestBody\n%s\n/RequestBody", string(bodyBytes))
+	log.V(2).Info("request", "body", string(bodyBytes))
 }

@@ -2,15 +2,14 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
-	"github.com/go-logr/logr"
 	"github.com/julienschmidt/httprouter"
 	"github.com/mholt/archiver/v3"
 )
@@ -18,16 +17,13 @@ import (
 // Upload receives the application data, as tarball, and creates the gitea as
 // well as k8s resources to trigger staging
 func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) {
-	log, ok := r.Context().Value(CtxLoggerKey{}).(logr.Logger)
-	if !ok {
-		fmt.Println("failed to get logger from request context")
-	}
+	log := tracelog.Logger(r.Context())
 
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	app := params.ByName("app")
 
-	log.Info("processing upload for", org, app)
+	log.Info("processing upload for", "org", org, "app", app)
 
 	gitea, err := gitea.New()
 	if err != nil {
@@ -35,7 +31,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	log.Info("parsing multipart form")
+	log.V(2).Info("parsing multipart form")
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -65,7 +61,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	log.Info("unpacking temp dir")
+	log.V(2).Info("unpacking temp dir")
 	appDir := path.Join(tmpDir, "app")
 	err = archiver.Unarchive(blob, appDir)
 	if err != nil {
@@ -73,7 +69,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	log.Info("create gitea app")
+	log.V(2).Info("create gitea app")
 	err = gitea.CreateApp(org, app, appDir)
 	if err != nil {
 		internalError(w, err.Error())
