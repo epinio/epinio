@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -68,6 +69,9 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 		},
 		metav1.CreateOptions{},
 	); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			return errors.Errorf("Org '%s' name cannot be used. Please try another name", org)
+		}
 		return err
 	}
 
