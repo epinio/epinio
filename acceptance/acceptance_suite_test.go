@@ -30,20 +30,22 @@ func TestAcceptance(t *testing.T) {
 
 var nodeSuffix, nodeTmpDir string
 var serverURL string
-var k3dClusterName string
 var registryMirrorName = "epinio-acceptance-registry-mirror"
 
 const (
-	networkName        = "epinio-acceptance"
-	registryMirrorEnv  = "EPINIO_REGISTRY_CONFIG"
-	skipCleanupPath    = "../tmp/skip_cleanup"
-	afterEachSleepPath = "../tmp/after_each_sleep"
+	networkName         = "epinio-acceptance"
+	registryMirrorEnv   = "EPINIO_REGISTRY_CONFIG"
+	registryUsernameEnv = "REGISTRY_USERNAME"
+	registryPasswordEnv = "REGISTRY_PASSWORD"
+	skipCleanupPath     = "../tmp/skip_cleanup"
+	afterEachSleepPath  = "../tmp/after_each_sleep"
+	k3dInstallArgsEnv   = "EPINIO_K3D_INSTALL_ARGS" // -p '80:80@server[0]' -p '443:443@server[0]'
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
 
-	if os.Getenv("REGISTRY_USERNAME") == "" || os.Getenv("REGISTRY_PASSWORD") == "" {
+	if os.Getenv(registryUsernameEnv) == "" || os.Getenv(registryPasswordEnv) == "" {
 		fmt.Println("REGISTRY_USERNAME or REGISTRY_PASSWORD environment variables are empty. Pulling from dockerhub will be subject to rate limiting.")
 	}
 
@@ -52,8 +54,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
-
 	buildEpinio()
+
+	os.Setenv("EPINIO_BINARY_PATH", path.Join("dist", "epinio-linux-amd64"))
+	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
+
 	fmt.Println("Ensuring a docker network")
 	out, err := ensureRegistryNetwork()
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
@@ -63,22 +68,20 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Println("Ensuring acceptance cluster")
 	ensureCluster("epinio-acceptance")
 
-	if os.Getenv("REGISTRY_USERNAME") != "" && os.Getenv("REGISTRY_PASSWORD") != "" {
+	if os.Getenv(registryUsernameEnv) != "" && os.Getenv(registryPasswordEnv) != "" {
 		fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
-		helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
+		_, _ = helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
 			"https://index.docker.io/v1/",
-			os.Getenv("REGISTRY_USERNAME"),
-			os.Getenv("REGISTRY_PASSWORD"),
+			os.Getenv(registryUsernameEnv),
+			os.Getenv(registryPasswordEnv),
 		))
 	}
 
 	fmt.Println("Installing Epinio")
 	// Allow the installation to continue
-	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	out, err = RunProc("../dist/epinio-linux-amd64 install --skip-default-org", "", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	os.Setenv("EPINIO_BINARY_PATH", path.Join("dist", "epinio-linux-amd64"))
 	// Patch Epinio deployment to inject the current binary
 	out, err = RunProc("make patch-epinio-deployment", "..", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
@@ -213,7 +216,7 @@ func ensureRegistryMirror() (string, error) {
 	if out == "" {
 		fmt.Printf("Registry mirror %s is not running. I will try to create it.\n", registryMirrorName)
 		command := fmt.Sprintf("docker run -d --network %s --name %s -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io -e REGISTRY_PROXY_USERNAME=%s -e REGISTRY_PROXY_PASSWORD=%s registry:2",
-			networkName, registryMirrorName, os.Getenv("REGISTRY_USERNAME"), os.Getenv("REGISTRY_PASSWORD"))
+			networkName, registryMirrorName, os.Getenv(registryUsernameEnv), os.Getenv(registryPasswordEnv))
 
 		return RunProc(command, nodeTmpDir, false)
 	}
@@ -252,8 +255,8 @@ func ensureCluster(k3dClusterName string) {
 		if notExists {
 			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", k3dClusterName)
 			out, err := RunProc(
-				fmt.Sprintf("k3d cluster create %s --registry-config %s --network %s",
-					k3dClusterName, tmpk3dConfig, networkName),
+				fmt.Sprintf("k3d cluster create %s --registry-config %s --network %s %s",
+					k3dClusterName, tmpk3dConfig, networkName, os.Getenv(k3dInstallArgsEnv)),
 				"", false)
 			if err != nil {
 				panic(fmt.Sprintf("Creating k3d cluster failed: %s \n%s", err.Error(), out))
@@ -271,20 +274,6 @@ func waitUntilClusterNodeReady() (string, error) {
 	}
 
 	return RunProc("kubectl wait --for=condition=Ready "+nodeName, nodeTmpDir, true)
-}
-
-func deleteCluster() {
-	name := fmt.Sprintf("epinio-acceptance-%s", nodeSuffix)
-
-	if _, err := exec.LookPath("k3d"); err != nil {
-		panic("Couldn't find k3d in PATH: " + err.Error())
-	}
-
-	output, err := RunProc("k3d cluster delete "+name, nodeTmpDir, false)
-	if err != nil {
-		panic(fmt.Sprintf("Deleting k3d cluster failed: %s\n %s\n",
-			output, err.Error()))
-	}
 }
 
 func deleteTmpDir() {
@@ -417,7 +406,7 @@ func expectGoodInstallation() {
 }
 
 func setupGoogleServices() {
-	serviceAccountJson, err := helpers.CreateTmpFile(`
+	serviceAccountJSON, err := helpers.CreateTmpFile(`
 				{
 					"type": "service_account",
 					"project_id": "myproject",
@@ -431,11 +420,11 @@ func setupGoogleServices() {
 					"client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/client%40example.com"
 				}
 			`)
-	ExpectWithOffset(2, err).ToNot(HaveOccurred(), serviceAccountJson)
+	ExpectWithOffset(2, err).ToNot(HaveOccurred(), serviceAccountJSON)
 
-	defer os.Remove(serviceAccountJson)
+	defer os.Remove(serviceAccountJSON)
 
-	out, err := RunProc("../dist/epinio-linux-amd64 enable services-google --service-account-json "+serviceAccountJson, "", false)
+	out, err := RunProc("../dist/epinio-linux-amd64 enable services-google --service-account-json "+serviceAccountJSON, "", false)
 	ExpectWithOffset(2, err).ToNot(HaveOccurred(), out)
 
 	out, err = helpers.Kubectl(`get pods -n google-service-broker --selector=app.kubernetes.io/name=gcp-service-broker`)

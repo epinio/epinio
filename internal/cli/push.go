@@ -37,7 +37,7 @@ var CmdPush = &cobra.Command{
 
 		err = client.Push(args[0], path)
 		if err != nil {
-			return errors.Wrap(err, "error pushing app")
+			return errors.Wrap(err, "error pushing app to server")
 		}
 
 		return nil

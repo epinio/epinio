@@ -69,7 +69,7 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 
 	org, ok := parts["name"]
 	if !ok {
-		http.Error(w, fmt.Sprintf("Name of organization to create not found"),
+		http.Error(w, "Name of organization to create not found",
 			http.StatusBadRequest)
 		return
 	}
@@ -84,7 +84,7 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	err = organizations.Create(cluster, gitea, org)
+	err = organizations.Create(r.Context(), cluster, gitea, org)
 
 	if handleError(w, err, http.StatusInternalServerError) {
 		return

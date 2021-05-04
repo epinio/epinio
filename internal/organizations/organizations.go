@@ -5,10 +5,10 @@ package organizations
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,9 +54,9 @@ func Exists(kubeClient *kubernetes.Cluster, lookupOrg string) (bool, error) {
 	return false, nil
 }
 
-func Create(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) error {
+func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) error {
 	if _, err := kubeClient.Kubectl.CoreV1().Namespaces().Create(
-		context.Background(),
+		ctx,
 		&corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: org,
@@ -73,14 +73,14 @@ func Create(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) er
 
 	// This secret is used as ImagePullSecrets for the application ServiceAccount
 	// in order to allow the image to be pulled from the registry.
-	if err := copySecret("registry-creds", deployments.TektonStagingNamespace, org, kubeClient); err != nil {
+	if err := copySecret(ctx, "registry-creds", deployments.TektonStagingNamespace, org, kubeClient); err != nil {
 		return errors.Wrap(err, "failed to copy the registry credentials secret")
 	}
 
 	// Copy the CA certificate from the tekton-staging namespace.
 	// This is needed to sign the self signed certificates on the application in
 	// this new namespace.
-	if err := copySecret("ca-cert", deployments.TektonStagingNamespace, org, kubeClient); err != nil {
+	if err := copySecret(ctx, "ca-cert", deployments.TektonStagingNamespace, org, kubeClient); err != nil {
 		return errors.Wrap(err, "failed to copy the ca certificate")
 	}
 
@@ -91,11 +91,12 @@ func Create(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) er
 	return gitea.CreateOrg(org)
 }
 
-func copySecret(secretName, originOrg, targetOrg string, kubeClient *kubernetes.Cluster) error {
-	fmt.Println("Will now copy " + secretName)
+func copySecret(ctx context.Context, secretName, originOrg, targetOrg string, kubeClient *kubernetes.Cluster) error {
+	log := tracelog.Logger(ctx)
+	log.V(1).Info("will now copy secret", "name", secretName)
 	secret, err := kubeClient.Kubectl.CoreV1().
 		Secrets(originOrg).
-		Get(context.Background(), secretName, metav1.GetOptions{})
+		Get(ctx, secretName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -104,10 +105,10 @@ func copySecret(secretName, originOrg, targetOrg string, kubeClient *kubernetes.
 	newSecret.ObjectMeta.Namespace = targetOrg
 	newSecret.ResourceVersion = ""
 	newSecret.OwnerReferences = []metav1.OwnerReference{}
-	fmt.Printf("newSecret = %+v\n", newSecret)
+	log.V(2).Info("newSecret", "data", newSecret)
 
 	_, err = kubeClient.Kubectl.CoreV1().Secrets(targetOrg).
-		Create(context.Background(), newSecret, metav1.CreateOptions{})
+		Create(ctx, newSecret, metav1.CreateOptions{})
 
 	return err
 }

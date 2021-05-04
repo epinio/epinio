@@ -1,24 +1,21 @@
 package clients
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
+	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
-	"net/url"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 
-	giteaSDK "code.gitea.io/sdk/gitea"
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
@@ -31,7 +28,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/go-logr/logr"
-	"github.com/otiai10/copy"
+	archiver "github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,16 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
-)
-
-var (
-	// HookSecret should be generated
-	// TODO: generate this and put it in a secret
-	HookSecret = "74tZTBHkhjMT5Klj6Ik6PqmM"
-
-	// StagingEventListenerURL should not exist
-	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-staging-listener." + deployments.TektonStagingNamespace + ":8080"
 )
 
 // EpinioClient provides functionality for talking to a
@@ -851,19 +838,19 @@ func (c *EpinioClient) Orgs() error {
 }
 
 // Push pushes an app
-func (c *EpinioClient) Push(app string, path string) error {
+func (c *EpinioClient) Push(app string, source string) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", app,
 			"Organization", c.Config.Org,
-			"Sources", path)
+			"Sources", source)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Name", app).
-		WithStringValue("Sources", path).
+		WithStringValue("Sources", source).
 		WithStringValue("Organization", c.Config.Org).
 		Msg("About to push an application with given name and sources into the specified organization")
 
@@ -875,57 +862,60 @@ func (c *EpinioClient) Push(app string, path string) error {
 	details.Info("validate")
 	err := c.ensureGoodOrg(c.Config.Org, "Unable to push.")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "ensuring org is good")
 	}
 
-	details.Info("validate app")
+	details.Info("validate app name")
 	errorMsgs := validation.IsDNS1123Subdomain(app)
 	if len(errorMsgs) > 0 {
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	details.Info("create repo")
-	err = c.createRepo(app)
+	c.ui.Normal().Msg("Compressing application code ...")
+	files, err := ioutil.ReadDir(source)
 	if err != nil {
-		return errors.Wrap(err, "create repo failed")
+		return errors.Wrap(err, "canot read the apps source files")
+	}
+	sources := []string{}
+	for _, f := range files {
+		sources = append(sources, f.Name())
+	}
+	log.V(3).Info("found app data files", "files", sources)
+
+	// create a tmpDir - tarball dir and POST
+	tmpDir, err := ioutil.TempDir("", "epinio-app")
+	if err != nil {
+		return errors.Wrap(err, "can't create temp directory")
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	tarball := path.Join(tmpDir, "blob.tar")
+	err = archiver.Archive(sources, tarball)
+	if err != nil {
+		return errors.Wrap(err, "can't create archive")
 	}
 
-	details.Info("create repo webhook")
-	err = c.createRepoWebhook(app)
-	if err != nil {
-		return errors.Wrap(err, "webhook configuration failed")
-	}
+	c.ui.Normal().Msg("Uploading application code ...")
 
-	details.Info("get app default route")
-	route := c.appDefaultRoute(app)
-
-	details.Info("prepare code")
-	tmpDir, err := c.prepareCode(app, route, c.Config.Org, path)
+	// upload blob to the server's uplad API endpoint
+	details.Info("upload code")
+	err = c.upload(api.Routes.Path("AppUpload", c.Config.Org, app), tarball)
 	if err != nil {
-		return errors.Wrap(err, "failed to prepare code")
+		return errors.Wrap(err, "can't upload archive")
 	}
-	defer os.RemoveAll(tmpDir)
 
 	// Create production certificate if it is provided by user
 	// else create a local cluster self-signed tls secret.
 	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
-		details.Info("create production ready ssl certificate")
 		err = c.createProductionCertificate(app, c.GiteaClient.Domain)
 		if err != nil {
 			return errors.Wrap(err, "create production ssl certificate failed")
 		}
 	} else {
-		details.Info("create local ssl certificate")
 		err = c.createLocalCertificate(app, c.GiteaClient.Domain)
 		if err != nil {
 			return errors.Wrap(err, "create local ssl certificate failed")
 		}
-	}
-
-	details.Info("git push")
-	err = c.gitPush(app, tmpDir)
-	if err != nil {
-		return errors.Wrap(err, "failed to git push code")
 	}
 
 	details.Info("start tailing logs")
@@ -941,6 +931,7 @@ func (c *EpinioClient) Push(app string, path string) error {
 		return errors.Wrap(err, "waiting for app failed")
 	}
 
+	route := c.GiteaClient.AppDefaultRoute(app)
 	c.ui.Success().
 		WithStringValue("Name", app).
 		WithStringValue("Organization", c.Config.Org).
@@ -1155,315 +1146,6 @@ func (c *EpinioClient) deleteProductionCertificate(appName string) error {
 	return nil
 }
 
-func (c *EpinioClient) createRepo(name string) error {
-	_, resp, err := c.GiteaClient.Client.GetRepo(c.Config.Org, name)
-	if resp == nil && err != nil {
-		return errors.Wrap(err, "failed to make get repo request")
-	}
-
-	if resp.StatusCode == 200 {
-		c.ui.Note().Msg("Application already exists. Updating.")
-		return nil
-	}
-
-	_, _, err = c.GiteaClient.Client.CreateOrgRepo(c.Config.Org, giteaSDK.CreateRepoOption{
-		Name:          name,
-		AutoInit:      true,
-		Private:       true,
-		DefaultBranch: "main",
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to create application")
-	}
-
-	c.ui.Success().Msg("Application Repository created.")
-
-	return nil
-}
-
-func (c *EpinioClient) createRepoWebhook(name string) error {
-	hooks, _, err := c.GiteaClient.Client.ListRepoHooks(c.Config.Org, name, giteaSDK.ListHooksOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to list webhooks")
-	}
-
-	for _, hook := range hooks {
-		url := hook.Config["url"]
-		if url == StagingEventListenerURL {
-			c.ui.Normal().Msg("Webhook already exists.")
-			return nil
-		}
-	}
-
-	c.ui.Normal().Msg("Creating webhook in the repo...")
-
-	c.GiteaClient.Client.CreateRepoHook(c.Config.Org, name, giteaSDK.CreateHookOption{
-		Active:       true,
-		BranchFilter: "*",
-		Config: map[string]string{
-			"secret":       HookSecret,
-			"http_method":  "POST",
-			"url":          StagingEventListenerURL,
-			"content_type": "json",
-		},
-		Type: "gitea",
-	})
-
-	return nil
-}
-
-func (c *EpinioClient) appDefaultRoute(name string) string {
-	return fmt.Sprintf("%s.%s", name, c.GiteaClient.Domain)
-}
-
-func (c *EpinioClient) prepareCode(name, route, org, appDir string) (tmpDir string, err error) {
-	c.ui.Normal().Msg("Preparing code ...")
-
-	tmpDir, err = ioutil.TempDir("", "epinio-app")
-	if err != nil {
-		return "", errors.Wrap(err, "can't create temp directory")
-	}
-
-	err = copy.Copy(appDir, tmpDir)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to copy app sources to temp location")
-	}
-
-	err = os.MkdirAll(filepath.Join(tmpDir, ".kube"), 0700)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to setup kube resources directory in temp app location")
-	}
-
-	if err := c.renderDeployment(filepath.Join(tmpDir, ".kube", "app.yml"), name); err != nil {
-		return "", err
-	}
-	if err := c.renderService(filepath.Join(tmpDir, ".kube", "service.yml"), name); err != nil {
-		return "", err
-	}
-	if err := c.renderIngress(filepath.Join(tmpDir, ".kube", "ingress.yml"), name, route); err != nil {
-		return "", err
-	}
-
-	return
-}
-
-func (c *EpinioClient) renderDeployment(filePath, appName string) error {
-	route := c.appDefaultRoute(appName)
-
-	deploymentTmpl, err := template.New("deployment").Parse(`
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: "{{ .AppName }}"
-  namespace: {{ .Org }}
-  labels:
-    app.kubernetes.io/name: "{{ .AppName }}"
-    app.kubernetes.io/part-of: "{{ .Org }}"
-    app.kubernetes.io/component: application
-    app.kubernetes.io/managed-by: epinio
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: "{{ .AppName }}"
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: "{{ .AppName }}"
-        app.kubernetes.io/part-of: "{{ .Org }}"
-        app.kubernetes.io/component: application
-        app.kubernetes.io/managed-by: epinio
-      annotations:
-        app.kubernetes.io/name: "{{ .AppName }}"
-    spec:
-      # TODO: Do these when you create an org
-      serviceAccountName: {{ .Org }}
-      automountServiceAccountToken: false
-      containers:
-      - name: "{{ .AppName }}"
-        image: "127.0.0.1:30500/apps/{{ .AppName }}"
-        ports:
-        - containerPort: 8080
-        env:
-        - name: PORT
-          value: "8080"
-  `)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse deployment template for app")
-	}
-
-	appFile, err := os.Create(filePath)
-	if err != nil {
-		return errors.Wrap(err, "failed to create file for kube resource definitions")
-	}
-	defer func() { err = appFile.Close() }()
-
-	err = deploymentTmpl.Execute(appFile, struct {
-		AppName string
-		Route   string
-		Org     string
-	}{
-		AppName: appName,
-		Route:   route,
-		Org:     c.Config.Org,
-	})
-
-	if err != nil {
-		return errors.Wrap(err, "failed to render kube resource definition")
-	}
-
-	return nil
-}
-
-func (c *EpinioClient) renderService(filePath, appName string) error {
-	serviceTmpl, err := template.New("service").Parse(`
-apiVersion: v1
-kind: Service
-metadata:
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
-  labels:
-    app.kubernetes.io/component: application
-    app.kubernetes.io/managed-by: epinio
-    app.kubernetes.io/name: {{ .AppName }}
-    app.kubernetes.io/part-of: {{ .Org }}
-    kubernetes.io/ingress.class: traefik
-  name: {{ .AppName }}
-  namespace: {{ .Org }}
-spec:
-  ports:
-  - port: 8080
-    protocol: TCP
-    targetPort: 8080
-  selector:
-    app.kubernetes.io/name: "{{ .AppName }}"
-  type: ClusterIP
-  `)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse service template for app")
-	}
-
-	serviceFile, err := os.Create(filePath)
-	if err != nil {
-		return errors.Wrap(err, "failed to create file for application Service definition")
-	}
-	defer func() { _ = serviceFile.Close() }()
-
-	err = serviceTmpl.Execute(serviceFile, struct {
-		AppName string
-		Org     string
-	}{
-		AppName: appName,
-		Org:     c.Config.Org,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to render application Service definition")
-	}
-
-	return nil
-}
-
-func (c *EpinioClient) renderIngress(filePath, appName, route string) error {
-	ingressTmpl, err := template.New("ingress").Parse(`
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  annotations:
-    traefik.ingress.kubernetes.io/router.entrypoints: websecure
-    traefik.ingress.kubernetes.io/router.tls: "true"
-  labels:
-    app.kubernetes.io/component: application
-    app.kubernetes.io/managed-by: epinio
-    app.kubernetes.io/name: {{ .AppName }}
-    app.kubernetes.io/part-of: {{ .Org }}
-    kubernetes.io/ingress.class: traefik
-  name: {{ .AppName }}
-  namespace: {{ .Org }}
-spec:
-  rules:
-  - host: {{ .Route }}
-    http:
-      paths:
-      - backend:
-          service:
-            name: {{ .AppName }}
-            port:
-              number: 8080
-        path: /
-        pathType: ImplementationSpecific
-  tls:
-  - hosts:
-    - {{ .Route }}
-    secretName: {{ .AppName }}-tls
-  `)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse ingress template for app")
-	}
-
-	ingressFile, err := os.Create(filePath)
-	if err != nil {
-		return errors.Wrap(err, "failed to create file for application Ingress definition")
-	}
-	defer func() { err = ingressFile.Close() }()
-
-	err = ingressTmpl.Execute(ingressFile, struct {
-		AppName string
-		Org     string
-		Route   string
-	}{
-		AppName: appName,
-		Org:     c.Config.Org,
-		Route:   route,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to render application Ingress definition")
-	}
-
-	return nil
-}
-
-func (c *EpinioClient) gitPush(name, tmpDir string) error {
-	c.ui.Normal().Msg("Pushing application code ...")
-
-	u, err := url.Parse(c.GiteaClient.URL)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse gitea url")
-	}
-
-	u.User = url.UserPassword(c.GiteaClient.Username, c.GiteaClient.Password)
-	u.Path = path.Join(u.Path, c.Config.Org, name)
-
-	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
-cd "%s" 
-git init
-git config user.name "Epinio"
-git config user.email ci@epinio
-git remote add epinio "%s"
-git fetch --all
-git reset --soft epinio/main
-git add --all
-git commit -m "pushed at %s"
-git push epinio %s:main
-`, tmpDir, u.String(), time.Now().Format("20060102150405"), "`git branch --show-current`"))
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		c.ui.Problem().
-			WithStringValue("Stdout", string(output)).
-			WithStringValue("Stderr", "").
-			Msg("App push failed")
-		return errors.Wrap(err, "push script failed")
-	}
-
-	c.ui.Note().V(1).WithStringValue("Output", string(output)).Msg("")
-	c.ui.Success().Msg("Application push successful")
-
-	return nil
-}
-
 func (c *EpinioClient) logs(appName, org string) (context.CancelFunc, error) {
 	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
 
@@ -1585,6 +1267,59 @@ func (c *EpinioClient) post(endpoint string, data string) ([]byte, error) {
 
 func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
 	return c.curl(endpoint, "DELETE", "")
+}
+
+// upload the given path as param "file" in a multipart form
+func (c *EpinioClient) upload(endpoint string, path string) error {
+	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
+
+	// open the tarball
+	file, err := os.Open(path)
+	if err != nil {
+		return errors.Wrap(err, "failed to open tarball")
+	}
+	defer file.Close()
+
+	// create multipart form
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+	if err != nil {
+		return errors.Wrap(err, "failed to create multiform part")
+	}
+
+	_, err = io.Copy(part, file)
+	if err != nil {
+		return errors.Wrap(err, "failed to write to multiform part")
+	}
+
+	err = writer.Close()
+	if err != nil {
+		return errors.Wrap(err, "failed to close multiform")
+	}
+
+	// make the request
+	request, err := http.NewRequest("POST", uri, body)
+	if err != nil {
+		return errors.Wrap(err, "failed to build request")
+	}
+	request.Header.Add("Content-Type", writer.FormDataContentType())
+
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return errors.Wrap(err, "failed to POST to upload")
+	}
+	defer response.Body.Close()
+	if response.StatusCode == http.StatusCreated {
+		return nil
+	}
+
+	bodyBytes, _ := ioutil.ReadAll(response.Body)
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("server status code: %s\n%s", http.StatusText(response.StatusCode), string(bodyBytes))
+	}
+	return nil
 }
 
 func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {
