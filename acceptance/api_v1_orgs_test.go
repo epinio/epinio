@@ -108,6 +108,18 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				Expect(string(bodyBytes)).To(Equal("Organization 'birdy' already exists\n"))
 			})
 
+			It("fails for a restricted organization", func() {
+				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+					strings.NewReader(`{"name":"epinio"}`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal("Org 'epinio' name cannot be used. Please try another name\n"))
+			})
+
 			It("creates a new organization", func() {
 				response, err := Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
 					strings.NewReader(`{"name":"birdwatcher"}`))
