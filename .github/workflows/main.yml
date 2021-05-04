@@ -9,6 +9,9 @@ on:
     branches: [ main ]
     paths-ignore:
     - 'docs/**'
+  # nightly
+  schedule:
+    - cron:  '0 0 * * *'
 
 jobs:
   build:
