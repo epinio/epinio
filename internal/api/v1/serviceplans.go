@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -19,33 +18,30 @@ func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) 
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	serviceClass, err := services.ClassLookup(cluster, serviceClassName)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	if serviceClass == nil {
-		return APIErrors{
-			NewAPIError(fmt.Sprintf("ServiceClass '%s' does not exist", serviceClassName),
-				"", http.StatusNotFound),
-		}
+		return APIErrors{ServiceClassIsNotKnown(serviceClassName)}
 	}
 	servicePlans, err := serviceClass.ListPlans()
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	js, err := json.Marshal(servicePlans)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	return nil

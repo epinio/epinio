@@ -18,12 +18,12 @@ func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) APIErrors 
 	}
 	js, err := json.Marshal(info)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	return nil

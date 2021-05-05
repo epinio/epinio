@@ -12,31 +12,6 @@ import (
 
 const v = "/api/v1"
 
-type APIError struct {
-	Status  int
-	Title   string
-	Details string
-}
-
-// Satisfy the error interface
-func (err APIError) Error() string {
-	return err.Title
-}
-
-func NewAPIError(message, details string, status int) APIError {
-	return APIError{
-		Title:   message,
-		Details: details,
-		Status:  status,
-	}
-}
-
-type APIErrors []APIError
-
-// All our actions match this type. They can return a list of errors.
-// The "Status" of the first error in the list becomes the response Status Code.
-type APIActionFunc func(http.ResponseWriter, *http.Request) APIErrors
-
 func errorHandler(action APIActionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		responseErrors := action(w, r)

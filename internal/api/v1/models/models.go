@@ -32,7 +32,7 @@ type DeleteResponse struct {
 }
 
 type BindRequest struct {
-	Name string `json:"name"`
+	Names []string `json:"names"`
 }
 
 // TODO: CreateOrgRequest
