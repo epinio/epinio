@@ -89,8 +89,13 @@ func GetCluster() (*Cluster, error) {
 		return nil, err
 	}
 
+	// copy to avoid mutating the passed-in config
+	config := restclient.CopyConfig(restConfig)
+	// set the warning handler for this client to ignore warnings
+	config.WarningHandler = restclient.NoWarnings{}
+
 	c.RestConfig = restConfig
-	clientset, err := kubernetes.NewForConfig(restConfig)
+	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, err
 	}
@@ -491,7 +496,8 @@ func (c *Cluster) DeploymentStatus(namespace, selector string) (string, error) {
 
 // ListIngressRoutes returns a list of all routes for ingresses in `namespace` with the given selector
 func (c *Cluster) ListIngressRoutes(namespace, name string) ([]string, error) {
-	ingress, err := c.Kubectl.NetworkingV1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
+	ingress, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list ingresses")
 	}
