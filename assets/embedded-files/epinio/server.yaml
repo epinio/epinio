@@ -23,6 +23,7 @@ rules:
   - ingresses
   verbs:
   - list
+  - get
 - apiGroups:
   - networking.k8s.io
   resources:
