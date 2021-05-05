@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
 )
 
 type ServicebindingsController struct {
@@ -35,8 +35,8 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	}
 
 	if bindRequest.Name == "" {
-		http.Error(w, fmt.Sprintf("Cannot bind service without a name"),
-			http.StatusBadRequest)
+		err := errors.New("Cannot bind service without a name")
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -50,8 +50,8 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -60,15 +60,15 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if app == nil {
-		http.Error(w, fmt.Sprintf("application '%s' not found", appName),
-			http.StatusNotFound)
+		err := errors.Errorf("application '%s' not found", appName)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
 	service, err := services.Lookup(cluster, org, bindRequest.Name)
 	if err != nil && err.Error() == "service not found" {
-		http.Error(w, fmt.Sprintf("service '%s' not found", bindRequest.Name),
-			http.StatusNotFound)
+		err := errors.Errorf("service '%s' not found", bindRequest.Name)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 	if handleError(w, err, http.StatusInternalServerError) {
@@ -77,8 +77,8 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 
 	err = app.Bind(service)
 	if err != nil && err.Error() == "service already bound" {
-		http.Error(w, fmt.Sprintf("service '%s' already bound", bindRequest.Name),
-			http.StatusConflict)
+		err := errors.Errorf("service '%s' already bound", bindRequest.Name)
+		handleError(w, err, http.StatusConflict)
 		return
 	}
 	if handleError(w, err, http.StatusInternalServerError) {
@@ -108,8 +108,8 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -118,15 +118,15 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	if app == nil {
-		http.Error(w, fmt.Sprintf("application '%s' not found", appName),
-			http.StatusNotFound)
+		err := errors.Errorf("application '%s' not found", appName)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
 	service, err := services.Lookup(cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
-		http.Error(w, fmt.Sprintf("service '%s' not found", serviceName),
-			http.StatusNotFound)
+		err := errors.Errorf("service '%s' not found", serviceName)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 	if handleError(w, err, http.StatusInternalServerError) {
@@ -135,8 +135,8 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 
 	err = app.Unbind(service)
 	if err != nil && err.Error() == "service is not bound to the application" {
-		http.Error(w, fmt.Sprintf("service '%s' is not bound", serviceName),
-			http.StatusBadRequest)
+		err := errors.Errorf("service '%s' is not bound", serviceName)
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 	if handleError(w, err, http.StatusInternalServerError) {

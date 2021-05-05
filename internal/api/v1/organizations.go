@@ -2,13 +2,13 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/pkg/errors"
 )
 
 type OrganizationsController struct {
@@ -69,8 +69,8 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 
 	org, ok := parts["name"]
 	if !ok {
-		http.Error(w, "Name of organization to create not found",
-			http.StatusBadRequest)
+		err := errors.New("Name of organization to create not found")
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -79,8 +79,8 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	if exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' already exists", org),
-			http.StatusConflict)
+		err := errors.Errorf("Organization '%s' already exists", org)
+		handleError(w, err, http.StatusConflict)
 		return
 	}
 

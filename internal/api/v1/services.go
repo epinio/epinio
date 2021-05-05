@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
 )
 
 type ServicesController struct {
@@ -32,16 +32,16 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
 	service, err := services.Lookup(cluster, org, serviceName)
 	if err != nil {
 		if err.Error() == "service not found" {
-			http.Error(w, fmt.Sprintf("Service '%s' does not exist", serviceName),
-				http.StatusNotFound)
+			err := errors.Errorf("Service '%s' does not exist", serviceName)
+			handleError(w, err, http.StatusNotFound)
 			return
 		}
 		if handleError(w, err, http.StatusInternalServerError) {
@@ -90,8 +90,8 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -147,14 +147,14 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	}
 
 	if createRequest.Name == "" {
-		http.Error(w, fmt.Sprintf("Cannot create custom service without a name"),
-			http.StatusBadRequest)
+		err := errors.New("Cannot create custom service without a name")
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	if len(createRequest.Data) < 1 {
-		http.Error(w, fmt.Sprintf("Cannot create custom service without data"),
-			http.StatusBadRequest)
+		err := errors.New("Cannot create custom service without data")
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -168,8 +168,8 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -177,13 +177,13 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	_, err = services.Lookup(cluster, org, createRequest.Name)
 	if err == nil {
 		// no error, service is found, conflict
-		http.Error(w, fmt.Sprintf("Service '%s' already exists", createRequest.Name),
-			http.StatusConflict)
+		err := errors.Errorf("Service '%s' already exists", createRequest.Name)
+		handleError(w, err, http.StatusConflict)
 		return
 	}
 	if err != nil && err.Error() != "service not found" {
 		// some internal error
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, err, http.StatusInternalServerError)
 		return
 	}
 	// any error here is `service not found`, and we can continue
@@ -223,20 +223,20 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if createRequest.Name == "" {
-		http.Error(w, fmt.Sprintf("Cannot create service without a name"),
-			http.StatusBadRequest)
+		err := errors.New("Cannot create service without a name")
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	if createRequest.Class == "" {
-		http.Error(w, fmt.Sprintf("Cannot create service without a service class"),
-			http.StatusBadRequest)
+		err := errors.New("Cannot create service without a service class")
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
 	if createRequest.Plan == "" {
-		http.Error(w, fmt.Sprintf("Cannot create service without a service plan"),
-			http.StatusBadRequest)
+		err := errors.New("Cannot create service without a service plan")
+		handleError(w, err, http.StatusBadRequest)
 		return
 	}
 
@@ -245,8 +245,8 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -254,13 +254,13 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 	_, err = services.Lookup(cluster, org, createRequest.Name)
 	if err == nil {
 		// no error, service is found, conflict
-		http.Error(w, fmt.Sprintf("Service '%s' already exists", createRequest.Name),
-			http.StatusConflict)
+		err := errors.Errorf("Service '%s' already exists", createRequest.Name)
+		handleError(w, err, http.StatusConflict)
 		return
 	}
 	if err != nil && err.Error() != "service not found" {
 		// some internal error
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		handleError(w, err, http.StatusInternalServerError)
 		return
 	}
 	// any error here is `service not found`, and we can continue
@@ -271,8 +271,8 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if serviceClass == nil {
-		http.Error(w, fmt.Sprintf("Service class '%s' does not exist", createRequest.Class),
-			http.StatusNotFound)
+		err := errors.Errorf("Service class '%s' does not exist", createRequest.Class)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -283,9 +283,9 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if servicePlan == nil {
-		http.Error(w, fmt.Sprintf("Service plan '%s' does not exist for class '%s'",
-			createRequest.Plan, createRequest.Class),
-			http.StatusNotFound)
+		err := errors.Errorf("Service plan '%s' does not exist for class '%s'",
+			createRequest.Plan, createRequest.Class)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -338,15 +338,15 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
 	service, err := services.Lookup(cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
-		http.Error(w, fmt.Sprintf("service '%s' not found", serviceName),
-			http.StatusNotFound)
+		err := errors.Errorf("service '%s' not found", serviceName)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -375,8 +375,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			w.Header().Set("Content-Type", "application/json")
-			http.Error(w, string(js), http.StatusBadRequest)
+			handleError(w, errors.New(string(js)), http.StatusBadRequest)
 			return
 		}
 

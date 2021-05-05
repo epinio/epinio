@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -55,7 +56,10 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("unexpected end of JSON input\n"))
+				var responseBody apiv1.APIError
+				json.Unmarshal(bodyBytes, &responseBody)
+				Expect(responseBody["errors"][0]["title"]).To(
+					Equal("unexpected end of JSON input"))
 			})
 
 			It("fails for non-object JSON body", func() {
@@ -67,7 +71,10 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("json: cannot unmarshal array into Go value of type map[string]string\n"))
+				var responseBody apiv1.APIError
+				json.Unmarshal(bodyBytes, &responseBody)
+				Expect(responseBody["errors"][0]["title"]).To(
+					Equal("json: cannot unmarshal array into Go value of type map[string]string"))
 			})
 
 			It("fails for JSON object without name key", func() {
@@ -79,7 +86,10 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("Name of organization to create not found\n"))
+				var responseBody apiv1.APIError
+				json.Unmarshal(bodyBytes, &responseBody)
+				Expect(responseBody["errors"][0]["title"]).To(
+					Equal("Name of organization to create not found"))
 			})
 
 			It("fails for a known organization", func() {
@@ -105,7 +115,10 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err = ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("Organization 'birdy' already exists\n"))
+				var responseBody apiv1.APIError
+				json.Unmarshal(bodyBytes, &responseBody)
+				Expect(responseBody["errors"][0]["title"]).To(
+					Equal("Organization 'birdy' already exists"))
 			})
 
 			It("fails for a restricted organization", func() {
@@ -117,7 +130,10 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal("Org 'epinio' name cannot be used. Please try another name\n"))
+				var responseBody apiv1.APIError
+				json.Unmarshal(bodyBytes, &responseBody)
+				Expect(responseBody["errors"][0]["title"]).To(
+					Equal("Org 'epinio' name cannot be used. Please try another name"))
 			})
 
 			It("creates a new organization", func() {

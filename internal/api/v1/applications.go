@@ -16,6 +16,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// APIError struct is meant to host an error as described here:
+// https://jsonapi.org/examples/#error-objects-basics
+type APIError map[string]([]map[string]string)
+
 type ApplicationsController struct {
 }
 
@@ -33,8 +37,8 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -79,8 +83,8 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if app == nil {
-		http.Error(w, fmt.Sprintf("application '%s' not found", appName),
-			http.StatusNotFound)
+		err := errors.Errorf("application '%s' not found", appName)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -115,8 +119,8 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -125,8 +129,8 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if app == nil {
-		http.Error(w, fmt.Sprintf("application '%s' not found", appName),
-			http.StatusNotFound)
+		err := errors.Errorf("application '%s' not found", appName)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -183,8 +187,8 @@ func handleError(w http.ResponseWriter, err error, code int) bool {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 
-		response := map[string]interface{}{
-			"errors": [](map[string]string){
+		response := APIError{
+			"errors": {
 				{
 					"status": strconv.Itoa(code),
 					"title":  err.Error(),
