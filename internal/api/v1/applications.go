@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
@@ -12,6 +13,7 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
 )
 
 type ApplicationsController struct {
@@ -67,8 +69,8 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
+		err := errors.Errorf("Organization '%s' does not exist", org)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 
@@ -178,7 +180,28 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 // Write the error to the response writer and return  true if there was an error
 func handleError(w http.ResponseWriter, err error, code int) bool {
 	if err != nil {
-		http.Error(w, err.Error(), code)
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+
+		response := map[string]interface{}{
+			"errors": [](map[string]string){
+				{
+					"status": strconv.Itoa(code),
+					"title":  err.Error(),
+				},
+			},
+		}
+
+		js, marshalErr := json.Marshal(response)
+		if marshalErr != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintln(w, marshalErr.Error())
+			return true
+		}
+
+		w.WriteHeader(code)
+		fmt.Fprintln(w, string(js))
+
 		return true
 	}
 	return false
