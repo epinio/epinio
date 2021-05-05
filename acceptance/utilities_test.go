@@ -82,7 +82,28 @@ func makeApp(appName string) string {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	appDir := path.Join(currentDir, "../assets/sample-app")
 
+	// Note: appDir is handed to the working dir argument of Epinio().
+	// This means that the command runs with it as the CWD.
 	pushOutput, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", appName), appDir)
+	ExpectWithOffset(2, err).ToNot(HaveOccurred(), pushOutput)
+
+	// And check presence
+
+	out, err := Epinio("app list", "")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp(appName + `.*\|.*1\/1.*\|.*`))
+
+	return pushOutput
+}
+
+func makeApp2(appName string) string {
+	currentDir, err := os.Getwd()
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	appDir := path.Join(currentDir, "../assets/sample-app")
+
+	// Note: appDir is handed as second argument to the epinio cli.
+	// This means that the command gets the sources from that directory instead of CWD.
+	pushOutput, err := Epinio(fmt.Sprintf("apps push %s %s --verbosity 1", appName, appDir), "")
 	ExpectWithOffset(2, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence

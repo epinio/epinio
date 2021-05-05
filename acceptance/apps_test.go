@@ -28,8 +28,16 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("pushes and deletes an app", func() {
-			By("pushing the app")
+			By("pushing the app in the current working directory")
 			makeApp(appName)
+
+			By("deleting the app")
+			deleteApp(appName)
+		})
+
+		It("pushes and deletes an app", func() {
+			By("pushing the app in the specified app directory")
+			makeApp2(appName)
 
 			By("deleting the app")
 			deleteApp(appName)
