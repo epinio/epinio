@@ -294,7 +294,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		Msg("Bind Service")
 
 	request := models.BindRequest{
-		Name: serviceName,
+		Names: []string{serviceName},
 	}
 
 	js, err := json.Marshal(request)
@@ -839,7 +839,7 @@ func (c *EpinioClient) Orgs() error {
 }
 
 // Push pushes an app
-func (c *EpinioClient) Push(app string, source string) error {
+func (c *EpinioClient) Push(app, source string, services []string) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", app,
@@ -849,11 +849,21 @@ func (c *EpinioClient) Push(app string, source string) error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
+	msg := c.ui.Note().
 		WithStringValue("Name", app).
 		WithStringValue("Sources", source).
-		WithStringValue("Organization", c.Config.Org).
-		Msg("About to push an application with given name and sources into the specified organization")
+		WithStringValue("Organization", c.Config.Org)
+
+	services = uniqueStrings(services)
+
+	if len(services) > 0 {
+		msg = msg.WithTable("Service")
+		for _, serviceName := range services {
+			msg = msg.WithTableRow(serviceName)
+		}
+	}
+
+	msg.Msg("About to push an application with given name and sources into the specified organization")
 
 	c.ui.Exclamation().
 		Timeout(duration.UserAbort()).
@@ -937,6 +947,30 @@ func (c *EpinioClient) Push(app string, source string) error {
 	err = c.waitForApp(c.Config.Org, app)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
+	}
+
+	if len(services) > 0 {
+		c.ui.Note().Msg("Binding Services")
+
+		// Application is up, bind the services.
+		// This will restart the application.
+		// TODO: See #347 for future work
+
+		request := models.BindRequest{
+			Names: services,
+		}
+
+		js, err := json.Marshal(request)
+		if err != nil {
+			return err
+		}
+
+		_, err = c.post(api.Routes.Path("ServiceBindingCreate", c.Config.Org, app), string(js))
+		if err != nil {
+			return err
+		}
+
+		c.ui.Note().Msg("Done")
 	}
 
 	route := c.GiteaClient.AppDefaultRoute(app)
@@ -1394,4 +1428,16 @@ func (c *EpinioClient) curlWithCustomErrorHandling(endpoint, method, requestBody
 	}
 
 	return bodyBytes, nil
+}
+
+func uniqueStrings(stringSlice []string) []string {
+	keys := make(map[string]bool)
+	list := []string{}
+	for _, entry := range stringSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			list = append(list, entry)
+		}
+	}
+	return list
 }

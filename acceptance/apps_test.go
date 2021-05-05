@@ -1,6 +1,10 @@
 package acceptance_test
 
 import (
+	"fmt"
+	"os"
+	"path"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -41,6 +45,37 @@ var _ = Describe("Apps", func() {
 
 			By("deleting the app")
 			deleteApp(appName)
+		})
+
+		Context("with service", func() {
+			var serviceName string
+
+			BeforeEach(func() {
+				serviceName = newServiceName()
+				makeCustomService(serviceName)
+			})
+
+			AfterEach(func() {
+				deleteApp(appName)
+				deleteService(serviceName)
+			})
+
+			It("pushes an app with bound services", func() {
+				currentDir, err := os.Getwd()
+				Expect(err).ToNot(HaveOccurred())
+
+				pushOutput, err := Epinio(fmt.Sprintf("apps push %s -b %s --verbosity 1",
+					appName, serviceName),
+					path.Join(currentDir, "../assets/sample-app"))
+				Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+				// And check presence
+				Eventually(func() string {
+					out, err := Epinio("app list", "")
+					Expect(err).ToNot(HaveOccurred(), out)
+					return out
+				}, "2m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
+			})
 		})
 
 		It("unbinds bound services when deleting an app", func() {

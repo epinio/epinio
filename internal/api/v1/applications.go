@@ -23,34 +23,32 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	if !exists {
-		return APIErrors{
-			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
-		}
+		return APIErrors{OrgIsNotKnown(org)}
 	}
 
 	apps, err := application.List(cluster, org)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	js, err := json.Marshal(apps)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	return nil
@@ -63,39 +61,35 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	if !exists {
-		return APIErrors{
-			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
-		}
+		return APIErrors{OrgIsNotKnown(org)}
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 	if app == nil {
-		return APIErrors{
-			NewAPIError(fmt.Sprintf("application '%s' not found", appName), "", http.StatusNotFound),
-		}
+		return APIErrors{AppIsNotKnown(appName)}
 	}
 
 	js, err := json.Marshal(app)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	return nil
@@ -108,53 +102,49 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 
 	gitea, err := gitea.New()
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	if !exists {
-		return APIErrors{
-			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
-		}
+		return APIErrors{OrgIsNotKnown(org)}
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	if app == nil {
-		return APIErrors{
-			NewAPIError(fmt.Sprintf("application '%s' not found", appName), "", http.StatusNotFound),
-		}
+		return APIErrors{AppIsNotKnown(appName)}
 	}
 
 	if len(app.BoundServices) > 0 {
 		for _, bonded := range app.BoundServices {
 			bound, err := services.Lookup(cluster, org, bonded)
 			if err != nil {
-				return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+				return APIErrors{InternalError(err)}
 			}
 
 			err = app.Unbind(bound)
 			if err != nil {
-				return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+				return APIErrors{InternalError(err)}
 			}
 		}
 	}
 
 	err = app.Delete(gitea)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	// The command above removes the application's deployment.
@@ -168,7 +158,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		fmt.Sprintf("app.kubernetes.io/name=%s", appName),
 		duration.ToDeployment())
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	response := map[string][]string{}
@@ -176,12 +166,12 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 
 	js, err := json.Marshal(response)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	return nil

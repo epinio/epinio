@@ -27,7 +27,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 
 	gitea, err := gitea.New()
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	log.V(2).Info("parsing multipart form")
@@ -79,14 +79,14 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	log.V(2).Info("create gitea app")
 	err = gitea.CreateApp(org, app, appDir)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	js, _ := json.Marshal(struct{ Message string }{"ok"})
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{InternalError(err)}
 	}
 
 	return nil

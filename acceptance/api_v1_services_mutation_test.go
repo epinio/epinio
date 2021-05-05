@@ -524,7 +524,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("service 'bogus' not found"))
+				Equal("Service 'bogus' does not exist"))
 
 		})
 
@@ -660,13 +660,13 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Cannot bind service without a name"))
+				Equal("Cannot bind service without names"))
 		})
 
 		It("returns a 'not found' when the org does not exist", func() {
 			response, err := Curl("POST",
 				fmt.Sprintf("%s/api/v1/orgs/bogus/applications/_dummy_/servicebindings", serverURL),
-				strings.NewReader(`{ "name": "meh" }`))
+				strings.NewReader(`{ "names": ["meh"] }`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -683,7 +683,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'not found' when the application does not exist", func() {
 			response, err := Curl("POST",
 				fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus/servicebindings", serverURL, org),
-				strings.NewReader(`{ "name": "meh" }`))
+				strings.NewReader(`{ "names": ["meh"] }`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -694,7 +694,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("application 'bogus' not found"))
+				Equal("Application 'bogus' does not exist"))
 		})
 
 		Context("with application", func() {
@@ -717,7 +717,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				response, err := Curl("POST",
 					fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s/servicebindings",
 						serverURL, org, app),
-					strings.NewReader(`{ "name": "bogus" }`))
+					strings.NewReader(`{ "names": ["bogus"] }`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -728,7 +728,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("service 'bogus' not found"))
+					Equal("Service 'bogus' does not exist"))
 			})
 
 			Context("and already bound", func() {
@@ -740,7 +740,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					response, err := Curl("POST",
 						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s/servicebindings",
 							serverURL, org, app),
-						strings.NewReader(fmt.Sprintf(`{ "name": "%s" }`, service)))
+						strings.NewReader(fmt.Sprintf(`{ "names": ["%s"] }`, service)))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response).ToNot(BeNil())
 
@@ -751,7 +751,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					var responseBody map[string][]apiv1.APIError
 					json.Unmarshal(bodyBytes, &responseBody)
 					Expect(responseBody["errors"][0].Title).To(
-						Equal("service '" + service + "' already bound"))
+						Equal("Service '" + service + "' already bound"))
 				})
 			})
 
@@ -759,7 +759,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				response, err := Curl("POST",
 					fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s/servicebindings",
 						serverURL, org, app),
-					strings.NewReader(fmt.Sprintf(`{ "name": "%s" }`, service)))
+					strings.NewReader(fmt.Sprintf(`{ "names": ["%s"] }`, service)))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -815,7 +815,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("application 'bogus' not found"))
+				Equal("Application 'bogus' does not exist"))
 		})
 
 		Context("with application", func() {
@@ -845,7 +845,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("service 'bogus' not found"))
+					Equal("Service 'bogus' does not exist"))
 			})
 
 			Context("with service", func() {
@@ -896,7 +896,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					var responseBody map[string][]apiv1.APIError
 					json.Unmarshal(bodyBytes, &responseBody)
 					Expect(responseBody["errors"][0].Title).To(
-						Equal("service '" + service + "' is not bound"))
+						Equal("Service '" + service + "' is not bound"))
 				})
 			})
 		})
