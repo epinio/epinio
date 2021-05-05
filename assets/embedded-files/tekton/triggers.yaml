@@ -8,6 +8,8 @@ spec:
     - name: gitrevision
       description: The git revision
       default: main
+    - name: gitbefore
+      description: The previous git commit
     - name: gitrepositoryurl
       description: The git repository url
     - name: namespace
@@ -54,7 +56,7 @@ spec:
             type: image
             params:
             - name: url
-              value: registry.epinio-registry/apps/$(tt.params.appname)
+              value: registry.epinio-registry/apps/$(tt.params.appname)-$(tt.params.gitbefore)
 ---
 apiVersion: triggers.tekton.dev/v1alpha1
 kind: TriggerBinding
@@ -64,7 +66,9 @@ metadata:
 spec:
   params:
     - name: gitrevision
-      value: $(body.head_commit.id)
+      value: $(body.after)
+    - name: gitbefore
+      value: $(body.before)
     - name: namespace
       value: tekton-staging
     - name: gitrepositoryurl

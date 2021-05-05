@@ -188,7 +188,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: "{{ .AppName }}"
-        image: "127.0.0.1:30500/apps/{{ .AppName }}"
+        image: "127.0.0.1:30500/apps/{{ .AppName }}-{{ .Commit }}"
         ports:
         - containerPort: 8080
         env:
@@ -204,15 +204,21 @@ spec:
 		return errors.Wrap(err, "failed to create file for kube resource definitions")
 	}
 	defer func() { err = appFile.Close() }()
+	commit, _, err := c.Client.GetSingleCommit(org, appName, "HEAD")
+	if err != nil {
+		return errors.Wrap(err, "failed to get latest app commit")
+	}
 
 	err = deploymentTmpl.Execute(appFile, struct {
 		AppName string
 		Route   string
 		Org     string
+		Commit  string
 	}{
 		AppName: appName,
 		Route:   route,
 		Org:     org,
+		Commit:  commit.RepoCommit.Tree.SHA,
 	})
 
 	if err != nil {
