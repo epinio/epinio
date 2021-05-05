@@ -52,7 +52,6 @@ const (
 	tektonTriggersReleaseYamlPath = "tekton/triggers-v0.12.1.yaml"
 	tektonTriggersYamlPath        = "tekton/triggers.yaml"
 	tektonStagingYamlPath         = "tekton/staging.yaml"
-	tektonEventListenerYamlPath   = "tekton/event-listener.yaml"
 )
 
 func (k *Tekton) ID() string {
@@ -83,25 +82,25 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	if !existsAndOwned {
 		ui.Exclamation().Msg("Skipping Tekton staging because namespace either doesn't exist or not owned by Epinio")
 		return nil
-	} else {
-		if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
-		}
+	}
 
-		err = k.deleteCACertificate(c)
-		if err != nil {
-			return errors.Wrapf(err, "failed deleting ca-cert certificate")
-		}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
+	}
 
-		message := "Deleting Tekton staging namespace " + TektonStagingNamespace
-		_, err = helpers.WaitForCommandCompletion(ui, message,
-			func() (string, error) {
-				return "", c.DeleteNamespace(TektonStagingNamespace)
-			},
-		)
-		if err != nil {
-			return errors.Wrapf(err, "Failed deleting namespace %s", TektonStagingNamespace)
-		}
+	err = k.deleteCACertificate(c)
+	if err != nil {
+		return errors.Wrapf(err, "failed deleting ca-cert certificate")
+	}
+
+	message := "Deleting Tekton staging namespace " + TektonStagingNamespace
+	_, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return "", c.DeleteNamespace(TektonStagingNamespace)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", TektonStagingNamespace)
 	}
 
 	err = c.WaitForNamespaceMissing(ui, TektonStagingNamespace, k.Timeout)
@@ -116,26 +115,26 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	if !existsAndOwned {
 		ui.Exclamation().Msg("Skipping Tekton because namespace either doesn't exist or not owned by Epinio")
 		return nil
-	} else {
-		if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
-		}
-		if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonTriggersReleaseYamlPath, true); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonTriggersReleaseYamlPath, out))
-		}
-		if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
-		}
+	}
 
-		message := "Deleting Tekton namespace " + tektonNamespace
-		_, err = helpers.WaitForCommandCompletion(ui, message,
-			func() (string, error) {
-				return "", c.DeleteNamespace(tektonNamespace)
-			},
-		)
-		if err != nil {
-			return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
-		}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonDashboardYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonDashboardYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonTriggersReleaseYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonTriggersReleaseYamlPath, out))
+	}
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+	}
+
+	message = "Deleting Tekton namespace " + tektonNamespace
+	_, err = helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return "", c.DeleteNamespace(tektonNamespace)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
 	}
 
 	ui.Success().Msg("Tekton removed")
@@ -185,11 +184,11 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return errors.Wrap(err, "failed waiting tekton pipelines webhook pod to be running")
 	}
 
+	// TODO how much of this is needed
 	for _, crd := range []string{
 		"clustertasks.tekton.dev",
 		"clustertriggerbindings.triggers.tekton.dev",
 		"conditions.tekton.dev",
-		"eventlisteners.triggers.tekton.dev",
 		"pipelineresources.tekton.dev",
 		"pipelineruns.tekton.dev",
 		"pipelines.tekton.dev",
@@ -215,29 +214,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return helpers.KubectlApplyEmbeddedYaml(tektonTriggersYamlPath)
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-
-	message = "Waiting for TriggerBinding to be there"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.ExecToSuccessWithTimeout(
-				func() (string, error) {
-					return helpers.Kubectl(fmt.Sprintf("get triggerbinding -n %s staging-pipelinebinding", TektonStagingNamespace))
-				}, k.Timeout, duration.PollInterval())
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
-
-	message = "Installing tekton event listener"
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.KubectlApplyEmbeddedYaml(tektonEventListenerYamlPath)
 		},
 	)
 	if err != nil {
@@ -327,13 +303,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
-	}
-
-	if err := c.WaitUntilPodBySelectorExist(ui, TektonStagingNamespace, "eventlistener=staging-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Tekton event listener deployment to exist")
-	}
-	if err := c.WaitForPodBySelectorRunning(ui, TektonStagingNamespace, "eventlistener=staging-listener,app.kubernetes.io/part-of=Triggers", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Tekton event listener deployment to come up")
 	}
 
 	if err := c.WaitUntilPodBySelectorExist(ui, tektonNamespace, "app.kubernetes.io/name=dashboard,app.kubernetes.io/part-of=tekton-dashboard", k.Timeout); err != nil {
@@ -551,7 +520,7 @@ func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
 	return nil
 }
 
-func (t Tekton) createCACertificate(c *kubernetes.Cluster, domain string) error {
+func (k Tekton) createCACertificate(c *kubernetes.Cluster, domain string) error {
 	data := fmt.Sprintf(`{
 		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
 		"kind": "QuarksSecret",

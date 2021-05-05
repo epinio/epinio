@@ -11,9 +11,8 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/stdr v0.4.0
-	github.com/google/go-cmp v0.5.4 // indirect
 	github.com/imdario/mergo v0.3.11 // indirect
-	github.com/julienschmidt/httprouter v1.2.0
+	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/mholt/archiver/v3 v3.5.0
@@ -28,16 +27,12 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0 // indirect
+	github.com/tektoncd/pipeline v0.23.0
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
-	golang.org/x/mod v0.4.0 // indirect
 	golang.org/x/net v0.0.0-20210326220855-61e056675ecf // indirect
 	golang.org/x/sys v0.0.0-20210326220804-49726bf1d181 // indirect
-	golang.org/x/text v0.3.5 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/api v0.20.5
 	k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery v0.20.5
 	k8s.io/client-go v0.20.5
-	k8s.io/utils v0.0.0-20210111153108-fddb29f9d009 // indirect
 )

@@ -86,7 +86,7 @@ func CreateTmpFile(contents string) (string, error) {
 	return tmpfile.Name(), nil
 }
 
-// Kubectl invoces the `kubectl` command in PATH, running the specified command.
+// Kubectl invokes the `kubectl` command in PATH, running the specified command.
 // It returns the command output and/or error.
 func Kubectl(command string) (string, error) {
 	_, err := exec.LookPath("kubectl")

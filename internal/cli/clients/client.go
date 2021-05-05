@@ -944,9 +944,28 @@ func (c *EpinioClient) Push(app, source string, services []string) error {
 
 	// upload blob to the server's uplad API endpoint
 	details.Info("upload code")
-	err = c.upload(api.Routes.Path("AppUpload", c.Config.Org, app), tarball)
+	uploadResponse, err := c.upload(api.Routes.Path("AppUpload", c.Config.Org, app), tarball)
 	if err != nil {
 		return errors.Wrap(err, "can't upload archive")
+	}
+
+	// returns git commit and app route
+	resp := &api.AppResponse{}
+	if err := json.Unmarshal(uploadResponse, resp); err != nil {
+		return err
+	}
+
+	c.ui.Normal().Msg("Stage application ...")
+
+	details.Info("staging code")
+	out, err := json.Marshal(resp.App)
+	if err != nil {
+		return errors.Wrap(err, "can't marshall upload response")
+	}
+
+	_, err = c.post(api.Routes.Path("AppStage", c.Config.Org, app), string(out))
+	if err != nil {
+		return errors.Wrap(err, "can't stage app")
 	}
 
 	// Create production certificate if it is provided by user
@@ -1000,11 +1019,10 @@ func (c *EpinioClient) Push(app, source string, services []string) error {
 		c.ui.Note().Msg("Done")
 	}
 
-	route := c.GiteaClient.AppDefaultRoute(app)
 	c.ui.Success().
 		WithStringValue("Name", app).
 		WithStringValue("Organization", c.Config.Org).
-		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
+		WithStringValue("Route", fmt.Sprintf("https://%s", resp.App.Route)).
 		Msg("App is online.")
 
 	return nil
@@ -1344,13 +1362,13 @@ func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
 }
 
 // upload the given path as param "file" in a multipart form
-func (c *EpinioClient) upload(endpoint string, path string) error {
+func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
 
 	// open the tarball
 	file, err := os.Open(path)
 	if err != nil {
-		return errors.Wrap(err, "failed to open tarball")
+		return nil, errors.Wrap(err, "failed to open tarball")
 	}
 	defer file.Close()
 
@@ -1359,41 +1377,43 @@ func (c *EpinioClient) upload(endpoint string, path string) error {
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
 	if err != nil {
-		return errors.Wrap(err, "failed to create multiform part")
+		return nil, errors.Wrap(err, "failed to create multiform part")
 	}
 
 	_, err = io.Copy(part, file)
 	if err != nil {
-		return errors.Wrap(err, "failed to write to multiform part")
+		return nil, errors.Wrap(err, "failed to write to multiform part")
 	}
 
 	err = writer.Close()
 	if err != nil {
-		return errors.Wrap(err, "failed to close multiform")
+		return nil, errors.Wrap(err, "failed to close multiform")
 	}
 
 	// make the request
 	request, err := http.NewRequest("POST", uri, body)
 	if err != nil {
-		return errors.Wrap(err, "failed to build request")
+		return nil, errors.Wrap(err, "failed to build request")
 	}
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
-		return errors.Wrap(err, "failed to POST to upload")
+		return nil, errors.Wrap(err, "failed to POST to upload")
 	}
 	defer response.Body.Close()
-	if response.StatusCode == http.StatusCreated {
-		return nil
-	}
 
 	bodyBytes, _ := ioutil.ReadAll(response.Body)
+	if response.StatusCode == http.StatusCreated {
+		return bodyBytes, nil
+	}
 
 	if response.StatusCode != http.StatusOK {
-		return fmt.Errorf("server status code: %s\n%s", http.StatusText(response.StatusCode), string(bodyBytes))
+		return nil, fmt.Errorf("server status code: %s\n%s", http.StatusText(response.StatusCode), string(bodyBytes))
 	}
-	return nil
+
+	// object was not created, but status was ok?
+	return bodyBytes, nil
 }
 
 func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {

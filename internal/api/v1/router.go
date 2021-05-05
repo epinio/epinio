@@ -52,7 +52,8 @@ var Routes = routes.NamedRoutes{
 	"Apps":      get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
 	"AppShow":   get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
 	"AppDelete": delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
-	"AppUpload": post("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Upload)),
+	"AppUpload": post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)),
+	"AppStage":  post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),
 
 	// Bind and unbind services to/from applications, by means of servicebindings in applications
 	"ServiceBindingCreate": post("/orgs/:org/applications/:app/servicebindings",

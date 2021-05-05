@@ -11,42 +11,58 @@ import (
 	"time"
 
 	giteaSDK "code.gitea.io/sdk/gitea"
-	"github.com/epinio/epinio/deployments"
 	"github.com/pkg/errors"
 )
 
-var (
-	// HookSecret should be generated
-	// TODO: generate this and put it in a secret
-	HookSecret = "74tZTBHkhjMT5Klj6Ik6PqmM"
+const LocalRegistry = "127.0.0.1:30500/apps"
 
-	// StagingEventListenerURL should not exist
-	// TODO: detect this based on namespaces and services
-	StagingEventListenerURL = "http://el-staging-listener." + deployments.TektonStagingNamespace + ":8080"
-)
+type GitRepo struct {
+	Revision string
+	URL      string
+}
+type App struct {
+	Name  string
+	Org   string
+	Repo  *GitRepo
+	Route string
+}
 
-// CreateApp puts the app data into the gitea repo and creates the webhook and
+func (a *App) GitURL(server string) string {
+	if a.Repo == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s/%s", server, a.Org, a.Name)
+}
+
+func (a *App) ImageURL(server string) string {
+	if a.Repo == nil {
+		return ""
+	}
+	// TODO switch back to revision, or some ID
+	// return fmt.Sprintf("%s/%s-%s", server, a.Name, a.Repo.Revision)
+	return fmt.Sprintf("%s/%s-%s", server, a.Name, "main")
+}
+
+// Upload puts the app data into the gitea repo and creates the webhook and
 // accompanying app data.
-func (c *Client) CreateApp(org string, name string, tmpDir string) error {
+func (c *Client) Upload(app *App, tmpDir string) error {
+	org := app.Org
+	name := app.Name
 	err := c.createRepo(org, name)
 	if err != nil {
 		return errors.Wrap(err, "failed to create application")
 	}
 
-	err = c.createRepoWebhook(org, name)
-	if err != nil {
-		return errors.Wrap(err, "webhook configuration failed")
-	}
+	app.Route = c.AppDefaultRoute(name)
 
-	route := c.AppDefaultRoute(name)
-
-	// prepareCode
+	// prepareCode - add the deployment info files
 	err = os.MkdirAll(filepath.Join(tmpDir, ".kube"), 0700)
 	if err != nil {
 		return errors.Wrap(err, "failed to setup kube resources directory in temp app location")
 	}
 
-	if err := c.renderDeployment(filepath.Join(tmpDir, ".kube", "app.yml"), org, name, route); err != nil {
+	err = c.renderDeployment(filepath.Join(tmpDir, ".kube", "app.yml"), app)
+	if err != nil {
 		return err
 	}
 
@@ -54,12 +70,11 @@ func (c *Client) CreateApp(org string, name string, tmpDir string) error {
 		return err
 	}
 
-	if err := renderIngress(filepath.Join(tmpDir, ".kube", "ingress.yml"), org, name, route); err != nil {
+	if err := renderIngress(filepath.Join(tmpDir, ".kube", "ingress.yml"), org, name, app.Route); err != nil {
 		return err
 	}
 
-	// gitPush
-	// TODO c.ui.Normal().Msg("Pushing application code ...")
+	// gitPush the app data
 	u, err := url.Parse(c.URL)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse gitea url")
@@ -117,37 +132,7 @@ func (c *Client) createRepo(org string, name string) error {
 	return nil
 }
 
-func (c *Client) createRepoWebhook(org string, name string) error {
-	hooks, _, err := c.Client.ListRepoHooks(org, name, giteaSDK.ListHooksOptions{})
-	if err != nil {
-		return errors.Wrap(err, "failed to list webhooks")
-	}
-
-	for _, hook := range hooks {
-		url := hook.Config["url"]
-		if url == StagingEventListenerURL {
-			// TODO c.ui.Normal().Msg("Webhook already exists.")
-			return nil
-		}
-	}
-
-	// TODO c.ui.Normal().Msg("Creating webhook in the repo...")
-	c.Client.CreateRepoHook(org, name, giteaSDK.CreateHookOption{
-		Active:       true,
-		BranchFilter: "*",
-		Config: map[string]string{
-			"secret":       HookSecret,
-			"http_method":  "POST",
-			"url":          StagingEventListenerURL,
-			"content_type": "json",
-		},
-		Type: "gitea",
-	})
-
-	return nil
-}
-
-func (c *Client) renderDeployment(filePath string, org string, appName string, route string) error {
+func (c *Client) renderDeployment(filePath string, app *App) error {
 	deploymentTmpl, err := template.New("deployment").Parse(`
 ---
 apiVersion: apps/v1
@@ -180,7 +165,7 @@ spec:
       automountServiceAccountToken: false
       containers:
       - name: "{{ .AppName }}"
-        image: "127.0.0.1:30500/apps/{{ .AppName }}-{{ .Commit }}"
+        image: "{{ .Image }}"
         ports:
         - containerPort: 8080
         env:
@@ -196,21 +181,26 @@ spec:
 		return errors.Wrap(err, "failed to create file for kube resource definitions")
 	}
 	defer func() { err = appFile.Close() }()
-	commit, _, err := c.Client.GetSingleCommit(org, appName, "HEAD")
+	commit, _, err := c.Client.GetSingleCommit(app.Org, app.Name, "HEAD")
 	if err != nil {
 		return errors.Wrap(err, "failed to get latest app commit")
+	}
+
+	app.Repo = &GitRepo{
+		Revision: commit.RepoCommit.Tree.SHA,
+		URL:      c.URL,
 	}
 
 	err = deploymentTmpl.Execute(appFile, struct {
 		AppName string
 		Route   string
 		Org     string
-		Commit  string
+		Image   string
 	}{
-		AppName: appName,
-		Route:   route,
-		Org:     org,
-		Commit:  commit.RepoCommit.Tree.SHA,
+		AppName: app.Name,
+		Route:   app.Route,
+		Org:     app.Org,
+		Image:   app.ImageURL(LocalRegistry),
 	})
 
 	if err != nil {

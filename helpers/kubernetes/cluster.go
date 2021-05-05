@@ -284,6 +284,18 @@ func (c *Cluster) WaitForNamespaceMissing(ui *termui.UI, namespace string, timeo
 	return wait.PollImmediate(time.Second, timeout, c.NamespaceDoesNotExist(namespace))
 }
 
+// WaitForNamespace waits up to timeout for namespace to appear
+// Returns an error if the Namespace is not found within the allotted time.
+func (c *Cluster) WaitForNamespace(ui *termui.UI, namespace string, timeout time.Duration) error {
+	s := ui.Progressf("Waiting for namespace %s to be appear", namespace)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
+		exists, err := c.NamespaceExists(namespace)
+		return exists, err
+	})
+}
+
 // Wait up to timeout for pod to be removed.
 // Returns an error if the pod is not removed within the allotted time.
 func (c *Cluster) WaitForPodBySelectorMissing(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
@@ -618,7 +630,6 @@ func (c *Cluster) NamespaceLabelExists(namespaceName, labelKey string) (bool, er
 	if err != nil {
 		return false, err
 	}
-	labelKey = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
 	if _, found := namespace.GetLabels()[labelKey]; found {
 		return true, nil
 	}
