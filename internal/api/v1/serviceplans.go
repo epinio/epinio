@@ -2,12 +2,12 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
 )
 
 type ServicePlansController struct {
@@ -27,8 +27,8 @@ func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if serviceClass == nil {
-		http.Error(w, fmt.Sprintf("ServiceClass '%s' does not exist", serviceClassName),
-			http.StatusNotFound)
+		err := errors.Errorf("ServiceClass '%s' does not exist", serviceClassName)
+		handleError(w, err, http.StatusNotFound)
 		return
 	}
 	servicePlans, err := serviceClass.ListPlans()
