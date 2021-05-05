@@ -871,14 +871,21 @@ func (c *EpinioClient) Push(app string, source string) error {
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	c.ui.Normal().Msg("Compressing application code ...")
+	c.ui.Normal().Msg("Collecting the application sources ...")
 	files, err := ioutil.ReadDir(source)
 	if err != nil {
 		return errors.Wrap(err, "canot read the apps source files")
 	}
 	sources := []string{}
 	for _, f := range files {
-		sources = append(sources, f.Name())
+		// The FileInfo entries returned by ReadDir provide
+		// only the base name of the file or directory they
+		// are for. We have to add back the path of the
+		// application directory to get the proper paths to
+		// the files and directories to assemble in the
+		// tarball.
+
+		sources = append(sources, path.Join(source, f.Name()))
 	}
 	log.V(3).Info("found app data files", "files", sources)
 
