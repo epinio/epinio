@@ -34,4 +34,15 @@ var _ = Describe("Orgs", func() {
 			Expect(out).To(MatchRegexp(fmt.Sprintf("Organization '%s' already exists", org)))
 		})
 	})
+
+	Describe("org delete", func() {
+		It("deletes an org", func() {
+			org := newOrgName()
+			setupAndTargetOrg(org)
+
+			By("deleting organisation")
+			out, err := Epinio("org delete "+org, "")
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+	})
 })

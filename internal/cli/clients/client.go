@@ -724,6 +724,26 @@ func (c *EpinioClient) CreateOrg(org string) error {
 	return nil
 }
 
+// DeleteOrg deletes an Org in gitea
+func (c *EpinioClient) DeleteOrg(org string) error {
+	log := c.Log.WithName("DeleteOrg").WithValues("Organization", org)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", org).
+		Msg("Deleting organization...")
+
+	_, err := c.delete(api.Routes.Path("OrgDelete", org))
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("Organization deleted.")
+
+	return nil
+}
+
 // Delete removes the named application from the cluster
 func (c *EpinioClient) Delete(appname string) error {
 	log := c.Log.WithName("Delete").WithValues("Application", appname)
