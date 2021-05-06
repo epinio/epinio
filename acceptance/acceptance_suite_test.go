@@ -77,12 +77,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		))
 	}
 
-	fmt.Println("Installing Epinio")
-	// Allow the installation to continue
-	out, err = RunProc("../dist/epinio-linux-amd64 install --skip-default-org", "", false)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ensureEpinio()
 
 	// Patch Epinio deployment to inject the current binary
+	fmt.Println("Patching Epinio deployment with test binary")
 	out, err = RunProc("make patch-epinio-deployment", "..", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
@@ -93,18 +91,27 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// install to do it's thing without needing the patch script to run first.
 	// Eventually is used to retry in case the rollout of the patched deployment
 	// is not completely done yet.
+	fmt.Println("Ensure default workspace exists")
 	EventuallyWithOffset(1, func() error {
 		out, err = RunProc("../dist/epinio-linux-amd64 org create workspace", "", false)
+		if err != nil {
+			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
+				return nil
+			}
+		}
 		return err
 	}, "1m").ShouldNot(HaveOccurred(), out)
 
+	fmt.Println("Setup cluster services")
 	setupInClusterServices()
 	out, err = helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp(`minibroker.*1/1.*Running`))
 
+	fmt.Println("Setup google")
 	setupGoogleServices()
 
+	fmt.Println("SynchronizedBeforeSuite is done, checking Epinio info endpoint")
 	expectGoodInstallation()
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
@@ -222,6 +229,23 @@ func ensureRegistryMirror() (string, error) {
 	}
 
 	return out, err
+}
+
+func ensureEpinio() {
+	out, err := helpers.Kubectl(`get pods -n epinio --selector=app.kubernetes.io/name=epinio-server`)
+	if err == nil {
+		running, err := regexp.Match(`epinio-server.*Running`, []byte(out))
+		if err != nil {
+			return
+		}
+		if running {
+			return
+		}
+	}
+	fmt.Println("Installing Epinio")
+	// Allow the installation to continue
+	out, err = RunProc("../dist/epinio-linux-amd64 install --skip-default-org", "", false)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 }
 
 func uninstallCluster() error {
