@@ -561,8 +561,8 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 				var responseBody apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
-					Equal("{\"boundapps\":[\"" + app + "\"]}"))
+				Expect(responseBody["errors"][0]["title"]).To(Equal("bound applications exist"))
+				Expect(responseBody["errors"][0]["details"]).To(Equal(app))
 			})
 
 			It("unbinds and removes the service, when former is requested", func() {
@@ -601,7 +601,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(bodyBytes)).To(Equal("{\"boundapps\":null}"))
+				Expect(string(bodyBytes)).To(Equal("{\"boundapps\":[]}"))
 			})
 		})
 	})

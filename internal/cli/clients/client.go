@@ -378,12 +378,12 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			// and the response contains an array of their
 			// names.
 
-			var deleteResponse models.DeleteResponse
-			if err := json.Unmarshal(bodyBytes, &deleteResponse); err != nil {
+			var apiError api.APIError
+			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
 				return err
 			}
 			msg := c.ui.Exclamation().WithTable("Bound Applications")
-			for _, app := range deleteResponse.BoundApps {
+			for _, app := range strings.Split(apiError["errors"][0]["details"], ",") {
 				msg = msg.WithTableRow(app)
 			}
 
