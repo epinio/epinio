@@ -2,15 +2,12 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
-	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -128,35 +125,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return APIErrors{AppIsNotKnown(appName)}
 	}
 
-	if len(app.BoundServices) > 0 {
-		for _, bonded := range app.BoundServices {
-			bound, err := services.Lookup(cluster, org, bonded)
-			if err != nil {
-				return APIErrors{InternalError(err)}
-			}
-
-			err = app.Unbind(bound)
-			if err != nil {
-				return APIErrors{InternalError(err)}
-			}
-		}
-	}
-
-	err = app.Delete(gitea)
-	if err != nil {
-		return APIErrors{InternalError(err)}
-	}
-
-	// The command above removes the application's deployment.
-	// This in turn deletes the associated replicaset, and pod, in
-	// this order. The pod being gone thus indicates command
-	// completion, and is therefore what we are waiting on below.
-
-	// TODO: Implement a WaitForDeletion on the Application
-	err = cluster.WaitForPodBySelectorMissing(nil,
-		app.Organization,
-		fmt.Sprintf("app.kubernetes.io/name=%s", appName),
-		duration.ToDeployment())
+	err = application.Delete(cluster, gitea, org, *app)
 	if err != nil {
 		return APIErrors{InternalError(err)}
 	}

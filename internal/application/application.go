@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
@@ -207,6 +208,38 @@ func Lookup(kubeClient *kubernetes.Cluster, org, lookupApp string) (*Application
 	}
 
 	return nil, nil
+}
+
+// Delete deletes an application by org and name
+func Delete(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string, app Application) error {
+	if len(app.BoundServices) > 0 {
+		for _, bonded := range app.BoundServices {
+			bound, err := services.Lookup(kubeClient, org, bonded)
+			if err != nil {
+				return err
+			}
+
+			err = app.Unbind(bound)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err := app.Delete(gitea)
+	if err != nil {
+		return err
+	}
+
+	err = kubeClient.WaitForPodBySelectorMissing(nil,
+		app.Organization,
+		fmt.Sprintf("app.kubernetes.io/name=%s", app.Name),
+		duration.ToDeployment())
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // List returns an ApplicationList of all available applications (in the org)
