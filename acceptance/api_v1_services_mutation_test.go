@@ -39,10 +39,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
-				Equal("unexpected end of JSON input"))
+			Expect(responseBody["errors"][0].Title).To(Equal("unexpected end of JSON input"))
 		})
 
 		It("returns a 'bad request' for a non-object JSON body", func() {
@@ -57,9 +56,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("json: cannot unmarshal array into Go value of type models.CatalogCreateRequest"))
 		})
 
@@ -75,9 +74,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Cannot create service without a name"))
 		})
 
@@ -96,9 +95,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Cannot create service without a service class"))
 
 		})
@@ -118,9 +117,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Cannot create service without a service plan"))
 		})
 
@@ -141,9 +140,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Organization 'bogus' does not exist"))
 		})
 
@@ -176,9 +175,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("Service '" + service + "' already exists"))
 			})
 		})
@@ -200,9 +199,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Service class 'meh' does not exist"))
 		})
 
@@ -223,9 +222,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Service plan 'meh' does not exist for class 'mariadb'"))
 		})
 
@@ -302,9 +301,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("unexpected end of JSON input"))
 		})
 
@@ -320,9 +319,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("json: cannot unmarshal array into Go value of type models.CustomCreateRequest"))
 		})
 
@@ -338,9 +337,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Cannot create custom service without a name"))
 		})
 
@@ -358,10 +357,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Cannot create custom service without data"))
 		})
 
@@ -380,9 +378,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Organization 'bogus' does not exist"))
 		})
 
@@ -413,9 +411,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("Service '" + service + "' already exists"))
 			})
 		})
@@ -470,9 +468,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("unexpected end of JSON input"))
 		})
 
@@ -488,9 +486,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("json: cannot unmarshal array into Go value of type models.DeleteRequest"))
 		})
 
@@ -506,9 +504,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Organization 'idontexist' does not exist"))
 		})
 
@@ -523,9 +521,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("service 'bogus' not found"))
 
 		})
@@ -559,10 +557,10 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(Equal("bound applications exist"))
-				Expect(responseBody["errors"][0]["details"]).To(Equal(app))
+				Expect(responseBody["errors"][0].Title).To(Equal("bound applications exist"))
+				Expect(responseBody["errors"][0].Details).To(Equal(app))
 			})
 
 			It("unbinds and removes the service, when former is requested", func() {
@@ -625,10 +623,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
-				Equal("unexpected end of JSON input"))
+			Expect(responseBody["errors"][0].Title).To(Equal("unexpected end of JSON input"))
 		})
 
 		It("returns a 'bad request' for a non-object JSON body", func() {
@@ -643,9 +640,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("json: cannot unmarshal array into Go value of type models.BindRequest"))
 		})
 
@@ -660,9 +657,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Cannot bind service without a name"))
 		})
 
@@ -677,9 +674,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Organization 'bogus' does not exist"))
 		})
 
@@ -694,9 +691,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("application 'bogus' not found"))
 		})
 
@@ -728,9 +725,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("service 'bogus' not found"))
 			})
 
@@ -751,9 +748,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					bodyBytes, err := ioutil.ReadAll(response.Body)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
-					var responseBody apiv1.APIError
+					var responseBody map[string][]apiv1.APIError
 					json.Unmarshal(bodyBytes, &responseBody)
-					Expect(responseBody["errors"][0]["title"]).To(
+					Expect(responseBody["errors"][0].Title).To(
 						Equal("service '" + service + "' already bound"))
 				})
 			})
@@ -797,9 +794,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("Organization 'idontexist' does not exist"))
 		})
 
@@ -815,9 +812,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			var responseBody apiv1.APIError
+			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0]["title"]).To(
+			Expect(responseBody["errors"][0].Title).To(
 				Equal("application 'bogus' not found"))
 		})
 
@@ -845,9 +842,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("service 'bogus' not found"))
 			})
 
@@ -896,9 +893,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					bodyBytes, err := ioutil.ReadAll(response.Body)
 					Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 					Expect(err).ToNot(HaveOccurred())
-					var responseBody apiv1.APIError
+					var responseBody map[string][]apiv1.APIError
 					json.Unmarshal(bodyBytes, &responseBody)
-					Expect(responseBody["errors"][0]["title"]).To(
+					Expect(responseBody["errors"][0].Title).To(
 						Equal("service '" + service + "' is not bound"))
 				})
 			})
