@@ -83,15 +83,8 @@ git push epinio %s:main
 
 	_, err = cmd.CombinedOutput()
 	if err != nil {
-		// TODO c.ui.Problem().
-		//         WithStringValue("Stdout", string(output)).
-		//         WithStringValue("Stderr", "").
-		//         Msg("App push failed")
 		return errors.Wrap(err, "push script failed")
 	}
-
-	// TODO c.ui.Note().V(1).WithStringValue("Output", string(output)).Msg("")
-	// c.ui.Success().Msg("Application push successful")
 
 	return nil
 }
@@ -107,7 +100,6 @@ func (c *Client) createRepo(org string, name string) error {
 	}
 
 	if resp.StatusCode == 200 {
-		// TODO c.ui.Note().Msg("Application already exists. Updating.")
 		return nil
 	}
 
