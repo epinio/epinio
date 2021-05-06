@@ -9,6 +9,7 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -21,6 +22,7 @@ type Organization struct {
 
 type GiteaInterface interface {
 	CreateOrg(org string) error
+	DeleteOrg(org string) error
 }
 
 func List(kubeClient *kubernetes.Cluster) ([]Organization, error) {
@@ -93,6 +95,20 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 	}
 
 	return gitea.CreateOrg(org)
+}
+
+func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) error {
+	err := kubeClient.Kubectl.CoreV1().Namespaces().Delete(ctx, org, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	err = kubeClient.WaitForNamespaceMissing(nil, org, duration.ToNamespace())
+	if err != nil {
+		return err
+	}
+
+	return gitea.DeleteOrg(org)
 }
 
 func copySecret(ctx context.Context, secretName, originOrg, targetOrg string, kubeClient *kubernetes.Cluster) error {

@@ -168,3 +168,9 @@ func (c *Client) CreateOrg(org string) error {
 
 	return err
 }
+
+func (c *Client) DeleteOrg(org string) error {
+	_, err := c.Client.DeleteOrg(org)
+
+	return err
+}

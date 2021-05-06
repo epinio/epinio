@@ -7,8 +7,11 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/services"
+	"github.com/julienschmidt/httprouter"
 )
 
 type OrganizationsController struct {
@@ -93,4 +96,74 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 	w.Write([]byte{})
 
 	return nil
+}
+
+func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request) {
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+
+	gitea, err := gitea.New()
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	cluster, err := kubernetes.GetCluster()
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	exists, err := organizations.Exists(cluster, org)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+	if !exists {
+		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
+			http.StatusNotFound)
+		return
+	}
+
+	apps, err := application.List(cluster, org)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	servicesToBeDeleted := []string{}
+
+	for _, app := range apps {
+		err = application.Delete(cluster, gitea, org, app)
+		if handleError(w, err, http.StatusInternalServerError) {
+			return
+		}
+
+		servicesToBeDeleted = append(servicesToBeDeleted, app.BoundServices...)
+	}
+
+	for _, serviceName := range servicesToBeDeleted {
+		service, err := services.Lookup(cluster, org, serviceName)
+		if err != nil && err.Error() == "service not found" {
+			http.Error(w, fmt.Sprintf("service '%s' not found", serviceName),
+				http.StatusNotFound)
+			return
+		}
+		if handleError(w, err, http.StatusInternalServerError) {
+			return
+		}
+
+		err = service.Delete()
+		if handleError(w, err, http.StatusInternalServerError) {
+			return
+		}
+	}
+
+	err = organizations.Delete(r.Context(), cluster, gitea, org)
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write([]byte{})
+	if handleError(w, err, http.StatusInternalServerError) {
+		return
+	}
 }

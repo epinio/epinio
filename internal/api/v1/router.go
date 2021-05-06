@@ -60,14 +60,15 @@ var Routes = routes.NamedRoutes{
 	"ServiceBindingDelete": delete("/orgs/:org/applications/:app/servicebindings/:service",
 		errorHandler(ServicebindingsController{}.Delete)),
 
-	// List and create organizations
-	"Orgs":      get("/orgs", errorHandler(OrganizationsController{}.Index)),
-	"OrgCreate": post("/orgs", errorHandler(OrganizationsController{}.Create)),
+	// List, create, show and delete organizations
+	"Orgs":      get("/orgs", OrganizationsController{}.Index),
+	"OrgCreate": post("/orgs", OrganizationsController{}.Create),
+	"OrgDelete": delete("/orgs/:org", OrganizationsController{}.Delete),
 
 	// List, show, create and delete services, catalog and custom
 	"Services":            get("/orgs/:org/services", errorHandler(ServicesController{}.Index)),
 	"ServiceShow":         get("/orgs/:org/services/:service", errorHandler(ServicesController{}.Show)),
-	"ServiceCreate":       post("/orgs/:org/services", errorHandler(ServicesController{}.Create)),
+s	"ServiceCreate":       post("/orgs/:org/services", errorHandler(ServicesController{}.Create)),
 	"ServiceCreateCustom": post("/orgs/:org/custom-services", errorHandler(ServicesController{}.CreateCustom)),
 	"ServiceDelete":       delete("/orgs/:org/services/:service", errorHandler(ServicesController{}.Delete)),
 

@@ -276,8 +276,10 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 // Wait up to timeout for Namespace to be removed.
 // Returns an error if the Namespace is not removed within the allotted time.
 func (c *Cluster) WaitForNamespaceMissing(ui *termui.UI, namespace string, timeout time.Duration) error {
-	s := ui.Progressf("Waiting for namespace %s to be deleted", namespace)
-	defer s.Stop()
+	if ui != nil {
+		s := ui.Progressf("Waiting for namespace %s to be deleted", namespace)
+		defer s.Stop()
+	}
 
 	return wait.PollImmediate(time.Second, timeout, c.NamespaceDoesNotExist(namespace))
 }
