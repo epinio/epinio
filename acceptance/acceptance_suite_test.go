@@ -40,6 +40,7 @@ const (
 	skipCleanupPath     = "../tmp/skip_cleanup"
 	afterEachSleepPath  = "../tmp/after_each_sleep"
 	k3dInstallArgsEnv   = "EPINIO_K3D_INSTALL_ARGS" // -p '80:80@server[0]' -p '443:443@server[0]'
+	skipEpinioPatch     = "EPINIO_SKIP_PATCH"
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -79,10 +80,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	ensureEpinio()
 
-	// Patch Epinio deployment to inject the current binary
-	fmt.Println("Patching Epinio deployment with test binary")
-	out, err = RunProc("make patch-epinio-deployment", "..", false)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	if os.Getenv(skipEpinioPatch) == "" {
+		// Patch Epinio deployment to inject the current binary
+		fmt.Println("Patching Epinio deployment with test binary")
+		out, err = RunProc("make patch-epinio-deployment", "..", false)
+		ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	}
 
 	// Now create the default org which we skipped because it would fail before
 	// patching.
