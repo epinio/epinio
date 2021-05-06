@@ -246,3 +246,9 @@ func verifyAppServiceNotbound(appName, serviceName, org string, offset int) {
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp("/services/" + serviceName))
 }
+
+func verifyOrgNotExist(org string) {
+	out, err := Epinio("org list", "")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).ToNot(MatchRegexp(org))
+}

@@ -40,7 +40,7 @@ var _ = Describe("Orgs", func() {
 			org := newOrgName()
 			setupAndTargetOrg(org)
 
-			By("deleting organisation")
+			By("deleting organization")
 			out, err := Epinio("org delete "+org, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 		})

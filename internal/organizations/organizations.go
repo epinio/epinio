@@ -103,7 +103,7 @@ func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 		return err
 	}
 
-	err = kubeClient.WaitForNamespaceMissing(nil, org, duration.ToNamespace())
+	err = kubeClient.WaitForNamespaceMissing(nil, org, duration.ToOrgDeletion())
 	if err != nil {
 		return err
 	}

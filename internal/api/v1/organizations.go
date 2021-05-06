@@ -98,72 +98,65 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request) {
+func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
 	gitea, err := gitea.New()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		http.Error(w, fmt.Sprintf("Organization '%s' does not exist", org),
-			http.StatusNotFound)
-		return
+		return APIErrors{
+			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
+		}
 	}
 
 	apps, err := application.List(cluster, org)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
-
-	servicesToBeDeleted := []string{}
 
 	for _, app := range apps {
 		err = application.Delete(cluster, gitea, org, app)
-		if handleError(w, err, http.StatusInternalServerError) {
-			return
+		if err != nil {
+			return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 		}
-
-		servicesToBeDeleted = append(servicesToBeDeleted, app.BoundServices...)
 	}
 
-	for _, serviceName := range servicesToBeDeleted {
-		service, err := services.Lookup(cluster, org, serviceName)
-		if err != nil && err.Error() == "service not found" {
-			http.Error(w, fmt.Sprintf("service '%s' not found", serviceName),
-				http.StatusNotFound)
-			return
-		}
-		if handleError(w, err, http.StatusInternalServerError) {
-			return
-		}
+	serviceList, err := services.List(cluster, org)
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
 
+	for _, service := range serviceList {
 		err = service.Delete()
-		if handleError(w, err, http.StatusInternalServerError) {
-			return
+		if err != nil {
+			return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 		}
 	}
 
 	err = organizations.Delete(r.Context(), cluster, gitea, org)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write([]byte{})
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
+
+	return nil
 }

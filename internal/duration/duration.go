@@ -13,7 +13,7 @@ const (
 	systemDomain     = 2 * time.Minute
 	appReady         = 2 * time.Minute
 	deployment       = 5 * time.Minute
-	namespace        = 5 * time.Minute
+	orgDeletion      = 5 * time.Minute
 	serviceSecret    = 5 * time.Minute
 	serviceProvision = 5 * time.Minute
 	podReady         = 5 * time.Minute
@@ -75,9 +75,9 @@ func ToDeployment() time.Duration {
 	return Multiplier() * deployment
 }
 
-// ToNamespace returns the duration to wait for deletion of namespace
-func ToNamespace() time.Duration {
-	return Multiplier() * namespace
+// ToOrgDeletion returns the duration to wait for deletion of namespace
+func ToOrgDeletion() time.Duration {
+	return Multiplier() * orgDeletion
 }
 
 // ToServiceSecret returns the duration to wait for the secret to a

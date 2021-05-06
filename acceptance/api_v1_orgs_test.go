@@ -182,8 +182,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(bodyBytes)).To(Equal(""))
 
-				_, err = helpers.Kubectl(fmt.Sprintf("get namespace %s", org))
-				Expect(err).To(HaveOccurred())
+				verifyOrgNotExist(org)
 			})
 		})
 	})
