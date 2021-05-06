@@ -18,22 +18,22 @@ import (
 type ServicesController struct {
 }
 
-func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) []APIError {
+func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	serviceName := params.ByName("service")
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
 		}
 	}
@@ -41,22 +41,22 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) []APIE
 	service, err := services.Lookup(cluster, org, serviceName)
 	if err != nil {
 		if err.Error() == "service not found" {
-			return []APIError{
+			return APIErrors{
 				NewAPIError(fmt.Sprintf("Service '%s' does not exist", serviceName), "", http.StatusNotFound),
 			}
 		}
 		if err != nil {
-			return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+			return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 		}
 	}
 
 	status, err := service.Status()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	serviceDetails, err := service.Details()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	responseData := map[string]string{
@@ -68,44 +68,44 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) []APIE
 
 	js, err := json.Marshal(responseData)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
-	return []APIError{}
+	return nil
 }
 
-func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) []APIError {
+func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
 		}
 	}
 
 	orgServices, err := services.List(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	appsOf, err := servicesToApps(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	var responseData models.ServiceResponseList
@@ -124,56 +124,56 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) []API
 
 	js, err := json.Marshal(responseData)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
-	return []APIError{}
+	return nil
 }
 
-func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request) []APIError {
+func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request) APIErrors {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	var createRequest models.CustomCreateRequest
 	err = json.Unmarshal(bodyBytes, &createRequest)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusBadRequest)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusBadRequest)}
 	}
 
 	if createRequest.Name == "" {
-		return []APIError{
+		return APIErrors{
 			NewAPIError("Cannot create custom service without a name", "", http.StatusBadRequest),
 		}
 	}
 
 	if len(createRequest.Data) < 1 {
-		return []APIError{
+		return APIErrors{
 			NewAPIError("Cannot create custom service without data", "", http.StatusBadRequest),
 		}
 	}
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
 		}
 	}
@@ -182,70 +182,70 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	_, err = services.Lookup(cluster, org, createRequest.Name)
 	if err == nil {
 		// no error, service is found, conflict
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("Service '%s' already exists", createRequest.Name), "", http.StatusConflict),
 		}
 	}
 	if err != nil && err.Error() != "service not found" {
 		// some internal error
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	// any error here is `service not found`, and we can continue
 
 	// Create the new service. At last.
 	_, err = services.CreateCustomService(cluster, createRequest.Name, org, createRequest.Data)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte{})
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
-	return []APIError{}
+	return nil
 }
 
-func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) []APIError {
+func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	var createRequest models.CatalogCreateRequest
 	err = json.Unmarshal(bodyBytes, &createRequest)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusBadRequest)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusBadRequest)}
 	}
 
 	if createRequest.Name == "" {
-		return []APIError{NewAPIError("Cannot create service without a name", "", http.StatusBadRequest)}
+		return APIErrors{NewAPIError("Cannot create service without a name", "", http.StatusBadRequest)}
 	}
 
 	if createRequest.Class == "" {
-		return []APIError{NewAPIError("Cannot create service without a service class", "", http.StatusBadRequest)}
+		return APIErrors{NewAPIError("Cannot create service without a service class", "", http.StatusBadRequest)}
 	}
 
 	if createRequest.Plan == "" {
-		return []APIError{NewAPIError("Cannot create service without a service plan", "", http.StatusBadRequest)}
+		return APIErrors{NewAPIError("Cannot create service without a service plan", "", http.StatusBadRequest)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
 		}
 	}
@@ -254,23 +254,23 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) []AP
 	_, err = services.Lookup(cluster, org, createRequest.Name)
 	if err == nil {
 		// no error, service is found, conflict
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("Service '%s' already exists", createRequest.Name), "", http.StatusConflict),
 		}
 	}
 	if err != nil && err.Error() != "service not found" {
 		// some internal error
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	// any error here is `service not found`, and we can continue
 
 	// Verify that the requested class is supported
 	serviceClass, err := services.ClassLookup(cluster, createRequest.Class)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if serviceClass == nil {
-		return []APIError{NewAPIError(
+		return APIErrors{NewAPIError(
 			fmt.Sprintf("Service class '%s' does not exist", createRequest.Class), "", http.StatusNotFound),
 		}
 	}
@@ -278,11 +278,11 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) []AP
 	// Verify that the requested plan is supported by the class.
 	servicePlan, err := serviceClass.LookupPlan(createRequest.Plan)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	if servicePlan == nil {
-		return []APIError{NewAPIError(
+		return APIErrors{NewAPIError(
 			fmt.Sprintf("Service plan '%s' does not exist for class '%s'", createRequest.Plan, createRequest.Class),
 			"", http.StatusNotFound),
 		}
@@ -292,27 +292,27 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) []AP
 	service, err := services.CreateCatalogService(cluster, createRequest.Name, org,
 		createRequest.Class, createRequest.Plan, createRequest.Data)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	// Wait for service to be fully provisioned, if requested
 	if createRequest.WaitForProvision {
 		err := service.WaitForProvision()
 		if err != nil {
-			return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+			return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 		}
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write([]byte{})
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
-	return []APIError{}
+	return nil
 }
 
-func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) []APIError {
+func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	serviceName := params.ByName("service")
@@ -320,38 +320,38 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) []AP
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	var deleteRequest models.DeleteRequest
 	err = json.Unmarshal(bodyBytes, &deleteRequest)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusBadRequest)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusBadRequest)}
 	}
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
 		}
 	}
 
 	service, err := services.Lookup(cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
-		return []APIError{
+		return APIErrors{
 			NewAPIError(fmt.Sprintf("service '%s' not found", serviceName), "", http.StatusNotFound),
 		}
 	}
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	// Verify that the service is unbound. IOW not bound to any application.
@@ -361,7 +361,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) []AP
 	boundAppNames := []string{}
 	appsOf, err := servicesToApps(cluster, org)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if boundApps, found := appsOf[service.Name()]; found {
 		for _, app := range boundApps {
@@ -369,7 +369,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) []AP
 		}
 
 		if !deleteRequest.Unbind {
-			return []APIError{
+			return APIErrors{
 				NewAPIError("bound applications exist", strings.Join(boundAppNames, ","), http.StatusBadRequest),
 			}
 		}
@@ -377,7 +377,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) []AP
 		for _, app := range boundApps {
 			err = app.Unbind(service)
 			if err != nil {
-				return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+				return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 			}
 		}
 	}
@@ -386,21 +386,21 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) []AP
 
 	err = service.Delete()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	js, err := json.Marshal(models.DeleteResponse{BoundApps: boundAppNames})
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
-	return []APIError{}
+	return nil
 }
 
 func servicesToApps(cluster *kubernetes.Cluster, org string) (map[string]application.ApplicationList, error) {
