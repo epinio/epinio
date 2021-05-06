@@ -10,7 +10,7 @@ import (
 type InfoController struct {
 }
 
-func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) []APIError {
+func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) APIErrors {
 	info := struct {
 		Version string
 	}{
@@ -18,13 +18,13 @@ func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) []APIError
 	}
 	js, err := json.Marshal(info)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
-	return []APIError{}
+	return nil
 }

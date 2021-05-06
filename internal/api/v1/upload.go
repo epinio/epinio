@@ -16,7 +16,7 @@ import (
 
 // Upload receives the application data, as tarball, and creates the gitea as
 // well as k8s resources to trigger staging
-func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) []APIError {
+func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) APIErrors {
 	log := tracelog.Logger(r.Context())
 
 	params := httprouter.ParamsFromContext(r.Context())
@@ -27,14 +27,14 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 
 	gitea, err := gitea.New()
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	log.V(2).Info("parsing multipart form")
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
-		return []APIError{
+		return APIErrors{
 			NewAPIError("can't read multipart file input: "+err.Error(), "", http.StatusBadRequest),
 		}
 	}
@@ -42,7 +42,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 
 	tmpDir, err := ioutil.TempDir("", "epinio-app")
 	if err != nil {
-		return []APIError{
+		return APIErrors{
 			NewAPIError("can't create temp directory: "+err.Error(), "", http.StatusInternalServerError),
 		}
 	}
@@ -51,7 +51,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	blob := path.Join(tmpDir, "blob.tar")
 	f, err := os.OpenFile(blob, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
-		return []APIError{
+		return APIErrors{
 			NewAPIError("failed create file for writing app sources to temp location: "+err.Error(),
 				"", http.StatusInternalServerError),
 		}
@@ -60,7 +60,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 
 	_, err = io.Copy(f, file)
 	if err != nil {
-		return []APIError{
+		return APIErrors{
 			NewAPIError("failed to copy app sources to temp location"+err.Error(),
 				"", http.StatusInternalServerError),
 		}
@@ -70,7 +70,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	appDir := path.Join(tmpDir, "app")
 	err = archiver.Unarchive(blob, appDir)
 	if err != nil {
-		return []APIError{
+		return APIErrors{
 			NewAPIError("failed to unpack app sources to temp location"+err.Error(),
 				"", http.StatusInternalServerError),
 		}
@@ -79,15 +79,15 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	log.V(2).Info("create gitea app")
 	err = gitea.CreateApp(org, app, appDir)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	js, _ := json.Marshal(struct{ Message string }{"ok"})
 	_, err = w.Write(js)
 	if err != nil {
-		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
-	return []APIError{}
+	return nil
 }

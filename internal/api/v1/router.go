@@ -31,9 +31,11 @@ func NewAPIError(message, details string, status int) APIError {
 	}
 }
 
+type APIErrors []APIError
+
 // All our actions match this type. They can return a list of errors.
 // The "Status" of the first error in the list becomes the response Status Code.
-type APIActionFunc func(http.ResponseWriter, *http.Request) []APIError
+type APIActionFunc func(http.ResponseWriter, *http.Request) APIErrors
 
 func errorHandler(action APIActionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
