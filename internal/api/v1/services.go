@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/models"
@@ -358,24 +359,19 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 	// If it is, and automatic unbind was requested, do that.
 	// Without automatic unbind such applications are reported as error.
 
-	deleteResponse := models.DeleteResponse{}
-
+	boundAppNames := []string{}
 	appsOf, err := servicesToApps(cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 	if boundApps, found := appsOf[service.Name()]; found {
 		for _, app := range boundApps {
-			deleteResponse.BoundApps = append(deleteResponse.BoundApps, app.Name)
+			boundAppNames = append(boundAppNames, app.Name)
 		}
 
 		if !deleteRequest.Unbind {
-			js, err := json.Marshal(deleteResponse)
-			if handleError(w, err, http.StatusInternalServerError) {
-				return
-			}
-
-			handleError(w, errors.New(string(js)), http.StatusBadRequest)
+			handleError(w, errors.New("bound applications exist"),
+				http.StatusBadRequest, strings.Join(boundAppNames, ","))
 			return
 		}
 
@@ -394,7 +390,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	js, err := json.Marshal(deleteResponse)
+	js, err := json.Marshal(models.DeleteResponse{BoundApps: boundAppNames})
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}

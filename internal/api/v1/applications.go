@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
@@ -182,7 +183,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 }
 
 // Write the error to the response writer and return  true if there was an error
-func handleError(w http.ResponseWriter, err error, code int) bool {
+func handleError(w http.ResponseWriter, err error, code int, details ...string) bool {
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -190,8 +191,9 @@ func handleError(w http.ResponseWriter, err error, code int) bool {
 		response := APIError{
 			"errors": {
 				{
-					"status": strconv.Itoa(code),
-					"title":  err.Error(),
+					"status":  strconv.Itoa(code),
+					"title":   err.Error(),
+					"details": strings.Join(details, ","),
 				},
 			},
 		}
