@@ -11,21 +11,23 @@ import (
 type ServiceClassesController struct {
 }
 
-func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request) {
+func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request) []APIError {
 	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	serviceClasses, err := services.ListClasses(cluster)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	js, err := json.Marshal(serviceClasses)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
+
+	return []APIError{}
 }

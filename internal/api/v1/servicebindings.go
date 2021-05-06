@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -17,135 +18,140 @@ import (
 type ServicebindingsController struct {
 }
 
-func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Request) {
+func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Request) []APIError {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	var bindRequest models.BindRequest
 	err = json.Unmarshal(bodyBytes, &bindRequest)
-	if handleError(w, err, http.StatusBadRequest) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusBadRequest)}
 	}
 
 	if bindRequest.Name == "" {
 		err := errors.New("Cannot bind service without a name")
-		handleError(w, err, http.StatusBadRequest)
-		return
+		if err != nil {
+			return []APIError{NewAPIError(err.Error(), "", http.StatusBadRequest)}
+		}
 	}
 
 	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		err := errors.Errorf("Organization '%s' does not exist", org)
-		handleError(w, err, http.StatusNotFound)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
+		}
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if app == nil {
-		err := errors.Errorf("application '%s' not found", appName)
-		handleError(w, err, http.StatusNotFound)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("application '%s' not found", appName), "", http.StatusNotFound),
+		}
 	}
 
 	service, err := services.Lookup(cluster, org, bindRequest.Name)
 	if err != nil && err.Error() == "service not found" {
-		err := errors.Errorf("service '%s' not found", bindRequest.Name)
-		handleError(w, err, http.StatusNotFound)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("service '%s' not found", bindRequest.Name), "", http.StatusNotFound),
+		}
 	}
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	err = app.Bind(service)
 	if err != nil && err.Error() == "service already bound" {
-		err := errors.Errorf("service '%s' already bound", bindRequest.Name)
-		handleError(w, err, http.StatusConflict)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("service '%s' already bound", bindRequest.Name), "", http.StatusConflict),
+		}
 	}
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte{})
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
+
+	return []APIError{}
 }
 
-func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Request) {
+func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Request) []APIError {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	appName := params.ByName("app")
 	serviceName := params.ByName("service")
 
 	cluster, err := kubernetes.GetCluster()
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	exists, err := organizations.Exists(cluster, org)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if !exists {
-		err := errors.Errorf("Organization '%s' does not exist", org)
-		handleError(w, err, http.StatusNotFound)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
+		}
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 	if app == nil {
-		err := errors.Errorf("application '%s' not found", appName)
-		handleError(w, err, http.StatusNotFound)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("application '%s' not found", appName), "", http.StatusNotFound),
+		}
 	}
 
 	service, err := services.Lookup(cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
-		err := errors.Errorf("service '%s' not found", serviceName)
-		handleError(w, err, http.StatusNotFound)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("service '%s' not found", serviceName), "", http.StatusNotFound),
+		}
 	}
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	err = app.Unbind(service)
 	if err != nil && err.Error() == "service is not bound to the application" {
-		err := errors.Errorf("service '%s' is not bound", serviceName)
-		handleError(w, err, http.StatusBadRequest)
-		return
+		return []APIError{
+			NewAPIError(fmt.Sprintf("service '%s' is not bound", serviceName), "", http.StatusBadRequest),
+		}
 	}
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte{})
-	if handleError(w, err, http.StatusInternalServerError) {
-		return
+	if err != nil {
+		return []APIError{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
 	}
+
+	return []APIError{}
 }

@@ -56,9 +56,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("unexpected end of JSON input"))
 			})
 
@@ -71,9 +71,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("json: cannot unmarshal array into Go value of type map[string]string"))
 			})
 
@@ -86,9 +86,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("Name of organization to create not found"))
 			})
 
@@ -115,9 +115,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err = ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("Organization 'birdy' already exists"))
 			})
 
@@ -130,9 +130,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
-				var responseBody apiv1.APIError
+				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
-				Expect(responseBody["errors"][0]["title"]).To(
+				Expect(responseBody["errors"][0].Title).To(
 					Equal("Org 'epinio' name cannot be used. Please try another name"))
 			})
 
