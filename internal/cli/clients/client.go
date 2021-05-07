@@ -99,7 +99,6 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 	c.ui.Note().
 		Msg("Listing service plans")
 
-	// todo: sort service plans by name before display
 	jsonResponse, err := c.get(api.Routes.Path("ServicePlans", serviceClassName))
 	if err != nil {
 		return err
@@ -111,6 +110,7 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 
 	details.Info("list service plans")
 
+	sort.Sort(servicePlans)
 	msg := c.ui.Success().WithTable("Plan", "Free", "Description")
 	for _, sp := range servicePlans {
 		var isFree string
@@ -203,9 +203,9 @@ func (c *EpinioClient) ServiceClasses() error {
 		return err
 	}
 
-	// todo: sort service classes by name before display
 	details.Info("list service classes")
 
+	sort.Sort(serviceClasses)
 	msg := c.ui.Success().WithTable("Name", "Description", "Broker")
 	for _, sc := range serviceClasses {
 		msg = msg.WithTableRow(sc.Name, sc.Description, sc.Broker)
@@ -237,12 +237,11 @@ func (c *EpinioClient) Services() error {
 		return err
 	}
 
-	// todo: sort services by name before display
 	details.Info("list services")
 
+	sort.Sort(response)
 	msg := c.ui.Success().WithTable("Name", "Applications")
 
-	// todo: sort services by name before display
 	details.Info("list services")
 	for _, service := range response {
 		msg = msg.WithTableRow(service.Name, strings.Join(service.BoundApps, ", "))
@@ -382,8 +381,13 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
 				return err
 			}
+
+			bound := strings.Split(apiError["errors"][0].Details, ",")
+
+			sort.Strings(bound)
 			msg := c.ui.Exclamation().WithTable("Bound Applications")
-			for _, app := range strings.Split(apiError["errors"][0].Details, ",") {
+
+			for _, app := range bound {
 				msg = msg.WithTableRow(app)
 			}
 
@@ -405,6 +409,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			return err
 		}
 		if len(deleteResponse.BoundApps) > 0 {
+			sort.Strings(deleteResponse.BoundApps)
 			msg := c.ui.Note().WithTable("Previously Bound To")
 
 			for _, app := range deleteResponse.BoundApps {
@@ -650,6 +655,7 @@ func (c *EpinioClient) Apps() error {
 		return err
 	}
 
+	sort.Sort(apps)
 	msg := c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
 
 	for _, app := range apps {
@@ -688,13 +694,12 @@ func (c *EpinioClient) AppShow(appName string) error {
 		return err
 	}
 
-	msg := c.ui.Success().WithTable("Key", "Value")
-
-	msg = msg.WithTableRow("Status", app.Status)
-	msg = msg.WithTableRow("Routes", strings.Join(app.Routes, ", "))
-	msg = msg.WithTableRow("Services", strings.Join(app.BoundServices, ", "))
-
-	msg.Msg("Details:")
+	c.ui.Success().
+		WithTable("Key", "Value").
+		WithTableRow("Status", app.Status).
+		WithTableRow("Routes", strings.Join(app.Routes, ", ")).
+		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).
+		Msg("Details:")
 
 	return nil
 }
@@ -765,7 +770,10 @@ func (c *EpinioClient) Delete(appname string) error {
 	}
 	if len(unboundServices) > 0 {
 		s.Stop()
+
+		sort.Strings(unboundServices)
 		msg := c.ui.Note().WithTable("Unbound Services")
+
 		for _, bonded := range unboundServices {
 			msg = msg.WithTableRow(bonded)
 		}
@@ -827,6 +835,7 @@ func (c *EpinioClient) Orgs() error {
 		return err
 	}
 
+	sort.Strings(orgs)
 	msg := c.ui.Success().WithTable("Name")
 
 	for _, org := range orgs {

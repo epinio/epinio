@@ -51,6 +51,34 @@ type ServicePlan struct {
 
 type ServicePlanList []ServicePlan
 
+// Implement the Sort interface for service class slices
+
+func (scl ServiceClassList) Len() int {
+	return len(scl)
+}
+
+func (scl ServiceClassList) Swap(i, j int) {
+	scl[i], scl[j] = scl[j], scl[i]
+}
+
+func (scl ServiceClassList) Less(i, j int) bool {
+	return scl[i].Name < scl[j].Name
+}
+
+// Implement the Sort interface for service plan slices
+
+func (spl ServicePlanList) Len() int {
+	return len(spl)
+}
+
+func (spl ServicePlanList) Swap(i, j int) {
+	spl[i], spl[j] = spl[j], spl[i]
+}
+
+func (spl ServicePlanList) Less(i, j int) bool {
+	return spl[i].Name < spl[j].Name
+}
+
 // LookupPlan returns the named ServicePlan, for the specified class
 func (sc *ServiceClass) LookupPlan(plan string) (*ServicePlan, error) {
 	servicePlanGVR := schema.GroupVersionResource{
