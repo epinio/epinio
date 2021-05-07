@@ -88,3 +88,8 @@ var CmdPush = &cobra.Command{
 	SilenceErrors: true,
 	SilenceUsage:  true,
 }
+
+func init() {
+	flags := CmdPush.Flags()
+	flags.IntP("instances", "i", 1, "The number of desired instance for the application")
+}

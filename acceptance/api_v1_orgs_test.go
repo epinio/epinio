@@ -178,7 +178,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 
 			It("deletes an organization including apps and services", func() {
 				app1 := newAppName()
-				makeApp(app1)
+				makeApp(app1, 1, true)
 				svc1 := newServiceName()
 				makeCustomService(svc1)
 				bindAppService(app1, svc1, org)

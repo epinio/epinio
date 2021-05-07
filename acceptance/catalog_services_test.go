@@ -39,7 +39,7 @@ var _ = Describe("Catalog Services", func() {
 
 		It("doesn't delete a bound service", func() {
 			appName := newAppName()
-			makeApp(appName)
+			makeApp(appName, 1, true)
 			bindAppService(appName, serviceName, org)
 
 			out, err := Epinio("service delete "+serviceName, "")
@@ -78,7 +78,7 @@ var _ = Describe("Catalog Services", func() {
 			appName = newAppName()
 
 			makeCatalogService(serviceName)
-			makeApp(appName)
+			makeApp(appName, 1, true)
 		})
 
 		AfterEach(func() {
@@ -97,7 +97,7 @@ var _ = Describe("Catalog Services", func() {
 			appName = newAppName()
 
 			makeCatalogService(serviceName)
-			makeApp(appName)
+			makeApp(appName, 1, true)
 			bindAppService(appName, serviceName, org)
 		})
 

@@ -28,7 +28,7 @@ var _ = Describe("Apps", func() {
 
 		It("shows the staging logs", func() {
 			By("pushing the app")
-			out := makeApp(appName)
+			out := makeApp(appName, 1, true)
 
 			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
 			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
@@ -36,7 +36,7 @@ var _ = Describe("Apps", func() {
 
 		It("pushes and deletes an app", func() {
 			By("pushing the app in the current working directory")
-			out := makeApp(appName)
+			out := makeApp(appName, 1, true)
 
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
@@ -51,7 +51,7 @@ var _ = Describe("Apps", func() {
 
 		It("pushes and deletes an app", func() {
 			By("pushing the app in the specified app directory")
-			makeApp2(appName)
+			makeApp(appName, 1, false)
 
 			By("deleting the app")
 			deleteApp(appName)
@@ -91,7 +91,7 @@ var _ = Describe("Apps", func() {
 		It("unbinds bound services when deleting an app", func() {
 			serviceName := newServiceName()
 
-			makeApp(appName)
+			makeApp(appName, 1, true)
 			makeCustomService(serviceName)
 			bindAppService(appName, serviceName, org)
 
@@ -117,7 +117,7 @@ var _ = Describe("Apps", func() {
 		BeforeEach(func() {
 			appName = newAppName()
 			serviceCustomName = newServiceName()
-			makeApp(appName)
+			makeApp(appName, 1, true)
 			makeCustomService(serviceCustomName)
 			bindAppService(appName, serviceCustomName, org)
 		})

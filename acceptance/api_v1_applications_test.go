@@ -40,8 +40,20 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		BeforeEach(func() {
 			app1 = newAppName()
 			app2 = newAppName()
-			makeApp(app1)
-			makeApp(app2)
+			makeApp(app1, 1, true)
+			makeApp(app2, 1, true)
+		})
+
+		Describe("POST /orgs/:org/applications/:app", func() {
+			It("deploys an application with the desired number of instances", func() {
+				Skip("TODO")
+			})
+		})
+
+		Describe("PATCH /orgs/:org/applications/:app", func() {
+			It("updates an application with the desired number of instances", func() {
+				Skip("TODO")
+			})
 		})
 
 		Describe("GET api/v1/orgs/:orgs/applications", func() {

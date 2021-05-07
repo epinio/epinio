@@ -536,7 +536,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				service = newServiceName()
 				app = newAppName()
 				makeCustomService(service)
-				makeApp(app)
+				makeApp(app, 1, true)
 				bindAppService(app, service, org)
 			})
 
@@ -704,7 +704,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			BeforeEach(func() {
 				app = newAppName()
 				service = newServiceName()
-				makeApp(app)
+				makeApp(app, 1, true)
 				makeCustomService(service)
 			})
 
@@ -823,7 +823,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 			BeforeEach(func() {
 				app = newAppName()
-				makeApp(app)
+				makeApp(app, 1, true)
 			})
 
 			AfterEach(func() {
