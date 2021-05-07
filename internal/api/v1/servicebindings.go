@@ -114,7 +114,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte{})
 	if err != nil {
-		return append(APIErrors{InternalError(err)}, theIssues...)
+		return APIErrors{InternalError(err)}
 	}
 
 	return nil
