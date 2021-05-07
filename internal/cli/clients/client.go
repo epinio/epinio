@@ -857,10 +857,8 @@ func (c *EpinioClient) Push(app, source string, services []string) error {
 	services = uniqueStrings(services)
 
 	if len(services) > 0 {
-		msg = msg.WithTable("Service")
-		for _, serviceName := range services {
-			msg = msg.WithTableRow(serviceName)
-		}
+		sort.Strings(services)
+		msg = msg.WithStringValue("Services:", strings.Join(services, ", "))
 	}
 
 	msg.Msg("About to push an application with given name and sources into the specified organization")
