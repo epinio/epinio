@@ -10,7 +10,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ()
+var (
+	force bool
+)
 
 // CmdOrg implements the epinio -app command
 var CmdOrg = &cobra.Command{
@@ -24,6 +26,10 @@ var CmdOrg = &cobra.Command{
 }
 
 func init() {
+
+	flags := CmdOrgDelete.Flags()
+	flags.BoolVarP(&force, "force", "f", false, "force org deletion")
+
 	CmdOrg.AddCommand(CmdOrgCreate)
 	CmdOrg.AddCommand(CmdOrgList)
 	CmdOrg.AddCommand(CmdOrgDelete)
@@ -78,9 +84,15 @@ var CmdOrgDelete = &cobra.Command{
 	Short: "Deletes an organization",
 	Args:  cobra.ExactArgs(1),
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		cmd.Printf("You are about to delete organization %s and everything included in it (applications, services etc). Are you sure? (Y/n): ", args[0])
-		if !askConfirmation(cmd) {
-			return errors.New("Cancelled by user")
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			return err
+		}
+		if !force {
+			cmd.Printf("You are about to delete organization %s and everything included in it (applications, services etc). Are you sure? (Y/n): ", args[0])
+			if !askConfirmation(cmd) {
+				return errors.New("Cancelled by user")
+			}
 		}
 
 		return nil

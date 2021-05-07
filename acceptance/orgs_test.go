@@ -41,7 +41,8 @@ var _ = Describe("Orgs", func() {
 			setupAndTargetOrg(org)
 
 			By("deleting organization")
-			out, err := Epinio("org delete "+org, "")
+			out, err := Epinio("org delete -f "+org, "")
+
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 	})
