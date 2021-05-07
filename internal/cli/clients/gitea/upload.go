@@ -22,11 +22,12 @@ type GitRepo struct {
 	URL      string `json:"url"`
 }
 type App struct {
-	Name    string   `json:"name"`
-	Org     string   `json:"org"`
-	Repo    *GitRepo `json:"repo"`
-	Route   string   `json:"route"`
-	ImageID string   `json:"imageID"`
+	Name      string   `json:"name"`
+	Org       string   `json:"org"`
+	Repo      *GitRepo `json:"repo"`
+	Route     string   `json:"route"`
+	ImageID   string   `json:"imageID"`
+	Instances int      `json:"instances"`
 }
 
 func (a *App) GitURL(server string) string {
@@ -164,7 +165,7 @@ metadata:
     app.kubernetes.io/component: application
     app.kubernetes.io/managed-by: epinio
 spec:
-  replicas: 1
+  replicas: {{ .Instances }}
   selector:
     matchLabels:
       app.kubernetes.io/name: "{{ .AppName }}"
@@ -211,15 +212,17 @@ spec:
 	}
 
 	err = deploymentTmpl.Execute(appFile, struct {
-		AppName string
-		Route   string
-		Org     string
-		Image   string
+		AppName   string
+		Route     string
+		Org       string
+		Image     string
+		Instances int
 	}{
-		AppName: app.Name,
-		Route:   app.Route,
-		Org:     app.Org,
-		Image:   app.ImageURL(LocalRegistry),
+		AppName:   app.Name,
+		Route:     app.Route,
+		Org:       app.Org,
+		Image:     app.ImageURL(LocalRegistry),
+		Instances: app.Instances,
 	})
 
 	if err != nil {

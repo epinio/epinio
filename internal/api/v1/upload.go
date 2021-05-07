@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strconv"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
@@ -51,6 +52,18 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 
 	log.V(2).Info("parsing multipart form")
 
+	var instances int
+	instancesFromParams := r.FormValue("instances")
+	if instancesFromParams == "" {
+		instances = 1
+	} else {
+		instances, err = strconv.Atoi(instancesFromParams)
+		if err != nil {
+			return APIErrors{
+				NewAPIError("instances param should be an integer", "", http.StatusBadRequest)}
+		}
+	}
+
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		return NewAPIErrors(BadRequest(err, "can't read multipart file input"))
@@ -83,7 +96,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	log.V(2).Info("create gitea app repo")
-	app := gitea.App{Name: name, Org: org}
+	app := gitea.App{Name: name, Org: org, Instances: instances}
 	err = client.Upload(&app, appDir)
 	if err != nil {
 		return NewAPIErrors(InternalError(err))

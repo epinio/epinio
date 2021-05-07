@@ -37,13 +37,67 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	Context("Apps", func() {
 		Describe("POST /orgs/:org/applications/:app", func() {
 			It("deploys an application with the desired number of instances", func() {
-				Skip("TODO")
+				app := newAppName()
+				makeApp(app, 3, true)
+				defer deleteApp(app)
+
+				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+
+				var responseApp application.Application
+				err = json.Unmarshal(bodyBytes, &responseApp)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(responseApp.Name).To(Equal(app))
+				Expect(responseApp.Organization).To(Equal(org))
+				Expect(responseApp.Status).To(Equal("3/3"))
 			})
 		})
 
 		Describe("PATCH /orgs/:org/applications/:app", func() {
 			It("updates an application with the desired number of instances", func() {
-				Skip("TODO")
+				app := newAppName()
+				makeApp(app, 1, true)
+				defer deleteApp(app)
+
+				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+
+				var responseApp application.Application
+				err = json.Unmarshal(bodyBytes, &responseApp)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(responseApp.Name).To(Equal(app))
+				Expect(responseApp.Organization).To(Equal(org))
+				Expect(responseApp.Status).To(Equal("1/1"))
+
+				response, err = Curl("PATCH", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(`{ "instances": 3 }`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				response, err = Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+				bodyBytes, err = ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+
+				err = json.Unmarshal(bodyBytes, &responseApp)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(responseApp.Name).To(Equal(app))
+				Expect(responseApp.Organization).To(Equal(org))
+				Expect(responseApp.Status).To(Equal("3/3"))
 			})
 		})
 

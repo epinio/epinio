@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -48,6 +49,11 @@ type EpinioClient struct {
 	Log         logr.Logger
 	ui          *termui.UI
 	serverURL   string
+}
+
+type PushParams struct {
+	Instances int
+	Services  []string
 }
 
 func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
@@ -860,7 +866,7 @@ func (c *EpinioClient) Orgs() error {
 }
 
 // Push pushes an app
-func (c *EpinioClient) Push(app, source string, services []string) error {
+func (c *EpinioClient) Push(app string, source string, params PushParams) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", app,
@@ -875,7 +881,7 @@ func (c *EpinioClient) Push(app, source string, services []string) error {
 		WithStringValue("Sources", source).
 		WithStringValue("Organization", c.Config.Org)
 
-	services = uniqueStrings(services)
+	services := uniqueStrings(params.Services)
 
 	if len(services) > 0 {
 		sort.Strings(services)
@@ -929,7 +935,7 @@ func (c *EpinioClient) Push(app, source string, services []string) error {
 
 	// upload blob to the server's uplad API endpoint
 	details.Info("upload code")
-	uploadResponse, err := c.upload(api.Routes.Path("AppUpload", c.Config.Org, app), tarball)
+	uploadResponse, err := c.upload(api.Routes.Path("AppUpload", c.Config.Org, app), tarball, params)
 	if err != nil {
 		return errors.Wrap(err, "can't upload archive")
 	}
@@ -1172,7 +1178,7 @@ func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
 }
 
 // upload the given path as param "file" in a multipart form
-func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
+func (c *EpinioClient) upload(endpoint string, path string, params PushParams) ([]byte, error) {
 	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
 
 	// open the tarball
@@ -1193,6 +1199,11 @@ func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
 	_, err = io.Copy(part, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write to multiform part")
+	}
+
+	err = writer.WriteField("instances", strconv.Itoa(params.Instances))
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to add instances multiform field")
 	}
 
 	err = writer.Close()
