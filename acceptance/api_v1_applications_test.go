@@ -35,15 +35,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	})
 
 	Context("Apps", func() {
-		var app1, app2 string
-
-		BeforeEach(func() {
-			app1 = newAppName()
-			app2 = newAppName()
-			makeApp(app1, 1, true)
-			makeApp(app2, 1, true)
-		})
-
 		Describe("POST /orgs/:org/applications/:app", func() {
 			It("deploys an application with the desired number of instances", func() {
 				Skip("TODO")
@@ -57,12 +48,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		Describe("GET api/v1/orgs/:orgs/applications", func() {
-			AfterEach(func() {
-				deleteApp(app1)
-				deleteApp(app2)
-			})
-
 			It("lists all applications belonging to the org", func() {
+				app1 := newAppName()
+				makeApp(app1, 1, true)
+				defer deleteApp(app1)
+				app2 := newAppName()
+				makeApp(app2, 1, true)
+				defer deleteApp(app2)
+
 				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications",
 					serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
@@ -96,12 +89,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		Describe("GET api/v1/orgs/:org/applications/:app", func() {
-			AfterEach(func() {
-				deleteApp(app1)
-				deleteApp(app2)
-			})
-
 			It("lists the application data", func() {
+				app1 := newAppName()
+				makeApp(app1, 1, true)
+				defer deleteApp(app1)
+
 				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -119,6 +111,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the org does not exist", func() {
+				app1 := newAppName()
+				makeApp(app1, 1, true)
+				defer deleteApp(app1)
+
 				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -141,20 +137,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		Describe("DELETE api/v1/orgs/:org/applications/:app", func() {
-			var service string
-
-			BeforeEach(func() {
-				service = newServiceName()
+			It("removes the application, unbinds bound services", func() {
+				app1 := newAppName()
+				makeApp(app1, 1, true)
+				service := newServiceName()
 				makeCustomService(service)
 				bindAppService(app1, service, org)
-			})
+				defer cleanupService(service)
 
-			AfterEach(func() {
-				deleteApp(app2) // This one was not deleted in the test
-				cleanupService(service)
-			})
-
-			It("removes the application, unbinds bound services", func() {
 				response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -172,6 +162,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the org does not exist", func() {
+				app1 := newAppName()
+				makeApp(app1, 1, true)
+				defer deleteApp(app1)
+
 				response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
