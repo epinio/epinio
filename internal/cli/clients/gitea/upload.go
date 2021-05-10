@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"text/template"
 	"time"
 
@@ -21,10 +22,11 @@ type GitRepo struct {
 	URL      string
 }
 type App struct {
-	Name  string
-	Org   string
-	Repo  *GitRepo
-	Route string
+	Name    string
+	Org     string
+	Repo    *GitRepo
+	Route   string
+	ImageID string
 }
 
 func (a *App) GitURL(server string) string {
@@ -34,13 +36,15 @@ func (a *App) GitURL(server string) string {
 	return fmt.Sprintf("%s/%s/%s", server, a.Org, a.Name)
 }
 
+// ImageURL returns the URL of the image, using the ImageID. The ImageURL is
+// later used in app.yml.  Since the final commit is not know when the app.yml
+// is written, we cannot use Repo.Revision
 func (a *App) ImageURL(server string) string {
 	if a.Repo == nil {
 		return ""
 	}
-	// TODO switch back to revision, or some ID
-	// return fmt.Sprintf("%s/%s-%s", server, a.Name, a.Repo.Revision)
-	return fmt.Sprintf("%s/%s-%s", server, a.Name, "main")
+
+	return fmt.Sprintf("%s/%s-%s", server, a.Name, a.ImageID)
 }
 
 // Upload puts the app data into the gitea repo and creates the webhook and
@@ -100,6 +104,20 @@ git push epinio %s:main
 	if err != nil {
 		return errors.Wrap(err, "push script failed")
 	}
+
+	// extract commit sha
+	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`
+cd "%s"
+git rev-parse HEAD
+`, tmpDir))
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, "failed to determine last commit")
+	}
+
+	// SHA of second commit
+	app.Repo.Revision = strings.TrimSuffix(string(out), "\n")
 
 	return nil
 }
@@ -186,9 +204,10 @@ spec:
 		return errors.Wrap(err, "failed to get latest app commit")
 	}
 
+	// SHA of first commit, used in app.yml, which is part of second commit
+	app.ImageID = commit.RepoCommit.Tree.SHA[:8]
 	app.Repo = &GitRepo{
-		Revision: commit.RepoCommit.Tree.SHA,
-		URL:      c.URL,
+		URL: c.URL,
 	}
 
 	err = deploymentTmpl.Execute(appFile, struct {

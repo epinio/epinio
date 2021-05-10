@@ -89,8 +89,6 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return NewAPIErrors(InternalError(err))
 	}
 
-	// TODO return revision of git push, or some ID, so gitea/upload.go can use it
-	app.Repo.Revision = "main"
 	log.Info("uploaded app", "org", org, "app", app)
 
 	err = NewAppResponse("ok", app).Write(w)

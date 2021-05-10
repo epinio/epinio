@@ -92,6 +92,12 @@ rules:
   verbs:
   - create
   - delete
+- apiGroups:
+  - "quarks.cloudfoundry.org"
+  resources:
+  - quarkssecrets
+  verbs:
+  - create
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
