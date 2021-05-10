@@ -274,3 +274,17 @@ func (app *Application) Complete() (*Application, error) {
 
 	return app, nil
 }
+
+// Implement the Sort interface for application slices
+
+func (al ApplicationList) Len() int {
+	return len(al)
+}
+
+func (al ApplicationList) Swap(i, j int) {
+	al[i], al[j] = al[j], al[i]
+}
+
+func (al ApplicationList) Less(i, j int) bool {
+	return al[i].Name < al[j].Name
+}
