@@ -3,12 +3,16 @@ package v1
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/services"
+	"github.com/julienschmidt/httprouter"
 )
 
 type OrganizationsController struct {
@@ -91,6 +95,69 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte{})
+
+	return nil
+}
+
+func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+
+	gitea, err := gitea.New()
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
+
+	cluster, err := kubernetes.GetCluster()
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
+
+	exists, err := organizations.Exists(cluster, org)
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
+	if !exists {
+		return APIErrors{
+			NewAPIError(fmt.Sprintf("Organization '%s' does not exist", org), "", http.StatusNotFound),
+		}
+	}
+
+	apps, err := application.List(cluster, org)
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
+
+	for _, app := range apps {
+		err = application.Delete(cluster, gitea, org, app)
+		if err != nil {
+			return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		}
+	}
+
+	serviceList, err := services.List(cluster, org)
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
+
+	for _, service := range serviceList {
+		err = service.Delete()
+		if err != nil {
+			return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+		}
+	}
+
+	err = organizations.Delete(r.Context(), cluster, gitea, org)
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write([]byte{})
+	if err != nil {
+		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
+	}
 
 	return nil
 }

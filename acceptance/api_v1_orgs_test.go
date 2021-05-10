@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -146,6 +147,42 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(""))
+			})
+		})
+
+		Describe("DELETE api/v1/orgs/:org", func() {
+			It("deletes an organization", func() {
+				response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s", serverURL, org),
+					strings.NewReader(``))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+				Expect(string(bodyBytes)).To(Equal(""))
+
+				_, err = helpers.Kubectl(fmt.Sprintf("get namespace %s", org))
+				Expect(err).To(HaveOccurred())
+			})
+
+			It("deletes an organization including apps and services", func() {
+				app1 := newAppName()
+				makeApp(app1)
+				svc1 := newServiceName()
+				makeCustomService(svc1)
+				bindAppService(app1, svc1, org)
+
+				response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s", serverURL, org),
+					strings.NewReader(``))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(string(bodyBytes)).To(Equal(""))
+
+				verifyOrgNotExist(org)
 			})
 		})
 	})
