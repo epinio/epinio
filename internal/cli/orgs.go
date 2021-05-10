@@ -89,7 +89,7 @@ var CmdOrgDelete = &cobra.Command{
 			return err
 		}
 		if !force {
-			cmd.Printf("You are about to delete organization %s and everything included in it (applications, services etc). Are you sure? (Y/n): ", args[0])
+			cmd.Printf("You are about to delete organization %s and everything included in it (applications, services etc). Are you sure? (y/n): ", args[0])
 			if !askConfirmation(cmd) {
 				return errors.New("Cancelled by user")
 			}
@@ -125,7 +125,7 @@ func askConfirmation(cmd *cobra.Command) bool {
 		} else if strings.Compare(s, "y") == 0 {
 			break
 		} else {
-			cmd.Printf("Please enter Y or n: ")
+			cmd.Printf("Please enter y or n: ")
 			continue
 		}
 	}
