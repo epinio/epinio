@@ -31,12 +31,9 @@ import (
 	archiver "github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/dynamic"
@@ -968,20 +965,6 @@ func (c *EpinioClient) Push(app, source string, services []string) error {
 		return errors.Wrap(err, "can't stage app")
 	}
 
-	// Create production certificate if it is provided by user
-	// else create a local cluster self-signed tls secret.
-	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
-		err = c.createProductionCertificate(app, c.GiteaClient.Domain)
-		if err != nil {
-			return errors.Wrap(err, "create production ssl certificate failed")
-		}
-	} else {
-		err = c.createLocalCertificate(app, c.GiteaClient.Domain)
-		if err != nil {
-			return errors.Wrap(err, "create local ssl certificate failed")
-		}
-	}
-
 	details.Info("start tailing logs")
 	stopFunc, err := c.logs(app, c.Config.Org)
 	if err != nil {
@@ -1068,127 +1051,6 @@ func (c *EpinioClient) Target(org string) error {
 
 func (c *EpinioClient) check() {
 	c.GiteaClient.Client.GetMyUserInfo()
-}
-
-func (c *EpinioClient) createProductionCertificate(appName, systemDomain string) error {
-	data := fmt.Sprintf(`{
-		"apiVersion": "cert-manager.io/v1alpha2",
-		"kind": "Certificate",
-		"metadata": {
-			"name": "%s",
-			"namespace": "%s"
-		},
-		"spec": {
-			"commonName" : "%s.%s",
-			"secretName" : "%s-tls",
-			"dnsNames": [
-				"%s.%s"
-			],
-			"issuerRef" : {
-				"name" : "letsencrypt-production",
-				"kind" : "ClusterIssuer"
-			}
-		}
-        }`, appName, c.Config.Org, appName, systemDomain, appName, appName, systemDomain)
-
-	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	obj := &unstructured.Unstructured{}
-	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
-	if err != nil {
-		return err
-	}
-
-	certificateInstanceGVR := schema.GroupVersionResource{
-		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
-		Resource: "certificates",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	_, err = dynamicClient.Resource(certificateInstanceGVR).Namespace(c.Config.Org).
-		Create(context.Background(),
-			obj,
-			metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *EpinioClient) createLocalCertificate(appName, systemDomain string) error {
-	data := fmt.Sprintf(`{
-		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
-		"kind": "QuarksSecret",
-		"metadata": {
-			"name": "%s",
-			"namespace": "%s"
-		},
-		"spec": {
-			"request" : {
-				"certificate" : {
-					"CAKeyRef" : {
-						"key" : "private_key",
-						"name" : "ca-cert"
-					},
-					"CARef" : {
-						"key" : "certificate",
-						"name" : "ca-cert"
-					},
-					"commonName" : "%s.%s",
-					"isCA" : false,
-					"alternativeNames": [
-						"%s.%s"
-					],
-					"signerType" : "local"
-				}
-			},
-			"secretName" : "%s-tls",
-			"type" : "tls"
-		}
-        }`, appName, c.Config.Org, appName, systemDomain, appName, systemDomain, appName)
-
-	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	obj := &unstructured.Unstructured{}
-	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
-	if err != nil {
-		return err
-	}
-
-	quarksSecretInstanceGVR := schema.GroupVersionResource{
-		Group:    "quarks.cloudfoundry.org",
-		Version:  "v1alpha1",
-		Resource: "quarkssecrets",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	_, _, err = decoderUnstructured.Decode([]byte(data), nil, obj)
-	if err != nil {
-		return err
-	}
-
-	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(c.Config.Org).
-		Create(context.Background(),
-			obj,
-			metav1.CreateOptions{})
-	if err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			c.ui.Normal().Msg("SSL certificate already exists.")
-			return nil
-		} else {
-			return err
-		}
-	}
-
-	return nil
 }
 
 func (c *EpinioClient) deleteLocalCertificate(appName string) error {

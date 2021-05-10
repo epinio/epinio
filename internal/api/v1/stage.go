@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -8,14 +9,22 @@ import (
 	"hash/fnv"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/pkg/errors"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/rest"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -30,9 +39,10 @@ const (
 
 // Stage will create a Tekton PipelineRun resource to stage and start the app
 func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
-	log := tracelog.Logger(r.Context())
+	ctx := r.Context()
+	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(r.Context())
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	name := params.ByName("app")
 
@@ -70,14 +80,19 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 
 	pr := newPipelineRun(uid, app)
-	o, err := client.Create(r.Context(), pr, v1.CreateOptions{})
+	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return singleInternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
+	err = createCertificates(ctx, cluster.RestConfig, app)
+	if err != nil {
+		return singleError(err, http.StatusInternalServerError)
+	}
+
 	err = NewAppResponse("ok", app).Write(w)
 	if err != nil {
-		return NewAPIErrors(InternalError(err))
+		return singleError(err, http.StatusInternalServerError)
 	}
 
 	return nil
@@ -101,7 +116,7 @@ func uid() (string, error) {
 
 func newPipelineRun(uid string, app gitea.App) *v1beta1.PipelineRun {
 	return &v1beta1.PipelineRun{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: app.Name + uid,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
@@ -149,4 +164,142 @@ func newPipelineRun(uid string, app gitea.App) *v1beta1.PipelineRun {
 			},
 		},
 	}
+}
+
+func createCertificates(ctx context.Context, cfg *rest.Config, app gitea.App) error {
+	c, err := gitea.New()
+	if err != nil {
+		return err
+	}
+
+	// Create production certificate if it is provided by user
+	// else create a local cluster self-signed tls secret.
+	if !strings.Contains(c.Domain, "omg.howdoi.website") {
+		err = createProductionCertificate(ctx, cfg, app, c.Domain)
+		if err != nil {
+			return errors.Wrap(err, "create production ssl certificate failed")
+		}
+	} else {
+		err = createLocalCertificate(ctx, cfg, app, c.Domain)
+		if err != nil {
+			return errors.Wrap(err, "create local ssl certificate failed")
+		}
+	}
+	return nil
+}
+
+func createProductionCertificate(ctx context.Context, cfg *rest.Config, app gitea.App, systemDomain string) error {
+	data := fmt.Sprintf(`{
+		"apiVersion": "cert-manager.io/v1alpha2",
+		"kind": "Certificate",
+		"metadata": {
+			"name": "%s",
+			"namespace": "%s"
+		},
+		"spec": {
+			"commonName" : "%s.%s",
+			"secretName" : "%s-tls",
+			"dnsNames": [
+				"%s.%s"
+			],
+			"issuerRef" : {
+				"name" : "letsencrypt-production",
+				"kind" : "ClusterIssuer"
+			}
+		}
+        }`, app.Name, app.Org, app.Name, systemDomain, app.Name, app.Name, systemDomain)
+
+	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	obj := &unstructured.Unstructured{}
+	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	certificateInstanceGVR := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1alpha2",
+		Resource: "certificates",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return err
+	}
+
+	_, err = dynamicClient.Resource(certificateInstanceGVR).Namespace(app.Org).
+		Create(ctx, obj, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createLocalCertificate(ctx context.Context, cfg *rest.Config, app gitea.App, systemDomain string) error {
+	data := fmt.Sprintf(`{
+		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
+		"kind": "QuarksSecret",
+		"metadata": {
+			"name": "%s",
+			"namespace": "%s"
+		},
+		"spec": {
+			"request" : {
+				"certificate" : {
+					"CAKeyRef" : {
+						"key" : "private_key",
+						"name" : "ca-cert"
+					},
+					"CARef" : {
+						"key" : "certificate",
+						"name" : "ca-cert"
+					},
+					"commonName" : "%s.%s",
+					"isCA" : false,
+					"alternativeNames": [
+						"%s.%s"
+					],
+					"signerType" : "local"
+				}
+			},
+			"secretName" : "%s-tls",
+			"type" : "tls"
+		}
+        }`, app.Name, app.Org, app.Name, systemDomain, app.Name, systemDomain, app.Name)
+
+	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	obj := &unstructured.Unstructured{}
+	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	quarksSecretInstanceGVR := schema.GroupVersionResource{
+		Group:    "quarks.cloudfoundry.org",
+		Version:  "v1alpha1",
+		Resource: "quarkssecrets",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		return err
+	}
+
+	_, _, err = decoderUnstructured.Decode([]byte(data), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(app.Org).
+		Create(ctx, obj, metav1.CreateOptions{})
+	if err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			// SSL certificate already exists.
+			return nil
+		}
+		return err
+	}
+
+	return nil
 }
