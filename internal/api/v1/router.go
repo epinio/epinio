@@ -19,7 +19,7 @@ func errorHandler(action APIActionFunc) http.HandlerFunc {
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 
-			response := map[string][]APIError{"errors": responseErrors}
+			response := ErrorResponse{Errors: responseErrors}
 
 			js, marshalErr := json.Marshal(response)
 			if marshalErr != nil {

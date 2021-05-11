@@ -15,8 +15,8 @@ import (
 )
 
 type AppResponse struct {
-	App     gitea.App
-	Message string
+	App     gitea.App `json:"app"`
+	Message string    `json:"message"`
 }
 
 func NewAppResponse(msg string, app gitea.App) *AppResponse {

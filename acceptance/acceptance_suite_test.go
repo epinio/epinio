@@ -29,6 +29,8 @@ func TestAcceptance(t *testing.T) {
 }
 
 var nodeSuffix, nodeTmpDir string
+
+// serverURL is the URL of the epinio API server
 var serverURL string
 var registryMirrorName = "epinio-acceptance-registry-mirror"
 

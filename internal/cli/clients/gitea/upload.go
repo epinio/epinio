@@ -18,15 +18,15 @@ import (
 const LocalRegistry = "127.0.0.1:30500/apps"
 
 type GitRepo struct {
-	Revision string
-	URL      string
+	Revision string `json:"revision"`
+	URL      string `json:"url"`
 }
 type App struct {
-	Name    string
-	Org     string
-	Repo    *GitRepo
-	Route   string
-	ImageID string
+	Name    string   `json:"name"`
+	Org     string   `json:"org"`
+	Repo    *GitRepo `json:"repo"`
+	Route   string   `json:"route"`
+	ImageID string   `json:"imageID"`
 }
 
 func (a *App) GitURL(server string) string {

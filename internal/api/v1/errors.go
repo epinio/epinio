@@ -6,10 +6,15 @@ import (
 	"strings"
 )
 
+// ErrorResponse is the response's JSON, that is send in case of an error
+type ErrorResponse struct {
+	Errors APIErrors `json:"errors"`
+}
+
 type APIError struct {
-	Status  int
-	Title   string
-	Details string
+	Status  int    `json:"status"`
+	Title   string `json:"title"`
+	Details string `json:"details"`
 }
 
 // Satisfy the error interface
