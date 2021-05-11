@@ -182,11 +182,22 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 
 	err = helpers.RunToSuccessWithTimeout(
 		func() error {
-			return cm.CreateClusterIssuer(c, emailAddress.Value.(string))
+			return cm.CreateClusterIssuer(c, fmt.Sprintf(clusterIssuerLetsencrypt, emailAddress.Value))
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
 			return errors.Wrapf(err, "failed to create clusterissuer letsencrypt-production")
+		}
+		return err
+	}
+
+	err = helpers.RunToSuccessWithTimeout(
+		func() error {
+			return cm.CreateClusterIssuer(c, clusterIssuerLocal)
+		}, duration.ToDeployment(), duration.PollInterval())
+	if err != nil {
+		if strings.Contains(err.Error(), "Timed out after") {
+			return errors.Wrapf(err, "failed to create clusterissuer selfsigned-issuer")
 		}
 		return err
 	}
@@ -200,33 +211,44 @@ func (cm CertManager) GetVersion() string {
 	return certManagerVersion
 }
 
-func (cm CertManager) CreateClusterIssuer(c *kubernetes.Cluster, emailAddress string) error {
-	data := fmt.Sprintf(`{
-		"apiVersion": "cert-manager.io/v1alpha2",
-		"kind": "ClusterIssuer",
-		"metadata": {
-			"name": "letsencrypt-production"
-		},
-		"spec": {
-			"acme" : {
-				"email" : "%s",
-				"server" : "https://acme-v02.api.letsencrypt.org/directory",
-				"privateKeySecretRef" : {
-					"name" : "letsencrypt-production"
-				},
-				"solvers" : [
-					{
-						"http01" : {
-							"ingress" : {
-								"class" : "traefik"
-							}
-						}
+const clusterIssuerLetsencrypt = `{
+	"apiVersion": "cert-manager.io/v1alpha2",
+	"kind": "ClusterIssuer",
+	"metadata": {
+		"name": "letsencrypt-production"
+	},
+	"spec": {
+		"acme" : {
+			"email" : "%s",
+			"server" : "https://acme-v02.api.letsencrypt.org/directory",
+			"privateKeySecretRef" : {
+				"name" : "letsencrypt-production"
+			},
+			"solvers" : [
+			{
+				"http01" : {
+					"ingress" : {
+						"class" : "traefik"
 					}
-				]
+				}
 			}
+			]
 		}
-	}`, emailAddress)
+	}
+}`
 
+const clusterIssuerLocal = `{
+	"apiVersion": "cert-manager.io/v1alpha2",
+	"kind": "ClusterIssuer",
+	"metadata": {
+		"name": "selfsigned-issuer"
+	},
+	"spec": {
+		"selfSigned" : {}
+	}
+}`
+
+func (cm CertManager) CreateClusterIssuer(c *kubernetes.Cluster, data string) error {
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
 	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)

@@ -770,14 +770,9 @@ func (c *EpinioClient) Delete(appname string) error {
 	}
 
 	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
-		err = c.deleteProductionCertificate(appname)
+		err = c.deleteCertificate(appname)
 		if err != nil {
-			return errors.Wrap(err, "failed to delete production certificate")
-		}
-	} else {
-		err = c.deleteLocalCertificate(appname)
-		if err != nil {
-			return errors.Wrap(err, "failed to delete local certificate")
+			return errors.Wrap(err, "failed to delete certificate")
 		}
 	}
 
@@ -1045,28 +1040,7 @@ func (c *EpinioClient) check() {
 	c.GiteaClient.Client.GetMyUserInfo()
 }
 
-func (c *EpinioClient) deleteLocalCertificate(appName string) error {
-	quarksSecretInstanceGVR := schema.GroupVersionResource{
-		Group:    "quarks.cloudfoundry.org",
-		Version:  "v1alpha1",
-		Resource: "quarkssecrets",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(c.Config.Org).
-		Delete(context.Background(), appName, metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (c *EpinioClient) deleteProductionCertificate(appName string) error {
+func (c *EpinioClient) deleteCertificate(appName string) error {
 	certificateInstanceGVR := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
 		Version:  "v1alpha2",
