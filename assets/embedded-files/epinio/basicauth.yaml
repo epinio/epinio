@@ -1,0 +1,9 @@
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: epinio-api-auth
+  namespace: epinio
+spec:
+  basicAuth:
+    secret: epinio-api-auth-secret

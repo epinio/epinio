@@ -18,6 +18,8 @@ type Config struct {
 	GiteaProtocol  string `mapstructure:"gitea_protocol"`
 	EpinioProtocol string `mapstructure:"epinio_protocol"`
 	Org            string `mapstructure:"org"`
+	User           string `mapstructure:"user"`
+	Password       string `mapstructure:"pass"`
 
 	v *viper.Viper
 }
@@ -41,6 +43,10 @@ func Load() (*Config, error) {
 	v.SetDefault("gitea_protocol", "http")
 	v.SetDefault("epinio_protocol", "http")
 	v.SetDefault("org", "workspace")
+
+	// Use empty defaults in viper to allow NeededOptions defaults to apply
+	v.SetDefault("user", "")
+	v.SetDefault("pass", "")
 
 	configExists, err := fileExists(file)
 	if err != nil {
@@ -68,6 +74,8 @@ func Load() (*Config, error) {
 // Save saves the Epinio config
 func (c *Config) Save() error {
 	c.v.Set("org", c.Org)
+	c.v.Set("user", c.User)
+	c.v.Set("pass", c.Password)
 
 	err := os.MkdirAll(filepath.Dir(c.v.ConfigFileUsed()), 0700)
 	if err != nil {

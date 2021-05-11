@@ -1205,6 +1205,8 @@ func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build request")
 	}
+
+	request.SetBasicAuth(c.Config.User, c.Config.Password)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 
 	response, err := (&http.Client{}).Do(request)
@@ -1234,6 +1236,9 @@ func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error
 	if err != nil {
 		return []byte{}, err
 	}
+
+	request.SetBasicAuth(c.Config.User, c.Config.Password)
+
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
 		return []byte{}, err
@@ -1264,6 +1269,9 @@ func (c *EpinioClient) curlWithCustomErrorHandling(endpoint, method, requestBody
 	if err != nil {
 		return []byte{}, err
 	}
+
+	request.SetBasicAuth(c.Config.User, c.Config.Password)
+
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
 		return []byte{}, err
