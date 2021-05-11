@@ -284,7 +284,8 @@ func ensureCluster(k3dClusterName string) {
 		if notExists {
 			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", k3dClusterName)
 			out, err := RunProc(
-				fmt.Sprintf("k3d cluster create %s --registry-config %s --network %s %s",
+				fmt.Sprintf("k3d cluster create %s --registry-config %s --network %s %s"+
+					" --k3s-server-arg --disable --k3s-server-arg traefik",
 					k3dClusterName, tmpk3dConfig, networkName, os.Getenv(k3dInstallArgsEnv)),
 				"", false)
 			if err != nil {
