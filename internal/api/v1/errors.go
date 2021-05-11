@@ -6,10 +6,15 @@ import (
 	"strings"
 )
 
+// ErrorResponse is the response's JSON, that is send in case of an error
+type ErrorResponse struct {
+	Errors APIErrors `json:"errors"`
+}
+
 type APIError struct {
-	Status  int
-	Title   string
-	Details string
+	Status  int    `json:"status"`
+	Title   string `json:"title"`
+	Details string `json:"details"`
 }
 
 // Satisfy the error interface
@@ -26,6 +31,26 @@ func NewAPIError(message, details string, status int) APIError {
 }
 
 type APIErrors []APIError
+
+// NewAPIErrors returns a list of APIError
+func NewAPIErrors(errs ...APIError) APIErrors {
+	return errs
+}
+
+// singleNewError helps to return just a single error, as a list
+func singleNewError(message string, status int) APIErrors {
+	return NewAPIErrors(NewAPIError(message, "", status))
+}
+
+// singleError helps to return just a single error, as a list
+func singleError(err error, status int) APIErrors {
+	return NewAPIErrors(NewAPIError(err.Error(), "", status))
+}
+
+// singleInternalError is a helper to return a single 5xx error, with a message, in a list.
+func singleInternalError(err error, msg string) APIErrors {
+	return NewAPIErrors(NewAPIError(err.Error(), msg, http.StatusInternalServerError))
+}
 
 // All our actions match this type. They can return a list of errors.
 // The "Status" of the first error in the list becomes the response Status Code.

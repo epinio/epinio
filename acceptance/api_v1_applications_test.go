@@ -1,15 +1,22 @@
 package acceptance_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"mime/multipart"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/application"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 )
 
 var _ = Describe("Apps API Application Endpoints", func() {
@@ -172,6 +179,136 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+			})
+		})
+	})
+
+	Context("Uploading", func() {
+
+		var (
+			url     string
+			path    string
+			request *http.Request
+		)
+
+		uploadRequest := func(url string, path string) (*http.Request, error) {
+			file, err := os.Open(path)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to open tarball")
+			}
+			defer file.Close()
+
+			// create multipart form
+			body := &bytes.Buffer{}
+			writer := multipart.NewWriter(body)
+			part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to create multiform part")
+			}
+
+			_, err = io.Copy(part, file)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to write to multiform part")
+			}
+
+			err = writer.Close()
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to close multiform")
+			}
+
+			// make the request
+			request, err := http.NewRequest("POST", url, body)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to build request")
+			}
+			request.Header.Add("Content-Type", writer.FormDataContentType())
+
+			return request, nil
+		}
+
+		JustBeforeEach(func() {
+			url = serverURL + "/" + v1.Routes.Path("AppUpload", org, "testapp")
+			var err error
+			request, err = uploadRequest(url, path)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		When("uploading a broken tarball", func() {
+			BeforeEach(func() {
+				path = "../fixtures/untar.tgz"
+			})
+
+			It("returns an error response", func() {
+				resp, err := (&http.Client{}).Do(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp).ToNot(BeNil())
+				defer resp.Body.Close()
+
+				bodyBytes, err := ioutil.ReadAll(resp.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
+
+				r := &v1.ErrorResponse{}
+				err = json.Unmarshal(bodyBytes, &r)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(r.Errors).To(HaveLen(1))
+				Expect(r.Errors[0].Details).To(ContainSubstring("failed to unpack"))
+			})
+		})
+
+		When("uploading a new dir", func() {
+			BeforeEach(func() {
+				path = "../fixtures/sample-app.tar"
+			})
+
+			It("returns the app response", func() {
+				resp, err := (&http.Client{}).Do(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp).ToNot(BeNil())
+				defer resp.Body.Close()
+
+				bodyBytes, err := ioutil.ReadAll(resp.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				r := &v1.AppResponse{}
+				err = json.Unmarshal(bodyBytes, &r)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(r.Message).To(ContainSubstring("ok"))
+				Expect(r.App.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
+				Expect(r.App.Name).To(Equal("testapp"))
+				Expect(r.App.Org).To(Equal(org))
+				Expect(r.App.Repo.URL).ToNot(BeEmpty())
+				Expect(r.App.Repo.Revision).ToNot(BeEmpty())
+			})
+		})
+	})
+
+	Context("Staging", func() {
+		var (
+			url  string
+			body string
+		)
+
+		BeforeEach(func() {
+			url = serverURL + "/" + v1.Routes.Path("AppStage", org, "testapp")
+			body = fmt.Sprintf(`{"Name":"testapp","Org":"%s","Repo":{"Revision":"7730c8f3e6490c334397b3125da5173061d656ff","URL":"http://gitea.172.27.0.2.omg.howdoi.website"},"Route":"apps-786195048.172.27.0.2.omg.howdoi.website","ImageID":"9827b03f"}`, org)
+
+		})
+
+		When("staging a new app", func() {
+			// but the pipelinerun will fail
+			It("returns a success", func() {
+				response, err := Curl("POST", url, strings.NewReader(body))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 			})
 		})
 	})

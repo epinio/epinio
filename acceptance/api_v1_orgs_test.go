@@ -59,6 +59,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
+				Expect(responseBody).To(HaveKey("errors"), string(bodyBytes))
 				Expect(responseBody["errors"][0].Title).To(
 					Equal("unexpected end of JSON input"))
 			})

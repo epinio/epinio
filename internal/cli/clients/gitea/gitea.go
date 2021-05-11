@@ -1,3 +1,4 @@
+// Package gitea deals with using gitea as a store for pushed applications and their deployment info
 package gitea
 
 import (

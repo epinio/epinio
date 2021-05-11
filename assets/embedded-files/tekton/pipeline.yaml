@@ -1,0 +1,94 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: staging-pipeline
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  resources:
+  - name: source-repo
+    type: git
+  - name: image
+    type: image
+  tasks:
+  - name: clone
+    taskRef:
+      name: clone
+    resources:
+      inputs:
+      - name: source-repo
+        resource: source-repo
+    workspaces:
+    - name: source
+      workspace: source
+  - name: stage
+    taskRef:
+      name: buildpacks
+    runAfter:
+    - clone
+    params:
+    - name: BUILDER_IMAGE
+      value: paketobuildpacks/builder:full
+    - name: SOURCE_SUBPATH
+      value: app
+    resources:
+      outputs:
+      - name: image
+        resource: image
+    workspaces:
+    - name: source
+      workspace: source
+  - name: run
+    taskRef:
+      name: run
+    runAfter:
+    - stage
+    workspaces:
+    - name: source
+      workspace: source
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clone
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  resources:
+    inputs:
+    - name: source-repo
+      type: git
+      targetPath: source/app
+  steps:
+  - name: stage
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source/app"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        pwd
+        ls -la
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: run
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: run
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source/app"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        kubectl apply -f ./.kube/

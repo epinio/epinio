@@ -27,6 +27,7 @@ type Epinio struct {
 const (
 	EpinioDeploymentID = "epinio"
 	epinioServerYaml   = "epinio/server.yaml"
+	epinioStagingYAML  = "epinio/staging.yaml"
 )
 
 func (k *Epinio) ID() string {
@@ -65,6 +66,10 @@ func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", epinioServerYaml, out))
 	}
 
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(epinioStagingYAML, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", epinioStagingYAML, out))
+	}
+
 	message := "Deleting Epinio namespace " + EpinioDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
@@ -85,7 +90,7 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return err
 	}
 
-	if out, err := applyEpinioServerYaml(c, ui); err != nil {
+	if out, err := k.applyEpinioServerYaml(c, ui); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -162,7 +167,7 @@ func (k Epinio) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 }
 
 // Replaces ##current_epinio_version## with version.Version and applies the embedded yaml
-func applyEpinioServerYaml(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
+func (k Epinio) applyEpinioServerYaml(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	yamlPathOnDisk, err := helpers.ExtractFile(epinioServerYaml)
 	if err != nil {
 		return "", errors.New("Failed to extract embedded file: " + epinioServerYaml + " - " + err.Error())
@@ -183,7 +188,22 @@ func applyEpinioServerYaml(c *kubernetes.Cluster, ui *termui.UI) (string, error)
 	}
 	defer os.Remove(tmpFilePath)
 
-	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", EpinioDeploymentID, tmpFilePath))
+	if out, err := helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", EpinioDeploymentID, tmpFilePath)); err != nil {
+		return out, err
+	}
+
+	err = c.WaitForNamespace(ui, TektonStagingNamespace, k.Timeout)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to wait for %s namespace", TektonStagingNamespace)
+	}
+
+	yamlPathOnDisk, err = helpers.ExtractFile(epinioStagingYAML)
+	if err != nil {
+		return "", errors.New("Failed to extract embedded file: " + epinioServerYaml + " - " + err.Error())
+	}
+	defer os.Remove(yamlPathOnDisk)
+
+	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", TektonStagingNamespace, yamlPathOnDisk))
 }
 
 func (k *Epinio) createIngress(c *kubernetes.Cluster, subdomain string) error {
