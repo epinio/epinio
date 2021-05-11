@@ -22,6 +22,20 @@ var NeededOptions = kubernetes.InstallationOptions{
 		Default:     "epinio@suse.com",
 		Value:       "",
 	},
+	{
+		Name:        "user",
+		Description: "The user name for authenticating all API requests",
+		Type:        kubernetes.StringType,
+		Default:     "me",
+		Value:       "",
+	},
+	{
+		Name:        "password",
+		Description: "The password for authenticating all API requests",
+		Type:        kubernetes.StringType,
+		Default:     "change",
+		Value:       "",
+	},
 }
 
 const (

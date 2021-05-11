@@ -92,6 +92,25 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	details.Info("show option configuration")
 	c.showInstallConfiguration(c.options)
 
+	// Take the API credentials from the options and save them to
+	// the epinio configuration.
+	apiUser, err := c.options.GetOpt("user", "")
+	if err != nil {
+		return err
+	}
+
+	apiPassword, err := c.options.GetOpt("password", "")
+	if err != nil {
+		return err
+	}
+
+	c.config.User = apiUser.Value.(string)
+	c.config.Password = apiPassword.Value.(string)
+	err = c.config.Save()
+	if err != nil {
+		return errors.Wrap(err, "failed to save configuration")
+	}
+
 	// TODO (post MVP): Run a validation phase which perform
 	// additional checks on the values. For example range limits,
 	// proper syntax of the string, etc. do it as pghase, and late
@@ -140,7 +159,11 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 
 	installationWg.Wait()
 
-	c.ui.Success().WithStringValue("System domain", domain.Value.(string)).Msg("Epinio installed.")
+	c.ui.Success().
+		WithStringValue("System domain", domain.Value.(string)).
+		WithStringValue("API User", c.config.User).
+		WithStringValue("API Password", c.config.Password).
+		Msg("Epinio installed.")
 
 	return nil
 }

@@ -6,6 +6,7 @@ require (
 	code.gitea.io/sdk/gitea v0.13.2
 	github.com/Azure/go-autorest/autorest v0.11.17 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.10 // indirect
+	github.com/GehirnInc/crypt v0.0.0-20200316065508-bb7000b8a962
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
 	github.com/fatih/color v1.9.0
