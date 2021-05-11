@@ -94,11 +94,8 @@ Follow the instructions here to get started with Epinio.
 
 ### Install dependencies
 
-- `git`: Installation method depends on your OS (https://git-scm.com/)
 - `kubectl`: Follow instructions here: https://kubernetes.io/docs/tasks/tools/#kubectl
 - `helm`: Follow instructions here: https://helm.sh/docs/intro/install/
-- `openssl`: Installation method depends on your OS (https://www.openssl.org/)
-- `sh`: TODO: Get rid of this dependency ([used here](https://github.com/epinio/epinio/blob/3429bb76af42ea2604631849e3834271fc917359/internal/cli/clients/client.go#L1376))
 
 ### Get yourself a cluster
 
