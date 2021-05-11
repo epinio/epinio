@@ -98,6 +98,12 @@ rules:
   - quarkssecrets
   verbs:
   - create
+- apiGroups:
+  - "cert-manager.io"
+  resources:
+  - certificates
+  verbs:
+  - create
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
