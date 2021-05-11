@@ -2,9 +2,12 @@ package v1
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/organizations"
@@ -87,6 +90,64 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 	_, err = w.Write(js)
 	if err != nil {
 		return APIErrors{InternalError(err)}
+	}
+
+	return nil
+}
+
+func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+	appName := params.ByName("app")
+
+	cluster, err := kubernetes.GetCluster()
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	exists, err := organizations.Exists(cluster, org)
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	if !exists {
+		return APIErrors{OrgIsNotKnown(org)}
+	}
+
+	app, err := application.Lookup(cluster, org, appName)
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	if app == nil {
+		return APIErrors{AppIsNotKnown(appName)}
+	}
+
+	defer r.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	var updateRequest models.UpdateAppRequest
+	err = json.Unmarshal(bodyBytes, &updateRequest)
+	if err != nil {
+		return APIErrors{BadRequest(err)}
+	}
+
+	// TODO: Validate instances (no negative numbers max instances etc)
+	if updateRequest.Instances == "" {
+		return APIErrors{NewAPIError("Instances not specified", "", http.StatusBadRequest)}
+	}
+
+	instances, err := strconv.Atoi(updateRequest.Instances)
+	if err != nil {
+		return APIErrors{BadRequest(err, "")}
+	}
+
+	err = app.Scale(r.Context(), int32(instances))
+	if err != nil {
+		return singleError(err, http.StatusInternalServerError)
 	}
 
 	return nil

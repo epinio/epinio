@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -64,7 +65,15 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				makeApp(app, 1, true)
 				defer deleteApp(app)
 
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(""))
+				requestBody, err := json.Marshal(models.UpdateAppRequest{
+					Instances: "3",
+				})
+				Expect(err).ToNot(HaveOccurred())
+
+				response, err := Curl("GET",
+					fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
+					strings.NewReader(string(requestBody)))
+
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()

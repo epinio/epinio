@@ -707,6 +707,37 @@ func (c *EpinioClient) AppShow(appName string) error {
 	return nil
 }
 
+// AppUpdate updates the specified running application's attrbitues (e.g. instances)
+func (c *EpinioClient) AppUpdate(appName string, instances int) error {
+	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		Msg("Update application")
+
+	details.Info("update application")
+
+	data, err := json.Marshal(models.UpdateAppRequest{
+		Instances: strconv.Itoa(instances),
+	})
+	if err != nil {
+		return err
+	}
+	_, err = c.patch(
+		api.Routes.Path("AppUpdate", c.Config.Org, appName), string(data))
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("Successfully updated application")
+
+	return nil
+}
+
 // CreateOrg creates an Org in gitea
 func (c *EpinioClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
@@ -1171,6 +1202,10 @@ func (c *EpinioClient) get(endpoint string) ([]byte, error) {
 
 func (c *EpinioClient) post(endpoint string, data string) ([]byte, error) {
 	return c.curl(endpoint, "POST", data)
+}
+
+func (c *EpinioClient) patch(endpoint string, data string) ([]byte, error) {
+	return c.curl(endpoint, "PATCH", data)
 }
 
 func (c *EpinioClient) delete(endpoint string) ([]byte, error) {

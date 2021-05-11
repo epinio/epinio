@@ -47,6 +47,10 @@ func delete(path string, h http.HandlerFunc) routes.Route {
 	return routes.NewRoute("DELETE", v+path, h)
 }
 
+func patch(path string, h http.HandlerFunc) routes.Route {
+	return routes.NewRoute("PATCH", v+path, h)
+}
+
 var Routes = routes.NamedRoutes{
 	"Info":      get("/info", errorHandler(InfoController{}.Info)),
 	"Apps":      get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
@@ -54,6 +58,7 @@ var Routes = routes.NamedRoutes{
 	"AppDelete": delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
 	"AppUpload": post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)),
 	"AppStage":  post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),
+	"AppUpdate": patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
 
 	// Bind and unbind services to/from applications, by means of servicebindings in applications
 	"ServiceBindingCreate": post("/orgs/:org/applications/:app/servicebindings",
