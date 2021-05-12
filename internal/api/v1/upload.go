@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -10,29 +9,11 @@ import (
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/julienschmidt/httprouter"
 	"github.com/mholt/archiver/v3"
 )
-
-type AppResponse struct {
-	App     gitea.App `json:"app"`
-	Message string    `json:"message"`
-}
-
-func NewAppResponse(msg string, app gitea.App) *AppResponse {
-	return &AppResponse{Message: msg, App: app}
-}
-
-func (r *AppResponse) Write(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	js, err := json.Marshal(AppResponse{Message: "ok", App: r.App})
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(js)
-	return err
-}
 
 // Upload receives the application data, as tarball, and creates the gitea as
 // well as k8s resources to trigger staging
@@ -103,15 +84,21 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	log.V(2).Info("create gitea app repo")
-	app := gitea.App{Name: name, Org: org, Instances: instances}
-	err = client.Upload(&app, appDir)
+	app := models.NewApp(name, org)
+	app.Instances = instances
+	err = client.Upload(app, appDir)
 	if err != nil {
 		return NewAPIErrors(InternalError(err))
 	}
 
 	log.Info("uploaded app", "org", org, "app", app)
 
-	err = NewAppResponse("ok", app).Write(w)
+	resp := models.UploadResponse{
+		Image: app.Image,
+		Git:   app.Git,
+		Route: app.Route,
+	}
+	err = jsonResponse(w, resp)
 	if err != nil {
 		return NewAPIErrors(InternalError(err))
 	}

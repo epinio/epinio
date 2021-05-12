@@ -160,7 +160,7 @@ spec:
       serviceAccountName: epinio-server
       containers:
         - command: ["/epinio", "server"]
-          args: ["--port", "80"]
+          args: ["--port", "80", "--trace-level", "0"]
           image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:

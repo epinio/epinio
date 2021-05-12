@@ -11,6 +11,7 @@ rules:
   - pipelineruns
   verbs:
   - create
+  - list
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1

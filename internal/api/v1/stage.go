@@ -29,6 +29,7 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 )
 
@@ -52,16 +53,16 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return singleError(err, http.StatusInternalServerError)
 	}
 
-	app := gitea.App{}
-	if err := json.Unmarshal(bodyBytes, &app); err != nil {
+	req := models.StageRequest{}
+	if err := json.Unmarshal(bodyBytes, &req); err != nil {
 		return singleError(err, http.StatusInternalServerError)
 	}
 
-	if name != app.Name {
+	if name != req.App.Name {
 		return singleNewError("name parameter from URL does not match name param in body", http.StatusBadRequest)
 	}
 
-	log.Info("staging app", "org", org, "app", app)
+	log.Info("staging app", "org", org, "app", req)
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
@@ -79,6 +80,25 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return singleInternalError(err, "failed to get access to a tekton client")
 	}
 
+	// return if another run for this is imageID is running; one imageID == one stagingID at the same time
+	l, err := client.List(ctx, metav1.ListOptions{LabelSelector: models.EpinioImageIDLabel + "=" + req.Image.ID})
+	if err != nil {
+		return singleError(err, http.StatusInternalServerError)
+	}
+
+	// assume that completed pipelineruns are from the past and have a CompletionTime
+	for _, pr := range l.Items {
+		if pr.Status.CompletionTime == nil {
+			return singleNewError("pipelinerun for image ID still running", http.StatusBadRequest)
+		}
+	}
+
+	app := models.App{
+		AppRef: req.App,
+		Image:  req.Image,
+		Git:    req.Git,
+	}
+
 	pr := newPipelineRun(uid, app)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
@@ -90,7 +110,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return singleError(err, http.StatusInternalServerError)
 	}
 
-	err = NewAppResponse("ok", app).Write(w)
+	log.Info("staged app", "org", org, "app", app.AppRef, "uid", uid)
+
+	resp := models.StageResponse{Stage: models.NewStage(uid)}
+	err = jsonResponse(w, resp)
 	if err != nil {
 		return singleError(err, http.StatusInternalServerError)
 	}
@@ -114,13 +137,15 @@ func uid() (string, error) {
 	return hex.EncodeToString(a.Sum(nil)), nil
 }
 
-func newPipelineRun(uid string, app gitea.App) *v1beta1.PipelineRun {
+func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Name + uid,
+			Name: uid,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,
+				models.EpinioImageIDLabel:      app.Image.ID,
+				models.EpinioStageIDLabel:      uid,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
 			},
@@ -147,7 +172,7 @@ func newPipelineRun(uid string, app gitea.App) *v1beta1.PipelineRun {
 					ResourceSpec: &v1alpha1.PipelineResourceSpec{
 						Type: v1alpha1.PipelineResourceTypeGit,
 						Params: []v1alpha1.ResourceParam{
-							{Name: "revision", Value: app.Repo.Revision},
+							{Name: "revision", Value: app.Git.Revision},
 							{Name: "url", Value: app.GitURL(GiteaURL)},
 						},
 					},
@@ -166,7 +191,7 @@ func newPipelineRun(uid string, app gitea.App) *v1beta1.PipelineRun {
 	}
 }
 
-func createCertificates(ctx context.Context, cfg *rest.Config, app gitea.App) error {
+func createCertificates(ctx context.Context, cfg *rest.Config, app models.App) error {
 	c, err := gitea.New()
 	if err != nil {
 		return err
@@ -188,7 +213,7 @@ func createCertificates(ctx context.Context, cfg *rest.Config, app gitea.App) er
 	return nil
 }
 
-func createCertificate(ctx context.Context, cfg *rest.Config, app gitea.App, systemDomain string, issuer string) error {
+func createCertificate(ctx context.Context, cfg *rest.Config, app models.App, systemDomain string, issuer string) error {
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",

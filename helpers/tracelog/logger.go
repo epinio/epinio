@@ -33,7 +33,8 @@ func TraceLevel() int {
 
 // LoggerFlags adds to viper flags
 func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
-	pf.IntP("trace-level", "", 0, "Only print trace messages at or above this level (0 to 2, default 0)")
+	// trace-level 0 prints nothing, well technically it would print NewLogger().V(-1)
+	pf.IntP("trace-level", "", 0, "Only print trace messages at or above this level (0 to 5, default 0, print nothing)")
 	viper.BindPFlag("trace-level", pf.Lookup("trace-level"))
 	argToEnv["trace-level"] = "TRACE_LEVEL"
 }
@@ -53,7 +54,11 @@ func NewInstallClientLogger() logr.Logger {
 	return NewLogger().WithName("InstallClient")
 }
 
-// NewLogger creates a new logger with our setup
+// NewLogger creates a new logger with our setup. It only prints messages below
+// TraceLevel().  The starting point for derived loggers is 1. So in the
+// default configuration, TRACE_LEVEL=0, V(1), nothing is printed.
+// TRACE_LEVEL=1 shows simple log statements, everything above like `details`,
+// or V(3) needs a higher TRACE_LEVEL.
 func NewLogger() logr.Logger {
 	stdr.SetVerbosity(TraceLevel())
 	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
