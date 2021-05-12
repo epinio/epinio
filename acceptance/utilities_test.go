@@ -35,6 +35,7 @@ func newServiceName() string {
 // func Curl is used to make requests against a server
 func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, error) {
 	request, err := http.NewRequest(method, uri, requestBody)
+	request.SetBasicAuth("me", "change")
 	if err != nil {
 		return nil, err
 	}

@@ -46,6 +46,8 @@ const (
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
+	// Singleton setup. Run on node 1 before all
+
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
 
 	if os.Getenv(registryUsernameEnv) == "" || os.Getenv(registryPasswordEnv) == "" {
@@ -61,6 +63,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	os.Setenv("EPINIO_BINARY_PATH", path.Join("dist", "epinio-linux-amd64"))
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
+	os.Setenv("EPINIO_CONFIG", "epinio.yaml") // In test directory
 
 	fmt.Println("Ensuring a docker network")
 	out, err := ensureRegistryNetwork()
@@ -152,6 +155,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}, "3m").ShouldNot(HaveOccurred(), out)
 
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
+
+	// Get config from the installation (API credentials)
+	out, err = RunProc(fmt.Sprintf("cp epinio.yaml %s/epinio.yaml", nodeTmpDir), "", false)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = Epinio("target workspace", nodeTmpDir)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
