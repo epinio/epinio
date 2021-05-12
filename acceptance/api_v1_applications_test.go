@@ -218,6 +218,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			// make the request
 			request, err := http.NewRequest("POST", url, body)
+			request.SetBasicAuth("me", "change")
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to build request")
 			}
