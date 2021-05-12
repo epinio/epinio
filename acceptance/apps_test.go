@@ -57,6 +57,19 @@ var _ = Describe("Apps", func() {
 			deleteApp(appName)
 		})
 
+		It("pushes an application with the desired number of instances", func() {
+			app := newAppName()
+			makeApp(app, 3, true)
+			defer deleteApp(app)
+
+			Eventually(func() string {
+				out, err := Epinio("app show "+app, "")
+				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+				return out
+			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+		})
+
 		Context("with service", func() {
 			var serviceName string
 
@@ -108,6 +121,31 @@ var _ = Describe("Apps", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
+		})
+	})
+
+	Describe("update", func() {
+		It("updates an application with the desired number of instances", func() {
+			app := newAppName()
+			makeApp(app, 1, true)
+			defer deleteApp(app)
+
+			Eventually(func() string {
+				out, err := Epinio("app show "+app, "")
+				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+				return out
+			}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+
+			out, err := Epinio(fmt.Sprintf("app update %s -i 3", app), "")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, err := Epinio("app show "+app, "")
+				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+				return out
+			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
 		})
 	})
 

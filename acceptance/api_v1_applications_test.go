@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
@@ -36,29 +37,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	})
 
 	Context("Apps", func() {
-		Describe("POST /orgs/:org/applications/:app", func() {
-			It("deploys an application with the desired number of instances", func() {
-				app := newAppName()
-				makeApp(app, 3, true)
-				defer deleteApp(app)
-
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(""))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-
-				var responseApp application.Application
-				err = json.Unmarshal(bodyBytes, &responseApp)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(responseApp.Name).To(Equal(app))
-				Expect(responseApp.Organization).To(Equal(org))
-				Expect(responseApp.Status).To(Equal("3/3"))
-			})
-		})
-
 		Describe("PATCH /orgs/:org/applications/:app", func() {
 			It("updates an application with the desired number of instances", func() {
 				app := newAppName()
@@ -88,25 +66,33 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(responseApp.Organization).To(Equal(org))
 				Expect(responseApp.Status).To(Equal("1/1"))
 
-				response, err = Curl("PATCH", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(`{ "instances": 3 }`))
+				data, err := json.Marshal(models.UpdateAppRequest{Instances: "3"})
+				Expect(err).ToNot(HaveOccurred())
+
+				response, err = Curl("PATCH",
+					fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
+					strings.NewReader(string(data)))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
 				Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-				response, err = Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app), strings.NewReader(""))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-				bodyBytes, err = ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
+				Eventually(func() string {
+					response, err = Curl("GET",
+						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
+						strings.NewReader(""))
+					ExpectWithOffset(1, err).ToNot(HaveOccurred())
+					ExpectWithOffset(1, response).ToNot(BeNil())
+					defer response.Body.Close()
+					ExpectWithOffset(1, response.StatusCode).To(Equal(http.StatusOK))
+					bodyBytes, err = ioutil.ReadAll(response.Body)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-				err = json.Unmarshal(bodyBytes, &responseApp)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(responseApp.Name).To(Equal(app))
-				Expect(responseApp.Organization).To(Equal(org))
-				Expect(responseApp.Status).To(Equal("3/3"))
+					err = json.Unmarshal(bodyBytes, &responseApp)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+					return responseApp.Status
+				}, "1m").Should(Equal("3/3"))
 			})
 		})
 
@@ -255,12 +241,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	Context("Uploading", func() {
 
 		var (
-			url     string
-			path    string
-			request *http.Request
+			url       string
+			path      string
+			instances int32
+			request   *http.Request
 		)
 
-		uploadRequest := func(url string, path string) (*http.Request, error) {
+		uploadRequest := func(url string, path string, instances int32) (*http.Request, error) {
 			file, err := os.Open(path)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to open tarball")
@@ -278,6 +265,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			_, err = io.Copy(part, file)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to write to multiform part")
+			}
+
+			err = writer.WriteField("instances", strconv.Itoa(int(instances)))
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to add instances multiform field")
 			}
 
 			err = writer.Close()
@@ -299,13 +291,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		JustBeforeEach(func() {
 			url = serverURL + "/" + v1.Routes.Path("AppUpload", org, "testapp")
 			var err error
-			request, err = uploadRequest(url, path)
+			request, err = uploadRequest(url, path, instances)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		When("uploading a broken tarball", func() {
 			BeforeEach(func() {
 				path = "../fixtures/untar.tgz"
+				instances = 1
 			})
 
 			It("returns an error response", func() {
@@ -330,6 +323,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		When("uploading a new dir", func() {
 			BeforeEach(func() {
 				path = "../fixtures/sample-app.tar"
+				instances = 1
 			})
 
 			It("returns the app response", func() {
@@ -352,6 +346,35 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(r.App.Org).To(Equal(org))
 				Expect(r.App.Repo.URL).ToNot(BeEmpty())
 				Expect(r.App.Repo.Revision).ToNot(BeEmpty())
+			})
+		})
+
+		When("uploading with more instances", func() {
+			BeforeEach(func() {
+				path = "../fixtures/sample-app.tar"
+				instances = 2
+			})
+
+			It("returns the app response", func() {
+				resp, err := (&http.Client{}).Do(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp).ToNot(BeNil())
+				defer resp.Body.Close()
+
+				bodyBytes, err := ioutil.ReadAll(resp.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				r := &v1.AppResponse{}
+				err = json.Unmarshal(bodyBytes, &r)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(r.Message).To(ContainSubstring("ok"))
+				Expect(r.App.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
+				Expect(r.App.Name).To(Equal("testapp"))
+				Expect(r.App.Org).To(Equal(org))
+				Expect(r.App.Repo.URL).ToNot(BeEmpty())
+				Expect(r.App.Instances).To(Equal(int32(2)))
 			})
 		})
 	})

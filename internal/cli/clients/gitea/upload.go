@@ -27,7 +27,7 @@ type App struct {
 	Repo      *GitRepo `json:"repo"`
 	Route     string   `json:"route"`
 	ImageID   string   `json:"imageID"`
-	Instances int      `json:"instances"`
+	Instances int32    `json:"instances"`
 }
 
 func (a *App) GitURL(server string) string {
@@ -216,7 +216,7 @@ spec:
 		Route     string
 		Org       string
 		Image     string
-		Instances int
+		Instances int32
 	}{
 		AppName:   app.Name,
 		Route:     app.Route,

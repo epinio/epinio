@@ -52,16 +52,17 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 
 	log.V(2).Info("parsing multipart form")
 
-	var instances int
+	var instances int32
 	instancesFromParams := r.FormValue("instances")
 	if instancesFromParams == "" {
-		instances = 1
+		instances = int32(1)
 	} else {
-		instances, err = strconv.Atoi(instancesFromParams)
+		_instances, err := strconv.Atoi(instancesFromParams)
 		if err != nil {
 			return APIErrors{
 				NewAPIError("instances param should be an integer", "", http.StatusBadRequest)}
 		}
+		instances = int32(_instances)
 	}
 
 	file, _, err := r.FormFile("file")
