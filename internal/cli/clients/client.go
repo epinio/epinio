@@ -893,13 +893,6 @@ func (c *EpinioClient) Push(app, source string, services []string) error {
 		Timeout(duration.UserAbort()).
 		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(c.Config.Org, "Unable to push.")
-	if err != nil {
-		return errors.Wrap(err, "ensuring org is good")
-	}
-
 	details.Info("validate app name")
 	errorMsgs := validation.IsDNS1123Subdomain(app)
 	if len(errorMsgs) > 0 {
@@ -1030,16 +1023,15 @@ func (c *EpinioClient) Target(org string) error {
 		WithStringValue("Name", org).
 		Msg("Targeting organization...")
 
-	// todo: fix, remove, move to server
-	details.Info("validate")
-	err := c.ensureGoodOrg(org, "Unable to target.")
-	if err != nil {
-		return err
-	}
+	// TODO: Validation of the org name removed. Proper validation
+	// of the targeted org is done by all the other commands using
+	// it anyway. If we really want it here and now, implement an
+	// `org show` command and API, and then use that API for the
+	// validation.
 
 	details.Info("set config")
 	c.Config.Org = org
-	err = c.Config.Save()
+	err := c.Config.Save()
 	if err != nil {
 		return errors.Wrap(err, "failed to save configuration")
 	}
@@ -1158,24 +1150,6 @@ func (c *EpinioClient) waitForApp(org, name string) error {
 
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to come online failed")
-	}
-
-	return nil
-}
-
-// TODO: Delete after all commands go through the api
-func (c *EpinioClient) ensureGoodOrg(org, msg string) error {
-	_, resp, err := c.GiteaClient.Client.GetOrg(org)
-	if resp == nil && err != nil {
-		return errors.Wrap(err, "failed to make get org request")
-	}
-
-	if resp.StatusCode == 404 {
-		errmsg := "Organization does not exist."
-		if msg != "" {
-			errmsg += " " + msg
-		}
-		c.ui.Exclamation().WithEnd(1).Msg(errmsg)
 	}
 
 	return nil
