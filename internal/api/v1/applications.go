@@ -135,7 +135,6 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return APIErrors{BadRequest(err)}
 	}
 
-	// TODO: Validate instances (no negative numbers max instances etc)
 	if updateRequest.Instances == "" {
 		return APIErrors{NewAPIError("Instances not specified", "", http.StatusBadRequest)}
 	}
@@ -143,6 +142,12 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 	instances, err := strconv.Atoi(updateRequest.Instances)
 	if err != nil {
 		return APIErrors{BadRequest(err, "")}
+	}
+	// TODO:  Validate and test also the `upload` endpoint for invalid instance values
+	if instances < 0 {
+		return APIErrors{NewAPIError(
+			"instances param should be integer equal or greater than zero",
+			"", http.StatusBadRequest)}
 	}
 
 	err = app.Scale(r.Context(), int32(instances))

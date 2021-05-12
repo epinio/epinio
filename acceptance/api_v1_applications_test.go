@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
@@ -22,7 +21,6 @@ import (
 )
 
 var _ = Describe("Apps API Application Endpoints", func() {
-
 	var org string
 
 	BeforeEach(func() {
@@ -81,15 +79,16 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					response, err = Curl("GET",
 						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
 						strings.NewReader(""))
-					ExpectWithOffset(1, err).ToNot(HaveOccurred())
-					ExpectWithOffset(1, response).ToNot(BeNil())
+
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
 					defer response.Body.Close()
-					ExpectWithOffset(1, response.StatusCode).To(Equal(http.StatusOK))
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					bodyBytes, err = ioutil.ReadAll(response.Body)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred())
+					Expect(err).ToNot(HaveOccurred())
 
 					err = json.Unmarshal(bodyBytes, &responseApp)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred())
+					Expect(err).ToNot(HaveOccurred())
 
 					return responseApp.Status
 				}, "1m").Should(Equal("3/3"))
@@ -243,11 +242,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		var (
 			url       string
 			path      string
-			instances int32
+			instances string
 			request   *http.Request
 		)
 
-		uploadRequest := func(url string, path string, instances int32) (*http.Request, error) {
+		uploadRequest := func(url, path, instances string) (*http.Request, error) {
 			file, err := os.Open(path)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to open tarball")
@@ -267,7 +266,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				return nil, errors.Wrap(err, "failed to write to multiform part")
 			}
 
-			err = writer.WriteField("instances", strconv.Itoa(int(instances)))
+			err = writer.WriteField("instances", instances)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to add instances multiform field")
 			}
@@ -298,7 +297,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		When("uploading a broken tarball", func() {
 			BeforeEach(func() {
 				path = "../fixtures/untar.tgz"
-				instances = 1
+				instances = "1"
 			})
 
 			It("returns an error response", func() {
@@ -323,7 +322,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		When("uploading a new dir", func() {
 			BeforeEach(func() {
 				path = "../fixtures/sample-app.tar"
-				instances = 1
+				instances = "1"
 			})
 
 			It("returns the app response", func() {
@@ -352,7 +351,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		When("uploading with more instances", func() {
 			BeforeEach(func() {
 				path = "../fixtures/sample-app.tar"
-				instances = 2
+				instances = "2"
 			})
 
 			It("returns the app response", func() {
@@ -375,6 +374,86 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(r.App.Org).To(Equal(org))
 				Expect(r.App.Repo.URL).ToNot(BeEmpty())
 				Expect(r.App.Instances).To(Equal(int32(2)))
+			})
+		})
+
+		FWhen("uploading with invalid instances", func() {
+			When("instances is not a integer", func() {
+				BeforeEach(func() {
+					path = "../fixtures/sample-app.tar"
+					instances = "3.14"
+				})
+
+				It("returns BadRequest", func() {
+					resp, err := (&http.Client{}).Do(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp).ToNot(BeNil())
+					defer resp.Body.Close()
+
+					bodyBytes, err := ioutil.ReadAll(resp.Body)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+					r := &v1.ErrorResponse{}
+					err = json.Unmarshal(bodyBytes, &r)
+					Expect(err).ToNot(HaveOccurred())
+
+					responseErr := r.Errors[0]
+					Expect(responseErr.Status).To(Equal(400))
+					Expect(responseErr.Title).To(Equal("instances param should be an integer"))
+				})
+			})
+
+			When("instances is a negative integer", func() {
+				BeforeEach(func() {
+					path = "../fixtures/sample-app.tar"
+					instances = "-3"
+				})
+
+				It("returns BadRequest", func() {
+					resp, err := (&http.Client{}).Do(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp).ToNot(BeNil())
+					defer resp.Body.Close()
+
+					bodyBytes, err := ioutil.ReadAll(resp.Body)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+					r := &v1.ErrorResponse{}
+					err = json.Unmarshal(bodyBytes, &r)
+					Expect(err).ToNot(HaveOccurred())
+
+					responseErr := r.Errors[0]
+					Expect(responseErr.Status).To(Equal(400))
+					Expect(responseErr.Title).To(Equal("instances param should be an integer"))
+				})
+			})
+
+			When("instances is not a number", func() {
+				BeforeEach(func() {
+					path = "../fixtures/sample-app.tar"
+					instances = "thisisnotanumber"
+				})
+
+				It("returns BadRequest", func() {
+					resp, err := (&http.Client{}).Do(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp).ToNot(BeNil())
+					defer resp.Body.Close()
+
+					bodyBytes, err := ioutil.ReadAll(resp.Body)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+					r := &v1.ErrorResponse{}
+					err = json.Unmarshal(bodyBytes, &r)
+					Expect(err).ToNot(HaveOccurred())
+
+					responseErr := r.Errors[0]
+					Expect(responseErr.Status).To(Equal(400))
+					Expect(responseErr.Title).To(Equal("instances param should be an integer"))
+				})
 			})
 		})
 	})
