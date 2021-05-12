@@ -24,13 +24,11 @@ import (
 	"github.com/pkg/errors"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/dynamic"
 	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 )
@@ -275,16 +273,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 	}
 
-	message = "Creating Tekton dashboard ingress"
-	_, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return "", createTektonIngress(c, TektonDeploymentID+"."+domain)
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
-	}
-
 	if err := c.WaitUntilPodBySelectorExist(ui, tektonNamespace, "app.kubernetes.io/name=dashboard,app.kubernetes.io/part-of=tekton-dashboard", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Tekton dashboard deployment to exist")
 	}
@@ -392,42 +380,6 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	defer os.Remove(tmpFilePath)
 
 	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", TektonStagingNamespace, tmpFilePath))
-}
-
-func createTektonIngress(c *kubernetes.Cluster, subdomain string) error {
-	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses(tektonNamespace).Create(
-		context.Background(),
-		// TODO: Switch to networking v1 when we don't care about <1.18 clusters
-		// Like this (which has been reverted):
-		// https://github.com/epinio/epiniocommit/7721d610fdf27a79be980af522783671d3ffc198
-		&v1beta1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "tekton-dashboard",
-				Namespace: tektonNamespace,
-				Annotations: map[string]string{
-					"kubernetes.io/ingress.class": "traefik",
-				},
-			},
-			Spec: v1beta1.IngressSpec{
-				Rules: []v1beta1.IngressRule{
-					{
-						Host: subdomain,
-						IngressRuleValue: v1beta1.IngressRuleValue{
-							HTTP: &v1beta1.HTTPIngressRuleValue{
-								Paths: []v1beta1.HTTPIngressPath{
-									{
-										Path: "/",
-										Backend: v1beta1.IngressBackend{
-											ServiceName: "tekton-dashboard",
-											ServicePort: intstr.IntOrString{
-												Type:   intstr.Int,
-												IntVal: 9097,
-											},
-										}}}}}}}}},
-		metav1.CreateOptions{},
-	)
-
-	return err
 }
 
 func (k Tekton) createGiteaCredsSecret(c *kubernetes.Cluster) error {
