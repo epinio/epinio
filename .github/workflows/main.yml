@@ -28,7 +28,7 @@ jobs:
         with:
           go-version: '^1.13.7'
       - name: Setup Ginkgo Test Framework
-        run: go get -u github.com/onsi/ginkgo/ginkgo
+        run: go install github.com/onsi/ginkgo/ginkgo@v1.16.2
       - name: Lint Epinio
         run: make lint
       - name: Cache Tools

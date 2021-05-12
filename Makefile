@@ -53,7 +53,7 @@ showfocus:
 generate:
 	go generate ./...
 
-lint:	fmt vet tidy
+lint:	fmt tidy vet
 
 vet: embed_files
 	go vet ./...
