@@ -1,6 +1,6 @@
 module github.com/epinio/epinio
 
-go 1.13
+go 1.15
 
 require (
 	code.gitea.io/sdk/gitea v0.13.2
@@ -16,9 +16,8 @@ require (
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/mholt/archiver/v3 v3.5.0
-	github.com/nxadm/tail v1.4.8 // indirect
 	github.com/olekukonko/tablewriter v0.0.4
-	github.com/onsi/ginkgo v1.15.0
+	github.com/onsi/ginkgo v1.16.2
 	github.com/onsi/gomega v1.10.5
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
@@ -29,8 +28,8 @@ require (
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/tektoncd/pipeline v0.23.0
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
-	golang.org/x/net v0.0.0-20210326220855-61e056675ecf // indirect
-	golang.org/x/sys v0.0.0-20210326220804-49726bf1d181 // indirect
+	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+	golang.org/x/tools v0.1.1 // indirect
 	k8s.io/api v0.20.5
 	k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery v0.20.5
