@@ -65,6 +65,12 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		instances = int32(_instances)
 	}
 
+	if instances < 0 {
+		return APIErrors{NewAPIError(
+			"instances param should be integer equal or greater than zero",
+			"", http.StatusBadRequest)}
+	}
+
 	file, _, err := r.FormFile("file")
 	if err != nil {
 		return NewAPIErrors(BadRequest(err, "can't read multipart file input"))

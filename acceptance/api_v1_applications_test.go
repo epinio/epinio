@@ -23,6 +23,44 @@ import (
 var _ = Describe("Apps API Application Endpoints", func() {
 	var org string
 
+	appStatus := func(org, app string) string {
+		response, err := Curl("GET",
+			fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
+			strings.NewReader(""))
+
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		ExpectWithOffset(1, response).ToNot(BeNil())
+		defer response.Body.Close()
+		ExpectWithOffset(1, response.StatusCode).To(Equal(http.StatusOK))
+		bodyBytes, err := ioutil.ReadAll(response.Body)
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+		var responseApp application.Application
+		err = json.Unmarshal(bodyBytes, &responseApp)
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		ExpectWithOffset(1, responseApp.Name).To(Equal(app))
+		ExpectWithOffset(1, responseApp.Organization).To(Equal(org))
+
+		return responseApp.Status
+	}
+
+	updateAppInstances := func(org, app, instances string) (int, []byte) {
+		data, err := json.Marshal(models.UpdateAppRequest{Instances: instances})
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+		response, err := Curl("PATCH",
+			fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
+			strings.NewReader(string(data)))
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		ExpectWithOffset(1, response).ToNot(BeNil())
+
+		defer response.Body.Close()
+		bodyBytes, err := ioutil.ReadAll(response.Body)
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+		return response.StatusCode, bodyBytes
+	}
+
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
@@ -36,63 +74,41 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 	Context("Apps", func() {
 		Describe("PATCH /orgs/:org/applications/:app", func() {
-			It("updates an application with the desired number of instances", func() {
-				app := newAppName()
-				makeApp(app, 1, true)
-				defer deleteApp(app)
+			When("instances is valid integer", func() {
+				It("updates an application with the desired number of instances", func() {
+					app := newAppName()
+					makeApp(app, 1, true)
+					defer deleteApp(app)
 
-				requestBody, err := json.Marshal(models.UpdateAppRequest{
-					Instances: "3",
+					Expect(appStatus(org, app)).To(Equal("1/1"))
+
+					status, _ := updateAppInstances(org, app, "3")
+					Expect(status).To(Equal(http.StatusOK))
+
+					Eventually(func() string {
+						return appStatus(org, app)
+					}, "1m").Should(Equal("3/3"))
 				})
-				Expect(err).ToNot(HaveOccurred())
-
-				response, err := Curl("GET",
-					fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
-					strings.NewReader(string(requestBody)))
-
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-
-				var responseApp application.Application
-				err = json.Unmarshal(bodyBytes, &responseApp)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(responseApp.Name).To(Equal(app))
-				Expect(responseApp.Organization).To(Equal(org))
-				Expect(responseApp.Status).To(Equal("1/1"))
-
-				data, err := json.Marshal(models.UpdateAppRequest{Instances: "3"})
-				Expect(err).ToNot(HaveOccurred())
-
-				response, err = Curl("PATCH",
-					fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
-					strings.NewReader(string(data)))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-
-				Eventually(func() string {
-					response, err = Curl("GET",
-						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
-						strings.NewReader(""))
-
-					Expect(err).ToNot(HaveOccurred())
-					Expect(response).ToNot(BeNil())
-					defer response.Body.Close()
-					Expect(response.StatusCode).To(Equal(http.StatusOK))
-					bodyBytes, err = ioutil.ReadAll(response.Body)
-					Expect(err).ToNot(HaveOccurred())
-
-					err = json.Unmarshal(bodyBytes, &responseApp)
-					Expect(err).ToNot(HaveOccurred())
-
-					return responseApp.Status
-				}, "1m").Should(Equal("3/3"))
 			})
+
+			When("instances is invalid", func() {
+				It("returns BadRequest", func() {
+					app := newAppName()
+					makeApp(app, 1, true)
+					defer deleteApp(app)
+					Expect(appStatus(org, app)).To(Equal("1/1"))
+
+					status, updateResponseBody := updateAppInstances(org, app, "-3")
+					Expect(status).To(Equal(http.StatusBadRequest))
+
+					var errorResponse v1.ErrorResponse
+					err := json.Unmarshal(updateResponseBody, &errorResponse)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusBadRequest))
+					Expect(errorResponse.Errors[0].Title).To(Equal("instances param should be integer equal or greater than zero"))
+				})
+			})
+
 		})
 
 		Describe("GET api/v1/orgs/:orgs/applications", func() {
@@ -138,32 +154,19 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		Describe("GET api/v1/orgs/:org/applications/:app", func() {
 			It("lists the application data", func() {
-				app1 := newAppName()
-				makeApp(app1, 1, true)
-				defer deleteApp(app1)
+				app := newAppName()
+				makeApp(app, 1, true)
+				defer deleteApp(app)
 
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-
-				var app application.Application
-				err = json.Unmarshal(bodyBytes, &app)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(app.Name).To(Equal(app1))
-				Expect(app.Organization).To(Equal(org))
-				Expect(app.Status).To(Equal("1/1"))
+				Expect(appStatus(org, app)).To(Equal("1/1"))
 			})
 
 			It("returns a 404 when the org does not exist", func() {
-				app1 := newAppName()
-				makeApp(app1, 1, true)
-				defer deleteApp(app1)
+				app := newAppName()
+				makeApp(app, 1, true)
+				defer deleteApp(app)
 
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
+				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -377,7 +380,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		FWhen("uploading with invalid instances", func() {
+		When("uploading with invalid instances", func() {
 			When("instances is not a integer", func() {
 				BeforeEach(func() {
 					path = "../fixtures/sample-app.tar"
@@ -426,7 +429,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					responseErr := r.Errors[0]
 					Expect(responseErr.Status).To(Equal(400))
-					Expect(responseErr.Title).To(Equal("instances param should be an integer"))
+					Expect(responseErr.Title).To(Equal("instances param should be integer equal or greater than zero"))
 				})
 			})
 

@@ -143,7 +143,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return APIErrors{BadRequest(err, "")}
 	}
-	// TODO:  Validate and test also the `upload` endpoint for invalid instance values
+
 	if instances < 0 {
 		return APIErrors{NewAPIError(
 			"instances param should be integer equal or greater than zero",
