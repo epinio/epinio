@@ -179,7 +179,7 @@ func createCertificates(ctx context.Context, cfg *rest.Config, app gitea.App) er
 			return errors.Wrap(err, "create production ssl certificate failed")
 		}
 	} else {
-		err = createCertificate(ctx, cfg, app, c.Domain, "selfsigned-issuers")
+		err = createCertificate(ctx, cfg, app, c.Domain, "selfsigned-issuer")
 		if err != nil {
 			return errors.Wrap(err, "create local ssl certificate failed")
 		}
