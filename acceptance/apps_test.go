@@ -2,8 +2,11 @@ package acceptance_test
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -33,7 +36,14 @@ var _ = Describe("Apps", func() {
 
 		It("pushes and deletes an app", func() {
 			By("pushing the app in the current working directory")
-			makeApp(appName)
+			out := makeApp(appName)
+
+			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+			route := string(routeRegexp.Find([]byte(out)))
+
+			resp, err := Curl("GET", route, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
 			By("deleting the app")
 			deleteApp(appName)

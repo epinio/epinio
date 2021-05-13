@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -37,7 +38,10 @@ func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, erro
 	if err != nil {
 		return nil, err
 	}
-	return (&http.Client{}).Do(request)
+	transCfg := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // self signed certs
+	}
+	return (&http.Client{Transport: transCfg}).Do(request)
 }
 
 func setupAndTargetOrg(org string) {
