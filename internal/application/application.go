@@ -15,6 +15,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 // Application manages applications.
@@ -68,6 +69,26 @@ func (a *Application) Services() (interfaces.ServiceList, error) {
 	}
 
 	return bound, nil
+}
+
+// Scale should be used to change the number of instances (replicas) on the
+// application Deployment.
+func (a *Application) Scale(ctx context.Context, instances int32) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		deployment, err := a.deployment()
+		if err != nil {
+			return err
+		}
+
+		deployment.Spec.Replicas = &instances
+
+		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
+			ctx, deployment, metav1.UpdateOptions{})
+
+		return err
+	})
 }
 
 // Unbind dissolves the binding of the service to the application.

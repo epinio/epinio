@@ -73,12 +73,21 @@ var CmdPush = &cobra.Command{
 			return errors.Wrap(err, "path not accessible")
 		}
 
+		instances, err := cmd.Flags().GetInt("instances")
+		if err != nil {
+			return errors.Wrap(err, "could not read instances parameter")
+		}
+		params := clients.PushParams{
+			Instances: instances,
+		}
+
 		services, err := cmd.Flags().GetStringSlice("bind")
 		if err != nil {
 			return err
 		}
+		params.Services = services
 
-		err = client.Push(args[0], path, services)
+		err = client.Push(args[0], path, params)
 		if err != nil {
 			return errors.Wrap(err, "error pushing app to server")
 		}
@@ -87,4 +96,9 @@ var CmdPush = &cobra.Command{
 	},
 	SilenceErrors: true,
 	SilenceUsage:  true,
+}
+
+func init() {
+	flags := CmdPush.Flags()
+	flags.IntP("instances", "i", 1, "The number of desired instance for the application")
 }

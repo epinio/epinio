@@ -18,7 +18,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			appName = newAppName()
 			serviceName = newServiceName()
 
-			makeApp(appName)
+			makeApp(appName, 1, true)
 			makeCustomService(serviceName)
 			bindAppService(appName, serviceName, org)
 		})

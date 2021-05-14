@@ -35,4 +35,8 @@ type BindRequest struct {
 	Names []string `json:"names"`
 }
 
+type UpdateAppRequest struct {
+	Instances string `json:"instances"`
+}
+
 // TODO: CreateOrgRequest

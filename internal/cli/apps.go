@@ -24,6 +24,7 @@ func init() {
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdDeleteApp)
 	CmdApp.AddCommand(CmdPush)
+	CmdApp.AddCommand(CmdAppUpdate)
 }
 
 // CmdAppList implements the epinio `apps list` command
@@ -83,4 +84,52 @@ var CmdAppShow = &cobra.Command{
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
+}
+
+// CmdAppShow implements the epinio `apps show` command
+var CmdAppUpdate = &cobra.Command{
+	Use:   "update NAME",
+	Short: "Update the named application",
+	Long:  "Update the running application's attributes (e.g. instances)",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := clients.NewEpinioClient(cmd.Flags())
+
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		instances, err := cmd.Flags().GetInt("instances")
+		if err != nil {
+			return errors.Wrap(err, "error reading the instances param")
+		}
+		err = client.AppUpdate(args[0], instances)
+		if err != nil {
+			return errors.Wrap(err, "error updating the app")
+		}
+
+		return nil
+	},
+	SilenceErrors: true,
+	SilenceUsage:  true,
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app, err := clients.NewEpinioClient(cmd.Flags())
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matches := app.AppsMatching(toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	},
+}
+
+func init() {
+	flags := CmdAppUpdate.Flags()
+	flags.IntP("instances", "i", 1, "The number of instances the application should have")
+	cobra.MarkFlagRequired(flags, "instances")
 }

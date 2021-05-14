@@ -25,7 +25,7 @@ import (
 )
 
 func TestAcceptance(t *testing.T) {
-	RegisterFailHandler(Fail)
+	RegisterFailHandler(FailWithReport)
 	RunSpecs(t, "Acceptance Suite")
 }
 
@@ -128,8 +128,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
 	var err error
-
-	RegisterFailHandler(FailWithReport)
 
 	nodeSuffix = fmt.Sprintf("%d-%s",
 		config.GinkgoConfig.ParallelNode, string(randomSuffix))
@@ -445,7 +443,8 @@ func FailWithReport(message string, callerSkip ...int) {
 		fmt.Print(out)
 	}
 
-	Fail(message, callerSkip...)
+	// Ensures the correct line numbers are reported
+	Fail(message, callerSkip[0]+1)
 }
 
 func expectGoodInstallation() {

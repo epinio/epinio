@@ -28,7 +28,7 @@ var _ = Describe("Apps", func() {
 
 		It("shows the staging logs", func() {
 			By("pushing the app")
-			out := makeApp(appName)
+			out := makeApp(appName, 1, true)
 
 			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
 			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
@@ -36,7 +36,7 @@ var _ = Describe("Apps", func() {
 
 		It("pushes and deletes an app", func() {
 			By("pushing the app in the current working directory")
-			out := makeApp(appName)
+			out := makeApp(appName, 1, true)
 
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
@@ -51,10 +51,23 @@ var _ = Describe("Apps", func() {
 
 		It("pushes and deletes an app", func() {
 			By("pushing the app in the specified app directory")
-			makeApp2(appName)
+			makeApp(appName, 1, false)
 
 			By("deleting the app")
 			deleteApp(appName)
+		})
+
+		It("pushes an application with the desired number of instances", func() {
+			app := newAppName()
+			makeApp(app, 3, true)
+			defer deleteApp(app)
+
+			Eventually(func() string {
+				out, err := Epinio("app show "+app, "")
+				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+				return out
+			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
 		})
 
 		Context("with service", func() {
@@ -91,7 +104,7 @@ var _ = Describe("Apps", func() {
 		It("unbinds bound services when deleting an app", func() {
 			serviceName := newServiceName()
 
-			makeApp(appName)
+			makeApp(appName, 1, true)
 			makeCustomService(serviceName)
 			bindAppService(appName, serviceName, org)
 
@@ -111,13 +124,38 @@ var _ = Describe("Apps", func() {
 		})
 	})
 
+	Describe("update", func() {
+		It("updates an application with the desired number of instances", func() {
+			app := newAppName()
+			makeApp(app, 1, true)
+			defer deleteApp(app)
+
+			Eventually(func() string {
+				out, err := Epinio("app show "+app, "")
+				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+				return out
+			}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+
+			out, err := Epinio(fmt.Sprintf("app update %s -i 3", app), "")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, err := Epinio("app show "+app, "")
+				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+				return out
+			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+		})
+	})
+
 	Describe("list and show", func() {
 		var appName string
 		var serviceCustomName string
 		BeforeEach(func() {
 			appName = newAppName()
 			serviceCustomName = newServiceName()
-			makeApp(appName)
+			makeApp(appName, 1, true)
 			makeCustomService(serviceCustomName)
 			bindAppService(appName, serviceCustomName, org)
 		})
