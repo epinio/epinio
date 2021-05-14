@@ -43,6 +43,8 @@ const (
 	afterEachSleepPath  = "../tmp/after_each_sleep"
 	k3dInstallArgsEnv   = "EPINIO_K3D_INSTALL_ARGS" // -p '80:80@server[0]' -p '443:443@server[0]'
 	skipEpinioPatch     = "EPINIO_SKIP_PATCH"
+	epinioUser          = "test-user"
+	epinioPassword      = "secure-testing"
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -255,8 +257,11 @@ func ensureEpinio() {
 		}
 	}
 	fmt.Println("Installing Epinio")
-	// Allow the installation to continue
-	out, err = RunProc("../dist/epinio-linux-amd64 install --skip-default-org", "", false)
+	// Allow the installation to continue by not trying to create the default org
+	// before we patch.
+	out, err = RunProc(
+		fmt.Sprintf("../dist/epinio-linux-amd64 install --skip-default-org --user %s --password %s", epinioUser, epinioPassword),
+		"", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 }
 
