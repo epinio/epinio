@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -137,17 +138,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		panic("Could not create temp dir: " + err.Error())
 	}
 
-	kubeconfig, err := RunProc("k3d kubeconfig get epinio-acceptance", nodeTmpDir, false)
-	if err != nil {
-		panic("Getting kubeconfig failed: " + err.Error())
-	}
-	err = ioutil.WriteFile(path.Join(nodeTmpDir, "kubeconfig"), []byte(kubeconfig), 0644)
-	if err != nil {
-		panic("Writing kubeconfig failed: " + err.Error())
-	}
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
+	// Copy kubeconfig in the temp dir
+	out, err := RunProc(fmt.Sprintf("cp acceptance-kubeconfig %s/kubeconfig", nodeTmpDir), "", false)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	out, err := copyEpinio()
+	out, err = copyEpinio()
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	fmt.Println("Waiting for kubernetes node to be ready")
@@ -307,6 +303,19 @@ func ensureCluster(k3dClusterName string) {
 			panic("Looking up k3d cluster failed: " + err.Error())
 		}
 	}
+
+	// Ensure we are talking to the correct cluster
+	kubeconfig, err := RunProc("k3d kubeconfig get epinio-acceptance", "", false)
+	if err != nil {
+		panic("Getting kubeconfig failed: " + err.Error())
+	}
+	err = ioutil.WriteFile("acceptance-kubeconfig", []byte(kubeconfig), 0644)
+	if err != nil {
+		panic("Writing kubeconfig failed: " + err.Error())
+	}
+	kubeconfigPath, err := filepath.Abs("acceptance-kubeconfig")
+	Expect(err).ToNot(HaveOccurred())
+	os.Setenv("KUBECONFIG", kubeconfigPath)
 }
 
 func waitUntilClusterNodeReady() (string, error) {
