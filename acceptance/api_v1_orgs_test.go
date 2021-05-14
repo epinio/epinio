@@ -45,6 +45,15 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				// See global BeforeEach for where this org is set up.
 				Expect(orgs).Should(ContainElements(org))
 			})
+			When("basic auth credentials are not provided", func() {
+				It("returns a 401 response", func() {
+					request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(""))
+					Expect(err).ToNot(HaveOccurred())
+					response, err := (&http.Client{}).Do(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
+				})
+			})
 		})
 
 		Describe("POST api/v1/orgs", func() {
