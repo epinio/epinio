@@ -218,7 +218,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			// make the request
 			request, err := http.NewRequest("POST", url, body)
-			request.SetBasicAuth("me", "change")
+			request.SetBasicAuth(epinioUser, epinioPassword)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to build request")
 			}
