@@ -70,6 +70,15 @@ var _ = Describe("Apps", func() {
 			deleteApp(appName)
 		})
 
+		It("should not fail for a max-length application name", func() {
+			appNameLong := "app123456789012345678901234567890123456789012345678901234567890"
+			// 3+60 characters
+			makeApp(appNameLong, 1, false)
+
+			By("deleting the app")
+			deleteApp(appNameLong)
+		})
+
 		It("pushes an application with the desired number of instances", func() {
 			app := newAppName()
 			makeApp(app, 3, true)

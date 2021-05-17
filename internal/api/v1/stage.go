@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/names"
 )
 
 const (
@@ -222,7 +223,7 @@ func createCertificate(ctx context.Context, cfg *rest.Config, app models.App, sy
 			"namespace": "%s"
 		},
 		"spec": {
-			"commonName" : "%s.%s",
+			"commonName" : "%s",
 			"secretName" : "%s-tls",
 			"dnsNames": [
 				"%s.%s"
@@ -232,7 +233,7 @@ func createCertificate(ctx context.Context, cfg *rest.Config, app models.App, sy
 				"kind" : "ClusterIssuer"
 			}
 		}
-        }`, app.Name, app.Org, app.Name, systemDomain, app.Name, app.Name, systemDomain, issuer)
+        }`, app.Name, app.Org, names.TruncateMD5(fmt.Sprintf("%s.%s", app.Name, systemDomain), 64), app.Name, app.Name, systemDomain, issuer)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
