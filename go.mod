@@ -12,8 +12,7 @@ require (
 	github.com/fatih/color v1.9.0
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/stdr v0.4.0
-	github.com/google/go-cmp v0.5.4 // indirect
-	github.com/gorilla/websocket v1.4.2 // indirect
+	github.com/gorilla/websocket v1.4.2
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
