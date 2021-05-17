@@ -993,9 +993,10 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 
 	appRef := models.AppRef{Name: app, Org: c.Config.Org}
 	req := &models.StageRequest{
-		App:   appRef,
-		Image: upload.Image,
-		Git:   upload.Git,
+		App:       appRef,
+		Image:     upload.Image,
+		Instances: params.Instances,
+		Git:       upload.Git,
 	}
 	details.Info("staging code", "ImageID", upload.Image.ID)
 	out, err := json.Marshal(req)

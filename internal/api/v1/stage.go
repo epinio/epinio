@@ -9,6 +9,7 @@ import (
 	"hash/fnv"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
@@ -61,6 +62,12 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	if name != req.App.Name {
 		return singleNewError("name parameter from URL does not match name param in body", http.StatusBadRequest)
+	}
+
+	if req.Instances < 0 {
+		return APIErrors{NewAPIError(
+			"instances param should be integer equal or greater than zero",
+			"", http.StatusBadRequest)}
 	}
 
 	log.Info("staging app", "org", org, "app", req)
@@ -154,6 +161,13 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 		Spec: v1beta1.PipelineRunSpec{
 			ServiceAccountName: "staging-triggers-admin",
 			PipelineRef:        &v1beta1.PipelineRef{Name: "staging-pipeline"},
+			Params: []v1beta1.Param{
+				{Name: "APP_NAME", Value: *v1beta1.NewArrayOrString(app.Name)},
+				{Name: "ORG", Value: *v1beta1.NewArrayOrString(app.Org)},
+				{Name: "ROUTE", Value: *v1beta1.NewArrayOrString(app.Route)},
+				{Name: "INSTANCES", Value: *v1beta1.NewArrayOrString(strconv.Itoa(int(app.Instances)))},
+				{Name: "IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(gitea.LocalRegistry))},
+			},
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
 					Name: "source",

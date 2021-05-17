@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"strconv"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
@@ -32,25 +31,6 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	log.V(2).Info("parsing multipart form")
-
-	var instances int32
-	instancesFromParams := r.FormValue("instances")
-	if instancesFromParams == "" {
-		instances = int32(1)
-	} else {
-		_instances, err := strconv.Atoi(instancesFromParams)
-		if err != nil {
-			return APIErrors{
-				NewAPIError("instances param should be an integer", "", http.StatusBadRequest)}
-		}
-		instances = int32(_instances)
-	}
-
-	if instances < 0 {
-		return APIErrors{NewAPIError(
-			"instances param should be integer equal or greater than zero",
-			"", http.StatusBadRequest)}
-	}
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -85,7 +65,6 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 
 	log.V(2).Info("create gitea app repo")
 	app := models.NewApp(name, org)
-	app.Instances = instances
 	err = client.Upload(app, appDir)
 	if err != nil {
 		return NewAPIErrors(InternalError(err))

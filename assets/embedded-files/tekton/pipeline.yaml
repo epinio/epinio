@@ -12,6 +12,22 @@ spec:
     type: git
   - name: image
     type: image
+  params:
+    - name: APP_NAME
+      type: string
+      description: "The application name (used as label or name in various resources)"
+    - name: ORG
+      type: string
+      description: "The application organization (used as the namespace where the app runs)"
+    - name: ROUTE
+      type: string
+      description: "The application route (used for Ingress)"
+    - name: INSTANCES
+      type: string
+      description: "The number of instances the application should have"
+    - name: IMAGE
+      type: string
+      description: "The container image for the application Deployment"
   tasks:
   - name: clone
     taskRef:
@@ -43,6 +59,17 @@ spec:
   - name: run
     taskRef:
       name: run
+    params:
+      - name: APP_NAME
+        value: "$(params.APP_NAME)"
+      - name: ORG
+        value: "$(params.ORG)"
+      - name: ROUTE
+        value: "$(params.ROUTE)"
+      - name: INSTANCES
+        value: $(params.INSTANCES)
+      - name: IMAGE
+        value: "$(params.IMAGE)"
     runAfter:
     - stage
     workspaces:
@@ -82,6 +109,17 @@ metadata:
 spec:
   workspaces:
   - name: source
+  params:
+    - name: APP_NAME
+      type: string
+    - name: ORG
+      type: string
+    - name: ROUTE
+      type: string
+    - name: INSTANCES
+      type: string
+    - name: IMAGE
+      type: string
   steps:
   - name: run
     image: lachlanevenson/k8s-kubectl
@@ -91,4 +129,104 @@ spec:
     args:
       - -c
       - |
-        kubectl apply -f ./.kube/
+        cat <<EOF | kubectl apply -f -
+        ---
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: "$(params.APP_NAME)"
+          namespace: "$(params.ORG)"
+          labels:
+            app.kubernetes.io/name: "$(params.APP_NAME)"
+            app.kubernetes.io/part-of: "$(params.ORG)"
+            app.kubernetes.io/component: application
+            app.kubernetes.io/managed-by: epinio
+        spec:
+          replicas: $(params.INSTANCES)
+          selector:
+            matchLabels:
+              app.kubernetes.io/name: "$(params.APP_NAME)"
+          template:
+            metadata:
+              labels:
+                app.kubernetes.io/name: "$(params.APP_NAME)"
+                epinio.suse.org/image-id: "$(params.IMAGE_ID)"
+                epinio.suse.org/stage-id: "$(params.STAGE_ID)"
+                app.kubernetes.io/part-of: "$(params.ORG)"
+                app.kubernetes.io/component: application
+                app.kubernetes.io/managed-by: epinio
+              annotations:
+                app.kubernetes.io/name: "$(params.APP_NAME)"
+            spec:
+              serviceAccountName: "$(params.ORG)"
+              automountServiceAccountToken: false
+              containers:
+              - name: "$(params.APP_NAME)"
+                image: "$(params.IMAGE)"
+                ports:
+                - containerPort: 8080
+                env:
+                - name: PORT
+                  value: "8080"
+        EOF
+
+        cat <<EOF | kubectl apply -f -
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          annotations:
+            traefik.ingress.kubernetes.io/router.entrypoints: websecure
+            traefik.ingress.kubernetes.io/router.tls: "true"
+          labels:
+            app.kubernetes.io/component: application
+            app.kubernetes.io/managed-by: epinio
+            app.kubernetes.io/name: $(params.APP_NAME)
+            app.kubernetes.io/part-of: $(params.ORG)
+            kubernetes.io/ingress.class: traefik
+          name: $(params.APP_NAME)
+          namespace: $(params.ORG)
+        spec:
+          ports:
+          - port: 8080
+            protocol: TCP
+            targetPort: 8080
+          selector:
+            app.kubernetes.io/component: "application"
+            app.kubernetes.io/name: "$(params.APP_NAME)"
+          type: ClusterIP
+        EOF
+
+        cat <<EOF | kubectl apply -f -
+        ---
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          annotations:
+            traefik.ingress.kubernetes.io/router.entrypoints: websecure
+            traefik.ingress.kubernetes.io/router.tls: "true"
+          labels:
+            app.kubernetes.io/component: application
+            app.kubernetes.io/managed-by: epinio
+            app.kubernetes.io/name: $(params.APP_NAME)
+            app.kubernetes.io/part-of: $(params.ORG)
+            kubernetes.io/ingress.class: traefik
+          name: $(params.APP_NAME)
+          namespace: $(params.ORG)
+        spec:
+          rules:
+          - host: $(params.ROUTE)
+            http:
+              paths:
+              - backend:
+                  service:
+                    name: $(params.APP_NAME)
+                    port:
+                      number: 8080
+                path: /
+                pathType: ImplementationSpecific
+          tls:
+          - hosts:
+            - $(params.ROUTE)
+            secretName: $(params.APP_NAME)-tls
+        EOF
