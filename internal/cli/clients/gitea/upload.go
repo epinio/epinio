@@ -254,6 +254,7 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
+    app.kubernetes.io/component: "application"
     app.kubernetes.io/name: "{{ .AppName }}"
   type: ClusterIP
   `)
