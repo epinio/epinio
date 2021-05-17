@@ -26,6 +26,20 @@ rules:
   verbs:
   - list
 - apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+- apiGroups:
   - extensions
   resources:
   - ingresses
