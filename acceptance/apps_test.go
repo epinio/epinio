@@ -57,6 +57,16 @@ var _ = Describe("Apps", func() {
 			deleteApp(appName)
 		})
 
+		It("pushes the same app again successfully", func() {
+			makeApp(appName, 1, false)
+
+			By("pushing the app again")
+			makeApp(appName, 1, false)
+
+			By("deleting the app")
+			deleteApp(appName)
+		})
+
 		It("pushes an application with the desired number of instances", func() {
 			app := newAppName()
 			makeApp(app, 3, true)

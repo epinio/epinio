@@ -17,6 +17,7 @@ import (
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -228,7 +229,8 @@ func createCertificate(ctx context.Context, cfg *rest.Config, app gitea.App, sys
 
 	_, err = dynamicClient.Resource(certificateInstanceGVR).Namespace(app.Org).
 		Create(ctx, obj, metav1.CreateOptions{})
-	if err != nil {
+	// Ignore the error if it's about cert already existing.
+	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
 	}
 
