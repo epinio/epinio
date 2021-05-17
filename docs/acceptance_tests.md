@@ -28,7 +28,7 @@ focus a run on specific tests, as per ginkgo's documentation.
 
   1. `EPINIO_SKIP_PATCH`: When present and not empty the test startup
      will skip over patching the epinio server pod of the test
-     cluster. This should be used when the test cluster still has a an
+     cluster. This should be used when the test cluster still has a
      epinio installation from a previous run. See `tmp/skip_cleanup`
      as well.
 
@@ -50,9 +50,14 @@ the epinio checkout running the acceptance tests.
      cluster. This allows future test runs to bypass the costly setup
      of a cluster and epinio installation.
 
-     Note however that this should not be done when testing changed to
-     epinio's server side. This always requires a new epinio
-     installation to test the latest changes.
+     This cannot be avoided if changes are made to the (un)install
+     code. This always requires a new epinio installation to test the
+     latest changes.
+
+     On the third hand, changing the server code still allows using
+     this. In that case we simply cannot skip patching the server (See
+     `EPINIO_SKIP_PATCH`), as that step updates it to the local code,
+     and thus the last changes.
 
   1. `tmp/after_each_sleep`: If present, readable, and containing an
      integer number N the system will wait N seconds after each
