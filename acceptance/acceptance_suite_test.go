@@ -40,12 +40,39 @@ const (
 	registryMirrorEnv   = "EPINIO_REGISTRY_CONFIG"
 	registryUsernameEnv = "REGISTRY_USERNAME"
 	registryPasswordEnv = "REGISTRY_PASSWORD"
-	skipCleanupPath     = "../tmp/skip_cleanup"
-	afterEachSleepPath  = "../tmp/after_each_sleep"
-	k3dInstallArgsEnv   = "EPINIO_K3D_INSTALL_ARGS" // -p '80:80@server[0]' -p '443:443@server[0]'
-	skipEpinioPatch     = "EPINIO_SKIP_PATCH"
-	epinioUser          = "test-user"
-	epinioPassword      = "secure-testing"
+
+	// skipCleanupPath is the path (relative to the test
+	// directory) of a file which, when present causes the system
+	// to not delete the test cluster after the tests are done.
+	skipCleanupPath = "../tmp/skip_cleanup"
+
+	// afterEachSleepPath is the path (relative to the test
+	// directory) of a file which, when it, is readable, and
+	// contains an integer number (*) causes the the system to
+	// wait that many seconds after each test.
+	//
+	// (*) A number, i.e. just digits. __No trailing newline__
+	afterEachSleepPath = "../tmp/after_each_sleep"
+
+	// k3dInstallArgsEnv contains the name of the environment
+	// variable which, when present and not empty has its contents
+	// added to the command creating the test cluster.  Does not
+	// apply if an existing cluster is re-used.
+	//
+	// Example: -p '80:80@server[0]' -p '443:443@server[0]'
+	k3dInstallArgsEnv = "EPINIO_K3D_INSTALL_ARGS"
+
+	// skipEpinioPatch contains the name of the environment
+	// variable which, when present and not empty causes system
+	// startup to skip patching the epinio server pod. Best used
+	// when the cluster of a previous run still exists
+	// (s.a. skipCleanupPath).
+	skipEpinioPatch = "EPINIO_SKIP_PATCH"
+
+	// epinioUser and epinioPassword specify the API credentials
+	// used during testing.
+	epinioUser     = "test-user"
+	epinioPassword = "secure-testing"
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
