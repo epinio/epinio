@@ -66,6 +66,7 @@ var Routes = routes.NamedRoutes{
 	"Info":      get("/info", errorHandler(InfoController{}.Info)),
 	"Apps":      get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
 	"AppShow":   get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
+	"AppLogs":   get("/orgs/:org/applications/:app/logs", errorHandler(ApplicationsController{}.Logs)),
 	"AppDelete": delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
 	"AppUpload": post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)),
 	"AppStage":  post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),
