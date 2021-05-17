@@ -16,7 +16,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
@@ -28,15 +30,18 @@ import (
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
+
 	"github.com/go-logr/logr"
 	archiver "github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -984,7 +989,7 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	}
 	log.V(3).Info("upload response", "response", upload)
 
-	c.ui.Normal().Msg("Stage application ...")
+	c.ui.Normal().Msg("Staging application ...")
 
 	appRef := models.AppRef{Name: app, Org: c.Config.Org}
 	req := &models.StageRequest{
@@ -992,7 +997,7 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 		Image: upload.Image,
 		Git:   upload.Git,
 	}
-	details.Info("staging code")
+	details.Info("staging code", "ImageID", upload.Image.ID)
 	out, err := json.Marshal(req)
 	if err != nil {
 		return errors.Wrap(err, "can't marshall upload response")
@@ -1010,14 +1015,20 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	}
 	log.V(3).Info("stage response", "response", stage)
 
-	details.Info("start tailing logs")
+	details.Info("start tailing logs", "StageID", stage.Stage.ID)
 	stopFunc, err := c.logs(app, c.Config.Org, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "failed to tail logs")
 	}
 	defer stopFunc()
 
-	details.Info("wait for app")
+	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
+	err = c.waitForPipelineRun(c.Config.Org, app, stage.Stage.ID)
+	if err != nil {
+		return errors.Wrap(err, "waiting for staging failed")
+	}
+
+	details.Info("wait for app", "ImageID", upload.Image.ID)
 	// TODO cannot use stage.Stage.ID
 	err = c.waitForApp(c.Config.Org, app, upload.Image.ID)
 	if err != nil {
@@ -1164,6 +1175,37 @@ func (c *EpinioClient) logs(appName, org, stageID string) (context.CancelFunc, e
 	}
 
 	return cancelFunc, nil
+}
+
+func (c *EpinioClient) waitForPipelineRun(org, name, id string) error {
+	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
+
+	cs, err := tekton.NewForConfig(c.KubeClient.RestConfig)
+	if err != nil {
+		return err
+	}
+	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+
+	s := c.ui.Progressf("Waiting for pipelinerun %s", id)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, duration.ToAppBuilt(),
+		func() (bool, error) {
+			l, err := client.List(context.TODO(), metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
+			if err != nil {
+				return false, err
+			}
+			if len(l.Items) == 0 {
+				return false, nil
+			}
+			for _, pr := range l.Items {
+				if pr.Status.CompletionTime != nil {
+					return true, nil
+				}
+			}
+			// pr exists, but still running
+			return false, nil
+		})
 }
 
 func (c *EpinioClient) waitForApp(org, name, id string) error {
