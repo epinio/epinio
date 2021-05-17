@@ -97,7 +97,7 @@ func makeApp(appName string, instances int, deployFromCurrentDir bool) string {
 		// This means that the command gets the sources from that directory instead of CWD.
 		pushOutput, err = Epinio(fmt.Sprintf("apps push %s %s --verbosity 1", appName, appDir), "")
 	}
-	ExpectWithOffset(2, err).ToNot(HaveOccurred(), pushOutput)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
 
