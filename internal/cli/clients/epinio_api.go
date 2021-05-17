@@ -12,7 +12,8 @@ import (
 // EpinioAPIClient provides functionality for talking to an Epinio API
 // server on Kubernetes
 type EpinioAPIClient struct {
-	URL string
+	URL    string
+	WS_URL string
 }
 
 var epinioClientMemo *EpinioAPIClient
@@ -32,13 +33,14 @@ func GetEpinioAPIClient() (*EpinioAPIClient, error) {
 		return nil, err
 	}
 
-	epinioURL, err := getEpinioURL(configConfig, cluster)
+	epinioURL, epinioWSURL, err := getEpinioURL(configConfig, cluster)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve epinio api host")
 	}
 
 	epinioClient := &EpinioAPIClient{
-		URL: epinioURL,
+		URL:    epinioURL,
+		WS_URL: epinioWSURL,
 	}
 
 	epinioClientMemo = epinioClient
@@ -46,31 +48,31 @@ func GetEpinioAPIClient() (*EpinioAPIClient, error) {
 	return epinioClient, nil
 }
 
-// getEpinioURL finds the URL for epinio
-func getEpinioURL(config *config.Config, cluster *kubernetes.Cluster) (string, error) {
+// getEpinioURL finds the URL's for epinio
+func getEpinioURL(config *config.Config, cluster *kubernetes.Cluster) (string, string, error) {
 	// Get the ingress
 	ingresses, err := cluster.ListIngress(deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
 	if err != nil {
-		return "", errors.Wrap(err, "failed to list ingresses for epinio api server")
+		return "", "", errors.Wrap(err, "failed to list ingresses for epinio api server")
 	}
 
 	if len(ingresses.Items) < 1 {
-		return "", errors.New("epinio api ingress not found")
+		return "", "", errors.New("epinio api ingress not found")
 	}
 
 	if len(ingresses.Items) > 1 {
-		return "", errors.New("more than one epinio api ingress found")
+		return "", "", errors.New("more than one epinio api ingress found")
 	}
 
 	if len(ingresses.Items[0].Spec.Rules) < 1 {
-		return "", errors.New("epinio api ingress has no rules")
+		return "", "", errors.New("epinio api ingress has no rules")
 	}
 
 	if len(ingresses.Items[0].Spec.Rules) > 1 {
-		return "", errors.New("epinio api ingress has more than on rule")
+		return "", "", errors.New("epinio api ingress has more than on rule")
 	}
 
 	host := ingresses.Items[0].Spec.Rules[0].Host
 
-	return fmt.Sprintf("%s://%s", config.EpinioProtocol, host), nil
+	return fmt.Sprintf("%s://%s", config.EpinioProtocol, host), fmt.Sprintf("%s://%s", config.EpinioWSProtocol, host), nil
 }
