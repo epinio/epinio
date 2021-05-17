@@ -21,11 +21,19 @@ var CmdApp = &cobra.Command{
 }
 
 func init() {
+	flags := CmdAppLogs.Flags()
+	flags.Bool("follow", false, "follow the logs of the application")
+
+	updateFlags := CmdAppUpdate.Flags()
+	updateFlags.Int32P("instances", "i", 1, "The number of instances the application should have")
+	cobra.MarkFlagRequired(updateFlags, "instances")
+
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdDeleteApp)
 	CmdApp.AddCommand(CmdPush)
 	CmdApp.AddCommand(CmdAppUpdate)
+	CmdApp.AddCommand(CmdAppLogs)
 }
 
 // CmdAppList implements the epinio `apps list` command
@@ -87,6 +95,33 @@ var CmdAppShow = &cobra.Command{
 	},
 }
 
+// CmdAppLogs implements the epinio `apps logs` command
+var CmdAppLogs = &cobra.Command{
+	Use:   "logs NAME",
+	Short: "Streams the logs of the application",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := clients.NewEpinioClient(cmd.Flags())
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		follow, err := cmd.Flags().GetBool("follow")
+		if err != nil {
+			return errors.Wrap(err, "error reading the staging param")
+		}
+
+		err = client.AppLogs(args[0], follow)
+		if err != nil {
+			return errors.Wrap(err, "error streaming application logs")
+		}
+
+		return nil
+	},
+	SilenceErrors: true,
+	SilenceUsage:  true,
+}
+
 // CmdAppUpdate is used by the epinio `apps update` command to scale
 // a single app
 var CmdAppUpdate = &cobra.Command{
@@ -132,10 +167,4 @@ var CmdAppUpdate = &cobra.Command{
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
-}
-
-func init() {
-	flags := CmdAppUpdate.Flags()
-	flags.Int32P("instances", "i", 1, "The number of instances the application should have")
-	cobra.MarkFlagRequired(flags, "instances")
 }

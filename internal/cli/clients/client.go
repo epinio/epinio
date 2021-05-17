@@ -4,6 +4,7 @@ package clients
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,9 +12,11 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
@@ -27,6 +30,7 @@ import (
 	"github.com/epinio/epinio/internal/services"
 
 	"github.com/go-logr/logr"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,11 +42,12 @@ import (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	KubeClient *kubernetes.Cluster
-	Config     *config.Config
-	Log        logr.Logger
-	ui         *termui.UI
-	serverURL  string
+	KubeClient  *kubernetes.Cluster
+	Config      *config.Config
+	Log         logr.Logger
+	ui          *termui.UI
+	serverURL   string
+	wsServerURL string
 }
 
 type PushParams struct {
@@ -67,14 +72,16 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 		return nil, err
 	}
 	serverURL := epClient.URL
+	wsServerURL := epClient.WS_URL
 
 	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
-		KubeClient: cluster,
-		ui:         uiUI,
-		Config:     configConfig,
-		Log:        logger,
-		serverURL:  serverURL,
+		KubeClient:  cluster,
+		ui:          uiUI,
+		Config:      configConfig,
+		Log:         logger,
+		serverURL:   serverURL,
+		wsServerURL: wsServerURL,
 	}
 	return epinioClient, nil
 }
@@ -722,6 +729,74 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 	c.ui.Success().Msg("Successfully updated application")
 
 	return nil
+}
+
+// AppLogs streams the logs of all the application instances, in the targeted org
+func (c *EpinioClient) AppLogs(appName string, follow bool) error {
+	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		Msg("Streaming application logs")
+
+	details.Info("application logs")
+
+	interrupt := make(chan os.Signal, 1)
+	signal.Notify(interrupt, os.Interrupt)
+
+	var urlArgs = []string{}
+	urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", follow))
+
+	headers := http.Header{
+		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Config.User, c.Config.Password)))},
+	}
+
+	webSocketConn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/%s?%s", c.wsServerURL, api.Routes.Path("AppLogs", c.Config.Org, appName), strings.Join(urlArgs, "&")), headers)
+	if err != nil {
+		return err
+	}
+
+	done := make(chan bool)
+	errorChan := make(chan error, 1)
+
+	go func() {
+		for {
+			_, message, err := webSocketConn.ReadMessage()
+			if err != nil {
+				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+					c.ui.Normal().Msg("-- Logs End --")
+					webSocketConn.Close()
+					done <- true
+					return
+				}
+				errorChan <- err
+				return
+			}
+			fmt.Println(string(message))
+		}
+	}()
+
+	for {
+		select {
+		case <-done:
+			return nil
+		case err := <-errorChan:
+			return err
+		case <-interrupt:
+			err = webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
+			if err != nil {
+				err = webSocketConn.Close()
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
 }
 
 // CreateOrg creates an Org in gitea
