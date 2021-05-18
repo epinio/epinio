@@ -159,6 +159,13 @@ func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 				return false, nil
 			}
 			for _, pr := range l.Items {
+				// any failed conditions, throw an error so we can exit early
+				for _, c := range pr.Status.Conditions {
+					if c.IsFalse() {
+						return false, errors.New(c.Message)
+					}
+				}
+				// it worked
 				if pr.Status.CompletionTime != nil {
 					return true, nil
 				}
