@@ -17,6 +17,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -143,8 +144,10 @@ func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 	}
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
 
-	s := c.ui.Progressf("Waiting for pipelinerun %s", id)
-	defer s.Stop()
+	if viper.GetInt("verbosity") > 0 {
+		s := c.ui.Progressf("Waiting for pipelinerun %s", id)
+		defer s.Stop()
+	}
 
 	return wait.PollImmediate(time.Second, duration.ToAppBuilt(),
 		func() (bool, error) {
