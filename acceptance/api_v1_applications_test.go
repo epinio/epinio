@@ -10,11 +10,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/gorilla/websocket"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -529,6 +532,78 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(responseErr.Status).To(Equal(400))
 					Expect(responseErr.Title).To(Equal("Failed to construct an Application from the request"))
 				})
+			})
+		})
+	})
+
+	Context("Logs", func() {
+		Describe("GET api/v1/orgs/:orgs/applications/:app/logs", func() {
+			logLength := 0
+			var (
+				route string
+				app   string
+			)
+
+			BeforeEach(func() {
+				app = newAppName()
+				out := makeApp(app, 1, true)
+				routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+				route = string(routeRegexp.Find([]byte(out)))
+
+				var urlArgs = []string{}
+				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
+				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsConn := makeWebSocketConnection(wsURL)
+
+				By("read the logs")
+				var logs string
+				Eventually(func() bool {
+					_, message, err := wsConn.ReadMessage()
+					logLength++
+					logs = fmt.Sprintf("%s %s", logs, string(message))
+					return websocket.IsCloseError(err, websocket.CloseNormalClosure)
+				}, 30*time.Second, 1*time.Second).Should(BeTrue())
+
+				By("checking if the logs are right")
+				podNames := getPodNames(app, org, 1)
+				for _, podName := range podNames {
+					Expect(logs).To(ContainSubstring(podName))
+				}
+
+				err := wsConn.Close()
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("should follow logs", func() {
+				defer deleteApp(app)
+
+				var urlArgs = []string{}
+				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
+				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsConn := makeWebSocketConnection(wsURL)
+
+				By("get to the end of logs")
+				for i := 0; i < logLength-1; i++ {
+					_, message, err := wsConn.ReadMessage()
+					Expect(err).NotTo(HaveOccurred())
+					Expect(message).NotTo(BeNil())
+				}
+
+				By("adding more logs")
+				Eventually(func() int {
+					resp, err := Curl("GET", route, strings.NewReader(""))
+					Expect(err).ToNot(HaveOccurred())
+					return resp.StatusCode
+				}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+
+				By("checking the latest log message")
+				_, message, err := wsConn.ReadMessage()
+				Expect(err).NotTo(HaveOccurred())
+				Expect(message).NotTo(BeNil())
+				Expect(string(message)).To(ContainSubstring("GET / HTTP/1.1"))
+
+				err = wsConn.Close()
+				Expect(err).ToNot(HaveOccurred())
 			})
 		})
 	})

@@ -2,6 +2,7 @@ package acceptance_test
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/websocket"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -257,4 +259,25 @@ func verifyOrgNotExist(org string) {
 	out, err := Epinio("org list", "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).ToNot(MatchRegexp(org))
+}
+
+func makeWebSocketConnection(url string) *websocket.Conn {
+	headers := http.Header{
+		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", epinioUser, epinioPassword)))},
+	}
+	ws, response, err := websocket.DefaultDialer.Dial(url, headers)
+	Expect(err).NotTo(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(http.StatusSwitchingProtocols))
+	return ws
+}
+
+func getPodNames(appName, orgName string, replicas int) []string {
+	var podNames []string
+	for i := 0; i < replicas; i++ {
+		out, err := helpers.Kubectl(fmt.Sprintf("get pods -n %s -o=jsonpath='{.items[%d].metadata.name}'", orgName, i))
+		Expect(err).NotTo(HaveOccurred())
+		podNames = append(podNames, out)
+	}
+
+	return podNames
 }
