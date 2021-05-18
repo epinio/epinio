@@ -28,6 +28,9 @@ spec:
     - name: IMAGE
       type: string
       description: "The container image for the application Deployment"
+    - name: STAGE_ID
+      type: string
+      description: "The identifier of the unique staging process"
   tasks:
   - name: clone
     taskRef:
@@ -70,6 +73,8 @@ spec:
         value: $(params.INSTANCES)
       - name: IMAGE
         value: "$(params.IMAGE)"
+      - name: STAGE_ID
+        value: "$(params.STAGE_ID)"
     runAfter:
     - stage
     workspaces:
@@ -120,6 +125,8 @@ spec:
       type: string
     - name: IMAGE
       type: string
+    - name: STAGE_ID
+      type: string
   steps:
   - name: run
     image: lachlanevenson/k8s-kubectl
@@ -150,7 +157,6 @@ spec:
             metadata:
               labels:
                 app.kubernetes.io/name: "$(params.APP_NAME)"
-                epinio.suse.org/image-id: "$(params.IMAGE_ID)"
                 epinio.suse.org/stage-id: "$(params.STAGE_ID)"
                 app.kubernetes.io/part-of: "$(params.ORG)"
                 app.kubernetes.io/component: application

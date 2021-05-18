@@ -991,17 +991,18 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 
 	c.ui.Normal().Msg("Staging application ...")
 
+	route := c.GiteaClient.AppDefaultRoute(app)
 	appRef := models.AppRef{Name: app, Org: c.Config.Org}
 	req := &models.StageRequest{
 		App:       appRef,
-		Image:     upload.Image,
 		Instances: params.Instances,
 		Git:       upload.Git,
+		Route:     route,
 	}
-	details.Info("staging code", "ImageID", upload.Image.ID)
+	details.Info("staging code", "Git", upload.Git.Revision)
 	out, err := json.Marshal(req)
 	if err != nil {
-		return errors.Wrap(err, "can't marshall upload response")
+		return errors.Wrap(err, "can't marshal upload response")
 	}
 
 	b, err = c.post(api.Routes.Path("AppStage", c.Config.Org, app), string(out))
@@ -1029,9 +1030,8 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 		return errors.Wrap(err, "waiting for staging failed")
 	}
 
-	details.Info("wait for app", "ImageID", upload.Image.ID)
-	// TODO cannot use stage.Stage.ID
-	err = c.waitForApp(c.Config.Org, app, upload.Image.ID)
+	details.Info("wait for app", "StageID", stage.Stage.ID)
+	err = c.waitForApp(c.Config.Org, app, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -1063,7 +1063,7 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	c.ui.Success().
 		WithStringValue("Name", app).
 		WithStringValue("Organization", c.Config.Org).
-		WithStringValue("Route", fmt.Sprintf("https://%s", upload.Route)).
+		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
 		Msg("App is online.")
 
 	return nil
@@ -1212,7 +1212,7 @@ func (c *EpinioClient) waitForPipelineRun(org, name, id string) error {
 func (c *EpinioClient) waitForApp(org, name, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 	err := c.KubeClient.WaitUntilPodBySelectorExist(
-		c.ui, org, fmt.Sprintf("app.kubernetes.io/name=%s,%s=%s", name, models.EpinioImageIDLabel, id),
+		c.ui, org, fmt.Sprintf("app.kubernetes.io/name=%s,%s=%s", name, models.EpinioStageIDLabel, id),
 		duration.ToAppBuilt())
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to be created failed")

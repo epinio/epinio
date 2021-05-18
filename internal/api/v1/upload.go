@@ -73,9 +73,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	log.Info("uploaded app", "org", org, "app", app)
 
 	resp := models.UploadResponse{
-		Image: app.Image,
-		Git:   app.Git,
-		Route: app.Route,
+		Git: app.Git,
 	}
 	err = jsonResponse(w, resp)
 	if err != nil {

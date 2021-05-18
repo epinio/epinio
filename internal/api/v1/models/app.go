@@ -3,7 +3,6 @@ package models
 import "fmt"
 
 const (
-	EpinioImageIDLabel = "epinio.suse.org/image-id"
 	EpinioStageIDLabel = "epinio.suse.org/stage-id"
 )
 
@@ -31,7 +30,7 @@ func (a *App) GitURL(server string) string {
 // later used in app.yml.  Since the final commit is not known when the app.yml
 // is written, we cannot use Repo.Revision
 func (a *App) ImageURL(server string) string {
-	return fmt.Sprintf("%s/%s-%s", server, a.Name, a.Image.ID)
+	return fmt.Sprintf("%s/%s-%s", server, a.Name, a.Git.Revision)
 }
 
 // AppRef references an App by name and org

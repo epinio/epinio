@@ -56,7 +56,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	req := models.StageRequest{}
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
-		return singleError(err, http.StatusInternalServerError)
+		return NewAPIErrors(NewAPIError("Failed to construct an Application from the request", err.Error(), http.StatusBadRequest))
 	}
 
 	if name != req.App.Name {
@@ -87,8 +87,9 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return singleInternalError(err, "failed to get access to a tekton client")
 	}
 
-	// return if another run for this imageID is running; one imageID == one stagingID at the same time
-	l, err := client.List(ctx, metav1.ListOptions{LabelSelector: models.EpinioImageIDLabel + "=" + req.Image.ID})
+	l, err := client.List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", req.App.Name, req.App.Org),
+	})
 	if err != nil {
 		return singleError(err, http.StatusInternalServerError)
 	}
@@ -101,9 +102,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 
 	app := models.App{
-		AppRef: req.App,
-		Image:  req.Image,
-		Git:    req.Git,
+		AppRef:    req.App,
+		Git:       req.Git,
+		Route:     req.Route,
+		Instances: int32(req.Instances),
 	}
 
 	pr := newPipelineRun(uid, app)
@@ -151,7 +153,6 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,
-				models.EpinioImageIDLabel:      app.Image.ID,
 				models.EpinioStageIDLabel:      uid,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
@@ -166,6 +167,7 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 				{Name: "ROUTE", Value: *v1beta1.NewArrayOrString(app.Route)},
 				{Name: "INSTANCES", Value: *v1beta1.NewArrayOrString(strconv.Itoa(int(app.Instances)))},
 				{Name: "IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(gitea.LocalRegistry))},
+				{Name: "STAGE_ID", Value: *v1beta1.NewArrayOrString(uid)},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
