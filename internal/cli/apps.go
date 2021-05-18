@@ -86,6 +86,7 @@ var CmdAppShow = &cobra.Command{
 	},
 }
 
+// TODO: When pushing the app again after scaling the instances is reset (?)
 // CmdAppShow implements the epinio `apps show` command
 var CmdAppUpdate = &cobra.Command{
 	Use:   "update NAME",

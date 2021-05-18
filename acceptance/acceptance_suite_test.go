@@ -453,22 +453,22 @@ func checkDependencies() error {
 }
 
 func FailWithReport(message string, callerSkip ...int) {
-	fmt.Println("\nA test failed. You may find the following information useful for debugging:")
-	fmt.Println("The cluster pods: ")
-	out, err := helpers.Kubectl("get pods --all-namespaces")
-	if err != nil {
-		fmt.Print(err.Error())
-	} else {
-		fmt.Print(out)
-	}
+	// fmt.Println("\nA test failed. You may find the following information useful for debugging:")
+	// fmt.Println("The cluster pods: ")
+	// out, err := helpers.Kubectl("get pods --all-namespaces")
+	// if err != nil {
+	// 	fmt.Print(err.Error())
+	// } else {
+	// 	fmt.Print(out)
+	// }
 
-	fmt.Println("The cluster deployments: ")
-	out, err = helpers.Kubectl("get deployments --all-namespaces")
-	if err != nil {
-		fmt.Print(err.Error())
-	} else {
-		fmt.Print(out)
-	}
+	// fmt.Println("The cluster deployments: ")
+	// out, err = helpers.Kubectl("get deployments --all-namespaces")
+	// if err != nil {
+	// 	fmt.Print(err.Error())
+	// } else {
+	// 	fmt.Print(out)
+	// }
 
 	// Ensures the correct line numbers are reported
 	Fail(message, callerSkip[0]+1)

@@ -23,6 +23,42 @@ import (
 var _ = Describe("Apps API Application Endpoints", func() {
 	var org string
 
+	uploadRequest := func(url, path string) (*http.Request, error) {
+		file, err := os.Open(path)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to open tarball")
+		}
+		defer file.Close()
+
+		// create multipart form
+		body := &bytes.Buffer{}
+		writer := multipart.NewWriter(body)
+		part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create multiform part")
+		}
+
+		_, err = io.Copy(part, file)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to write to multiform part")
+		}
+
+		err = writer.Close()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to close multiform")
+		}
+
+		// make the request
+		request, err := http.NewRequest("POST", url, body)
+		request.SetBasicAuth(epinioUser, epinioPassword)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build request")
+		}
+		request.Header.Add("Content-Type", writer.FormDataContentType())
+
+		return request, nil
+	}
+
 	appStatus := func(org, app string) string {
 		response, err := Curl("GET",
 			fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
@@ -243,64 +279,21 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	Context("Uploading", func() {
 
 		var (
-			url       string
-			path      string
-			instances string
-			request   *http.Request
+			url     string
+			path    string
+			request *http.Request
 		)
-
-		uploadRequest := func(url, path, instances string) (*http.Request, error) {
-			file, err := os.Open(path)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to open tarball")
-			}
-			defer file.Close()
-
-			// create multipart form
-			body := &bytes.Buffer{}
-			writer := multipart.NewWriter(body)
-			part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to create multiform part")
-			}
-
-			_, err = io.Copy(part, file)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to write to multiform part")
-			}
-
-			err = writer.WriteField("instances", instances)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to add instances multiform field")
-			}
-
-			err = writer.Close()
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to close multiform")
-			}
-
-			// make the request
-			request, err := http.NewRequest("POST", url, body)
-			request.SetBasicAuth(epinioUser, epinioPassword)
-			if err != nil {
-				return nil, errors.Wrap(err, "failed to build request")
-			}
-			request.Header.Add("Content-Type", writer.FormDataContentType())
-
-			return request, nil
-		}
 
 		JustBeforeEach(func() {
 			url = serverURL + "/" + v1.Routes.Path("AppUpload", org, "testapp")
 			var err error
-			request, err = uploadRequest(url, path, instances)
+			request, err = uploadRequest(url, path)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		When("uploading a broken tarball", func() {
 			BeforeEach(func() {
 				path = "../fixtures/untar.tgz"
-				instances = "1"
 			})
 
 			It("returns an error response", func() {
@@ -325,7 +318,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		When("uploading a new dir", func() {
 			BeforeEach(func() {
 				path = "../fixtures/sample-app.tar"
-				instances = "1"
 			})
 
 			It("returns the app response", func() {
@@ -342,48 +334,112 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				err = json.Unmarshal(bodyBytes, &r)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(r.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
-				Expect(r.Image.ID).ToNot(BeEmpty())
 				Expect(r.Git.URL).ToNot(BeEmpty())
 				Expect(r.Git.Revision).ToNot(BeEmpty())
 			})
 		})
 
-		When("uploading with more instances", func() {
-			BeforeEach(func() {
-				path = "../fixtures/sample-app.tar"
-				instances = "2"
-			})
+	})
 
-			It("returns the app response", func() {
-				resp, err := (&http.Client{}).Do(request)
+	Context("Staging", func() {
+		var (
+			url     string
+			body    string
+			appName string
+			request models.StageRequest
+		)
+
+		BeforeEach(func() {
+			org = newOrgName()
+			setupAndTargetOrg(org)
+			appName = newAppName()
+
+			// First upload to allow staging to succeed
+			uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
+			uploadPath := "../fixtures/sample-app.tar"
+			uploadRequest, err := uploadRequest(uploadURL, uploadPath)
+			Expect(err).ToNot(HaveOccurred())
+			resp, err := (&http.Client{}).Do(uploadRequest)
+			Expect(err).ToNot(HaveOccurred())
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			respObj := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &respObj)
+			Expect(err).ToNot(HaveOccurred())
+
+			request = models.StageRequest{
+				App: models.AppRef{
+					Name: appName,
+					Org:  org,
+				},
+				Instances: 1,
+				Git: &models.GitRef{
+					Revision: respObj.Git.Revision,
+					URL:      respObj.Git.URL,
+				},
+				Route: appName + ".omg.howdoi.website",
+			}
+
+			url = serverURL + "/" + v1.Routes.Path("AppStage", org, appName)
+		})
+
+		JustBeforeEach(func() {
+			bodyBytes, err := json.Marshal(request)
+			Expect(err).ToNot(HaveOccurred())
+			body = string(bodyBytes)
+		})
+
+		When("staging a new app", func() {
+			It("returns a success", func() {
+				response, err := Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
-				Expect(resp).ToNot(BeNil())
-				defer resp.Body.Close()
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
 
-				bodyBytes, err := ioutil.ReadAll(resp.Body)
+				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-				r := &models.UploadResponse{}
-				err = json.Unmarshal(bodyBytes, &r)
-				Expect(err).ToNot(HaveOccurred())
-
-				Expect(r.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
-				Expect(r.Image.ID).ToNot(BeEmpty())
-				Expect(r.Git.URL).ToNot(BeEmpty())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 			})
 		})
 
-		When("uploading with invalid instances", func() {
+		When("staging with more instances", func() {
+			BeforeEach(func() {
+				request.Instances = 2
+			})
+
+			It("creates an app with the specified number of instances", func() {
+				response, err := Curl("POST", url, strings.NewReader(body))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+
+				Eventually(func() int {
+					response, err := Curl("GET",
+						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, appName),
+						strings.NewReader(""))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
+					defer response.Body.Close()
+					return response.StatusCode
+				}, "2m").Should(Equal(200))
+
+				Eventually(func() string {
+					return appStatus(org, appName)
+				}, "2m").Should(Equal("2/2"))
+			})
+		})
+
+		When("staging with invalid instances", func() {
 			When("instances is not a integer", func() {
 				BeforeEach(func() {
-					path = "../fixtures/sample-app.tar"
-					instances = "3.14"
+					request.Instances = 314 // Hack: see below too
 				})
 
 				It("returns BadRequest", func() {
-					resp, err := (&http.Client{}).Do(request)
+					// Hack to make the Instances value non-integer
+					body = strings.Replace(body, "314", "3.14", 1)
+
+					resp, err := Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(resp).ToNot(BeNil())
 					defer resp.Body.Close()
@@ -398,18 +454,20 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					responseErr := r.Errors[0]
 					Expect(responseErr.Status).To(Equal(400))
-					Expect(responseErr.Title).To(Equal("instances param should be an integer"))
+					Expect(responseErr.Title).To(Equal("Failed to construct an Application from the request"))
+					Expect(responseErr.Details).To(MatchRegexp(
+						"cannot unmarshal number 3.14 into Go struct field StageRequest.instances of type int",
+					))
 				})
 			})
 
 			When("instances is a negative integer", func() {
 				BeforeEach(func() {
-					path = "../fixtures/sample-app.tar"
-					instances = "-3"
+					request.Instances = -3
 				})
 
 				It("returns BadRequest", func() {
-					resp, err := (&http.Client{}).Do(request)
+					resp, err := Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(resp).ToNot(BeNil())
 					defer resp.Body.Close()
@@ -430,12 +488,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			When("instances is not a number", func() {
 				BeforeEach(func() {
-					path = "../fixtures/sample-app.tar"
-					instances = "thisisnotanumber"
+					request.Instances = 314 // Hack: see below
 				})
 
 				It("returns BadRequest", func() {
-					resp, err := (&http.Client{}).Do(request)
+					// Hack to make the Instances value non-number
+					body = strings.Replace(body, "314", "thisisnotanumber", 1)
+
+					resp, err := Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(resp).ToNot(BeNil())
 					defer resp.Body.Close()
@@ -450,34 +510,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					responseErr := r.Errors[0]
 					Expect(responseErr.Status).To(Equal(400))
-					Expect(responseErr.Title).To(Equal("instances param should be an integer"))
+					Expect(responseErr.Title).To(Equal("Failed to construct an Application from the request"))
 				})
-			})
-		})
-	})
-
-	Context("Staging", func() {
-		var (
-			url  string
-			body string
-		)
-
-		BeforeEach(func() {
-			url = serverURL + "/" + v1.Routes.Path("AppStage", org, "testapp")
-			body = fmt.Sprintf(`{"app":{"name":"testapp","org":"%s"},"image":{"id":"d516ad09"},"git":{"revision":"ceed03cd261d6c1f27d7bf997b78e","url":"http://gitea.172.27.0.2.omg.howdoi.website"}}`, org)
-		})
-
-		When("staging a new app", func() {
-			// but the pipelinerun will fail
-			It("returns a success", func() {
-				response, err := Curl("POST", url, strings.NewReader(body))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 			})
 		})
 	})

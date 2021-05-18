@@ -27,19 +27,20 @@ func (c *Client) Upload(app *models.App, tmpDir string) error {
 		return errors.Wrap(err, "failed to create application")
 	}
 
-	app.Route = c.AppDefaultRoute(name)
-
-	// sets repo.url, imageID
-	err = c.prepareCode(app, tmpDir)
+	u, err := url.Parse(c.URL)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to parse gitea url")
+	}
+	u.User = url.UserPassword(c.Username, c.Password)
+	u.Path = path.Join(u.Path, app.Org, app.Name)
+
+	// mutates app and sets repo.revision
+	rev, err := c.gitPush(u.String(), tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "failed to get latest app commit")
 	}
 
-	// sets repo.revision
-	err = c.gitPush(app, tmpDir)
-	if err != nil {
-		return err
-	}
+	app.Git = &models.GitRef{URL: c.URL, Revision: rev}
 
 	return nil
 }
@@ -72,30 +73,8 @@ func (c *Client) createRepo(org string, name string) error {
 	return nil
 }
 
-// prepareCode - add the deployment info files
-func (c *Client) prepareCode(app *models.App, tmpDir string) error {
-	commit, _, err := c.Client.GetSingleCommit(app.Org, app.Name, "HEAD")
-	if err != nil {
-		return errors.Wrap(err, "failed to get latest app commit")
-	}
-
-	// SHA of first commit, used in app.yml, which is part of second commit
-	app.Image = models.ImageRef{ID: commit.RepoCommit.Tree.SHA[:8]}
-	app.Git = &models.GitRef{URL: c.URL}
-
-	return nil
-}
-
 // gitPush the app data
-func (c *Client) gitPush(app *models.App, tmpDir string) error {
-	u, err := url.Parse(c.URL)
-	if err != nil {
-		return errors.Wrap(err, "failed to parse gitea url")
-	}
-
-	u.User = url.UserPassword(c.Username, c.Password)
-	u.Path = path.Join(u.Path, app.Org, app.Name)
-
+func (c *Client) gitPush(remote string, tmpDir string) (string, error) {
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
 cd "%s" 
 git init
@@ -107,11 +86,11 @@ git reset --soft epinio/main
 git add --all
 git commit -m "pushed at %s"
 git push epinio %s:main
-`, tmpDir, u.String(), time.Now().Format("20060102150405"), "`git branch --show-current`"))
+`, tmpDir, remote, time.Now().Format("20060102150405"), "`git branch --show-current`"))
 
-	_, err = cmd.CombinedOutput()
+	_, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "push script failed")
+		return "", errors.Wrap(err, "push script failed")
 	}
 
 	// extract commit sha
@@ -122,10 +101,9 @@ git rev-parse HEAD
 
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return errors.Wrap(err, "failed to determine last commit")
+		return "", errors.Wrap(err, "failed to determine last commit")
 	}
 
-	// SHA of second commit
-	app.Git.Revision = strings.TrimSuffix(string(out), "\n")
-	return nil
+	rev := strings.TrimSuffix(string(out), "\n")
+	return rev, nil
 }
