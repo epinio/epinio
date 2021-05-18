@@ -1,7 +1,6 @@
-package models
-
-// The structures in this package encapsulate the requested and
+// Package models contains structures encapsulating the requested and
 // response data used by the communication between cli and api server.
+package models
 
 type ServiceResponse struct {
 	Name      string   `json:"name"`
@@ -40,3 +39,21 @@ type UpdateAppRequest struct {
 }
 
 // TODO: CreateOrgRequest
+
+// UploadRequest is a multipart form
+
+type UploadResponse struct {
+	Image ImageRef `json:"image,omitempty"`
+	Git   *GitRef  `json:"git,omitempty"`
+	Route string   `json:"route,omitempty"`
+}
+
+type StageRequest struct {
+	App   AppRef   `json:"app,omitempty"`
+	Image ImageRef `json:"image,omitempty"`
+	Git   *GitRef  `json:"git,omitempty"`
+}
+
+type StageResponse struct {
+	Stage StageRef `json:"stage,omitempty"`
+}

@@ -338,16 +338,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				r := &v1.AppResponse{}
+				r := &models.UploadResponse{}
 				err = json.Unmarshal(bodyBytes, &r)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(r.Message).To(ContainSubstring("ok"))
-				Expect(r.App.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
-				Expect(r.App.Name).To(Equal("testapp"))
-				Expect(r.App.Org).To(Equal(org))
-				Expect(r.App.Repo.URL).ToNot(BeEmpty())
-				Expect(r.App.Repo.Revision).ToNot(BeEmpty())
+				Expect(r.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
+				Expect(r.Image.ID).ToNot(BeEmpty())
+				Expect(r.Git.URL).ToNot(BeEmpty())
+				Expect(r.Git.Revision).ToNot(BeEmpty())
 			})
 		})
 
@@ -367,16 +365,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				r := &v1.AppResponse{}
+				r := &models.UploadResponse{}
 				err = json.Unmarshal(bodyBytes, &r)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(r.Message).To(ContainSubstring("ok"))
-				Expect(r.App.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
-				Expect(r.App.Name).To(Equal("testapp"))
-				Expect(r.App.Org).To(Equal(org))
-				Expect(r.App.Repo.URL).ToNot(BeEmpty())
-				Expect(r.App.Instances).To(Equal(int32(2)))
+				Expect(r.Route).To(MatchRegexp(`testapp\..*\.omg\.howdoi\.website`))
+				Expect(r.Image.ID).ToNot(BeEmpty())
+				Expect(r.Git.URL).ToNot(BeEmpty())
 			})
 		})
 
@@ -469,8 +464,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		BeforeEach(func() {
 			url = serverURL + "/" + v1.Routes.Path("AppStage", org, "testapp")
-			body = fmt.Sprintf(`{"Name":"testapp","Org":"%s","Repo":{"Revision":"7730c8f3e6490c334397b3125da5173061d656ff","URL":"http://gitea.172.27.0.2.omg.howdoi.website"},"Route":"apps-786195048.172.27.0.2.omg.howdoi.website","ImageID":"9827b03f"}`, org)
-
+			body = fmt.Sprintf(`{"app":{"name":"testapp","org":"%s"},"image":{"id":"d516ad09"},"git":{"revision":"ceed03cd261d6c1f27d7bf997b78e","url":"http://gitea.172.27.0.2.omg.howdoi.website"}}`, org)
 		})
 
 		When("staging a new app", func() {

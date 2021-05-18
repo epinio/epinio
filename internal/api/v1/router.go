@@ -12,6 +12,17 @@ import (
 
 const v = "/api/v1"
 
+// jsonResponse writes the response struct as JSON to the writer
+func jsonResponse(w http.ResponseWriter, response interface{}) error {
+	w.Header().Set("Content-Type", "application/json")
+	js, err := json.Marshal(response)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(js)
+	return err
+}
+
 func errorHandler(action APIActionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		responseErrors := action(w, r)

@@ -7,6 +7,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -41,9 +42,11 @@ var _ = Describe("Apps", func() {
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
 
-			resp, err := Curl("GET", route, strings.NewReader(""))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			Eventually(func() int {
+				resp, err := Curl("GET", route, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
 			By("deleting the app")
 			deleteApp(appName)
