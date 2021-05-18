@@ -32,7 +32,7 @@ func TestAcceptance(t *testing.T) {
 var nodeSuffix, nodeTmpDir string
 
 // serverURL is the URL of the epinio API server
-var serverURL string
+var serverURL, websocketURL string
 var registryMirrorName = "epinio-acceptance-registry-mirror"
 
 const (
@@ -193,6 +193,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	serverURL = "http://" + out
+	websocketURL = "ws://" + out
 })
 
 var _ = SynchronizedAfterSuite(func() {
@@ -430,6 +431,24 @@ func Epinio(command string, dir string) (string, error) {
 	cmd := fmt.Sprintf(nodeTmpDir+"/epinio %s", command)
 
 	return RunProc(cmd, commandDir, false)
+}
+
+// GetKCommand retuns the KCommand without running it
+func GetKCommand(command string, dir string) (*kexec.KCommand, error) {
+	var err error
+
+	if dir == "" {
+		dir, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+	}
+	cmd := fmt.Sprintf(nodeTmpDir+"/epinio-darwin-amd64 %s", command)
+
+	p := kexec.CommandString(cmd)
+	p.Dir = dir
+
+	return p, nil
 }
 
 func checkDependencies() error {
