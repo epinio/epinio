@@ -35,6 +35,22 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
 		})
 
+		It("pushes and deletes golang app", func() {
+			out := makeGolangApp(appName, 1, true)
+
+			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+			route := string(routeRegexp.Find([]byte(out)))
+
+			Eventually(func() int {
+				resp, err := Curl("GET", route, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+
+			By("deleting the app")
+			deleteApp(appName)
+		})
+
 		It("pushes and deletes an app", func() {
 			By("pushing the app in the current working directory")
 			out := makeApp(appName, 1, true)

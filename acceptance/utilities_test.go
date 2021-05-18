@@ -87,7 +87,20 @@ func makeApp(appName string, instances int, deployFromCurrentDir bool) string {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	appDir := path.Join(currentDir, "../assets/sample-app")
 
+	return makeAppWithDir(appName, instances, deployFromCurrentDir, appDir)
+}
+
+func makeGolangApp(appName string, instances int, deployFromCurrentDir bool) string {
+	currentDir, err := os.Getwd()
+	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	appDir := path.Join(currentDir, "../assets/golang-sample-app")
+
+	return makeAppWithDir(appName, instances, deployFromCurrentDir, appDir)
+}
+
+func makeAppWithDir(appName string, instances int, deployFromCurrentDir bool, appDir string) string {
 	var pushOutput string
+	var err error
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
