@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -26,15 +27,31 @@ var NeededOptions = kubernetes.InstallationOptions{
 		Name:        "user",
 		Description: "The user name for authenticating all API requests",
 		Type:        kubernetes.StringType,
-		Default:     "me",
+		Default:     "",
 		Value:       "",
+		DynDefaultFunc: func(o *kubernetes.InstallationOption) error {
+			uid, err := randstr.Hex16()
+			if err != nil {
+				return err
+			}
+			o.Value = uid
+			return nil
+		},
 	},
 	{
 		Name:        "password",
 		Description: "The password for authenticating all API requests",
 		Type:        kubernetes.StringType,
-		Default:     "change",
+		Default:     "",
 		Value:       "",
+		DynDefaultFunc: func(o *kubernetes.InstallationOption) error {
+			uid, err := randstr.Hex16()
+			if err != nil {
+				return err
+			}
+			o.Value = uid
+			return nil
+		},
 	},
 }
 
