@@ -28,7 +28,7 @@ func (a *App) GitURL(server string) string {
 }
 
 // ImageURL returns the URL of the image, using the ImageID. The ImageURL is
-// later used in app.yml.  Since the final commit is not know when the app.yml
+// later used in app.yml.  Since the final commit is not known when the app.yml
 // is written, we cannot use Repo.Revision
 func (a *App) ImageURL(server string) string {
 	return fmt.Sprintf("%s/%s-%s", server, a.Name, a.Image.ID)

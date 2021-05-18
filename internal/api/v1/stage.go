@@ -80,7 +80,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return singleInternalError(err, "failed to get access to a tekton client")
 	}
 
-	// return if another run for this is imageID is running; one imageID == one stagingID at the same time
+	// return if another run for this imageID is running; one imageID == one stagingID at the same time
 	l, err := client.List(ctx, metav1.ListOptions{LabelSelector: models.EpinioImageIDLabel + "=" + req.Image.ID})
 	if err != nil {
 		return singleError(err, http.StatusInternalServerError)

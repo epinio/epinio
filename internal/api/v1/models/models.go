@@ -1,4 +1,4 @@
-// Package models contains structures to encapsulate the requested and
+// Package models contains structures encapsulating the requested and
 // response data used by the communication between cli and api server.
 package models
 
