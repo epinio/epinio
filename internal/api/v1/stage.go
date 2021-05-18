@@ -31,6 +31,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/names"
 )
 
 const (
@@ -214,6 +215,22 @@ func createCertificates(ctx context.Context, cfg *rest.Config, app models.App) e
 }
 
 func createCertificate(ctx context.Context, cfg *rest.Config, app models.App, systemDomain string, issuer string) error {
+	// Notes:
+	// - spec.CommonName is length-limited.
+	//   At most 64 characters are allowed, as per [RFC 3280](https://www.rfc-editor.org/rfc/rfc3280.txt).
+	//   That makes it a problem for long app name and domain combinations.
+	// - The spec.dnsNames (SAN, Subject Alternate Names) do not have such a limit.
+	// - Luckily CN is deprecated with regard to DNS checking.
+	//   The SANs are prefered and usually checked first.
+	//
+	// As such our solution is to
+	// - Keep the full app + domain in the spec.dnsNames/SAN.
+	// - Truncate the full app + domain in CN to 64 characters,
+	//   replace the tail with an MD5 suffix computed over the
+	//   full string as means of keeping the text unique across
+	//   apps.
+
+	cn := names.TruncateMD5(fmt.Sprintf("%s.%s", app.Name, systemDomain), 64)
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",
@@ -222,7 +239,7 @@ func createCertificate(ctx context.Context, cfg *rest.Config, app models.App, sy
 			"namespace": "%s"
 		},
 		"spec": {
-			"commonName" : "%s.%s",
+			"commonName" : "%s",
 			"secretName" : "%s-tls",
 			"dnsNames": [
 				"%s.%s"
@@ -232,7 +249,7 @@ func createCertificate(ctx context.Context, cfg *rest.Config, app models.App, sy
 				"kind" : "ClusterIssuer"
 			}
 		}
-        }`, app.Name, app.Org, app.Name, systemDomain, app.Name, app.Name, systemDomain, issuer)
+        }`, app.Name, app.Org, cn, app.Name, app.Name, systemDomain, issuer)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
