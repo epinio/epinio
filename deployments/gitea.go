@@ -9,6 +9,7 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -20,11 +21,51 @@ type Gitea struct {
 	Timeout time.Duration
 }
 
+// GiteaAuth wraps the gitea server credentials
+type GiteaAuth struct {
+	Username string
+	Password string
+}
+
 const (
+	GiteaProtocol     = "http"
+	GiteaPort         = "10080"
+	GiteaServiceName  = "gitea-http"
 	GiteaDeploymentID = "gitea"
+	GiteaURL          = GiteaProtocol + "://" + GiteaServiceName + "." + GiteaDeploymentID + ":" + GiteaPort
 	giteaVersion      = "2.1.3"
 	giteaChartURL     = "https://dl.gitea.io/charts/gitea-2.1.3.tgz"
 )
+
+var installAuthMemo *GiteaAuth
+
+func GetInstallAuth() (*GiteaAuth, error) {
+	if installAuthMemo == nil {
+		auth, err := randomAuth()
+		if err != nil {
+			return nil, err
+		}
+		installAuthMemo = auth
+	}
+	return installAuthMemo, nil
+}
+
+func randomAuth() (*GiteaAuth, error) {
+	user, err := randstr.Hex16()
+	if err != nil {
+		return nil, err
+	}
+
+	password, err := randstr.Hex16()
+	if err != nil {
+		return nil, err
+	}
+
+	return &GiteaAuth{
+		Username: user,
+		Password: password,
+	}, nil
+}
 
 func (k *Gitea) ID() string {
 	return GiteaDeploymentID
@@ -114,9 +155,21 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.In
 	}
 	subdomain := GiteaDeploymentID + "." + domain
 
+	// See deployments/tekton.go, func `createGiteaCredsSecret`
+	// for where `install` configures tekton for the same
+	// gitea.admin credentials.
+	//
+	// See internal/cli/clients/gitea/gitea.go, func
+	// `getGiteaCredentials` for where the cli retrieves the
+	// information for its own gitea client.
+	giteaAuth, err := GetInstallAuth()
+	if err != nil {
+		return err
+	}
+
 	config := fmt.Sprintf(`
 ingress:
-  enabled: true
+  enabled: false
   hosts:
     - %s
   annotations:
@@ -124,7 +177,7 @@ ingress:
 service:
   http:
     type: NodePort
-    port: 10080
+    port: %s
   ssh:
     type: NodePort
     port: 10022
@@ -132,8 +185,8 @@ service:
 
 gitea:
   admin:
-    username: "dev"
-    password: "changeme"
+    username: "%s"
+    password: "%s"
     email: "admin@epinio.sh"
   config:
     APP_NAME: "Epinio"
@@ -158,7 +211,7 @@ gitea:
     oauth2:
       ENABLE: true
       JWT_SECRET: HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
-`, subdomain, subdomain, "http://"+subdomain)
+`, subdomain, GiteaPort, giteaAuth.Username, giteaAuth.Password, subdomain, GiteaProtocol+"://"+subdomain)
 
 	configPath, err := helpers.CreateTmpFile(config)
 	if err != nil {

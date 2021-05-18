@@ -384,18 +384,29 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 }
 
 func (k Tekton) createGiteaCredsSecret(c *kubernetes.Cluster) error {
-	_, err := c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),
+	// See internal/cli/clients/gitea/gitea.go, func
+	// `getGiteaCredentials` for where the cli retrieves the
+	// information for its own gitea client.
+	//
+	// See deployments/gitea.go func `apply` where `install`
+	// configures gitea for the same credentials.
+
+	giteaAuth, err := GetInstallAuth()
+	if err != nil {
+		return err
+	}
+
+	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "gitea-creds",
 				Annotations: map[string]string{
-					//"kpack.io/git": fmt.Sprintf("http://%s.%s", GiteaDeploymentID, domain),
-					"tekton.dev/git-0": "http://gitea-http.gitea:10080", // TODO: Don't hardcode
+					"tekton.dev/git-0": GiteaURL,
 				},
 			},
 			StringData: map[string]string{
-				"username": "dev",
-				"password": "changeme",
+				"username": giteaAuth.Username,
+				"password": giteaAuth.Password,
 			},
 			Type: "kubernetes.io/basic-auth",
 		}, metav1.CreateOptions{})

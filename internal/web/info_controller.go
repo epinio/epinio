@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/version"
 )
 
@@ -16,13 +17,18 @@ func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	giteaClient, err := gitea.New()
+	if handleError(w, err, 500) {
+		return
+	}
+
 	platform := client.KubeClient.GetPlatform()
 	kubeVersion, err := client.KubeClient.GetVersion()
 	if handleError(w, err, 500) {
 		return
 	}
 	giteaVersion := "unavailable"
-	giteaFetchedVersion, resp, err := client.GiteaClient.Client.ServerVersion()
+	giteaFetchedVersion, resp, err := giteaClient.Client.ServerVersion()
 	if err == nil && resp != nil && resp.StatusCode == 200 {
 		giteaVersion = giteaFetchedVersion
 	}

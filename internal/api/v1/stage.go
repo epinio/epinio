@@ -30,11 +30,11 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/names"
 )
 
 const (
-	GiteaURL    = "http://gitea-http.gitea:10080"
 	RegistryURL = "registry.epinio-registry/apps"
 )
 
@@ -172,7 +172,7 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 						Type: v1alpha1.PipelineResourceTypeGit,
 						Params: []v1alpha1.ResourceParam{
 							{Name: "revision", Value: app.Git.Revision},
-							{Name: "url", Value: app.GitURL(GiteaURL)},
+							{Name: "url", Value: app.GitURL(deployments.GiteaURL)},
 						},
 					},
 				},
@@ -191,20 +191,20 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 }
 
 func createCertificates(ctx context.Context, cfg *rest.Config, app models.App) error {
-	c, err := gitea.New()
+	mainDomain, err := domain.MainDomain()
 	if err != nil {
 		return err
 	}
 
 	// Create production certificate if it is provided by user
 	// else create a local cluster self-signed tls secret.
-	if !strings.Contains(c.Domain, "omg.howdoi.website") {
-		err = createCertificate(ctx, cfg, app, c.Domain, "letsencrypt-production")
+	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+		err = createCertificate(ctx, cfg, app, mainDomain, "letsencrypt-production")
 		if err != nil {
 			return errors.Wrap(err, "create production ssl certificate failed")
 		}
 	} else {
-		err = createCertificate(ctx, cfg, app, c.Domain, "selfsigned-issuer")
+		err = createCertificate(ctx, cfg, app, mainDomain, "selfsigned-issuer")
 		if err != nil {
 			return errors.Wrap(err, "create local ssl certificate failed")
 		}
