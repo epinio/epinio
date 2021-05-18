@@ -391,6 +391,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("staging a new app", func() {
 			It("returns a success", func() {
+				defer func() { // Cleanup
+					Eventually(func() error {
+						_, err := Epinio("app delete "+appName, "")
+						return err
+					}, "2m").ShouldNot(HaveOccurred())
+				}()
+
 				response, err := Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -408,6 +415,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("creates an app with the specified number of instances", func() {
+				defer deleteApp(appName)
+
 				response, err := Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
