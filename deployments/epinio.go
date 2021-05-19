@@ -94,6 +94,11 @@ func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "Failed deleting namespace %s", EpinioDeploymentID)
 	}
 
+	err = c.WaitForNamespaceMissing(ui, EpinioDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
 	ui.Success().Msg("Epinio removed")
 
 	return nil

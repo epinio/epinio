@@ -126,6 +126,11 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
 	}
 
+	err = c.WaitForNamespaceMissing(ui, tektonNamespace, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
 	ui.Success().Msg("Tekton removed")
 
 	return nil
