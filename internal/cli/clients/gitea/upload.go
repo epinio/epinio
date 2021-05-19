@@ -34,7 +34,6 @@ func (c *Client) Upload(app *models.App, tmpDir string) error {
 	u.User = url.UserPassword(c.Username, c.Password)
 	u.Path = path.Join(u.Path, app.Org, app.Name)
 
-	// mutates app and sets repo.revision
 	rev, err := c.gitPush(u.String(), tmpDir)
 	if err != nil {
 		return errors.Wrap(err, "failed to get latest app commit")
