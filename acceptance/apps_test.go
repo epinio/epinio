@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	"bufio"
 	"fmt"
 	"net/http"
 	"os"
@@ -280,6 +281,62 @@ var _ = Describe("Apps", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
+		})
+	})
+
+	Describe("logs", func() {
+		var (
+			appName, route string
+			logLength      int
+		)
+
+		BeforeEach(func() {
+			appName = newAppName()
+			out := makeApp(appName, 1, true)
+			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
+			route = string(routeRegexp.Find([]byte(out)))
+
+			out, err := Epinio("app logs "+appName, "")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			podNames := getPodNames(appName, org, 1)
+			for _, podName := range podNames {
+				Expect(out).To(ContainSubstring(podName))
+			}
+			logs := strings.Split(out, "\n")
+			logLength = len(logs)
+		})
+
+		AfterEach(func() {
+			deleteApp(appName)
+		})
+
+		It("follows logs", func() {
+			p, err := GetKCommand("app logs --follow "+appName, "")
+			Expect(err).NotTo(HaveOccurred())
+
+			go p.Run()
+			reader, err := p.StdoutPipe()
+			Expect(err).NotTo(HaveOccurred())
+
+			By("read all the logs")
+			scanner := bufio.NewScanner(reader)
+			By("get to the end of logs")
+			for i := 0; i < logLength-3; i++ {
+				scanner.Scan()
+				scanner.Text()
+			}
+
+			By("adding new logs")
+			Eventually(func() int {
+				resp, err := Curl("GET", route, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+
+			By("checking the latest log")
+			scanner.Scan()
+			Expect(scanner.Text()).To(ContainSubstring("GET / HTTP/1.1"))
 		})
 	})
 })

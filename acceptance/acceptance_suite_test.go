@@ -443,7 +443,7 @@ func GetKCommand(command string, dir string) (*kexec.KCommand, error) {
 			return nil, err
 		}
 	}
-	cmd := fmt.Sprintf(nodeTmpDir+"/epinio-darwin-amd64 %s", command)
+	cmd := fmt.Sprintf(nodeTmpDir+"/epinio %s", command)
 
 	p := kexec.CommandString(cmd)
 	p.Dir = dir
