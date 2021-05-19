@@ -104,6 +104,7 @@ func Kubectl(command string) (string, error) {
 	return RunProc(cmd, currentdir, false)
 }
 
+// WaitForCommandCompletion prints progress dots until the func completes
 func WaitForCommandCompletion(ui *termui.UI, message string, funk ExternalFuncWithString) (string, error) {
 	s := ui.Progressf(" %s", message)
 	defer s.Stop()

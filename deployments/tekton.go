@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
@@ -189,13 +190,31 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	}
 
 	message := "Installing staging pipelines"
-	out, err := helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.KubectlApplyEmbeddedYaml(tektonPipelineYamlPath)
+	// Workaround for tekton webhook service not working, despite pod and deployment being ready
+	err = retry.Do(
+		func() error {
+			out, err := helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.KubectlApplyEmbeddedYaml(tektonPipelineYamlPath)
+				},
+			)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			}
+			ui.Success().Msgf("applied %s", tektonPipelineYamlPath)
+			return nil
 		},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "connection refused") ||
+				strings.Contains(err.Error(), "EOF")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
+		}),
+		retry.Delay(5*time.Second),
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return err
 	}
 
 	if err := k.createGiteaCredsSecret(c); err != nil {
@@ -231,7 +250,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	}
 
 	message = fmt.Sprintf("Creating registry certificates in %s", TektonStagingNamespace)
-	out, err = helpers.WaitForCommandCompletion(ui, message,
+	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
