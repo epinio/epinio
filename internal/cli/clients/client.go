@@ -1,3 +1,4 @@
+// Package clients contains all the CLI commands for the client
 package clients
 
 import (
@@ -10,17 +11,12 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -32,16 +28,11 @@ import (
 	"github.com/epinio/epinio/internal/services"
 
 	"github.com/go-logr/logr"
-	archiver "github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -905,8 +896,8 @@ func (c *EpinioClient) Orgs() error {
 // * validate
 // * upload
 // * stage
+// * (tail logs)
 // * wait for pipelinerun
-// * tail logs
 // * wait for app
 func (c *EpinioClient) Push(app string, source string, params PushParams) error {
 	log := c.Log.
@@ -943,48 +934,23 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	}
 
 	c.ui.Normal().Msg("Collecting the application sources ...")
-	files, err := ioutil.ReadDir(source)
-	if err != nil {
-		return errors.Wrap(err, "canot read the apps source files")
-	}
-	sources := []string{}
-	for _, f := range files {
-		// The FileInfo entries returned by ReadDir provide
-		// only the base name of the file or directory they
-		// are for. We have to add back the path of the
-		// application directory to get the proper paths to
-		// the files and directories to assemble in the
-		// tarball.
 
-		sources = append(sources, path.Join(source, f.Name()))
-	}
-	log.V(3).Info("found app data files", "files", sources)
-
-	// create a tmpDir - tarball dir and POST
-	tmpDir, err := ioutil.TempDir("", "epinio-app")
+	tmpDir, tarball, err := collectSources(log, source)
+	defer func() {
+		if tmpDir != "" {
+			_ = os.RemoveAll(tmpDir)
+		}
+	}()
 	if err != nil {
-		return errors.Wrap(err, "can't create temp directory")
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	tarball := path.Join(tmpDir, "blob.tar")
-	err = archiver.Archive(sources, tarball)
-	if err != nil {
-		return errors.Wrap(err, "can't create archive")
+		return err
 	}
 
 	c.ui.Normal().Msg("Uploading application code ...")
 
-	// upload blob to the server's uplad API endpoint
 	details.Info("upload code")
-	b, err := c.upload(api.Routes.Path("AppUpload", c.Config.Org, app), tarball, params)
+	appRef := models.AppRef{Name: app, Org: c.Config.Org}
+	upload, err := c.uploadCode(appRef, tarball)
 	if err != nil {
-		return errors.Wrap(err, "can't upload archive")
-	}
-
-	// returns git commit and app route
-	upload := &models.UploadResponse{}
-	if err := json.Unmarshal(b, upload); err != nil {
 		return err
 	}
 	log.V(3).Info("upload response", "response", upload)
@@ -992,46 +958,34 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	c.ui.Normal().Msg("Staging application ...")
 
 	route := c.GiteaClient.AppDefaultRoute(app)
-	appRef := models.AppRef{Name: app, Org: c.Config.Org}
-	req := &models.StageRequest{
+	req := models.StageRequest{
 		App:       appRef,
 		Instances: params.Instances,
 		Git:       upload.Git,
 		Route:     route,
 	}
 	details.Info("staging code", "Git", upload.Git.Revision)
-	out, err := json.Marshal(req)
+	stage, err := c.stageCode(req)
 	if err != nil {
-		return errors.Wrap(err, "can't marshal upload response")
-	}
-
-	b, err = c.post(api.Routes.Path("AppStage", c.Config.Org, app), string(out))
-	if err != nil {
-		return errors.Wrap(err, "can't stage app")
-	}
-
-	// returns staging ID
-	stage := &models.StageResponse{}
-	if err := json.Unmarshal(b, stage); err != nil {
 		return err
 	}
 	log.V(3).Info("stage response", "response", stage)
 
 	details.Info("start tailing logs", "StageID", stage.Stage.ID)
-	stopFunc, err := c.logs(app, c.Config.Org, stage.Stage.ID)
+	stopFunc, err := c.logs(appRef, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "failed to tail logs")
 	}
 	defer stopFunc()
 
 	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
-	err = c.waitForPipelineRun(c.Config.Org, app, stage.Stage.ID)
+	err = c.waitForPipelineRun(appRef, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "waiting for staging failed")
 	}
 
 	details.Info("wait for app", "StageID", stage.Stage.ID)
-	err = c.waitForApp(c.Config.Org, app, stage.Stage.ID)
+	err = c.waitForApp(appRef, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -1136,101 +1090,6 @@ func (c *EpinioClient) deleteCertificate(appName string) error {
 	return nil
 }
 
-func (c *EpinioClient) logs(appName, org, stageID string) (context.CancelFunc, error) {
-	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
-
-	ctx, cancelFunc := context.WithCancel(context.Background())
-
-	selector := labels.NewSelector()
-
-	for _, req := range [][]string{
-		{"app.kubernetes.io/managed-by", "epinio"},
-		{models.EpinioStageIDLabel, stageID},
-		{"app.kubernetes.io/part-of", org},
-		{"app.kubernetes.io/name", appName},
-	} {
-		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
-		if err != nil {
-			return cancelFunc, err
-		}
-		selector = selector.Add(*req)
-	}
-
-	err := tailer.Run(c.ui, ctx, &tailer.Config{
-		ContainerQuery:        regexp.MustCompile(".*"),
-		ExcludeContainerQuery: nil,
-		ContainerState:        "running",
-		Exclude:               nil,
-		Include:               nil,
-		Timestamps:            false,
-		Since:                 duration.LogHistory(),
-		AllNamespaces:         true,
-		LabelSelector:         selector,
-		TailLines:             nil,
-		Template:              tailer.DefaultSingleNamespaceTemplate(),
-		Namespace:             "",
-		PodQuery:              regexp.MustCompile(".*"),
-	}, c.KubeClient)
-	if err != nil {
-		return cancelFunc, errors.Wrap(err, "failed to start log tail")
-	}
-
-	return cancelFunc, nil
-}
-
-func (c *EpinioClient) waitForPipelineRun(org, name, id string) error {
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
-
-	cs, err := tekton.NewForConfig(c.KubeClient.RestConfig)
-	if err != nil {
-		return err
-	}
-	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
-
-	s := c.ui.Progressf("Waiting for pipelinerun %s", id)
-	defer s.Stop()
-
-	return wait.PollImmediate(time.Second, duration.ToAppBuilt(),
-		func() (bool, error) {
-			l, err := client.List(context.TODO(), metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
-			if err != nil {
-				return false, err
-			}
-			if len(l.Items) == 0 {
-				return false, nil
-			}
-			for _, pr := range l.Items {
-				if pr.Status.CompletionTime != nil {
-					return true, nil
-				}
-			}
-			// pr exists, but still running
-			return false, nil
-		})
-}
-
-func (c *EpinioClient) waitForApp(org, name, id string) error {
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
-	err := c.KubeClient.WaitUntilPodBySelectorExist(
-		c.ui, org, fmt.Sprintf("app.kubernetes.io/name=%s,%s=%s", name, models.EpinioStageIDLabel, id),
-		duration.ToAppBuilt())
-	if err != nil {
-		return errors.Wrap(err, "waiting for app to be created failed")
-	}
-
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
-
-	err = c.KubeClient.WaitForPodBySelectorRunning(
-		c.ui, org, fmt.Sprintf("app.kubernetes.io/name=%s", name),
-		duration.ToPodReady())
-
-	if err != nil {
-		return errors.Wrap(err, "waiting for app to come online failed")
-	}
-
-	return nil
-}
-
 func (c *EpinioClient) ServicesToApps(org string) (map[string]application.ApplicationList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
@@ -1278,7 +1137,7 @@ func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
 }
 
 // upload the given path as param "file" in a multipart form
-func (c *EpinioClient) upload(endpoint string, path string, params PushParams) ([]byte, error) {
+func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
 
 	// open the tarball
@@ -1299,11 +1158,6 @@ func (c *EpinioClient) upload(endpoint string, path string, params PushParams) (
 	_, err = io.Copy(part, file)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write to multiform part")
-	}
-
-	err = writer.WriteField("instances", strconv.Itoa(params.Instances))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to add instances multiform field")
 	}
 
 	err = writer.Close()
