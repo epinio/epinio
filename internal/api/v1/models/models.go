@@ -43,15 +43,14 @@ type UpdateAppRequest struct {
 // UploadRequest is a multipart form
 
 type UploadResponse struct {
-	Image ImageRef `json:"image,omitempty"`
-	Git   *GitRef  `json:"git,omitempty"`
-	Route string   `json:"route,omitempty"`
+	Git *GitRef `json:"git,omitempty"`
 }
 
 type StageRequest struct {
-	App   AppRef   `json:"app,omitempty"`
-	Image ImageRef `json:"image,omitempty"`
-	Git   *GitRef  `json:"git,omitempty"`
+	App       AppRef  `json:"app,omitempty"`
+	Instances int     `json:"instances"`
+	Git       *GitRef `json:"git,omitempty"`
+	Route     string  `json:"route,omitempty"`
 }
 
 type StageResponse struct {
