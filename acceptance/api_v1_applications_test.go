@@ -395,7 +395,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Eventually(func() error {
 						_, err := Epinio("app delete "+appName, "")
 						return err
-					}, "2m").ShouldNot(HaveOccurred())
+					}, "5m").ShouldNot(HaveOccurred())
 				}()
 
 				response, err := Curl("POST", url, strings.NewReader(body))
@@ -430,7 +430,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(response).ToNot(BeNil())
 					defer response.Body.Close()
 					return response.StatusCode
-				}, "2m").Should(Equal(200))
+				}, "5m").Should(Equal(200))
 
 				Eventually(func() string {
 					return appStatus(org, appName)
