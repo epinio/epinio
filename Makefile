@@ -27,6 +27,9 @@ build-windows: lint
 build-darwin: lint
 	GOARCH="amd64" GOOS="darwin" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-amd64
 
+build-s390x: lint
+	GOARCH="s390x" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-s390x
+
 build-images:
 	@./scripts/build-images.sh
 
