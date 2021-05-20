@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
 	"fmt"
@@ -439,18 +440,31 @@ func (k Tekton) createServiceAccountWithSecretAccess(c *kubernetes.Cluster) erro
 }
 
 func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
+
+	// Generate random credentials
+	registryAuth, err := RegistryInstallAuth()
+	if err != nil {
+		return err
+	}
+
+	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(
+		registryAuth.Username + ":" + registryAuth.Password))
+	jsonFull := fmt.Sprintf(`"auth":"%s","username":"%s","password":"%s"`,
+		encodedCredentials, registryAuth.Username, registryAuth.Password)
+	jsonPart := fmt.Sprintf(`"username":"%s","password":"%s"`,
+		registryAuth.Username, registryAuth.Password)
+
 	// TODO: Are all of these really used? We need tekton to be able to access
 	// the registry and also kubernetes (when we deploy our app deployments)
-	auths := `{ "auths": {
-		"https://127.0.0.1:30500":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
-		"http://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
-		 "registry.epinio-registry":{"username":"admin","password":"password"},
-		 "registry.epinio-registry:444":{"username":"admin","password":"password"} } }`
-	// NOTES:
-	// - The `YWRtaW46cGFzc3dvcmQ=` decodes to `admin:password`.
-	// - The relevant place in the registry is `deployments/registry.go`, func `apply`, see (**).
+	auths := fmt.Sprintf(`{ "auths": {
+		"https://127.0.0.1:30500":{%s},
+		"http://127.0.0.1:30501":{%s},
+		"registry.epinio-registry":{%s},
+		"registry.epinio-registry:444":{%s} } }`,
+		jsonFull, jsonFull, jsonPart, jsonPart)
+	// The relevant place in the registry is `deployments/registry.go`, func `apply`, see (**).
 
-	_, err := c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),
+	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "registry-creds",

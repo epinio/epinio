@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -27,6 +28,23 @@ const (
 	registryVersion      = "0.1.0"
 	registryChartFile    = "container-registry-0.1.0.tgz"
 )
+
+var registryAuthMemo *auth.PasswordAuth
+
+func RegistryInstallAuth() (*auth.PasswordAuth, error) {
+	if registryAuthMemo == nil {
+		auth, err := auth.RandomPasswordAuth()
+		if err != nil {
+			return nil, err
+		}
+		registryAuthMemo = auth
+		// registryAuthMemo = &auth.PasswordAuth{
+		// 	Username: "admin",
+		// 	Password: "password",
+		// }
+	}
+	return registryAuthMemo, nil
+}
 
 func (k *Registry) ID() string {
 	return RegistryDeploymentID
@@ -93,6 +111,12 @@ func (k Registry) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 }
 
 func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+	// Generate random credentials
+	registryAuth, err := RegistryInstallAuth()
+	if err != nil {
+		return err
+	}
+
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -121,10 +145,15 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 	}
 	defer os.Remove(tarPath)
 
+	htpasswd, err := registryAuth.Htpassword()
+	if err != nil {
+		return errors.Wrap(err, "Failed to hash credentials")
+	}
+
 	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
 	helmCmd := fmt.Sprintf("helm %s %s --set 'auth.htpasswd=%s' --namespace %s %s",
 		action, RegistryDeploymentID,
-		`admin:$2y$05$AoJtww.iEMm8FAOk40ZxtuwVCwhMNTPpw4/Ows9kqbui5UXmF.M16`,
+		htpasswd,
 		RegistryDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Registry: " + out)
