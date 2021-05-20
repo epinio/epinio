@@ -26,7 +26,10 @@ func init() {
 
 	updateFlags := CmdAppUpdate.Flags()
 	updateFlags.Int32P("instances", "i", 1, "The number of instances the application should have")
-	cobra.MarkFlagRequired(updateFlags, "instances")
+	err := cobra.MarkFlagRequired(updateFlags, "instances")
+	if err != nil {
+		panic(err)
+	}
 
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppList)

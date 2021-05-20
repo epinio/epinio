@@ -72,7 +72,7 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 		return nil, err
 	}
 	serverURL := epClient.URL
-	wsServerURL := epClient.WS_URL
+	wsServerURL := epClient.WsURL
 
 	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
@@ -1048,17 +1048,26 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	log.V(3).Info("stage response", "response", stage)
 
 	details.Info("start tailing logs", "StageID", stage.Stage.ID)
-	stopFunc, err := c.logs(appRef, stage.Stage.ID)
-	if err != nil {
-		return errors.Wrap(err, "failed to tail logs")
-	}
-	defer stopFunc()
+	// cancelFunc is used to stop the tailing of the logs
+	// TODO: Maybe not fetch logs at all when they are not going to be printed?
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go func() {
+		err := c.logs(ctx, appRef, stage.Stage.ID)
+		if err != nil {
+			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
+			return
+		}
+	}()
+	defer cancelFunc()
 
 	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
+	// TODO: Don't print dots when in verbose mode (because they appear between the log lines)
+	// TODO: Maybe fixed in the main branch? rebase.
 	err = c.waitForPipelineRun(appRef, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "waiting for staging failed")
 	}
+	cancelFunc() // Stop tailing logs, staging is done
 
 	details.Info("wait for app", "StageID", stage.Stage.ID)
 	err = c.waitForApp(appRef, stage.Stage.ID)

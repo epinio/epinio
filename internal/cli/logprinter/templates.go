@@ -1,4 +1,4 @@
-package tailer
+package logprinter
 
 import (
 	"encoding/json"

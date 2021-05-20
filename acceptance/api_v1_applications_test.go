@@ -565,7 +565,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				}, 30*time.Second, 1*time.Second).Should(BeTrue())
 
 				By("checking if the logs are right")
-				podNames := getPodNames(app, org, 1)
+				podNames := getPodNames(app, org)
 				for _, podName := range podNames {
 					Expect(logs).To(ContainSubstring(podName))
 				}

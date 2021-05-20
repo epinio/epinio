@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path"
-	"regexp"
 	"time"
 
 	"github.com/epinio/epinio/deployments"
-	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/mholt/archiver/v3"
@@ -19,8 +18,6 @@ import (
 	"github.com/spf13/viper"
 	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -92,46 +89,26 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 	return stage, nil
 }
 
-func (c *EpinioClient) logs(app models.AppRef, stageID string) (context.CancelFunc, error) {
+func (c *EpinioClient) logs(ctx context.Context, appRef models.AppRef, stageID string) error {
 	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-
-	selector := labels.NewSelector()
-
-	for _, req := range [][]string{
-		{"app.kubernetes.io/managed-by", "epinio"},
-		{models.EpinioStageIDLabel, stageID},
-		{"app.kubernetes.io/part-of", app.Org},
-		{"app.kubernetes.io/name", app.Name},
-	} {
-		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
-		if err != nil {
-			return cancelFunc, err
-		}
-		selector = selector.Add(*req)
-	}
-
-	err := tailer.Run(c.ui, ctx, &tailer.Config{
-		ContainerQuery:        regexp.MustCompile(".*"),
-		ExcludeContainerQuery: nil,
-		ContainerState:        "running",
-		Exclude:               nil,
-		Include:               nil,
-		Timestamps:            false,
-		Since:                 duration.LogHistory(),
-		AllNamespaces:         true,
-		LabelSelector:         selector,
-		TailLines:             nil,
-		Template:              tailer.DefaultSingleNamespaceTemplate(),
-		Namespace:             "",
-		PodQuery:              regexp.MustCompile(".*"),
-	}, c.KubeClient)
+	app := models.NewApp(appRef.Name, appRef.Org)
+	logChan, err := app.StagingLogs(ctx, c.KubeClient, true, stageID)
 	if err != nil {
-		return cancelFunc, errors.Wrap(err, "failed to start log tail")
+		return errors.Wrap(err, "failed to start log tail")
 	}
 
-	return cancelFunc, nil
+	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
+	for logLine := range logChan {
+		printer.Print(logprinter.Log{
+			Message:       logLine.Message,
+			Namespace:     logLine.Namespace,
+			PodName:       logLine.PodName,
+			ContainerName: logLine.ContainerName,
+		}, c.ui)
+	}
+
+	return nil
 }
 
 func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {

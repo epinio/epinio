@@ -299,7 +299,7 @@ var _ = Describe("Apps", func() {
 			out, err := Epinio("app logs "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			podNames := getPodNames(appName, org, 1)
+			podNames := getPodNames(appName, org)
 			for _, podName := range podNames {
 				Expect(out).To(ContainSubstring(podName))
 			}

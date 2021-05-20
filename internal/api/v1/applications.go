@@ -25,8 +25,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var upgrader = websocket.Upgrader{}
-
 type ApplicationsController struct {
 	conn *websocket.Conn
 }
