@@ -433,7 +433,7 @@ func Epinio(command string, dir string) (string, error) {
 	return RunProc(cmd, commandDir, false)
 }
 
-// GetKCommand retuns the KCommand without running it
+// GetKCommand returns the KCommand without running it
 func GetKCommand(command string, dir string) (*kexec.KCommand, error) {
 	var err error
 

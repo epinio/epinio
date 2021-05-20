@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/labels"
 )
@@ -29,6 +29,15 @@ type Config struct {
 	Template              *template.Template // Template to apply to log entries for formatting
 }
 
+// ContainerLogLine is an object that represents a line from the logs of a container.
+// It is what the Run() method returns through a channel
+type ContainerLogLine struct {
+	Message       string
+	ContainerName string
+	PodName       string
+	Namespace     string
+}
+
 // Notes on the above:
 //   - For containers `ContainerQuery` is applied before
 //     `ExcludeContainerQuery`. IOW use `CQ` to get an initial list of
@@ -37,18 +46,19 @@ type Config struct {
 //   - For log entries `Exclude` is applied before `Include`.
 
 // Run starts the log watching
-func Run(ui *termui.UI, ctx context.Context, config *Config, cluster *kubernetes.Cluster) error {
+func Run(ctx context.Context, config *Config, cluster *kubernetes.Cluster) (chan ContainerLogLine, error) {
 	var namespace string
+	containerLogsChan := make(chan ContainerLogLine, 10)
 
 	if config.AllNamespaces {
 		namespace = ""
 	} else if config.Namespace == "" {
-		return errors.New("no namespace set for tailing logs")
+		return nil, errors.New("no namespace set for tailing logs")
 	}
 
 	added, removed, err := Watch(ctx, cluster.Kubectl.CoreV1().Pods(namespace), config.PodQuery, config.ContainerQuery, config.ExcludeContainerQuery, config.ContainerState, config.LabelSelector)
 	if err != nil {
-		return errors.Wrap(err, "failed to set up watch")
+		return nil, errors.Wrap(err, "failed to set up watch")
 	}
 
 	tails := make(map[string]*Tail)
@@ -60,14 +70,16 @@ func Run(ui *termui.UI, ctx context.Context, config *Config, cluster *kubernetes
 				continue
 			}
 
-			tail := NewTail(ui, p.Namespace, p.Pod, p.Container, config.Template, &TailOptions{
-				Timestamps:   config.Timestamps,
-				SinceSeconds: int64(config.Since.Seconds()),
-				Exclude:      config.Exclude,
-				Include:      config.Include,
-				Namespace:    config.AllNamespaces,
-				TailLines:    config.TailLines,
-			})
+			tail := NewTail(containerLogsChan, p.Namespace, p.Pod, p.Container, config.Template,
+				tracelog.NewLogger().WithName("log-tracing"),
+				&TailOptions{
+					Timestamps:   config.Timestamps,
+					SinceSeconds: int64(config.Since.Seconds()),
+					Exclude:      config.Exclude,
+					Include:      config.Include,
+					Namespace:    config.AllNamespaces,
+					TailLines:    config.TailLines,
+				})
 			tails[id] = tail
 
 			tail.Start(ctx, cluster.Kubectl.CoreV1().Pods(p.Namespace))
@@ -85,5 +97,5 @@ func Run(ui *termui.UI, ctx context.Context, config *Config, cluster *kubernetes
 		}
 	}()
 
-	return nil
+	return containerLogsChan, nil
 }

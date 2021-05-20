@@ -12,8 +12,8 @@ import (
 // EpinioAPIClient provides functionality for talking to an Epinio API
 // server on Kubernetes
 type EpinioAPIClient struct {
-	URL    string
-	WS_URL string
+	URL   string
+	WsURL string
 }
 
 var epinioClientMemo *EpinioAPIClient
@@ -33,14 +33,14 @@ func GetEpinioAPIClient() (*EpinioAPIClient, error) {
 		return nil, err
 	}
 
-	epinioURL, epinioWSURL, err := getEpinioURL(configConfig, cluster)
+	epinioURL, epinioWsURL, err := getEpinioURL(configConfig, cluster)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve epinio api host")
 	}
 
 	epinioClient := &EpinioAPIClient{
-		URL:    epinioURL,
-		WS_URL: epinioWSURL,
+		URL:   epinioURL,
+		WsURL: epinioWsURL,
 	}
 
 	epinioClientMemo = epinioClient
