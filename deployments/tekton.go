@@ -391,7 +391,7 @@ func (k Tekton) createGiteaCredsSecret(c *kubernetes.Cluster) error {
 	// See deployments/gitea.go func `apply` where `install`
 	// configures gitea for the same credentials.
 
-	giteaAuth, err := GetInstallAuth()
+	giteaAuth, err := GiteaInstallAuth()
 	if err != nil {
 		return err
 	}

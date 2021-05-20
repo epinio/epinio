@@ -5,6 +5,7 @@ import (
 	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/pkg/errors"
 )
 
@@ -12,7 +13,7 @@ import (
 // Gitea installation on Kubernetes
 type Client struct {
 	Client *giteaSDK.Client
-	Auth   deployments.GiteaAuth
+	Auth   auth.PasswordAuth
 }
 
 const (
@@ -57,7 +58,7 @@ func New() (*Client, error) {
 }
 
 // getGiteaCredentials resolves Gitea's credentials
-func getGiteaCredentials(cluster *kubernetes.Cluster) (*deployments.GiteaAuth, error) {
+func getGiteaCredentials(cluster *kubernetes.Cluster) (*auth.PasswordAuth, error) {
 	// See deployments/tekton.go, func `createGiteaCredsSecret`
 	// for where `install` configures tekton for the credentials
 	// retrieved here.
@@ -79,7 +80,7 @@ func getGiteaCredentials(cluster *kubernetes.Cluster) (*deployments.GiteaAuth, e
 		return nil, errors.Wrap(err, "password key not found in gitea credentials secret")
 	}
 
-	return &deployments.GiteaAuth{
+	return &auth.PasswordAuth{
 		Username: string(username),
 		Password: string(password),
 	}, nil

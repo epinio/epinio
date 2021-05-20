@@ -9,8 +9,8 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -19,12 +19,6 @@ import (
 type Gitea struct {
 	Debug   bool
 	Timeout time.Duration
-}
-
-// GiteaAuth wraps the gitea server credentials
-type GiteaAuth struct {
-	Username string
-	Password string
 }
 
 const (
@@ -37,34 +31,17 @@ const (
 	giteaChartURL     = "https://dl.gitea.io/charts/gitea-2.1.3.tgz"
 )
 
-var installAuthMemo *GiteaAuth
+var giteaAuthMemo *auth.PasswordAuth
 
-func GetInstallAuth() (*GiteaAuth, error) {
-	if installAuthMemo == nil {
-		auth, err := randomAuth()
+func GiteaInstallAuth() (*auth.PasswordAuth, error) {
+	if giteaAuthMemo == nil {
+		auth, err := auth.RandomPasswordAuth()
 		if err != nil {
 			return nil, err
 		}
-		installAuthMemo = auth
+		giteaAuthMemo = auth
 	}
-	return installAuthMemo, nil
-}
-
-func randomAuth() (*GiteaAuth, error) {
-	user, err := randstr.Hex16()
-	if err != nil {
-		return nil, err
-	}
-
-	password, err := randstr.Hex16()
-	if err != nil {
-		return nil, err
-	}
-
-	return &GiteaAuth{
-		Username: user,
-		Password: password,
-	}, nil
+	return giteaAuthMemo, nil
 }
 
 func (k *Gitea) ID() string {
@@ -162,7 +139,7 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.In
 	// See internal/cli/clients/gitea/gitea.go, func
 	// `getGiteaCredentials` for where the cli retrieves the
 	// information for its own gitea client.
-	giteaAuth, err := GetInstallAuth()
+	giteaAuth, err := GiteaInstallAuth()
 	if err != nil {
 		return err
 	}

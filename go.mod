@@ -6,7 +6,6 @@ require (
 	code.gitea.io/sdk/gitea v0.13.2
 	github.com/Azure/go-autorest/autorest v0.11.17 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.10 // indirect
-	github.com/GehirnInc/crypt v0.0.0-20200316065508-bb7000b8a962
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
@@ -29,7 +28,7 @@ require (
 	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/tektoncd/pipeline v0.23.0
-	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
+	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
 	golang.org/x/tools v0.1.1 // indirect
 	k8s.io/api v0.20.5
