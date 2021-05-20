@@ -446,6 +446,9 @@ func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
 		"http://127.0.0.1:30501":{"auth": "YWRtaW46cGFzc3dvcmQ=", "username":"admin","password":"password"},
 		 "registry.epinio-registry":{"username":"admin","password":"password"},
 		 "registry.epinio-registry:444":{"username":"admin","password":"password"} } }`
+	// NOTES:
+	// - The `YWRtaW46cGFzc3dvcmQ=` decodes to `admin:password`.
+	// - The relevant place in the registry is `deployments/registry.go`, func `apply`, see (**).
 
 	_, err := c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),
 		&corev1.Secret{

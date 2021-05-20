@@ -121,7 +121,11 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --namespace %s %s", action, RegistryDeploymentID, RegistryDeploymentID, tarPath)
+	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
+	helmCmd := fmt.Sprintf("helm %s %s --set 'auth.htpasswd=%s' --namespace %s %s",
+		action, RegistryDeploymentID,
+		`admin:$2y$05$AoJtww.iEMm8FAOk40ZxtuwVCwhMNTPpw4/Ows9kqbui5UXmF.M16`,
+		RegistryDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Registry: " + out)
 	}

@@ -2,10 +2,10 @@
 apiVersion: v1
 kind: Secret
 metadata:
- name: auth
- namespace: {{ .Release.Namespace }}
+  name: auth
+  namespace: {{ .Release.Namespace }}
 stringData:
- htpasswd: 'admin:$2y$05$AoJtww.iEMm8FAOk40ZxtuwVCwhMNTPpw4/Ows9kqbui5UXmF.M16'
+  htpasswd:  {{ .Values.auth.htpasswd | quote }}
 ---
 apiVersion: v1
 kind: Service
