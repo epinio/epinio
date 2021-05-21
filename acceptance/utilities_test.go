@@ -272,13 +272,9 @@ func makeWebSocketConnection(url string) *websocket.Conn {
 }
 
 func getPodNames(appName, orgName string) []string {
-	var podNames []string
-	for i := 0; i < 1; i++ { // TODO: fix this
-		out, err := helpers.Kubectl(fmt.Sprintf("get pods -n %s --selector 'app.kubernetes.io/component=application,app.kubernetes.io/name=%s, app.kubernetes.io/part-of=%s'", orgName, appName, orgName))
+	jsonPath := `'{range .items[*]}{.metadata.name}{"\n"}{end}'`
+	out, err := helpers.Kubectl(fmt.Sprintf("get pods -n %s --selector 'app.kubernetes.io/component=application,app.kubernetes.io/name=%s, app.kubernetes.io/part-of=%s' -o=jsonpath=%s", orgName, appName, orgName, jsonPath))
+	Expect(err).NotTo(HaveOccurred())
 
-		Expect(err).NotTo(HaveOccurred())
-		podNames = append(podNames, out)
-	}
-
-	return podNames
+	return strings.Split(out, "\n")
 }
