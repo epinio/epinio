@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,10 +22,27 @@ type Gitea struct {
 }
 
 const (
+	GiteaProtocol     = "http"
+	GiteaPort         = "10080"
+	GiteaServiceName  = "gitea-http"
 	GiteaDeploymentID = "gitea"
+	GiteaURL          = GiteaProtocol + "://" + GiteaServiceName + "." + GiteaDeploymentID + ":" + GiteaPort
 	giteaVersion      = "2.1.3"
 	giteaChartURL     = "https://dl.gitea.io/charts/gitea-2.1.3.tgz"
 )
+
+var giteaAuthMemo *auth.PasswordAuth
+
+func GiteaInstallAuth() (*auth.PasswordAuth, error) {
+	if giteaAuthMemo == nil {
+		auth, err := auth.RandomPasswordAuth()
+		if err != nil {
+			return nil, err
+		}
+		giteaAuthMemo = auth
+	}
+	return giteaAuthMemo, nil
+}
 
 func (k *Gitea) ID() string {
 	return GiteaDeploymentID
@@ -114,9 +132,21 @@ func (k Gitea) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.In
 	}
 	subdomain := GiteaDeploymentID + "." + domain
 
+	// See deployments/tekton.go, func `createGiteaCredsSecret`
+	// for where `install` configures tekton for the same
+	// gitea.admin credentials.
+	//
+	// See internal/cli/clients/gitea/gitea.go, func
+	// `getGiteaCredentials` for where the cli retrieves the
+	// information for its own gitea client.
+	giteaAuth, err := GiteaInstallAuth()
+	if err != nil {
+		return err
+	}
+
 	config := fmt.Sprintf(`
 ingress:
-  enabled: true
+  enabled: false
   hosts:
     - %s
   annotations:
@@ -124,7 +154,7 @@ ingress:
 service:
   http:
     type: NodePort
-    port: 10080
+    port: %s
   ssh:
     type: NodePort
     port: 10022
@@ -132,8 +162,8 @@ service:
 
 gitea:
   admin:
-    username: "dev"
-    password: "changeme"
+    username: "%s"
+    password: "%s"
     email: "admin@epinio.sh"
   config:
     APP_NAME: "Epinio"
@@ -158,7 +188,7 @@ gitea:
     oauth2:
       ENABLE: true
       JWT_SECRET: HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
-`, subdomain, subdomain, "http://"+subdomain)
+`, subdomain, GiteaPort, giteaAuth.Username, giteaAuth.Password, subdomain, GiteaProtocol+"://"+subdomain)
 
 	configPath, err := helpers.CreateTmpFile(config)
 	if err != nil {

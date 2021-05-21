@@ -1,3 +1,9 @@
+
+# htpasswd encoded credentials for access to the registry.
+# Must be set on deployment.
+auth:
+  htpasswd: ~
+
 registry:
   image: registry:2.7.1
   imagePullPolicy: IfNotPresent

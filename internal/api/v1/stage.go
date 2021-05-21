@@ -2,11 +2,8 @@ package v1
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -29,14 +26,15 @@ import (
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/names"
 )
 
 const (
-	GiteaURL    = "http://gitea-http.gitea:10080"
 	RegistryURL = "registry.epinio-registry/apps"
 )
 
@@ -83,7 +81,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
 
-	uid, err := uid()
+	uid, err := randstr.Hex16()
 	if err != nil {
 		return singleInternalError(err, "failed to get access to a tekton client")
 	}
@@ -131,22 +129,6 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
-func uid() (string, error) {
-	randBytes := make([]byte, 16)
-	_, err := rand.Read(randBytes)
-	if err != nil {
-		return "", err
-	}
-
-	a := fnv.New64()
-	_, err = a.Write([]byte(string(randBytes)))
-	if err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(a.Sum(nil)), nil
-}
-
 func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -190,7 +172,7 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 						Type: v1alpha1.PipelineResourceTypeGit,
 						Params: []v1alpha1.ResourceParam{
 							{Name: "revision", Value: app.Git.Revision},
-							{Name: "url", Value: app.GitURL(GiteaURL)},
+							{Name: "url", Value: app.GitURL(deployments.GiteaURL)},
 						},
 					},
 				},
@@ -209,20 +191,20 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 }
 
 func createCertificates(ctx context.Context, cfg *rest.Config, app models.App) error {
-	c, err := gitea.New()
+	mainDomain, err := domain.MainDomain()
 	if err != nil {
 		return err
 	}
 
 	// Create production certificate if it is provided by user
 	// else create a local cluster self-signed tls secret.
-	if !strings.Contains(c.Domain, "omg.howdoi.website") {
-		err = createCertificate(ctx, cfg, app, c.Domain, "letsencrypt-production")
+	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+		err = createCertificate(ctx, cfg, app, mainDomain, "letsencrypt-production")
 		if err != nil {
 			return errors.Wrap(err, "create production ssl certificate failed")
 		}
 	} else {
-		err = createCertificate(ctx, cfg, app, c.Domain, "selfsigned-issuer")
+		err = createCertificate(ctx, cfg, app, mainDomain, "selfsigned-issuer")
 		if err != nil {
 			return errors.Wrap(err, "create local ssl certificate failed")
 		}

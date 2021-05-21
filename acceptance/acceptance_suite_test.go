@@ -472,7 +472,7 @@ func expectGoodInstallation() {
 	ExpectWithOffset(2, err).ToNot(HaveOccurred())
 	ExpectWithOffset(2, info).To(MatchRegexp("Platform: k3s"))
 	ExpectWithOffset(2, info).To(MatchRegexp("Kubernetes Version: v1.20"))
-	ExpectWithOffset(2, info).To(MatchRegexp("Gitea Version: 1.13"))
+	ExpectWithOffset(2, info).To(MatchRegexp("Gitea Version: unavailable"))
 }
 
 func setupGoogleServices() {

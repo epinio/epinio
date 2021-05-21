@@ -15,7 +15,6 @@ var (
 
 // Config represents a epinio config
 type Config struct {
-	GiteaProtocol  string `mapstructure:"gitea_protocol"`
 	EpinioProtocol string `mapstructure:"epinio_protocol"`
 	Org            string `mapstructure:"org"`
 	User           string `mapstructure:"user"`
@@ -39,8 +38,6 @@ func Load() (*Config, error) {
 	v.SetEnvPrefix("EPINIO")
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
-	v.SetDefault("gitea_namespace", "gitea")
-	v.SetDefault("gitea_protocol", "http")
 	v.SetDefault("epinio_protocol", "http")
 	v.SetDefault("org", "workspace")
 

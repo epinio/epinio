@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GehirnInc/crypt/apr1_crypt"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -119,9 +119,11 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return err
 	}
 
-	if out, err := k.applyEpinioConfigYaml(c, ui,
-		apiUser.Value.(string),
-		apiPassword.Value.(string)); err != nil {
+	auth := auth.PasswordAuth{
+		Username: apiUser.Value.(string),
+		Password: apiPassword.Value.(string),
+	}
+	if out, err := k.applyEpinioConfigYaml(c, ui, auth); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -198,7 +200,7 @@ func (k Epinio) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 }
 
 // Replaces ##current_epinio_version## with version.Version and applies the embedded yaml
-func (k Epinio) applyEpinioConfigYaml(c *kubernetes.Cluster, ui *termui.UI, user, pass string) (string, error) {
+func (k Epinio) applyEpinioConfigYaml(c *kubernetes.Cluster, ui *termui.UI, auth auth.PasswordAuth) (string, error) {
 	// (xxx) Apply traefik v2 middleware. This will fail for a
 	// traefik v1 controller.  Ignore error if it was due due to a
 	// missing Middleware CRD. That indicates presence of the
@@ -227,12 +229,11 @@ func (k Epinio) applyEpinioConfigYaml(c *kubernetes.Cluster, ui *termui.UI, user
 		return "", err
 	}
 
-	passhash, err := hashApr1(pass)
+	htpasswd, err := auth.Htpassword()
 	if err != nil {
 		return "", err
 	}
-	credentials := fmt.Sprintf("%s:%s", user, passhash)
-	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(credentials))
+	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(htpasswd))
 
 	re := regexp.MustCompile(`##current_epinio_version##`)
 	renderedFileContents := re.ReplaceAll(fileContents, []byte(version.Version))
@@ -309,15 +310,4 @@ func (k *Epinio) createIngress(c *kubernetes.Cluster, subdomain string) error {
 	)
 
 	return err
-}
-
-// hashApr1 generates an Apache MD5 hash for a password.
-// See https://github.com/foomo/htpasswd for the origin of this code.
-// MIT licensed, as per `blob/master/LICENSE.txt`
-//
-// The https://github.com/GehirnInc/crypt package used here is
-// licensed under BSD 2-Clause "Simplified" License
-
-func hashApr1(password string) (string, error) {
-	return apr1_crypt.New().Generate([]byte(password), nil)
 }

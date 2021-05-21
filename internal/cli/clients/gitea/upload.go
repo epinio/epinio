@@ -9,6 +9,7 @@ import (
 	"time"
 
 	giteaSDK "code.gitea.io/sdk/gitea"
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/pkg/errors"
 )
@@ -27,11 +28,11 @@ func (c *Client) Upload(app *models.App, tmpDir string) error {
 		return errors.Wrap(err, "failed to create application")
 	}
 
-	u, err := url.Parse(c.URL)
+	u, err := url.Parse(deployments.GiteaURL)
 	if err != nil {
 		return errors.Wrap(err, "failed to parse gitea url")
 	}
-	u.User = url.UserPassword(c.Username, c.Password)
+	u.User = url.UserPassword(c.Auth.Username, c.Auth.Password)
 	u.Path = path.Join(u.Path, app.Org, app.Name)
 
 	rev, err := c.gitPush(u.String(), tmpDir)
@@ -39,13 +40,12 @@ func (c *Client) Upload(app *models.App, tmpDir string) error {
 		return errors.Wrap(err, "failed to get latest app commit")
 	}
 
-	app.Git = &models.GitRef{URL: c.URL, Revision: rev}
+	app.Git = &models.GitRef{
+		URL:      deployments.GiteaURL,
+		Revision: rev,
+	}
 
 	return nil
-}
-
-func (c *Client) AppDefaultRoute(name string) string {
-	return fmt.Sprintf("%s.%s", name, c.Domain)
 }
 
 func (c *Client) createRepo(org string, name string) error {

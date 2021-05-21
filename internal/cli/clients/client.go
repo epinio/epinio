@@ -22,8 +22,8 @@ import (
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
 
@@ -39,12 +39,11 @@ import (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	GiteaClient *gitea.Client
-	KubeClient  *kubernetes.Cluster
-	Config      *config.Config
-	Log         logr.Logger
-	ui          *termui.UI
-	serverURL   string
+	KubeClient *kubernetes.Cluster
+	Config     *config.Config
+	Log        logr.Logger
+	ui         *termui.UI
+	serverURL  string
 }
 
 type PushParams struct {
@@ -63,11 +62,6 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 		return nil, err
 	}
 
-	client, err := gitea.New()
-	if err != nil {
-		return nil, err
-	}
-
 	uiUI := termui.NewUI()
 	epClient, err := GetEpinioAPIClient()
 	if err != nil {
@@ -77,12 +71,11 @@ func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
 
 	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
-		GiteaClient: client,
-		KubeClient:  cluster,
-		ui:          uiUI,
-		Config:      configConfig,
-		Log:         logger,
-		serverURL:   serverURL,
+		KubeClient: cluster,
+		ui:         uiUI,
+		Config:     configConfig,
+		Log:        logger,
+		serverURL:  serverURL,
 	}
 	return epinioClient, nil
 }
@@ -580,12 +573,10 @@ func (c *EpinioClient) Info() error {
 		return errors.Wrap(err, "failed to get kube version")
 	}
 
-	giteaVersion := "unavailable"
+	// TODO: Extend the epinio API to get the gitea version
+	// information again. Or remove it entirely.
 
-	version, resp, err := c.GiteaClient.Client.ServerVersion()
-	if err == nil && resp != nil && resp.StatusCode == 200 {
-		giteaVersion = version
-	}
+	giteaVersion := "unavailable"
 
 	epinioVersion := "unavailable"
 	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {
@@ -781,6 +772,9 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 
 // Delete removes the named application from the cluster
 func (c *EpinioClient) Delete(appname string) error {
+
+	// TODO: Move the cert operations into the server!
+
 	log := c.Log.WithName("Delete").WithValues("Application", appname)
 	log.Info("start")
 	defer log.Info("return")
@@ -802,7 +796,12 @@ func (c *EpinioClient) Delete(appname string) error {
 		return err
 	}
 
-	if !strings.Contains(c.GiteaClient.Domain, "omg.howdoi.website") {
+	mainDomain, err := domain.MainDomain()
+	if err != nil {
+		return errors.Wrap(err, "failed to delete certificate")
+	}
+
+	if !strings.Contains(mainDomain, "omg.howdoi.website") {
 		err = c.deleteCertificate(appname)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete certificate")
@@ -957,7 +956,10 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 
 	c.ui.Normal().Msg("Staging application ...")
 
-	route := c.GiteaClient.AppDefaultRoute(app)
+	route, err := appDefaultRoute(app)
+	if err != nil {
+		return errors.Wrap(err, "unable to determine default app route")
+	}
 	req := models.StageRequest{
 		App:       appRef,
 		Instances: params.Instances,
@@ -1023,6 +1025,14 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	return nil
 }
 
+func appDefaultRoute(name string) (string, error) {
+	mainDomain, err := domain.MainDomain()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s.%s", name, mainDomain), nil
+}
+
 // Target targets an org in gitea
 func (c *EpinioClient) Target(org string) error {
 	log := c.Log.WithName("Target").WithValues("Organization", org)
@@ -1058,10 +1068,6 @@ func (c *EpinioClient) Target(org string) error {
 	c.ui.Success().Msg("Organization targeted.")
 
 	return nil
-}
-
-func (c *EpinioClient) check() {
-	c.GiteaClient.Client.GetMyUserInfo()
 }
 
 func (c *EpinioClient) deleteCertificate(appName string) error {
