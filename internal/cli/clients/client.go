@@ -1061,8 +1061,6 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	defer cancelFunc()
 
 	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
-	// TODO: Don't print dots when in verbose mode (because they appear between the log lines)
-	// TODO: Maybe fixed in the main branch? rebase.
 	err = c.waitForPipelineRun(appRef, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "waiting for staging failed")
