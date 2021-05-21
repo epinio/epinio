@@ -126,6 +126,11 @@ func (cm CertManager) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "Failed deleting namespace %s", CertManagerDeploymentID)
 	}
 
+	err = c.WaitForNamespaceMissing(ui, CertManagerDeploymentID, cm.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
 	ui.Success().Msg("CertManager removed")
 
 	return nil
