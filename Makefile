@@ -73,7 +73,7 @@ patch-epinio-deployment:
 getstatik:
 	( [ -x "$$(command -v statik)" ] || go get github.com/rakyll/statik@v0.1.7 )
 
-update_registry:
+wrap_registry_chart:
 	helm package ./assets/container-registry/chart/container-registry/ -d assets/embedded-files
 
 update_google_service_broker:
@@ -85,7 +85,7 @@ update_tekton:
 	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.12.1/release.yaml -O assets/embedded-files/tekton/triggers-v0.12.1.yaml
 	wget https://github.com/tektoncd/dashboard/releases/download/v0.15.0/tekton-dashboard-release.yaml -O assets/embedded-files/tekton/dashboard-v0.15.0.yaml
 
-embed_files: getstatik
+embed_files: getstatik wrap_registry_chart
 	statik -m -f -src=./assets/embedded-files -dest assets
 	statik -m -f -src=./assets/embedded-web-files/views -ns webViews -p statikWebViews -dest assets
 	statik -m -f -src=./assets/embedded-web-files/assets -ns webAssets -p statikWebAssets -dest assets
