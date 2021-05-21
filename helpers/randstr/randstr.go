@@ -1,3 +1,5 @@
+// Package randstr provides functions for the generation of random strings.
+// Useful, for example, to generate passwords and usernames for randomized credentials.
 package randstr
 
 import (

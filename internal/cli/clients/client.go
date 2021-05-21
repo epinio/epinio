@@ -573,14 +573,10 @@ func (c *EpinioClient) Info() error {
 		return errors.Wrap(err, "failed to get kube version")
 	}
 
-	// TODO: Extend epinio API to get this information. Or remove this information.
+	// TODO: Extend the epinio API to get the gitea version
+	// information again. Or remove it entirely.
 
 	giteaVersion := "unavailable"
-
-	// version, resp, err := c.GiteaClient.Client.ServerVersion()
-	// if err == nil && resp != nil && resp.StatusCode == 200 {
-	// 	giteaVersion = version
-	// }
 
 	epinioVersion := "unavailable"
 	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {

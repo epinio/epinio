@@ -38,10 +38,6 @@ func RegistryInstallAuth() (*auth.PasswordAuth, error) {
 			return nil, err
 		}
 		registryAuthMemo = auth
-		// registryAuthMemo = &auth.PasswordAuth{
-		// 	Username: "admin",
-		// 	Password: "password",
-		// }
 	}
 	return registryAuthMemo, nil
 }

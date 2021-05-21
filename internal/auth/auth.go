@@ -1,3 +1,5 @@
+// Package auth collects structures and functions around the
+// generation and processing of credentials.
 package auth
 
 import (
