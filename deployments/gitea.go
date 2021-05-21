@@ -188,7 +188,17 @@ gitea:
     oauth2:
       ENABLE: true
       JWT_SECRET: HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
-`, subdomain, GiteaPort, giteaAuth.Username, giteaAuth.Password, subdomain, GiteaProtocol+"://"+subdomain)
+
+postgresql:
+  global:
+    postgresql:
+      postgresqlDatabase: epinio-gitea
+      postgresqlUsername: "%s"
+      postgresqlPassword: "%s"
+`, subdomain, GiteaPort,
+		giteaAuth.Username, giteaAuth.Password,
+		subdomain, GiteaProtocol+"://"+subdomain,
+		giteaAuth.Username, giteaAuth.Password)
 
 	configPath, err := helpers.CreateTmpFile(config)
 	if err != nil {
