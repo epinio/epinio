@@ -16,7 +16,7 @@ jobs:
       - name: Fetch Branch
         id: branch
         run: |
-          raw=$(git branch -r --contains ${{ github.ref }})
+          raw=$(git branch -r --contains ${{ github.ref }} | grep origin/main)
           branch=${raw##*/}
           echo "::set-output name=BRANCH_NAME::$branch"
       - name: Setup Go
