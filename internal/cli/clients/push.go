@@ -120,7 +120,7 @@ func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 	}
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
 
-	if viper.GetInt("verbosity") > 0 {
+	if viper.GetInt("verbosity") == 0 {
 		s := c.ui.Progressf("Waiting for pipelinerun %s", id)
 		defer s.Stop()
 	}
