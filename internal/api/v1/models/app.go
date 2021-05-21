@@ -72,7 +72,7 @@ func (app *App) Logs(ctx context.Context, client *kubernetes.Cluster, follow boo
 		selector = selector.Add(*req)
 	}
 
-	logChan, err := tailer.Run(ctx, &tailer.Config{
+	logChan, err := tailer.Run(ctx, follow, &tailer.Config{
 		ContainerQuery:        regexp.MustCompile(".*"),
 		ExcludeContainerQuery: nil,
 		ContainerState:        "running",
