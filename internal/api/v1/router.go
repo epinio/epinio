@@ -23,25 +23,26 @@ func jsonResponse(w http.ResponseWriter, response interface{}) error {
 	return err
 }
 
+func jsonErrorResponse(w http.ResponseWriter, responseErrors ...APIError) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+
+	response := ErrorResponse{Errors: responseErrors}
+	js, marshalErr := json.Marshal(response)
+	if marshalErr != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintln(w, marshalErr.Error())
+		return
+	}
+
+	w.WriteHeader(responseErrors[0].Status)
+	fmt.Fprintln(w, string(js))
+}
+
 func errorHandler(action APIActionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		responseErrors := action(w, r)
-		if len(responseErrors) > 0 {
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-
-			response := ErrorResponse{Errors: responseErrors}
-
-			js, marshalErr := json.Marshal(response)
-			if marshalErr != nil {
-				w.WriteHeader(http.StatusInternalServerError)
-				fmt.Fprintln(w, marshalErr.Error())
-				return
-			}
-
-			w.WriteHeader(responseErrors[0].Status)
-			fmt.Fprintln(w, string(js))
-			return
+		if errors := action(w, r); len(errors) > 0 {
+			jsonErrorResponse(w, errors...)
 		}
 	}
 }
@@ -66,7 +67,7 @@ var Routes = routes.NamedRoutes{
 	"Info":      get("/info", errorHandler(InfoController{}.Info)),
 	"Apps":      get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
 	"AppShow":   get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
-	"AppLogs":   get("/orgs/:org/applications/:app/logs", errorHandler(ApplicationsController{}.Logs)),
+	"AppLogs":   get("/orgs/:org/applications/:app/logs", ApplicationsController{}.Logs),
 	"AppDelete": delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
 	"AppUpload": post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)),
 	"AppStage":  post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),

@@ -8,7 +8,6 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 )
@@ -32,19 +31,20 @@ func NewApp(name string, org string) *App {
 	return &App{AppRef: AppRef{Name: name, Org: org}}
 }
 
-func (app *App) StagingLogs(ctx context.Context, client *kubernetes.Cluster, follow bool, stageID string) (chan tailer.ContainerLogLine, error) {
-	return app.Logs(ctx, client, follow, stageID)
+func (app *App) StagingLogs(ctx context.Context, logChan chan tailer.ContainerLogLine, client *kubernetes.Cluster, follow bool, stageID string) error {
+	return app.Logs(ctx, logChan, client, follow, stageID)
 }
 
-func (app *App) RuntimeLogs(ctx context.Context, client *kubernetes.Cluster, follow bool) (chan tailer.ContainerLogLine, error) {
-	return app.Logs(ctx, client, follow, "")
+func (app *App) RuntimeLogs(ctx context.Context, logChan chan tailer.ContainerLogLine, client *kubernetes.Cluster, follow bool) error {
+	return app.Logs(ctx, logChan, client, follow, "")
 }
 
-// Logs returns a channel of tailer.ContainerLogLine . Consumers can decide what
-// to do with it (print it, send it as json etc).
+// Logs method writes log lines to the specified logChan. The caller can stop
+// the logging with the ctx cancelFunc. It's also the callers responsibility
+// to close the logChan when done.
 // When stageID is an empty string, no staging logs are returned. If it is seti,
 // then only logs from that staging process are returned.
-func (app *App) Logs(ctx context.Context, client *kubernetes.Cluster, follow bool, stageID string) (chan tailer.ContainerLogLine, error) {
+func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, client *kubernetes.Cluster, follow bool, stageID string) error {
 	selector := labels.NewSelector()
 
 	var selectors [][]string
@@ -67,12 +67,12 @@ func (app *App) Logs(ctx context.Context, client *kubernetes.Cluster, follow boo
 	for _, req := range selectors {
 		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
 		if err != nil {
-			return nil, err
+			return err
 		}
 		selector = selector.Add(*req)
 	}
 
-	logChan, err := tailer.Run(ctx, follow, &tailer.Config{
+	config := &tailer.Config{
 		ContainerQuery:        regexp.MustCompile(".*"),
 		ExcludeContainerQuery: nil,
 		ContainerState:        "running",
@@ -85,12 +85,13 @@ func (app *App) Logs(ctx context.Context, client *kubernetes.Cluster, follow boo
 		TailLines:             nil,
 		Namespace:             "",
 		PodQuery:              regexp.MustCompile(".*"),
-	}, client)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to start log tail")
 	}
 
-	return logChan, nil
+	if follow {
+		return tailer.StreamLogs(ctx, logChan, config, client)
+	}
+
+	return tailer.FetchLogs(ctx, logChan, config, client)
 }
 
 // GitURL returns the git URL by combining the server with the org and name
