@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/logprinter"
@@ -93,10 +95,17 @@ func (c *EpinioClient) logs(ctx context.Context, appRef models.AppRef, stageID s
 	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
 
 	app := models.NewApp(appRef.Name, appRef.Org)
-	logChan, err := app.StagingLogs(ctx, c.KubeClient, true, stageID)
-	if err != nil {
-		return errors.Wrap(err, "failed to start log tail")
-	}
+	logChan := make(chan tailer.ContainerLogLine)
+	defer close(logChan)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		err := app.StagingLogs(ctx, logChan, c.KubeClient, true, stageID)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		wg.Done()
+	}()
 
 	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
 	for logLine := range logChan {

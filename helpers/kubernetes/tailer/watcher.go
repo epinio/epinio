@@ -32,6 +32,7 @@ func (t *Target) GetID() string {
 func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp, containerFilter *regexp.Regexp, containerExcludeFilter *regexp.Regexp, containerState ContainerState, labelSelector labels.Selector) (chan *Target, chan *Target, error) {
 	watcher, err := i.Watch(ctx, metav1.ListOptions{Watch: true, LabelSelector: labelSelector.String()})
 	if err != nil {
+		fmt.Printf("err.Error() = %+v\n", err.Error())
 		return nil, nil, errors.Wrap(err, "failed to set up watch")
 	}
 

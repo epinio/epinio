@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"text/template"
 
 	"github.com/go-logr/logr"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 type Tail struct {
@@ -19,13 +17,13 @@ type Tail struct {
 	PodName       string
 	ContainerName string
 	Options       *TailOptions
-	closed        chan struct{}
 	logger        logr.Logger
-	logChan       chan ContainerLogLine
+	clientSet     *kubernetes.Clientset
 }
 
 type TailOptions struct {
 	Timestamps   bool
+	Follow       bool
 	SinceSeconds int64
 	Exclude      []*regexp.Regexp
 	Include      []*regexp.Regexp
@@ -35,101 +33,80 @@ type TailOptions struct {
 }
 
 // NewTail returns a new tail for a Kubernetes container inside a pod
-func NewTail(logChan chan ContainerLogLine, namespace, podName, containerName string, tmpl *template.Template, logger logr.Logger, options *TailOptions) *Tail {
+func NewTail(namespace, podName, containerName string, logger logr.Logger, clientSet *kubernetes.Clientset, options *TailOptions) *Tail {
 	return &Tail{
 		Namespace:     namespace,
 		PodName:       podName,
 		ContainerName: containerName,
 		Options:       options,
-		closed:        make(chan struct{}),
-		logChan:       logChan,
 		logger:        logger,
+		clientSet:     clientSet,
 	}
 }
 
-// Start starts tailing
-func (t *Tail) Start(ctx context.Context, i v1.PodInterface) {
-	go func() {
-		var m string
-		if t.Options.Namespace {
-			m = fmt.Sprintf("Now tracking %s %s › %s ", t.Namespace, t.PodName, t.ContainerName)
-		} else {
-			m = fmt.Sprintf("Now tracking %s › %s ", t.PodName, t.ContainerName)
-		}
-		t.logger.Info(m)
+// Start writes log lines to the logChan. It can be stopped using the ctx.
+// It's the calles responsibility to close the logChan (because there may be more
+// instances of this method (go routines) writing to the same channel.
+func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow bool) error {
+	fmt.Println("starting the tail for pod " + t.PodName)
+	var m string
+	if t.Options.Namespace {
+		m = fmt.Sprintf("Now tracking %s %s › %s ", t.Namespace, t.PodName, t.ContainerName)
+	} else {
+		m = fmt.Sprintf("Now tracking %s › %s ", t.PodName, t.ContainerName)
+	}
+	t.logger.Info(m)
 
-		req := i.GetLogs(t.PodName, &corev1.PodLogOptions{
-			Follow:       true,
-			Timestamps:   t.Options.Timestamps,
-			Container:    t.ContainerName,
-			SinceSeconds: &t.Options.SinceSeconds,
-			TailLines:    t.Options.TailLines,
-		})
+	req := t.clientSet.CoreV1().Pods(t.Namespace).GetLogs(t.PodName, &corev1.PodLogOptions{
+		Follow:       follow,
+		Timestamps:   t.Options.Timestamps,
+		Container:    t.ContainerName,
+		SinceSeconds: &t.Options.SinceSeconds,
+		TailLines:    t.Options.TailLines,
+	})
 
-		stream, err := req.Stream(ctx)
+	stream, err := req.Stream(ctx)
+	if err != nil {
+		return err
+	}
+	defer stream.Close()
+
+	reader := bufio.NewReader(stream)
+
+OUTER:
+	for {
+		line, err := reader.ReadBytes('\n')
 		if err != nil {
-			if context.Canceled == nil {
-				fmt.Println(errors.Wrapf(err, "Error opening stream to %s/%s: %s\n", t.Namespace, t.PodName, t.ContainerName))
-			}
-			return
+			fmt.Println("reading failed: " + err.Error())
+			return nil
 		}
-		defer stream.Close()
 
-		go func() {
-			<-t.closed
-			stream.Close()
-		}()
+		str := strings.TrimRight(string(line), "\r\n\t ")
 
-		reader := bufio.NewReader(stream)
-
-	OUTER:
-		for {
-			line, err := reader.ReadBytes('\n')
-			if err != nil {
-				return
-			}
-
-			str := strings.TrimRight(string(line), "\r\n\t ")
-
-			for _, rex := range t.Options.Exclude {
-				if rex.MatchString(str) {
-					continue OUTER
-				}
-			}
-
-			if len(t.Options.Include) != 0 {
-				matches := false
-				for _, rin := range t.Options.Include {
-					if rin.MatchString(str) {
-						matches = true
-						break
-					}
-				}
-				if !matches {
-					continue OUTER
-				}
-			}
-
-			t.logChan <- ContainerLogLine{
-				Message:       str,
-				ContainerName: t.ContainerName,
-				PodName:       t.PodName,
-				Namespace:     t.Namespace,
+		for _, rex := range t.Options.Exclude {
+			if rex.MatchString(str) {
+				continue OUTER
 			}
 		}
-	}()
 
-	go func() {
-		<-ctx.Done()
-		defer func() {
-			_ = recover() // Ignore the case when t.closed is already closed (race conditions)
-		}()
+		if len(t.Options.Include) != 0 {
+			matches := false
+			for _, rin := range t.Options.Include {
+				if rin.MatchString(str) {
+					matches = true
+					break
+				}
+			}
+			if !matches {
+				continue OUTER
+			}
+		}
 
-		t.Close()
-	}()
-}
-
-// Close stops tailing
-func (t *Tail) Close() {
-	close(t.closed)
+		logChan <- ContainerLogLine{
+			Message:       str,
+			ContainerName: t.ContainerName,
+			PodName:       t.PodName,
+			Namespace:     t.Namespace,
+		}
+	}
 }

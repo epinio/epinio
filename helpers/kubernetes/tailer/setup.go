@@ -2,6 +2,7 @@ package tailer
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"sync"
 	"text/template"
@@ -41,50 +42,27 @@ type ContainerLogLine struct {
 	Namespace     string
 }
 
-// Notes on the above:
-//   - For containers `ContainerQuery` is applied before
-//     `ExcludeContainerQuery`. IOW use `CQ` to get an initial list of
-//     containers and then use `ECQ` to pare that down further.
-//
-//   - For log entries `Exclude` is applied before `Include`.
-
-// Run returns a channel of ContainerLogLine.
-// Depending on the value of the "follow" argument, the channel may stay open until the consumer
-// closes the context or until there are no containers left to stream logs.
-func Run(ctx context.Context, follow bool, config *Config, cluster *kubernetes.Cluster) (chan ContainerLogLine, error) {
-	var result chan ContainerLogLine
-	var err error
-	if !follow {
-		result, err = RunUntilStopped(ctx, config, cluster)
-	} else {
-		result, err = RunUntilNoMoreLogs(ctx, config, cluster)
-	}
-
-	return result, err
-}
-
-// RunUntilStopped will keep watching for matching containers and stream their
-// logs to the ContainerLogLine channel until ctx is Done(). The channel will
-// be closed then that happens.
-func RunUntilStopped(ctx context.Context, config *Config, cluster *kubernetes.Cluster) (chan ContainerLogLine, error) {
-	var wg sync.WaitGroup
-
-	containerLogsChan := make(chan ContainerLogLine, 10)
-
+// FetchLogs writes all the logs of the matching containers to the logChan.
+// If ctx is Done() the method stops even if not all logs are fetched.
+func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, config *Config, cluster *kubernetes.Cluster) error {
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
 	} else if config.Namespace == "" {
-		return nil, errors.New("no namespace set for tailing logs")
+		return errors.New("no namespace set for tailing logs")
 	}
 
-	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{LabelSelector: config.LabelSelector.String()})
+	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
+		ctx, metav1.ListOptions{LabelSelector: config.LabelSelector.String()})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	addTail := func(pod corev1.Pod, c corev1.Container) {
-		tail := NewTail(containerLogsChan, pod.Namespace, pod.Name, c.Name, config.Template,
+
+	tails := []*Tail{}
+	newTail := func(pod corev1.Pod, c corev1.Container) *Tail {
+		return NewTail(pod.Namespace, pod.Name, c.Name,
 			tracelog.NewLogger().WithName("log-tracing"),
+			cluster.Kubectl,
 			&TailOptions{
 				Timestamps:   config.Timestamps,
 				SinceSeconds: int64(config.Since.Seconds()),
@@ -93,60 +71,61 @@ func RunUntilStopped(ctx context.Context, config *Config, cluster *kubernetes.Cl
 				Namespace:    config.AllNamespaces,
 				TailLines:    config.TailLines,
 			})
-
-		wg.Add(1)
-		go func() {
-			tail.Start(ctx, cluster.Kubectl.CoreV1().Pods(pod.Namespace))
-			wg.Done()
-		}()
 	}
 	for _, pod := range podList.Items {
 		for _, c := range pod.Spec.Containers {
-			addTail(pod, c)
+			tails = append(tails, newTail(pod, c))
 		}
 		for _, c := range pod.Spec.InitContainers {
-			addTail(pod, c)
+			tails = append(tails, newTail(pod, c))
 		}
 	}
 
-	go func() {
-		// If ctx is Done() then the go routines will stop themselves and this will
-		// close the channel too. The channel is also closed when all go routines
-		// return.
-		wg.Wait()
-		close(containerLogsChan)
-	}()
+	var wg sync.WaitGroup
+	for _, t := range tails {
+		wg.Add(1)
+		go func(tail *Tail) {
+			err := tail.Start(ctx, logChan, false)
+			if err != nil {
+				// TODO: just print it? With a logger?
+				fmt.Println(err.Error())
+			}
+			wg.Done()
+		}(t)
+	}
 
-	return containerLogsChan, nil
+	wg.Wait()
+
+	return nil
 }
 
-// RunUntilNoMoreLogs stream the logs of all the matching containers (without
-// follow) and close the channel when it's done.
-func RunUntilNoMoreLogs(ctx context.Context, config *Config, cluster *kubernetes.Cluster) (chan ContainerLogLine, error) {
-	containerLogsChan := make(chan ContainerLogLine, 10)
+func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, config *Config, cluster *kubernetes.Cluster) error {
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
 	} else if config.Namespace == "" {
-		return nil, errors.New("no namespace set for tailing logs")
+		return errors.New("no namespace set for tailing logs")
 	}
 
-	added, removed, err := Watch(ctx, cluster.Kubectl.CoreV1().Pods(namespace), config.PodQuery, config.ContainerQuery, config.ExcludeContainerQuery, config.ContainerState, config.LabelSelector)
+	added, removed, err := Watch(ctx, cluster.Kubectl.CoreV1().Pods(namespace),
+		config.PodQuery, config.ContainerQuery, config.ExcludeContainerQuery, config.ContainerState, config.LabelSelector)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to set up watch")
+		return errors.Wrap(err, "failed to set up watch")
 	}
 
 	tails := make(map[string]*Tail)
-
-	go func() {
-		for p := range added {
+	var wg sync.WaitGroup
+	for {
+		select {
+		case p := <-added:
 			id := p.GetID()
 			if tails[id] != nil {
-				continue
+				break
 			}
 
-			tail := NewTail(containerLogsChan, p.Namespace, p.Pod, p.Container, config.Template,
+			tail := NewTail(p.Namespace, p.Pod, p.Container,
 				tracelog.NewLogger().WithName("log-tracing"),
+				cluster.Kubectl,
 				&TailOptions{
 					Timestamps:   config.Timestamps,
 					SinceSeconds: int64(config.Since.Seconds()),
@@ -157,20 +136,24 @@ func RunUntilNoMoreLogs(ctx context.Context, config *Config, cluster *kubernetes
 				})
 			tails[id] = tail
 
-			tail.Start(ctx, cluster.Kubectl.CoreV1().Pods(p.Namespace))
-		}
-	}()
-
-	go func() {
-		for p := range removed {
+			wg.Add(1)
+			go func() {
+				err := tail.Start(ctx, logChan, true)
+				if err != nil {
+					// TODO: just print it? With a logger?
+					fmt.Println(err.Error())
+				}
+				wg.Done()
+			}()
+		case p := <-removed:
 			id := p.GetID()
 			if tails[id] == nil {
-				continue
+				break
 			}
-			tails[id].Close()
 			delete(tails, id)
+		case <-ctx.Done():
+			wg.Wait()
+			return nil
 		}
-	}()
-
-	return containerLogsChan, nil
+	}
 }

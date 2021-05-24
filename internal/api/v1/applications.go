@@ -1,24 +1,24 @@
 package v1
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"sync"
+	"regexp"
 	"time"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
@@ -160,35 +160,56 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 
 	return nil
 }
-func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
 	queryValues := r.URL.Query()
-	follow := queryValues.Get("follow")
+	followStr := queryValues.Get("follow")
+	fmt.Printf("followStr = %+v\n", followStr)
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		jsonErrorResponse(w, InternalError(err))
+		return
 	}
 
 	var upgrader = websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		jsonErrorResponse(w, InternalError(err))
+		return
 	}
+
+	// Case - no following
+	// Get App Ref
+	// app.Logs gives you channel
+	// loop over the channel
+	// stream get closed
+	//
+
+	// Case - follow
+	// How to close the channel ?
+	// When the user of the api issues close connection.
+	// then we close the context
+
+	follow := false
+	if followStr == "true" {
+		follow = true
+	}
+
+	log := tracelog.Logger(r.Context())
 
 	hc.conn = conn
-	err = hc.streamPodLogs(org, appName, cluster, follow)
+	err = hc.streamPodLogs(org, appName, cluster, follow, r.Context())
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		log.V(1).Error(err, "error occured after upgrading the websockets connection")
+		return
 	}
-
-	return nil
 }
 
-func (hc ApplicationsController) streamPodLogs(orgName string, appName string, cluster *kubernetes.Cluster, follow string) error {
+func (hc ApplicationsController) streamPodLogs(orgName string, appName string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
 	selector := labels.NewSelector()
 	for _, req := range [][]string{
 		{"app.kubernetes.io/component", "application"},
@@ -203,85 +224,50 @@ func (hc ApplicationsController) streamPodLogs(orgName string, appName string, c
 		selector = selector.Add(*req)
 	}
 
-	podList, err := cluster.Kubectl.CoreV1().Pods(orgName).List(context.Background(), metav1.ListOptions{LabelSelector: selector.String()})
-	if err != nil {
-		return err
-	}
-
-	podLogOpts := corev1.PodLogOptions{
-		Container: appName,
-	}
-	if follow == "true" {
-		podLogOpts.Follow = true
-	}
-
-	errorChan := make(chan error, 1)
-	doneChan := make(chan bool)
-	quitChan := make(chan bool)
-
-	podLen := len(podList.Items)
-	var mu sync.Mutex
-	for _, pod := range podList.Items {
-
-		// Call goroutines for each pod replica
-		go func(pod corev1.Pod) {
-			req := cluster.Kubectl.CoreV1().Pods(orgName).GetLogs(pod.Name, &podLogOpts)
-			stream, err := req.Stream(context.Background())
-			if err != nil {
-				errorChan <- err
-				return
-			}
-			defer stream.Close()
-
-			scanner := bufio.NewScanner(stream)
-			for scanner.Scan() {
-				message := fmt.Sprintf("[%s] %s", pod.Name, scanner.Text())
-
-				// websocket connection doesn't support multiple writes
-				mu.Lock()
-				err = hc.conn.WriteMessage(websocket.TextMessage, []byte(message))
-				mu.Unlock()
-				if err != nil {
-					errorChan <- err
-					return
-				}
-			}
-
-			// Exit goroutine by sending true to done channel
-			// Exit goroutine by waiting quit channel
-			select {
-			case doneChan <- true:
-				return
-			case <-quitChan:
-				return
-			}
-		}(pod)
-	}
-
-	go func() {
-
-		// Websocket closure from peer can be only captured
-		// from reading the connection until err occurs
-		for {
-			if _, _, err := hc.conn.NextReader(); err != nil {
-				errorChan <- err
-				break
-			}
-		}
-
-		// Exit goroutine by waiting on quit channel
-		select {
-		case <-quitChan:
-			return
-		}
+	logCtx, logCancelFunc := context.WithCancel(ctx)
+	defer func() {
+		logCancelFunc()
 	}()
+	logChan := make(chan tailer.ContainerLogLine)
+	config := &tailer.Config{
+		ContainerQuery:        regexp.MustCompile(".*"),
+		ExcludeContainerQuery: nil,
+		ContainerState:        "running",
+		Exclude:               nil,
+		Include:               nil,
+		Timestamps:            false,
+		Since:                 duration.LogHistory(),
+		AllNamespaces:         true,
+		LabelSelector:         selector,
+		TailLines:             nil,
+		Namespace:             "",
+		PodQuery:              regexp.MustCompile(".*"),
+	}
 
-	// Capture errors and done signals from goroutines spawned above
-	countPod := 0
-	for {
-		select {
-		case err := <-errorChan:
-			close(quitChan)
+	if follow {
+		go func() {
+			tailer.StreamLogs(logCtx, logChan, config, cluster)
+			close(logChan)
+		}()
+	} else {
+		go func() {
+			tailer.FetchLogs(logCtx, logChan, config, cluster)
+			close(logChan)
+		}()
+	}
+
+	// Read logs until channel no logs are left or connection is closed from the
+	// client side (which will send an error to the for loop below and it will
+	// call the logCancelFunc to stop this routine too)
+	for logLine := range logChan {
+		msg, err := json.Marshal(logLine)
+		if err != nil {
+			return err
+		}
+
+		err = hc.conn.WriteMessage(websocket.TextMessage, msg)
+		if err != nil {
+			fmt.Println(err.Error())
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				hc.conn.Close()
@@ -293,31 +279,25 @@ func (hc ApplicationsController) streamPodLogs(orgName string, appName string, c
 				return nil
 			}
 
-			err = hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
-			if err != nil {
-				err = hc.conn.Close()
-				if err != nil {
-					return err
-				}
+			normalCloseErr := hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
+			if normalCloseErr != nil {
+				err = errors.Wrap(err, normalCloseErr.Error())
 			}
+
+			abnormalCloseErr := hc.conn.Close()
+			if abnormalCloseErr != nil {
+				err = errors.Wrap(err, abnormalCloseErr.Error())
+			}
+
 			return err
-		case <-doneChan:
-			countPod++
-
-			if countPod == podLen {
-				close(quitChan)
-				err = hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
-				if err != nil {
-					err = hc.conn.Close()
-					if err != nil {
-						return err
-					}
-				}
-
-				return nil
-			}
 		}
 	}
+
+	if err := hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{}); err != nil {
+		return err
+	}
+
+	return hc.conn.Close()
 }
 
 func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
