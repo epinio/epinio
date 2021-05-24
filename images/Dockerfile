@@ -2,6 +2,7 @@ ARG BASE_IMAGE=splatform/epinio-base
 
 FROM ruby:3.0.1 AS tools
 COPY . .
+RUN apt-get update && apt-get install -y python3-venv
 RUN ./scripts/tools-install.sh helm
 RUN cp output/bin/helm /helm
 
