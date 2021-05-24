@@ -19,12 +19,14 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
@@ -764,6 +766,9 @@ func (c *EpinioClient) AppLogs(appName string, follow bool) error {
 	errorChan := make(chan error, 1)
 
 	go func() {
+		var logLine tailer.ContainerLogLine
+
+		printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
 		for {
 			_, message, err := webSocketConn.ReadMessage()
 			if err != nil {
@@ -776,7 +781,18 @@ func (c *EpinioClient) AppLogs(appName string, follow bool) error {
 				errorChan <- err
 				return
 			}
-			fmt.Println(string(message))
+			err = json.Unmarshal(message, &logLine)
+			if err != nil {
+				errorChan <- err
+				return
+			}
+
+			printer.Print(logprinter.Log{
+				Message:       logLine.Message,
+				Namespace:     logLine.Namespace,
+				PodName:       logLine.PodName,
+				ContainerName: logLine.ContainerName,
+			}, c.ui)
 		}
 	}()
 

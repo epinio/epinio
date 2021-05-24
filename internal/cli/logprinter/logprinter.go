@@ -59,7 +59,7 @@ func (printer LogPrinter) Print(log Log, ui *termui.UI) {
 		return
 	}
 
-	ui.ProgressNote().V(1).Compact().Msg(result.String() + " ")
+	ui.ProgressNote().Compact().Msg(result.String() + " ")
 }
 
 func originOf(podName string) string {
