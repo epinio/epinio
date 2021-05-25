@@ -37,6 +37,7 @@ func NewApp(name string, org string) *App {
 // to close the logChan when done.
 // When stageID is an empty string, no staging logs are returned. If it is set,
 // then only logs from that staging process are returned.
+// TODO: Fix this, when stageID is set, it also returns application logs. Needs extra label?
 func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, client *kubernetes.Cluster, follow bool, stageID string) error {
 	selector := labels.NewSelector()
 

@@ -5,14 +5,11 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"path"
-	"sync"
 	"time"
 
 	"github.com/epinio/epinio/deployments"
-	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/mholt/archiver/v3"
@@ -89,37 +86,6 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 	}
 
 	return stage, nil
-}
-
-func (c *EpinioClient) logs(ctx context.Context, appRef models.AppRef, stageID string) error {
-	c.ui.ProgressNote().V(1).Msg("Tailing application logs ...")
-
-	app := models.NewApp(appRef.Name, appRef.Org)
-	logChan := make(chan tailer.ContainerLogLine)
-	defer close(logChan)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func(wg *sync.WaitGroup) {
-		err := app.Logs(ctx, logChan, wg, c.KubeClient, true, stageID)
-		if err != nil {
-			fmt.Println(err.Error())
-		}
-		wg.Done()
-	}(&wg)
-
-	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
-	for logLine := range logChan {
-		printer.Print(logprinter.Log{
-			Message:       logLine.Message,
-			Namespace:     logLine.Namespace,
-			PodName:       logLine.PodName,
-			ContainerName: logLine.ContainerName,
-		}, c.ui.ProgressNote().Compact().V(1))
-	}
-
-	wg.Wait()
-
-	return nil
 }
 
 func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
