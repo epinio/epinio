@@ -44,7 +44,7 @@ type ContainerLogLine struct {
 
 // FetchLogs writes all the logs of the matching containers to the logChan.
 // If ctx is Done() the method stops even if not all logs are fetched.
-func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, config *Config, cluster *kubernetes.Cluster) error {
+func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -81,7 +81,6 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, config *Confi
 		}
 	}
 
-	var wg sync.WaitGroup
 	for _, t := range tails {
 		wg.Add(1)
 		go func(tail *Tail) {
@@ -94,12 +93,10 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, config *Confi
 		}(t)
 	}
 
-	wg.Wait()
-
 	return nil
 }
 
-func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, config *Config, cluster *kubernetes.Cluster) error {
+func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -114,7 +111,6 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, config *Conf
 	}
 
 	tails := make(map[string]*Tail)
-	var wg sync.WaitGroup
 	for {
 		select {
 		case p := <-added:
@@ -152,7 +148,6 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, config *Conf
 			}
 			delete(tails, id)
 		case <-ctx.Done():
-			wg.Wait()
 			return nil
 		}
 	}
