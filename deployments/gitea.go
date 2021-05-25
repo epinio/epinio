@@ -179,15 +179,13 @@ gitea:
     security:
       INSTALL_LOCK: true
       SECRET_KEY: generated-by-quarks-secret
-      INTERNAL_TOKEN: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYmYiOjE2MDIzNzc3NzZ9.uvJPCMSDTPlVMAUwNzW9Jbl5487kbj5T_pWu3dGirnA
     service:
       ENABLE_REGISTRATION_CAPTCHA: false
       DISABLE_REGISTRATION: true
     openid:
       ENABLE_OPENID_SIGNIN: false
     oauth2:
-      ENABLE: true
-      JWT_SECRET: HLNn92qqtznZSMkD_TzR_XFVdiZ5E87oaus6pyH7tiI
+      ENABLE: false
 
 postgresql:
   global:
