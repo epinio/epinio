@@ -789,7 +789,6 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 		_, message, err := webSocketConn.ReadMessage()
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				c.ui.Normal().Msg("-- Logs End --")
 				webSocketConn.Close()
 				done <- true // Stop the go routine
 				return nil
