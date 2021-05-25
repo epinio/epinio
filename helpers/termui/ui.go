@@ -211,7 +211,7 @@ func (u *Message) Msg(message string) {
 		case show:
 			switch interaction.valueType {
 			case tBool:
-				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%b", interaction.value))
+				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%t", interaction.value))
 			case tInt:
 				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.CyanString("%d", interaction.value))
 			case tString:
