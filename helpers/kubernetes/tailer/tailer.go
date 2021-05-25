@@ -48,6 +48,7 @@ func NewTail(namespace, podName, containerName string, logger logr.Logger, clien
 // It's the calles responsibility to close the logChan (because there may be more
 // instances of this method (go routines) writing to the same channel.
 func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow bool) error {
+	// TODO: Remove this prints or move the to higher trace level
 	fmt.Println("starting the tail for pod " + t.PodName)
 	var m string
 	if t.Options.Namespace {

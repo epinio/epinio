@@ -114,7 +114,7 @@ var CmdAppLogs = &cobra.Command{
 			return errors.Wrap(err, "error reading the staging param")
 		}
 
-		err = client.AppLogs(args[0], follow)
+		err = client.AppLogs(args[0], "", follow, nil)
 		if err != nil {
 			return errors.Wrap(err, "error streaming application logs")
 		}

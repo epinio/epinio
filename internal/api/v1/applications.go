@@ -163,6 +163,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 
 	queryValues := r.URL.Query()
 	followStr := queryValues.Get("follow")
+	stageID := queryValues.Get("stage_id")
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
@@ -185,14 +186,14 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	log := tracelog.Logger(r.Context())
 
 	hc.conn = conn
-	err = hc.streamPodLogs(org, appName, cluster, follow, r.Context())
+	err = hc.streamPodLogs(org, appName, stageID, cluster, follow, r.Context())
 	if err != nil {
 		log.V(1).Error(err, "error occured after upgrading the websockets connection")
 		return
 	}
 }
 
-func (hc ApplicationsController) streamPodLogs(orgName string, appName string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
+func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
 	app := models.NewApp(appName, orgName)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
@@ -201,7 +202,7 @@ func (hc ApplicationsController) streamPodLogs(orgName string, appName string, c
 	wg.Add(1)
 	go func(outerWg *sync.WaitGroup) {
 		var tailWg sync.WaitGroup
-		err := app.Logs(logCtx, logChan, &tailWg, cluster, follow, "")
+		err := app.Logs(logCtx, logChan, &tailWg, cluster, follow, stageID)
 		if err != nil {
 			fmt.Println(err.Error())
 		}

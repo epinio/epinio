@@ -12,10 +12,10 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -734,7 +734,7 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 }
 
 // AppLogs streams the logs of all the application instances, in the targeted org
-func (c *EpinioClient) AppLogs(appName string, follow bool) error {
+func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -747,11 +747,9 @@ func (c *EpinioClient) AppLogs(appName string, follow bool) error {
 
 	details.Info("application logs")
 
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt)
-
 	var urlArgs = []string{}
 	urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", follow))
+	urlArgs = append(urlArgs, fmt.Sprintf("stage_id=%s", stageID))
 
 	headers := http.Header{
 		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Config.User, c.Config.Password)))},
@@ -763,55 +761,54 @@ func (c *EpinioClient) AppLogs(appName string, follow bool) error {
 	}
 
 	done := make(chan bool)
-	errorChan := make(chan error, 1)
 
-	go func() {
-		var logLine tailer.ContainerLogLine
-
-		printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
+	go func() { // Closes the connection on "interrupt" or just stops on "done"
+		defer wg.Done()
 		for {
-			_, message, err := webSocketConn.ReadMessage()
-			if err != nil {
-				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-					c.ui.Normal().Msg("-- Logs End --")
+			select {
+			case <-done: // Used by the other loop stop stop this go routine
+				return
+			case <-interrupt:
+				// Used by the caller of this method to stop everything. We simply close
+				// the connection here. This will make the loop below to stop and send us
+				// a signal on "done" above. That will stop this go routine too.
+				err = webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
+				if err != nil {
 					webSocketConn.Close()
-					done <- true
-					return
 				}
-				errorChan <- err
-				return
 			}
-			err = json.Unmarshal(message, &logLine)
-			if err != nil {
-				errorChan <- err
-				return
-			}
-
-			printer.Print(logprinter.Log{
-				Message:       logLine.Message,
-				Namespace:     logLine.Namespace,
-				PodName:       logLine.PodName,
-				ContainerName: logLine.ContainerName,
-			}, c.ui.ProgressNote().Compact())
 		}
 	}()
 
+	var logLine tailer.ContainerLogLine
+	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
 	for {
-		select {
-		case <-done:
-			return nil
-		case err := <-errorChan:
-			return err
-		case <-interrupt:
-			err = webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
-			if err != nil {
-				err = webSocketConn.Close()
-				if err != nil {
-					return err
-				}
+		_, message, err := webSocketConn.ReadMessage()
+		if err != nil {
+			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+				c.ui.Normal().Msg("-- Logs End --")
+				webSocketConn.Close()
+				done <- true // Stop the go routine
+				return nil
 			}
-			return nil
+			done <- true
+			return err
 		}
+		err = json.Unmarshal(message, &logLine)
+		if err != nil {
+			done <- true
+			return err
+		}
+
+		printer.Print(logprinter.Log{
+			Message:       logLine.Message,
+			Namespace:     logLine.Namespace,
+			PodName:       logLine.PodName,
+			ContainerName: logLine.ContainerName,
+		}, c.ui.ProgressNote().Compact())
 	}
 }
 
@@ -1064,24 +1061,27 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	log.V(3).Info("stage response", "response", stage)
 
 	details.Info("start tailing logs", "StageID", stage.Stage.ID)
-	// cancelFunc is used to stop the tailing of the logs
-	// TODO: Maybe not fetch logs at all when they are not going to be printed?
-	ctx, cancelFunc := context.WithCancel(context.Background())
+
+	stopChan := make(chan bool)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
 	go func() {
-		err := c.logs(ctx, appRef, stage.Stage.ID)
+		defer wg.Done()
+		err := c.AppLogs(appRef.Name, stage.Stage.ID, true, stopChan)
 		if err != nil {
 			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 			return
 		}
 	}()
-	defer cancelFunc()
 
 	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
 	err = c.waitForPipelineRun(appRef, stage.Stage.ID)
 	if err != nil {
+		stopChan <- true // Stop the printing go routine
 		return errors.Wrap(err, "waiting for staging failed")
 	}
-	cancelFunc() // Stop tailing logs, staging is done
+	stopChan <- true // Stop the printing go routine
 
 	details.Info("wait for app", "StageID", stage.Stage.ID)
 	err = c.waitForApp(appRef, stage.Stage.ID)
