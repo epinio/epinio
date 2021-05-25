@@ -18,6 +18,7 @@ import (
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
 	"github.com/epinio/epinio/helpers/termui"
 
+	appsv1 "k8s.io/api/apps/v1"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/api/extensions/v1beta1"
@@ -258,6 +259,32 @@ func (c *Cluster) WaitForJobCompleted(namespace, jobName string, timeout time.Du
 		return err
 	}
 	return wait.PollImmediate(time.Second, timeout, c.IsJobCompleted(client, jobName, namespace))
+}
+
+// IsDeploymentCompleted returns a condition function that indicates whether the given
+// Deployment is in Completed state or not.
+func (c *Cluster) IsDeploymentCompleted(deploymentName, namespace string) wait.ConditionFunc {
+	return func() (bool, error) {
+		deployment, err := c.Kubectl.AppsV1().Deployments(namespace).Get(context.Background(),
+			deploymentName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		for _, condition := range deployment.Status.Conditions {
+			if condition.Type == appsv1.DeploymentAvailable && condition.Status == v1.ConditionTrue {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+}
+
+func (c *Cluster) WaitForDeploymentCompleted(ui *termui.UI, namespace, deploymentName string, timeout time.Duration) error {
+	s := ui.Progressf("Starting %s in %s", deploymentName, namespace)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, timeout, c.IsDeploymentCompleted(deploymentName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector

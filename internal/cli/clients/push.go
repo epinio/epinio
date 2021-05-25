@@ -3,7 +3,6 @@ package clients
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"path"
 	"regexp"
@@ -177,19 +176,9 @@ func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 
 func (c *EpinioClient) waitForApp(app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
-	err := c.KubeClient.WaitUntilPodBySelectorExist(
-		c.ui, app.Org, fmt.Sprintf("app.kubernetes.io/name=%s,%s=%s", app.Name, models.EpinioStageIDLabel, id),
-		duration.ToAppBuilt())
-	if err != nil {
-		return errors.Wrap(err, "waiting for app to be created failed")
-	}
 
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Starting application")
-
-	err = c.KubeClient.WaitForPodBySelectorRunning(
-		c.ui, app.Org, fmt.Sprintf("app.kubernetes.io/name=%s", app.Name),
-		duration.ToPodReady())
-
+	err := c.KubeClient.WaitForDeploymentCompleted(
+		c.ui, app.Org, app.Name, duration.ToAppBuilt())
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to come online failed")
 	}
