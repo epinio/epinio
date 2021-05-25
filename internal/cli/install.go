@@ -10,6 +10,13 @@ import (
 
 var NeededOptions = kubernetes.InstallationOptions{
 	{
+		Name:        "skip_traefik",
+		Description: "Assert to epinio that there is a Traefik active, even if epinio cannot find it.",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       false,
+	},
+	{
 		Name:        "system_domain",
 		Description: "The domain you are planning to use for Epinio. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).",
 		Type:        kubernetes.StringType,

@@ -136,7 +136,16 @@ func (k Traefik) GetVersion() string {
 
 func (k Traefik) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
-	_, err := c.Kubectl.CoreV1().Namespaces().Get(
+	skipTraefik, err := options.GetBool("skip_traefik", TraefikDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get skip_traefik option")
+	}
+	if skipTraefik {
+		ui.Exclamation().Msg("Skipping Traefik Ingress deployment by user request")
+		return nil
+	}
+
+	_, err = c.Kubectl.CoreV1().Namespaces().Get(
 		context.Background(),
 		TraefikDeploymentID,
 		metav1.GetOptions{},
