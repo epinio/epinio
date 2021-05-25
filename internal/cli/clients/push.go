@@ -114,7 +114,7 @@ func (c *EpinioClient) logs(ctx context.Context, appRef models.AppRef, stageID s
 			Namespace:     logLine.Namespace,
 			PodName:       logLine.PodName,
 			ContainerName: logLine.ContainerName,
-		}, c.ui)
+		}, c.ui.ProgressNote().Compact().V(1))
 	}
 
 	return nil

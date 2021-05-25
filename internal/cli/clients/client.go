@@ -792,7 +792,7 @@ func (c *EpinioClient) AppLogs(appName string, follow bool) error {
 				Namespace:     logLine.Namespace,
 				PodName:       logLine.PodName,
 				ContainerName: logLine.ContainerName,
-			}, c.ui)
+			}, c.ui.ProgressNote().Compact())
 		}
 	}()
 
