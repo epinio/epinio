@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
-	"strings"
 	"text/template"
 
 	"github.com/epinio/epinio/helpers/termui"
@@ -38,9 +37,6 @@ type Log struct {
 	// PodName of the pod
 	PodName string `json:"podName"`
 
-	// Origin
-	Origin string `json:"origin"`
-
 	// ContainerName of the container
 	ContainerName string `json:"containerName"`
 
@@ -48,9 +44,8 @@ type Log struct {
 	ContainerColor *color.Color `json:"-"`
 }
 
-func (printer LogPrinter) Print(log Log, ui *termui.UI) {
+func (printer LogPrinter) Print(log Log, uiMsg *termui.Message) {
 	log.PodColor, log.ContainerColor = determineColor(log.PodName)
-	log.Origin = originOf(log.PodName)
 
 	var result bytes.Buffer
 	err := printer.Tmpl.Execute(&result, log)
@@ -59,14 +54,7 @@ func (printer LogPrinter) Print(log Log, ui *termui.UI) {
 		return
 	}
 
-	ui.ProgressNote().Compact().Msg(result.String() + " ")
-}
-
-func originOf(podName string) string {
-	if strings.HasPrefix(podName, "staging-pipeline-run-") {
-		return "[STAGE]"
-	}
-	return "[APP]"
+	uiMsg.Msg(result.String() + " ")
 }
 
 func determineColor(podName string) (podColor, containerColor *color.Color) {
