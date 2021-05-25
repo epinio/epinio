@@ -99,13 +99,13 @@ func (c *EpinioClient) logs(ctx context.Context, appRef models.AppRef, stageID s
 	defer close(logChan)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func() {
-		err := app.StagingLogs(ctx, logChan, c.KubeClient, true, stageID)
+	go func(wg *sync.WaitGroup) {
+		err := app.Logs(ctx, logChan, wg, c.KubeClient, true, stageID)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
 		wg.Done()
-	}()
+	}(&wg)
 
 	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
 	for logLine := range logChan {
@@ -116,6 +116,8 @@ func (c *EpinioClient) logs(ctx context.Context, appRef models.AppRef, stageID s
 			ContainerName: logLine.ContainerName,
 		}, c.ui.ProgressNote().Compact().V(1))
 	}
+
+	wg.Wait()
 
 	return nil
 }

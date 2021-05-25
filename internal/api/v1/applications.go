@@ -6,11 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"regexp"
+	"sync"
 	"time"
-
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -18,7 +15,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
@@ -167,7 +163,6 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 
 	queryValues := r.URL.Query()
 	followStr := queryValues.Get("follow")
-	fmt.Printf("followStr = %+v\n", followStr)
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
@@ -181,18 +176,6 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 		jsonErrorResponse(w, InternalError(err))
 		return
 	}
-
-	// Case - no following
-	// Get App Ref
-	// app.Logs gives you channel
-	// loop over the channel
-	// stream get closed
-	//
-
-	// Case - follow
-	// How to close the channel ?
-	// When the user of the api issues close connection.
-	// then we close the context
 
 	follow := false
 	if followStr == "true" {
@@ -210,51 +193,27 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hc ApplicationsController) streamPodLogs(orgName string, appName string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
-	selector := labels.NewSelector()
-	for _, req := range [][]string{
-		{"app.kubernetes.io/component", "application"},
-		{"app.kubernetes.io/managed-by", "epinio"},
-		{"app.kubernetes.io/part-of", orgName},
-		{"app.kubernetes.io/name", appName},
-	} {
-		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
-		if err != nil {
-			return err
-		}
-		selector = selector.Add(*req)
-	}
-
-	logCtx, logCancelFunc := context.WithCancel(ctx)
-	defer func() {
-		logCancelFunc()
-	}()
+	app := models.NewApp(appName, orgName)
 	logChan := make(chan tailer.ContainerLogLine)
-	config := &tailer.Config{
-		ContainerQuery:        regexp.MustCompile(".*"),
-		ExcludeContainerQuery: nil,
-		ContainerState:        "running",
-		Exclude:               nil,
-		Include:               nil,
-		Timestamps:            false,
-		Since:                 duration.LogHistory(),
-		AllNamespaces:         true,
-		LabelSelector:         selector,
-		TailLines:             nil,
-		Namespace:             "",
-		PodQuery:              regexp.MustCompile(".*"),
-	}
+	logCtx, logCancelFunc := context.WithCancel(ctx)
+	var wg sync.WaitGroup
 
-	if follow {
-		go func() {
-			tailer.StreamLogs(logCtx, logChan, config, cluster)
-			close(logChan)
-		}()
-	} else {
-		go func() {
-			tailer.FetchLogs(logCtx, logChan, config, cluster)
-			close(logChan)
-		}()
-	}
+	wg.Add(1)
+	go func(outerWg *sync.WaitGroup) {
+		var tailWg sync.WaitGroup
+		err := app.Logs(logCtx, logChan, &tailWg, cluster, follow, "")
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		tailWg.Wait()  // Wait until all child routines are stopped
+		close(logChan) // Close the channel so the loop below can stop
+		outerWg.Done() // Let the outer method know we are done
+	}(&wg)
+
+	defer func() {
+		logCancelFunc() // Just in case return some error, out of the normal flow.
+		wg.Wait()
+	}()
 
 	// Read logs until channel no logs are left or connection is closed from the
 	// client side (which will send an error to the for loop below and it will
@@ -292,6 +251,8 @@ func (hc ApplicationsController) streamPodLogs(orgName string, appName string, c
 			return err
 		}
 	}
+
+	wg.Wait()
 
 	if err := hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{}); err != nil {
 		return err

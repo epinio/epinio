@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -31,20 +32,12 @@ func NewApp(name string, org string) *App {
 	return &App{AppRef: AppRef{Name: name, Org: org}}
 }
 
-func (app *App) StagingLogs(ctx context.Context, logChan chan tailer.ContainerLogLine, client *kubernetes.Cluster, follow bool, stageID string) error {
-	return app.Logs(ctx, logChan, client, follow, stageID)
-}
-
-func (app *App) RuntimeLogs(ctx context.Context, logChan chan tailer.ContainerLogLine, client *kubernetes.Cluster, follow bool) error {
-	return app.Logs(ctx, logChan, client, follow, "")
-}
-
 // Logs method writes log lines to the specified logChan. The caller can stop
 // the logging with the ctx cancelFunc. It's also the callers responsibility
 // to close the logChan when done.
-// When stageID is an empty string, no staging logs are returned. If it is seti,
+// When stageID is an empty string, no staging logs are returned. If it is set,
 // then only logs from that staging process are returned.
-func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, client *kubernetes.Cluster, follow bool, stageID string) error {
+func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, client *kubernetes.Cluster, follow bool, stageID string) error {
 	selector := labels.NewSelector()
 
 	var selectors [][]string
@@ -88,10 +81,10 @@ func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, 
 	}
 
 	if follow {
-		return tailer.StreamLogs(ctx, logChan, config, client)
+		return tailer.StreamLogs(ctx, logChan, wg, config, client)
 	}
 
-	return tailer.FetchLogs(ctx, logChan, config, client)
+	return tailer.FetchLogs(ctx, logChan, wg, config, client)
 }
 
 // GitURL returns the git URL by combining the server with the org and name
