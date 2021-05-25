@@ -12,7 +12,7 @@ WORKDIR /go/src/github.com/epinio
 COPY . .
 COPY --from=tools /helm /usr/bin/helm
 
-RUN make build-all-small
+RUN make -o lint embed_files build-amd64 LDFLAGS="-s -w"
 
 FROM $BASE_IMAGE
 COPY --from=build /go/src/github.com/epinio/dist/epinio-linux-amd64 /epinio

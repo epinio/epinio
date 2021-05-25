@@ -12,6 +12,9 @@ build-all: embed_files lint build-amd64 build-arm64 build-arm32 build-windows bu
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
 
+build-releases:
+	@$(MAKE) LDFLAGS+="-s -w" -o lint embed_files build-all
+
 build-arm32: lint
 	GOARCH="arm" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm32
 
