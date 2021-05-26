@@ -4,9 +4,11 @@ import (
 	"os"
 	"strings"
 
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 var ()
@@ -48,6 +50,23 @@ func init() {
 	})
 }
 
+// instances checks if the user provided an instance count. If they didn't, then we'll
+// pass nil and either use the default or whatever is deployed in the cluster.
+func instances(cmd *cobra.Command) (*int32, error) {
+	var i *int32
+	instances, err := cmd.Flags().GetInt32("instances")
+	if err != nil {
+		return i, errors.Wrap(err, "could not read instances parameter")
+	}
+	cmd.Flags().Visit(func(f *pflag.Flag) {
+		if f.Name == "instances" {
+			n := int32(instances)
+			i = &n
+		}
+	})
+	return i, nil
+}
+
 // CmdPush implements the epinio push command
 var CmdPush = &cobra.Command{
 	Use:   "push NAME [PATH_TO_APPLICATION_SOURCES]",
@@ -73,12 +92,12 @@ var CmdPush = &cobra.Command{
 			return errors.Wrap(err, "path not accessible")
 		}
 
-		instances, err := cmd.Flags().GetInt("instances")
+		i, err := instances(cmd)
 		if err != nil {
-			return errors.Wrap(err, "could not read instances parameter")
+			return err
 		}
 		params := clients.PushParams{
-			Instances: instances,
+			Instances: i,
 		}
 
 		services, err := cmd.Flags().GetStringSlice("bind")
@@ -100,5 +119,5 @@ var CmdPush = &cobra.Command{
 
 func init() {
 	flags := CmdPush.Flags()
-	flags.IntP("instances", "i", 1, "The number of desired instance for the application")
+	flags.Int32P("instances", "i", v1.DefaultInstances, "The number of desired instances for the application, default only applies to new deployments")
 }

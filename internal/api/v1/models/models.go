@@ -35,7 +35,7 @@ type BindRequest struct {
 }
 
 type UpdateAppRequest struct {
-	Instances string `json:"instances"`
+	Instances int32 `json:"instances"`
 }
 
 // TODO: CreateOrgRequest
@@ -48,7 +48,7 @@ type UploadResponse struct {
 
 type StageRequest struct {
 	App       AppRef  `json:"app,omitempty"`
-	Instances int     `json:"instances"`
+	Instances *int32  `json:"instances,omitempty"`
 	Git       *GitRef `json:"git,omitempty"`
 	Route     string  `json:"route,omitempty"`
 }

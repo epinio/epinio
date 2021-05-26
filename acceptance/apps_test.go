@@ -6,9 +6,12 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/helpers"
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -19,6 +22,58 @@ var _ = Describe("Apps", func() {
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
+	})
+
+	When("pushing an app multiple times", func() {
+		var (
+			appName  string
+			timeout  = 30 * time.Second
+			interval = 1 * time.Second
+		)
+
+		BeforeEach(func() {
+			appName = newAppName()
+		})
+
+		act := func(arg string) (string, error) {
+			appDir := "../assets/sample-app"
+			return Epinio(fmt.Sprintf("apps push %[1]s --verbosity 1 %[2]s", appName, arg), appDir)
+		}
+
+		replicas := func(ns, name string) string {
+			n, err := helpers.Kubectl(fmt.Sprintf("get deployment -n %s %s -o=jsonpath='{.status.replicas}'", ns, name))
+			if err != nil {
+				return ""
+			}
+			return n
+		}
+
+		It("honours the given instance count", func() {
+			By("pushing without instance count", func() {
+				out, err := act("")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					return replicas(org, appName)
+				}, timeout, interval).Should(Equal(strconv.Itoa(int(v1.DefaultInstances))))
+			})
+			By("pushing with an instance count", func() {
+				out, err := act("--instances 2")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					return replicas(org, appName)
+				}, timeout, interval).Should(Equal("2"))
+			})
+			By("pushing again, without an instance count", func() {
+				out, err := act("")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					return replicas(org, appName)
+				}, timeout, interval).Should(Equal("2"))
+			})
+		})
 	})
 
 	Describe("push and delete", func() {

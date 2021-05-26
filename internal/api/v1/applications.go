@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/models"
@@ -135,22 +134,13 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return APIErrors{BadRequest(err)}
 	}
 
-	if updateRequest.Instances == "" {
-		return APIErrors{NewAPIError("Instances not specified", "", http.StatusBadRequest)}
-	}
-
-	instances, err := strconv.Atoi(updateRequest.Instances)
-	if err != nil {
-		return APIErrors{BadRequest(err, "")}
-	}
-
-	if instances < 0 {
+	if updateRequest.Instances < 0 {
 		return APIErrors{NewAPIError(
 			"instances param should be integer equal or greater than zero",
 			"", http.StatusBadRequest)}
 	}
 
-	err = app.Scale(r.Context(), int32(instances))
+	err = app.Scale(r.Context(), updateRequest.Instances)
 	if err != nil {
 		return singleError(err, http.StatusInternalServerError)
 	}
