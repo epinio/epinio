@@ -55,6 +55,7 @@ const (
 	afterEachSleepPath = "../tmp/after_each_sleep"
 
 	kubeconfigPath = "../tmp/acceptance-kubeconfig"
+	epinioYAML     = "../tmp/epinio.yaml"
 
 	// k3dInstallArgsEnv contains the name of the environment
 	// variable which, when present and not empty has its contents
@@ -95,7 +96,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	os.Setenv("EPINIO_BINARY_PATH", path.Join("dist", "epinio-linux-amd64"))
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
-	os.Setenv("EPINIO_CONFIG", "epinio.yaml") // In test directory
+	os.Setenv("EPINIO_CONFIG", epinioYAML)
 
 	fmt.Println("Ensuring a docker network")
 	out, err := ensureRegistryNetwork()
@@ -182,7 +183,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
 	// Get config from the installation (API credentials)
-	out, err = RunProc(fmt.Sprintf("cp epinio.yaml %s/epinio.yaml", nodeTmpDir), "", false)
+	out, err = RunProc(fmt.Sprintf("cp %s %s/epinio.yaml", epinioYAML, nodeTmpDir), "", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = Epinio("target workspace", nodeTmpDir)
