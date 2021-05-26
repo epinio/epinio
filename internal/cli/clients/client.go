@@ -775,12 +775,14 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 				// Used by the caller of this method to stop everything. We simply close
 				// the connection here. This will make the loop below to stop and send us
 				// a signal on "done" above. That will stop this go routine too.
-				err = webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
-				if err != nil {
-					webSocketConn.Close()
-				}
+				webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
+				webSocketConn.Close()
 			}
 		}
+	}()
+
+	defer func() {
+		done <- true // Stop the go routine when we return
 	}()
 
 	var logLine tailer.ContainerLogLine
@@ -790,15 +792,12 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 		if err != nil {
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				webSocketConn.Close()
-				done <- true // Stop the go routine
 				return nil
 			}
-			done <- true
 			return err
 		}
 		err = json.Unmarshal(message, &logLine)
 		if err != nil {
-			done <- true
 			return err
 		}
 
@@ -1061,7 +1060,10 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 
 	details.Info("start tailing logs", "StageID", stage.Stage.ID)
 
-	stopChan := make(chan bool)
+	// Buffered because the go routine may no longer be listening when we try
+	// to stop it. Stopping it should be a fire and forget. We have wg to wait
+	// for the routine to be gone.
+	stopChan := make(chan bool, 1)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	defer wg.Wait()
