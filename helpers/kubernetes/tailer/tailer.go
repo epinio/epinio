@@ -45,7 +45,7 @@ func NewTail(namespace, podName, containerName string, logger logr.Logger, clien
 }
 
 // Start writes log lines to the logChan. It can be stopped using the ctx.
-// It's the calles responsibility to close the logChan (because there may be more
+// It's the caller's responsibility to close the logChan (because there may be more
 // instances of this method (go routines) writing to the same channel.
 func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow bool) error {
 	// TODO: Remove this prints or move the to higher trace level

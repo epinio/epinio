@@ -161,15 +161,32 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	queryValues := r.URL.Query()
-	followStr := queryValues.Get("follow")
-	stageID := queryValues.Get("stage_id")
-
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
 		jsonErrorResponse(w, InternalError(err))
 		return
 	}
+
+	exists, err := organizations.Exists(cluster, org)
+	if err != nil {
+		jsonErrorResponse(w, InternalError(err))
+	}
+
+	if !exists {
+		jsonErrorResponse(w, OrgIsNotKnown(org))
+	}
+
+	app, err := application.Lookup(cluster, org, appName)
+	if err != nil {
+		jsonErrorResponse(w, InternalError(err))
+	}
+	if app == nil {
+		jsonErrorResponse(w, AppIsNotKnown(appName))
+	}
+
+	queryValues := r.URL.Query()
+	followStr := queryValues.Get("follow")
+	stageID := queryValues.Get("stage_id")
 
 	var upgrader = websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(w, r, nil)
