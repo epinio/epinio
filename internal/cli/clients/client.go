@@ -1079,7 +1079,6 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 		err := c.AppLogs(appRef.Name, stage.Stage.ID, true, stopChan)
 		if err != nil {
 			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
-			return
 		}
 	}()
 

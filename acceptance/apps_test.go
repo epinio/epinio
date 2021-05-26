@@ -315,6 +315,11 @@ var _ = Describe("Apps", func() {
 			p, err := GetKCommand("app logs --follow "+appName, "")
 			Expect(err).NotTo(HaveOccurred())
 
+			defer func() {
+				if p.Process != nil {
+					p.Process.Kill()
+				}
+			}()
 			go p.Run()
 			reader, err := p.StdoutPipe()
 			Expect(err).NotTo(HaveOccurred())
@@ -322,17 +327,15 @@ var _ = Describe("Apps", func() {
 			By("read all the logs")
 			scanner := bufio.NewScanner(reader)
 			By("get to the end of logs")
-			for i := 0; i < logLength-3; i++ {
+			for i := 0; i < logLength-1; i++ {
 				scanner.Scan()
 				scanner.Text()
 			}
 
 			By("adding new logs")
-			Eventually(func() int {
-				resp, err := Curl("GET", route, strings.NewReader(""))
-				Expect(err).ToNot(HaveOccurred())
-				return resp.StatusCode
-			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+			resp, err := Curl("GET", route, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
 			By("checking the latest log")
 			scanner.Scan()
