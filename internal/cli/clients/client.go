@@ -761,6 +761,9 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 	}
 
 	done := make(chan bool)
+	// When we get an interrupt, we close the websocket connection and we
+	// we don't want to return an error in this case.
+	connectionClosedByUs := false
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -776,6 +779,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 				// the connection here. This will make the loop below to stop and send us
 				// a signal on "done" above. That will stop this go routine too.
 				webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
+				connectionClosedByUs = true
 				webSocketConn.Close()
 			}
 		}
@@ -790,6 +794,9 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 	for {
 		_, message, err := webSocketConn.ReadMessage()
 		if err != nil {
+			if connectionClosedByUs {
+				return nil
+			}
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				webSocketConn.Close()
 				return nil
