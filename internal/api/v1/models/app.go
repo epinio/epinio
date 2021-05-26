@@ -51,6 +51,7 @@ func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, 
 		}
 	} else {
 		selectors = [][]string{
+			{"app.kubernetes.io/component", "staging"},
 			{"app.kubernetes.io/managed-by", "epinio"},
 			{EpinioStageIDLabel, stageID},
 			{"app.kubernetes.io/part-of", app.Org},
