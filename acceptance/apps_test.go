@@ -312,7 +312,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("follows logs", func() {
-			p, err := GetKCommand("app logs --follow "+appName, "")
+			p, err := GetProc(nodeTmpDir+"/epinio app logs --follow "+appName, "")
 			Expect(err).NotTo(HaveOccurred())
 
 			defer func() {

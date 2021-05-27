@@ -367,8 +367,30 @@ func deleteTmpDir() {
 	}
 }
 
+func GetProc(command string, dir string) (*kexec.KCommand, error) {
+	var commandDir string
+	var err error
+
+	if dir == "" {
+		commandDir, err = os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		commandDir = dir
+	}
+
+	p := kexec.CommandString(command)
+	p.Dir = commandDir
+
+	return p, nil
+}
+
 func RunProc(cmd, dir string, toStdout bool) (string, error) {
-	p := kexec.CommandString(cmd)
+	p, err := GetProc(cmd, dir)
+	if err != nil {
+		return "", err
+	}
 
 	var b bytes.Buffer
 	if toStdout {
@@ -379,13 +401,11 @@ func RunProc(cmd, dir string, toStdout bool) (string, error) {
 		p.Stderr = &b
 	}
 
-	p.Dir = dir
-
 	if err := p.Run(); err != nil {
 		return b.String(), err
 	}
 
-	err := p.Wait()
+	err = p.Wait()
 	return b.String(), err
 }
 
@@ -416,39 +436,8 @@ func cleanupTmp() (string, error) {
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
 func Epinio(command string, dir string) (string, error) {
-	var commandDir string
-	var err error
-
-	if dir == "" {
-		commandDir, err = os.Getwd()
-		if err != nil {
-			return "", err
-		}
-	} else {
-		commandDir = dir
-	}
-
 	cmd := fmt.Sprintf(nodeTmpDir+"/epinio %s", command)
-
-	return RunProc(cmd, commandDir, false)
-}
-
-// GetKCommand returns the KCommand without running it
-func GetKCommand(command string, dir string) (*kexec.KCommand, error) {
-	var err error
-
-	if dir == "" {
-		dir, err = os.Getwd()
-		if err != nil {
-			return nil, err
-		}
-	}
-	cmd := fmt.Sprintf(nodeTmpDir+"/epinio %s", command)
-
-	p := kexec.CommandString(cmd)
-	p.Dir = dir
-
-	return p, nil
+	return RunProc(cmd, dir, false)
 }
 
 func checkDependencies() error {
