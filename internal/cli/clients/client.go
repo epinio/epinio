@@ -734,6 +734,8 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 }
 
 // AppLogs streams the logs of all the application instances, in the targeted org
+// If stageID is an empty string, runtime application logs are streamed. If stageID
+// is set, then the matching staging logs are streamed.
 func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")
@@ -755,7 +757,14 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Config.User, c.Config.Password)))},
 	}
 
-	webSocketConn, resp, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/%s?%s", c.wsServerURL, api.Routes.Path("AppLogs", c.Config.Org, appName), strings.Join(urlArgs, "&")), headers)
+	var endpoint string
+	if stageID == "" {
+		endpoint = api.Routes.Path("AppLogs", c.Config.Org, appName)
+	} else {
+		endpoint = api.Routes.Path("StagingLogs", c.Config.Org, stageID)
+	}
+	webSocketConn, resp, err := websocket.DefaultDialer.Dial(
+		fmt.Sprintf("%s/%s?%s", c.wsServerURL, endpoint, strings.Join(urlArgs, "&")), headers)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}
