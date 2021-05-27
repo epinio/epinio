@@ -30,7 +30,7 @@ type Epinio struct {
 const (
 	EpinioDeploymentID  = "epinio"
 	epinioServerYaml    = "epinio/server.yaml"
-	epinioStagingYAML   = "epinio/staging.yaml"
+	epinioRolesYAML     = "epinio/roles.yaml"
 	epinioBasicAuthYaml = "epinio/basicauth.yaml"
 )
 
@@ -70,8 +70,8 @@ func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", epinioServerYaml, out))
 	}
 
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(epinioStagingYAML, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", epinioStagingYAML, out))
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(epinioRolesYAML, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", epinioRolesYAML, out))
 	}
 
 	// (yyy) Note: We ignore deletion errors due to a mising
@@ -256,9 +256,9 @@ func (k Epinio) applyEpinioConfigYaml(c *kubernetes.Cluster, ui *termui.UI, auth
 		return "", errors.Wrapf(err, "failed to wait for %s namespace", TektonStagingNamespace)
 	}
 
-	yamlPathOnDisk, err = helpers.ExtractFile(epinioStagingYAML)
+	yamlPathOnDisk, err = helpers.ExtractFile(epinioRolesYAML)
 	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + epinioServerYaml + " - " + err.Error())
+		return "", errors.New("Failed to extract embedded file: " + epinioRolesYAML + " - " + err.Error())
 	}
 	defer os.Remove(yamlPathOnDisk)
 

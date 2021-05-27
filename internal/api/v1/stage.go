@@ -22,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 	"k8s.io/client-go/dynamic"
+	k8s "k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	"github.com/epinio/epinio/deployments"
@@ -35,7 +36,8 @@ import (
 )
 
 const (
-	RegistryURL = "registry.epinio-registry/apps"
+	RegistryURL      = "registry.epinio-registry/apps"
+	DefaultInstances = int32(1)
 )
 
 // Stage will create a Tekton PipelineRun resource to stage and start the app
@@ -62,7 +64,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return singleNewError("name parameter from URL does not match name param in body", http.StatusBadRequest)
 	}
 
-	if req.Instances < 0 {
+	if req.Instances != nil && *req.Instances < 0 {
 		return APIErrors{NewAPIError(
 			"instances param should be integer equal or greater than zero",
 			"", http.StatusBadRequest)}
@@ -83,7 +85,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	uid, err := randstr.Hex16()
 	if err != nil {
-		return singleInternalError(err, "failed to get access to a tekton client")
+		return singleInternalError(err, "failed to generate a uid")
 	}
 
 	l, err := client.List(ctx, metav1.ListOptions{
@@ -100,11 +102,22 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
+	// find out the instances
+	var instances int32
+	if req.Instances != nil {
+		instances = int32(*req.Instances)
+	} else {
+		instances, err = existingReplica(ctx, cluster.Kubectl, req.App)
+		if err != nil {
+			return singleError(err, http.StatusInternalServerError)
+		}
+	}
+
 	app := models.App{
 		AppRef:    req.App,
 		Git:       req.Git,
 		Route:     req.Route,
-		Instances: int32(req.Instances),
+		Instances: instances,
 	}
 
 	pr := newPipelineRun(uid, app)
@@ -127,6 +140,18 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 
 	return nil
+}
+
+func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppRef) (int32, error) {
+	// if a deployment exists, use that deployment's replica count
+	result, err := client.AppsV1().Deployments(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return DefaultInstances, nil
+		}
+		return 0, err
+	}
+	return *result.Spec.Replicas, nil
 }
 
 func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {

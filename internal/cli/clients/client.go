@@ -13,7 +13,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strconv"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -47,7 +46,7 @@ type EpinioClient struct {
 }
 
 type PushParams struct {
-	Instances int
+	Instances *int32
 	Services  []string
 }
 
@@ -694,8 +693,8 @@ func (c *EpinioClient) AppShow(appName string) error {
 	return nil
 }
 
-// AppUpdate updates the specified running application's attrbitues (e.g. instances)
-func (c *EpinioClient) AppUpdate(appName string, instances int) error {
+// AppUpdate updates the specified running application's attributes (e.g. instances)
+func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -709,7 +708,7 @@ func (c *EpinioClient) AppUpdate(appName string, instances int) error {
 	details.Info("update application")
 
 	data, err := json.Marshal(models.UpdateAppRequest{
-		Instances: strconv.Itoa(instances),
+		Instances: instances,
 	})
 	if err != nil {
 		return err

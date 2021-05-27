@@ -54,6 +54,9 @@ const (
 	// (*) A number, i.e. just digits. __No trailing newline__
 	afterEachSleepPath = "../tmp/after_each_sleep"
 
+	kubeconfigPath = "../tmp/acceptance-kubeconfig"
+	epinioYAML     = "../tmp/epinio.yaml"
+
 	// k3dInstallArgsEnv contains the name of the environment
 	// variable which, when present and not empty has its contents
 	// added to the command creating the test cluster.  Does not
@@ -93,7 +96,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	os.Setenv("EPINIO_BINARY_PATH", path.Join("dist", "epinio-linux-amd64"))
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
-	os.Setenv("EPINIO_CONFIG", "epinio.yaml") // In test directory
+	os.Setenv("EPINIO_CONFIG", epinioYAML)
 
 	fmt.Println("Ensuring a docker network")
 	out, err := ensureRegistryNetwork()
@@ -165,7 +168,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
 	// Copy kubeconfig in the temp dir
-	out, err := RunProc(fmt.Sprintf("cp acceptance-kubeconfig %s/kubeconfig", nodeTmpDir), "", false)
+	out, err := RunProc(fmt.Sprintf("cp %s %s/kubeconfig", kubeconfigPath, nodeTmpDir), "", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = copyEpinio()
@@ -180,7 +183,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
 	// Get config from the installation (API credentials)
-	out, err = RunProc(fmt.Sprintf("cp epinio.yaml %s/epinio.yaml", nodeTmpDir), "", false)
+	out, err = RunProc(fmt.Sprintf("cp %s %s/epinio.yaml", epinioYAML, nodeTmpDir), "", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = Epinio("target workspace", nodeTmpDir)
@@ -334,13 +337,16 @@ func ensureCluster(k3dClusterName string) {
 	if err != nil {
 		panic("Getting kubeconfig failed: " + err.Error())
 	}
-	err = ioutil.WriteFile("acceptance-kubeconfig", []byte(kubeconfig), 0644)
+	if err := os.MkdirAll("../tmp", 0755); err != nil {
+		panic("cannot create tmp dir")
+	}
+	err = ioutil.WriteFile(kubeconfigPath, []byte(kubeconfig), 0644)
 	if err != nil {
 		panic("Writing kubeconfig failed: " + err.Error())
 	}
-	kubeconfigPath, err := filepath.Abs("acceptance-kubeconfig")
+	p, err := filepath.Abs(kubeconfigPath)
 	Expect(err).ToNot(HaveOccurred())
-	os.Setenv("KUBECONFIG", kubeconfigPath)
+	os.Setenv("KUBECONFIG", p)
 }
 
 func waitUntilClusterNodeReady() (string, error) {

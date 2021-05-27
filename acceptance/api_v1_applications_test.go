@@ -21,7 +21,11 @@ import (
 )
 
 var _ = Describe("Apps API Application Endpoints", func() {
-	var org string
+	var (
+		org string
+		one int32 = 1
+		two int32 = 2
+	)
 
 	uploadRequest := func(url, path string) (*http.Request, error) {
 		file, err := os.Open(path)
@@ -80,7 +84,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return responseApp.Status
 	}
 
-	updateAppInstances := func(org, app, instances string) (int, []byte) {
+	updateAppInstances := func(org string, app string, instances int32) (int, []byte) {
 		data, err := json.Marshal(models.UpdateAppRequest{Instances: instances})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
@@ -118,7 +122,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					Expect(appStatus(org, app)).To(Equal("1/1"))
 
-					status, _ := updateAppInstances(org, app, "3")
+					status, _ := updateAppInstances(org, app, 3)
 					Expect(status).To(Equal(http.StatusOK))
 
 					Eventually(func() string {
@@ -134,7 +138,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					defer deleteApp(app)
 					Expect(appStatus(org, app)).To(Equal("1/1"))
 
-					status, updateResponseBody := updateAppInstances(org, app, "-3")
+					status, updateResponseBody := updateAppInstances(org, app, -3)
 					Expect(status).To(Equal(http.StatusBadRequest))
 
 					var errorResponse v1.ErrorResponse
@@ -219,6 +223,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				defer response.Body.Close()
 				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 			})
 		})
@@ -372,7 +377,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Name: appName,
 					Org:  org,
 				},
-				Instances: 1,
+				Instances: &one,
 				Git: &models.GitRef{
 					Revision: respObj.Git.Revision,
 					URL:      respObj.Git.URL,
@@ -411,7 +416,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("staging with more instances", func() {
 			BeforeEach(func() {
-				request.Instances = 2
+				request.Instances = &two
 			})
 
 			It("creates an app with the specified number of instances", func() {
@@ -441,7 +446,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		When("staging with invalid instances", func() {
 			When("instances is not a integer", func() {
 				BeforeEach(func() {
-					request.Instances = 314 // Hack: see below too
+					n := int32(314)
+					request.Instances = &n // Hack: see below too
 				})
 
 				It("returns BadRequest", func() {
@@ -472,7 +478,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			When("instances is a negative integer", func() {
 				BeforeEach(func() {
-					request.Instances = -3
+					n := int32(-3)
+					request.Instances = &n
 				})
 
 				It("returns BadRequest", func() {
@@ -497,7 +504,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			When("instances is not a number", func() {
 				BeforeEach(func() {
-					request.Instances = 314 // Hack: see below
+					n := int32(314)
+					request.Instances = &n // Hack: see below too
 				})
 
 				It("returns BadRequest", func() {

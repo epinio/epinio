@@ -1,6 +1,7 @@
 package cli
 
 import (
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -86,8 +87,8 @@ var CmdAppShow = &cobra.Command{
 	},
 }
 
-// TODO: When pushing the app again after scaling the instances is reset (?)
-// CmdAppShow implements the epinio `apps show` command
+// CmdAppUpdate is used by the epinio `apps update` command to scale
+// a single app
 var CmdAppUpdate = &cobra.Command{
 	Use:   "update NAME",
 	Short: "Update the named application",
@@ -100,11 +101,15 @@ var CmdAppUpdate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		instances, err := cmd.Flags().GetInt("instances")
+		i, err := instances(cmd)
 		if err != nil {
-			return errors.Wrap(err, "error reading the instances param")
+			return err
 		}
-		err = client.AppUpdate(args[0], instances)
+		if i == nil {
+			d := v1.DefaultInstances
+			i = &d
+		}
+		err = client.AppUpdate(args[0], *i)
 		if err != nil {
 			return errors.Wrap(err, "error updating the app")
 		}
@@ -131,6 +136,6 @@ var CmdAppUpdate = &cobra.Command{
 
 func init() {
 	flags := CmdAppUpdate.Flags()
-	flags.IntP("instances", "i", 1, "The number of instances the application should have")
+	flags.Int32P("instances", "i", 1, "The number of instances the application should have")
 	cobra.MarkFlagRequired(flags, "instances")
 }
