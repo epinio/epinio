@@ -755,9 +755,9 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Config.User, c.Config.Password)))},
 	}
 
-	webSocketConn, _, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/%s?%s", c.wsServerURL, api.Routes.Path("AppLogs", c.Config.Org, appName), strings.Join(urlArgs, "&")), headers)
+	webSocketConn, resp, err := websocket.DefaultDialer.Dial(fmt.Sprintf("%s/%s?%s", c.wsServerURL, api.Routes.Path("AppLogs", c.Config.Org, appName), strings.Join(urlArgs, "&")), headers)
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}
 
 	done := make(chan bool)
