@@ -37,8 +37,7 @@ func NewApp(name string, org string) *App {
 // to close the logChan when done.
 // When stageID is an empty string, no staging logs are returned. If it is set,
 // then only logs from that staging process are returned.
-// TODO: Fix this, when stageID is set, it also returns application logs. Needs extra label?
-func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, client *kubernetes.Cluster, follow bool, stageID string) error {
+func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, client *kubernetes.Cluster, follow bool, app, stageID, org string) error {
 	selector := labels.NewSelector()
 
 	var selectors [][]string
@@ -46,16 +45,15 @@ func (app *App) Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, 
 		selectors = [][]string{
 			{"app.kubernetes.io/component", "application"},
 			{"app.kubernetes.io/managed-by", "epinio"},
-			{"app.kubernetes.io/part-of", app.Org},
-			{"app.kubernetes.io/name", app.Name},
+			{"app.kubernetes.io/part-of", org},
+			{"app.kubernetes.io/name", app},
 		}
 	} else {
 		selectors = [][]string{
 			{"app.kubernetes.io/component", "staging"},
 			{"app.kubernetes.io/managed-by", "epinio"},
 			{EpinioStageIDLabel, stageID},
-			{"app.kubernetes.io/part-of", app.Org},
-			{"app.kubernetes.io/name", app.Name},
+			{"app.kubernetes.io/part-of", org},
 		}
 	}
 

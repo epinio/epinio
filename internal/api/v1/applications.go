@@ -160,6 +160,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 	appName := params.ByName("app")
+	stageID := params.ByName("stage_id")
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
@@ -176,17 +177,22 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 		jsonErrorResponse(w, OrgIsNotKnown(org))
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
-	if err != nil {
-		jsonErrorResponse(w, InternalError(err))
+	if appName != "" {
+		app, err := application.Lookup(cluster, org, appName)
+		if err != nil {
+			jsonErrorResponse(w, InternalError(err))
+		}
+		if app == nil {
+			jsonErrorResponse(w, AppIsNotKnown(appName))
+		}
 	}
-	if app == nil {
-		jsonErrorResponse(w, AppIsNotKnown(appName))
+
+	if appName == "" && stageID == "" {
+		jsonErrorResponse(w, BadRequest(errors.New("You need to speficy either the stage id or the app")))
 	}
 
 	queryValues := r.URL.Query()
 	followStr := queryValues.Get("follow")
-	stageID := queryValues.Get("stage_id")
 
 	var upgrader = websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -211,7 +217,6 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 }
 
 func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
-	app := models.NewApp(appName, orgName)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
 	var wg sync.WaitGroup
@@ -219,7 +224,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 	wg.Add(1)
 	go func(outerWg *sync.WaitGroup) {
 		var tailWg sync.WaitGroup
-		err := app.Logs(logCtx, logChan, &tailWg, cluster, follow, stageID)
+		err := models.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, orgName)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
