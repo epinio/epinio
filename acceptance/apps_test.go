@@ -320,9 +320,9 @@ var _ = Describe("Apps", func() {
 					p.Process.Kill()
 				}
 			}()
-			go p.Run()
 			reader, err := p.StdoutPipe()
 			Expect(err).NotTo(HaveOccurred())
+			go p.Run()
 
 			By("read all the logs")
 			scanner := bufio.NewScanner(reader)
