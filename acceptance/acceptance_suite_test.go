@@ -100,9 +100,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	fmt.Println("Ensuring a docker network")
 	out, err := ensureRegistryNetwork()
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 	out, err = ensureRegistryMirror()
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	fmt.Println("Ensuring acceptance cluster")
 	ensureCluster("epinio-acceptance")
@@ -122,7 +122,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		// Patch Epinio deployment to inject the current binary
 		fmt.Println("Patching Epinio deployment with test binary")
 		out, err = RunProc("make patch-epinio-deployment", "..", false)
-		ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+		Expect(err).ToNot(HaveOccurred(), out)
 	}
 
 	// Now create the default org which we skipped because it would fail before
@@ -133,7 +133,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Eventually is used to retry in case the rollout of the patched deployment
 	// is not completely done yet.
 	fmt.Println("Ensure default workspace exists")
-	EventuallyWithOffset(1, func() error {
+	Eventually(func() error {
 		out, err = RunProc("../dist/epinio-linux-amd64 org create workspace", "", false)
 		if err != nil {
 			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
@@ -146,8 +146,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Println("Setup cluster services")
 	setupInClusterServices()
 	out, err = helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp(`minibroker.*1/1.*Running`))
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp(`minibroker.*1/1.*Running`))
 
 	fmt.Println("Setup google")
 	setupGoogleServices()
@@ -169,13 +169,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
 	// Copy kubeconfig in the temp dir
 	out, err := RunProc(fmt.Sprintf("cp %s %s/kubeconfig", kubeconfigPath, nodeTmpDir), "", false)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = copyEpinio()
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	fmt.Println("Waiting for kubernetes node to be ready")
-	EventuallyWithOffset(1, func() error {
+	Eventually(func() error {
 		out, err = waitUntilClusterNodeReady()
 		return err
 	}, "3m").ShouldNot(HaveOccurred(), out)
@@ -184,13 +184,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	// Get config from the installation (API credentials)
 	out, err = RunProc(fmt.Sprintf("cp %s %s/epinio.yaml", epinioYAML, nodeTmpDir), "", false)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = Epinio("target workspace", nodeTmpDir)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = RunProc("kubectl get ingress -n epinio epinio -o=jsonpath='{.spec.rules[0].host}'", "..", false)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	serverURL = "http://" + out
 	websocketURL = "ws://" + out
@@ -206,7 +206,7 @@ var _ = SynchronizedAfterSuite(func() {
 		fmt.Printf("Found '%s', skipping all cleanup", skipCleanupPath)
 	} else {
 		err := uninstallCluster()
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred())
 
 		// Delete left-overs no matter what
 		defer func() { _, _ = cleanupTmp() }()
@@ -287,7 +287,7 @@ func ensureEpinio() {
 	out, err = RunProc(
 		fmt.Sprintf("../dist/epinio-linux-amd64 install --skip-default-org --user %s --password %s", epinioUser, epinioPassword),
 		"", false)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 }
 
 func uninstallCluster() error {
@@ -494,10 +494,10 @@ func FailWithReport(message string, callerSkip ...int) {
 
 func expectGoodInstallation() {
 	info, err := RunProc("../dist/epinio-linux-amd64 info", "", false)
-	ExpectWithOffset(2, err).ToNot(HaveOccurred())
-	ExpectWithOffset(2, info).To(MatchRegexp("Platform: k3s"))
-	ExpectWithOffset(2, info).To(MatchRegexp("Kubernetes Version: v1.20"))
-	ExpectWithOffset(2, info).To(MatchRegexp("Gitea Version: unavailable"))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(info).To(MatchRegexp("Platform: k3s"))
+	Expect(info).To(MatchRegexp("Kubernetes Version: v1.20"))
+	Expect(info).To(MatchRegexp("Gitea Version: unavailable"))
 }
 
 func setupGoogleServices() {
@@ -515,14 +515,14 @@ func setupGoogleServices() {
 					"client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/client%40example.com"
 				}
 			`)
-	ExpectWithOffset(2, err).ToNot(HaveOccurred(), serviceAccountJSON)
+	Expect(err).ToNot(HaveOccurred(), serviceAccountJSON)
 
 	defer os.Remove(serviceAccountJSON)
 
 	out, err := RunProc("../dist/epinio-linux-amd64 enable services-google --service-account-json "+serviceAccountJSON, "", false)
-	ExpectWithOffset(2, err).ToNot(HaveOccurred(), out)
+	Expect(err).ToNot(HaveOccurred(), out)
 
 	out, err = helpers.Kubectl(`get pods -n google-service-broker --selector=app.kubernetes.io/name=gcp-service-broker`)
-	ExpectWithOffset(2, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(2, out).To(MatchRegexp(`google-service-broker-gcp-service-broker.*1/1.*Running`))
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(MatchRegexp(`google-service-broker-gcp-service-broker.*1/1.*Running`))
 }
