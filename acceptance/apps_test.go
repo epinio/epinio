@@ -38,7 +38,7 @@ var _ = Describe("Apps", func() {
 
 		act := func(arg string) (string, error) {
 			appDir := "../assets/sample-app"
-			return Epinio(fmt.Sprintf("apps push %[1]s --verbosity 1 %[2]s", appName, arg), appDir)
+			return Epinio(fmt.Sprintf("apps push %[1]s %[2]s", appName, arg), appDir)
 		}
 
 		replicas := func(ns, name string) string {
@@ -181,7 +181,7 @@ var _ = Describe("Apps", func() {
 				currentDir, err := os.Getwd()
 				Expect(err).ToNot(HaveOccurred())
 
-				pushOutput, err := Epinio(fmt.Sprintf("apps push %s -b %s --verbosity 1",
+				pushOutput, err := Epinio(fmt.Sprintf("apps push %s -b %s",
 					appName, serviceName),
 					path.Join(currentDir, "../assets/sample-app"))
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
