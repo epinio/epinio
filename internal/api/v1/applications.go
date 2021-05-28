@@ -215,17 +215,17 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// This method still send the logs of any containers matching orgName, appName
+// streamPodLogs sends the logs of any containers matching orgName, appName
 // and stageID to hc.conn (websockets) until ctx is Done or the connection is
 // closed.
-// The way this happens is by having 2 parallel "threads" running and communicating
-// over the logChan which is a channel of ContainerLogLine.
-// We run `models.Logs` in a go routine. This will spin up a number of go routines
+// Internally this uses two concurrent "threads" talking with each other
+// over the logChan. This is a channel of ContainerLogLine.
+// The first thread runs `models.Logs` in a go routine. It spins up a number of supporting go routines
 // that are stopped when the passed context is "Done()". The parent go routine
-// waits until all the children routines are stopped by waiting on a WaitGroup.
-// When that happens the parent go routine will close the logChan in order to allow
+// waits until all the subordinate routines are stopped. It does this by waiting on a WaitGroup.
+// When that happens the parent go routine closes the logChan. This signals
 // the main "thread" to also stop.
-// The main thread itself is reading the logChan and sends the logs over to the
+// The second (and main) thread reads the logChan and sends the received log messages over to the
 // websocket connection. It returns either when the channel is closed or when the
 // connection is closed. In any case it will call the cancel func that will stop
 // all the children go routines described above and then will wait for their parent
@@ -253,7 +253,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 		wg.Wait()
 	}()
 
-	// Send logs coming to logChan over to websockets connection until either
+	// Send logs received on logChan to the websockets connection until either
 	// logChan is closed or websocket connection is closed.
 	for logLine := range logChan {
 		msg, err := json.Marshal(logLine)
