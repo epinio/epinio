@@ -216,6 +216,21 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// This method still send the logs of any containers matching orgName, appName
+// and stageID to hc.conn (websockets) until ctx is Done or the connection is
+// closed.
+// The way this happens is by having 2 parallel "threads" running and communicating
+// over the logChan which is a channel of ContainerLogLine.
+// We run `models.Logs` in a go routine. This will spin up a number of go routines
+// that are stopped when the passed context is "Done()". The parent go routine
+// waits until all the children routines are stopped by waiting on a WaitGroup.
+// When that happens the parent go routine will close the logChan in order to allow
+// the main "thread" to also stop.
+// The main thread itself is reading the logChan and sends the logs over to the
+// websocket connection. It returns either when the channel is closed or when the
+// connection is closed. In any case it will call the cancel func that will stop
+// all the children go routines described above and then will wait for their parent
+// go routine to stop too (using another WaitGroup).
 func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
@@ -238,9 +253,8 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 		wg.Wait()
 	}()
 
-	// Read logs until channel no logs are left or connection is closed from the
-	// client side (which will send an error to the for loop below and it will
-	// call the logCancelFunc to stop this routine too)
+	// Send logs coming to logChan over to websockets connection until either
+	// logChan is closed or websocket connection is closed.
 	for logLine := range logChan {
 		msg, err := json.Marshal(logLine)
 		if err != nil {

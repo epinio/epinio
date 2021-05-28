@@ -736,6 +736,28 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 // AppLogs streams the logs of all the application instances, in the targeted org
 // If stageID is an empty string, runtime application logs are streamed. If stageID
 // is set, then the matching staging logs are streamed.
+// There are 2 ways this method can be stopped:
+// 1. If the connection is closed
+// 2. If something is sent to the interrupt channel
+// The interrupt channel is used by the caller when printing of logs should
+// be stopped.
+// To make sure everything is properly stopped (both the main thread and the
+// go routine) no matter what caused the stop (number 1 or 2 above):
+// - the go routines closes the connection on interrupt. This causes the main
+//   loop to stop as well.
+// - the main thread sends a signal to the `done` channel when it returns. This
+//   causes the go routine to stop.
+// - The main thread waits for the go routine to stop before finally returning (by
+//   calling `wg.Wait()`.
+// This is what happens when `interrupt` receives something:
+// 1. the go routine closes the connection
+// 2. the loop in the main thread is stopped because the connection was closed
+// 3. the main thread sends to the `done` chan (as a "defer" function), it then
+//    calls wg.Wait() to wait for the go routine to exit.
+// 4. the go routine receives the `done` message, calls wg.Done() and returns
+// 5. the main thread returns
+// When the connection is closed (e.g. from the server side), the process is the
+// same but starts from #2 above.
 func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")
