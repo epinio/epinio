@@ -289,8 +289,6 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 		}
 	}
 
-	wg.Wait()
-
 	if err := hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{}); err != nil {
 		return err
 	}
