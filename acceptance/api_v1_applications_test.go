@@ -549,7 +549,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				out := makeApp(app, 1, true)
 				routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 				route = string(routeRegexp.Find([]byte(out)))
+			})
 
+			AfterEach(func() {
+				deleteApp(app)
+			})
+
+			readLogs := func(org, app string) string {
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
 				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
@@ -564,18 +570,25 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					return websocket.IsCloseError(err, websocket.CloseNormalClosure)
 				}, 30*time.Second, 1*time.Second).Should(BeTrue())
 
+				err := wsConn.Close()
+				Expect(err).ToNot(HaveOccurred())
+
+				return logs
+			}
+
+			It("should send the logs", func() {
+				logs := readLogs(org, app)
+
 				By("checking if the logs are right")
 				podNames := getPodNames(app, org)
 				for _, podName := range podNames {
 					Expect(logs).To(ContainSubstring(podName))
 				}
-
-				err := wsConn.Close()
-				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("should follow logs", func() {
-				defer deleteApp(app)
+				existingLogs := readLogs(org, app)
+				logLength := len(strings.Split(existingLogs, "\n"))
 
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
@@ -597,12 +610,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
 				By("checking the latest log message")
-				_, message, err := wsConn.ReadMessage()
-				Expect(err).NotTo(HaveOccurred())
-				Expect(message).NotTo(BeNil())
-				Expect(string(message)).To(ContainSubstring("GET / HTTP/1.1"))
+				Eventually(func() string {
+					_, message, err := wsConn.ReadMessage()
+					Expect(err).NotTo(HaveOccurred())
+					Expect(message).NotTo(BeNil())
+					return string(message)
+				}).Should(ContainSubstring("GET / HTTP/1.1"))
 
-				err = wsConn.Close()
+				err := wsConn.Close()
 				Expect(err).ToNot(HaveOccurred())
 			})
 		})

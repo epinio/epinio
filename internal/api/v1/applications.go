@@ -3,7 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -216,7 +215,23 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// streamPodLogs sends the logs of any containers matching orgName, appName
+// and stageID to hc.conn (websockets) until ctx is Done or the connection is
+// closed.
+// Internally this uses two concurrent "threads" talking with each other
+// over the logChan. This is a channel of ContainerLogLine.
+// The first thread runs `models.Logs` in a go routine. It spins up a number of supporting go routines
+// that are stopped when the passed context is "Done()". The parent go routine
+// waits until all the subordinate routines are stopped. It does this by waiting on a WaitGroup.
+// When that happens the parent go routine closes the logChan. This signals
+// the main "thread" to also stop.
+// The second (and main) thread reads the logChan and sends the received log messages over to the
+// websocket connection. It returns either when the channel is closed or when the
+// connection is closed. In any case it will call the cancel func that will stop
+// all the children go routines described above and then will wait for their parent
+// go routine to stop too (using another WaitGroup).
 func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
+	logger := tracelog.NewLogger().WithName("streaming-logs-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
 	var wg sync.WaitGroup
@@ -226,7 +241,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 		var tailWg sync.WaitGroup
 		err := models.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, orgName)
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Error(err, "setting up log routines failed")
 		}
 		tailWg.Wait()  // Wait until all child routines are stopped
 		close(logChan) // Close the channel so the loop below can stop
@@ -238,9 +253,8 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 		wg.Wait()
 	}()
 
-	// Read logs until channel no logs are left or connection is closed from the
-	// client side (which will send an error to the for loop below and it will
-	// call the logCancelFunc to stop this routine too)
+	// Send logs received on logChan to the websockets connection until either
+	// logChan is closed or websocket connection is closed.
 	for logLine := range logChan {
 		msg, err := json.Marshal(logLine)
 		if err != nil {
@@ -249,7 +263,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 
 		err = hc.conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Error(err, "failed to write to websockets")
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				hc.conn.Close()
@@ -257,7 +271,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 			}
 			if websocket.IsUnexpectedCloseError(err) {
 				hc.conn.Close()
-				fmt.Println(errors.Wrap(err, "error from client"))
+				logger.Error(err, "websockets connection unexpectedly closed")
 				return nil
 			}
 
@@ -274,8 +288,6 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 			return err
 		}
 	}
-
-	wg.Wait()
 
 	if err := hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{}); err != nil {
 		return err

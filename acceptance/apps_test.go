@@ -312,7 +312,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("follows logs", func() {
-			p, err := GetKCommand("app logs --follow "+appName, "")
+			p, err := GetProc(nodeTmpDir+"/epinio app logs --follow "+appName, "")
 			Expect(err).NotTo(HaveOccurred())
 
 			defer func() {
@@ -320,9 +320,9 @@ var _ = Describe("Apps", func() {
 					p.Process.Kill()
 				}
 			}()
-			go p.Run()
 			reader, err := p.StdoutPipe()
 			Expect(err).NotTo(HaveOccurred())
+			go p.Run()
 
 			By("read all the logs")
 			scanner := bufio.NewScanner(reader)
