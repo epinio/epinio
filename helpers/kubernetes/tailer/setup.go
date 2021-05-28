@@ -2,7 +2,6 @@ package tailer
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"sync"
 	"text/template"
@@ -45,6 +44,7 @@ type ContainerLogLine struct {
 // FetchLogs writes all the logs of the matching containers to the logChan.
 // If ctx is Done() the method stops even if not all logs are fetched.
 func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
+	logger := tracelog.NewLogger().WithName("fetching-logs")
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -86,8 +86,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 		go func(tail *Tail) {
 			err := tail.Start(ctx, logChan, false)
 			if err != nil {
-				// TODO: just print it? With a logger?
-				fmt.Println(err.Error())
+				logger.Error(err, "failed to start a Tail")
 			}
 			wg.Done()
 		}(t)
@@ -97,6 +96,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 }
 
 func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
+	logger := tracelog.NewLogger().WithName("streaming-logs")
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -136,8 +136,7 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 			go func() {
 				err := tail.Start(ctx, logChan, true)
 				if err != nil {
-					// TODO: just print it? With a logger?
-					fmt.Println(err.Error())
+					logger.Error(err, "failed to start a Tail")
 				}
 				wg.Done()
 			}()

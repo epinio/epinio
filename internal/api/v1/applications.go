@@ -3,7 +3,6 @@ package v1
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"sync"
@@ -232,6 +231,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
 func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
+	logger := tracelog.NewLogger().WithName("streaming-logs-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
 	var wg sync.WaitGroup
@@ -241,7 +241,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 		var tailWg sync.WaitGroup
 		err := models.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, orgName)
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Error(err, "setting up log routines failed")
 		}
 		tailWg.Wait()  // Wait until all child routines are stopped
 		close(logChan) // Close the channel so the loop below can stop
@@ -263,7 +263,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 
 		err = hc.conn.WriteMessage(websocket.TextMessage, msg)
 		if err != nil {
-			fmt.Println(err.Error())
+			logger.Error(err, "failed to write to websockets")
 
 			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
 				hc.conn.Close()
@@ -271,7 +271,7 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 			}
 			if websocket.IsUnexpectedCloseError(err) {
 				hc.conn.Close()
-				fmt.Println(errors.Wrap(err, "error from client"))
+				logger.Error(err, "websockets connection unexpectedly closed")
 				return nil
 			}
 
