@@ -102,7 +102,7 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	It("can deploy Wordpress", func() {
-		out, err := Epinio(fmt.Sprintf("apps push %s --verbosity 1", wordpress.Name), wordpress.Dir)
+		out, err := Epinio(fmt.Sprintf("apps push %s", wordpress.Name), wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		out, err = Epinio("app list", "")

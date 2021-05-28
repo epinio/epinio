@@ -106,11 +106,11 @@ func makeAppWithDir(appName string, instances int, deployFromCurrentDir bool, ap
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
-		pushOutput, err = Epinio(fmt.Sprintf("apps push %s --verbosity 1 --instances %d", appName, instances), appDir)
+		pushOutput, err = Epinio(fmt.Sprintf("apps push %s --instances %d", appName, instances), appDir)
 	} else {
 		// Note: appDir is handed as second argument to the epinio cli.
 		// This means that the command gets the sources from that directory instead of CWD.
-		pushOutput, err = Epinio(fmt.Sprintf("apps push %s %s --verbosity 1 --instances %d", appName, appDir, instances), "")
+		pushOutput, err = Epinio(fmt.Sprintf("apps push %s %s --instances %d", appName, appDir, instances), "")
 	}
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
