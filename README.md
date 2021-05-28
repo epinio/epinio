@@ -133,6 +133,10 @@ $ epinio install
 That's it! If everything worked as expected you are now ready to push your first
 application to your Kubernetes cluster with Epinio.
 
+In case of trouble with Epinio's Traefik component or Ingress controllers, the
+[Traefik](docs/advanced.md#traefik) section in the
+[Advanced Topics](docs/advanced.md) document shall be your friend.
+
 ### Push an application
 
 NOTE: If you want to know the details of the `epinio push` process, read this
