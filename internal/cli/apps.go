@@ -23,6 +23,7 @@ var CmdApp = &cobra.Command{
 func init() {
 	flags := CmdAppLogs.Flags()
 	flags.Bool("follow", false, "follow the logs of the application")
+	flags.Bool("staging", false, "show the staging logs of the application")
 
 	updateFlags := CmdAppUpdate.Flags()
 	updateFlags.Int32P("instances", "i", 1, "The number of instances the application should have")
@@ -111,10 +112,24 @@ var CmdAppLogs = &cobra.Command{
 
 		follow, err := cmd.Flags().GetBool("follow")
 		if err != nil {
-			return errors.Wrap(err, "error reading the staging param")
+			return errors.Wrap(err, "error reading the follow option")
 		}
 
-		err = client.AppLogs(args[0], "", follow, nil)
+		staging, err := cmd.Flags().GetBool("staging")
+		if err != nil {
+			return errors.Wrap(err, "error reading the staging option")
+		}
+
+		stageId := ""
+		if staging {
+			follow = false
+			stageId, err = client.AppStageId(args[0])
+			if err != nil {
+				return errors.Wrap(err, "error retrieving the stage Id")
+			}
+		}
+
+		err = client.AppLogs(args[0], stageId, follow, nil)
 		if err != nil {
 			return errors.Wrap(err, "error streaming application logs")
 		}
