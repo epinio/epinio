@@ -333,9 +333,15 @@ var _ = Describe("Apps", func() {
 			}
 
 			By("adding new logs")
-			resp, err := Curl("GET", route, strings.NewReader(""))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			// Theoretically "Eventually" shouldn't be required. http 200 should be
+			// returned on the first try. This test flaked here, sometimes returning
+			// 404. We are suspecting some bug in k3d networking which made the Ingress
+			// return 404 if accessed too quickly.
+			Eventually(func() int {
+				resp, err := Curl("GET", route, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, "1m").Should(Equal(http.StatusOK))
 
 			By("checking the latest log")
 			scanner.Scan()
