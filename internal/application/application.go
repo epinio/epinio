@@ -255,7 +255,7 @@ func Delete(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string, ap
 		return err
 	}
 
-	err = unstage(app, "")
+	err = Unstage(app.Name, app.Organization, "")
 	if err != nil {
 		return err
 	}
@@ -366,8 +366,8 @@ func (al ApplicationList) Less(i, j int) bool {
 	return al[i].Name < al[j].Name
 }
 
-// Unstage deletes either all PipelineRuns of an application, or all but the current.
-func unstage(app Application, stageIdCurrent string) error {
+// Unstage deletes either all PipelineRuns of the named application, or all but the current.
+func Unstage(app, org, stageIdCurrent string) error {
 	ctx := context.Background()
 
 	cluster, err := kubernetes.GetCluster()
@@ -384,7 +384,7 @@ func unstage(app Application, stageIdCurrent string) error {
 
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
-			app.Name, app.Organization),
+			app, org),
 	})
 	if err != nil {
 		return err
