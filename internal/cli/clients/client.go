@@ -681,7 +681,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 		WithStringValue("Application", appName).
 		Msg("Show application details")
 
-	details.Info("list applications")
+	details.Info("show application")
 
 	jsonResponse, err := c.get(api.Routes.Path("AppShow", c.Config.Org, appName))
 	if err != nil {
@@ -695,11 +695,30 @@ func (c *EpinioClient) AppShow(appName string) error {
 	c.ui.Success().
 		WithTable("Key", "Value").
 		WithTableRow("Status", app.Status).
+		WithTableRow("StageId", app.StageID).
 		WithTableRow("Routes", strings.Join(app.Routes, ", ")).
 		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).
 		Msg("Details:")
 
 	return nil
+}
+
+// AppStageID returns the stage id of the named app, in the targeted org
+func (c *EpinioClient) AppStageId(appName string) (string, error) {
+	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	jsonResponse, err := c.get(api.Routes.Path("AppShow", c.Config.Org, appName))
+	if err != nil {
+		return "", err
+	}
+	var app application.Application
+	if err := json.Unmarshal(jsonResponse, &app); err != nil {
+		return "", err
+	}
+
+	return app.StageID, nil
 }
 
 // AppUpdate updates the specified running application's attributes (e.g. instances)
