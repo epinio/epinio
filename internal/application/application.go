@@ -24,6 +24,7 @@ type Application struct {
 	Name          string
 	Organization  string
 	Status        string
+	StageID       string
 	Routes        []string
 	BoundServices []string
 	kubeClient    *kubernetes.Cluster
@@ -302,6 +303,21 @@ func List(kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
 
 func (app *Application) Complete() (*Application, error) {
 	var err error
+
+	selector := fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio,app.kubernetes.io/name=%s",
+		app.Name)
+
+	listOptions := metav1.ListOptions{
+		LabelSelector: selector,
+	}
+
+	pods, err := app.kubeClient.Kubectl.CoreV1().Pods(app.Organization).List(context.Background(), listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	app.StageID = pods.Items[0].ObjectMeta.Labels["epinio.suse.org/stage-id"]
+
 	app.Status, err = app.kubeClient.DeploymentStatus(
 		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
