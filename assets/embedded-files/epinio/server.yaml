@@ -20,6 +20,12 @@ metadata:
   name: epinio-server
 rules:
 - apiGroups:
+  - "tekton.dev"
+  resources:
+  - pipelineruns
+  verbs:
+  - delete
+- apiGroups:
   - ""
   resources:
   - nodes
