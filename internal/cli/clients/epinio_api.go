@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	epinioAPIProtocol = "http"
-	epinioWSProtocol  = "ws"
+	epinioAPIProtocol = "https"
+	epinioWSProtocol  = "wss"
 )
 
 // EpinioAPIClient provides functionality for talking to an Epinio API

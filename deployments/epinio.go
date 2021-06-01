@@ -119,11 +119,11 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return err
 	}
 
-	auth := auth.PasswordAuth{
+	authAPI := auth.PasswordAuth{
 		Username: apiUser.Value.(string),
 		Password: apiPassword.Value.(string),
 	}
-	if out, err := k.applyEpinioConfigYaml(c, ui, auth); err != nil {
+	if out, err := k.applyEpinioConfigYaml(c, ui, authAPI); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -132,7 +132,27 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
-	message := "Creating Epinio server ingress"
+	// Wait for the cert manager to be present and active. It is required
+	for _, podname := range []string{
+		"webhook",
+		"cert-manager",
+		"cainjector",
+	} {
+		if err := c.WaitUntilPodBySelectorExist(ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to exist")
+		}
+		if err := c.WaitForPodBySelectorRunning(ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to come up")
+		}
+	}
+
+	message := "Creating Epinio server cert"
+	err = auth.CreateCertificate(context.Background(), c.RestConfig, EpinioDeploymentID, EpinioDeploymentID, domain)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
+	}
+
+	message = "Creating Epinio server ingress"
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return "", k.createIngress(c, EpinioDeploymentID+"."+domain)
@@ -285,6 +305,9 @@ func (k *Epinio) createIngress(c *kubernetes.Cluster, subdomain string) error {
 					// Traefik v2 annotation for ingress with basic auth.
 					// The name of the middleware is `(namespace)-(object)@kubernetescrd`.
 					"traefik.ingress.kubernetes.io/router.middlewares": EpinioDeploymentID + "-epinio-api-auth@kubernetescrd",
+					// Traefik v1/v2 tls annotations.
+					"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
+					"traefik.ingress.kubernetes.io/router.tls":         "true",
 				},
 				Labels: map[string]string{
 					"app.kubernetes.io/name": "epinio",
@@ -305,7 +328,12 @@ func (k *Epinio) createIngress(c *kubernetes.Cluster, subdomain string) error {
 												Type:   intstr.Int,
 												IntVal: 80,
 											},
-										}}}}}}}}},
+										}}}}}}},
+				TLS: []v1beta1.IngressTLS{{
+					Hosts:      []string{subdomain},
+					SecretName: "epinio-tls",
+				}},
+			}},
 		metav1.CreateOptions{},
 	)
 
