@@ -9,6 +9,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 ## Contents
 
 - [Traefik](#traefik)
+- [Linkerd](#linkerd)
 
 ## Traefik
 
@@ -35,3 +36,18 @@ forces Epinio to not install its own Traefik.
 Note that having some other (non-Traefik) Ingress controller running
 is __not__ a reason to prevent Epinio from installing Traefik. All the
 Ingresses used by Epinio expect to be handled by Traefik.
+
+## Linkerd
+
+By default, Epinio installs [Linkerd](https://linkerd.io/) on your cluster. The various
+namespaces created by Epinio become part of the Linkerd Service Mesh and thus
+all communication between pods is secured with mTLS.
+
+In some cases, you may not want Epinio to install Linkerd, either because you did that
+manually before you install Epinio or other reason. You can provide the `--skip-linkerd`
+flag to the `install` command to prevent Epinio from installing any of the Linkerd
+control plane components:
+
+```bash
+$ epinio install --skip-linkerd
+```

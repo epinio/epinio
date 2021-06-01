@@ -10,8 +10,15 @@ import (
 
 var NeededOptions = kubernetes.InstallationOptions{
 	{
-		Name:        "skip_traefik",
+		Name:        "skip-traefik",
 		Description: "Assert to epinio that there is a Traefik active, even if epinio cannot find it.",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       false,
+	},
+	{
+		Name:        "skip-linkerd",
+		Description: "Assert to epinio that Linkerd is already installed.",
 		Type:        kubernetes.BooleanType,
 		Default:     false,
 		Value:       false,
