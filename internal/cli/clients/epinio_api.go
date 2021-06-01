@@ -9,6 +9,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	epinioAPIProtocol = "http"
+	epinioWSProtocol  = "ws"
+)
+
 // EpinioAPIClient provides functionality for talking to an Epinio API
 // server on Kubernetes
 type EpinioAPIClient struct {
@@ -74,5 +79,5 @@ func getEpinioURL(config *config.Config, cluster *kubernetes.Cluster) (string, s
 
 	host := ingresses.Items[0].Spec.Rules[0].Host
 
-	return fmt.Sprintf("%s://%s", config.EpinioProtocol, host), fmt.Sprintf("%s://%s", config.EpinioWSProtocol, host), nil
+	return fmt.Sprintf("%s://%s", epinioAPIProtocol, host), fmt.Sprintf("%s://%s", epinioWSProtocol, host), nil
 }

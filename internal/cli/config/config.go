@@ -15,11 +15,9 @@ var (
 
 // Config represents a epinio config
 type Config struct {
-	EpinioProtocol   string `mapstructure:"epinio_protocol"`
-	EpinioWSProtocol string `mapstructure:"epinio_ws_protocol"`
-	Org              string `mapstructure:"org"`
-	User             string `mapstructure:"user"`
-	Password         string `mapstructure:"pass"`
+	Org      string `mapstructure:"org"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"pass"`
 
 	v *viper.Viper
 }
@@ -39,8 +37,6 @@ func Load() (*Config, error) {
 	v.SetEnvPrefix("EPINIO")
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
-	v.SetDefault("epinio_protocol", "http")
-	v.SetDefault("epinio_ws_protocol", "ws")
 	v.SetDefault("org", "workspace")
 
 	// Use empty defaults in viper to allow NeededOptions defaults to apply
