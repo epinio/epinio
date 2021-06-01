@@ -7,10 +7,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/julienschmidt/httprouter"
-	"github.com/pkg/errors"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
@@ -18,12 +17,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/client-go/dynamic"
 	k8s "k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -31,9 +25,8 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
-	"github.com/epinio/epinio/internal/domain"
-	"github.com/epinio/epinio/internal/names"
 )
 
 const (
@@ -132,7 +125,12 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return singleInternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	err = createCertificates(ctx, cluster.RestConfig, app)
+	mainDomain, err := domain.MainDomain()
+	if err != nil {
+		return singleError(err, http.StatusInternalServerError)
+	}
+
+	err = auth.CreateCertificate(ctx, cluster.RestConfig, app.Name, app.Org, mainDomain)
 	if err != nil {
 		return singleError(err, http.StatusInternalServerError)
 	}
@@ -219,91 +217,4 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 			},
 		},
 	}
-}
-
-func createCertificates(ctx context.Context, cfg *rest.Config, app models.App) error {
-	mainDomain, err := domain.MainDomain()
-	if err != nil {
-		return err
-	}
-
-	// Create production certificate if it is provided by user
-	// else create a local cluster self-signed tls secret.
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		err = createCertificate(ctx, cfg, app, mainDomain, "letsencrypt-production")
-		if err != nil {
-			return errors.Wrap(err, "create production ssl certificate failed")
-		}
-	} else {
-		err = createCertificate(ctx, cfg, app, mainDomain, "selfsigned-issuer")
-		if err != nil {
-			return errors.Wrap(err, "create local ssl certificate failed")
-		}
-	}
-	return nil
-}
-
-func createCertificate(ctx context.Context, cfg *rest.Config, app models.App, systemDomain string, issuer string) error {
-	// Notes:
-	// - spec.CommonName is length-limited.
-	//   At most 64 characters are allowed, as per [RFC 3280](https://www.rfc-editor.org/rfc/rfc3280.txt).
-	//   That makes it a problem for long app name and domain combinations.
-	// - The spec.dnsNames (SAN, Subject Alternate Names) do not have such a limit.
-	// - Luckily CN is deprecated with regard to DNS checking.
-	//   The SANs are prefered and usually checked first.
-	//
-	// As such our solution is to
-	// - Keep the full app + domain in the spec.dnsNames/SAN.
-	// - Truncate the full app + domain in CN to 64 characters,
-	//   replace the tail with an MD5 suffix computed over the
-	//   full string as means of keeping the text unique across
-	//   apps.
-
-	cn := names.TruncateMD5(fmt.Sprintf("%s.%s", app.Name, systemDomain), 64)
-	data := fmt.Sprintf(`{
-		"apiVersion": "cert-manager.io/v1alpha2",
-		"kind": "Certificate",
-		"metadata": {
-			"name": "%s",
-			"namespace": "%s"
-		},
-		"spec": {
-			"commonName" : "%s",
-			"secretName" : "%s-tls",
-			"dnsNames": [
-				"%s.%s"
-			],
-			"issuerRef" : {
-				"name" : "%s",
-				"kind" : "ClusterIssuer"
-			}
-		}
-        }`, app.Name, app.Org, cn, app.Name, app.Name, systemDomain, issuer)
-
-	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	obj := &unstructured.Unstructured{}
-	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
-	if err != nil {
-		return err
-	}
-
-	certificateInstanceGVR := schema.GroupVersionResource{
-		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
-		Resource: "certificates",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(cfg)
-	if err != nil {
-		return err
-	}
-
-	_, err = dynamicClient.Resource(certificateInstanceGVR).Namespace(app.Org).
-		Create(ctx, obj, metav1.CreateOptions{})
-	// Ignore the error if it's about cert already existing.
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-
-	return nil
 }
