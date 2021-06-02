@@ -392,7 +392,6 @@ func Unstage(app, org, stageIdCurrent string) error {
 
 	for _, pr := range l.Items {
 		if stageIdCurrent != "" && stageIdCurrent == pr.ObjectMeta.Name {
-			fmt.Printf("skip\n")
 			continue
 		}
 

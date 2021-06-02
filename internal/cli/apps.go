@@ -123,7 +123,7 @@ var CmdAppLogs = &cobra.Command{
 		stageId := ""
 		if staging {
 			follow = false
-			stageId, err = client.AppStageId(args[0])
+			stageId, err = client.AppStageID(args[0])
 			if err != nil {
 				return errors.Wrap(err, "error retrieving the stage Id")
 			}

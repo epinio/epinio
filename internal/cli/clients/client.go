@@ -704,7 +704,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 }
 
 // AppStageID returns the stage id of the named app, in the targeted org
-func (c *EpinioClient) AppStageId(appName string) (string, error) {
+func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
