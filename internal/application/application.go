@@ -5,12 +5,14 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	pkgerrors "github.com/pkg/errors"
+	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -24,6 +26,7 @@ type Application struct {
 	Name          string
 	Organization  string
 	Status        string
+	StageID       string
 	Routes        []string
 	BoundServices []string
 	kubeClient    *kubernetes.Cluster
@@ -252,6 +255,11 @@ func Delete(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string, ap
 		return err
 	}
 
+	err = Unstage(app.Name, app.Organization, "")
+	if err != nil {
+		return err
+	}
+
 	err = kubeClient.WaitForPodBySelectorMissing(nil,
 		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/name=%s", app.Name),
@@ -302,6 +310,21 @@ func List(kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
 
 func (app *Application) Complete() (*Application, error) {
 	var err error
+
+	selector := fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio,app.kubernetes.io/name=%s",
+		app.Name)
+
+	listOptions := metav1.ListOptions{
+		LabelSelector: selector,
+	}
+
+	pods, err := app.kubeClient.Kubectl.CoreV1().Pods(app.Organization).List(context.Background(), listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	app.StageID = pods.Items[0].ObjectMeta.Labels["epinio.suse.org/stage-id"]
+
 	app.Status, err = app.kubeClient.DeploymentStatus(
 		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
@@ -341,4 +364,42 @@ func (al ApplicationList) Swap(i, j int) {
 
 func (al ApplicationList) Less(i, j int) bool {
 	return al[i].Name < al[j].Name
+}
+
+// Unstage deletes either all PipelineRuns of the named application, or all but the current.
+func Unstage(app, org, stageIdCurrent string) error {
+	ctx := context.Background()
+
+	cluster, err := kubernetes.GetCluster()
+	if err != nil {
+		return err
+	}
+
+	cs, err := versioned.NewForConfig(cluster.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+
+	l, err := client.List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
+			app, org),
+	})
+	if err != nil {
+		return err
+	}
+
+	for _, pr := range l.Items {
+		if stageIdCurrent != "" && stageIdCurrent == pr.ObjectMeta.Name {
+			continue
+		}
+
+		err := client.Delete(ctx, pr.ObjectMeta.Name, metav1.DeleteOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

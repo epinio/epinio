@@ -311,6 +311,14 @@ var _ = Describe("Apps", func() {
 			deleteApp(appName)
 		})
 
+		It("shows the staging logs", func() {
+			out, err := Epinio("app logs --staging "+appName, "")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
+			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
+		})
+
 		It("follows logs", func() {
 			p, err := GetProc(nodeTmpDir+"/epinio app logs --follow "+appName, "")
 			Expect(err).NotTo(HaveOccurred())
