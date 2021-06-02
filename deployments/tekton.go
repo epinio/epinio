@@ -247,7 +247,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return err
 	}
 
-	message = fmt.Sprintf("Creating registry certificates in %s", TektonStagingNamespace)
+	message = fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace)
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out1, err := helpers.ExecToSuccessWithTimeout(
