@@ -121,9 +121,6 @@ spec:
       emptyDir: {}
     - name: layers-dir
       emptyDir: {}
-    - name: registry-certs
-      secret:
-        secretName: registry-tls
     - name: registry-certs-self
       secret:
         secretName: registry-tls-self
