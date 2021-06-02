@@ -96,7 +96,9 @@ func (k Traefik) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 		action = "upgrade"
 	}
 
-	if err := c.CreateLabeledNamespace(TraefikDeploymentID); err != nil {
+	if err := c.CreateNamespace(TraefikDeploymentID, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 

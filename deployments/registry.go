@@ -14,7 +14,6 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -118,7 +117,10 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 		action = "upgrade"
 	}
 
-	if err := createQuarksMonitoredNamespace(c, RegistryDeploymentID); err != nil {
+	if err := c.CreateNamespace(RegistryDeploymentID, map[string]string{
+		"quarks.cloudfoundry.org/monitored": "quarks-secret",
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 
@@ -207,22 +209,4 @@ func (k Registry) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernet
 	ui.Note().Msg("Upgrading Registry...")
 
 	return k.apply(c, ui, options, true)
-}
-
-func createQuarksMonitoredNamespace(c *kubernetes.Cluster, name string) error {
-	_, err := c.Kubectl.CoreV1().Namespaces().Create(
-		context.Background(),
-		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-				Labels: map[string]string{
-					"quarks.cloudfoundry.org/monitored": "quarks-secret",
-					kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-				},
-			},
-		},
-		metav1.CreateOptions{},
-	)
-
-	return err
 }

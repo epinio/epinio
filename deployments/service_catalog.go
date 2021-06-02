@@ -96,7 +96,9 @@ func (k ServiceCatalog) apply(c *kubernetes.Cluster, ui *termui.UI, options kube
 		action = "upgrade"
 	}
 
-	if err := c.CreateLabeledNamespace(ServiceCatalogDeploymentID); err != nil {
+	if err := c.CreateNamespace(ServiceCatalogDeploymentID, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{}); err != nil {
 		return err
 	}
 

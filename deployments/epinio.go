@@ -105,7 +105,9 @@ func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 }
 
 func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-	if err := c.CreateLabeledNamespace(EpinioDeploymentID); err != nil {
+	if err := c.CreateNamespace(EpinioDeploymentID, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 

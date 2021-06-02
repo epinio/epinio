@@ -147,7 +147,9 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 		return err
 	}
 
-	if err := c.CreateLabeledNamespace(CertManagerDeploymentID); err != nil {
+	if err := c.CreateNamespace(CertManagerDeploymentID, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{}); err != nil {
 		return err
 	}
 

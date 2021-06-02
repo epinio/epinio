@@ -109,7 +109,9 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		action = "upgrade"
 	}
 
-	if err := c.CreateLabeledNamespace(QuarksDeploymentID); err != nil {
+	if err := c.CreateNamespace(QuarksDeploymentID, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{}); err != nil {
 		return err
 	}
 
