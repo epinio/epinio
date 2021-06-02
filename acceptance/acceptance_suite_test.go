@@ -192,8 +192,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	out, err = RunProc("kubectl get ingress -n epinio epinio -o=jsonpath='{.spec.rules[0].host}'", "..", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	serverURL = "http://" + out
-	websocketURL = "ws://" + out
+	serverURL = "https://" + out
+	websocketURL = "wss://" + out
 })
 
 var _ = SynchronizedAfterSuite(func() {
