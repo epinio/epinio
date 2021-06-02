@@ -89,7 +89,7 @@ spec:
       isCA: false
       signerType: local
   secretName: registry-tls-self
-  type: certificate
+  type: tls
   copies:
   - name: registry-tls-self
     namespace: tekton-staging
@@ -179,9 +179,9 @@ spec:
         secret:
           secretName: registry-tls-self
           items:
-          - key: certificate
+          - key: tls.crt
             path: cert.pem
-          - key: private_key
+          - key: tls.key
             path: key.pem
       - name: auth
         secret:
