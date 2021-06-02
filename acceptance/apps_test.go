@@ -89,6 +89,8 @@ var _ = Describe("Apps", func() {
 
 			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
 			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
+			// Doesn't include linkerd sidecar logs
+			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
 		})
 
 		It("pushes and deletes golang app", func() {
