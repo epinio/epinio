@@ -333,16 +333,16 @@ func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 }
 
 // The equivalent of:
-// kubectl get secret -n tekton-staging registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n tekton-staging registry-tls-self-ca -o json | jq -r '.["data"]["certificate"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
 func getRegistryCAHash(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).
-		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
+		Get(context.Background(), "registry-tls-self-ca", metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	hash, err := GenerateHash(secret.Data["ca"])
+	hash, err := GenerateHash(secret.Data["certificate"])
 	if err != nil {
 		return "", err
 	}
