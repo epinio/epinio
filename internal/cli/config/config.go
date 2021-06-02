@@ -7,6 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+
+	"github.com/epinio/epinio/internal/auth"
 )
 
 var (
@@ -18,6 +20,7 @@ type Config struct {
 	Org      string `mapstructure:"org"`
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"pass"`
+	Certs    string `mapstructure:"certs"`
 
 	v *viper.Viper
 }
@@ -42,6 +45,7 @@ func Load() (*Config, error) {
 	// Use empty defaults in viper to allow NeededOptions defaults to apply
 	v.SetDefault("user", "")
 	v.SetDefault("pass", "")
+	v.SetDefault("certs", "")
 
 	configExists, err := fileExists(file)
 	if err != nil {
@@ -63,6 +67,11 @@ func Load() (*Config, error) {
 	}
 
 	cfg.v = v
+
+	if cfg.Certs != "" {
+		auth.ExtendLocalTrust(cfg.Certs)
+	}
+
 	return cfg, nil
 }
 
@@ -71,6 +80,7 @@ func (c *Config) Save() error {
 	c.v.Set("org", c.Org)
 	c.v.Set("user", c.User)
 	c.v.Set("pass", c.Password)
+	c.v.Set("certs", c.Certs)
 
 	err := os.MkdirAll(filepath.Dir(c.v.ConfigFileUsed()), 0700)
 	if err != nil {
