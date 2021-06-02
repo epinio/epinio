@@ -4,7 +4,10 @@ package auth
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -18,6 +21,23 @@ import (
 
 	"github.com/epinio/epinio/internal/names"
 )
+
+func ExtendLocalTrust(certs string) {
+	// Get the SystemCertPool, continue with an empty pool on error
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+
+	rootCAs.AppendCertsFromPEM([]byte(certs))
+
+	// Trust the augmented cert pool in our client
+	config := &tls.Config{
+		RootCAs: rootCAs,
+	}
+
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = config
+}
 
 func CreateCertificate(ctx context.Context, cfg *rest.Config, name, namespace, systemDomain string) error {
 	// Create production certificate if it is provided by user
