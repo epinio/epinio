@@ -227,9 +227,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	if err := k.createClusterRegistryCredsSecret(ctx, c); err != nil {
 		return err
 	}
-	if err := k.createServiceAccountWithSecretAccess(ctx, c); err != nil {
-		return err
-	}
 
 	waitForQuarks(c, ctx, ui, duration.ToQuarksDeploymentReady())
 
@@ -413,27 +410,6 @@ func (k Tekton) createGiteaCredsSecret(ctx context.Context, c *kubernetes.Cluste
 		return err
 	}
 	return nil
-}
-
-// Adding the imagePullSecrets to the service account attached to the application
-// pods, will automatically assign the same imagePullSecrets to the pods themselves:
-// https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#verify-imagepullsecrets-was-added-to-pod-spec
-func (k Tekton) createServiceAccountWithSecretAccess(ctx context.Context, c *kubernetes.Cluster) error {
-	automountServiceAccountToken := false
-	_, err := c.Kubectl.CoreV1().ServiceAccounts(TektonStagingNamespace).Create(
-		ctx,
-		&corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: TektonStagingNamespace,
-			},
-			ImagePullSecrets: []corev1.LocalObjectReference{
-				{Name: "registry-creds"},
-				{Name: "gitea-creds"}, // TODO: Why does the app service account need access to these? Maybe this service account is use in other places too? (then split to another service account for apps and the other case)
-			},
-			AutomountServiceAccountToken: &automountServiceAccountToken,
-		}, metav1.CreateOptions{})
-
-	return err
 }
 
 func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kubernetes.Cluster) error {
