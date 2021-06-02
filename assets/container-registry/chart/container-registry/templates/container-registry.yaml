@@ -50,24 +50,6 @@ spec:
 apiVersion: quarks.cloudfoundry.org/v1alpha1
 kind: QuarksSecret
 metadata:
-  name: registry-tls
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-spec:
-  request:
-    certificate:
-      alternativeNames:
-      - registry.{{ .Release.Namespace }}
-      commonName: registry
-      isCA: false
-      signerType: cluster
-  secretName: registry-tls
-  type: certificate
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
   name: registry-tls-self-ca
   namespace: {{ .Release.Namespace }}
   labels:
@@ -134,10 +116,6 @@ spec:
         image: {{ .Values.registry.image }}
         imagePullPolicy: {{ .Values.registry.imagePullPolicy }}
         env:
-        # - name: REGISTRY_HTTP_TLS_CERTIFICATE
-        #   value: /etc/registry/certs/cert.pem
-        # - name: REGISTRY_HTTP_TLS_KEY
-        #   value: /etc/registry/certs/key.pem
         - name: REGISTRY_AUTH
           value: htpasswd
         - name: REGISTRY_AUTH_HTPASSWD_REALM
@@ -148,9 +126,6 @@ spec:
         - name: registry
           mountPath: /var/lib/registry
           readOnly: false
-        - name: tls
-          mountPath: /etc/registry/certs
-          readOnly: true
         - name: auth
           mountPath: /etc/registry/auth
           readOnly: true
@@ -200,14 +175,6 @@ spec:
       - name: config
         configMap:
           name: registry-nginx-config
-      - name: tls
-        secret:
-          secretName: registry-tls
-          items:
-          - key: certificate
-            path: cert.pem
-          - key: private_key
-            path: key.pem
       - name: tls-self
         secret:
           secretName: registry-tls-self
