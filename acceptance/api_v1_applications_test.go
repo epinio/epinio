@@ -305,7 +305,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns an error response", func() {
-				resp, err := (&http.Client{}).Do(request)
+				resp, err := Client().Do(request)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp).ToNot(BeNil())
 				defer resp.Body.Close()
@@ -329,7 +329,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns the app response", func() {
-				resp, err := (&http.Client{}).Do(request)
+				resp, err := Client().Do(request)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp).ToNot(BeNil())
 				defer resp.Body.Close()
@@ -367,7 +367,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			uploadPath := "../fixtures/sample-app.tar"
 			uploadRequest, err := uploadRequest(uploadURL, uploadPath)
 			Expect(err).ToNot(HaveOccurred())
-			resp, err := (&http.Client{}).Do(uploadRequest)
+			resp, err := Client().Do(uploadRequest)
 			Expect(err).ToNot(HaveOccurred())
 			bodyBytes, err := ioutil.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
