@@ -574,7 +574,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				// With regular `ws` we could expect to not see any errors. With `wss`
 				// however, with a tls layer in the mix, we can expect to see a `broken
 				// pipe` issued. That is not a thing to act on, and is ignored.
-				if strings.Contains(err.Error(), "broken pipe") {
+				if err != nil && strings.Contains(err.Error(), "broken pipe") {
 					return logs
 				}
 				Expect(err).ToNot(HaveOccurred())
