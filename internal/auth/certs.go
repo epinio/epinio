@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,6 +38,11 @@ func ExtendLocalTrust(certs string) {
 	}
 
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = config
+	websocket.DefaultDialer.TLSClientConfig = config
+
+	// See https://github.com/gorilla/websocket/issues/601 for
+	// what this is a work around for.
+	http.DefaultTransport.(*http.Transport).ForceAttemptHTTP2 = false
 }
 
 func CreateCertificate(ctx context.Context, cfg *rest.Config, name, namespace, systemDomain string) error {

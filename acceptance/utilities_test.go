@@ -265,6 +265,11 @@ func makeWebSocketConnection(url string) *websocket.Conn {
 	headers := http.Header{
 		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", epinioUser, epinioPassword)))},
 	}
+
+	// disable tls cert verification for web socket connections - See also `Curl` above
+	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true, // self signed certs
+	}
 	ws, response, err := websocket.DefaultDialer.Dial(url, headers)
 	Expect(err).NotTo(HaveOccurred())
 	Expect(response.StatusCode).To(Equal(http.StatusSwitchingProtocols))
