@@ -180,7 +180,8 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 				{Name: "ORG", Value: *v1beta1.NewArrayOrString(app.Org)},
 				{Name: "ROUTE", Value: *v1beta1.NewArrayOrString(app.Route)},
 				{Name: "INSTANCES", Value: *v1beta1.NewArrayOrString(strconv.Itoa(int(app.Instances)))},
-				{Name: "IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(gitea.LocalRegistry))},
+				{Name: "APP_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(RegistryURL))},
+				{Name: "DEPLOYMENT_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(gitea.LocalRegistry))},
 				{Name: "STAGE_ID", Value: *v1beta1.NewArrayOrString(uid)},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
@@ -204,15 +205,6 @@ func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
 						Params: []v1alpha1.ResourceParam{
 							{Name: "revision", Value: app.Git.Revision},
 							{Name: "url", Value: app.GitURL(deployments.GiteaURL)},
-						},
-					},
-				},
-				{
-					Name: "image",
-					ResourceSpec: &v1alpha1.PipelineResourceSpec{
-						Type: v1alpha1.PipelineResourceTypeImage,
-						Params: []v1alpha1.ResourceParam{
-							{Name: "url", Value: app.ImageURL(RegistryURL)},
 						},
 					},
 				},
