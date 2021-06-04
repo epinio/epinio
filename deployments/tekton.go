@@ -218,10 +218,15 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return err
 	}
 
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get system_domain option")
+	}
+
 	if err := k.createGiteaCredsSecret(c); err != nil {
 		return err
 	}
-	if err := k.createClusterRegistryCredsSecret(c); err != nil {
+	if err := k.createClusterRegistryCredsSecret(c, domain); err != nil {
 		return err
 	}
 
@@ -231,11 +236,6 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	}
 	if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
-	}
-
-	domain, err := options.GetString("system_domain", TektonDeploymentID)
-	if err != nil {
-		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
 	if err := k.createCACertificate(c, domain); err != nil {
@@ -349,13 +349,11 @@ func getRegistryCAHash(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 
 	return hash, nil
 }
-
 func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	caHash, err := getRegistryCAHash(c, ui)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
 	}
-
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
 		return "", errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
@@ -415,8 +413,7 @@ func (k Tekton) createGiteaCredsSecret(c *kubernetes.Cluster) error {
 	return nil
 }
 
-func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
-
+func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster, domain string) error {
 	// Generate random credentials
 	registryAuth, err := RegistryInstallAuth()
 	if err != nil {
@@ -434,10 +431,8 @@ func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
 	// the registry and also kubernetes (when we deploy our app deployments)
 	auths := fmt.Sprintf(`{ "auths": {
 		"https://127.0.0.1:30500":{%s},
-		"http://127.0.0.1:30501":{%s},
-		"registry.epinio-registry":{%s},
-		"registry.epinio-registry:444":{%s} } }`,
-		jsonFull, jsonFull, jsonPart, jsonPart)
+		"%s":{%s} } }`,
+		jsonFull, fmt.Sprintf("%s.%s", "registry", domain), jsonPart)
 	// The relevant place in the registry is `deployments/registry.go`, func `apply`, see (**).
 
 	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),

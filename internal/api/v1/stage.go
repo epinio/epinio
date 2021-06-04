@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	RegistryURL      = "registry.epinio-registry/apps"
+	RegistryURL      = "registry.192.168.99.240.omg.howdoi.website/apps"
 	DefaultInstances = int32(1)
 )
 
