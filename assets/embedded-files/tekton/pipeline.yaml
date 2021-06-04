@@ -10,8 +10,6 @@ spec:
   resources:
   - name: source-repo
     type: git
-  - name: image
-    type: image
   params:
     - name: APP_NAME
       type: string
@@ -25,7 +23,10 @@ spec:
     - name: INSTANCES
       type: string
       description: "The number of instances the application should have"
-    - name: IMAGE
+    - name: APP_IMAGE
+      type: string
+      description: "The image as built and pushed by Tekton (uses Kube internal service DNS)"
+    - name: DEPLOYMENT_IMAGE
       type: string
       description: "The container image for the application Deployment"
     - name: STAGE_ID
@@ -52,10 +53,8 @@ spec:
       value: paketobuildpacks/builder:full
     - name: SOURCE_SUBPATH
       value: app
-    resources:
-      outputs:
-      - name: image
-        resource: image
+    - name: APP_IMAGE
+      value: "$(params.APP_IMAGE)"
     workspaces:
     - name: source
       workspace: source
@@ -71,8 +70,8 @@ spec:
         value: "$(params.ROUTE)"
       - name: INSTANCES
         value: $(params.INSTANCES)
-      - name: IMAGE
-        value: "$(params.IMAGE)"
+      - name: DEPLOYMENT_IMAGE
+        value: "$(params.DEPLOYMENT_IMAGE)"
       - name: STAGE_ID
         value: "$(params.STAGE_ID)"
     runAfter:
@@ -123,7 +122,7 @@ spec:
       type: string
     - name: INSTANCES
       type: string
-    - name: IMAGE
+    - name: DEPLOYMENT_IMAGE
       type: string
     - name: STAGE_ID
       type: string
@@ -168,7 +167,7 @@ spec:
               automountServiceAccountToken: false
               containers:
               - name: "$(params.APP_NAME)"
-                image: "$(params.IMAGE)"
+                image: "$(params.DEPLOYMENT_IMAGE)"
                 ports:
                 - containerPort: 8080
                 env:
