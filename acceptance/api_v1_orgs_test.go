@@ -49,7 +49,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				It("returns a 401 response", func() {
 					request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
-					response, err := (&http.Client{}).Do(request)
+					response, err := Client().Do(request)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
 				})
