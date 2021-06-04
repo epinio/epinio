@@ -67,6 +67,9 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 					kubernetes.EpinioOrgLabelKey:        kubernetes.EpinioOrgLabelValue,
 					"quarks.cloudfoundry.org/monitored": "quarks-secret",
 				},
+				Annotations: map[string]string{
+					"linkerd.io/inject": "enabled",
+				},
 			},
 		},
 		metav1.CreateOptions{},

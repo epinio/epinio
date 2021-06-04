@@ -1,0 +1,19 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: linkerd-install
+  namespace: linkerd
+spec:
+  template:
+    spec:
+      serviceAccountName: linkerd-installer
+      containers:
+      - name: linkerd-install
+        image: splatform/epinio-linkerd:2.10.2
+        imagePullPolicy: Always
+        command: ["/bin/sh","-c"]
+        args: 
+          - linkerd install | kubectl apply -f - && linkerd check
+      restartPolicy: Never
+  backoffLimit: 1

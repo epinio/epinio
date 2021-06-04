@@ -117,6 +117,10 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	// to report all problems at once, instead of early and
 	// piecemal.
 
+	if err := c.InstallDeployment(&deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+		return err
+	}
+
 	if err := c.InstallDeployment(&deployments.Traefik{Timeout: duration.ToDeployment()}, details); err != nil {
 		return err
 	}
@@ -202,6 +206,10 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 
 	if err := c.DeleteWorkloads(c.ui); err != nil {
 		return err
+	}
+
+	if err := c.UninstallDeployment(&deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+		panic(err)
 	}
 
 	c.ui.Success().Msg("Epinio uninstalled.")

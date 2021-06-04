@@ -101,7 +101,9 @@ func (k Minibroker) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernet
 		action = "upgrade"
 	}
 
-	if err := c.CreateLabeledNamespace(MinibrokerDeploymentID); err != nil {
+	if err := c.CreateNamespace(MinibrokerDeploymentID, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 

@@ -103,7 +103,9 @@ func (k GoogleServices) apply(c *kubernetes.Cluster, ui *termui.UI, options kube
 		action = "upgrade"
 	}
 
-	if err := c.CreateLabeledNamespace(GoogleServicesDeploymentID); err != nil {
+	if err := c.CreateNamespace(GoogleServicesDeploymentID, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 

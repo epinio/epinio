@@ -147,7 +147,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	setupInClusterServices()
 	out, err = helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
 	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp(`minibroker.*1/1.*Running`))
+	Expect(out).To(MatchRegexp(`minibroker.*2/2.*Running`))
 
 	fmt.Println("Setup google")
 	setupGoogleServices()
@@ -513,5 +513,5 @@ func setupGoogleServices() {
 
 	out, err = helpers.Kubectl(`get pods -n google-service-broker --selector=app.kubernetes.io/name=gcp-service-broker`)
 	Expect(err).ToNot(HaveOccurred(), out)
-	Expect(out).To(MatchRegexp(`google-service-broker-gcp-service-broker.*1/1.*Running`))
+	Expect(out).To(MatchRegexp(`google-service-broker-gcp-service-broker.*2/2.*Running`))
 }

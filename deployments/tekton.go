@@ -140,14 +140,16 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 
 func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 
-	if err := c.CreateLabeledNamespace(tektonNamespace); err != nil {
+	if err := c.CreateNamespace(tektonNamespace, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 
-	if err := c.CreateLabeledNamespace(TektonStagingNamespace); err != nil {
-		return err
-	}
-	if err := c.LabelNamespace(TektonStagingNamespace, "quarks.cloudfoundry.org/monitored", "quarks-secret"); err != nil {
+	if err := c.CreateNamespace(TektonStagingNamespace, map[string]string{
+		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+		"quarks.cloudfoundry.org/monitored": "quarks-secret",
+	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 
@@ -580,6 +582,15 @@ func (k Tekton) warmupBuilder(c *kubernetes.Cluster) error {
 			Spec: batchv1.JobSpec{
 				BackoffLimit: &backoffLimit,
 				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: jobName,
+						Labels: map[string]string{
+							kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
+						},
+						Annotations: map[string]string{
+							"linkerd.io/inject": "disabled", // Let it finish
+						},
+					},
 					Spec: corev1.PodSpec{
 						Containers: []corev1.Container{
 							{
