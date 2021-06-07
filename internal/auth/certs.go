@@ -46,7 +46,7 @@ func ExtendLocalTrust(certs string) {
 }
 
 func CreateCertificate(ctx context.Context, cfg *rest.Config, name, namespace, systemDomain string) error {
-	// Create production certificate if it is provided by user
+	// Create production certificate if systemDomain is provided by user
 	// else create a local cluster self-signed tls secret.
 
 	issuer := ""
