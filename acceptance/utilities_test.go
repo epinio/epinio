@@ -34,6 +34,16 @@ func newServiceName() string {
 	return "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
+func Client() *http.Client {
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true, // self signed certs
+			},
+		},
+	}
+}
+
 // func Curl is used to make requests against a server
 func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, error) {
 	request, err := http.NewRequest(method, uri, requestBody)
@@ -41,10 +51,7 @@ func Curl(method, uri string, requestBody *strings.Reader) (*http.Response, erro
 	if err != nil {
 		return nil, err
 	}
-	transCfg := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // self signed certs
-	}
-	return (&http.Client{Transport: transCfg}).Do(request)
+	return Client().Do(request)
 }
 
 func setupAndTargetOrg(org string) {
@@ -264,6 +271,11 @@ func verifyOrgNotExist(org string) {
 func makeWebSocketConnection(url string) *websocket.Conn {
 	headers := http.Header{
 		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", epinioUser, epinioPassword)))},
+	}
+
+	// disable tls cert verification for web socket connections - See also `Curl` above
+	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
+		InsecureSkipVerify: true, // self signed certs
 	}
 	ws, response, err := websocket.DefaultDialer.Dial(url, headers)
 	Expect(err).NotTo(HaveOccurred())

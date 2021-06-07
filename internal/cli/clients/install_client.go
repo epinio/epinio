@@ -163,6 +163,47 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 
 	installationWg.Wait()
 
+	// With all deployments done it is now the time to perform
+	// some post-install actions:
+	//
+	// - For a local deployment (using a self-signed cert) get the
+	//   CA cert and save it into the config. The regular client
+	//   will then extend the Cert pool with the same, so that it
+	//   can cerify the server cert.
+
+	if strings.Contains(domain.Value.(string), "omg.howdoi.website") {
+		// Note 1:
+		// We are waiting here for the secret, instead of
+		// simply Get'ting it, because we cannot be sure that
+		// it was already created by cert-manager, from the
+		// cert request issued by the epinio deployment.  This
+		// is especially true when the epinio deployment does
+		// not wait for the server to be up. As it happens
+		// when a dev `epinio install` is done (don't wait for
+		// deployment + skip default org).
+		//
+		// Note 2:
+		// See the `auth.createCertificate` template for the
+		// created Certs, and epinio.go `apply` for the call
+		// to `auth.createCertificate`, which determines the
+		// secret's name we are using here
+
+		secret, err := c.kubeClient.WaitForSecret(
+			deployments.EpinioDeploymentID,
+			deployments.EpinioDeploymentID+"-tls",
+			duration.ToServiceSecret(),
+		)
+		if err != nil {
+			return errors.Wrap(err, "failed to get API CA cert secret")
+		}
+
+		c.config.Certs = string(secret.Data["ca.crt"])
+		err = c.config.Save()
+		if err != nil {
+			return errors.Wrap(err, "failed to save configuration")
+		}
+	}
+
 	c.ui.Success().
 		WithStringValue("System domain", domain.Value.(string)).
 		WithStringValue("API User", c.config.User).

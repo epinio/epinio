@@ -1,7 +1,6 @@
 package acceptance_test
 
 import (
-	"crypto/tls"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -114,11 +113,7 @@ var _ = Describe("Wordpress", func() {
 
 		request, err := http.NewRequest("GET", appURL, nil)
 		Expect(err).ToNot(HaveOccurred())
-		client := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-			},
-		}
+		client := Client()
 		Eventually(func() int {
 			resp, err := client.Do(request)
 			ExpectWithOffset(1, err).ToNot(HaveOccurred())
