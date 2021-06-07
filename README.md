@@ -142,7 +142,7 @@ In case of trouble with Epinio's Traefik component or Ingress controllers, the
 
 Epinio secures access to its API with TLS and basic authentication.
 
-None sign of that appeared in the above example because the installation process
+No sign of that appeared in the above example because the installation process
 automatically creates and saves the necessary credentials (user, password) and
 certificates. The information is stored in Epinio's configuration, for pickup by
 other Epinio commands.
