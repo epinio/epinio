@@ -97,6 +97,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	os.Setenv("EPINIO_BINARY_PATH", path.Join("dist", "epinio-linux-amd64"))
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	os.Setenv("EPINIO_CONFIG", epinioYAML)
+	os.Setenv("SKIP_SSL_VERIFICATION", "true")
 
 	fmt.Println("Ensuring a docker network")
 	out, err := ensureRegistryNetwork()
