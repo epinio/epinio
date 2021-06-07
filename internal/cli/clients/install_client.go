@@ -175,7 +175,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		// cert request issued by the epinio deployment.  This
 		// is especially true when the epinio deployment does
 		// not wait for the server to be up. As it happens
-		// when a dev `ep install` is done (do't wait for
+		// when a dev `ep install` is done (don't wait for
 		// deployment + skip default org).
 		//
 		// Note 2:
