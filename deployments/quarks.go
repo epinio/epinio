@@ -23,10 +23,10 @@ type Quarks struct {
 const (
 	QuarksDeploymentID = "quarks"
 	quarksVersion      = "1.0.760"
+	quarksChartFile    = "quarks-secret-1.0.760.tgz"
 )
 
 var (
-	quarksChartURL     = fmt.Sprintf("https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-%s.tgz", quarksVersion)
 	quarksLiteImageTag = fmt.Sprintf("v%s-lite", quarksVersion) // Use the "lite" version of the image.
 )
 
@@ -43,7 +43,8 @@ func (k *Quarks) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
 }
 
 func (k Quarks) Describe() string {
-	return emoji.Sprintf(":cloud:Quarks version: %s\n:clipboard:Quarks chart: %s", quarksVersion, quarksChartURL)
+	return emoji.Sprintf(":cloud:Quarks version: %s\n:clipboard:Quarks chart: %s",
+		quarksVersion, quarksChartFile)
 }
 
 // Delete removes Quarks from kubernetes cluster
@@ -52,7 +53,8 @@ func (k Quarks) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 
 	existsAndOwned, err := c.NamespaceExistsAndOwned(QuarksDeploymentID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", QuarksDeploymentID)
+		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not",
+			QuarksDeploymentID)
 	}
 	if !existsAndOwned {
 		ui.Exclamation().Msg("Skipping Quarks because namespace either doesn't exist or not owned by Epinio")
@@ -117,6 +119,12 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 
 	currentdir, _ := os.Getwd()
 
+	tarPath, err := helpers.ExtractFile(quarksChartFile)
+	if err != nil {
+		return errors.New("Failed to extract embedded file: " + tarPath + " - " + err.Error())
+	}
+	defer os.Remove(tarPath)
+
 	// Setup Quarks helm values
 	var helmArgs = []string{
 		"--set image.tag=" + quarksLiteImageTag,
@@ -124,7 +132,7 @@ func (k Quarks) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 
 	helmArgs = append(helmArgs, "--set global.monitoredID=quarks-secret")
 
-	helmCmd := fmt.Sprintf("helm %s quarks --namespace %s %s %s", action, QuarksDeploymentID, quarksChartURL, strings.Join(helmArgs, " "))
+	helmCmd := fmt.Sprintf("helm %s quarks --namespace %s %s %s", action, QuarksDeploymentID, tarPath, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Quarks:\n%s\nReturning\n%s", helmCmd, out))
 	}
