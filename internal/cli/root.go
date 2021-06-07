@@ -51,6 +51,10 @@ func Execute() {
 	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
 	argToEnv["verbosity"] = "VERBOSITY"
 
+	pf.BoolP("skip-ssl-verification", "", false, "Skip the verification of TLS certificates")
+	viper.BindPFlag("skip-ssl-verification", pf.Lookup("skip-ssl-verification"))
+	argToEnv["skip-ssl-verification"] = "SKIP_SSL_VERIFICATION"
+
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)
