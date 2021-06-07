@@ -175,14 +175,14 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		// cert request issued by the epinio deployment.  This
 		// is especially true when the epinio deployment does
 		// not wait for the server to be up. As it happens
-		// when a dev `ep install` is done (don't wait for
+		// when a dev `epinio install` is done (don't wait for
 		// deployment + skip default org).
 		//
 		// Note 2:
-		// The secret's name is (namespace + '-tls'), see the
-		// `auth.createCertificate` template for the created
-		// Certs, and epinio.go `apply` for the call to
-		// `auth.createCertificate`.
+		// See the `auth.createCertificate` template for the
+		// created Certs, and epinio.go `apply` for the call
+		// to `auth.createCertificate`, which determines the
+		// secret's name we are using here
 
 		secret, err := c.kubeClient.WaitForSecret(
 			deployments.EpinioDeploymentID,
