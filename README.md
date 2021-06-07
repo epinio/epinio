@@ -154,7 +154,7 @@ is stored in the configuration to allow verification.
 For a production-oriented deployment on the other hand, with a proper
 `--system-domain` specified, the certificate is obtained from
 [Let's Encrypt](https://letsencrypt.org/) instead. Nothing is stored in the
-configuration in that case, as LE is a known CA.
+configuration in that case, as Let's Encrypt is a known CA.
 
 ### Push an application
 
