@@ -164,8 +164,8 @@ func deleteApps(cluster *kubernetes.Cluster, gitea *gitea.Client, org string) er
 
 	const maxConcurrent = 100
 	errChan := make(chan error, maxConcurrent)
-	success := make(chan struct{})
-	stop := make(chan struct{})
+	success := make(chan bool)
+	stop := make(chan bool)
 
 	go func() {
 		var wg sync.WaitGroup
@@ -174,10 +174,13 @@ func deleteApps(cluster *kubernetes.Cluster, gitea *gitea.Client, org string) er
 	loop:
 		for _, app := range apps {
 			buffer <- struct{}{}
+			wg.Add(1)
 
 			go func(app application.Application) {
 				defer wg.Done()
-				wg.Add(1)
+				defer func() {
+					<-buffer
+				}()
 				err = application.Delete(cluster, gitea, org, app)
 				if err != nil {
 					errChan <- err
@@ -192,13 +195,13 @@ func deleteApps(cluster *kubernetes.Cluster, gitea *gitea.Client, org string) er
 			}
 		}
 		wg.Wait()
-		success <- struct{}{}
+		success <- true
 	}()
 
 	//wait until all apps are deleted or we get an error
 	select {
 	case err := <-errChan:
-		stop <- struct{}{}
+		stop <- true
 		return err
 	case <-success:
 		return nil
