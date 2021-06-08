@@ -42,7 +42,7 @@ var _ = Describe("Apps", func() {
 		}
 
 		replicas := func(ns, name string) string {
-			n, err := helpers.Kubectl(fmt.Sprintf("get deployment -n %s %s -o=jsonpath='{.status.replicas}'", ns, name))
+			n, err := helpers.Kubectl(fmt.Sprintf("get deployment --namespace %s %s -o=jsonpath='{.status.replicas}'", ns, name))
 			if err != nil {
 				return ""
 			}
@@ -132,6 +132,19 @@ var _ = Describe("Apps", func() {
 
 			By("deleting the app")
 			deleteApp(appName)
+		})
+
+		It("removes the app's ingress when deleting an app", func() {
+			makeApp(appName, 1, false)
+
+			By("deleting the app")
+			deleteApp(appName)
+
+			Eventually(func() string {
+				out, _ := helpers.Kubectl(fmt.Sprintf("get ingress --namespace %s %s",
+					org, appName))
+				return out
+			}, "1m").Should(ContainSubstring("not found"))
 		})
 
 		It("pushes the same app again successfully", func() {
