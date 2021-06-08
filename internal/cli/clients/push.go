@@ -32,7 +32,11 @@ func collectSources(log logr.Logger, source string) (string, string, error) {
 		// application directory to get the proper paths to
 		// the files and directories to assemble in the
 		// tarball.
-
+		// Ignore git config files in the app sources to prevent conflicts with the gitea git repo
+		if f.Name() == ".git" || f.Name() == ".gitignore" || f.Name() == ".gitmodules" || f.Name() == ".gitconfig" || f.Name() == ".git-credentials" {
+			log.V(3).Info("Skipping upload of file/dir '" + f.Name() + "'.")
+			continue
+		}
 		sources = append(sources, path.Join(source, f.Name()))
 	}
 	log.V(3).Info("found app data files", "files", sources)
