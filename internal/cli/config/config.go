@@ -1,10 +1,13 @@
 package config
 
 import (
+	"crypto/tls"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
@@ -70,6 +73,26 @@ func Load() (*Config, error) {
 
 	if cfg.Certs != "" {
 		auth.ExtendLocalTrust(cfg.Certs)
+	}
+
+	if viper.GetBool("skip-ssl-verification") {
+		// Note: This has to work regardless of if `ExtendLocalTrust` was invoked or not.
+		// I.e. the `TLSClientConfig` of default http transport and default dialer may or
+		// may not be nil. Actually we can assume that either both are nil, or none, and
+		// further, if none are nil, they point to the same structure.
+
+		if http.DefaultTransport.(*http.Transport).TLSClientConfig == nil {
+			tlsInsecure := &tls.Config{
+				InsecureSkipVerify: true,
+			}
+
+			http.DefaultTransport.(*http.Transport).TLSClientConfig = tlsInsecure
+			websocket.DefaultDialer.TLSClientConfig = tlsInsecure
+		} else {
+			http.DefaultTransport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
+			// websocket.DefaultDialer.TLSClientConfig refers to the same structure,
+			// and the assignment has modified it also.
+		}
 	}
 
 	return cfg, nil
