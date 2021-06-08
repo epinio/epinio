@@ -185,7 +185,6 @@ func deleteApps(cluster *kubernetes.Cluster, gitea *gitea.Client, org string) er
 				if err != nil {
 					errChan <- err
 				}
-				<-buffer
 			}(app)
 
 			select {
