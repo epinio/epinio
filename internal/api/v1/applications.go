@@ -24,6 +24,48 @@ type ApplicationsController struct {
 	conn *websocket.Conn
 }
 
+func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+	params := httprouter.ParamsFromContext(r.Context())
+	org := params.ByName("org")
+
+	cluster, err := kubernetes.GetCluster()
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	exists, err := organizations.Exists(cluster, org)
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	if !exists {
+		return APIErrors{OrgIsNotKnown(org)}
+	}
+
+	defer r.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	var createRequest models.ApplicationCreateRequest
+	err = json.Unmarshal(bodyBytes, &createRequest)
+	if err != nil {
+		return APIErrors{BadRequest(err)}
+	}
+
+	app, err := application.Lookup(cluster, org, createRequest.Name)
+	if err != nil {
+		return APIErrors{InternalError(err)}
+	}
+
+	if app != nil {
+		return APIErrors{AppAlreadyKnown(createRequest.Name)}
+	}
+
+	return nil
+}
+
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

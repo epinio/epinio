@@ -34,6 +34,10 @@ type BindRequest struct {
 	Names []string `json:"names"`
 }
 
+type ApplicationCreateRequest struct {
+	Name string
+}
+
 type UpdateAppRequest struct {
 	Instances int32 `json:"instances"`
 }

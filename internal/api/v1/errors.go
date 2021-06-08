@@ -91,6 +91,13 @@ func OrgIsNotKnown(org string) APIError {
 		http.StatusNotFound)
 }
 
+func AppAlreadyKnown(app string) APIError {
+	return NewAPIError(
+		fmt.Sprintf("Application '%s' already exists", app),
+		"",
+		http.StatusConflict)
+}
+
 func AppIsNotKnown(app string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Application '%s' does not exist", app),
