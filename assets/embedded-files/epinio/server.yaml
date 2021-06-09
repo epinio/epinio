@@ -51,6 +51,7 @@ rules:
   resources:
   - ingresses
   verbs:
+  - delete
   - list
   - get
 - apiGroups:
