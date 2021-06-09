@@ -5,29 +5,29 @@ export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION
 ########################################################################
 ## Development
 
-build: embed_files lint build-amd64
+build: embed_files build-amd64
 
-build-all: embed_files lint build-amd64 build-arm64 build-arm32 build-windows build-darwin
+build-all: embed_files build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
 
-build-arm32: lint
+build-arm32:
 	GOARCH="arm" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm32
 
-build-arm64: lint
+build-arm64:
 	GOARCH="arm64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm64
 
-build-amd64: lint
+build-amd64:
 	GOARCH="amd64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
 
-build-windows: lint
+build-windows:
 	GOARCH="amd64" GOOS="windows" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-windows-amd64
 
-build-darwin: lint
+build-darwin:
 	GOARCH="amd64" GOOS="darwin" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-amd64
 
-build-s390x: lint
+build-s390x:
 	GOARCH="s390x" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-s390x
 
 build-images:
@@ -40,7 +40,7 @@ compress:
 	upx --brute -1 ./dist/epinio-windows-amd64
 	upx --brute -1 ./dist/epinio-darwin-amd64
 
-test: embed_files lint
+test: embed_files
 	ginkgo -r -p -race -failOnPending helpers internal
 
 # acceptance is not part of the unit tests, and has its own target, see below.
@@ -56,7 +56,7 @@ showfocus:
 generate:
 	go generate ./...
 
-lint:	fmt tidy vet
+lint:	vet
 
 vet: embed_files
 	go vet ./...
@@ -96,6 +96,8 @@ embed_files: getstatik wrap_registry_chart
 
 help:
 	( echo _ _ ___ _____ ________ Overview ; epinio help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; epinio $$cmd --help ; done ; echo ) | tee HELP
+
+release: tidy fmt lint build
 
 ########################################################################
 # Support
