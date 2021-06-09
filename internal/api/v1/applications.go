@@ -30,32 +30,32 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
 	apps, err := application.List(cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	js, err := json.Marshal(apps)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	return nil
@@ -68,35 +68,35 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if app == nil {
-		return APIErrors{AppIsNotKnown(appName)}
+		return AppIsNotKnown(appName)
 	}
 
 	js, err := json.Marshal(app)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	return nil
@@ -109,48 +109,46 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	if app == nil {
-		return APIErrors{AppIsNotKnown(appName)}
+		return AppIsNotKnown(appName)
 	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	var updateRequest models.UpdateAppRequest
 	err = json.Unmarshal(bodyBytes, &updateRequest)
 	if err != nil {
-		return APIErrors{BadRequest(err)}
+		return BadRequest(err)
 	}
 
 	if updateRequest.Instances < 0 {
-		return APIErrors{NewAPIError(
-			"instances param should be integer equal or greater than zero",
-			"", http.StatusBadRequest)}
+		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
 	err = app.Scale(r.Context(), updateRequest.Instances)
 	if err != nil {
-		return singleError(err, http.StatusInternalServerError)
+		return InternalError(err)
 	}
 
 	return nil
@@ -303,35 +301,35 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 
 	gitea, err := gitea.New()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	if app == nil {
-		return APIErrors{AppIsNotKnown(appName)}
+		return AppIsNotKnown(appName)
 	}
 
 	err = application.Delete(cluster, gitea, org, *app)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	response := map[string][]string{}
@@ -339,12 +337,12 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 
 	js, err := json.Marshal(response)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(js)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	return nil

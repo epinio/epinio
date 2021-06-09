@@ -202,7 +202,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Service class 'meh' does not exist"))
+				Equal("ServiceClass 'meh' does not exist"))
 		})
 
 		It("returns a 'not found' when the plan does not exist", func() {

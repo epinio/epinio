@@ -46,53 +46,51 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return singleError(err, http.StatusInternalServerError)
+		return InternalError(err)
 	}
 
 	req := models.StageRequest{}
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
-		return NewAPIErrors(NewAPIError("Failed to construct an Application from the request", err.Error(), http.StatusBadRequest))
+		return NewBadRequest("Failed to construct an Application from the request", err.Error())
 	}
 
 	if name != req.App.Name {
-		return singleNewError("name parameter from URL does not match name param in body", http.StatusBadRequest)
+		return NewBadRequest("name parameter from URL does not match name param in body")
 	}
 
 	if req.Instances != nil && *req.Instances < 0 {
-		return APIErrors{NewAPIError(
-			"instances param should be integer equal or greater than zero",
-			"", http.StatusBadRequest)}
+		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
 	log.Info("staging app", "org", org, "app", req)
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return singleInternalError(err, "failed to get access to a kube client")
+		return InternalError(err, "failed to get access to a kube client")
 	}
 
 	cs, err := versioned.NewForConfig(cluster.RestConfig)
 	if err != nil {
-		return singleInternalError(err, "failed to get access to a tekton client")
+		return InternalError(err, "failed to get access to a tekton client")
 	}
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
 
 	uid, err := randstr.Hex16()
 	if err != nil {
-		return singleInternalError(err, "failed to generate a uid")
+		return InternalError(err, "failed to generate a uid")
 	}
 
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", req.App.Name, req.App.Org),
 	})
 	if err != nil {
-		return singleError(err, http.StatusInternalServerError)
+		return InternalError(err)
 	}
 
 	// assume that completed pipelineruns are from the past and have a CompletionTime
 	for _, pr := range l.Items {
 		if pr.Status.CompletionTime == nil {
-			return singleNewError("pipelinerun for image ID still running", http.StatusBadRequest)
+			return NewBadRequest("pipelinerun for image ID still running")
 		}
 	}
 
@@ -103,7 +101,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	} else {
 		instances, err = existingReplica(ctx, cluster.Kubectl, req.App)
 		if err != nil {
-			return singleError(err, http.StatusInternalServerError)
+			return InternalError(err)
 		}
 	}
 
@@ -116,23 +114,23 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	err = application.Unstage(name, org, uid)
 	if err != nil {
-		return singleInternalError(err, "failed delete previous pipeline runs")
+		return InternalError(err, "failed delete previous pipeline runs")
 	}
 
 	pr := newPipelineRun(uid, app)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
-		return singleInternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
+		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
 	mainDomain, err := domain.MainDomain()
 	if err != nil {
-		return singleError(err, http.StatusInternalServerError)
+		return InternalError(err)
 	}
 
 	err = auth.CreateCertificate(ctx, cluster.RestConfig, app.Name, app.Org, mainDomain)
 	if err != nil {
-		return singleError(err, http.StatusInternalServerError)
+		return InternalError(err)
 	}
 
 	log.Info("staged app", "org", org, "app", app.AppRef, "uid", uid)
@@ -140,7 +138,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	resp := models.StageResponse{Stage: models.NewStage(uid)}
 	err = jsonResponse(w, resp)
 	if err != nil {
-		return singleError(err, http.StatusInternalServerError)
+		return InternalError(err)
 	}
 
 	return nil

@@ -31,46 +31,46 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	var bindRequest models.BindRequest
 	err = json.Unmarshal(bodyBytes, &bindRequest)
 	if err != nil {
-		return APIErrors{BadRequest(err)}
+		return BadRequest(err)
 	}
 
 	if len(bindRequest.Names) == 0 {
 		err := errors.New("Cannot bind service without names")
-		return APIErrors{BadRequest(err)}
+		return BadRequest(err)
 	}
 
 	for _, serviceName := range bindRequest.Names {
 		if serviceName == "" {
 			err := errors.New("Cannot bind service with empty name")
-			return APIErrors{BadRequest(err)}
+			return BadRequest(err)
 		}
 	}
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if app == nil {
-		return APIErrors{AppIsNotKnown(appName)}
+		return AppIsNotKnown(appName)
 	}
 
 	// From here on out we collect errors and warnings per
@@ -79,7 +79,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	// is possible for some of the services to be properly bound.
 
 	var theServices interfaces.ServiceList
-	var theIssues APIErrors
+	var theIssues []APIError
 
 	for _, serviceName := range bindRequest.Names {
 		service, err := services.Lookup(cluster, org, serviceName)
@@ -89,7 +89,8 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 				continue
 			}
 
-			return append(APIErrors{InternalError(err)}, theIssues...)
+			theIssues = append([]APIError{InternalError(err)}, theIssues...)
+			return MultiError{theIssues}
 		}
 
 		theServices = append(theServices, service)
@@ -103,18 +104,19 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 				continue
 			}
 
-			return append(APIErrors{InternalError(err)}, theIssues...)
+			theIssues = append([]APIError{InternalError(err)}, theIssues...)
+			return MultiError{theIssues}
 		}
 	}
 
 	if len(theIssues) > 0 {
-		return theIssues
+		return MultiError{theIssues}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte{})
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	return nil
@@ -128,45 +130,45 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 
 	cluster, err := kubernetes.GetCluster()
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	exists, err := organizations.Exists(cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
 	app, err := application.Lookup(cluster, org, appName)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if app == nil {
-		return APIErrors{AppIsNotKnown(appName)}
+		return AppIsNotKnown(appName)
 	}
 
 	service, err := services.Lookup(cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
-		return APIErrors{ServiceIsNotKnown(serviceName)}
+		return ServiceIsNotKnown(serviceName)
 	}
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	err = app.Unbind(service)
 	if err != nil && err.Error() == "service is not bound to the application" {
-		return APIErrors{ServiceIsNotBound(serviceName)}
+		return ServiceIsNotBound(serviceName)
 	}
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte{})
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	return nil
