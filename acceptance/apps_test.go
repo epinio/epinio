@@ -145,6 +145,12 @@ var _ = Describe("Apps", func() {
 					org, appName))
 				return out
 			}, "1m").Should(ContainSubstring("not found"))
+
+			Eventually(func() string {
+				out, _ := helpers.Kubectl(fmt.Sprintf("get service --namespace %s %s",
+					org, appName))
+				return out
+			}, "1m").Should(ContainSubstring("not found"))
 		})
 
 		It("pushes the same app again successfully", func() {
