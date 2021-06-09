@@ -162,47 +162,45 @@ func deleteApps(cluster *kubernetes.Cluster, gitea *gitea.Client, org string) er
 		return err
 	}
 
+	// create a buffer, so there is no more than 'maxConcurrent' goroutines running at the same time
 	const maxConcurrent = 100
+	buffer := make(chan struct{}, maxConcurrent)
 	errChan := make(chan error, maxConcurrent)
-	success := make(chan bool)
-	stop := make(chan bool)
+	var wg sync.WaitGroup
+	var forLoopErr error
 
-	go func() {
-		var wg sync.WaitGroup
-		// create a buffer, so there is no more than 'maxConcurrent' goroutines running at the same time
-		buffer := make(chan struct{}, maxConcurrent)
-	loop:
-		for _, app := range apps {
-			buffer <- struct{}{}
-			wg.Add(1)
+loop:
+	for _, app := range apps {
+		buffer <- struct{}{}
+		wg.Add(1)
 
-			go func(app application.Application) {
-				defer wg.Done()
-				defer func() {
-					<-buffer
-				}()
-				err = application.Delete(cluster, gitea, org, app)
-				if err != nil {
-					errChan <- err
-				}
-			}(app)
-
-			select {
-			case <-stop:
-				break loop
-			default:
+		go func(app application.Application) {
+			defer wg.Done()
+			defer func() {
+				<-buffer
+			}()
+			err = application.Delete(cluster, gitea, org, app)
+			if err != nil {
+				errChan <- err
 			}
-		}
-		wg.Wait()
-		success <- true
-	}()
+		}(app)
 
-	//wait until all apps are deleted or we get an error
+		select {
+		case forLoopErr = <-errChan:
+			break loop
+		default:
+		}
+	}
+	wg.Wait()
+
+	if forLoopErr != nil {
+		return forLoopErr
+	}
+
 	select {
 	case err := <-errChan:
-		stop <- true
 		return err
-	case <-success:
+	default:
 		return nil
 	}
 
