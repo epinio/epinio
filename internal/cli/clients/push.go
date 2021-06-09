@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"path"
 	"time"
@@ -34,7 +35,7 @@ func collectSources(log logr.Logger, source string) (string, string, error) {
 		// tarball.
 		// Ignore git config files in the app sources to prevent conflicts with the gitea git repo
 		if f.Name() == ".git" || f.Name() == ".gitignore" || f.Name() == ".gitmodules" || f.Name() == ".gitconfig" || f.Name() == ".git-credentials" {
-			log.V(3).Info("Skipping upload of file/dir '" + f.Name() + "'.")
+			log.V(3).Info(fmt.Sprintf("Skipping upload of file/dir '%s'.", f.Name()))
 			continue
 		}
 		sources = append(sources, path.Join(source, f.Name()))
