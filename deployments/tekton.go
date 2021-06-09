@@ -42,6 +42,8 @@ type Tekton struct {
 	Timeout    time.Duration
 }
 
+var _ kubernetes.Deployment = &Tekton{}
+
 const (
 	TektonDeploymentID            = "tekton"
 	tektonNamespace               = "tekton"
@@ -56,11 +58,11 @@ func (k *Tekton) ID() string {
 	return TektonDeploymentID
 }
 
-func (k *Tekton) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Tekton) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Tekton) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Tekton) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -69,10 +71,10 @@ func (k Tekton) Describe() string {
 }
 
 // Delete removes Tekton from kubernetes cluster
-func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
+func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Tekton...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(TektonStagingNamespace)
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, TektonStagingNamespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", TektonStagingNamespace)
 	}
@@ -85,7 +87,7 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
 	}
 
-	err = k.deleteCACertificate(c)
+	err = k.deleteCACertificate(ctx, c)
 	if err != nil {
 		return errors.Wrapf(err, "failed deleting ca-cert certificate")
 	}
@@ -93,19 +95,19 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	message := "Deleting Tekton staging namespace " + TektonStagingNamespace
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", c.DeleteNamespace(TektonStagingNamespace)
+			return "", c.DeleteNamespace(ctx, TektonStagingNamespace)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", TektonStagingNamespace)
 	}
 
-	err = c.WaitForNamespaceMissing(ui, TektonStagingNamespace, k.Timeout)
+	err = c.WaitForNamespaceMissing(ctx, ui, TektonStagingNamespace, k.Timeout)
 	if err != nil {
 		return errors.Wrapf(err, "Failed waiting for namespace %s to be deleted", TektonStagingNamespace)
 	}
 
-	existsAndOwned, err = c.NamespaceExistsAndOwned(tektonNamespace)
+	existsAndOwned, err = c.NamespaceExistsAndOwned(ctx, tektonNamespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", tektonNamespace)
 	}
@@ -121,14 +123,14 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	message = "Deleting Tekton namespace " + tektonNamespace
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", c.DeleteNamespace(tektonNamespace)
+			return "", c.DeleteNamespace(ctx, tektonNamespace)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
 	}
 
-	err = c.WaitForNamespaceMissing(ui, tektonNamespace, k.Timeout)
+	err = c.WaitForNamespaceMissing(ctx, ui, tektonNamespace, k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete namespace")
 	}
@@ -138,15 +140,15 @@ func (k Tekton) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 
-func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 
-	if err := c.CreateNamespace(tektonNamespace, map[string]string{
+	if err := c.CreateNamespace(ctx, tektonNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
 
-	if err := c.CreateNamespace(TektonStagingNamespace, map[string]string{
+	if err := c.CreateNamespace(ctx, TektonStagingNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 		"quarks.cloudfoundry.org/monitored": "quarks-secret",
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
@@ -162,11 +164,11 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 
 	kTimeout := strconv.Itoa(int(k.Timeout.Seconds()))
 
-	err := c.WaitUntilPodBySelectorExist(ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
+	err := c.WaitUntilPodBySelectorExist(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed waiting tekton pipelines webhook pod to exist")
 	}
-	err = c.WaitForPodBySelectorRunning(ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
+	err = c.WaitForPodBySelectorRunning(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed waiting tekton pipelines webhook pod to be running")
 	}
@@ -220,21 +222,21 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return err
 	}
 
-	if err := k.createGiteaCredsSecret(c); err != nil {
+	if err := k.createGiteaCredsSecret(ctx, c); err != nil {
 		return err
 	}
-	if err := k.createClusterRegistryCredsSecret(c); err != nil {
+	if err := k.createClusterRegistryCredsSecret(ctx, c); err != nil {
 		return err
 	}
-	if err := k.createServiceAccountWithSecretAccess(c); err != nil {
+	if err := k.createServiceAccountWithSecretAccess(ctx, c); err != nil {
 		return err
 	}
 
 	// Wait until quarks is ready because we need it to create the secret
-	if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to exist")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
 	}
 
@@ -243,11 +245,11 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
-	if err := k.createCACertificate(c, domain); err != nil {
+	if err := k.createCACertificate(ctx, c, domain); err != nil {
 		return err
 	}
 
-	_, err = c.WaitForSecret(TektonStagingNamespace, "ca-cert", duration.ToServiceSecret())
+	_, err = c.WaitForSecret(ctx, TektonStagingNamespace, "ca-cert", duration.ToServiceSecret())
 	if err != nil {
 		return err
 	}
@@ -278,7 +280,7 @@ func (k Tekton) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	message = "Applying tekton staging resources"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return applyTektonStaging(c, ui)
+			return applyTektonStaging(ctx, c, ui)
 		},
 	)
 	if err != nil {
@@ -294,10 +296,10 @@ func (k Tekton) GetVersion() string {
 	return fmt.Sprintf("pipelines: %s", tektonPipelineReleaseYamlPath)
 }
 
-func (k Tekton) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Tekton) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		TektonDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -307,13 +309,13 @@ func (k Tekton) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Tekton...")
 
-	err = k.apply(c, ui, options, false)
+	err = k.apply(ctx, c, ui, options, false)
 	if err != nil {
 		return err
 	}
 
 	s := ui.Progress("Warming up cluster with builder image")
-	err = k.warmupBuilder(c)
+	err = k.warmupBuilder(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -322,9 +324,9 @@ func (k Tekton) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 	return nil
 }
 
-func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Tekton) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		TektonDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -334,15 +336,15 @@ func (k Tekton) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 
 	ui.Note().Msg("Upgrading Tekton...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(ctx, c, ui, options, true)
 }
 
 // The equivalent of:
 // kubectl get secret -n tekton-staging registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCAHash(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
+func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).
-		Get(context.Background(), "registry-tls-self", metav1.GetOptions{})
+		Get(ctx, "registry-tls-self", metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -355,8 +357,8 @@ func getRegistryCAHash(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	return hash, nil
 }
 
-func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
-	caHash, err := getRegistryCAHash(c, ui)
+func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) (string, error) {
+	caHash, err := getRegistryCAHash(ctx, c, ui)
 	if err != nil {
 		return "", errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
 	}
@@ -386,7 +388,7 @@ func applyTektonStaging(c *kubernetes.Cluster, ui *termui.UI) (string, error) {
 	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", TektonStagingNamespace, tmpFilePath))
 }
 
-func (k Tekton) createGiteaCredsSecret(c *kubernetes.Cluster) error {
+func (k Tekton) createGiteaCredsSecret(ctx context.Context, c *kubernetes.Cluster) error {
 	// See internal/cli/clients/gitea/gitea.go, func
 	// `getGiteaCredentials` for where the cli retrieves the
 	// information for its own gitea client.
@@ -399,7 +401,7 @@ func (k Tekton) createGiteaCredsSecret(c *kubernetes.Cluster) error {
 		return err
 	}
 
-	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),
+	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(ctx,
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "gitea-creds",
@@ -423,10 +425,10 @@ func (k Tekton) createGiteaCredsSecret(c *kubernetes.Cluster) error {
 // Adding the imagePullSecrets to the service account attached to the application
 // pods, will automatically assign the same imagePullSecrets to the pods themselves:
 // https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#verify-imagepullsecrets-was-added-to-pod-spec
-func (k Tekton) createServiceAccountWithSecretAccess(c *kubernetes.Cluster) error {
+func (k Tekton) createServiceAccountWithSecretAccess(ctx context.Context, c *kubernetes.Cluster) error {
 	automountServiceAccountToken := false
 	_, err := c.Kubectl.CoreV1().ServiceAccounts(TektonStagingNamespace).Create(
-		context.Background(),
+		ctx,
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: TektonStagingNamespace,
@@ -441,7 +443,7 @@ func (k Tekton) createServiceAccountWithSecretAccess(c *kubernetes.Cluster) erro
 	return err
 }
 
-func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
+func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kubernetes.Cluster) error {
 
 	// Generate random credentials
 	registryAuth, err := RegistryInstallAuth()
@@ -466,7 +468,7 @@ func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
 		jsonFull, jsonFull, jsonPart, jsonPart)
 	// The relevant place in the registry is `deployments/registry.go`, func `apply`, see (**).
 
-	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(context.Background(),
+	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(ctx,
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "registry-creds",
@@ -483,7 +485,7 @@ func (k Tekton) createClusterRegistryCredsSecret(c *kubernetes.Cluster) error {
 	return nil
 }
 
-func (k Tekton) createCACertificate(c *kubernetes.Cluster, domain string) error {
+func (k Tekton) createCACertificate(ctx context.Context, c *kubernetes.Cluster, domain string) error {
 	data := fmt.Sprintf(`{
 		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
 		"kind": "QuarksSecret",
@@ -525,7 +527,7 @@ func (k Tekton) createCACertificate(c *kubernetes.Cluster, domain string) error 
 		return err
 	}
 	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(TektonStagingNamespace).
-		Create(context.Background(),
+		Create(ctx,
 			obj,
 			metav1.CreateOptions{})
 	if err != nil {
@@ -535,7 +537,7 @@ func (k Tekton) createCACertificate(c *kubernetes.Cluster, domain string) error 
 	return nil
 }
 
-func (k Tekton) deleteCACertificate(c *kubernetes.Cluster) error {
+func (k Tekton) deleteCACertificate(ctx context.Context, c *kubernetes.Cluster) error {
 	quarksSecretInstanceGVR := schema.GroupVersionResource{
 		Group:    "quarks.cloudfoundry.org",
 		Version:  "v1alpha1",
@@ -548,7 +550,7 @@ func (k Tekton) deleteCACertificate(c *kubernetes.Cluster) error {
 	}
 
 	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(TektonStagingNamespace).
-		Delete(context.Background(),
+		Delete(ctx,
 			"generate-ca-certificate",
 			metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
@@ -562,7 +564,7 @@ func (k Tekton) deleteCACertificate(c *kubernetes.Cluster) error {
 // in order to avoid pulling it the first time we an application is staged.
 // TODO: This doesn't work in a multi-node cluster because it will only pull
 // the image on one node. Maybe we could use a dummy daemonset for that.
-func (k Tekton) warmupBuilder(c *kubernetes.Cluster) error {
+func (k Tekton) warmupBuilder(ctx context.Context, c *kubernetes.Cluster) error {
 	client, err := typedbatchv1.NewForConfig(c.RestConfig)
 	if err != nil {
 		return err
@@ -571,7 +573,7 @@ func (k Tekton) warmupBuilder(c *kubernetes.Cluster) error {
 	jobName := "buildpack-builder-warmup"
 	var backoffLimit = int32(1)
 	if _, err = client.Jobs(TektonStagingNamespace).Create(
-		context.Background(),
+		ctx,
 		&batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: jobName,
@@ -605,7 +607,7 @@ func (k Tekton) warmupBuilder(c *kubernetes.Cluster) error {
 		return err
 	}
 
-	return c.WaitForJobCompleted(TektonStagingNamespace, jobName, duration.ToWarmupJobReady())
+	return c.WaitForJobCompleted(ctx, TektonStagingNamespace, jobName, duration.ToWarmupJobReady())
 }
 
 // -----------------------------------------------------------------------------------

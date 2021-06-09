@@ -40,7 +40,7 @@ var CmdOrgList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all organizations",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewEpinioClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -62,7 +62,7 @@ var CmdOrgCreate = &cobra.Command{
 	Short: "Creates an organization",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewEpinioClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -98,7 +98,7 @@ var CmdOrgDelete = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewEpinioClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

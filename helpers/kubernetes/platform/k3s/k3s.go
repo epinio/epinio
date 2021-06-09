@@ -21,8 +21,8 @@ func (k *k3s) Describe() string {
 
 func (k *k3s) String() string { return "k3s" }
 
-func (k *k3s) Detect(kube *kubernetes.Clientset) bool {
-	nodes, err := kube.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+func (k *k3s) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false
 	}

@@ -22,6 +22,8 @@ type GoogleServices struct {
 	Timeout time.Duration
 }
 
+var _ kubernetes.Deployment = &GoogleServices{}
+
 const (
 	GoogleServicesDeploymentID = "google-service-broker"
 	googleServicesVersion      = "0.1.0"
@@ -32,11 +34,11 @@ func (k *GoogleServices) ID() string {
 	return GoogleServicesDeploymentID
 }
 
-func (k *GoogleServices) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *GoogleServices) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *GoogleServices) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *GoogleServices) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -45,10 +47,10 @@ func (k GoogleServices) Describe() string {
 }
 
 // Delete removes GoogleServices from kubernetes cluster
-func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
+func (k GoogleServices) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing GoogleServices...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(GoogleServicesDeploymentID)
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, GoogleServicesDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", GoogleServicesDeploymentID)
 	}
@@ -80,14 +82,14 @@ func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	message = "Deleting GoogleServices namespace " + GoogleServicesDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", c.DeleteNamespace(GoogleServicesDeploymentID)
+			return "", c.DeleteNamespace(ctx, GoogleServicesDeploymentID)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", GoogleServicesDeploymentID)
 	}
 
-	err = c.WaitForNamespaceMissing(ui, GoogleServicesDeploymentID, k.Timeout)
+	err = c.WaitForNamespaceMissing(ctx, ui, GoogleServicesDeploymentID, k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete namespace")
 	}
@@ -97,13 +99,13 @@ func (k GoogleServices) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 
-func (k GoogleServices) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k GoogleServices) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
 	}
 
-	if err := c.CreateNamespace(GoogleServicesDeploymentID, map[string]string{
+	if err := c.CreateNamespace(ctx, GoogleServicesDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
@@ -151,17 +153,17 @@ broker:
 		return errors.New("Failed installing GoogleServices: " + out)
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, GoogleServicesDeploymentID, "app=google-service-broker-mysql", k.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ctx, ui, GoogleServicesDeploymentID, "app=google-service-broker-mysql", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting GoogleServices database to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, GoogleServicesDeploymentID, "app=google-service-broker-mysql", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ctx, ui, GoogleServicesDeploymentID, "app=google-service-broker-mysql", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting GoogleServices database to be running")
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, GoogleServicesDeploymentID, "app.kubernetes.io/name=gcp-service-broker", k.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ctx, ui, GoogleServicesDeploymentID, "app.kubernetes.io/name=gcp-service-broker", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting GoogleServices to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, GoogleServicesDeploymentID, "app.kubernetes.io/name=gcp-service-broker", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ctx, ui, GoogleServicesDeploymentID, "app.kubernetes.io/name=gcp-service-broker", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting GoogleServices to be running")
 	}
 
@@ -174,8 +176,8 @@ func (k GoogleServices) GetVersion() string {
 	return googleServicesVersion
 }
 
-func (k GoogleServices) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
-	existsAndOwned, err := c.NamespaceExistsAndOwned(GoogleServicesDeploymentID)
+func (k GoogleServices) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, GoogleServicesDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", MinibrokerDeploymentID)
 	}
@@ -186,7 +188,7 @@ func (k GoogleServices) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kub
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying GoogleServices...")
 
-	err = k.apply(c, ui, options, false)
+	err = k.apply(ctx, c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -194,9 +196,9 @@ func (k GoogleServices) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kub
 	return nil
 }
 
-func (k GoogleServices) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k GoogleServices) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		GoogleServicesDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -206,5 +208,5 @@ func (k GoogleServices) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options ku
 
 	ui.Note().Msg("Upgrading GoogleServices...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(ctx, c, ui, options, true)
 }

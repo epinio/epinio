@@ -92,7 +92,7 @@ func init() {
 
 // Install command installs epinio on a configured cluster
 func Install(cmd *cobra.Command, args []string) error {
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Flags(), &NeededOptions)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &NeededOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -110,7 +110,7 @@ func Install(cmd *cobra.Command, args []string) error {
 
 	// Installation complete. Run `org create`, and `target`.
 
-	epinio_client, err := clients.NewEpinioClient(cmd.Flags())
+	epinio_client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}

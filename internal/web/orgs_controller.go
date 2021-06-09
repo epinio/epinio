@@ -12,15 +12,16 @@ type OrgsController struct {
 }
 
 func (hc OrgsController) Target(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if handleError(w, err, http.StatusInternalServerError) {
 		return
 	}

@@ -22,6 +22,8 @@ type Registry struct {
 	Timeout time.Duration
 }
 
+var _ kubernetes.Deployment = &Registry{}
+
 const (
 	RegistryDeploymentID = "epinio-registry"
 	registryVersion      = "0.1.0"
@@ -45,11 +47,11 @@ func (k *Registry) ID() string {
 	return RegistryDeploymentID
 }
 
-func (k *Registry) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Registry) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Registry) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Registry) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -58,10 +60,10 @@ func (k Registry) Describe() string {
 }
 
 // Delete removes Registry from kubernetes cluster
-func (k Registry) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
+func (k Registry) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Registry...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(RegistryDeploymentID)
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, RegistryDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", RegistryDeploymentID)
 	}
@@ -93,7 +95,7 @@ func (k Registry) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	message = "Deleting Registry namespace " + RegistryDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", c.DeleteNamespace(RegistryDeploymentID)
+			return "", c.DeleteNamespace(ctx, RegistryDeploymentID)
 		},
 	)
 	if err != nil {
@@ -105,7 +107,7 @@ func (k Registry) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 
-func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	// Generate random credentials
 	registryAuth, err := RegistryInstallAuth()
 	if err != nil {
@@ -117,7 +119,7 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 		action = "upgrade"
 	}
 
-	if err := c.CreateNamespace(RegistryDeploymentID, map[string]string{
+	if err := c.CreateNamespace(ctx, RegistryDeploymentID, map[string]string{
 		"quarks.cloudfoundry.org/monitored": "quarks-secret",
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
@@ -130,10 +132,10 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 	}
 
 	// Wait until quarks is ready because we need it to create the secret
-	if err := c.WaitUntilPodBySelectorExist(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+	if err := c.WaitUntilPodBySelectorExist(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
 		return errors.Wrap(err, "Epinio-workloads failed waiting Quarks quarks-secret deployment to exist")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelectorRunning(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
 		return errors.Wrap(err, "Epinio-workloads failed waiting Quarks quarks-secret deployment to come up")
 	}
 
@@ -157,11 +159,11 @@ func (k Registry) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 		return errors.New("Failed installing Registry: " + out)
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
+	if err := c.WaitUntilPodBySelectorExist(ctx, ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
 		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
-	if err := c.WaitForPodBySelectorRunning(ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
+	if err := c.WaitForPodBySelectorRunning(ctx, ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
 		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
@@ -175,10 +177,10 @@ func (k Registry) GetVersion() string {
 	return registryVersion
 }
 
-func (k Registry) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		RegistryDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -188,7 +190,7 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Registry...")
 
-	err = k.apply(c, ui, options, false)
+	err = k.apply(ctx, c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -196,9 +198,9 @@ func (k Registry) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 	return nil
 }
 
-func (k Registry) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Registry) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		RegistryDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -208,5 +210,5 @@ func (k Registry) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernet
 
 	ui.Note().Msg("Upgrading Registry...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(ctx, c, ui, options, true)
 }

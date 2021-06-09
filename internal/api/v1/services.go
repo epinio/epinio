@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -18,16 +19,17 @@ type ServicesController struct {
 }
 
 func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	serviceName := params.ByName("service")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -35,7 +37,7 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 		return OrgIsNotKnown(org)
 	}
 
-	service, err := services.Lookup(cluster, org, serviceName)
+	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil {
 		if err.Error() == "service not found" {
 			return ServiceIsNotKnown(serviceName)
@@ -45,11 +47,11 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 		}
 	}
 
-	status, err := service.Status()
+	status, err := service.Status(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
-	serviceDetails, err := service.Details()
+	serviceDetails, err := service.Details(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -75,15 +77,16 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 }
 
 func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -91,12 +94,12 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 		return OrgIsNotKnown(org)
 	}
 
-	orgServices, err := services.List(cluster, org)
+	orgServices, err := services.List(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	appsOf, err := servicesToApps(cluster, org)
+	appsOf, err := servicesToApps(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -129,7 +132,8 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 }
 
 func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 
 	defer r.Body.Close()
@@ -152,12 +156,12 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 		return NewBadRequest("Cannot create custom service without data")
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -166,7 +170,7 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	}
 
 	// Verify that the requested name is not yet used by a different service.
-	_, err = services.Lookup(cluster, org, createRequest.Name)
+	_, err = services.Lookup(ctx, cluster, org, createRequest.Name)
 	if err == nil {
 		// no error, service is found, conflict
 		return ServiceAlreadyKnown(createRequest.Name)
@@ -178,7 +182,7 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	// any error here is `service not found`, and we can continue
 
 	// Create the new service. At last.
-	_, err = services.CreateCustomService(cluster, createRequest.Name, org, createRequest.Data)
+	_, err = services.CreateCustomService(ctx, cluster, createRequest.Name, org, createRequest.Data)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -193,10 +197,11 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 }
 
 func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -225,7 +230,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 		return NewBadRequest("Cannot create service without a service plan")
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -234,7 +239,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	}
 
 	// Verify that the requested name is not yet used by a different service.
-	_, err = services.Lookup(cluster, org, createRequest.Name)
+	_, err = services.Lookup(ctx, cluster, org, createRequest.Name)
 	if err == nil {
 		// no error, service is found, conflict
 		return ServiceAlreadyKnown(createRequest.Name)
@@ -246,7 +251,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	// any error here is `service not found`, and we can continue
 
 	// Verify that the requested class is supported
-	serviceClass, err := services.ClassLookup(cluster, createRequest.Class)
+	serviceClass, err := services.ClassLookup(ctx, cluster, createRequest.Class)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -255,7 +260,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	}
 
 	// Verify that the requested plan is supported by the class.
-	servicePlan, err := serviceClass.LookupPlan(createRequest.Plan)
+	servicePlan, err := serviceClass.LookupPlan(ctx, createRequest.Plan)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -265,7 +270,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	}
 
 	// Create the new service. At last.
-	service, err := services.CreateCatalogService(cluster, createRequest.Name, org,
+	service, err := services.CreateCatalogService(ctx, cluster, createRequest.Name, org,
 		createRequest.Class, createRequest.Plan, createRequest.Data)
 	if err != nil {
 		return InternalError(err)
@@ -273,7 +278,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 
 	// Wait for service to be fully provisioned, if requested
 	if createRequest.WaitForProvision {
-		err := service.WaitForProvision()
+		err := service.WaitForProvision(ctx)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -289,7 +294,8 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 }
 
 func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	serviceName := params.ByName("service")
 
@@ -305,12 +311,12 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		return BadRequest(err)
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -318,7 +324,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		return OrgIsNotKnown(org)
 	}
 
-	service, err := services.Lookup(cluster, org, serviceName)
+	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
 		return ServiceIsNotKnown(serviceName)
 	}
@@ -331,7 +337,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 	// Without automatic unbind such applications are reported as error.
 
 	boundAppNames := []string{}
-	appsOf, err := servicesToApps(cluster, org)
+	appsOf, err := servicesToApps(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -345,7 +351,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		}
 
 		for _, app := range boundApps {
-			err = app.Unbind(service)
+			err = app.Unbind(ctx, service)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -354,7 +360,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 
 	// Everything looks to be ok. Delete.
 
-	err = service.Delete()
+	err = service.Delete(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -373,20 +379,20 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 	return nil
 }
 
-func servicesToApps(cluster *kubernetes.Cluster, org string) (map[string]application.ApplicationList, error) {
+func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (map[string]application.ApplicationList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
 	var appsOf = map[string]application.ApplicationList{}
 
-	apps, err := application.List(cluster, org)
+	apps, err := application.List(ctx, cluster, org)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, app := range apps {
-		bound, err := app.Services()
+		bound, err := app.Services(ctx)
 		if err != nil {
 			return nil, err
 		}

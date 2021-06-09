@@ -57,19 +57,19 @@ type PushParams struct {
 	Services  []string
 }
 
-func NewEpinioClient(flags *pflag.FlagSet) (*EpinioClient, error) {
+func NewEpinioClient(ctx context.Context, flags *pflag.FlagSet) (*EpinioClient, error) {
 	configConfig, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	uiUI := termui.NewUI()
-	epClient, err := GetEpinioAPIClient()
+	epClient, err := GetEpinioAPIClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 
 // ServicePlanMatching gets all service plans in the cluster, for the
 // specified class, and the given prefix
-func (c *EpinioClient) ServicePlanMatching(serviceClassName, prefix string) []string {
+func (c *EpinioClient) ServicePlanMatching(ctx context.Context, serviceClassName, prefix string) []string {
 	log := c.Log.WithName("ServicePlans").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -136,12 +136,12 @@ func (c *EpinioClient) ServicePlanMatching(serviceClassName, prefix string) []st
 
 	result := []string{}
 
-	serviceClass, err := services.ClassLookup(c.KubeClient, serviceClassName)
+	serviceClass, err := services.ClassLookup(ctx, c.KubeClient, serviceClassName)
 	if err != nil {
 		return result
 	}
 
-	servicePlans, err := serviceClass.ListPlans()
+	servicePlans, err := serviceClass.ListPlans(ctx)
 	if err != nil {
 		return result
 	}
@@ -158,7 +158,7 @@ func (c *EpinioClient) ServicePlanMatching(serviceClassName, prefix string) []st
 }
 
 // ServiceClassMatching returns all service classes in the cluster which have the specified prefix in their name
-func (c *EpinioClient) ServiceClassMatching(prefix string) []string {
+func (c *EpinioClient) ServiceClassMatching(ctx context.Context, prefix string) []string {
 	log := c.Log.WithName("ServiceClasses").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -166,7 +166,7 @@ func (c *EpinioClient) ServiceClassMatching(prefix string) []string {
 
 	result := []string{}
 
-	serviceClasses, err := services.ListClasses(c.KubeClient)
+	serviceClasses, err := services.ListClasses(ctx, c.KubeClient)
 	if err != nil {
 		details.Info("Error", err)
 		return result
@@ -253,7 +253,7 @@ func (c *EpinioClient) Services() error {
 
 // ServiceMatching returns all Epinio services having the specified prefix
 // in their name.
-func (c *EpinioClient) ServiceMatching(prefix string) []string {
+func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []string {
 	log := c.Log.WithName("ServiceMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -261,7 +261,7 @@ func (c *EpinioClient) ServiceMatching(prefix string) []string {
 
 	result := []string{}
 
-	orgServices, err := services.List(c.KubeClient, c.Config.Org)
+	orgServices, err := services.List(ctx, c.KubeClient, c.Config.Org)
 	if err != nil {
 		return result
 	}
@@ -606,7 +606,7 @@ func (c *EpinioClient) Info() error {
 
 // AppsMatching returns all Epinio apps having the specified prefix
 // in their name.
-func (c *EpinioClient) AppsMatching(prefix string) []string {
+func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string {
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -614,7 +614,7 @@ func (c *EpinioClient) AppsMatching(prefix string) []string {
 
 	result := []string{}
 
-	apps, err := application.List(c.KubeClient, c.Config.Org)
+	apps, err := application.List(ctx, c.KubeClient, c.Config.Org)
 	if err != nil {
 		return result
 	}
@@ -913,7 +913,7 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 }
 
 // Delete removes the named application from the cluster
-func (c *EpinioClient) Delete(appname string) error {
+func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 
 	// TODO: Move the cert operations into the server!
 
@@ -938,13 +938,13 @@ func (c *EpinioClient) Delete(appname string) error {
 		return err
 	}
 
-	mainDomain, err := domain.MainDomain()
+	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete certificate")
 	}
 
 	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		err = c.deleteCertificate(appname)
+		err = c.deleteCertificate(ctx, appname)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete certificate")
 		}
@@ -1040,7 +1040,7 @@ func (c *EpinioClient) Orgs() error {
 // * (tail logs)
 // * wait for pipelinerun
 // * wait for app
-func (c *EpinioClient) Push(app string, source string, params PushParams) error {
+func (c *EpinioClient) Push(ctx context.Context, app string, source string, params PushParams) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", app,
@@ -1098,7 +1098,7 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 
 	c.ui.Normal().Msg("Staging application ...")
 
-	route, err := appDefaultRoute(app)
+	route, err := appDefaultRoute(ctx, app)
 	if err != nil {
 		return errors.Wrap(err, "unable to determine default app route")
 	}
@@ -1133,7 +1133,7 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	}()
 
 	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
-	err = c.waitForPipelineRun(appRef, stage.Stage.ID)
+	err = c.waitForPipelineRun(ctx, appRef, stage.Stage.ID)
 	if err != nil {
 		stopChan <- true // Stop the printing go routine
 		return errors.Wrap(err, "waiting for staging failed")
@@ -1141,7 +1141,7 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	stopChan <- true // Stop the printing go routine
 
 	details.Info("wait for app", "StageID", stage.Stage.ID)
-	err = c.waitForApp(appRef, stage.Stage.ID)
+	err = c.waitForApp(ctx, appRef, stage.Stage.ID)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -1179,8 +1179,8 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	return nil
 }
 
-func appDefaultRoute(name string) (string, error) {
-	mainDomain, err := domain.MainDomain()
+func appDefaultRoute(ctx context.Context, name string) (string, error) {
+	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -1224,7 +1224,7 @@ func (c *EpinioClient) Target(org string) error {
 	return nil
 }
 
-func (c *EpinioClient) deleteCertificate(appName string) error {
+func (c *EpinioClient) deleteCertificate(ctx context.Context, appName string) error {
 	certificateInstanceGVR := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
 		Version:  "v1alpha2",
@@ -1237,12 +1237,12 @@ func (c *EpinioClient) deleteCertificate(appName string) error {
 	}
 
 	err = dynamicClient.Resource(certificateInstanceGVR).Namespace(c.Config.Org).
-		Delete(context.Background(), appName, metav1.DeleteOptions{})
+		Delete(ctx, appName, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = c.KubeClient.Kubectl.CoreV1().Secrets(c.Config.Org).Delete(context.Background(), fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
+	err = c.KubeClient.Kubectl.CoreV1().Secrets(c.Config.Org).Delete(ctx, fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -1250,20 +1250,20 @@ func (c *EpinioClient) deleteCertificate(appName string) error {
 	return nil
 }
 
-func (c *EpinioClient) ServicesToApps(org string) (map[string]application.ApplicationList, error) {
+func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[string]application.ApplicationList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
 	var appsOf = map[string]application.ApplicationList{}
 
-	apps, err := application.List(c.KubeClient, c.Config.Org)
+	apps, err := application.List(ctx, c.KubeClient, c.Config.Org)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, app := range apps {
-		bound, err := app.Services()
+		bound, err := app.Services(ctx)
 		if err != nil {
 			return nil, err
 		}

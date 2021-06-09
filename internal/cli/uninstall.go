@@ -18,7 +18,7 @@ var CmdUninstall = &cobra.Command{
 
 // Uninstall command removes epinio from a configured cluster
 func Uninstall(cmd *cobra.Command, args []string) error {
-	installClient, _, err := clients.NewInstallClient(cmd.Flags(), nil)
+	installClient, _, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), nil)
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}

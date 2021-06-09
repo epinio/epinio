@@ -53,10 +53,10 @@ var (
 var clusterMemo *Cluster
 
 type Platform interface {
-	Detect(*kubernetes.Clientset) bool
+	Detect(context.Context, *kubernetes.Clientset) bool
 	Describe() string
 	String() string
-	Load(*kubernetes.Clientset) error
+	Load(context.Context, *kubernetes.Clientset) error
 	ExternalIPs() []string
 }
 
@@ -78,7 +78,7 @@ type Cluster struct {
 // GetCluster returns the Cluster needed to talk to it. On first call it
 // creates it from a Kubernetes rest client config and cli arguments /
 // environment variables.
-func GetCluster() (*Cluster, error) {
+func GetCluster(ctx context.Context) (*Cluster, error) {
 	if clusterMemo != nil {
 		return clusterMemo, nil
 	}
@@ -101,12 +101,12 @@ func GetCluster() (*Cluster, error) {
 		return nil, err
 	}
 	c.Kubectl = clientset
-	c.detectPlatform()
+	c.detectPlatform(ctx)
 	if c.platform == nil {
 		c.platform = generic.NewPlatform()
 	}
 
-	err = c.platform.Load(clientset)
+	err = c.platform.Load(ctx, clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -120,9 +120,9 @@ func (c *Cluster) GetPlatform() Platform {
 	return c.platform
 }
 
-func (c *Cluster) detectPlatform() {
+func (c *Cluster) detectPlatform(ctx context.Context) {
 	for _, p := range SupportedPlatforms {
-		if p.Detect(c.Kubectl) {
+		if p.Detect(ctx, c.Kubectl) {
 			c.platform = p
 			return
 		}
@@ -131,9 +131,9 @@ func (c *Cluster) detectPlatform() {
 
 // IsPodRunning returns a condition function that indicates whether the given pod is
 // currently running
-func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
+func (c *Cluster) IsPodRunning(ctx context.Context, podName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
-		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
+		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -149,9 +149,9 @@ func (c *Cluster) IsPodRunning(podName, namespace string) wait.ConditionFunc {
 
 // IsJobCompleted returns a condition function that indicates whether the given
 // Job is in Completed state.
-func (c *Cluster) IsJobCompleted(client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
+func (c *Cluster) IsJobCompleted(ctx context.Context, client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
-		job, err := client.Jobs(namespace).Get(context.Background(), jobName, metav1.GetOptions{})
+		job, err := client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
@@ -165,9 +165,9 @@ func (c *Cluster) IsJobCompleted(client *typedbatchv1.BatchV1Client, jobName, na
 	}
 }
 
-func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
+func (c *Cluster) PodExists(ctx context.Context, namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
-		podList, err := c.ListPods(namespace, selector)
+		podList, err := c.ListPods(ctx, namespace, selector)
 		if err != nil {
 			return false, err
 		}
@@ -178,16 +178,16 @@ func (c *Cluster) PodExists(namespace, selector string) wait.ConditionFunc {
 	}
 }
 
-func (c *Cluster) NamespaceDoesNotExist(namespaceName string) wait.ConditionFunc {
+func (c *Cluster) NamespaceDoesNotExist(ctx context.Context, namespaceName string) wait.ConditionFunc {
 	return func() (bool, error) {
-		exists, err := c.NamespaceExists(namespaceName)
+		exists, err := c.NamespaceExists(ctx, namespaceName)
 		return !exists, err
 	}
 }
 
-func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc {
+func (c *Cluster) PodDoesNotExist(ctx context.Context, namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
-		podList, err := c.ListPods(namespace, selector)
+		podList, err := c.ListPods(ctx, namespace, selector)
 		if err != nil {
 			return true, nil
 		}
@@ -202,7 +202,7 @@ func (c *Cluster) PodDoesNotExist(namespace, selector string) wait.ConditionFunc
 // This method should be used when installing a Deployment that is supposed to
 // provide that CRD and want to make sure the CRD is ready for consumption before
 // continuing deploying things that will consume it.
-func (c *Cluster) WaitForCRD(ui *termui.UI, CRDName string, timeout time.Duration) error {
+func (c *Cluster) WaitForCRD(ctx context.Context, ui *termui.UI, CRDName string, timeout time.Duration) error {
 	s := ui.Progressf("Waiting for CRD %s to be ready to use", CRDName)
 	defer s.Stop()
 
@@ -212,7 +212,7 @@ func (c *Cluster) WaitForCRD(ui *termui.UI, CRDName string, timeout time.Duratio
 			return false, err
 		}
 
-		_, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), CRDName, metav1.GetOptions{})
+		_, err = clientset.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, CRDName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return false, nil
@@ -229,11 +229,11 @@ func (c *Cluster) WaitForCRD(ui *termui.UI, CRDName string, timeout time.Duratio
 // an error is returned.
 // It should be used when something is expected to create a Secret and the code
 // needs to wait until that happens.
-func (c *Cluster) WaitForSecret(namespace, secretName string, timeout time.Duration) (*v1.Secret, error) {
+func (c *Cluster) WaitForSecret(ctx context.Context, namespace, secretName string, timeout time.Duration) (*v1.Secret, error) {
 	var secret *v1.Secret
 	waitErr := wait.PollImmediate(time.Second, timeout, func() (bool, error) {
 		var err error
-		secret, err = c.GetSecret(namespace, secretName)
+		secret, err = c.GetSecret(ctx, namespace, secretName)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return false, nil
@@ -249,23 +249,23 @@ func (c *Cluster) WaitForSecret(namespace, secretName string, timeout time.Durat
 
 // Poll up to timeout for pod to enter running state.
 // Returns an error if the pod never enters the running state.
-func (c *Cluster) WaitForPodRunning(namespace, podName string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(podName, namespace))
+func (c *Cluster) WaitForPodRunning(ctx context.Context, namespace, podName string, timeout time.Duration) error {
+	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(ctx, podName, namespace))
 }
 
-func (c *Cluster) WaitForJobCompleted(namespace, jobName string, timeout time.Duration) error {
+func (c *Cluster) WaitForJobCompleted(ctx context.Context, namespace, jobName string, timeout time.Duration) error {
 	client, err := typedbatchv1.NewForConfig(c.RestConfig)
 	if err != nil {
 		return err
 	}
-	return wait.PollImmediate(time.Second, timeout, c.IsJobCompleted(client, jobName, namespace))
+	return wait.PollImmediate(time.Second, timeout, c.IsJobCompleted(ctx, client, jobName, namespace))
 }
 
 // IsDeploymentCompleted returns a condition function that indicates whether the given
 // Deployment is in Completed state or not.
-func (c *Cluster) IsDeploymentCompleted(deploymentName, namespace string) wait.ConditionFunc {
+func (c *Cluster) IsDeploymentCompleted(ctx context.Context, deploymentName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
-		deployment, err := c.Kubectl.AppsV1().Deployments(namespace).Get(context.Background(),
+		deployment, err := c.Kubectl.AppsV1().Deployments(namespace).Get(ctx,
 			deploymentName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
@@ -280,20 +280,20 @@ func (c *Cluster) IsDeploymentCompleted(deploymentName, namespace string) wait.C
 	}
 }
 
-func (c *Cluster) WaitForDeploymentCompleted(ui *termui.UI, namespace, deploymentName string, timeout time.Duration) error {
+func (c *Cluster) WaitForDeploymentCompleted(ctx context.Context, ui *termui.UI, namespace, deploymentName string, timeout time.Duration) error {
 	s := ui.Progressf("Starting %s in %s", deploymentName, namespace)
 	defer s.Stop()
 
-	return wait.PollImmediate(time.Second, timeout, c.IsDeploymentCompleted(deploymentName, namespace))
+	return wait.PollImmediate(time.Second, timeout, c.IsDeploymentCompleted(ctx, deploymentName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector
-func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
+func (c *Cluster) ListPods(ctx context.Context, namespace, selector string) (*v1.PodList, error) {
 	listOptions := metav1.ListOptions{}
 	if len(selector) > 0 {
 		listOptions.LabelSelector = selector
 	}
-	podList, err := c.Kubectl.CoreV1().Pods(namespace).List(context.Background(), listOptions)
+	podList, err := c.Kubectl.CoreV1().Pods(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -302,55 +302,55 @@ func (c *Cluster) ListPods(namespace, selector string) (*v1.PodList, error) {
 
 // Wait up to timeout for Namespace to be removed.
 // Returns an error if the Namespace is not removed within the allotted time.
-func (c *Cluster) WaitForNamespaceMissing(ui *termui.UI, namespace string, timeout time.Duration) error {
+func (c *Cluster) WaitForNamespaceMissing(ctx context.Context, ui *termui.UI, namespace string, timeout time.Duration) error {
 	if ui != nil {
 		s := ui.Progressf("Waiting for namespace %s to be deleted", namespace)
 		defer s.Stop()
 	}
 
-	return wait.PollImmediate(time.Second, timeout, c.NamespaceDoesNotExist(namespace))
+	return wait.PollImmediate(time.Second, timeout, c.NamespaceDoesNotExist(ctx, namespace))
 }
 
 // WaitForNamespace waits up to timeout for namespace to appear
 // Returns an error if the Namespace is not found within the allotted time.
-func (c *Cluster) WaitForNamespace(ui *termui.UI, namespace string, timeout time.Duration) error {
+func (c *Cluster) WaitForNamespace(ctx context.Context, ui *termui.UI, namespace string, timeout time.Duration) error {
 	s := ui.Progressf("Waiting for namespace %s to be appear", namespace)
 	defer s.Stop()
 
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		exists, err := c.NamespaceExists(namespace)
+		exists, err := c.NamespaceExists(ctx, namespace)
 		return exists, err
 	})
 }
 
 // Wait up to timeout for pod to be removed.
 // Returns an error if the pod is not removed within the allotted time.
-func (c *Cluster) WaitForPodBySelectorMissing(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
+func (c *Cluster) WaitForPodBySelectorMissing(ctx context.Context, ui *termui.UI, namespace, selector string, timeout time.Duration) error {
 	if ui != nil {
 		s := ui.Progressf("Removing %s in %s", selector, namespace)
 		defer s.Stop()
 	}
 
-	return wait.PollImmediate(time.Second, timeout, c.PodDoesNotExist(namespace, selector))
+	return wait.PollImmediate(time.Second, timeout, c.PodDoesNotExist(ctx, namespace, selector))
 }
 
 // Wait up to timeout for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
-func (c *Cluster) WaitUntilPodBySelectorExist(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
+func (c *Cluster) WaitUntilPodBySelectorExist(ctx context.Context, ui *termui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Creating %s in %s", selector, namespace)
 	defer s.Stop()
 
-	return wait.PollImmediate(time.Second, timeout, c.PodExists(namespace, selector))
+	return wait.PollImmediate(time.Second, timeout, c.PodExists(ctx, namespace, selector))
 }
 
 // WaitForPodBySelectorRunning waits timeout for all pods in 'namespace'
 // with given 'selector' to enter running state. Returns an error if no pods are
 // found or not all discovered pods enter running state.
-func (c *Cluster) WaitForPodBySelectorRunning(ui *termui.UI, namespace, selector string, timeout time.Duration) error {
+func (c *Cluster) WaitForPodBySelectorRunning(ctx context.Context, ui *termui.UI, namespace, selector string, timeout time.Duration) error {
 	s := ui.Progressf("Starting %s in %s", selector, namespace)
 	defer s.Stop()
 
-	podList, err := c.ListPods(namespace, selector)
+	podList, err := c.ListPods(ctx, namespace, selector)
 	if err != nil {
 		return errors.Wrapf(err, "failed listingpods with selector %s", selector)
 	}
@@ -361,8 +361,8 @@ func (c *Cluster) WaitForPodBySelectorRunning(ui *termui.UI, namespace, selector
 
 	for _, pod := range podList.Items {
 		s.ChangeMessagef("  Starting pod %s in %s", pod.Name, namespace)
-		if err := c.WaitForPodRunning(namespace, pod.Name, timeout); err != nil {
-			events, err2 := c.GetPodEvents(namespace, pod.Name)
+		if err := c.WaitForPodRunning(ctx, namespace, pod.Name, timeout); err != nil {
+			events, err2 := c.GetPodEvents(ctx, namespace, pod.Name)
 			if err2 != nil {
 				return errors.Wrap(err, err2.Error())
 			} else {
@@ -381,8 +381,8 @@ func (c *Cluster) WaitForPodBySelectorRunning(ui *termui.UI, namespace, selector
 //   kubectl get event --namespace my-namespace \
 //   --field-selector involvedObject.name=$( \
 //     kubectl get pods -o=jsonpath='{.items[0].metadata.name}' --selector=app.kubernetes.io/name=container-registry -n my-namespace)
-func (c *Cluster) GetPodEventsWithSelector(namespace, selector string) (string, error) {
-	podList, err := c.Kubectl.CoreV1().Pods(namespace).List(context.Background(),
+func (c *Cluster) GetPodEventsWithSelector(ctx context.Context, namespace, selector string) (string, error) {
+	podList, err := c.Kubectl.CoreV1().Pods(namespace).List(ctx,
 		metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return "", err
@@ -392,11 +392,11 @@ func (c *Cluster) GetPodEventsWithSelector(namespace, selector string) (string, 
 	}
 	podName := podList.Items[0].Name
 
-	return c.GetPodEvents(namespace, podName)
+	return c.GetPodEvents(ctx, namespace, podName)
 }
 
-func (c *Cluster) GetPodEvents(namespace, podName string) (string, error) {
-	eventList, err := c.Kubectl.CoreV1().Events(namespace).List(context.Background(),
+func (c *Cluster) GetPodEvents(ctx context.Context, namespace, podName string) (string, error) {
+	eventList, err := c.Kubectl.CoreV1().Events(namespace).List(ctx,
 		metav1.ListOptions{
 			FieldSelector: "involvedObject.name=" + podName,
 		})
@@ -425,13 +425,13 @@ func (c *Cluster) Exec(namespace, podName, containerName string, command, stdin 
 }
 
 // GetSecret gets a secret's values
-func (c *Cluster) GetSecret(namespace, name string) (*v1.Secret, error) {
-	return c.Kubectl.CoreV1().Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func (c *Cluster) GetSecret(ctx context.Context, namespace, name string) (*v1.Secret, error) {
+	return c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
 // DeleteSecret removes a secret
-func (c *Cluster) DeleteSecret(namespace, name string) error {
-	err := c.Kubectl.CoreV1().Secrets(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+func (c *Cluster) DeleteSecret(ctx context.Context, namespace, name string) error {
+	err := c.Kubectl.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to delete secret")
 	}
@@ -440,14 +440,14 @@ func (c *Cluster) DeleteSecret(namespace, name string) error {
 }
 
 // CreateSecret posts a new secret with key/value dictionary.
-func (c *Cluster) CreateSecret(namespace, name string, data map[string][]byte) error {
+func (c *Cluster) CreateSecret(ctx context.Context, namespace, name string, data map[string][]byte) error {
 	secret := &v1.Secret{
 		Data: data,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
 	}
-	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(context.Background(),
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(ctx,
 		secret,
 		metav1.CreateOptions{})
 	if err != nil {
@@ -457,7 +457,7 @@ func (c *Cluster) CreateSecret(namespace, name string, data map[string][]byte) e
 }
 
 // CreateLabeledSecret posts a new secret with key/value dictionary.
-func (c *Cluster) CreateLabeledSecret(namespace, name string,
+func (c *Cluster) CreateLabeledSecret(ctx context.Context, namespace, name string,
 	data map[string][]byte,
 	label map[string]string) error {
 
@@ -467,7 +467,7 @@ func (c *Cluster) CreateLabeledSecret(namespace, name string,
 			Name: name,
 		},
 	}
-	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(context.Background(),
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(ctx,
 		secret,
 		metav1.CreateOptions{})
 	if err != nil {
@@ -477,14 +477,12 @@ func (c *Cluster) CreateLabeledSecret(namespace, name string,
 	// FIXME ... We patch the labels in ... Easier than trying to
 	// find all the necessary types for the Secret structure.
 
-	return c.LabelSecret(namespace, name, label)
+	return c.LabelSecret(ctx, namespace, name, label)
 }
 
 // LabelSecret patches a secret with labels. Analogous to
 // LabelNamespace later in this file.
-func (c *Cluster) LabelSecret(
-	namespace, name string,
-	label map[string]string) error {
+func (c *Cluster) LabelSecret(ctx context.Context, namespace, name string, label map[string]string) error {
 
 	labels := []string{}
 	for key, value := range label {
@@ -494,7 +492,7 @@ func (c *Cluster) LabelSecret(
 	patchContents := fmt.Sprintf(`{ "metadata": { "labels": { %s } } }`,
 		strings.Join(labels, ","))
 
-	_, err := c.Kubectl.CoreV1().Secrets(namespace).Patch(context.Background(), name,
+	_, err := c.Kubectl.CoreV1().Secrets(namespace).Patch(ctx, name,
 		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
 
 	if err != nil {
@@ -516,9 +514,9 @@ func (c *Cluster) GetVersion() (string, error) {
 
 // DeploymentStatus returns running status for a Deployment
 // If the deployment doesn't exist, the status is set to 0/0
-func (c *Cluster) DeploymentStatus(namespace, selector string) (string, error) {
+func (c *Cluster) DeploymentStatus(ctx context.Context, namespace, selector string) (string, error) {
 	result, err := c.Kubectl.AppsV1().Deployments(namespace).List(
-		context.Background(),
+		ctx,
 		metav1.ListOptions{
 			LabelSelector: selector,
 		},
@@ -536,9 +534,9 @@ func (c *Cluster) DeploymentStatus(namespace, selector string) (string, error) {
 }
 
 // ListIngressRoutes returns a list of all routes for ingresses in `namespace` with the given selector
-func (c *Cluster) ListIngressRoutes(namespace, name string) ([]string, error) {
+func (c *Cluster) ListIngressRoutes(ctx context.Context, namespace, name string) ([]string, error) {
 	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
-	ingress, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	ingress, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list ingresses")
 	}
@@ -553,14 +551,14 @@ func (c *Cluster) ListIngressRoutes(namespace, name string) ([]string, error) {
 }
 
 // ListIngress returns the list of available ingresses in `namespace` with the given selector
-func (c *Cluster) ListIngress(namespace, selector string) (*v1beta1.IngressList, error) {
+func (c *Cluster) ListIngress(ctx context.Context, namespace, selector string) (*v1beta1.IngressList, error) {
 	listOptions := metav1.ListOptions{}
 	if len(selector) > 0 {
 		listOptions.LabelSelector = selector
 	}
 
 	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
-	ingressList, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).List(context.Background(), listOptions)
+	ingressList, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -608,10 +606,10 @@ func (c *Cluster) execPod(namespace, podName, containerName string,
 }
 
 // LabelNamespace adds a label to the namespace
-func (c *Cluster) LabelNamespace(namespace, labelKey, labelValue string) error {
+func (c *Cluster) LabelNamespace(ctx context.Context, namespace, labelKey, labelValue string) error {
 	patchContents := fmt.Sprintf(`{ "metadata": { "labels": { "%s": "%s" } } }`, labelKey, labelValue)
 
-	_, err := c.Kubectl.CoreV1().Namespaces().Patch(context.Background(), namespace,
+	_, err := c.Kubectl.CoreV1().Namespaces().Patch(ctx, namespace,
 		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
 
 	if err != nil {
@@ -623,8 +621,8 @@ func (c *Cluster) LabelNamespace(namespace, labelKey, labelValue string) error {
 
 // NamespaceExistsAndOwned checks if the namespace exists
 // and is created by epinio or not.
-func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
-	exists, err := c.NamespaceExists(namespaceName)
+func (c *Cluster) NamespaceExistsAndOwned(ctx context.Context, namespaceName string) (bool, error) {
+	exists, err := c.NamespaceExists(ctx, namespaceName)
 	if err != nil {
 		return false, err
 	}
@@ -632,7 +630,7 @@ func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 		return false, nil
 	}
 
-	owned, err := c.NamespaceLabelExists(namespaceName, EpinioDeploymentLabelKey)
+	owned, err := c.NamespaceLabelExists(ctx, namespaceName, EpinioDeploymentLabelKey)
 	if err != nil {
 		return false, err
 	}
@@ -640,8 +638,8 @@ func (c *Cluster) NamespaceExistsAndOwned(namespaceName string) (bool, error) {
 }
 
 // NamespaceExists checks if a namespace exists or not
-func (c *Cluster) NamespaceExists(namespaceName string) (bool, error) {
-	_, err := c.Kubectl.CoreV1().Namespaces().Get(context.Background(), namespaceName, metav1.GetOptions{})
+func (c *Cluster) NamespaceExists(ctx context.Context, namespaceName string) (bool, error) {
+	_, err := c.Kubectl.CoreV1().Namespaces().Get(ctx, namespaceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return false, nil
@@ -652,8 +650,8 @@ func (c *Cluster) NamespaceExists(namespaceName string) (bool, error) {
 }
 
 // NamespaceLabelExists checks if a specific label exits on the namespace
-func (c *Cluster) NamespaceLabelExists(namespaceName, labelKey string) (bool, error) {
-	namespace, err := c.Kubectl.CoreV1().Namespaces().Get(context.Background(), namespaceName, metav1.GetOptions{})
+func (c *Cluster) NamespaceLabelExists(ctx context.Context, namespaceName, labelKey string) (bool, error) {
+	namespace, err := c.Kubectl.CoreV1().Namespaces().Get(ctx, namespaceName, metav1.GetOptions{})
 	if err != nil {
 		return false, err
 	}
@@ -665,17 +663,17 @@ func (c *Cluster) NamespaceLabelExists(namespaceName, labelKey string) (bool, er
 }
 
 // DeleteNamespace deletes the namepace
-func (c *Cluster) DeleteNamespace(namespace string) error {
-	err := c.Kubectl.CoreV1().Namespaces().Delete(context.Background(), namespace, metav1.DeleteOptions{})
+func (c *Cluster) DeleteNamespace(ctx context.Context, namespace string) error {
+	err := c.Kubectl.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (c *Cluster) CreateNamespace(name string, labels map[string]string, annotations map[string]string) error {
+func (c *Cluster) CreateNamespace(ctx context.Context, name string, labels map[string]string, annotations map[string]string) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Create(
-		context.Background(),
+		ctx,
 		&v1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        name,

@@ -2,6 +2,8 @@
 package gitea
 
 import (
+	"context"
+
 	giteaSDK "code.gitea.io/sdk/gitea"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -23,19 +25,19 @@ const (
 var clientMemo *Client
 
 // New loads the config and returns a new gitea client
-func New() (*Client, error) {
+func New(ctx context.Context) (*Client, error) {
 	if clientMemo != nil {
 		return clientMemo, nil
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	// See also deployments/gitea.go (service, func `apply`).
 	// See also deployments/tekton.go, func `createGiteaCredsSecret`
-	auth, err := getGiteaCredentials(cluster)
+	auth, err := getGiteaCredentials(ctx, cluster)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve gitea credentials")
 	}
@@ -58,14 +60,14 @@ func New() (*Client, error) {
 }
 
 // getGiteaCredentials resolves Gitea's credentials
-func getGiteaCredentials(cluster *kubernetes.Cluster) (*auth.PasswordAuth, error) {
+func getGiteaCredentials(ctx context.Context, cluster *kubernetes.Cluster) (*auth.PasswordAuth, error) {
 	// See deployments/tekton.go, func `createGiteaCredsSecret`
 	// for where `install` configures tekton for the credentials
 	// retrieved here.
 	//
 	// See deployments/gitea.go func `apply` where `install`
 	// configures gitea for the same credentials.
-	s, err := cluster.GetSecret(deployments.TektonStagingNamespace, GiteaCredentialsSecret)
+	s, err := cluster.GetSecret(ctx, deployments.TektonStagingNamespace, GiteaCredentialsSecret)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read gitea credentials")
 	}

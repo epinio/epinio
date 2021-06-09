@@ -14,12 +14,12 @@ var CmdDeleteApp = &cobra.Command{
 	Short: "Deletes an application",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewEpinioClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.Delete(args[0])
+		err = client.Delete(cmd.Context(), args[0])
 		if err != nil {
 			return errors.Wrap(err, "error deleting app")
 		}
@@ -32,12 +32,12 @@ var CmdDeleteApp = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, err := clients.NewEpinioClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(toComplete)
+		matches := app.AppsMatching(cmd.Context(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

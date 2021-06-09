@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io/ioutil"
@@ -22,12 +23,13 @@ type OrganizationsController struct {
 // An Epinio org is nothing but a kubernetes namespace which has a special
 // Label (Look at the code to see which).
 func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
-	cluster, err := kubernetes.GetCluster()
+	ctx := r.Context()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	orgList, err := organizations.List(cluster)
+	orgList, err := organizations.List(ctx, cluster)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -51,12 +53,13 @@ func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) 
 }
 
 func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
-	gitea, err := gitea.New()
+	ctx := r.Context()
+	gitea, err := gitea.New(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -80,7 +83,7 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 		return BadRequest(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -100,20 +103,21 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 }
 
 func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
-	gitea, err := gitea.New()
+	gitea, err := gitea.New(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -121,24 +125,24 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 		return OrgIsNotKnown(org)
 	}
 
-	err = deleteApps(cluster, gitea, org)
+	err = deleteApps(ctx, cluster, gitea, org)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	serviceList, err := services.List(cluster, org)
+	serviceList, err := services.List(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	for _, service := range serviceList {
-		err = service.Delete()
+		err = service.Delete(ctx)
 		if err != nil {
 			return InternalError(err)
 		}
 	}
 
-	err = organizations.Delete(r.Context(), cluster, gitea, org)
+	err = organizations.Delete(ctx, cluster, gitea, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -153,8 +157,8 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-func deleteApps(cluster *kubernetes.Cluster, gitea *gitea.Client, org string) error {
-	apps, err := application.List(cluster, org)
+func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.Client, org string) error {
+	apps, err := application.List(ctx, cluster, org)
 	if err != nil {
 		return err
 	}
@@ -176,7 +180,7 @@ loop:
 			defer func() {
 				<-buffer
 			}()
-			err = application.Delete(cluster, gitea, org, app)
+			err = application.Delete(ctx, cluster, gitea, org, app)
 			if err != nil {
 				errChan <- err
 			}

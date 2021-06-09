@@ -24,7 +24,9 @@ func init() {
 		// Note that cobra does not feed us a slice, just the string.
 		// We are responsible for splitting into segments, and expanding only the last segment.
 
-		app, err := clients.NewEpinioClient(cmd.Flags())
+		ctx := cmd.Context()
+
+		app, err := clients.NewEpinioClient(ctx, cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -32,7 +34,7 @@ func init() {
 		values := strings.Split(toComplete, ",")
 		if len(values) == 0 {
 			// Nothing. Report all possible matches
-			matches := app.ServiceMatching(toComplete)
+			matches := app.ServiceMatching(ctx, toComplete)
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 
@@ -41,7 +43,7 @@ func init() {
 		// expansions for that segment.
 
 		matches := []string{}
-		for _, match := range app.ServiceMatching(values[len(values)-1]) {
+		for _, match := range app.ServiceMatching(ctx, values[len(values)-1]) {
 			values[len(values)-1] = match
 			matches = append(matches, strings.Join(values, ","))
 		}
@@ -73,7 +75,7 @@ var CmdPush = &cobra.Command{
 	Short: "Push an application from the specified directory, or the current working directory",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewEpinioClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -106,7 +108,7 @@ var CmdPush = &cobra.Command{
 		}
 		params.Services = services
 
-		err = client.Push(args[0], path, params)
+		err = client.Push(cmd.Context(), args[0], path, params)
 		if err != nil {
 			return errors.Wrap(err, "error pushing app to server")
 		}

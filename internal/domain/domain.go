@@ -1,6 +1,7 @@
 package domain
 
 import (
+	"context"
 	"strings"
 
 	"github.com/epinio/epinio/deployments"
@@ -11,18 +12,18 @@ import (
 var mainDomain = ""
 
 // GetMain finds the main domain for Epinio
-func MainDomain() (string, error) {
+func MainDomain(ctx context.Context) (string, error) {
 	if mainDomain != "" {
 		return mainDomain, nil
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", err
 	}
 
 	// Get the epinio ingress
-	ingresses, err := cluster.ListIngress(deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
+	ingresses, err := cluster.ListIngress(ctx, deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list ingresses for epinio")
 	}

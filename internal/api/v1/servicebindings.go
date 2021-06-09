@@ -24,7 +24,8 @@ type ServicebindingsController struct {
 // the first element when reporting more than one error.
 
 func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
@@ -52,12 +53,12 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -65,7 +66,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -82,7 +83,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	var theIssues []APIError
 
 	for _, serviceName := range bindRequest.Names {
-		service, err := services.Lookup(cluster, org, serviceName)
+		service, err := services.Lookup(ctx, cluster, org, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
 				theIssues = append(theIssues, ServiceIsNotKnown(serviceName))
@@ -97,7 +98,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	}
 
 	for _, service := range theServices {
-		err = app.Bind(service)
+		err = app.Bind(ctx, service)
 		if err != nil {
 			if err.Error() == "service already bound" {
 				theIssues = append(theIssues, ServiceAlreadyBound(service.Name()))
@@ -123,17 +124,18 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 }
 
 func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 	serviceName := params.ByName("service")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -141,7 +143,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -149,7 +151,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return AppIsNotKnown(appName)
 	}
 
-	service, err := services.Lookup(cluster, org, serviceName)
+	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
 		return ServiceIsNotKnown(serviceName)
 	}
@@ -157,7 +159,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return InternalError(err)
 	}
 
-	err = app.Unbind(service)
+	err = app.Unbind(ctx, service)
 	if err != nil && err.Error() == "service is not bound to the application" {
 		return ServiceIsNotBound(serviceName)
 	}

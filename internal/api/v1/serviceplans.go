@@ -13,15 +13,16 @@ type ServicePlansController struct {
 }
 
 func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	serviceClassName := params.ByName("serviceclass")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	serviceClass, err := services.ClassLookup(cluster, serviceClassName)
+	serviceClass, err := services.ClassLookup(ctx, cluster, serviceClassName)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -29,7 +30,7 @@ func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) 
 	if serviceClass == nil {
 		return ServiceClassIsNotKnown(serviceClassName)
 	}
-	servicePlans, err := serviceClass.ListPlans()
+	servicePlans, err := serviceClass.ListPlans(ctx)
 	if err != nil {
 		return InternalError(err)
 	}

@@ -31,6 +31,8 @@ type CatalogService struct {
 	kubeClient   *kubernetes.Cluster
 }
 
+var _ interfaces.Service = &CatalogService{}
+
 // ServiceClass is a service class managed by Service catalog
 type ServiceClass struct {
 	Hash        string
@@ -80,7 +82,7 @@ func (spl ServicePlanList) Less(i, j int) bool {
 }
 
 // LookupPlan returns the named ServicePlan, for the specified class
-func (sc *ServiceClass) LookupPlan(plan string) (*ServicePlan, error) {
+func (sc *ServiceClass) LookupPlan(ctx context.Context, plan string) (*ServicePlan, error) {
 	servicePlanGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -95,7 +97,7 @@ func (sc *ServiceClass) LookupPlan(plan string) (*ServicePlan, error) {
 	labelSelector := fmt.Sprintf("servicecatalog.k8s.io/spec.clusterServiceClassRef.name=%s", sc.Hash)
 
 	servicePlans, err := dynamicClient.Resource(servicePlanGVR).
-		List(context.Background(),
+		List(ctx,
 			metav1.ListOptions{
 				LabelSelector: labelSelector,
 			})
@@ -127,7 +129,7 @@ func (sc *ServiceClass) LookupPlan(plan string) (*ServicePlan, error) {
 }
 
 // ListPlans returns a ServicePlanList of all available catalog service plans, for the named class
-func (sc *ServiceClass) ListPlans() (ServicePlanList, error) {
+func (sc *ServiceClass) ListPlans(ctx context.Context) (ServicePlanList, error) {
 	servicePlanGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -142,7 +144,7 @@ func (sc *ServiceClass) ListPlans() (ServicePlanList, error) {
 	labelSelector := fmt.Sprintf("servicecatalog.k8s.io/spec.clusterServiceClassRef.name=%s", sc.Hash)
 
 	servicePlans, err := dynamicClient.Resource(servicePlanGVR).
-		List(context.Background(),
+		List(ctx,
 			metav1.ListOptions{
 				LabelSelector: labelSelector,
 			})
@@ -171,7 +173,7 @@ func (sc *ServiceClass) ListPlans() (ServicePlanList, error) {
 }
 
 // ListClasses returns a ServiceClassList of all available catalog service classes
-func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
+func ListClasses(ctx context.Context, kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
 
 	serviceClassGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
@@ -185,8 +187,7 @@ func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
 	}
 
 	serviceClasses, err := dynamicClient.Resource(serviceClassGVR).
-		List(context.Background(),
-			metav1.ListOptions{})
+		List(ctx, metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
@@ -229,7 +230,7 @@ func ListClasses(kubeClient *kubernetes.Cluster) (ServiceClassList, error) {
 	return result, nil
 }
 
-func ClassLookup(kubeClient *kubernetes.Cluster, serviceClassName string) (*ServiceClass, error) {
+func ClassLookup(ctx context.Context, kubeClient *kubernetes.Cluster, serviceClassName string) (*ServiceClass, error) {
 	serviceClassGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -250,8 +251,7 @@ func ClassLookup(kubeClient *kubernetes.Cluster, serviceClassName string) (*Serv
 	// match.
 
 	serviceClasses, err := dynamicClient.Resource(serviceClassGVR).
-		List(context.Background(),
-			metav1.ListOptions{})
+		List(ctx, metav1.ListOptions{})
 
 	if err != nil {
 		return nil, err
@@ -288,7 +288,7 @@ func ClassLookup(kubeClient *kubernetes.Cluster, serviceClassName string) (*Serv
 }
 
 // CatalogServiceList returns a ServiceList of all available catalog Services
-func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
+func CatalogServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/organization=%s", org)
 
 	serviceInstanceGVR := schema.GroupVersionResource{
@@ -304,10 +304,7 @@ func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.
 
 	serviceInstances, err := dynamicClient.Resource(serviceInstanceGVR).
 		Namespace(org).
-		List(context.Background(),
-			metav1.ListOptions{
-				LabelSelector: labelSelector,
-			})
+		List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
 
 	if err != nil {
 		return nil, err
@@ -339,7 +336,7 @@ func CatalogServiceList(kubeClient *kubernetes.Cluster, org string) (interfaces.
 	return result, nil
 }
 
-func CatalogServiceLookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
+func CatalogServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
 	instanceName := serviceResourceName(org, service)
 
 	serviceInstanceGVR := schema.GroupVersionResource{
@@ -354,7 +351,7 @@ func CatalogServiceLookup(kubeClient *kubernetes.Cluster, org, service string) (
 	}
 
 	serviceInstance, err := dynamicClient.Resource(serviceInstanceGVR).Namespace(org).
-		Get(context.Background(), instanceName, metav1.GetOptions{})
+		Get(ctx, instanceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -377,7 +374,7 @@ func CatalogServiceLookup(kubeClient *kubernetes.Cluster, org, service string) (
 	}, nil
 }
 
-func CreateCatalogService(kubeClient *kubernetes.Cluster, name, org, class, plan string, parameters map[string]string) (interfaces.Service, error) {
+func CreateCatalogService(ctx context.Context, kubeClient *kubernetes.Cluster, name, org, class, plan string, parameters map[string]string) (interfaces.Service, error) {
 	resourceName := serviceResourceName(org, name)
 
 	param, err := json.Marshal(parameters)
@@ -425,7 +422,7 @@ func CreateCatalogService(kubeClient *kubernetes.Cluster, name, org, class, plan
 	// todo validations - check service instance existence
 
 	_, err = dynamicClient.Resource(serviceInstanceGVR).Namespace(org).
-		Create(context.Background(), obj, metav1.CreateOptions{})
+		Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -450,28 +447,28 @@ func (s *CatalogService) Org() string {
 
 // GetBinding returns an application-specific secret for the service to be
 // bound to that application.
-func (s *CatalogService) GetBinding(appName string) (*corev1.Secret, error) {
+func (s *CatalogService) GetBinding(ctx context.Context, appName string) (*corev1.Secret, error) {
 	// TODO Label the secret
 
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
 
-	binding, err := s.LookupBinding(bindingName, s.OrgName)
+	binding, err := s.LookupBinding(ctx, bindingName, s.OrgName)
 	if err != nil {
 		return nil, err
 	}
 	if binding == nil {
-		_, err = s.CreateBinding(bindingName, s.OrgName, s.Service, appName)
+		_, err = s.CreateBinding(ctx, bindingName, s.OrgName, s.Service, appName)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return s.GetBindingSecret(bindingName, s.OrgName)
+	return s.GetBindingSecret(ctx, bindingName, s.OrgName)
 }
 
 // LookupBinding finds a ServiceBinding object for the application with Name
 // appName if there is one.
-func (s *CatalogService) LookupBinding(bindingName, org string) (interface{}, error) {
+func (s *CatalogService) LookupBinding(ctx context.Context, bindingName, org string) (interface{}, error) {
 	serviceBindingGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -484,7 +481,7 @@ func (s *CatalogService) LookupBinding(bindingName, org string) (interface{}, er
 	}
 
 	serviceBinding, err := dynamicClient.Resource(serviceBindingGVR).Namespace(org).
-		Get(context.Background(), bindingName, metav1.GetOptions{})
+		Get(ctx, bindingName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -497,7 +494,7 @@ func (s *CatalogService) LookupBinding(bindingName, org string) (interface{}, er
 }
 
 // CreateBinding creates a ServiceBinding for the application with name appName.
-func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName string) (interface{}, error) {
+func (s *CatalogService) CreateBinding(ctx context.Context, bindingName, org, serviceName, appName string) (interface{}, error) {
 	serviceInstanceName := serviceResourceName(org, serviceName)
 
 	data := fmt.Sprintf(`{
@@ -538,13 +535,13 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 	}
 
 	serviceBinding, err := dynamicClient.Resource(serviceBindingGVR).Namespace(org).
-		Create(context.Background(), obj, metav1.CreateOptions{})
+		Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	// Update the binding secret with kubernetes app labels
-	secret, err := s.GetBindingSecret(bindingName, org)
+	secret, err := s.GetBindingSecret(ctx, bindingName, org)
 	if err != nil {
 		return nil, err
 	}
@@ -559,7 +556,7 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 	labels["app.kubernetes.io/managed-by"] = "epinio"
 	secret.SetLabels(labels)
 
-	_, err = s.kubeClient.Kubectl.CoreV1().Secrets(org).Update(context.Background(), secret, metav1.UpdateOptions{})
+	_, err = s.kubeClient.Kubectl.CoreV1().Secrets(org).Update(ctx, secret, metav1.UpdateOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -569,13 +566,13 @@ func (s *CatalogService) CreateBinding(bindingName, org, serviceName, appName st
 
 // GetBindingSecret returns the Secret that represents the binding of a Service
 // to an Application.
-func (s *CatalogService) GetBindingSecret(bindingName, org string) (*corev1.Secret, error) {
-	return s.kubeClient.WaitForSecret(org, bindingName, duration.ToServiceSecret())
+func (s *CatalogService) GetBindingSecret(ctx context.Context, bindingName, org string) (*corev1.Secret, error) {
+	return s.kubeClient.WaitForSecret(ctx, org, bindingName, duration.ToServiceSecret())
 }
 
 // DeleteBinding deletes the ServiceBinding resource. The relevant secret will
 // also be deleted automatically.
-func (s *CatalogService) DeleteBinding(appName, org string) error {
+func (s *CatalogService) DeleteBinding(ctx context.Context, appName, org string) error {
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
 
 	serviceBindingGVR := schema.GroupVersionResource{
@@ -590,10 +587,10 @@ func (s *CatalogService) DeleteBinding(appName, org string) error {
 	}
 
 	return dynamicClient.Resource(serviceBindingGVR).Namespace(org).
-		Delete(context.Background(), bindingName, metav1.DeleteOptions{})
+		Delete(ctx, bindingName, metav1.DeleteOptions{})
 }
 
-func (s *CatalogService) Delete() error {
+func (s *CatalogService) Delete(ctx context.Context) error {
 	serviceInstanceGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -606,10 +603,10 @@ func (s *CatalogService) Delete() error {
 	}
 
 	return dynamicClient.Resource(serviceInstanceGVR).Namespace(s.OrgName).
-		Delete(context.Background(), s.InstanceName, metav1.DeleteOptions{})
+		Delete(ctx, s.InstanceName, metav1.DeleteOptions{})
 }
 
-func (s *CatalogService) Status() (string, error) {
+func (s *CatalogService) Status(ctx context.Context) (string, error) {
 	serviceInstanceGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -622,7 +619,7 @@ func (s *CatalogService) Status() (string, error) {
 	}
 
 	serviceInstance, err := dynamicClient.Resource(serviceInstanceGVR).Namespace(s.OrgName).
-		Get(context.Background(), s.InstanceName, metav1.GetOptions{})
+		Get(ctx, s.InstanceName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return "Not Found", nil
@@ -637,7 +634,7 @@ func (s *CatalogService) Status() (string, error) {
 	return provisioned, nil
 }
 
-func (s *CatalogService) WaitForProvision() error {
+func (s *CatalogService) WaitForProvision(ctx context.Context) error {
 	serviceInstanceGVR := schema.GroupVersionResource{
 		Group:    "servicecatalog.k8s.io",
 		Version:  "v1beta1",
@@ -652,7 +649,7 @@ func (s *CatalogService) WaitForProvision() error {
 	namespace := dynamicClient.Resource(serviceInstanceGVR).Namespace(s.OrgName)
 
 	return wait.PollImmediate(time.Second, duration.ToServiceProvision(), func() (bool, error) {
-		serviceInstance, err := namespace.Get(context.Background(), s.InstanceName, metav1.GetOptions{})
+		serviceInstance, err := namespace.Get(ctx, s.InstanceName, metav1.GetOptions{})
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return false, errors.New("Not Found")
@@ -674,7 +671,7 @@ func (s *CatalogService) WaitForProvision() error {
 	})
 }
 
-func (s *CatalogService) Details() (map[string]string, error) {
+func (s *CatalogService) Details(_ context.Context) (map[string]string, error) {
 	details := map[string]string{}
 
 	details["Class"] = s.Class

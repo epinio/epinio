@@ -14,7 +14,7 @@ var CmdTarget = &cobra.Command{
 	Short: "Targets an organization in Epinio.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewEpinioClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -38,7 +38,7 @@ var CmdTarget = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Flags())
+		app, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}

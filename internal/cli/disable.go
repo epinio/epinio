@@ -59,7 +59,7 @@ func DisableGoogle(cmd *cobra.Command, args []string) error {
 
 func UninstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, successMessage string) error {
 	uiUI := termui.NewUI()
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Flags(), &kubernetes.InstallationOptions{})
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &kubernetes.InstallationOptions{})
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -70,7 +70,7 @@ func UninstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, s
 		return errors.Wrap(err, "error initializing cli")
 	}
 	uiUI.Note().Msg(deployment.ID() + " uninstalling...")
-	if err := installClient.UninstallDeployment(deployment, installClient.Log); err != nil {
+	if err := installClient.UninstallDeployment(cmd.Context(), deployment, installClient.Log); err != nil {
 		return err
 	}
 	uiUI.Note().Msg(successMessage)

@@ -14,7 +14,7 @@ var CmdInfo = &cobra.Command{
 	Short: "Shows information about the Epinio environment",
 	Long:  `Shows status and version for Kubernetes, Gitea, Tekton, Quarks and Eirini.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := clients.NewEpinioClient(cmd.Flags())
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

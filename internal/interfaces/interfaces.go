@@ -3,18 +3,20 @@
 package interfaces
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 )
 
 type Service interface {
 	Name() string
 	Org() string
-	GetBinding(appName string) (*corev1.Secret, error)
-	DeleteBinding(appName, org string) error
-	Delete() error
-	Status() (string, error)
-	Details() (map[string]string, error)
-	WaitForProvision() error
+	GetBinding(ctx context.Context, appName string) (*corev1.Secret, error)
+	DeleteBinding(ctx context.Context, appName, org string) error
+	Delete(context.Context) error
+	Status(context.Context) (string, error)
+	Details(context.Context) (map[string]string, error)
+	WaitForProvision(context.Context) error
 }
 
 type ServiceList []Service

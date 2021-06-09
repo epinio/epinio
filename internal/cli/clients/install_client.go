@@ -32,8 +32,8 @@ type InstallClient struct {
 	Log        logr.Logger
 }
 
-func NewInstallClient(flags *pflag.FlagSet, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
-	cluster, err := kubernetes.GetCluster()
+func NewInstallClient(ctx context.Context, flags *pflag.FlagSet, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,6 +60,8 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	ctx := cmd.Context()
 
 	c.ui.Note().Msg("Epinio installing...")
 
@@ -117,11 +119,11 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	if err := c.InstallDeployment(&deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+	if err := c.InstallDeployment(ctx, &deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
 		return err
 	}
 
-	if err := c.InstallDeployment(&deployments.Traefik{Timeout: duration.ToDeployment()}, details); err != nil {
+	if err := c.InstallDeployment(ctx, &deployments.Traefik{Timeout: duration.ToDeployment()}, details); err != nil {
 		return err
 	}
 
@@ -132,7 +134,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	}
 
 	details.Info("ensure system-domain")
-	err = c.fillInMissingSystemDomain(domain)
+	err = c.fillInMissingSystemDomain(ctx, domain)
 	if err != nil {
 		return err
 	}
@@ -155,7 +157,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		installationWg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
-			if err := c.InstallDeployment(deployment, details); err != nil {
+			if err := c.InstallDeployment(ctx, deployment, details); err != nil {
 				panic(fmt.Sprintf("Deployment %s failed with error: %s\n", deployment.ID(), err.Error()))
 			}
 		}(deployment, installationWg)
@@ -188,7 +190,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		// to `auth.createCertificate`, which determines the
 		// secret's name we are using here
 
-		secret, err := c.kubeClient.WaitForSecret(
+		secret, err := c.kubeClient.WaitForSecret(ctx,
 			deployments.EpinioDeploymentID,
 			deployments.EpinioDeploymentID+"-tls",
 			duration.ToServiceSecret(),
@@ -220,6 +222,8 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
+	ctx := cmd.Context()
+
 	c.ui.Note().Msg("Epinio uninstalling...")
 
 	wg := &sync.WaitGroup{}
@@ -238,18 +242,18 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		wg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
-			if err := c.UninstallDeployment(deployment, details); err != nil {
+			if err := c.UninstallDeployment(ctx, deployment, details); err != nil {
 				panic(err)
 			}
 		}(deployment, wg)
 	}
 	wg.Wait()
 
-	if err := c.DeleteWorkloads(c.ui); err != nil {
+	if err := c.DeleteWorkloads(ctx, c.ui); err != nil {
 		return err
 	}
 
-	if err := c.UninstallDeployment(&deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+	if err := c.UninstallDeployment(ctx, &deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
 		panic(err)
 	}
 
@@ -258,11 +262,11 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	return nil
 }
 
-func (c *InstallClient) DeleteWorkloads(ui *termui.UI) error {
+func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) error {
 	var nsList *corev1.NamespaceList
 	var err error
 
-	nsList, err = c.kubeClient.Kubectl.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
+	nsList, err = c.kubeClient.Kubectl.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("%s=%s", kubernetes.EpinioOrgLabelKey, kubernetes.EpinioOrgLabelValue),
 	})
 	if err != nil {
@@ -272,7 +276,7 @@ func (c *InstallClient) DeleteWorkloads(ui *termui.UI) error {
 	for _, ns := range nsList.Items {
 		ui.Note().KeeplineUnder(1).Msg("Removing namespace " + ns.Name)
 		if err := c.kubeClient.Kubectl.CoreV1().Namespaces().
-			Delete(context.Background(), ns.Name, metav1.DeleteOptions{}); err != nil {
+			Delete(ctx, ns.Name, metav1.DeleteOptions{}); err != nil {
 			return err
 		}
 	}
@@ -280,15 +284,15 @@ func (c *InstallClient) DeleteWorkloads(ui *termui.UI) error {
 }
 
 // InstallDeployment installs one single Deployment on the cluster
-func (c *InstallClient) InstallDeployment(deployment kubernetes.Deployment, logger logr.Logger) error {
+func (c *InstallClient) InstallDeployment(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("deploy", "Deployment", deployment.ID())
-	return deployment.Deploy(c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
+	return deployment.Deploy(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
 // UninstallDeployment uninstalls one single Deployment from the cluster
-func (c *InstallClient) UninstallDeployment(deployment kubernetes.Deployment, logger logr.Logger) error {
+func (c *InstallClient) UninstallDeployment(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("remove", "Deployment", deployment.ID())
-	return deployment.Delete(c.kubeClient, c.ui)
+	return deployment.Delete(ctx, c.kubeClient, c.ui)
 }
 
 // showInstallConfiguration prints the options and their values to stdout, to
@@ -309,14 +313,14 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 	m.Msg("Configuration...")
 }
 
-func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.InstallationOption) error {
+func (c *InstallClient) fillInMissingSystemDomain(ctx context.Context, domain *kubernetes.InstallationOption) error {
 	if domain.Value.(string) == "" {
 		ip := ""
 		s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
 		defer s.Stop()
 		err := helpers.RunToSuccessWithTimeout(
 			func() error {
-				return c.fetchIP(&ip)
+				return c.fetchIP(ctx, &ip)
 			}, duration.ToSystemDomain(), duration.PollInterval())
 		if err != nil {
 			if strings.Contains(err.Error(), "Timed out after") {
@@ -336,8 +340,8 @@ func (c *InstallClient) fillInMissingSystemDomain(domain *kubernetes.Installatio
 	return nil
 }
 
-func (c *InstallClient) fetchIP(ip *string) error {
-	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(context.Background(), metav1.ListOptions{
+func (c *InstallClient) fetchIP(ctx context.Context, ip *string) error {
+	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(ctx, metav1.ListOptions{
 		FieldSelector: "metadata.name=traefik",
 	})
 	if len(serviceList.Items) == 0 {

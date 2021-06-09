@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/epinio/epinio/deployments"
@@ -23,7 +24,7 @@ type EpinioAPIClient struct {
 
 var epinioClientMemo *EpinioAPIClient
 
-func GetEpinioAPIClient() (*EpinioAPIClient, error) {
+func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 	if epinioClientMemo != nil {
 		return epinioClientMemo, nil
 	}
@@ -33,12 +34,12 @@ func GetEpinioAPIClient() (*EpinioAPIClient, error) {
 		return nil, err
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	epinioURL, epinioWsURL, err := getEpinioURL(configConfig, cluster)
+	epinioURL, epinioWsURL, err := getEpinioURL(ctx, configConfig, cluster)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve epinio api host")
 	}
@@ -54,9 +55,9 @@ func GetEpinioAPIClient() (*EpinioAPIClient, error) {
 }
 
 // getEpinioURL finds the URL's for epinio
-func getEpinioURL(config *config.Config, cluster *kubernetes.Cluster) (string, string, error) {
+func getEpinioURL(ctx context.Context, config *config.Config, cluster *kubernetes.Cluster) (string, string, error) {
 	// Get the ingress
-	ingresses, err := cluster.ListIngress(deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
+	ingresses, err := cluster.ListIngress(ctx, deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to list ingresses for epinio api server")
 	}

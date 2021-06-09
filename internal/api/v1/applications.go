@@ -25,15 +25,16 @@ type ApplicationsController struct {
 }
 
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -42,7 +43,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 		return OrgIsNotKnown(org)
 	}
 
-	apps, err := application.List(cluster, org)
+	apps, err := application.List(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -62,16 +63,17 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 }
 
 func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -80,7 +82,7 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -103,16 +105,17 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 }
 
 func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -121,7 +124,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -154,18 +157,19 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 	stageID := params.ByName("stage_id")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		jsonErrorResponse(w, InternalError(err))
 		return
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		jsonErrorResponse(w, InternalError(err))
 	}
@@ -175,7 +179,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if appName != "" {
-		app, err := application.Lookup(cluster, org, appName)
+		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
 			jsonErrorResponse(w, InternalError(err))
 		}
@@ -203,10 +207,10 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 		follow = true
 	}
 
-	log := tracelog.Logger(r.Context())
+	log := tracelog.Logger(ctx)
 
 	hc.conn = conn
-	err = hc.streamPodLogs(org, appName, stageID, cluster, follow, r.Context())
+	err = hc.streamPodLogs(ctx, org, appName, stageID, cluster, follow)
 	if err != nil {
 		log.V(1).Error(err, "error occured after upgrading the websockets connection")
 		return
@@ -228,7 +232,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 // connection is closed. In any case it will call the cancel func that will stop
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
-func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool, ctx context.Context) error {
+func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
 	logger := tracelog.NewLogger().WithName("streaming-logs-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
@@ -295,21 +299,22 @@ func (hc ApplicationsController) streamPodLogs(orgName, appName, stageID string,
 }
 
 func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	gitea, err := gitea.New()
+	gitea, err := gitea.New(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -318,7 +323,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -327,7 +332,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return AppIsNotKnown(appName)
 	}
 
-	err = application.Delete(cluster, gitea, org, *app)
+	err = application.Delete(ctx, cluster, gitea, org, *app)
 	if err != nil {
 		return InternalError(err)
 	}

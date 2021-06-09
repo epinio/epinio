@@ -64,7 +64,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	log.Info("staging app", "org", org, "app", req)
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err, "failed to get access to a kube client")
 	}
@@ -112,7 +112,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Instances: instances,
 	}
 
-	err = application.Unstage(name, org, uid)
+	err = application.Unstage(ctx, name, org, uid)
 	if err != nil {
 		return InternalError(err, "failed delete previous pipeline runs")
 	}
@@ -123,7 +123,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	mainDomain, err := domain.MainDomain()
+	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return InternalError(err)
 	}

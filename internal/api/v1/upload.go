@@ -17,15 +17,16 @@ import (
 // Upload receives the application data, as tarball, and creates the gitea as
 // well as k8s resources to trigger staging
 func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) APIErrors {
-	log := tracelog.Logger(r.Context())
+	ctx := r.Context()
+	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(r.Context())
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	name := params.ByName("app")
 
 	log.Info("processing upload", "org", org, "app", name)
 
-	client, err := gitea.New()
+	client, err := gitea.New(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
