@@ -85,6 +85,11 @@ func (k ServiceCatalog) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.Wrapf(err, "Failed deleting namespace %s", ServiceCatalogDeploymentID)
 	}
 
+	err = c.WaitForNamespaceMissing(ui, ServiceCatalogDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
 	ui.Success().Msg("ServiceCatalog removed")
 
 	return nil
