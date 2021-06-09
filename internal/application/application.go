@@ -58,6 +58,13 @@ func (a *Application) Delete(gitea GiteaInterface) error {
 		return pkgerrors.Wrap(err, "failed to delete application ingress")
 	}
 
+	err = a.kubeClient.Kubectl.CoreV1().Services(a.Organization).
+		Delete(context.Background(), a.Name, metav1.DeleteOptions{})
+
+	if err != nil {
+		return pkgerrors.Wrap(err, "failed to delete application service")
+	}
+
 	return nil
 }
 
