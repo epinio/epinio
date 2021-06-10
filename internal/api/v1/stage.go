@@ -49,9 +49,8 @@ func (hc ApplicationsController) WaitUntilStaged(w http.ResponseWriter, r *http.
 
 	params := httprouter.ParamsFromContext(ctx)
 
-	// Not used right now. To come in a moment.
-	// org := params.ByName("org")
-	// name := params.ByName("app")
+	org := params.ByName("org")
+	name := params.ByName("app")
 	stageId := params.ByName("id")
 
 	log.Info("waiting until staging completes", "stageId", stageId)
@@ -96,6 +95,13 @@ func (hc ApplicationsController) WaitUntilStaged(w http.ResponseWriter, r *http.
 	resp := models.StageStatusResponse{}
 	if err != nil {
 		resp.ErrorMessage = err.Error()
+	} else {
+		// Sucessfully staged. We can now remove any old runs
+
+		err = application.Unstage(name, org, stageId)
+		if err != nil {
+			return singleInternalError(err, "failed delete previous pipeline runs")
+		}
 	}
 
 	err = jsonResponse(w, resp)
@@ -184,11 +190,6 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Git:       req.Git,
 		Route:     req.Route,
 		Instances: instances,
-	}
-
-	err = application.Unstage(name, org, uid)
-	if err != nil {
-		return singleInternalError(err, "failed delete previous pipeline runs")
 	}
 
 	pr := newPipelineRun(uid, app)
