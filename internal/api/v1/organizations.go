@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
@@ -123,16 +124,9 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	apps, err := application.List(cluster, org)
+	err = deleteApps(cluster, gitea, org)
 	if err != nil {
 		return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
-	}
-
-	for _, app := range apps {
-		err = application.Delete(cluster, gitea, org, app)
-		if err != nil {
-			return APIErrors{NewAPIError(err.Error(), "", http.StatusInternalServerError)}
-		}
 	}
 
 	serviceList, err := services.List(cluster, org)
@@ -160,4 +154,54 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 	}
 
 	return nil
+}
+
+func deleteApps(cluster *kubernetes.Cluster, gitea *gitea.Client, org string) error {
+	apps, err := application.List(cluster, org)
+	if err != nil {
+		return err
+	}
+
+	// create a buffer, so there is no more than 'maxConcurrent' goroutines running at the same time
+	const maxConcurrent = 100
+	buffer := make(chan struct{}, maxConcurrent)
+	errChan := make(chan error, maxConcurrent)
+	var wg sync.WaitGroup
+	var forLoopErr error
+
+loop:
+	for _, app := range apps {
+		buffer <- struct{}{}
+		wg.Add(1)
+
+		go func(app application.Application) {
+			defer wg.Done()
+			defer func() {
+				<-buffer
+			}()
+			err = application.Delete(cluster, gitea, org, app)
+			if err != nil {
+				errChan <- err
+			}
+		}(app)
+
+		select {
+		case forLoopErr = <-errChan:
+			break loop
+		default:
+		}
+	}
+	wg.Wait()
+
+	if forLoopErr != nil {
+		return forLoopErr
+	}
+
+	select {
+	case err := <-errChan:
+		return err
+	default:
+		return nil
+	}
+
 }
