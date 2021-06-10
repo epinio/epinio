@@ -1,23 +1,17 @@
 package clients
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path"
-	"time"
 
-	"github.com/epinio/epinio/deployments"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
-	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func collectSources(log logr.Logger, source string) (string, string, error) {
@@ -92,42 +86,28 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 	return stage, nil
 }
 
-func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
+func (c *EpinioClient) waitForPipelineRun(app models.AppRef, stageId string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
-	cs, err := tekton.NewForConfig(c.KubeClient.RestConfig)
+	b, err := c.post(api.Routes.Path("AppUntilStaged", app.Org, app.Name, stageId), "")
 	if err != nil {
+		return errors.Wrap(err, "failed to wait for app staging to complete")
+	}
+
+	// Return the reported staging status
+	status := &models.StageStatusResponse{}
+	if err := json.Unmarshal(b, status); err != nil {
 		return err
 	}
-	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
 
-	return wait.PollImmediate(time.Second, duration.ToAppBuilt(),
-		func() (bool, error) {
-			l, err := client.List(context.TODO(), metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
-			if err != nil {
-				return false, err
-			}
-			if len(l.Items) == 0 {
-				return false, nil
-			}
-			for _, pr := range l.Items {
-				// any failed conditions, throw an error so we can exit early
-				for _, c := range pr.Status.Conditions {
-					if c.IsFalse() {
-						return false, errors.New(c.Message)
-					}
-				}
-				// it worked
-				if pr.Status.CompletionTime != nil {
-					return true, nil
-				}
-			}
-			// pr exists, but still running
-			return false, nil
-		})
+	if status.ErrorMessage == "" {
+		return nil
+	}
+
+	return errors.New(status.ErrorMessage)
 }
 
-func (c *EpinioClient) waitForApp(app models.AppRef, id string) error {
+func (c *EpinioClient) waitForApp(app models.AppRef) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
 	err := c.KubeClient.WaitForDeploymentCompleted(

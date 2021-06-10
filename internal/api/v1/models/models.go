@@ -56,3 +56,7 @@ type StageRequest struct {
 type StageResponse struct {
 	Stage StageRef `json:"stage,omitempty"`
 }
+
+type StageStatusResponse struct {
+	ErrorMessage string `json:"errorMessage,omitempty"`
+}

@@ -64,15 +64,16 @@ func patch(path string, h http.HandlerFunc) routes.Route {
 }
 
 var Routes = routes.NamedRoutes{
-	"Info":        get("/info", errorHandler(InfoController{}.Info)),
-	"Apps":        get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
-	"AppShow":     get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
-	"AppLogs":     get("/orgs/:org/applications/:app/logs", ApplicationsController{}.Logs),
-	"StagingLogs": get("/orgs/:org/staging/:stage_id/logs", ApplicationsController{}.Logs),
-	"AppDelete":   delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
-	"AppUpload":   post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)),
-	"AppStage":    post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),
-	"AppUpdate":   patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
+	"Info":           get("/info", errorHandler(InfoController{}.Info)),
+	"Apps":           get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
+	"AppShow":        get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
+	"AppLogs":        get("/orgs/:org/applications/:app/logs", ApplicationsController{}.Logs),
+	"StagingLogs":    get("/orgs/:org/staging/:stage_id/logs", ApplicationsController{}.Logs),
+	"AppDelete":      delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
+	"AppUpload":      post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)),
+	"AppStage":       post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),
+	"AppUntilStaged": post("/orgs/:org/applications/:app/staged/:id", errorHandler(ApplicationsController{}.WaitUntilStaged)),
+	"AppUpdate":      patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
 
 	// Bind and unbind services to/from applications, by means of servicebindings in applications
 	"ServiceBindingCreate": post("/orgs/:org/applications/:app/servicebindings",

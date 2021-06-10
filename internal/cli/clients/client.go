@@ -1132,7 +1132,7 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 		}
 	}()
 
-	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
+	details.Info("wait for pipelinerun", "org", appRef.Org, "app", appRef.Name, "StageID", stage.Stage.ID)
 	err = c.waitForPipelineRun(appRef, stage.Stage.ID)
 	if err != nil {
 		stopChan <- true // Stop the printing go routine
@@ -1140,8 +1140,8 @@ func (c *EpinioClient) Push(app string, source string, params PushParams) error 
 	}
 	stopChan <- true // Stop the printing go routine
 
-	details.Info("wait for app", "StageID", stage.Stage.ID)
-	err = c.waitForApp(appRef, stage.Stage.ID)
+	details.Info("wait for app", "org", appRef.Org, "app", appRef.Name)
+	err = c.waitForApp(appRef)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}

@@ -3,20 +3,24 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/julienschmidt/httprouter"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/epinio/epinio/deployments"
@@ -27,12 +31,80 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/duration"
 )
 
 const (
 	RegistryURL      = "registry.epinio-registry/apps"
 	DefaultInstances = int32(1)
 )
+
+// WaitUntilStaged will wait until the specified Tekton PipelineRun
+// has completed staging, sucessfully, or not, and returns the staging
+// result
+func (hc ApplicationsController) WaitUntilStaged(w http.ResponseWriter, r *http.Request) APIErrors {
+
+	ctx := r.Context()
+	log := tracelog.Logger(ctx)
+
+	params := httprouter.ParamsFromContext(ctx)
+
+	// Not used right now. To come in a moment.
+	// org := params.ByName("org")
+	// name := params.ByName("app")
+	stageId := params.ByName("id")
+
+	log.Info("waiting until staging completes", "stageId", stageId)
+
+	cluster, err := kubernetes.GetCluster()
+	if err != nil {
+		return singleInternalError(err, "failed to get access to a kube client")
+	}
+
+	cs, err := tekton.NewForConfig(cluster.RestConfig)
+	if err != nil {
+		return singleError(err, http.StatusInternalServerError)
+	}
+	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+
+	err = wait.PollImmediate(time.Second, duration.ToAppBuilt(),
+		func() (bool, error) {
+			l, err := client.List(context.TODO(),
+				metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + stageId})
+			if err != nil {
+				return false, err
+			}
+			if len(l.Items) == 0 {
+				return false, nil
+			}
+			for _, pr := range l.Items {
+				// any failed conditions, throw an error so we can exit early
+				for _, c := range pr.Status.Conditions {
+					if c.IsFalse() {
+						return false, errors.New(c.Message)
+					}
+				}
+				// it worked
+				if pr.Status.CompletionTime != nil {
+					return true, nil
+				}
+			}
+			// pr exists, but still running
+			return false, nil
+		})
+
+	resp := models.StageStatusResponse{}
+	if err != nil {
+		resp.ErrorMessage = err.Error()
+	}
+
+	err = jsonResponse(w, resp)
+	if err != nil {
+		return singleError(err, http.StatusInternalServerError)
+	}
+
+	return nil
+}
 
 // Stage will create a Tekton PipelineRun resource to stage and start the app
 func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
