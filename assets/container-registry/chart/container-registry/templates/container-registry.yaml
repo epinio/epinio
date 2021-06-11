@@ -26,6 +26,30 @@ spec:
     port: 443
     targetPort: 443
 ---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+  name: registry
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+  - host: {{ .Values.domain }}
+    http:
+      paths:
+      - backend:
+          serviceName: registry
+          servicePort: 5000
+        path: /
+  tls:
+  - hosts:
+    - {{ .Values.domain }}
+    secretName: epinio-registry-tls
 {{ if contains "omg.howdoi.website" .Values.domain }}
 ---
 apiVersion: v1

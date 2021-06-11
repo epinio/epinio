@@ -7,7 +7,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 
+	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/julienschmidt/httprouter"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
@@ -25,11 +27,9 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
 )
 
 const (
-	RegistryURL      = "registry.epinio-registry/apps"
 	DefaultInstances = int32(1)
 )
 
@@ -132,15 +132,22 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Instances: instances,
 	}
 
-	pr := newPipelineRun(uid, app)
-	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
-	if err != nil {
-		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
-	}
-
 	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return InternalError(err)
+	}
+	var deploymentImageURL string
+	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
+	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+		deploymentImageURL = registryURL
+	} else {
+		deploymentImageURL = gitea.LocalRegistry
+	}
+
+	pr := newPipelineRun(uid, app, mainDomain, registryURL, deploymentImageURL)
+	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
+	if err != nil {
+		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
 	err = auth.CreateCertificate(ctx, cluster.RestConfig, app.Name, app.Org, mainDomain)
@@ -171,7 +178,7 @@ func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppR
 	return *result.Spec.Replicas, nil
 }
 
-func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
+func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploymentImageURL string) *v1beta1.PipelineRun {
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: uid,
@@ -191,8 +198,8 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 				{Name: "ORG", Value: *v1beta1.NewArrayOrString(app.Org)},
 				{Name: "ROUTE", Value: *v1beta1.NewArrayOrString(app.Route)},
 				{Name: "INSTANCES", Value: *v1beta1.NewArrayOrString(strconv.Itoa(int(app.Instances)))},
-				{Name: "APP_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(RegistryURL))},
-				{Name: "DEPLOYMENT_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(gitea.LocalRegistry))},
+				{Name: "APP_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(registryURL))},
+				{Name: "DEPLOYMENT_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(deploymentImageURL))},
 				{Name: "STAGE_ID", Value: *v1beta1.NewArrayOrString(uid)},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{

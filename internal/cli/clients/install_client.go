@@ -133,13 +133,13 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 
 	installationWg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
+		&deployments.CertManager{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
-		&deployments.CertManager{Timeout: duration.ToDeployment()},
 	} {
 		installationWg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
