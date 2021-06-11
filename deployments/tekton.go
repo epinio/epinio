@@ -244,23 +244,14 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	message = fmt.Sprintf("Creating registry certificates in %s", TektonStagingNamespace)
+	message = fmt.Sprintf("Checking registry certificates in %s", RegistryDeploymentID)
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			out1, err := helpers.ExecToSuccessWithTimeout(
+			out, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					return helpers.Kubectl(fmt.Sprintf("get secret -n %s registry-tls-self-ca", TektonStagingNamespace))
+					return helpers.Kubectl(fmt.Sprintf("get secret -n %s %s-tls", RegistryDeploymentID, RegistryDeploymentID))
 				}, k.Timeout, duration.PollInterval())
-			if err != nil {
-				return out1, err
-			}
-
-			out2, err := helpers.ExecToSuccessWithTimeout(
-				func() (string, error) {
-					return helpers.Kubectl(fmt.Sprintf("get secret -n %s registry-tls-self", TektonStagingNamespace))
-				}, k.Timeout, duration.PollInterval())
-
-			return fmt.Sprintf("%s\n%s", out1, out2), err
+			return out, err
 		},
 	)
 	if err != nil {
