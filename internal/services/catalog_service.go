@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -374,13 +373,8 @@ func CatalogServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, o
 	}, nil
 }
 
-func CreateCatalogService(ctx context.Context, kubeClient *kubernetes.Cluster, name, org, class, plan string, parameters map[string]string) (interfaces.Service, error) {
+func CreateCatalogService(ctx context.Context, kubeClient *kubernetes.Cluster, name, org, class, plan string, parameters string) (interfaces.Service, error) {
 	resourceName := serviceResourceName(org, name)
-
-	param, err := json.Marshal(parameters)
-	if err != nil {
-		return nil, err
-	}
 
 	data := fmt.Sprintf(`{
 		"apiVersion": "servicecatalog.k8s.io/v1beta1",
@@ -397,13 +391,14 @@ func CreateCatalogService(ctx context.Context, kubeClient *kubernetes.Cluster, n
 		},
 		"spec": {
 			"clusterServiceClassExternalName": "%s",
-			"clusterServicePlanExternalName": "%s" },
-		"parameters": %s
-	}`, resourceName, org, name, org, class, plan, param)
+			"clusterServicePlanExternalName": "%s",
+			"parameters": %s
+	  }
+	}`, resourceName, org, name, org, class, plan, parameters)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
-	_, _, err = decoderUnstructured.Decode([]byte(data), nil, obj)
+	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
 	if err != nil {
 		return nil, err
 	}

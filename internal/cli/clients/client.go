@@ -429,25 +429,18 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 
 // CreateService creates a service specified by name, class, plan, and optional key/value dictionary
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *EpinioClient) CreateService(name, class, plan string, dict []string, waitForProvision bool) error {
+func (c *EpinioClient) CreateService(name, class, plan string, data string, waitForProvision bool) error {
 	log := c.Log.WithName("Create Service").
 		WithValues("Name", name, "Class", class, "Plan", plan, "Organization", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 
-	data := make(map[string]string)
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Organization", c.Config.Org).
 		WithStringValue("Class", class).
 		WithStringValue("Plan", plan).
 		WithTable("Parameter", "Value")
-	for i := 0; i < len(dict); i += 2 {
-		key := dict[i]
-		value := dict[i+1]
-		msg = msg.WithTableRow(key, value)
-		data[key] = value
-	}
 	msg.Msg("Create Service")
 
 	request := models.CatalogCreateRequest{
