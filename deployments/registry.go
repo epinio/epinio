@@ -145,10 +145,16 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.Wrap(err, "Failed to hash credentials")
 	}
 
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get system_domain option")
+	}
+
 	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
-	helmCmd := fmt.Sprintf("helm %s %s --set 'auth.htpasswd=%s' --namespace %s %s",
+	helmCmd := fmt.Sprintf("helm %s %s --set 'auth.htpasswd=%s' --set 'domain=%s' --namespace %s %s",
 		action, RegistryDeploymentID,
 		htpasswd,
+		fmt.Sprintf("%s.%s", RegistryDeploymentID, domain),
 		RegistryDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Registry: " + out)
