@@ -47,53 +47,6 @@ spec:
     targetPort: 443
     nodePort: 30501
 ---
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  name: registry-tls-self-ca
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-spec:
-  request:
-    certificate:
-      alternativeNames: null
-      commonName: registryCA
-      isCA: true
-      signerType: local
-  secretName: registry-tls-self-ca
-  type: certificate
-  copies:
-  - name: registry-tls-self-ca
-    namespace: tekton-staging
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  name: registry-tls-self
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-spec:
-  request:
-    certificate:
-      CAKeyRef:
-        key: private_key
-        name: registry-tls-self-ca
-      CARef:
-        key: certificate
-        name: registry-tls-self-ca
-      alternativeNames:
-      - registry.{{ .Release.Namespace }}
-      commonName: registry
-      isCA: false
-      signerType: local
-  secretName: registry-tls-self
-  type: certificate
-  copies:
-  - name: registry-tls-self
-    namespace: tekton-staging
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:

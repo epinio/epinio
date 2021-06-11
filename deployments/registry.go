@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
@@ -160,6 +161,25 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	if err := c.WaitForPodBySelectorRunning(ctx, ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
 		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
+	}
+
+	// Workaround for cert-manager webhook service not being immediately ready.
+	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
+	err = retry.Do(func() error {
+		return auth.CreateCertificate(ctx, c.RestConfig, RegistryDeploymentID, RegistryDeploymentID, domain)
+	},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "failed calling webhook") ||
+				strings.Contains(err.Error(), "EOF")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("retrying to create the epinio cert using cert-manager")
+		}),
+		retry.Delay(5*time.Second),
+		retry.Attempts(10),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed trying to create the epinio API server cert")
 	}
 
 	ui.Success().Msg("Registry deployed")

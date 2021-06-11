@@ -154,7 +154,6 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		}
 	}
 
-	message := "Creating Epinio server cert"
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
 	err = retry.Do(func() error {
@@ -174,7 +173,7 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, "failed trying to create the epinio API server cert")
 	}
 
-	message = "Creating Epinio server ingress"
+	message := "Creating Epinio server ingress"
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return "", k.createIngress(ctx, c, EpinioDeploymentID+"."+domain)
