@@ -12,19 +12,20 @@ type ServiceClassesController struct {
 }
 
 func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
-	cluster, err := kubernetes.GetCluster()
+	ctx := r.Context()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
-	serviceClasses, err := services.ListClasses(cluster)
+	serviceClasses, err := services.ListClasses(ctx, cluster)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	js, err := json.Marshal(serviceClasses)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)

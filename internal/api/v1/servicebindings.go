@@ -24,53 +24,54 @@ type ServicebindingsController struct {
 // the first element when reporting more than one error.
 
 func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	var bindRequest models.BindRequest
 	err = json.Unmarshal(bodyBytes, &bindRequest)
 	if err != nil {
-		return APIErrors{BadRequest(err)}
+		return BadRequest(err)
 	}
 
 	if len(bindRequest.Names) == 0 {
 		err := errors.New("Cannot bind service without names")
-		return APIErrors{BadRequest(err)}
+		return BadRequest(err)
 	}
 
 	for _, serviceName := range bindRequest.Names {
 		if serviceName == "" {
 			err := errors.New("Cannot bind service with empty name")
-			return APIErrors{BadRequest(err)}
+			return BadRequest(err)
 		}
 	}
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if app == nil {
-		return APIErrors{AppIsNotKnown(appName)}
+		return AppIsNotKnown(appName)
 	}
 
 	// From here on out we collect errors and warnings per
@@ -79,94 +80,97 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	// is possible for some of the services to be properly bound.
 
 	var theServices interfaces.ServiceList
-	var theIssues APIErrors
+	var theIssues []APIError
 
 	for _, serviceName := range bindRequest.Names {
-		service, err := services.Lookup(cluster, org, serviceName)
+		service, err := services.Lookup(ctx, cluster, org, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
 				theIssues = append(theIssues, ServiceIsNotKnown(serviceName))
 				continue
 			}
 
-			return append(APIErrors{InternalError(err)}, theIssues...)
+			theIssues = append([]APIError{InternalError(err)}, theIssues...)
+			return MultiError{theIssues}
 		}
 
 		theServices = append(theServices, service)
 	}
 
 	for _, service := range theServices {
-		err = app.Bind(service)
+		err = app.Bind(ctx, service)
 		if err != nil {
 			if err.Error() == "service already bound" {
 				theIssues = append(theIssues, ServiceAlreadyBound(service.Name()))
 				continue
 			}
 
-			return append(APIErrors{InternalError(err)}, theIssues...)
+			theIssues = append([]APIError{InternalError(err)}, theIssues...)
+			return MultiError{theIssues}
 		}
 	}
 
 	if len(theIssues) > 0 {
-		return theIssues
+		return MultiError{theIssues}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte{})
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	return nil
 }
 
 func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
-	params := httprouter.ParamsFromContext(r.Context())
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 	serviceName := params.ByName("service")
 
-	cluster, err := kubernetes.GetCluster()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
-	exists, err := organizations.Exists(cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if !exists {
-		return APIErrors{OrgIsNotKnown(org)}
+		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 	if app == nil {
-		return APIErrors{AppIsNotKnown(appName)}
+		return AppIsNotKnown(appName)
 	}
 
-	service, err := services.Lookup(cluster, org, serviceName)
+	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
-		return APIErrors{ServiceIsNotKnown(serviceName)}
+		return ServiceIsNotKnown(serviceName)
 	}
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
-	err = app.Unbind(service)
+	err = app.Unbind(ctx, service)
 	if err != nil && err.Error() == "service is not bound to the application" {
-		return APIErrors{ServiceIsNotBound(serviceName)}
+		return ServiceIsNotBound(serviceName)
 	}
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write([]byte{})
 	if err != nil {
-		return APIErrors{InternalError(err)}
+		return InternalError(err)
 	}
 
 	return nil

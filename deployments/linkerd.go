@@ -18,6 +18,8 @@ type Linkerd struct {
 	Timeout time.Duration
 }
 
+var _ kubernetes.Deployment = &Linkerd{}
+
 const (
 	LinkerdDeploymentID     = "linkerd"
 	linkerdVersion          = "2.10.2"
@@ -30,11 +32,11 @@ func (k *Linkerd) ID() string {
 	return LinkerdDeploymentID
 }
 
-func (k *Linkerd) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Linkerd) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Linkerd) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Linkerd) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -43,10 +45,10 @@ func (k Linkerd) Describe() string {
 }
 
 // Delete removes linkerd from kubernetes cluster
-func (k Linkerd) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
+func (k Linkerd) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Linkerd...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(LinkerdDeploymentID)
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, LinkerdDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", LinkerdDeploymentID)
 	}
@@ -61,7 +63,7 @@ func (k Linkerd) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	}
 
 	// The uninstall job also deletes the namespace.
-	err = c.WaitForNamespaceMissing(ui, LinkerdDeploymentID, k.Timeout)
+	err = c.WaitForNamespaceMissing(ctx, ui, LinkerdDeploymentID, k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete namespace")
 	}
@@ -76,8 +78,8 @@ func (k Linkerd) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 
-func (k Linkerd) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-	if err := c.CreateNamespace(LinkerdDeploymentID, map[string]string{
+func (k Linkerd) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+	if err := c.CreateNamespace(ctx, LinkerdDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
@@ -91,7 +93,7 @@ func (k Linkerd) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", linkerdInstallJobYAML, out))
 	}
 
-	if err := c.WaitForJobCompleted(LinkerdDeploymentID, "linkerd-install", k.Timeout); err != nil {
+	if err := c.WaitForJobCompleted(ctx, LinkerdDeploymentID, "linkerd-install", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Linkerd install job to complete")
 	}
 
@@ -104,7 +106,7 @@ func (k Linkerd) GetVersion() string {
 	return linkerdVersion
 }
 
-func (k Linkerd) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Linkerd) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	skipLinkerd, err := options.GetBool("skip-linkerd", LinkerdDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get skip-linkerd option")
@@ -115,7 +117,7 @@ func (k Linkerd) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 	}
 
 	_, err = c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		LinkerdDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -125,12 +127,12 @@ func (k Linkerd) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Linkerd...")
 
-	return k.apply(c, ui, options, false)
+	return k.apply(ctx, c, ui, options, false)
 }
 
-func (k Linkerd) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Linkerd) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		LinkerdDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -140,5 +142,5 @@ func (k Linkerd) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernete
 
 	ui.Note().Msg("Upgrading Linkerd...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(ctx, c, ui, options, true)
 }

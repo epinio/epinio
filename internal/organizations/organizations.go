@@ -25,12 +25,12 @@ type GiteaInterface interface {
 	DeleteOrg(org string) error
 }
 
-func List(kubeClient *kubernetes.Cluster) ([]Organization, error) {
+func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Organization, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: kubernetes.EpinioOrgLabelKey + "=" + kubernetes.EpinioOrgLabelValue,
 	}
 
-	orgList, err := kubeClient.Kubectl.CoreV1().Namespaces().List(context.Background(), listOptions)
+	orgList, err := kubeClient.Kubectl.CoreV1().Namespaces().List(ctx, listOptions)
 	if err != nil {
 		return []Organization{}, err
 	}
@@ -43,8 +43,8 @@ func List(kubeClient *kubernetes.Cluster) ([]Organization, error) {
 	return result, nil
 }
 
-func Exists(kubeClient *kubernetes.Cluster, lookupOrg string) (bool, error) {
-	orgs, err := List(kubeClient)
+func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupOrg string) (bool, error) {
+	orgs, err := List(ctx, kubeClient)
 	if err != nil {
 		return false, err
 	}
@@ -93,7 +93,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 		return errors.Wrap(err, "failed to copy the ca certificate")
 	}
 
-	if err := createServiceAccount(kubeClient, org); err != nil {
+	if err := createServiceAccount(ctx, kubeClient, org); err != nil {
 		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
@@ -106,7 +106,7 @@ func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 		return err
 	}
 
-	err = kubeClient.WaitForNamespaceMissing(nil, org, duration.ToOrgDeletion())
+	err = kubeClient.WaitForNamespaceMissing(ctx, nil, org, duration.ToOrgDeletion())
 	if err != nil {
 		return err
 	}
@@ -136,10 +136,10 @@ func copySecret(ctx context.Context, secretName, originOrg, targetOrg string, ku
 	return err
 }
 
-func createServiceAccount(kubeClient *kubernetes.Cluster, targetOrg string) error {
+func createServiceAccount(ctx context.Context, kubeClient *kubernetes.Cluster, targetOrg string) error {
 	automountServiceAccountToken := false
 	_, err := kubeClient.Kubectl.CoreV1().ServiceAccounts(targetOrg).Create(
-		context.Background(),
+		ctx,
 		&corev1.ServiceAccount{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: targetOrg,

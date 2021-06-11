@@ -21,6 +21,8 @@ type Gitea struct {
 	Timeout time.Duration
 }
 
+var _ kubernetes.Deployment = &Gitea{}
+
 const (
 	GiteaProtocol     = "http"
 	GiteaPort         = "10080"
@@ -48,11 +50,11 @@ func (k *Gitea) ID() string {
 	return GiteaDeploymentID
 }
 
-func (k *Gitea) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Gitea) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Gitea) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Gitea) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -61,10 +63,10 @@ func (k Gitea) Describe() string {
 }
 
 // Delete removes Gitea from kubernetes cluster
-func (k Gitea) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
+func (k Gitea) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Gitea...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(GiteaDeploymentID)
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, GiteaDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", GiteaDeploymentID)
 	}
@@ -96,7 +98,7 @@ func (k Gitea) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	message = "Deleting Gitea namespace " + GiteaDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", c.DeleteNamespace(GiteaDeploymentID)
+			return "", c.DeleteNamespace(ctx, GiteaDeploymentID)
 		},
 	)
 	if err != nil {
@@ -108,13 +110,13 @@ func (k Gitea) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 
-func (k Gitea) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Gitea) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
 	}
 
-	if err := c.CreateNamespace(GiteaDeploymentID, map[string]string{
+	if err := c.CreateNamespace(ctx, GiteaDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
@@ -217,10 +219,10 @@ postgresql:
 		"postgresql",
 		"gitea",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(ui, GiteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ctx, ui, GiteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(ui, GiteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ctx, ui, GiteaDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Gitea "+podname+" deployment to come up")
 		}
 	}
@@ -234,10 +236,10 @@ func (k Gitea) GetVersion() string {
 	return giteaVersion
 }
 
-func (k Gitea) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Gitea) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		GiteaDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -247,7 +249,7 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Gitea...")
 
-	err = k.apply(c, ui, options, false)
+	err = k.apply(ctx, c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -255,9 +257,9 @@ func (k Gitea) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	return nil
 }
 
-func (k Gitea) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Gitea) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		GiteaDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -267,5 +269,5 @@ func (k Gitea) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 
 	ui.Note().Msg("Upgrading Gitea...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(ctx, c, ui, options, true)
 }

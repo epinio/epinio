@@ -27,6 +27,8 @@ type Epinio struct {
 	Timeout time.Duration
 }
 
+var _ kubernetes.Deployment = &Epinio{}
+
 const (
 	EpinioDeploymentID  = "epinio"
 	epinioServerYaml    = "epinio/server.yaml"
@@ -38,11 +40,11 @@ func (k *Epinio) ID() string {
 	return EpinioDeploymentID
 }
 
-func (k *Epinio) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Epinio) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (k *Epinio) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (k *Epinio) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -51,10 +53,10 @@ func (k Epinio) Describe() string {
 }
 
 // Delete removes Epinio from kubernetes cluster
-func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
+func (k Epinio) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Epinio...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(EpinioDeploymentID)
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, EpinioDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", EpinioDeploymentID)
 	}
@@ -87,14 +89,14 @@ func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	message := "Deleting Epinio namespace " + EpinioDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", c.DeleteNamespace(EpinioDeploymentID)
+			return "", c.DeleteNamespace(ctx, EpinioDeploymentID)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", EpinioDeploymentID)
 	}
 
-	err = c.WaitForNamespaceMissing(ui, EpinioDeploymentID, k.Timeout)
+	err = c.WaitForNamespaceMissing(ctx, ui, EpinioDeploymentID, k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete namespace")
 	}
@@ -104,8 +106,8 @@ func (k Epinio) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 
-func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-	if err := c.CreateNamespace(EpinioDeploymentID, map[string]string{
+func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+	if err := c.CreateNamespace(ctx, EpinioDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
@@ -125,7 +127,7 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		Username: apiUser.Value.(string),
 		Password: apiPassword.Value.(string),
 	}
-	if out, err := k.applyEpinioConfigYaml(c, ui, authAPI); err != nil {
+	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, authAPI); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -140,16 +142,16 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 		"cert-manager",
 		"cainjector",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to come up")
 		}
 	}
 
 	message := "Creating Epinio server cert"
-	err = auth.CreateCertificate(context.Background(), c.RestConfig, EpinioDeploymentID, EpinioDeploymentID, domain)
+	err = auth.CreateCertificate(ctx, c.RestConfig, EpinioDeploymentID, EpinioDeploymentID, domain)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
@@ -157,7 +159,7 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	message = "Creating Epinio server ingress"
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", k.createIngress(c, EpinioDeploymentID+"."+domain)
+			return "", k.createIngress(ctx, c, EpinioDeploymentID+"."+domain)
 		},
 	)
 	if err != nil {
@@ -168,10 +170,10 @@ func (k Epinio) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.I
 	// the installation continue. You can use the `make patch-epinio-deployment` target
 	// later to fix the failing deployment. See also docs/development.md
 	if os.Getenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT") == "" {
-		if err := c.WaitUntilPodBySelectorExist(ui, EpinioDeploymentID, "app.kubernetes.io/name=epinio-server", k.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ctx, ui, EpinioDeploymentID, "app.kubernetes.io/name=epinio-server", k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Epinio epinio-server deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(ui, EpinioDeploymentID, "app.kubernetes.io/name=epinio-server", k.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ctx, ui, EpinioDeploymentID, "app.kubernetes.io/name=epinio-server", k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Epinio epinio-server deployment to be running")
 		}
 	}
@@ -185,20 +187,16 @@ func (k Epinio) GetVersion() string {
 	return version.Version
 }
 
-func (k Epinio) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Epinio) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
-	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
-		EpinioDeploymentID,
-		metav1.GetOptions{},
-	)
+	_, err := c.Kubectl.CoreV1().Namespaces().Get(ctx, EpinioDeploymentID, metav1.GetOptions{})
 	if err == nil {
 		return errors.New("Namespace " + EpinioDeploymentID + " present already")
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Epinio...")
 
-	err = k.apply(c, ui, options, false)
+	err = k.apply(ctx, c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -206,9 +204,9 @@ func (k Epinio) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.
 	return nil
 }
 
-func (k Epinio) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Epinio) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		EpinioDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -218,11 +216,11 @@ func (k Epinio) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes
 
 	ui.Note().Msg("Upgrading Epinio...")
 
-	return k.apply(c, ui, options, true)
+	return k.apply(ctx, c, ui, options, true)
 }
 
 // Replaces ##current_epinio_version## with version.Version and applies the embedded yaml
-func (k Epinio) applyEpinioConfigYaml(c *kubernetes.Cluster, ui *termui.UI, auth auth.PasswordAuth) (string, error) {
+func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, auth auth.PasswordAuth) (string, error) {
 	// (xxx) Apply traefik v2 middleware. This will fail for a
 	// traefik v1 controller.  Ignore error if it was due due to a
 	// missing Middleware CRD. That indicates presence of the
@@ -273,7 +271,7 @@ func (k Epinio) applyEpinioConfigYaml(c *kubernetes.Cluster, ui *termui.UI, auth
 		return out, err
 	}
 
-	err = c.WaitForNamespace(ui, TektonStagingNamespace, k.Timeout)
+	err = c.WaitForNamespace(ctx, ui, TektonStagingNamespace, k.Timeout)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to wait for %s namespace", TektonStagingNamespace)
 	}
@@ -287,9 +285,9 @@ func (k Epinio) applyEpinioConfigYaml(c *kubernetes.Cluster, ui *termui.UI, auth
 	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", TektonStagingNamespace, yamlPathOnDisk))
 }
 
-func (k *Epinio) createIngress(c *kubernetes.Cluster, subdomain string) error {
+func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdomain string) error {
 	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses(EpinioDeploymentID).Create(
-		context.Background(),
+		ctx,
 		// TODO: Switch to networking v1 when we don't care about <1.18 clusters
 		// Like this (which has been reverted):
 		// https://github.com/epinio/epinio/commit/7721d610fdf27a79be980af522783671d3ffc198

@@ -92,7 +92,7 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 	return stage, nil
 }
 
-func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
+func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
 	cs, err := tekton.NewForConfig(c.KubeClient.RestConfig)
@@ -103,7 +103,7 @@ func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 
 	return wait.PollImmediate(time.Second, duration.ToAppBuilt(),
 		func() (bool, error) {
-			l, err := client.List(context.TODO(), metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
+			l, err := client.List(ctx, metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
 			if err != nil {
 				return false, err
 			}
@@ -127,10 +127,11 @@ func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 		})
 }
 
-func (c *EpinioClient) waitForApp(app models.AppRef, id string) error {
+func (c *EpinioClient) waitForApp(ctx context.Context, app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
 	err := c.KubeClient.WaitForDeploymentCompleted(
+		ctx,
 		c.ui, app.Org, app.Name, duration.ToAppBuilt())
 	if err != nil {
 		return errors.Wrap(err, "waiting for app to come online failed")

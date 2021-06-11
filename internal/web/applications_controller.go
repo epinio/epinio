@@ -36,12 +36,13 @@ func setCurrentOrgInCookie(org, cookieName string, w http.ResponseWriter) error 
 // updated. If no orgs exist, then an empty string is returned as the org name.
 // The function also returns the rest of the available orgs.
 func getOrgs(w http.ResponseWriter, r *http.Request) (string, []string, error) {
-	cluster, err := kubernetes.GetCluster()
+	ctx := r.Context()
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", []string{}, err
 	}
 
-	orgs, err := organizations.List(cluster)
+	orgs, err := organizations.List(ctx, cluster)
 	if err != nil {
 		return "", []string{}, err
 	}

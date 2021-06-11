@@ -23,11 +23,11 @@ func jsonResponse(w http.ResponseWriter, response interface{}) error {
 	return err
 }
 
-func jsonErrorResponse(w http.ResponseWriter, responseErrors ...APIError) {
+func jsonErrorResponse(w http.ResponseWriter, responseErrors APIErrors) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 
-	response := ErrorResponse{Errors: responseErrors}
+	response := ErrorResponse{Errors: responseErrors.Errors()}
 	js, marshalErr := json.Marshal(response)
 	if marshalErr != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -35,14 +35,14 @@ func jsonErrorResponse(w http.ResponseWriter, responseErrors ...APIError) {
 		return
 	}
 
-	w.WriteHeader(responseErrors[0].Status)
+	w.WriteHeader(responseErrors.FirstStatus())
 	fmt.Fprintln(w, string(js))
 }
 
 func errorHandler(action APIActionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if errors := action(w, r); len(errors) > 0 {
-			jsonErrorResponse(w, errors...)
+		if errors := action(w, r); errors != nil {
+			jsonErrorResponse(w, errors)
 		}
 	}
 }

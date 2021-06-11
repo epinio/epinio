@@ -12,12 +12,13 @@ type InfoController struct {
 }
 
 func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
-	client, err := clients.NewEpinioClient(nil)
+	ctx := r.Context()
+	client, err := clients.NewEpinioClient(ctx, nil)
 	if handleError(w, err, 500) {
 		return
 	}
 
-	giteaClient, err := gitea.New()
+	giteaClient, err := gitea.New(ctx)
 	if handleError(w, err, 500) {
 		return
 	}

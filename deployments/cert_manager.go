@@ -26,6 +26,8 @@ type CertManager struct {
 	Timeout time.Duration
 }
 
+var _ kubernetes.Deployment = &CertManager{}
+
 const (
 	CertManagerDeploymentID = "cert-manager"
 	certManagerVersion      = "1.2.0"
@@ -36,11 +38,11 @@ func (cm *CertManager) ID() string {
 	return CertManagerDeploymentID
 }
 
-func (cm *CertManager) Backup(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (cm *CertManager) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
-func (cm *CertManager) Restore(c *kubernetes.Cluster, ui *termui.UI, d string) error {
+func (cm *CertManager) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
 	return nil
 }
 
@@ -48,10 +50,10 @@ func (cm CertManager) Describe() string {
 	return emoji.Sprintf(":cloud:CertManager version: %s\n:clipboard:CertManager chart: %s", certManagerVersion, certManagerChartFile)
 }
 
-func (cm CertManager) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
+func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing CertManager...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(CertManagerDeploymentID)
+	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, CertManagerDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", CertManagerDeploymentID)
 	}
@@ -65,7 +67,7 @@ func (cm CertManager) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 		return errors.New("Failed uninstalling CertManager: " + err.Error())
 	}
 
-	err = cm.DeleteClusterIssuer(c)
+	err = cm.DeleteClusterIssuer(ctx, c)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting clusterissuer letsencrypt-production")
 	}
@@ -119,14 +121,14 @@ func (cm CertManager) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	message = "Deleting CertManager namespace " + CertManagerDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", c.DeleteNamespace(CertManagerDeploymentID)
+			return "", c.DeleteNamespace(ctx, CertManagerDeploymentID)
 		},
 	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", CertManagerDeploymentID)
 	}
 
-	err = c.WaitForNamespaceMissing(ui, CertManagerDeploymentID, cm.Timeout)
+	err = c.WaitForNamespaceMissing(ctx, ui, CertManagerDeploymentID, cm.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed to delete namespace")
 	}
@@ -136,7 +138,7 @@ func (cm CertManager) Delete(c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 
-func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -147,7 +149,7 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 		return err
 	}
 
-	if err := c.CreateNamespace(CertManagerDeploymentID, map[string]string{
+	if err := c.CreateNamespace(ctx, CertManagerDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{}); err != nil {
 		return err
@@ -174,10 +176,10 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 		"cert-manager",
 		"cainjector",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
+		if err := c.WaitUntilPodBySelectorExist(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to exist")
 		}
-		if err := c.WaitForPodBySelectorRunning(ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
+		if err := c.WaitForPodBySelectorRunning(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to come up")
 		}
 	}
@@ -189,7 +191,7 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 
 	err = helpers.RunToSuccessWithTimeout(
 		func() error {
-			return cm.CreateClusterIssuer(c, fmt.Sprintf(clusterIssuerLetsencrypt, emailAddress.Value))
+			return cm.CreateClusterIssuer(ctx, c, fmt.Sprintf(clusterIssuerLetsencrypt, emailAddress.Value))
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
@@ -200,7 +202,7 @@ func (cm CertManager) apply(c *kubernetes.Cluster, ui *termui.UI, options kubern
 
 	err = helpers.RunToSuccessWithTimeout(
 		func() error {
-			return cm.CreateClusterIssuer(c, clusterIssuerLocal)
+			return cm.CreateClusterIssuer(ctx, c, clusterIssuerLocal)
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
@@ -255,7 +257,7 @@ const clusterIssuerLocal = `{
 	}
 }`
 
-func (cm CertManager) CreateClusterIssuer(c *kubernetes.Cluster, data string) error {
+func (cm CertManager) CreateClusterIssuer(ctx context.Context, c *kubernetes.Cluster, data string) error {
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
 	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
@@ -275,9 +277,7 @@ func (cm CertManager) CreateClusterIssuer(c *kubernetes.Cluster, data string) er
 	}
 
 	_, err = dynamicClient.Resource(clusterIssuerGVR).
-		Create(context.Background(),
-			obj,
-			metav1.CreateOptions{})
+		Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -285,7 +285,7 @@ func (cm CertManager) CreateClusterIssuer(c *kubernetes.Cluster, data string) er
 	return nil
 }
 
-func (cm CertManager) DeleteClusterIssuer(c *kubernetes.Cluster) error {
+func (cm CertManager) DeleteClusterIssuer(ctx context.Context, c *kubernetes.Cluster) error {
 	clusterIssuerGVR := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
 		Version:  "v1alpha2",
@@ -298,14 +298,12 @@ func (cm CertManager) DeleteClusterIssuer(c *kubernetes.Cluster) error {
 	}
 
 	err = dynamicClient.Resource(clusterIssuerGVR).
-		Delete(context.Background(),
-			"letsencrypt-production",
-			metav1.DeleteOptions{})
+		Delete(ctx, "letsencrypt-production", metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = c.Kubectl.CoreV1().Secrets(CertManagerDeploymentID).Delete(context.Background(), "letsencrypt-production", metav1.DeleteOptions{})
+	err = c.Kubectl.CoreV1().Secrets(CertManagerDeploymentID).Delete(ctx, "letsencrypt-production", metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -313,10 +311,10 @@ func (cm CertManager) DeleteClusterIssuer(c *kubernetes.Cluster) error {
 	return nil
 }
 
-func (cm CertManager) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (cm CertManager) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		CertManagerDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -326,7 +324,7 @@ func (cm CertManager) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kuber
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying CertManager...")
 
-	err = cm.apply(c, ui, options, false)
+	err = cm.apply(ctx, c, ui, options, false)
 	if err != nil {
 		return err
 	}
@@ -334,9 +332,9 @@ func (cm CertManager) Deploy(c *kubernetes.Cluster, ui *termui.UI, options kuber
 	return nil
 }
 
-func (cm CertManager) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (cm CertManager) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		context.Background(),
+		ctx,
 		CertManagerDeploymentID,
 		metav1.GetOptions{},
 	)
@@ -346,5 +344,5 @@ func (cm CertManager) Upgrade(c *kubernetes.Cluster, ui *termui.UI, options kube
 
 	ui.Note().Msg("Upgrading CertManager...")
 
-	return cm.apply(c, ui, options, true)
+	return cm.apply(ctx, c, ui, options, true)
 }

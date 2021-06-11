@@ -2,6 +2,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -10,8 +11,8 @@ import (
 )
 
 // Lookup locates a Service by org and name
-func Lookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
-	serviceInstance, err := CustomServiceLookup(kubeClient, org, service)
+func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
+	serviceInstance, err := CustomServiceLookup(ctx, kubeClient, org, service)
 	if err != nil {
 		return nil, err
 	}
@@ -19,7 +20,7 @@ func Lookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Ser
 		return serviceInstance, nil
 	}
 
-	serviceInstance, err = CatalogServiceLookup(kubeClient, org, service)
+	serviceInstance, err = CatalogServiceLookup(ctx, kubeClient, org, service)
 	if err != nil {
 		return nil, err
 	}
@@ -31,14 +32,14 @@ func Lookup(kubeClient *kubernetes.Cluster, org, service string) (interfaces.Ser
 }
 
 // List returns a ServiceList of all available Services
-func List(kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
+func List(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
 
-	customServices, err := CustomServiceList(kubeClient, org)
+	customServices, err := CustomServiceList(ctx, kubeClient, org)
 	if err != nil {
 		return nil, err
 	}
 
-	catalogServices, err := CatalogServiceList(kubeClient, org)
+	catalogServices, err := CatalogServiceList(ctx, kubeClient, org)
 	if err != nil {
 		return nil, err
 	}

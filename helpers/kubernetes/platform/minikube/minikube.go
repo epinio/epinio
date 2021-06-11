@@ -23,8 +23,8 @@ func (m *Minikube) Describe() string {
 func (m *Minikube) String() string { return "minikube" }
 
 // Detect detects if it is a minikube platform.
-func (m *Minikube) Detect(kube *kubernetes.Clientset) bool {
-	nodes, err := kube.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+func (m *Minikube) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false
 	}

@@ -2,6 +2,7 @@
 package kubernetesfakes
 
 import (
+	"context"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -9,12 +10,13 @@ import (
 )
 
 type FakeDeployment struct {
-	BackupStub        func(*kubernetes.Cluster, *termui.UI, string) error
+	BackupStub        func(context.Context, *kubernetes.Cluster, *termui.UI, string) error
 	backupMutex       sync.RWMutex
 	backupArgsForCall []struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 string
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 string
 	}
 	backupReturns struct {
 		result1 error
@@ -22,11 +24,12 @@ type FakeDeployment struct {
 	backupReturnsOnCall map[int]struct {
 		result1 error
 	}
-	DeleteStub        func(*kubernetes.Cluster, *termui.UI) error
+	DeleteStub        func(context.Context, *kubernetes.Cluster, *termui.UI) error
 	deleteMutex       sync.RWMutex
 	deleteArgsForCall []struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
 	}
 	deleteReturns struct {
 		result1 error
@@ -34,12 +37,13 @@ type FakeDeployment struct {
 	deleteReturnsOnCall map[int]struct {
 		result1 error
 	}
-	DeployStub        func(*kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error
+	DeployStub        func(context.Context, *kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error
 	deployMutex       sync.RWMutex
 	deployArgsForCall []struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 kubernetes.InstallationOptions
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 kubernetes.InstallationOptions
 	}
 	deployReturns struct {
 		result1 error
@@ -77,12 +81,13 @@ type FakeDeployment struct {
 	iDReturnsOnCall map[int]struct {
 		result1 string
 	}
-	RestoreStub        func(*kubernetes.Cluster, *termui.UI, string) error
+	RestoreStub        func(context.Context, *kubernetes.Cluster, *termui.UI, string) error
 	restoreMutex       sync.RWMutex
 	restoreArgsForCall []struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 string
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 string
 	}
 	restoreReturns struct {
 		result1 error
@@ -90,12 +95,13 @@ type FakeDeployment struct {
 	restoreReturnsOnCall map[int]struct {
 		result1 error
 	}
-	UpgradeStub        func(*kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error
+	UpgradeStub        func(context.Context, *kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error
 	upgradeMutex       sync.RWMutex
 	upgradeArgsForCall []struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 kubernetes.InstallationOptions
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 kubernetes.InstallationOptions
 	}
 	upgradeReturns struct {
 		result1 error
@@ -107,20 +113,21 @@ type FakeDeployment struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *FakeDeployment) Backup(arg1 *kubernetes.Cluster, arg2 *termui.UI, arg3 string) error {
+func (fake *FakeDeployment) Backup(arg1 context.Context, arg2 *kubernetes.Cluster, arg3 *termui.UI, arg4 string) error {
 	fake.backupMutex.Lock()
 	ret, specificReturn := fake.backupReturnsOnCall[len(fake.backupArgsForCall)]
 	fake.backupArgsForCall = append(fake.backupArgsForCall, struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 string
-	}{arg1, arg2, arg3})
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 string
+	}{arg1, arg2, arg3, arg4})
 	stub := fake.BackupStub
 	fakeReturns := fake.backupReturns
-	fake.recordInvocation("Backup", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("Backup", []interface{}{arg1, arg2, arg3, arg4})
 	fake.backupMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -134,17 +141,17 @@ func (fake *FakeDeployment) BackupCallCount() int {
 	return len(fake.backupArgsForCall)
 }
 
-func (fake *FakeDeployment) BackupCalls(stub func(*kubernetes.Cluster, *termui.UI, string) error) {
+func (fake *FakeDeployment) BackupCalls(stub func(context.Context, *kubernetes.Cluster, *termui.UI, string) error) {
 	fake.backupMutex.Lock()
 	defer fake.backupMutex.Unlock()
 	fake.BackupStub = stub
 }
 
-func (fake *FakeDeployment) BackupArgsForCall(i int) (*kubernetes.Cluster, *termui.UI, string) {
+func (fake *FakeDeployment) BackupArgsForCall(i int) (context.Context, *kubernetes.Cluster, *termui.UI, string) {
 	fake.backupMutex.RLock()
 	defer fake.backupMutex.RUnlock()
 	argsForCall := fake.backupArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeDeployment) BackupReturns(result1 error) {
@@ -170,19 +177,20 @@ func (fake *FakeDeployment) BackupReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Delete(arg1 *kubernetes.Cluster, arg2 *termui.UI) error {
+func (fake *FakeDeployment) Delete(arg1 context.Context, arg2 *kubernetes.Cluster, arg3 *termui.UI) error {
 	fake.deleteMutex.Lock()
 	ret, specificReturn := fake.deleteReturnsOnCall[len(fake.deleteArgsForCall)]
 	fake.deleteArgsForCall = append(fake.deleteArgsForCall, struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-	}{arg1, arg2})
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+	}{arg1, arg2, arg3})
 	stub := fake.DeleteStub
 	fakeReturns := fake.deleteReturns
-	fake.recordInvocation("Delete", []interface{}{arg1, arg2})
+	fake.recordInvocation("Delete", []interface{}{arg1, arg2, arg3})
 	fake.deleteMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
@@ -196,17 +204,17 @@ func (fake *FakeDeployment) DeleteCallCount() int {
 	return len(fake.deleteArgsForCall)
 }
 
-func (fake *FakeDeployment) DeleteCalls(stub func(*kubernetes.Cluster, *termui.UI) error) {
+func (fake *FakeDeployment) DeleteCalls(stub func(context.Context, *kubernetes.Cluster, *termui.UI) error) {
 	fake.deleteMutex.Lock()
 	defer fake.deleteMutex.Unlock()
 	fake.DeleteStub = stub
 }
 
-func (fake *FakeDeployment) DeleteArgsForCall(i int) (*kubernetes.Cluster, *termui.UI) {
+func (fake *FakeDeployment) DeleteArgsForCall(i int) (context.Context, *kubernetes.Cluster, *termui.UI) {
 	fake.deleteMutex.RLock()
 	defer fake.deleteMutex.RUnlock()
 	argsForCall := fake.deleteArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *FakeDeployment) DeleteReturns(result1 error) {
@@ -232,20 +240,21 @@ func (fake *FakeDeployment) DeleteReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Deploy(arg1 *kubernetes.Cluster, arg2 *termui.UI, arg3 kubernetes.InstallationOptions) error {
+func (fake *FakeDeployment) Deploy(arg1 context.Context, arg2 *kubernetes.Cluster, arg3 *termui.UI, arg4 kubernetes.InstallationOptions) error {
 	fake.deployMutex.Lock()
 	ret, specificReturn := fake.deployReturnsOnCall[len(fake.deployArgsForCall)]
 	fake.deployArgsForCall = append(fake.deployArgsForCall, struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 kubernetes.InstallationOptions
-	}{arg1, arg2, arg3})
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 kubernetes.InstallationOptions
+	}{arg1, arg2, arg3, arg4})
 	stub := fake.DeployStub
 	fakeReturns := fake.deployReturns
-	fake.recordInvocation("Deploy", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("Deploy", []interface{}{arg1, arg2, arg3, arg4})
 	fake.deployMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -259,17 +268,17 @@ func (fake *FakeDeployment) DeployCallCount() int {
 	return len(fake.deployArgsForCall)
 }
 
-func (fake *FakeDeployment) DeployCalls(stub func(*kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error) {
+func (fake *FakeDeployment) DeployCalls(stub func(context.Context, *kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error) {
 	fake.deployMutex.Lock()
 	defer fake.deployMutex.Unlock()
 	fake.DeployStub = stub
 }
 
-func (fake *FakeDeployment) DeployArgsForCall(i int) (*kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) {
+func (fake *FakeDeployment) DeployArgsForCall(i int) (context.Context, *kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) {
 	fake.deployMutex.RLock()
 	defer fake.deployMutex.RUnlock()
 	argsForCall := fake.deployArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeDeployment) DeployReturns(result1 error) {
@@ -454,20 +463,21 @@ func (fake *FakeDeployment) IDReturnsOnCall(i int, result1 string) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Restore(arg1 *kubernetes.Cluster, arg2 *termui.UI, arg3 string) error {
+func (fake *FakeDeployment) Restore(arg1 context.Context, arg2 *kubernetes.Cluster, arg3 *termui.UI, arg4 string) error {
 	fake.restoreMutex.Lock()
 	ret, specificReturn := fake.restoreReturnsOnCall[len(fake.restoreArgsForCall)]
 	fake.restoreArgsForCall = append(fake.restoreArgsForCall, struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 string
-	}{arg1, arg2, arg3})
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 string
+	}{arg1, arg2, arg3, arg4})
 	stub := fake.RestoreStub
 	fakeReturns := fake.restoreReturns
-	fake.recordInvocation("Restore", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("Restore", []interface{}{arg1, arg2, arg3, arg4})
 	fake.restoreMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -481,17 +491,17 @@ func (fake *FakeDeployment) RestoreCallCount() int {
 	return len(fake.restoreArgsForCall)
 }
 
-func (fake *FakeDeployment) RestoreCalls(stub func(*kubernetes.Cluster, *termui.UI, string) error) {
+func (fake *FakeDeployment) RestoreCalls(stub func(context.Context, *kubernetes.Cluster, *termui.UI, string) error) {
 	fake.restoreMutex.Lock()
 	defer fake.restoreMutex.Unlock()
 	fake.RestoreStub = stub
 }
 
-func (fake *FakeDeployment) RestoreArgsForCall(i int) (*kubernetes.Cluster, *termui.UI, string) {
+func (fake *FakeDeployment) RestoreArgsForCall(i int) (context.Context, *kubernetes.Cluster, *termui.UI, string) {
 	fake.restoreMutex.RLock()
 	defer fake.restoreMutex.RUnlock()
 	argsForCall := fake.restoreArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeDeployment) RestoreReturns(result1 error) {
@@ -517,20 +527,21 @@ func (fake *FakeDeployment) RestoreReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeDeployment) Upgrade(arg1 *kubernetes.Cluster, arg2 *termui.UI, arg3 kubernetes.InstallationOptions) error {
+func (fake *FakeDeployment) Upgrade(arg1 context.Context, arg2 *kubernetes.Cluster, arg3 *termui.UI, arg4 kubernetes.InstallationOptions) error {
 	fake.upgradeMutex.Lock()
 	ret, specificReturn := fake.upgradeReturnsOnCall[len(fake.upgradeArgsForCall)]
 	fake.upgradeArgsForCall = append(fake.upgradeArgsForCall, struct {
-		arg1 *kubernetes.Cluster
-		arg2 *termui.UI
-		arg3 kubernetes.InstallationOptions
-	}{arg1, arg2, arg3})
+		arg1 context.Context
+		arg2 *kubernetes.Cluster
+		arg3 *termui.UI
+		arg4 kubernetes.InstallationOptions
+	}{arg1, arg2, arg3, arg4})
 	stub := fake.UpgradeStub
 	fakeReturns := fake.upgradeReturns
-	fake.recordInvocation("Upgrade", []interface{}{arg1, arg2, arg3})
+	fake.recordInvocation("Upgrade", []interface{}{arg1, arg2, arg3, arg4})
 	fake.upgradeMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3)
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
@@ -544,17 +555,17 @@ func (fake *FakeDeployment) UpgradeCallCount() int {
 	return len(fake.upgradeArgsForCall)
 }
 
-func (fake *FakeDeployment) UpgradeCalls(stub func(*kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error) {
+func (fake *FakeDeployment) UpgradeCalls(stub func(context.Context, *kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) error) {
 	fake.upgradeMutex.Lock()
 	defer fake.upgradeMutex.Unlock()
 	fake.UpgradeStub = stub
 }
 
-func (fake *FakeDeployment) UpgradeArgsForCall(i int) (*kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) {
+func (fake *FakeDeployment) UpgradeArgsForCall(i int) (context.Context, *kubernetes.Cluster, *termui.UI, kubernetes.InstallationOptions) {
 	fake.upgradeMutex.RLock()
 	defer fake.upgradeMutex.RUnlock()
 	argsForCall := fake.upgradeArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
 }
 
 func (fake *FakeDeployment) UpgradeReturns(result1 error) {

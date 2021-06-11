@@ -39,27 +39,27 @@ type GiteaInterface interface {
 	CreateOrg(org string) error
 }
 
-func (a *Application) Delete(gitea GiteaInterface) error {
+func (a *Application) Delete(ctx context.Context, gitea GiteaInterface) error {
 	if err := gitea.DeleteRepo(a.Organization, a.Name); err != nil {
 		return pkgerrors.Wrap(err, "failed to delete repository")
 	}
 
 	err := a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).
-		Delete(context.Background(), a.Name, metav1.DeleteOptions{})
+		Delete(ctx, a.Name, metav1.DeleteOptions{})
 
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application deployment")
 	}
 
 	err = a.kubeClient.Kubectl.ExtensionsV1beta1().Ingresses(a.Organization).
-		Delete(context.Background(), a.Name, metav1.DeleteOptions{})
+		Delete(ctx, a.Name, metav1.DeleteOptions{})
 
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application ingress")
 	}
 
 	err = a.kubeClient.Kubectl.CoreV1().Services(a.Organization).
-		Delete(context.Background(), a.Name, metav1.DeleteOptions{})
+		Delete(ctx, a.Name, metav1.DeleteOptions{})
 
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application service")
@@ -69,8 +69,8 @@ func (a *Application) Delete(gitea GiteaInterface) error {
 }
 
 // Services returns the set of services bound to the application.
-func (a *Application) Services() (interfaces.ServiceList, error) {
-	deployment, err := a.deployment()
+func (a *Application) Services(ctx context.Context) (interfaces.ServiceList, error) {
+	deployment, err := a.deployment(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func (a *Application) Services() (interfaces.ServiceList, error) {
 	var bound = interfaces.ServiceList{}
 
 	for _, volume := range deployment.Spec.Template.Spec.Volumes {
-		service, err := services.Lookup(a.kubeClient, a.Organization, volume.Name)
+		service, err := services.Lookup(ctx, a.kubeClient, a.Organization, volume.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +94,7 @@ func (a *Application) Scale(ctx context.Context, instances int32) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-		deployment, err := a.deployment()
+		deployment, err := a.deployment(ctx)
 		if err != nil {
 			return err
 		}
@@ -109,9 +109,9 @@ func (a *Application) Scale(ctx context.Context, instances int32) error {
 }
 
 // Unbind dissolves the binding of the service to the application.
-func (a *Application) Unbind(service interfaces.Service) error {
+func (a *Application) Unbind(ctx context.Context, service interfaces.Service) error {
 	for {
-		deployment, err := a.deployment()
+		deployment, err := a.deployment(ctx)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (a *Application) Unbind(service interfaces.Service) error {
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newVolumeMounts
 
 		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
-			context.Background(),
+			ctx,
 			deployment,
 			metav1.UpdateOptions{},
 		)
@@ -164,24 +164,24 @@ func (a *Application) Unbind(service interfaces.Service) error {
 	}
 
 	// delete binding - DeleteBinding(a.Name)
-	return service.DeleteBinding(a.Name, a.Organization)
+	return service.DeleteBinding(ctx, a.Name, a.Organization)
 }
 
-func (a *Application) deployment() (*appsv1.Deployment, error) {
+func (a *Application) deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	return a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Get(
-		context.Background(), a.Name, metav1.GetOptions{},
+		ctx, a.Name, metav1.GetOptions{},
 	)
 }
 
 // Bind creates a binding of the service to the application.
-func (a *Application) Bind(service interfaces.Service) error {
-	bindSecret, err := service.GetBinding(a.Name)
+func (a *Application) Bind(ctx context.Context, service interfaces.Service) error {
+	bindSecret, err := service.GetBinding(ctx, a.Name)
 	if err != nil {
 		return err
 	}
 
 	for {
-		deployment, err := a.deployment()
+		deployment, err := a.deployment(ctx)
 		if err != nil {
 			return err
 		}
@@ -214,7 +214,7 @@ func (a *Application) Bind(service interfaces.Service) error {
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
 		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
-			context.Background(),
+			ctx,
 			deployment,
 			metav1.UpdateOptions{},
 		)
@@ -233,8 +233,8 @@ func (a *Application) Bind(service interfaces.Service) error {
 }
 
 // Lookup locates an Application by org and name
-func Lookup(kubeClient *kubernetes.Cluster, org, lookupApp string) (*Application, error) {
-	apps, err := List(kubeClient, org)
+func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, lookupApp string) (*Application, error) {
+	apps, err := List(ctx, kubeClient, org)
 	if err != nil {
 		return nil, err
 	}
@@ -249,32 +249,32 @@ func Lookup(kubeClient *kubernetes.Cluster, org, lookupApp string) (*Application
 }
 
 // Delete deletes an application by org and name
-func Delete(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string, app Application) error {
+func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string, app Application) error {
 	if len(app.BoundServices) > 0 {
 		for _, bonded := range app.BoundServices {
-			bound, err := services.Lookup(kubeClient, org, bonded)
+			bound, err := services.Lookup(ctx, kubeClient, org, bonded)
 			if err != nil {
 				return err
 			}
 
-			err = app.Unbind(bound)
+			err = app.Unbind(ctx, bound)
 			if err != nil {
 				return err
 			}
 		}
 	}
 
-	err := app.Delete(gitea)
+	err := app.Delete(ctx, gitea)
 	if err != nil {
 		return err
 	}
 
-	err = Unstage(app.Name, app.Organization, "")
+	err = Unstage(ctx, app.Name, app.Organization, "")
 	if err != nil {
 		return err
 	}
 
-	err = kubeClient.WaitForPodBySelectorMissing(nil,
+	err = kubeClient.WaitForPodBySelectorMissing(ctx, nil,
 		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/name=%s", app.Name),
 		duration.ToDeployment())
@@ -286,14 +286,14 @@ func Delete(kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string, ap
 }
 
 // List returns an ApplicationList of all available applications (in the org)
-func List(kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
+func List(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
 	}
 
 	result := ApplicationList{}
 
-	exists, err := organizations.Exists(kubeClient, org)
+	exists, err := organizations.Exists(ctx, kubeClient, org)
 	if err != nil {
 		return result, err
 	}
@@ -301,7 +301,7 @@ func List(kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
 		return result, fmt.Errorf("organization %s does not exist", org)
 	}
 
-	deployments, err := kubeClient.Kubectl.AppsV1().Deployments(org).List(context.Background(), listOptions)
+	deployments, err := kubeClient.Kubectl.AppsV1().Deployments(org).List(ctx, listOptions)
 	if err != nil {
 		return result, err
 	}
@@ -311,7 +311,7 @@ func List(kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
 			Organization: org,
 			Name:         deployment.ObjectMeta.Name,
 			kubeClient:   kubeClient,
-		}).Complete()
+		}).Complete(ctx)
 		if err != nil {
 			return result, err
 		}
@@ -322,7 +322,7 @@ func List(kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
 	return result, nil
 }
 
-func (app *Application) Complete() (*Application, error) {
+func (app *Application) Complete(ctx context.Context) (*Application, error) {
 	var err error
 
 	selector := fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio,app.kubernetes.io/name=%s",
@@ -332,14 +332,14 @@ func (app *Application) Complete() (*Application, error) {
 		LabelSelector: selector,
 	}
 
-	pods, err := app.kubeClient.Kubectl.CoreV1().Pods(app.Organization).List(context.Background(), listOptions)
+	pods, err := app.kubeClient.Kubectl.CoreV1().Pods(app.Organization).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
 
 	app.StageID = pods.Items[0].ObjectMeta.Labels["epinio.suse.org/stage-id"]
 
-	app.Status, err = app.kubeClient.DeploymentStatus(
+	app.Status, err = app.kubeClient.DeploymentStatus(ctx,
 		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
 			app.Organization, app.Name))
@@ -347,14 +347,14 @@ func (app *Application) Complete() (*Application, error) {
 		app.Status = err.Error()
 	}
 
-	app.Routes, err = app.kubeClient.ListIngressRoutes(
+	app.Routes, err = app.kubeClient.ListIngressRoutes(ctx,
 		app.Organization, app.Name)
 	if err != nil {
 		app.Routes = []string{err.Error()}
 	}
 
 	app.BoundServices = []string{}
-	bound, err := app.Services()
+	bound, err := app.Services(ctx)
 	if err != nil {
 		app.BoundServices = append(app.BoundServices, err.Error())
 	} else {
@@ -381,10 +381,8 @@ func (al ApplicationList) Less(i, j int) bool {
 }
 
 // Unstage deletes either all PipelineRuns of the named application, or all but the current.
-func Unstage(app, org, stageIdCurrent string) error {
-	ctx := context.Background()
-
-	cluster, err := kubernetes.GetCluster()
+func Unstage(ctx context.Context, app, org, stageIdCurrent string) error {
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return err
 	}

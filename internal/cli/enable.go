@@ -76,7 +76,7 @@ func EnableGoogle(cmd *cobra.Command, args []string) error {
 
 func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, opts kubernetes.InstallationOptions, successMessage string) error {
 	uiUI := termui.NewUI()
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Flags(), &opts)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &opts)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -87,7 +87,7 @@ func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, opt
 		return errors.Wrap(err, "error initializing cli")
 	}
 	uiUI.Note().Msg(deployment.ID() + " installing...")
-	if err := installClient.InstallDeployment(deployment, installClient.Log); err != nil {
+	if err := installClient.InstallDeployment(cmd.Context(), deployment, installClient.Log); err != nil {
 		return err
 	}
 	uiUI.Note().Msg(successMessage)

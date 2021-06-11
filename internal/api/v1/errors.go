@@ -6,9 +6,18 @@ import (
 	"strings"
 )
 
+// All our actions match this type. They can return a list of errors.
+// The "Status" of the first error in the list becomes the response Status Code.
+type APIActionFunc func(http.ResponseWriter, *http.Request) APIErrors
+
 // ErrorResponse is the response's JSON, that is send in case of an error
 type ErrorResponse struct {
-	Errors APIErrors `json:"errors"`
+	Errors []APIError `json:"errors"`
+}
+
+type APIErrors interface {
+	Errors() []APIError
+	FirstStatus() int
 }
 
 type APIError struct {
@@ -17,51 +26,62 @@ type APIError struct {
 	Details string `json:"details"`
 }
 
+var _ APIErrors = APIError{}
+
 // Satisfy the error interface
 func (err APIError) Error() string {
 	return err.Title
 }
 
-func NewAPIError(message, details string, status int) APIError {
+// Satisfy the multi error interface
+func (a APIError) Errors() []APIError {
+	return []APIError{a}
+}
+
+func (a APIError) FirstStatus() int {
+	return a.Status
+}
+
+func NewAPIError(title string, details string, status int) APIError {
 	return APIError{
-		Title:   message,
+		Title:   title,
 		Details: details,
 		Status:  status,
 	}
 }
 
-type APIErrors []APIError
+var _ APIErrors = MultiError{}
 
-// NewAPIErrors returns a list of APIError
-func NewAPIErrors(errs ...APIError) APIErrors {
-	return errs
+type MultiError struct {
+	errors []APIError
 }
 
-// singleNewError helps to return just a single error, as a list
-func singleNewError(message string, status int) APIErrors {
-	return NewAPIErrors(NewAPIError(message, "", status))
+func (m MultiError) Errors() []APIError {
+	return m.errors
 }
 
-// singleError helps to return just a single error, as a list
-func singleError(err error, status int) APIErrors {
-	return NewAPIErrors(NewAPIError(err.Error(), "", status))
+func (m MultiError) FirstStatus() int {
+	return m.errors[0].Status
 }
 
-// singleInternalError is a helper to return a single 5xx error, with a message, in a list.
-func singleInternalError(err error, msg string) APIErrors {
-	return NewAPIErrors(NewAPIError(err.Error(), msg, http.StatusInternalServerError))
+func InternalError(err error, details ...string) APIError {
+	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusInternalServerError)
 }
 
-// All our actions match this type. They can return a list of errors.
-// The "Status" of the first error in the list becomes the response Status Code.
-type APIActionFunc func(http.ResponseWriter, *http.Request) APIErrors
-
-func InternalError(err error) APIError {
-	return NewAPIError(err.Error(), "", http.StatusInternalServerError)
+func NewInternalError(msg string, details ...string) APIError {
+	return NewAPIError(msg, strings.Join(details, ", "), http.StatusInternalServerError)
 }
 
 func BadRequest(err error, details ...string) APIError {
 	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusBadRequest)
+}
+
+func NewBadRequest(msg string, details ...string) APIError {
+	return NewAPIError(msg, strings.Join(details, ", "), http.StatusBadRequest)
+}
+
+func NewNotFoundError(msg string, details ...string) APIError {
+	return NewAPIError(msg, strings.Join(details, ", "), http.StatusNotFound)
 }
 
 func OrgIsNotKnown(org string) APIError {
@@ -88,6 +108,13 @@ func ServiceIsNotKnown(service string) APIError {
 func ServiceClassIsNotKnown(serviceclass string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("ServiceClass '%s' does not exist", serviceclass),
+		"",
+		http.StatusNotFound)
+}
+
+func ServicePlanIsNotKnown(service string, c string) APIError {
+	return NewAPIError(
+		fmt.Sprintf("Service plan '%s' does not exist for class '%s'", service, c),
 		"",
 		http.StatusNotFound)
 }

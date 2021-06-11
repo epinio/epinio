@@ -18,12 +18,12 @@ func (k *Generic) Describe() string {
 
 func (k *Generic) String() string { return "generic" }
 
-func (k *Generic) Detect(kube *kubernetes.Clientset) bool {
+func (k *Generic) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
 	return false
 }
 
-func (k *Generic) Load(kube *kubernetes.Clientset) error {
-	nodes, err := kube.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+func (k *Generic) Load(ctx context.Context, kube *kubernetes.Clientset) error {
+	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

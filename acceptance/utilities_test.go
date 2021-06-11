@@ -123,9 +123,11 @@ func makeAppWithDir(appName string, instances int, deployFromCurrentDir bool, ap
 
 	// And check presence
 
-	out, err := Epinio("app list", "")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	EventuallyWithOffset(1, func() string {
+		out, err := Epinio("app list", "")
+		Expect(err).ToNot(HaveOccurred(), out)
+		return out
+	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
 
 	return pushOutput
 }

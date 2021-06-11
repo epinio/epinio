@@ -21,8 +21,8 @@ func (k *kind) Describe() string {
 
 func (k *kind) String() string { return "kind" }
 
-func (k *kind) Detect(kube *kubernetes.Clientset) bool {
-	nodes, err := kube.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+func (k *kind) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false
 	}

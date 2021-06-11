@@ -20,8 +20,8 @@ func (k *ibm) Describe() string {
 
 func (k *ibm) String() string { return "ibm" }
 
-func (k *ibm) Detect(kube *kubernetes.Clientset) bool {
-	nodes, err := kube.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
+func (k *ibm) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false
 	}
