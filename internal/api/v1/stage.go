@@ -68,7 +68,7 @@ func (hc ApplicationsController) WaitUntilStaged(w http.ResponseWriter, r *http.
 
 	err = wait.PollImmediate(time.Second, duration.ToAppBuilt(),
 		func() (bool, error) {
-			l, err := client.List(context.TODO(),
+			l, err := client.List(ctx,
 				metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + stageId})
 			if err != nil {
 				return false, err
