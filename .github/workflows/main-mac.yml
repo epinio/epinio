@@ -37,7 +37,9 @@ jobs:
 
       - name: Install docker # Taken from https://github.com/actions/virtual-environments/issues/1143#issuecomment-652264388
         run: |
-          brew install docker
+          mkdir -p ~/.docker/machine/cache
+          curl -Lo ~/.docker/machine/cache/boot2docker.iso https://github.com/boot2docker/boot2docker/releases/download/v19.03.12/boot2docker.iso
+          brew install docker docker-machine
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
