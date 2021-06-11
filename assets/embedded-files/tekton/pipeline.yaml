@@ -79,6 +79,21 @@ spec:
     workspaces:
     - name: source
       workspace: source
+  - name: clean
+    taskRef:
+      name: clean
+    params:
+      - name: APP_NAME
+        value: "$(params.APP_NAME)"
+      - name: ORG
+        value: "$(params.ORG)"
+      - name: STAGE_ID
+        value: "$(params.STAGE_ID)"
+    runAfter:
+    - stage
+    workspaces:
+    - name: source
+      workspace: source
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
@@ -235,3 +250,41 @@ spec:
             - $(params.ROUTE)
             secretName: $(params.APP_NAME)-tls
         EOF
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clean
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  params:
+    - name: APP_NAME
+      type: string
+    - name: ORG
+      type: string
+    - name: STAGE_ID
+      type: string
+  steps:
+  - name: clean
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source/app"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        # (kubectl get ..) Get all pipeline runs for the application specified by name and org.
+        # (jsonpath)       Just their names.
+        # (if test)        Exclude the current run (name == stage_id).
+        # (for/kube ...)   Delete the remainder.
+        #
+        echo "Cleaning up old runs of application '$(params.APP_NAME)' in organization '$(params.ORG)'"
+        echo "Current run to ignore is '$(params.STAGE_ID)'"
+        for run in $(kubectl get pipelinerun -n tekton-staging -l "app.kubernetes.io/name=$(params.APP_NAME),app.kubernetes.io/part-of=$(params.ORG)" -o "jsonpath={.items[*].metadata.name}")
+        do
+          if test "$run" == "$(params.STAGE_ID)" ; then continue ; fi
+          echo "Remove: $run"
+          kubectl delete pipelinerun -n tekton-staging "$run"
+        done
