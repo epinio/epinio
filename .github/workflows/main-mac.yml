@@ -44,9 +44,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Install new bash
+      - name: Install tools script dependencies
         run: |
-          brew install bash
+          brew install bash coreutils
       - name: Install Tools
         run: make tools-install
       - name: Add Tools to PATH
