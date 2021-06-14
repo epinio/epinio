@@ -1,6 +1,9 @@
 package acceptance_test
 
 import (
+	"fmt"
+
+	"github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -17,6 +20,17 @@ var _ = Describe("Catalog Services", func() {
 	Describe("service create", func() {
 		It("creates a catalog based service, with waiting", func() {
 			makeCatalogService(serviceName)
+		})
+
+		It("creates a catalog based service, with additional data", func() {
+			makeCatalogService(serviceName, `{ "db": { "name": "wordpress" }}`)
+			serviceInstanceName := fmt.Sprintf("service.org-%s.svc-%s", org, serviceName)
+
+			out, err := helpers.Kubectl(
+				fmt.Sprintf("get serviceinstance -n %s %s -o=jsonpath='{.status.externalProperties.parameters.db.name}'",
+					org, serviceInstanceName))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(Equal("wordpress"))
 		})
 
 		It("creates a catalog based service, without waiting", func() {

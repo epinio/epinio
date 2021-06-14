@@ -269,9 +269,19 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 		return ServicePlanIsNotKnown(createRequest.Plan, createRequest.Class)
 	}
 
+	data := createRequest.Data
+	if createRequest.Data == "" {
+		data = "{}"
+	}
+	var dataObj map[string]interface{}
+	err = json.Unmarshal([]byte(data), &dataObj)
+	if err != nil {
+		return BadRequest(err, data)
+	}
+
 	// Create the new service. At last.
 	service, err := services.CreateCatalogService(ctx, cluster, createRequest.Name, org,
-		createRequest.Class, createRequest.Plan, createRequest.Data)
+		createRequest.Class, createRequest.Plan, data)
 	if err != nil {
 		return InternalError(err)
 	}

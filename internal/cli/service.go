@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"encoding/json"
+
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 func init() {
+	CmdServiceCreate.Flags().String("data", "", "json data to be passed to the underlying service as parameters")
 	CmdServiceCreate.Flags().Bool("dont-wait", false, "Return immediately, without waiting for the service to be provisioned")
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
 	CmdService.AddCommand(CmdServiceShow)
@@ -58,15 +61,12 @@ var CmdServiceShow = &cobra.Command{
 
 // CmdServiceCreate implements the epinio service create command
 var CmdServiceCreate = &cobra.Command{
-	Use:   "create NAME CLASS PLAN ?(KEY VALUE)...?",
+	Use:   "create NAME CLASS PLAN",
 	Short: "Create a service",
-	Long:  `Create service by name, class, plan, and optional key/value dictionary.`,
+	Long:  `Create service by name, class, plan, and optional json data.`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 3 {
-			return errors.New("Not enough arguments, expected name, class, plan, key, and value")
-		}
-		if len(args)%2 == 0 {
-			return errors.New("Last Key has no value")
+			return errors.New("Not enough arguments, expected name, class, plan")
 		}
 		return nil
 	},
@@ -294,7 +294,22 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 	}
 	waitforProvision := !dw
 
-	err = client.CreateService(args[0], args[1], args[2], args[3:], waitforProvision)
+	data, err := cmd.Flags().GetString("data")
+	if err != nil {
+		return err
+	}
+
+	if data == "" {
+		data = "{}"
+	}
+
+	var dataObj map[string]interface{}
+	err = json.Unmarshal([]byte(data), &dataObj)
+	if err != nil {
+		return errors.Wrap(err, "Invalid json format for data")
+	}
+
+	err = client.CreateService(args[0], args[1], args[2], data, waitforProvision)
 	if err != nil {
 		return errors.Wrap(err, "error creating service")
 	}

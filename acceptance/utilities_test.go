@@ -143,8 +143,12 @@ func makeCustomService(serviceName string) {
 	ExpectWithOffset(1, out).To(MatchRegexp(serviceName))
 }
 
-func makeCatalogService(serviceName string) {
-	out, err := Epinio(fmt.Sprintf("service create %s mariadb 10-3-22", serviceName), "")
+func makeCatalogService(serviceName string, dataJSON ...string) {
+	dataStr := ""
+	if len(dataJSON) > 0 {
+		dataStr = fmt.Sprintf("--data '%s'", dataJSON[0])
+	}
+	out, err := Epinio(fmt.Sprintf("service create %s mariadb 10-3-22 %s", serviceName, dataStr), "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// Look for the messaging indicating that the command waited
@@ -158,8 +162,12 @@ func makeCatalogService(serviceName string) {
 	ExpectWithOffset(1, out).To(MatchRegexp(serviceName))
 }
 
-func makeCatalogServiceDontWait(serviceName string) {
-	out, err := Epinio(fmt.Sprintf("service create --dont-wait %s mariadb 10-3-22", serviceName), "")
+func makeCatalogServiceDontWait(serviceName string, dataJSON ...string) {
+	dataStr := ""
+	if len(dataJSON) > 0 {
+		dataStr = fmt.Sprintf("--data '%s'", dataJSON[0])
+	}
+	out, err := Epinio(fmt.Sprintf("service create --dont-wait %s mariadb 10-3-22 %s", serviceName, dataStr), "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// Look for indicator that command did not wait

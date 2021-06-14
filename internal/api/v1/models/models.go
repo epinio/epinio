@@ -10,11 +10,11 @@ type ServiceResponse struct {
 type ServiceResponseList []ServiceResponse
 
 type CatalogCreateRequest struct {
-	Name             string            `json:"name"`
-	Class            string            `json:"class"`
-	Plan             string            `json:"plan"`
-	Data             map[string]string `json:"data"`
-	WaitForProvision bool              `json:"waitforprovision"`
+	Name             string `json:"name"`
+	Class            string `json:"class"`
+	Plan             string `json:"plan"`
+	Data             string `json:"data"`
+	WaitForProvision bool   `json:"waitforprovision"`
 }
 
 type CustomCreateRequest struct {
