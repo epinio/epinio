@@ -90,7 +90,7 @@ spec:
       - name: STAGE_ID
         value: "$(params.STAGE_ID)"
     runAfter:
-    - stage
+    - run
     workspaces:
     - name: source
       workspace: source
