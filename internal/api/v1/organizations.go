@@ -163,7 +163,50 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.C
 		return err
 	}
 
-	// create a buffer, so there is no more than 'maxConcurrent' goroutines running at the same time
+	// Operation of the concurrent code below:
+	//
+	// 1. A wait group `wg` is used to ensure that the main thread
+	//    of the function does not return until all deletions in
+	//    flight have completed, one way or other (z). The
+	//    dispatch loop expands the wait group (1a), each
+	//    completed runner shrinks it, via defer (1b).
+	//
+	// 2. The `buffer` channel is used to control and limit the
+	//    amount of concurrency. Each iteration of the dispatch
+	//    loop enters a signal into the channel (2a), blocking
+	//    when the capacity (= concurrency limit) is reached, or
+	//    spawning a runner. Runners remove signals from the
+	//    channel as they complete (2b), freeing up capacity and
+	//    unblocking the dispatcher.
+	//
+	// 3. The error handling is a bit tricky, as it has to take
+	//    two cases into account, about the timeline of events
+	//    happening:
+	//
+	//    a. If even a single runner was fast enough to report an
+	//       error (x) while the dispatch loop is still running,
+	//       then that error is captured by the loop itself, at
+	//       (3a1) and then reported at (3a2), after the other
+	//       runners in flight have completed also. The loop also
+	//       stops dispatching more runners.
+	//
+	//     b. If on the other hand the dispatch loop completed
+	//        before any runner reported an error, then that error
+	//        is captured and reported at (3b1).
+	//
+	//        This part works because
+	//
+	//        i. The command waiting for all runners to complete
+	//           (z) ensures that an empty channel means that no
+	//           errors occured, there can be no stragglers to
+	//           wait for at (3b1).
+	//
+	//        ii. The error channel has capacity according to the
+	//            concurrency limit, i.e. enough space to capture
+	//            the errors from all possible runners, without
+	//            blocking any of them from completion, and thus
+	//            not block the wait group either at (z).
+
 	const maxConcurrent = 100
 	buffer := make(chan struct{}, maxConcurrent)
 	errChan := make(chan error, maxConcurrent)
@@ -172,32 +215,35 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.C
 
 loop:
 	for _, app := range apps {
-		buffer <- struct{}{}
-		wg.Add(1)
+		buffer <- struct{}{} // 2a
+		wg.Add(1)            // 1a
 
 		go func(app application.Application) {
-			defer wg.Done()
+			defer wg.Done() // 1b
 			defer func() {
-				<-buffer
+				<-buffer // 2b
 			}()
 			err = application.Delete(ctx, cluster, gitea, org, app)
 			if err != nil {
-				errChan <- err
+				errChan <- err // x
 			}
 		}(app)
 
+		// 3a1
 		select {
 		case forLoopErr = <-errChan:
 			break loop
 		default:
 		}
 	}
-	wg.Wait()
+	wg.Wait() // z
 
+	// 3a2
 	if forLoopErr != nil {
 		return forLoopErr
 	}
 
+	// 3b1
 	select {
 	case err := <-errChan:
 		return err
