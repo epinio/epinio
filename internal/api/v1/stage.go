@@ -24,7 +24,6 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 )
@@ -110,11 +109,6 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Git:       req.Git,
 		Route:     req.Route,
 		Instances: instances,
-	}
-
-	err = application.Unstage(ctx, name, org, uid)
-	if err != nil {
-		return InternalError(err, "failed delete previous pipeline runs")
 	}
 
 	pr := newPipelineRun(uid, app)
