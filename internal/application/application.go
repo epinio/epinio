@@ -4,19 +4,26 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"sync"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -414,4 +421,59 @@ func Unstage(ctx context.Context, app, org, stageIdCurrent string) error {
 	}
 
 	return nil
+}
+
+// Logs method writes log lines to the specified logChan. The caller can stop
+// the logging with the ctx cancelFunc. It's also the callers responsibility
+// to close the logChan when done.
+// When stageID is an empty string, no staging logs are returned. If it is set,
+// then only logs from that staging process are returned.
+func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, client *kubernetes.Cluster, follow bool, app, stageID, org string) error {
+	selector := labels.NewSelector()
+
+	var selectors [][]string
+	if stageID == "" {
+		selectors = [][]string{
+			{"app.kubernetes.io/component", "application"},
+			{"app.kubernetes.io/managed-by", "epinio"},
+			{"app.kubernetes.io/part-of", org},
+			{"app.kubernetes.io/name", app},
+		}
+	} else {
+		selectors = [][]string{
+			{"app.kubernetes.io/component", "staging"},
+			{"app.kubernetes.io/managed-by", "epinio"},
+			{models.EpinioStageIDLabel, stageID},
+			{"app.kubernetes.io/part-of", org},
+		}
+	}
+
+	for _, req := range selectors {
+		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
+		if err != nil {
+			return err
+		}
+		selector = selector.Add(*req)
+	}
+
+	config := &tailer.Config{
+		ContainerQuery:        regexp.MustCompile(".*"),
+		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
+		ContainerState:        "running",
+		Exclude:               nil,
+		Include:               nil,
+		Timestamps:            false,
+		Since:                 duration.LogHistory(),
+		AllNamespaces:         true,
+		LabelSelector:         selector,
+		TailLines:             nil,
+		Namespace:             "",
+		PodQuery:              regexp.MustCompile(".*"),
+	}
+
+	if follow {
+		return tailer.StreamLogs(ctx, logChan, wg, config, client)
+	}
+
+	return tailer.FetchLogs(ctx, logChan, wg, config, client)
 }

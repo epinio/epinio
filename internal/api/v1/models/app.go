@@ -1,16 +1,7 @@
 package models
 
 import (
-	"context"
 	"fmt"
-	"regexp"
-	"sync"
-
-	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/internal/duration"
-	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/selection"
 )
 
 const (
@@ -30,61 +21,6 @@ type App struct {
 // NewApp returns a new app for name and org
 func NewApp(name string, org string) *App {
 	return &App{AppRef: AppRef{Name: name, Org: org}}
-}
-
-// Logs method writes log lines to the specified logChan. The caller can stop
-// the logging with the ctx cancelFunc. It's also the callers responsibility
-// to close the logChan when done.
-// When stageID is an empty string, no staging logs are returned. If it is set,
-// then only logs from that staging process are returned.
-func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, client *kubernetes.Cluster, follow bool, app, stageID, org string) error {
-	selector := labels.NewSelector()
-
-	var selectors [][]string
-	if stageID == "" {
-		selectors = [][]string{
-			{"app.kubernetes.io/component", "application"},
-			{"app.kubernetes.io/managed-by", "epinio"},
-			{"app.kubernetes.io/part-of", org},
-			{"app.kubernetes.io/name", app},
-		}
-	} else {
-		selectors = [][]string{
-			{"app.kubernetes.io/component", "staging"},
-			{"app.kubernetes.io/managed-by", "epinio"},
-			{EpinioStageIDLabel, stageID},
-			{"app.kubernetes.io/part-of", org},
-		}
-	}
-
-	for _, req := range selectors {
-		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
-		if err != nil {
-			return err
-		}
-		selector = selector.Add(*req)
-	}
-
-	config := &tailer.Config{
-		ContainerQuery:        regexp.MustCompile(".*"),
-		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
-		ContainerState:        "running",
-		Exclude:               nil,
-		Include:               nil,
-		Timestamps:            false,
-		Since:                 duration.LogHistory(),
-		AllNamespaces:         true,
-		LabelSelector:         selector,
-		TailLines:             nil,
-		Namespace:             "",
-		PodQuery:              regexp.MustCompile(".*"),
-	}
-
-	if follow {
-		return tailer.StreamLogs(ctx, logChan, wg, config, client)
-	}
-
-	return tailer.FetchLogs(ctx, logChan, wg, config, client)
 }
 
 // GitURL returns the git URL by combining the server with the org and name
