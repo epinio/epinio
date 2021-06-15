@@ -119,7 +119,10 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	if err := c.InstallDeployment(ctx, &deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+	if err := c.InstallDeployment(ctx, &deployments.Linkerd{
+		Timeout: duration.ToDeployment(),
+		Log:     details.V(1),
+	}, details); err != nil {
 		return err
 	}
 
@@ -256,7 +259,10 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err := c.UninstallDeployment(ctx, &deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+	if err := c.UninstallDeployment(ctx, &deployments.Linkerd{
+		Timeout: duration.ToDeployment(),
+		Log:     details.V(1),
+	}, details); err != nil {
 		panic(err)
 	}
 
@@ -311,7 +317,10 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	if err := c.InstallDeployment(ctx, &deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+	if err := c.InstallDeployment(ctx, &deployments.Linkerd{
+		Timeout: duration.ToDeployment(),
+		Log:     details.V(1),
+	}, details); err != nil {
 		return err
 	}
 
