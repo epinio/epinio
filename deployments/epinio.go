@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -137,23 +139,38 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	}
 
 	// Wait for the cert manager to be present and active. It is required
-	for _, podname := range []string{
-		"webhook",
+	for _, deployment := range []string{
 		"cert-manager",
-		"cainjector",
+		"cert-manager-webhook",
+		"cert-manager-cainjector",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to exist")
+		if err := c.WaitUntilDeploymentExists(ctx, ui, CertManagerDeploymentID, deployment, duration.ToCertManagerReady()); err != nil {
+			return errors.Wrapf(err, "failed waiting CertManager %s deployment to exist in namespace %s", deployment, CertManagerDeploymentID)
 		}
-		if err := c.WaitForPodBySelectorRunning(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, k.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to come up")
+
+		if err := c.WaitForDeploymentCompleted(ctx, ui, CertManagerDeploymentID, deployment, duration.ToCertManagerReady()); err != nil {
+			return errors.Wrapf(err, "failed waiting CertManager %s deployment to be ready in namespace %s", deployment, CertManagerDeploymentID)
 		}
 	}
 
 	message := "Creating Epinio server cert"
-	err = auth.CreateCertificate(ctx, c.RestConfig, EpinioDeploymentID, EpinioDeploymentID, domain)
+	// Workaround for cert-manager webhook service not being immediately ready.
+	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
+	err = retry.Do(func() error {
+		return auth.CreateCertificate(ctx, c.RestConfig, EpinioDeploymentID, EpinioDeploymentID, domain)
+	},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "failed calling webhook") ||
+				strings.Contains(err.Error(), "EOF")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("retrying to create the epinio cert using cert-manager")
+		}),
+		retry.Delay(5*time.Second),
+		retry.Attempts(10),
+	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
+		return errors.Wrap(err, "failed trying to create the epinio API server cert")
 	}
 
 	message = "Creating Epinio server ingress"
