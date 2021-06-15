@@ -65,17 +65,15 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	log.V(2).Info("create gitea app repo")
-	app := models.NewApp(name, org)
-	err = client.Upload(app, appDir)
+	app := models.NewAppRef(name, org)
+	g, err := client.Upload(app, appDir)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	log.Info("uploaded app", "org", org, "app", app)
 
-	resp := models.UploadResponse{
-		Git: app.Git,
-	}
+	resp := models.UploadResponse{Git: &g}
 	err = jsonResponse(w, resp)
 	if err != nil {
 		return InternalError(err)

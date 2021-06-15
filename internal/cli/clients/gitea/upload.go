@@ -19,33 +19,34 @@ const LocalRegistry = "127.0.0.1:30500/apps"
 // Upload puts the app data into the gitea repo and creates the webhook and
 // accompanying app data.
 // The results are added to the struct App.
-func (c *Client) Upload(app *models.App, tmpDir string) error {
+func (c *Client) Upload(app models.AppRef, tmpDir string) (models.GitRef, error) {
+	g := models.GitRef{}
 	org := app.Org
 	name := app.Name
 
 	err := c.createRepo(org, name)
 	if err != nil {
-		return errors.Wrap(err, "failed to create application")
+		return g, errors.Wrap(err, "failed to create application")
 	}
 
 	u, err := url.Parse(deployments.GiteaURL)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse gitea url")
+		return g, errors.Wrap(err, "failed to parse gitea url")
 	}
 	u.User = url.UserPassword(c.Auth.Username, c.Auth.Password)
 	u.Path = path.Join(u.Path, app.Org, app.Name)
 
 	rev, err := c.gitPush(u.String(), tmpDir)
 	if err != nil {
-		return errors.Wrap(err, "failed to get latest app commit")
+		return g, errors.Wrap(err, "failed to get latest app commit")
 	}
 
-	app.Git = &models.GitRef{
+	g = models.GitRef{
 		URL:      deployments.GiteaURL,
 		Revision: rev,
 	}
 
-	return nil
+	return g, nil
 }
 
 func (c *Client) createRepo(org string, name string) error {

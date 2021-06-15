@@ -23,8 +23,8 @@ func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	platform := client.KubeClient.GetPlatform()
-	kubeVersion, err := client.KubeClient.GetVersion()
+	platform := client.Cluster.GetPlatform()
+	kubeVersion, err := client.Cluster.GetVersion()
 	if handleError(w, err, 500) {
 		return
 	}

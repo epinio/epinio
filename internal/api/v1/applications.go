@@ -66,7 +66,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return AppAlreadyKnown(createRequest.Name)
 	}
 
-	err = application.Create(ctx, cluster, models.NewApp(createRequest.Name, org))
+	err = application.Create(ctx, cluster, models.NewAppRef(createRequest.Name, org))
 	if err != nil {
 		return InternalError(err)
 	}
@@ -198,7 +198,8 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
-	err = app.Scale(r.Context(), updateRequest.Instances)
+	workload := application.NewWorkload(cluster, app)
+	err = workload.Scale(r.Context(), updateRequest.Instances)
 	if err != nil {
 		return InternalError(err)
 	}

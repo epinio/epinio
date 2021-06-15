@@ -74,6 +74,8 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return AppIsNotKnown(appName)
 	}
 
+	wl := application.NewWorkload(cluster, app)
+
 	// From here on out we collect errors and warnings per
 	// service, to report as much as possible while also applying
 	// as much as possible. IOW even when errors are reported it
@@ -98,7 +100,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	}
 
 	for _, service := range theServices {
-		err = app.Bind(ctx, service)
+		err = wl.Bind(ctx, service)
 		if err != nil {
 			if err.Error() == "service already bound" {
 				theIssues = append(theIssues, ServiceAlreadyBound(service.Name()))
@@ -151,6 +153,8 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return AppIsNotKnown(appName)
 	}
 
+	wl := application.NewWorkload(cluster, app)
+
 	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
 		return ServiceIsNotKnown(serviceName)
@@ -159,7 +163,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return InternalError(err)
 	}
 
-	err = app.Unbind(ctx, service)
+	err = wl.Unbind(ctx, service)
 	if err != nil && err.Error() == "service is not bound to the application" {
 		return ServiceIsNotBound(serviceName)
 	}

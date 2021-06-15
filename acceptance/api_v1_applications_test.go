@@ -16,7 +16,6 @@ import (
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/application"
 	"github.com/gorilla/websocket"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -78,7 +77,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		bodyBytes, err := ioutil.ReadAll(response.Body)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-		var responseApp application.Application
+		var responseApp models.App
 		err = json.Unmarshal(bodyBytes, &responseApp)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		ExpectWithOffset(1, responseApp.Name).To(Equal(app))
@@ -172,7 +171,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				var apps application.ApplicationList
+				var apps models.AppList
 				err = json.Unmarshal(bodyBytes, &apps)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(apps[0].Name).To(Equal(app1))

@@ -44,7 +44,7 @@ import (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	KubeClient  *kubernetes.Cluster
+	Cluster     *kubernetes.Cluster
 	Config      *config.Config
 	Log         logr.Logger
 	ui          *termui.UI
@@ -78,7 +78,7 @@ func NewEpinioClient(ctx context.Context, flags *pflag.FlagSet) (*EpinioClient, 
 
 	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
-		KubeClient:  cluster,
+		Cluster:     cluster,
 		ui:          uiUI,
 		Config:      configConfig,
 		Log:         logger,
@@ -136,7 +136,7 @@ func (c *EpinioClient) ServicePlanMatching(ctx context.Context, serviceClassName
 
 	result := []string{}
 
-	serviceClass, err := services.ClassLookup(ctx, c.KubeClient, serviceClassName)
+	serviceClass, err := services.ClassLookup(ctx, c.Cluster, serviceClassName)
 	if err != nil {
 		return result
 	}
@@ -166,7 +166,7 @@ func (c *EpinioClient) ServiceClassMatching(ctx context.Context, prefix string) 
 
 	result := []string{}
 
-	serviceClasses, err := services.ListClasses(ctx, c.KubeClient)
+	serviceClasses, err := services.ListClasses(ctx, c.Cluster)
 	if err != nil {
 		details.Info("Error", err)
 		return result
@@ -261,7 +261,7 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 
 	result := []string{}
 
-	orgServices, err := services.List(ctx, c.KubeClient, c.Config.Org)
+	orgServices, err := services.List(ctx, c.Cluster, c.Config.Org)
 	if err != nil {
 		return result
 	}
@@ -568,8 +568,8 @@ func (c *EpinioClient) Info() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	platform := c.KubeClient.GetPlatform()
-	kubeVersion, err := c.KubeClient.GetVersion()
+	platform := c.Cluster.GetPlatform()
+	kubeVersion, err := c.Cluster.GetVersion()
 	if err != nil {
 		return errors.Wrap(err, "failed to get kube version")
 	}
@@ -607,7 +607,7 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 
 	result := []string{}
 
-	apps, err := application.List(ctx, c.KubeClient, c.Config.Org)
+	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
 	if err != nil {
 		return result
 	}
@@ -641,7 +641,8 @@ func (c *EpinioClient) Apps() error {
 	if err != nil {
 		return err
 	}
-	var apps application.ApplicationList
+
+	var apps models.AppList
 	if err := json.Unmarshal(jsonResponse, &apps); err != nil {
 		return err
 	}
@@ -680,7 +681,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 	if err != nil {
 		return err
 	}
-	var app application.Application
+	var app models.App
 	if err := json.Unmarshal(jsonResponse, &app); err != nil {
 		return err
 	}
@@ -706,7 +707,7 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	var app application.Application
+	var app models.App
 	if err := json.Unmarshal(jsonResponse, &app); err != nil {
 		return "", err
 	}
@@ -1224,7 +1225,7 @@ func (c *EpinioClient) deleteCertificate(ctx context.Context, appName string) er
 		Resource: "certificates",
 	}
 
-	dynamicClient, err := dynamic.NewForConfig(c.KubeClient.RestConfig)
+	dynamicClient, err := dynamic.NewForConfig(c.Cluster.RestConfig)
 	if err != nil {
 		return err
 	}
@@ -1235,7 +1236,7 @@ func (c *EpinioClient) deleteCertificate(ctx context.Context, appName string) er
 		return err
 	}
 
-	err = c.KubeClient.Kubectl.CoreV1().Secrets(c.Config.Org).Delete(ctx, fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
+	err = c.Cluster.Kubectl.CoreV1().Secrets(c.Config.Org).Delete(ctx, fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -1243,20 +1244,21 @@ func (c *EpinioClient) deleteCertificate(ctx context.Context, appName string) er
 	return nil
 }
 
-func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[string]application.ApplicationList, error) {
+func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[string]models.AppList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
-	var appsOf = map[string]application.ApplicationList{}
+	var appsOf = map[string]models.AppList{}
 
-	apps, err := application.List(ctx, c.KubeClient, c.Config.Org)
+	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, app := range apps {
-		bound, err := app.Services(ctx)
+		w := application.NewWorkload(c.Cluster, &app)
+		bound, err := w.Services(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -1265,7 +1267,7 @@ func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[stri
 			if theapps, found := appsOf[bname]; found {
 				appsOf[bname] = append(theapps, app)
 			} else {
-				appsOf[bname] = application.ApplicationList{app}
+				appsOf[bname] = models.AppList{app}
 			}
 		}
 	}
