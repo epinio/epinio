@@ -157,6 +157,18 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return nil
 	}
 
+	// Cases to consider, plus actions
+	//
+	//     | Service | Namespace | Meaning                             | Actions
+	// --- | ---     | ---       | ---                                 | ---
+	//  a  | yes     | yes       | Traefik present, likely from Epinio | Nothing
+	//  b  | yes     | no        | Traefik present, likely external    | Nothing
+	//  c  | no      | yes       | Something has claimed the namespace | Error
+	//  d  | no      | no        | Namespace is free for use           | Deploy
+
+	// Bug: The current order of checking (namespace first, then
+	// service), and associated actions, mishandles case A (Error
+	// instead of nothing).
 
 	log.Info("check presence, namespace")
 
