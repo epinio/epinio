@@ -222,7 +222,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 // closed.
 // Internally this uses two concurrent "threads" talking with each other
 // over the logChan. This is a channel of ContainerLogLine.
-// The first thread runs `models.Logs` in a go routine. It spins up a number of supporting go routines
+// The first thread runs `application.Logs` in a go routine. It spins up a number of supporting go routines
 // that are stopped when the passed context is "Done()". The parent go routine
 // waits until all the subordinate routines are stopped. It does this by waiting on a WaitGroup.
 // When that happens the parent go routine closes the logChan. This signals
@@ -241,7 +241,7 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 	wg.Add(1)
 	go func(outerWg *sync.WaitGroup) {
 		var tailWg sync.WaitGroup
-		err := models.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, orgName)
+		err := application.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, orgName)
 		if err != nil {
 			logger.Error(err, "setting up log routines failed")
 		}

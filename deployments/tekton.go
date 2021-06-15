@@ -206,7 +206,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
 			}
-			ui.Success().Msgf("applied %s", tektonPipelineYamlPath)
 			return nil
 		},
 		retry.RetryIf(func(err error) bool {

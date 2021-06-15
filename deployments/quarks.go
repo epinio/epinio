@@ -129,6 +129,7 @@ func (k Quarks) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	// Setup Quarks helm values
 	var helmArgs = []string{
+		"--set logLevel=info",
 		"--set image.tag=" + quarksLiteImageTag,
 	}
 

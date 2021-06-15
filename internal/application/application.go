@@ -1,22 +1,31 @@
+// Package application has actor functions that deal with application workloads
+// on k8s
 package application
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"sync"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -29,7 +38,7 @@ type Application struct {
 	StageID       string
 	Routes        []string
 	BoundServices []string
-	kubeClient    *kubernetes.Cluster
+	cluster       *kubernetes.Cluster
 }
 
 type ApplicationList []Application
@@ -44,21 +53,21 @@ func (a *Application) Delete(ctx context.Context, gitea GiteaInterface) error {
 		return pkgerrors.Wrap(err, "failed to delete repository")
 	}
 
-	err := a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).
+	err := a.cluster.Kubectl.AppsV1().Deployments(a.Organization).
 		Delete(ctx, a.Name, metav1.DeleteOptions{})
 
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application deployment")
 	}
 
-	err = a.kubeClient.Kubectl.ExtensionsV1beta1().Ingresses(a.Organization).
+	err = a.cluster.Kubectl.ExtensionsV1beta1().Ingresses(a.Organization).
 		Delete(ctx, a.Name, metav1.DeleteOptions{})
 
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application ingress")
 	}
 
-	err = a.kubeClient.Kubectl.CoreV1().Services(a.Organization).
+	err = a.cluster.Kubectl.CoreV1().Services(a.Organization).
 		Delete(ctx, a.Name, metav1.DeleteOptions{})
 
 	if err != nil {
@@ -78,7 +87,7 @@ func (a *Application) Services(ctx context.Context) (interfaces.ServiceList, err
 	var bound = interfaces.ServiceList{}
 
 	for _, volume := range deployment.Spec.Template.Spec.Volumes {
-		service, err := services.Lookup(ctx, a.kubeClient, a.Organization, volume.Name)
+		service, err := services.Lookup(ctx, a.cluster, a.Organization, volume.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -101,7 +110,7 @@ func (a *Application) Scale(ctx context.Context, instances int32) error {
 
 		deployment.Spec.Replicas = &instances
 
-		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Update(
 			ctx, deployment, metav1.UpdateOptions{})
 
 		return err
@@ -148,7 +157,7 @@ func (a *Application) Unbind(ctx context.Context, service interfaces.Service) er
 		deployment.Spec.Template.Spec.Volumes = newVolumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newVolumeMounts
 
-		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Update(
 			ctx,
 			deployment,
 			metav1.UpdateOptions{},
@@ -168,7 +177,7 @@ func (a *Application) Unbind(ctx context.Context, service interfaces.Service) er
 }
 
 func (a *Application) deployment(ctx context.Context) (*appsv1.Deployment, error) {
-	return a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Get(
+	return a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Get(
 		ctx, a.Name, metav1.GetOptions{},
 	)
 }
@@ -213,7 +222,7 @@ func (a *Application) Bind(ctx context.Context, service interfaces.Service) erro
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
-		_, err = a.kubeClient.Kubectl.AppsV1().Deployments(a.Organization).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Update(
 			ctx,
 			deployment,
 			metav1.UpdateOptions{},
@@ -233,8 +242,8 @@ func (a *Application) Bind(ctx context.Context, service interfaces.Service) erro
 }
 
 // Lookup locates an Application by org and name
-func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, lookupApp string) (*Application, error) {
-	apps, err := List(ctx, kubeClient, org)
+func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp string) (*Application, error) {
+	apps, err := List(ctx, cluster, org)
 	if err != nil {
 		return nil, err
 	}
@@ -249,10 +258,10 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, lookupApp 
 }
 
 // Delete deletes an application by org and name
-func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string, app Application) error {
+func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, org string, app Application) error {
 	if len(app.BoundServices) > 0 {
 		for _, bonded := range app.BoundServices {
-			bound, err := services.Lookup(ctx, kubeClient, org, bonded)
+			bound, err := services.Lookup(ctx, cluster, org, bonded)
 			if err != nil {
 				return err
 			}
@@ -274,7 +283,7 @@ func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 		return err
 	}
 
-	err = kubeClient.WaitForPodBySelectorMissing(ctx, nil,
+	err = cluster.WaitForPodBySelectorMissing(ctx, nil,
 		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/name=%s", app.Name),
 		duration.ToDeployment())
@@ -286,14 +295,14 @@ func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 }
 
 // List returns an ApplicationList of all available applications (in the org)
-func List(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (ApplicationList, error) {
+func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (ApplicationList, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
 	}
 
 	result := ApplicationList{}
 
-	exists, err := organizations.Exists(ctx, kubeClient, org)
+	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		return result, err
 	}
@@ -301,7 +310,7 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (Appl
 		return result, fmt.Errorf("organization %s does not exist", org)
 	}
 
-	deployments, err := kubeClient.Kubectl.AppsV1().Deployments(org).List(ctx, listOptions)
+	deployments, err := cluster.Kubectl.AppsV1().Deployments(org).List(ctx, listOptions)
 	if err != nil {
 		return result, err
 	}
@@ -310,7 +319,7 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (Appl
 		appEpinio, err := (&Application{
 			Organization: org,
 			Name:         deployment.ObjectMeta.Name,
-			kubeClient:   kubeClient,
+			cluster:      cluster,
 		}).Complete(ctx)
 		if err != nil {
 			return result, err
@@ -332,14 +341,14 @@ func (app *Application) Complete(ctx context.Context) (*Application, error) {
 		LabelSelector: selector,
 	}
 
-	pods, err := app.kubeClient.Kubectl.CoreV1().Pods(app.Organization).List(ctx, listOptions)
+	pods, err := app.cluster.Kubectl.CoreV1().Pods(app.Organization).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
 
 	app.StageID = pods.Items[0].ObjectMeta.Labels["epinio.suse.org/stage-id"]
 
-	app.Status, err = app.kubeClient.DeploymentStatus(ctx,
+	app.Status, err = app.cluster.DeploymentStatus(ctx,
 		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
 			app.Organization, app.Name))
@@ -347,7 +356,7 @@ func (app *Application) Complete(ctx context.Context) (*Application, error) {
 		app.Status = err.Error()
 	}
 
-	app.Routes, err = app.kubeClient.ListIngressRoutes(ctx,
+	app.Routes, err = app.cluster.ListIngressRoutes(ctx,
 		app.Organization, app.Name)
 	if err != nil {
 		app.Routes = []string{err.Error()}
@@ -414,4 +423,59 @@ func Unstage(ctx context.Context, app, org, stageIdCurrent string) error {
 	}
 
 	return nil
+}
+
+// Logs method writes log lines to the specified logChan. The caller can stop
+// the logging with the ctx cancelFunc. It's also the callers responsibility
+// to close the logChan when done.
+// When stageID is an empty string, no staging logs are returned. If it is set,
+// then only logs from that staging process are returned.
+func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, org string) error {
+	selector := labels.NewSelector()
+
+	var selectors [][]string
+	if stageID == "" {
+		selectors = [][]string{
+			{"app.kubernetes.io/component", "application"},
+			{"app.kubernetes.io/managed-by", "epinio"},
+			{"app.kubernetes.io/part-of", org},
+			{"app.kubernetes.io/name", app},
+		}
+	} else {
+		selectors = [][]string{
+			{"app.kubernetes.io/component", "staging"},
+			{"app.kubernetes.io/managed-by", "epinio"},
+			{models.EpinioStageIDLabel, stageID},
+			{"app.kubernetes.io/part-of", org},
+		}
+	}
+
+	for _, req := range selectors {
+		req, err := labels.NewRequirement(req[0], selection.Equals, []string{req[1]})
+		if err != nil {
+			return err
+		}
+		selector = selector.Add(*req)
+	}
+
+	config := &tailer.Config{
+		ContainerQuery:        regexp.MustCompile(".*"),
+		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
+		ContainerState:        "running",
+		Exclude:               nil,
+		Include:               nil,
+		Timestamps:            false,
+		Since:                 duration.LogHistory(),
+		AllNamespaces:         true,
+		LabelSelector:         selector,
+		TailLines:             nil,
+		Namespace:             "",
+		PodQuery:              regexp.MustCompile(".*"),
+	}
+
+	if follow {
+		return tailer.StreamLogs(ctx, logChan, wg, config, cluster)
+	}
+
+	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
