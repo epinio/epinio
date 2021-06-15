@@ -1,3 +1,5 @@
+// Package application has actor functions that deal with application workloads
+// on k8s
 package application
 
 import (
