@@ -69,6 +69,16 @@ var NeededOptions = kubernetes.InstallationOptions{
 	},
 }
 
+var TraefikOptions = kubernetes.InstallationOptions{
+	{
+		Name:        "skip-linkerd",
+		Description: "Assert to epinio that Linkerd is already installed.",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       false,
+	},
+}
+
 const (
 	DefaultOrganization = "workspace"
 )
@@ -83,11 +93,32 @@ var CmdInstall = &cobra.Command{
 	SilenceUsage:  true,
 }
 
+// Note: The command is called `install-ingress` instead of `install
+// ingress` because we already have `install` as a command, and Cobra
+// does not allow such overlapped definitions. While we could convert
+// the existing `install` command into an ensemble and then make the
+// existing functionality available as `install <something>` it makes
+// the quick install more verbose. So, for now the new functionality
+// is exposed through a new toplevel command.
+
+var CmdInstallIngress = &cobra.Command{
+	Use:           "install-ingress",
+	Short:         "install Epinio's Ingress in your configured kubernetes cluster",
+	Long:          `install Epinio Ingress Controller in your configured kubernetes cluster`,
+	Args:          cobra.ExactArgs(0),
+	RunE:          InstallIngress,
+	SilenceErrors: true,
+	SilenceUsage:  true,
+}
+
 func init() {
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 	CmdInstall.Flags().BoolP("skip-default-org", "s", false, "Set this to skip creating a default org")
 
+	CmdInstallIngress.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
+
 	NeededOptions.AsCobraFlagsFor(CmdInstall)
+	TraefikOptions.AsCobraFlagsFor(CmdInstallIngress)
 }
 
 // Install command installs epinio on a configured cluster
@@ -140,6 +171,27 @@ func Install(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to set target")
 		}
+	}
+
+	return nil
+}
+
+// InstallIngress command installs epinio's ingress controller on a configured cluster
+func InstallIngress(cmd *cobra.Command, args []string) error {
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &TraefikOptions)
+	defer func() {
+		if installCleanup != nil {
+			installCleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = installClient.InstallIngress(cmd)
+	if err != nil {
+		return errors.Wrap(err, "error installing Epinio")
 	}
 
 	return nil

@@ -59,6 +59,7 @@ func Execute() {
 
 	rootCmd.AddCommand(CmdCompletion)
 	rootCmd.AddCommand(CmdInstall)
+	rootCmd.AddCommand(CmdInstallIngress)
 	rootCmd.AddCommand(CmdUninstall)
 	rootCmd.AddCommand(CmdInfo)
 	rootCmd.AddCommand(CmdOrg)
