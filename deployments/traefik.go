@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,6 +19,7 @@ import (
 type Traefik struct {
 	Debug   bool
 	Timeout time.Duration
+	Log     logr.Logger
 }
 
 var _ kubernetes.Deployment = &Traefik{}
@@ -139,15 +141,24 @@ func (k Traefik) GetVersion() string {
 }
 
 func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	log := k.Log.WithName("Deploy")
+	log.Info("start")
+	defer log.Info("return")
 
 	skipTraefik, err := options.GetBool("skip-traefik", TraefikDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get skip-traefik option")
 	}
+
+	log.Info("config", "skipTraefik", skipTraefik)
+
 	if skipTraefik {
 		ui.Exclamation().Msg("Skipping Traefik Ingress deployment by user request")
 		return nil
 	}
+
+
+	log.Info("check presence, namespace")
 
 	_, err = c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
@@ -155,8 +166,12 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		metav1.GetOptions{},
 	)
 	if err == nil {
+		log.Info("namespace present")
+
 		return errors.New("Namespace " + TraefikDeploymentID + " present already")
 	}
+
+	log.Info("check presence, service")
 
 	_, err = c.Kubectl.CoreV1().Services("kube-system").Get(
 		ctx,
@@ -164,6 +179,8 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		metav1.GetOptions{},
 	)
 	if err == nil {
+		log.Info("service present")
+
 		ui.Exclamation().Msg("Traefik Ingress already installed, skipping")
 
 		return nil

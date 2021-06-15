@@ -123,7 +123,10 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		return err
 	}
 
-	if err := c.InstallDeployment(ctx, &deployments.Traefik{Timeout: duration.ToDeployment()}, details); err != nil {
+	if err := c.InstallDeployment(ctx, &deployments.Traefik{
+		Timeout: duration.ToDeployment(),
+		Log:     details.V(1),
+	}, details); err != nil {
 		return err
 	}
 
@@ -286,6 +289,8 @@ func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) erro
 // InstallDeployment installs one single Deployment on the cluster
 func (c *InstallClient) InstallDeployment(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("deploy", "Deployment", deployment.ID())
+	defer logger.Info("return")
+
 	return deployment.Deploy(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
