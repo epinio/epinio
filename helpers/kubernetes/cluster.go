@@ -178,6 +178,19 @@ func (c *Cluster) PodExists(ctx context.Context, namespace, selector string) wai
 	}
 }
 
+func (c *Cluster) DeploymentExists(ctx context.Context, namespace, deploymentName string) wait.ConditionFunc {
+	return func() (bool, error) {
+		_, err := c.Kubectl.AppsV1().Deployments(namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return true, nil
+	}
+}
+
 func (c *Cluster) NamespaceDoesNotExist(ctx context.Context, namespaceName string) wait.ConditionFunc {
 	return func() (bool, error) {
 		exists, err := c.NamespaceExists(ctx, namespaceName)
@@ -281,7 +294,7 @@ func (c *Cluster) IsDeploymentCompleted(ctx context.Context, deploymentName, nam
 }
 
 func (c *Cluster) WaitForDeploymentCompleted(ctx context.Context, ui *termui.UI, namespace, deploymentName string, timeout time.Duration) error {
-	s := ui.Progressf("Starting %s in %s", deploymentName, namespace)
+	s := ui.Progressf("Waiting for deployment %s in %s to be ready", deploymentName, namespace)
 	defer s.Stop()
 
 	return wait.PollImmediate(time.Second, timeout, c.IsDeploymentCompleted(ctx, deploymentName, namespace))
@@ -332,6 +345,15 @@ func (c *Cluster) WaitForPodBySelectorMissing(ctx context.Context, ui *termui.UI
 	}
 
 	return wait.PollImmediate(time.Second, timeout, c.PodDoesNotExist(ctx, namespace, selector))
+}
+
+// WaitUntilDeploymentExist waits up to timeout for the specified deployment to exist.
+// The Deployment is specified by its name.
+func (c *Cluster) WaitUntilDeploymentExists(ctx context.Context, ui *termui.UI, namespace, deploymentName string, timeout time.Duration) error {
+	s := ui.Progressf("Waiting for deployment %s in %s to appear", deploymentName, namespace)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, timeout, c.DeploymentExists(ctx, namespace, deploymentName))
 }
 
 // Wait up to timeout for all pods in 'namespace' with given 'selector' to enter running state.

@@ -19,6 +19,7 @@ const (
 	podReady         = 5 * time.Minute
 	appBuilt         = 10 * time.Minute
 	warmupJobReady   = 30 * time.Minute
+	certManagerReady = 5 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	pollInterval = 3 * time.Second
@@ -36,6 +37,10 @@ func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 // Multiplier returns the timeout-multiplier argument
 func Multiplier() time.Duration {
 	return time.Duration(viper.GetInt("timeout-multiplier"))
+}
+
+func ToCertManagerReady() time.Duration {
+	return Multiplier() * certManagerReady
 }
 
 // ToAppBuilt returns the duration to wait until giving up on the
