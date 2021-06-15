@@ -145,9 +145,17 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	log.Info("start")
 	defer log.Info("return")
 
+	// When called from `install` option `skip-traefik` is present.
+	// When called from `install-ingress` the option is NOT present.
+	// It does not make sense to skip installing the very thing the command is about.
+
 	skipTraefik, err := options.GetBool("skip-traefik", TraefikDeploymentID)
 	if err != nil {
-		return errors.Wrap(err, "Couldn't get skip-traefik option")
+		if err.Error() != "skip-traefik not set" {
+			return errors.Wrap(err, "Couldn't get skip-traefik option")
+		}
+
+		skipTraefik = false
 	}
 
 	log.Info("config", "skipTraefik", skipTraefik)
