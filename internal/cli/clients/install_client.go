@@ -265,6 +265,68 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 	return nil
 }
 
+// InstallIngress deploys epinio's ingress controller to the cluster.
+func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
+	log := c.Log.WithName("InstallIngress")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	ctx := cmd.Context()
+
+	c.ui.Note().Msg("Epinio installing its Ingress (Traefik)...")
+
+	var err error
+	details.Info("process cli options")
+	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	if err != nil {
+		return err
+	}
+
+	interactive, err := cmd.Flags().GetBool("interactive")
+	if err != nil {
+		return err
+	}
+
+	if interactive {
+		details.Info("query user for options")
+		c.options, err = c.options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		if err != nil {
+			return err
+		}
+	} else {
+		details.Info("fill defaults into options")
+		c.options, err = c.options.Populate(kubernetes.NewDefaultOptionsReader())
+		if err != nil {
+			return err
+		}
+	}
+
+	details.Info("show option configuration")
+	c.showInstallConfiguration(c.options)
+
+	// TODO (post MVP): Run a validation phase which perform
+	// additional checks on the values. For example range limits,
+	// proper syntax of the string, etc. do it as pghase, and late
+	// to report all problems at once, instead of early and
+	// piecemal.
+
+	if err := c.InstallDeployment(ctx, &deployments.Linkerd{Timeout: duration.ToDeployment()}, details); err != nil {
+		return err
+	}
+
+	if err := c.InstallDeployment(ctx, &deployments.Traefik{
+		Timeout: duration.ToDeployment(),
+		Log:     details.V(1),
+	}, details); err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("Epinio Ingress done.")
+
+	return nil
+}
+
 func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) error {
 	var nsList *corev1.NamespaceList
 	var err error
