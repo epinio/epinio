@@ -1,4 +1,5 @@
 // Package v1 is the implementation of Epinio's API v1
+// It has the router and controllers (handler funcs) for the API server.
 package v1
 
 import (

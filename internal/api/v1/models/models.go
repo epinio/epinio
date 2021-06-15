@@ -35,7 +35,7 @@ type BindRequest struct {
 }
 
 type ApplicationCreateRequest struct {
-	Name string
+	Name string `json:"name"`
 }
 
 type UpdateAppRequest struct {

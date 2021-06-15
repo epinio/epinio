@@ -24,9 +24,14 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/util/retry"
+	appv1beta1 "sigs.k8s.io/application/api/v1beta1"
 )
 
 // Application manages applications.
@@ -45,7 +50,41 @@ type ApplicationList []Application
 
 type GiteaInterface interface {
 	DeleteRepo(org, repo string) error
-	CreateOrg(org string) error
+}
+
+func Create(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
+	cs, err := dynamic.NewForConfig(cluster.RestConfig)
+	if err != nil {
+		return err
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "app.k8s.io",
+		Version:  "v1beta1",
+		Resource: "applications",
+	}
+	client := cs.Resource(gvr)
+
+	obj := &appv1beta1.Application{
+		Spec: appv1beta1.ApplicationSpec{
+			Descriptor: appv1beta1.Descriptor{
+				Type:   "epinio-workload",
+				Owners: []appv1beta1.ContactData{{Name: app.Org}},
+			},
+		},
+	}
+
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	us := &unstructured.Unstructured{Object: u}
+	us.SetAPIVersion("app.k8s.io/v1beta1")
+	us.SetKind("Application")
+	us.SetName(app.Name)
+
+	_, err = client.Namespace(app.Org).Create(ctx, us, metav1.CreateOptions{})
+	return err
 }
 
 func (a *Application) Delete(ctx context.Context, gitea GiteaInterface) error {
