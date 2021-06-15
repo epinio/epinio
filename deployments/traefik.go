@@ -166,11 +166,35 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	//  c  | no      | yes       | Something has claimed the namespace | Error
 	//  d  | no      | no        | Namespace is free for use           | Deploy
 
-	// Bug: The current order of checking (namespace first, then
-	// service), and associated actions, mishandles case A (Error
-	// instead of nothing).
+	log.Info("check presence, local service")
 
-	log.Info("check presence, namespace")
+	_, err = c.Kubectl.CoreV1().Services(TraefikDeploymentID).Get(
+		ctx,
+		"traefik",
+		metav1.GetOptions{},
+	)
+	if err == nil {
+		log.Info("service present")
+
+		ui.Exclamation().Msg("Traefik Ingress already installed, skipping")
+		return nil
+	}
+
+	log.Info("check presence, system service")
+
+	_, err = c.Kubectl.CoreV1().Services("kube-system").Get(
+		ctx,
+		"traefik",
+		metav1.GetOptions{},
+	)
+	if err == nil {
+		log.Info("service present")
+
+		ui.Exclamation().Msg("System Ingress present, skipping")
+		return nil
+	}
+
+	log.Info("check presence, traefik namespace")
 
 	_, err = c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
@@ -183,22 +207,9 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.New("Namespace " + TraefikDeploymentID + " present already")
 	}
 
-	log.Info("check presence, service")
-
-	_, err = c.Kubectl.CoreV1().Services("kube-system").Get(
-		ctx,
-		"traefik",
-		metav1.GetOptions{},
-	)
-	if err == nil {
-		log.Info("service present")
-
-		ui.Exclamation().Msg("Traefik Ingress already installed, skipping")
-
-		return nil
-	}
-
 	ui.Note().KeeplineUnder(1).Msg("Deploying Traefik Ingress...")
+
+	log.Info("deploying traefik")
 
 	return k.apply(ctx, c, ui, options, false)
 }
