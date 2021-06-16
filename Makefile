@@ -56,9 +56,7 @@ showfocus:
 generate:
 	go generate ./...
 
-lint:	vet
-
-vet: embed_files
+lint: embed_files
 	go vet ./...
 
 tidy:
@@ -96,8 +94,6 @@ embed_files: getstatik wrap_registry_chart
 
 help:
 	( echo _ _ ___ _____ ________ Overview ; epinio help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; epinio $$cmd --help ; done ; echo ) | tee HELP
-
-release: tidy fmt lint build-all-small
 
 ########################################################################
 # Support
