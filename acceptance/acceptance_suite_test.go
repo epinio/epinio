@@ -283,6 +283,15 @@ func ensureEpinio() {
 		}
 	}
 	fmt.Println("Installing Epinio")
+
+	// Installing linkerd and ingress separate from the main
+	// pieces.  Ensures that the main install command invokes and
+	// passes the presence checks for linkerd and traefik.
+	out, err = RunProc(
+		"../dist/epinio-linux-amd64 install-ingress",
+		"", false)
+	Expect(err).ToNot(HaveOccurred(), out)
+
 	// Allow the installation to continue by not trying to create the default org
 	// before we patch.
 	out, err = RunProc(

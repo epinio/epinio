@@ -8,14 +8,17 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type Linkerd struct {
 	Debug   bool
 	Timeout time.Duration
+	Log     logr.Logger
 }
 
 var _ kubernetes.Deployment = &Linkerd{}
@@ -107,6 +110,10 @@ func (k Linkerd) GetVersion() string {
 }
 
 func (k Linkerd) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	log := k.Log.WithName("Deploy")
+	log.Info("start")
+	defer log.Info("return")
+
 	skipLinkerd, err := options.GetBool("skip-linkerd", LinkerdDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get skip-linkerd option")
@@ -116,6 +123,33 @@ func (k Linkerd) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return nil
 	}
 
+	// Cases to consider, plus actions -- Analogous to Traefik
+	//
+	//     | Service | Namespace | Meaning                             | Actions
+	// --- | ---     | ---       | ---                                 | ---
+	//  a  | yes     | yes       | Linkerd present, likely from Epinio | Nothing
+	//  b  | yes     | no        | Linkerd present, likely external    | Nothing
+	//  c  | no      | yes       | Something has claimed the namespace | Error
+	//  d  | no      | no        | Namespace is free for use           | Deploy
+
+	log.Info("check presence, local service")
+
+	_, err = c.Kubectl.CoreV1().Services(LinkerdDeploymentID).Get(
+		ctx,
+		"linkerd-dst",
+		metav1.GetOptions{},
+	)
+	if err == nil {
+		log.Info("service present")
+
+		ui.Exclamation().Msg("Linkerd already installed, skipping")
+		return nil
+	} else if !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	log.Info("check presence, linkerd namespace")
+
 	_, err = c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
 		LinkerdDeploymentID,
@@ -123,9 +157,13 @@ func (k Linkerd) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	)
 	if err == nil {
 		return errors.New("Namespace " + LinkerdDeploymentID + " present already")
+	} else if !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Linkerd...")
+
+	log.Info("deploying linkerd")
 
 	return k.apply(ctx, c, ui, options, false)
 }
