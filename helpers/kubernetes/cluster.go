@@ -25,8 +25,10 @@ import (
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
@@ -127,6 +129,51 @@ func (c *Cluster) detectPlatform(ctx context.Context) {
 			return
 		}
 	}
+}
+
+// ClientApp returns a dynamic namespaced client for the app resource
+func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
+	cs, err := dynamic.NewForConfig(c.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "app.k8s.io",
+		Version:  "v1beta1",
+		Resource: "applications",
+	}
+	return cs.Resource(gvr), nil
+}
+
+// ClientCertManager returns a dynamic namespaced client for the cert manager resource
+func (c *Cluster) ClientCertManager() (dynamic.NamespaceableResourceInterface, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1alpha2",
+		Resource: "clusterissuers",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+	return dynamicClient.Resource(gvr), nil
+}
+
+// ClientServiceCatalog returns a dynamic namespaced client for the specified service catalog resource
+func (c *Cluster) ClientServiceCatalog(res string) (dynamic.NamespaceableResourceInterface, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "servicecatalog.k8s.io",
+		Version:  "v1beta1",
+		Resource: res,
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+	return dynamicClient.Resource(gvr), nil
 }
 
 // IsPodRunning returns a condition function that indicates whether the given pod is

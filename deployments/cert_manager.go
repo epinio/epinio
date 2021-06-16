@@ -16,9 +16,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/client-go/dynamic"
 )
 
 type CertManager struct {
@@ -265,19 +263,12 @@ func (cm CertManager) CreateClusterIssuer(ctx context.Context, c *kubernetes.Clu
 		return err
 	}
 
-	clusterIssuerGVR := schema.GroupVersionResource{
-		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
-		Resource: "clusterissuers",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
+	client, err := c.ClientCertManager()
 	if err != nil {
 		return err
 	}
 
-	_, err = dynamicClient.Resource(clusterIssuerGVR).
-		Create(ctx, obj, metav1.CreateOptions{})
+	_, err = client.Create(ctx, obj, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
@@ -286,19 +277,12 @@ func (cm CertManager) CreateClusterIssuer(ctx context.Context, c *kubernetes.Clu
 }
 
 func (cm CertManager) DeleteClusterIssuer(ctx context.Context, c *kubernetes.Cluster) error {
-	clusterIssuerGVR := schema.GroupVersionResource{
-		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
-		Resource: "clusterissuers",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
+	client, err := c.ClientCertManager()
 	if err != nil {
 		return err
 	}
 
-	err = dynamicClient.Resource(clusterIssuerGVR).
-		Delete(ctx, "letsencrypt-production", metav1.DeleteOptions{})
+	err = client.Delete(ctx, "letsencrypt-production", metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
@@ -312,7 +296,6 @@ func (cm CertManager) DeleteClusterIssuer(ctx context.Context, c *kubernetes.Clu
 }
 
 func (cm CertManager) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
-
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
 		CertManagerDeploymentID,

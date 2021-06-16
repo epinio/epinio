@@ -16,13 +16,12 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/selection"
-	"k8s.io/client-go/dynamic"
 	appv1beta1 "sigs.k8s.io/application/api/v1beta1"
 )
 
@@ -31,24 +30,16 @@ type GiteaInterface interface {
 }
 
 func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) error {
-	cs, err := dynamic.NewForConfig(cluster.RestConfig)
+	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
 	}
 
-	gvr := schema.GroupVersionResource{
-		Group:    "app.k8s.io",
-		Version:  "v1beta1",
-		Resource: "applications",
-	}
-	client := cs.Resource(gvr)
-
-	// TODO appCRD supports multiple owners, but we only have one namespace
+	// we create the appCRD in the org's namespace
 	obj := &appv1beta1.Application{
 		Spec: appv1beta1.ApplicationSpec{
 			Descriptor: appv1beta1.Descriptor{
 				Type: "epinio-workload",
-				//Owners: []appv1beta1.ContactData{{Name: app.Org}},
 			},
 		},
 	}
@@ -83,9 +74,21 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 		}
 	}
 
-	// TODO delete appCRD
+	// delete appCRD
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return err
+	}
 
-	err := w.Delete(ctx, gitea)
+	err = client.Namespace(org).Delete(ctx, app.Name, metav1.DeleteOptions{})
+	if err != nil {
+		// ignore a missing app resource until we always create it
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+	}
+
+	err = w.Delete(ctx, gitea)
 	if err != nil {
 		return err
 	}
