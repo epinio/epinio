@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
@@ -86,6 +87,46 @@ func NewEpinioClient(ctx context.Context, flags *pflag.FlagSet) (*EpinioClient, 
 		wsServerURL: wsServerURL,
 	}
 	return epinioClient, nil
+}
+
+// ConfigUpdate updates the credentials stored in the config from the
+// currently targeted kube cluster
+func (c *EpinioClient) ConfigUpdate() error {
+	log := c.Log.WithName("ConfigUpdate")
+	log.Info("start")
+	defer log.Info("return")
+	// details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		Msg("Updating the stored credentials from the current cluster")
+
+	// 1. API credentials
+	// 2. API certs
+
+	user, password, err := getCredentials(context.Background())
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	certs, err := getCerts(context.Background())
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	c.Config.User = user
+	c.Config.Password = password
+	c.Config.Certs = certs
+
+	err = c.Config.Save()
+	if err != nil {
+		c.ui.Exclamation().Msg(errors.Wrap(err, "failed to save configuration").Error())
+		return nil
+	}
+
+	c.ui.Success().Msg("Ok")
+	return nil
 }
 
 // ServicePlans gets all service classes in the cluster, for the
@@ -1425,4 +1466,88 @@ func uniqueStrings(stringSlice []string) []string {
 		}
 	}
 	return list
+}
+
+func getCredentials(ctx context.Context) (string, string, error) {
+	mainDomain, err := domain.MainDomain(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+		return "", "", nil
+	}
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	// Waiting for the secret is better than simply trying to get
+	// it. This way we automatically handle the case where we try
+	// to pull data from a secret still under construction by some
+	// other part of the system.
+	//
+	// See assets/embedded-files/epinio/server.yaml for the
+	// definition
+
+	secret, err := cluster.WaitForSecret(ctx,
+		deployments.EpinioDeploymentID,
+		"epinio-api-auth-data",
+		duration.ToServiceSecret(),
+	)
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to get API auth secret")
+	}
+
+	user := string(secret.Data["user"])
+	pass := string(secret.Data["pass"])
+
+	if user == "" || pass == "" {
+		return "", "", errors.New("bad API auth secret, expected fields missing")
+	}
+
+	return user, pass, nil
+}
+
+func getCerts(ctx context.Context) (string, error) {
+	// For a local deployment (using a self-signed cert) get the
+	// CA cert and save it into the config. The regular client
+	// will then extend the Cert pool with the same, so that it
+	// can cerify the server cert.
+
+	mainDomain, err := domain.MainDomain(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+		return "", nil
+	}
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	// Waiting for the secret is better than simply trying to get
+	// it. This way we automatically handle the case where we try
+	// to pull data from a secret still under construction by some
+	// other part of the system.
+
+	// See the `auth.createCertificate` template for the created
+	// Certs, and epinio.go `apply` for the call to
+	// `auth.createCertificate`, which determines the secret's
+	// name we are using here
+
+	secret, err := cluster.WaitForSecret(ctx,
+		deployments.EpinioDeploymentID,
+		deployments.EpinioDeploymentID+"-tls",
+		duration.ToServiceSecret(),
+	)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get API CA cert secret")
+	}
+
+	return string(secret.Data["ca.crt"]), nil
 }
