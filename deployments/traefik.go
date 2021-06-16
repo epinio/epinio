@@ -13,6 +13,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -186,6 +187,8 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 		ui.Exclamation().Msg("Traefik Ingress already installed, skipping")
 		return nil
+	} else if !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	log.Info("check presence, system service")
@@ -200,6 +203,8 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 		ui.Exclamation().Msg("System Ingress present, skipping")
 		return nil
+	} else if !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	log.Info("check presence, traefik namespace")
@@ -213,6 +218,8 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		log.Info("namespace present")
 
 		return errors.New("Namespace " + TraefikDeploymentID + " present already")
+	} else if !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Traefik Ingress...")

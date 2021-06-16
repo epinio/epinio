@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -143,6 +144,8 @@ func (k Linkerd) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 		ui.Exclamation().Msg("Linkerd already installed, skipping")
 		return nil
+	} else if !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	log.Info("check presence, linkerd namespace")
@@ -154,6 +157,8 @@ func (k Linkerd) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	)
 	if err == nil {
 		return errors.New("Namespace " + LinkerdDeploymentID + " present already")
+	} else if !apierrors.IsNotFound(err) {
+		return err
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Linkerd...")
