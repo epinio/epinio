@@ -58,6 +58,7 @@ func Execute() {
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)
+	rootCmd.AddCommand(CmdConfig)
 	rootCmd.AddCommand(CmdInstall)
 	rootCmd.AddCommand(CmdInstallIngress)
 	rootCmd.AddCommand(CmdUninstall)
