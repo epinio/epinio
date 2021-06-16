@@ -147,6 +147,8 @@ func Install(cmd *cobra.Command, args []string) error {
 	}
 
 	// Post Installation Tasks:
+	// - Retrieve API certs and credentials, save to configuration
+	//
 	// - Create and target a default organization, so that the
 	//   user can immediately begin to push applications.
 	//
@@ -155,6 +157,11 @@ func Install(cmd *cobra.Command, args []string) error {
 	// a valid organization. Without it may contain the name of a
 	// now invalid organization from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
+
+	err = epinio_client.ConfigUpdate()
+	if err != nil {
+		return errors.Wrap(err, "error updating config")
+	}
 
 	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-org")
 	if err != nil {
