@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/organizations"
@@ -218,7 +219,7 @@ loop:
 		buffer <- struct{}{} // 2a
 		wg.Add(1)            // 1a
 
-		go func(app application.Application) {
+		go func(app models.App) {
 			defer wg.Done() // 1b
 			defer func() {
 				<-buffer // 2b

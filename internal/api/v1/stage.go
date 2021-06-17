@@ -33,6 +33,27 @@ const (
 	DefaultInstances = int32(1)
 )
 
+type stageParam struct {
+	models.AppRef
+	Image     models.ImageRef
+	Git       *models.GitRef
+	Route     string
+	Stage     models.StageRef
+	Instances int32
+}
+
+// GitURL returns the git URL by combining the server with the org and name
+func (app *stageParam) GitURL(server string) string {
+	return fmt.Sprintf("%s/%s/%s", server, app.Org, app.Name)
+}
+
+// ImageURL returns the URL of the image, using the ImageID. The ImageURL is
+// later used in app.yml.  Since the final commit is not known when the app.yml
+// is written, we cannot use Repo.Revision
+func (app *stageParam) ImageURL(server string) string {
+	return fmt.Sprintf("%s/%s-%s", server, app.Name, app.Git.Revision)
+}
+
 // Stage will create a Tekton PipelineRun resource to stage and start the app
 func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
@@ -104,7 +125,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
-	app := models.App{
+	app := stageParam{
 		AppRef:    req.App,
 		Git:       req.Git,
 		Route:     req.Route,
@@ -150,7 +171,7 @@ func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppR
 	return *result.Spec.Replicas, nil
 }
 
-func newPipelineRun(uid string, app models.App) *v1beta1.PipelineRun {
+func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: uid,

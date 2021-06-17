@@ -95,7 +95,7 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
-	cs, err := tekton.NewForConfig(c.KubeClient.RestConfig)
+	cs, err := tekton.NewForConfig(c.Cluster.RestConfig)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef
 func (c *EpinioClient) waitForApp(ctx context.Context, app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
-	err := c.KubeClient.WaitForDeploymentCompleted(
+	err := c.Cluster.WaitForDeploymentCompleted(
 		ctx,
 		c.ui, app.Org, app.Name, duration.ToAppBuilt())
 	if err != nil {

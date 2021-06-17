@@ -361,7 +361,8 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		}
 
 		for _, app := range boundApps {
-			err = app.Unbind(ctx, service)
+			wl := application.NewWorkload(cluster, &app)
+			err = wl.Unbind(ctx, service)
 			if err != nil {
 				return InternalError(err)
 			}
@@ -389,12 +390,12 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 	return nil
 }
 
-func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (map[string]application.ApplicationList, error) {
+func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (map[string]models.AppList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
-	var appsOf = map[string]application.ApplicationList{}
+	var appsOf = map[string]models.AppList{}
 
 	apps, err := application.List(ctx, cluster, org)
 	if err != nil {
@@ -402,7 +403,8 @@ func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string
 	}
 
 	for _, app := range apps {
-		bound, err := app.Services(ctx)
+		w := application.NewWorkload(cluster, &app)
+		bound, err := w.Services(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -411,7 +413,7 @@ func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string
 			if theapps, found := appsOf[bname]; found {
 				appsOf[bname] = append(theapps, app)
 			} else {
-				appsOf[bname] = application.ApplicationList{app}
+				appsOf[bname] = models.AppList{app}
 			}
 		}
 	}

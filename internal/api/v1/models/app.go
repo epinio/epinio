@@ -1,44 +1,50 @@
 package models
 
-import (
-	"fmt"
-)
-
 const (
 	EpinioStageIDLabel = "epinio.suse.org/stage-id"
 )
 
-// App has all the app properties, like the image, repo, route and staging information
+// App has all the app properties, like the routes and stage ID.
+// It is used in the CLI and  API responses.
 type App struct {
-	AppRef
-	Image     ImageRef
-	Git       *GitRef
-	Route     string
-	Stage     StageRef
-	Instances int32
+	StageID       string   `json:"stage_id,omitempty"`
+	Name          string   `json:"name,omitempty"`
+	Organization  string   `json:"organization,omitempty"`
+	Status        string   `json:"status,omitempty"`
+	Routes        []string `json:"routes,omitempty"`
+	BoundServices []string `json:"bound_services,omitempty"`
+}
+
+type AppList []App
+
+// Implement the Sort interface for application slices
+
+func (al AppList) Len() int {
+	return len(al)
+}
+
+func (al AppList) Swap(i, j int) {
+	al[i], al[j] = al[j], al[i]
+}
+
+func (al AppList) Less(i, j int) bool {
+	return al[i].Name < al[j].Name
 }
 
 // NewApp returns a new app for name and org
 func NewApp(name string, org string) *App {
-	return &App{AppRef: AppRef{Name: name, Org: org}}
-}
-
-// GitURL returns the git URL by combining the server with the org and name
-func (app *App) GitURL(server string) string {
-	return fmt.Sprintf("%s/%s/%s", server, app.Org, app.Name)
-}
-
-// ImageURL returns the URL of the image, using the ImageID. The ImageURL is
-// later used in app.yml.  Since the final commit is not known when the app.yml
-// is written, we cannot use Repo.Revision
-func (app *App) ImageURL(server string) string {
-	return fmt.Sprintf("%s/%s-%s", server, app.Name, app.Git.Revision)
+	return &App{Name: name, Organization: org}
 }
 
 // AppRef references an App by name and org
 type AppRef struct {
 	Name string `json:"name"`
 	Org  string `json:"org"`
+}
+
+// NewAppRef returns a new reference to an app
+func NewAppRef(name string, org string) AppRef {
+	return AppRef{Name: name, Org: org}
 }
 
 // StageRef references a tekton staging run by ID, currently randomly generated

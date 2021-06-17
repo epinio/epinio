@@ -36,6 +36,7 @@ const (
 	epinioServerYaml    = "epinio/server.yaml"
 	epinioRolesYAML     = "epinio/roles.yaml"
 	epinioBasicAuthYaml = "epinio/basicauth.yaml"
+	applicationCRDYaml  = "epinio/app-crd.yaml"
 )
 
 func (k *Epinio) ID() string {
@@ -181,6 +182,11 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
+	}
+
+	message = "Installing Application CRD"
+	if out, err := helpers.KubectlApplyEmbeddedYaml(applicationCRDYaml); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", applicationCRDYaml, out))
 	}
 
 	// NOTE: Set EPINIO_DONT_WAIT_FOR_DEPLOYMENT when doing development to let

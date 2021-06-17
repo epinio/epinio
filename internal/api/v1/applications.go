@@ -18,10 +18,59 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type ApplicationsController struct {
 	conn *websocket.Conn
+}
+
+func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
+	org := params.ByName("org")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return OrgIsNotKnown(org)
+	}
+
+	defer r.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	var createRequest models.ApplicationCreateRequest
+	err = json.Unmarshal(bodyBytes, &createRequest)
+	if err != nil {
+		return BadRequest(err)
+	}
+
+	app, err := application.Lookup(ctx, cluster, org, createRequest.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return InternalError(err, "failed to check for app")
+	}
+
+	if app != nil {
+		return AppAlreadyKnown(createRequest.Name)
+	}
+
+	err = application.Create(ctx, cluster, models.NewAppRef(createRequest.Name, org))
+	if err != nil {
+		return InternalError(err)
+	}
+	return nil
 }
 
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
@@ -149,7 +198,8 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
-	err = app.Scale(r.Context(), updateRequest.Instances)
+	workload := application.NewWorkload(cluster, app)
+	err = workload.Scale(r.Context(), updateRequest.Instances)
 	if err != nil {
 		return InternalError(err)
 	}
