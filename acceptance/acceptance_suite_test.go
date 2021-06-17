@@ -2,7 +2,6 @@ package acceptance_test
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,6 +18,7 @@ import (
 	"github.com/codeskyblue/kexec"
 	"github.com/epinio/epinio/helpers"
 	"github.com/onsi/ginkgo/config"
+	"github.com/pkg/errors"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -134,15 +134,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Eventually is used to retry in case the rollout of the patched deployment
 	// is not completely done yet.
 	fmt.Println("Ensure default workspace exists")
-	Eventually(func() error {
+	Eventually(func() string {
 		out, err = RunProc("../dist/epinio-linux-amd64 org create workspace", "", false)
 		if err != nil {
 			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
-				return nil
+				return ""
 			}
+			return errors.Wrap(err, out).Error()
 		}
-		return err
-	}, "1m").ShouldNot(HaveOccurred(), out)
+		return ""
+	}, "1m").Should(BeEmpty())
 
 	fmt.Println("Setup cluster services")
 	setupInClusterServices()
@@ -176,10 +177,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	fmt.Println("Waiting for kubernetes node to be ready")
-	Eventually(func() error {
+	Eventually(func() string {
 		out, err = waitUntilClusterNodeReady()
-		return err
-	}, "3m").ShouldNot(HaveOccurred(), out)
+		if err != nil {
+			return err.Error()
+		}
+		return ""
+	}, "3m").Should(BeEmpty())
 
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
