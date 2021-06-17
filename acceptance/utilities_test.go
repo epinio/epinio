@@ -16,6 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/internal/cli/config"
 )
 
 // This file provides a number of utility functions encapsulating often-used sequences.
@@ -299,4 +300,16 @@ func getPodNames(appName, orgName string) []string {
 	Expect(err).NotTo(HaveOccurred())
 
 	return strings.Split(out, "\n")
+}
+
+func getConfigFrom(location string) (*config.Config, error) {
+	os.Setenv("EPINIO_CONFIG", location)
+	defer func() {
+		os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
+	}()
+	return config.Load()
+}
+
+func getConfig() (*config.Config, error) {
+	return config.Load()
 }
