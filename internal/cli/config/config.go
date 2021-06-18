@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -24,6 +25,7 @@ type Config struct {
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"pass"`
 	Certs    string `mapstructure:"certs"`
+	Colors   bool   `mapstructure:"colors"`
 
 	v *viper.Viper
 }
@@ -49,6 +51,7 @@ func Load() (*Config, error) {
 	v.SetDefault("user", "")
 	v.SetDefault("pass", "")
 	v.SetDefault("certs", "")
+	v.SetDefault("colors", true)
 
 	configExists, err := fileExists(file)
 	if err != nil {
@@ -95,6 +98,10 @@ func Load() (*Config, error) {
 		}
 	}
 
+	if !cfg.Colors || viper.GetBool("no-colors") {
+		color.NoColor = true
+	}
+
 	return cfg, nil
 }
 
@@ -104,6 +111,7 @@ func (c *Config) Save() error {
 	c.v.Set("user", c.User)
 	c.v.Set("pass", c.Password)
 	c.v.Set("certs", c.Certs)
+	c.v.Set("colors", c.Colors)
 
 	err := os.MkdirAll(filepath.Dir(c.v.ConfigFileUsed()), 0700)
 	if err != nil {
