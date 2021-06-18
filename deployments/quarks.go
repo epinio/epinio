@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,12 +141,7 @@ func (k Quarks) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, fmt.Sprintf("Failed installing Quarks:\n%s\nReturning\n%s", helmCmd, out))
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to exist")
-	}
-	if err := c.WaitForPodBySelectorRunning(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
-	}
+	waitForQuarks(c, ctx, ui, duration.ToQuarksDeploymentReady())
 
 	ui.Success().Msg("Quarks deployed")
 
@@ -185,4 +181,27 @@ func (k Quarks) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	ui.Note().Msg("Upgrading Quarks...")
 
 	return k.apply(ctx, c, ui, options, true)
+}
+
+// This method can be used by any other deployment that needs to wait until Quarks
+// Deployment is ready.
+func waitForQuarks(c *kubernetes.Cluster, ctx context.Context, ui *termui.UI, timeout time.Duration) error {
+	if err := c.WaitUntilDeploymentExists(ctx, ui, QuarksDeploymentID, "quarks-secret", duration.ToQuarksDeploymentReady()); err != nil {
+		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to exist")
+	}
+	if err := c.WaitForDeploymentCompleted(ctx, ui, QuarksDeploymentID, "quarks-secret", duration.ToQuarksDeploymentReady()); err != nil {
+		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to exist")
+	}
+
+	message := "Waiting for QuarksSecret CRD to be established"
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return helpers.Kubectl(fmt.Sprintf("wait --for=condition=established --timeout=%ds crd/quarkssecrets.quarks.cloudfoundry.org", int(timeout/time.Second)))
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	return nil
 }
