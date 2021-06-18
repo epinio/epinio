@@ -103,7 +103,7 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 
 	if err := c.CreateNamespace(ctx, TraefikDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
+	}, nil); err != nil {
 		return err
 	}
 
@@ -119,6 +119,7 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	// https://github.com/traefik/traefik-helm-chart/blob/v9.11.0/traefik/values.yaml#L170
 	// Overwrite globalArguments until https://github.com/traefik/traefik-helm-chart/issues/357 is fixed
 	helmArgs = append(helmArgs, `--set "globalArguments="`)
+	helmArgs = append(helmArgs, `--set-string deployment.podAnnotations."linkerd\.io/inject"=enabled`)
 
 	helmCmd := fmt.Sprintf("helm %s traefik --namespace %s %s %s", action, TraefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
