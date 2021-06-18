@@ -74,7 +74,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return AppIsNotKnown(appName)
 	}
 
-	wl := application.NewWorkload(cluster, app)
+	wl := application.NewWorkload(cluster, app.AppRef())
 
 	// From here on out we collect errors and warnings per
 	// service, to report as much as possible while also applying
@@ -153,7 +153,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return AppIsNotKnown(appName)
 	}
 
-	wl := application.NewWorkload(cluster, app)
+	wl := application.NewWorkload(cluster, app.AppRef())
 
 	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {

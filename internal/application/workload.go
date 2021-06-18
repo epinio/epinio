@@ -8,7 +8,6 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/interfaces"
-	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	pkgerrors "github.com/pkg/errors"
 
@@ -22,89 +21,34 @@ import (
 // Workload manages applications that are deployed. It provides workload
 // (deployments) specific actions for the application model.
 type Workload struct {
-	// embedding this struct only to stay compatible with existing code,
-	// otherwise it would be explicit: a workload belongs to an app
-	*models.App
+	app     models.AppRef
 	cluster *kubernetes.Cluster
 }
 
-func NewWorkload(cluster *kubernetes.Cluster, app *models.App) *Workload {
-	return &Workload{cluster: cluster, App: app}
-}
-
-// Lookup locates an application's workload by org and name
-func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp string) (*models.App, error) {
-	apps, err := List(ctx, cluster, org)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, app := range apps {
-		if app.Name == lookupApp {
-			return &app, nil // It's already "Complete()" by the List call above
-		}
-	}
-
-	return nil, nil
-}
-
-// List returns an list of all available applications (in the org)
-func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
-	listOptions := metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
-	}
-
-	result := models.AppList{}
-
-	exists, err := organizations.Exists(ctx, cluster, org)
-	if err != nil {
-		return result, err
-	}
-	if !exists {
-		return result, fmt.Errorf("organization %s does not exist", org)
-	}
-
-	deployments, err := cluster.Kubectl.AppsV1().Deployments(org).List(ctx, listOptions)
-	if err != nil {
-		return result, err
-	}
-
-	for _, deployment := range deployments.Items {
-		w := NewWorkload(cluster, &models.App{
-			Organization: org,
-			Name:         deployment.ObjectMeta.Name,
-		})
-		appEpinio, err := w.Complete(ctx)
-		if err != nil {
-			return result, err
-		}
-
-		result = append(result, *appEpinio)
-	}
-
-	return result, nil
+func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
+	return &Workload{cluster: cluster, app: app}
 }
 
 // Delete a workload (repo, deployments, ingress, services)
 func (a *Workload) Delete(ctx context.Context, gitea GiteaInterface) error {
-	if err := gitea.DeleteRepo(a.Organization, a.Name); err != nil {
+	if err := gitea.DeleteRepo(a.app.Org, a.app.Name); err != nil {
 		return pkgerrors.Wrap(err, "failed to delete repository")
 	}
 
-	err := a.cluster.Kubectl.AppsV1().Deployments(a.Organization).
-		Delete(ctx, a.Name, metav1.DeleteOptions{})
+	err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).
+		Delete(ctx, a.app.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application deployment")
 	}
 
-	err = a.cluster.Kubectl.ExtensionsV1beta1().Ingresses(a.Organization).
-		Delete(ctx, a.Name, metav1.DeleteOptions{})
+	err = a.cluster.Kubectl.ExtensionsV1beta1().Ingresses(a.app.Org).
+		Delete(ctx, a.app.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application ingress")
 	}
 
-	err = a.cluster.Kubectl.CoreV1().Services(a.Organization).
-		Delete(ctx, a.Name, metav1.DeleteOptions{})
+	err = a.cluster.Kubectl.CoreV1().Services(a.app.Org).
+		Delete(ctx, a.app.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return pkgerrors.Wrap(err, "failed to delete application service")
 	}
@@ -122,7 +66,7 @@ func (a *Workload) Services(ctx context.Context) (interfaces.ServiceList, error)
 	var bound = interfaces.ServiceList{}
 
 	for _, volume := range deployment.Spec.Template.Spec.Volumes {
-		service, err := services.Lookup(ctx, a.cluster, a.Organization, volume.Name)
+		service, err := services.Lookup(ctx, a.cluster, a.app.Org, volume.Name)
 		if err != nil {
 			return nil, err
 		}
@@ -145,7 +89,7 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 
 		deployment.Spec.Replicas = &instances
 
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
 			ctx, deployment, metav1.UpdateOptions{})
 
 		return err
@@ -192,7 +136,7 @@ func (a *Workload) Unbind(ctx context.Context, service interfaces.Service) error
 		deployment.Spec.Template.Spec.Volumes = newVolumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newVolumeMounts
 
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
 			ctx,
 			deployment,
 			metav1.UpdateOptions{},
@@ -208,18 +152,18 @@ func (a *Workload) Unbind(ctx context.Context, service interfaces.Service) error
 	}
 
 	// delete binding - DeleteBinding(a.Name)
-	return service.DeleteBinding(ctx, a.Name, a.Organization)
+	return service.DeleteBinding(ctx, a.app.Name, a.app.Org)
 }
 
 func (a *Workload) deployment(ctx context.Context) (*appsv1.Deployment, error) {
-	return a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Get(
-		ctx, a.Name, metav1.GetOptions{},
+	return a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Get(
+		ctx, a.app.Name, metav1.GetOptions{},
 	)
 }
 
 // Bind creates a binding of the service to the application.
 func (a *Workload) Bind(ctx context.Context, service interfaces.Service) error {
-	bindSecret, err := service.GetBinding(ctx, a.Name)
+	bindSecret, err := service.GetBinding(ctx, a.app.Name)
 	if err != nil {
 		return err
 	}
@@ -257,7 +201,7 @@ func (a *Workload) Bind(ctx context.Context, service interfaces.Service) error {
 		deployment.Spec.Template.Spec.Volumes = volumes
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
 
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.Organization).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
 			ctx,
 			deployment,
 			metav1.UpdateOptions{},
@@ -281,42 +225,42 @@ func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 	var err error
 
 	selector := fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio,app.kubernetes.io/name=%s",
-		a.Name)
+		a.app.Name)
 
 	listOptions := metav1.ListOptions{
 		LabelSelector: selector,
 	}
 
-	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.Organization).List(ctx, listOptions)
+	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Org).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	a.StageID = pods.Items[0].ObjectMeta.Labels["epinio.suse.org/stage-id"]
+	app := a.app.App()
+	app.StageID = pods.Items[0].ObjectMeta.Labels["epinio.suse.org/stage-id"]
 
-	a.Status, err = a.cluster.DeploymentStatus(ctx,
-		a.Organization,
+	app.Status, err = a.cluster.DeploymentStatus(ctx,
+		app.Organization,
 		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
-			a.Organization, a.Name))
+			app.Organization, app.Name))
 	if err != nil {
-		a.Status = err.Error()
+		app.Status = err.Error()
 	}
 
-	a.Routes, err = a.cluster.ListIngressRoutes(ctx,
-		a.Organization, a.Name)
+	app.Routes, err = a.cluster.ListIngressRoutes(ctx, app.Organization, app.Name)
 	if err != nil {
-		a.Routes = []string{err.Error()}
+		app.Routes = []string{err.Error()}
 	}
 
-	a.BoundServices = []string{}
+	app.BoundServices = []string{}
 	bound, err := a.Services(ctx)
 	if err != nil {
-		a.BoundServices = append(a.BoundServices, err.Error())
+		app.BoundServices = append(app.BoundServices, err.Error())
 	} else {
 		for _, service := range bound {
-			a.BoundServices = append(a.BoundServices, service.Name())
+			app.BoundServices = append(app.BoundServices, service.Name())
 		}
 	}
 
-	return a.App, nil
+	return app, nil
 }

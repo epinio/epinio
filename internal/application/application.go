@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 
@@ -57,9 +58,59 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return err
 }
 
+// Lookup locates an application's workload by org and name
+func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp string) (*models.App, error) {
+	apps, err := List(ctx, cluster, org)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, app := range apps {
+		if app.Name == lookupApp {
+			return &app, nil // It's already "Complete()" by the List call above
+		}
+	}
+
+	return nil, nil
+}
+
+// List returns an list of all available applications (in the org)
+func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
+	listOptions := metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
+	}
+
+	result := models.AppList{}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return result, err
+	}
+	if !exists {
+		return result, fmt.Errorf("organization %s does not exist", org)
+	}
+
+	deployments, err := cluster.Kubectl.AppsV1().Deployments(org).List(ctx, listOptions)
+	if err != nil {
+		return result, err
+	}
+
+	for _, deployment := range deployments.Items {
+		w := NewWorkload(cluster, models.NewAppRef(deployment.ObjectMeta.Name, org))
+		appEpinio, err := w.Complete(ctx)
+		if err != nil {
+			return result, err
+		}
+
+		result = append(result, *appEpinio)
+	}
+
+	return result, nil
+}
+
 // Delete deletes an application by org and name
 func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, org string, app models.App) error {
-	w := NewWorkload(cluster, &app)
+	w := NewWorkload(cluster, app.AppRef())
 	if len(app.BoundServices) > 0 {
 		for _, bonded := range app.BoundServices {
 			bound, err := services.Lookup(ctx, cluster, org, bonded)

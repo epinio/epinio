@@ -1294,7 +1294,7 @@ func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[stri
 	}
 
 	for _, app := range apps {
-		w := application.NewWorkload(c.Cluster, &app)
+		w := application.NewWorkload(c.Cluster, app.AppRef())
 		bound, err := w.Services(ctx)
 		if err != nil {
 			return nil, err

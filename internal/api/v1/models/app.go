@@ -15,6 +15,16 @@ type App struct {
 	BoundServices []string `json:"bound_services,omitempty"`
 }
 
+// NewApp returns a new app for name and org
+func NewApp(name string, org string) *App {
+	return &App{Name: name, Organization: org}
+}
+
+// AppRef returns a reference to the app (name, org)
+func (a *App) AppRef() AppRef {
+	return NewAppRef(a.Name, a.Organization)
+}
+
 type AppList []App
 
 // Implement the Sort interface for application slices
@@ -31,11 +41,6 @@ func (al AppList) Less(i, j int) bool {
 	return al[i].Name < al[j].Name
 }
 
-// NewApp returns a new app for name and org
-func NewApp(name string, org string) *App {
-	return &App{Name: name, Organization: org}
-}
-
 // AppRef references an App by name and org
 type AppRef struct {
 	Name string `json:"name"`
@@ -45,6 +50,11 @@ type AppRef struct {
 // NewAppRef returns a new reference to an app
 func NewAppRef(name string, org string) AppRef {
 	return AppRef{Name: name, Org: org}
+}
+
+// App returns an fresh app model for the reference
+func (ar *AppRef) App() *App {
+	return NewApp(ar.Name, ar.Org)
 }
 
 // StageRef references a tekton staging run by ID, currently randomly generated

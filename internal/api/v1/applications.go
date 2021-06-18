@@ -198,7 +198,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
-	workload := application.NewWorkload(cluster, app)
+	workload := application.NewWorkload(cluster, app.AppRef())
 	err = workload.Scale(r.Context(), updateRequest.Instances)
 	if err != nil {
 		return InternalError(err)
