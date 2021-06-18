@@ -12,7 +12,7 @@ var _ = Describe("Config", func() {
 		It("shows the configuration", func() {
 			config, err := Epinio("config show", "")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(config).To(MatchRegexp(`Current Organization.*\|.*workspace`))
+			Expect(config).To(MatchRegexp(`Current Organization.*\|`)) // Exact name of org is not relevant, and varies
 			Expect(config).To(MatchRegexp(`Certificates.*\|.*Present`))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API User Name.*\|.*%s`, epinioUser)))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Password.*\|.*%s`, epinioPassword)))
