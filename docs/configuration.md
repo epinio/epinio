@@ -7,7 +7,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 <img src="./docs/epinio.png" width="50%" height="50%">
 
 The Epinio command line client uses a configuration file to store
-information which has to persist across invokations. This document
+information which has to persist across invocations. This document
 discusses various aspects around this.
 
 ## Table Of Contents
@@ -45,7 +45,7 @@ saves the initial information to the configuration.
 The certificate information is set only when installing epinio for
 development. This uses an `omg.howdoi.website` domain with a
 self-signed certificate. `epinio install` saves the associated CA
-certificate to the configuration so that future invokations of the
+certificate to the configuration so that future invocations of the
 client are able to verify the actual certificate when talking to
 Epinio's API server.
 
@@ -70,7 +70,7 @@ explicitly targeting the configuration. These are:
 
      Epinio allows users to switch between multiple installations (on
      different clusters) by simply re-targeting the cluster to talk to
-     via changes to the  environment variable `KUBE_CONFIG`.
+     via changes to the  environment variable `KUBECONFIG`.
 
      When such is done the credentials and cert data stored in the
      configuration will not match the newly targeted cluster, except
