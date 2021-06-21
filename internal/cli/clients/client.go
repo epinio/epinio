@@ -95,13 +95,9 @@ func (c *EpinioClient) ConfigUpdate() error {
 	log := c.Log.WithName("ConfigUpdate")
 	log.Info("start")
 	defer log.Info("return")
-	// details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		Msg("Updating the stored credentials from the current cluster")
-
-	// 1. API credentials
-	// 2. API certs
 
 	user, password, err := getCredentials(context.Background())
 	if err != nil {
