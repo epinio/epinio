@@ -231,13 +231,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	// Wait until quarks is ready because we need it to create the secret
-	if err := c.WaitUntilPodBySelectorExist(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to exist")
-	}
-	if err := c.WaitForPodBySelectorRunning(ctx, ui, QuarksDeploymentID, "name=quarks-secret", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Quarks quarks-secret deployment to come up")
-	}
+	waitForQuarks(c, ctx, ui, duration.ToQuarksDeploymentReady())
 
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
