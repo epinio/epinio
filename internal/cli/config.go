@@ -70,7 +70,7 @@ var CmdConfigUpdateCreds = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.ConfigUpdate()
+		err = client.ConfigUpdate(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error updating the config")
 		}

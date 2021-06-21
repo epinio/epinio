@@ -91,7 +91,7 @@ func NewEpinioClient(ctx context.Context, flags *pflag.FlagSet) (*EpinioClient, 
 
 // ConfigUpdate updates the credentials stored in the config from the
 // currently targeted kube cluster
-func (c *EpinioClient) ConfigUpdate() error {
+func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 	log := c.Log.WithName("ConfigUpdate")
 	log.Info("start")
 	defer log.Info("return")
@@ -99,13 +99,13 @@ func (c *EpinioClient) ConfigUpdate() error {
 	c.ui.Note().
 		Msg("Updating the stored credentials from the current cluster")
 
-	user, password, err := getCredentials(context.Background())
+	user, password, err := getCredentials(ctx)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
 
-	certs, err := getCerts(context.Background())
+	certs, err := getCerts(ctx)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil

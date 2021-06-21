@@ -158,7 +158,7 @@ func Install(cmd *cobra.Command, args []string) error {
 	// now invalid organization from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
-	err = epinio_client.ConfigUpdate()
+	err = epinio_client.ConfigUpdate(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error updating config")
 	}
