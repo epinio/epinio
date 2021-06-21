@@ -277,12 +277,20 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 		return "", err
 	}
 	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(htpasswd))
+	encodedUser := base64.StdEncoding.EncodeToString([]byte(auth.Username))
+	encodedPass := base64.StdEncoding.EncodeToString([]byte(auth.Password))
 
 	re := regexp.MustCompile(`##current_epinio_version##`)
 	renderedFileContents := re.ReplaceAll(fileContents, []byte(version.Version))
 
 	re = regexp.MustCompile(`##api_credentials##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(encodedCredentials))
+
+	re = regexp.MustCompile(`##api_user##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(encodedUser))
+
+	re = regexp.MustCompile(`##api_password##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(encodedPass))
 
 	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
 	if err != nil {

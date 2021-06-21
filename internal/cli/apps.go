@@ -9,7 +9,7 @@ import (
 
 var ()
 
-// CmdApp implements the epinio -app command
+// CmdApp implements the `epinio app` command
 var CmdApp = &cobra.Command{
 	Use:           "app",
 	Aliases:       []string{"apps"},
