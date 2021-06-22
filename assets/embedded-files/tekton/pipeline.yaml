@@ -196,6 +196,7 @@ spec:
         kind: Service
         metadata:
           annotations:
+            kubernetes.io/ingress.class: traefik
             traefik.ingress.kubernetes.io/router.entrypoints: websecure
             traefik.ingress.kubernetes.io/router.tls: "true"
           labels:
@@ -203,7 +204,6 @@ spec:
             app.kubernetes.io/managed-by: epinio
             app.kubernetes.io/name: $(params.APP_NAME)
             app.kubernetes.io/part-of: $(params.ORG)
-            kubernetes.io/ingress.class: traefik
           name: $(params.APP_NAME)
           namespace: $(params.ORG)
         spec:
