@@ -1468,19 +1468,6 @@ func uniqueStrings(stringSlice []string) []string {
 }
 
 func getCredentials(log logr.Logger, ctx context.Context) (string, string, error) {
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
-	log.Info("got main domain", "domain", mainDomain)
-
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		log.Info("skip non-development domain")
-
-		return "", "", nil
-	}
-
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
