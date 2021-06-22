@@ -361,7 +361,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		}
 
 		for _, app := range boundApps {
-			wl := application.NewWorkload(cluster, &app)
+			wl := application.NewWorkload(cluster, app.AppRef())
 			err = wl.Unbind(ctx, service)
 			if err != nil {
 				return InternalError(err)
@@ -403,7 +403,7 @@ func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string
 	}
 
 	for _, app := range apps {
-		w := application.NewWorkload(cluster, &app)
+		w := application.NewWorkload(cluster, app.AppRef())
 		bound, err := w.Services(ctx)
 		if err != nil {
 			return nil, err
