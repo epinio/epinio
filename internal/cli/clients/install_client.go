@@ -172,6 +172,10 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 
 	c.ui.Note().Msg("Epinio uninstalling...")
 
+	if err := c.DeleteWorkloads(ctx, c.ui); err != nil {
+		return err
+	}
+
 	wg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Minibroker{Timeout: duration.ToDeployment()},
@@ -194,10 +198,6 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		}(deployment, wg)
 	}
 	wg.Wait()
-
-	if err := c.DeleteWorkloads(ctx, c.ui); err != nil {
-		return err
-	}
 
 	if err := c.UninstallDeployment(ctx, &deployments.Linkerd{
 		Timeout: duration.ToDeployment(),
