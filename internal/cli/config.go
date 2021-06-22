@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -23,6 +27,49 @@ var CmdConfig = &cobra.Command{
 func init() {
 	CmdConfig.AddCommand(CmdConfigUpdateCreds)
 	CmdConfig.AddCommand(CmdConfigShow)
+	CmdConfig.AddCommand(CmdConfigColors)
+}
+
+// CmdConfigColors implements the `epinio config colors` command
+var CmdConfigColors = &cobra.Command{
+	Use:   "colors",
+	Short: "Manage colored output",
+	Long:  "Enable/Disable colored output",
+	Args: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 1 {
+			return errors.New("requires a boolean argument")
+		}
+		_, err := strconv.ParseBool(args[0])
+		if err != nil {
+			return errors.New("requires a boolean argument")
+		}
+		return nil
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		fmt.Println("Hello, World!")
+	},
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ui := termui.NewUI()
+
+		theConfig, err := config.Load()
+		if err != nil {
+			return err
+		}
+
+		colors, err := strconv.ParseBool(args[0])
+		// assert: err == nil -- see args validation
+		if err != nil {
+			return err
+		}
+
+		theConfig.Colors = colors
+		theConfig.Save()
+
+		ui.Success().WithBoolValue("Colors", theConfig.Colors).Msg("Ok")
+		return nil
+	},
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 // CmdConfigShow implements the `epinio config show` command
@@ -38,16 +85,17 @@ var CmdConfigShow = &cobra.Command{
 			return err
 		}
 
-		certInfo := "None defined"
+		certInfo := color.CyanString("None defined")
 		if theConfig.Certs != "" {
-			certInfo = "Present"
+			certInfo = color.BlueString("Present")
 		}
 
 		ui.Success().
 			WithTable("Key", "Value").
-			WithTableRow("Current Organization", theConfig.Org).
-			WithTableRow("API User Name", theConfig.User).
-			WithTableRow("API Password", theConfig.Password).
+			WithTableRow("Colorized Output", color.MagentaString("%t", theConfig.Colors)).
+			WithTableRow("Current Organization", color.CyanString(theConfig.Org)).
+			WithTableRow("API User Name", color.BlueString(theConfig.User)).
+			WithTableRow("API Password", color.BlueString(theConfig.Password)).
 			WithTableRow("Certificates", certInfo).
 			Msg("Ok")
 

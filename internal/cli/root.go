@@ -55,6 +55,10 @@ func Execute() {
 	viper.BindPFlag("skip-ssl-verification", pf.Lookup("skip-ssl-verification"))
 	argToEnv["skip-ssl-verification"] = "SKIP_SSL_VERIFICATION"
 
+	pf.BoolP("no-colors", "", false, "Suppress colorized output")
+	viper.BindPFlag("no-colors", pf.Lookup("no-colors"))
+	argToEnv["colors"] = "EPINIO_COLORS"
+
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)

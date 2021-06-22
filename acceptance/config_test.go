@@ -8,10 +8,33 @@ import (
 )
 
 var _ = Describe("Config", func() {
+	Describe("Colors", func() {
+		It("changes the configuration when disabling colors", func() {
+			config, err := Epinio("config colors 0", "")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config).To(MatchRegexp(`Colors: false`))
+
+			config, err = Epinio("config show", "")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config).To(MatchRegexp(`Colorized Output.*\|.*false`))
+		})
+
+		It("changes the configuration when enabling colors", func() {
+			config, err := Epinio("config colors 1", "")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config).To(MatchRegexp(`Colors: true`))
+
+			config, err = Epinio("config show", "")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(config).To(MatchRegexp(`Colorized Output.*\|.*true`))
+		})
+	})
+
 	Describe("Show", func() {
 		It("shows the configuration", func() {
 			config, err := Epinio("config show", "")
 			Expect(err).ToNot(HaveOccurred())
+			Expect(config).To(MatchRegexp(`Colorized Output.*\|`))     // Exact state not relevant
 			Expect(config).To(MatchRegexp(`Current Organization.*\|`)) // Exact name of org is not relevant, and varies
 			Expect(config).To(MatchRegexp(`Certificates.*\|.*Present`))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API User Name.*\|.*%s`, epinioUser)))
