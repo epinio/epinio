@@ -374,7 +374,7 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, domain strin
 	}
 
 	// Add volume and volume mount of registry-certs for local deployment
-	// since tekton should trust the registry-certs
+	// since tekton should trust the registry-certs.
 	if strings.Contains(domain, "omg.howdoi.website") {
 		caHash, err := getRegistryCAHash(ctx, c)
 		if err != nil {

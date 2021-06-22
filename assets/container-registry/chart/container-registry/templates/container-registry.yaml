@@ -50,6 +50,10 @@ spec:
   - hosts:
     - {{ .Values.domain }}
     secretName: epinio-registry-tls
+## We create a service with type `NodePort` only in 
+## local deployment as Kubelet cannot access the 
+## secured registry because there is no way to add
+## registry CA to kubelet.
 {{ if contains "omg.howdoi.website" .Values.domain }}
 ---
 apiVersion: v1
