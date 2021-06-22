@@ -155,6 +155,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	if err := c.CreateNamespace(ctx, TektonStagingNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 		"quarks.cloudfoundry.org/monitored": "quarks-secret",
+		"cert-manager-tls":                  RegistryDeploymentID,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
@@ -253,7 +254,16 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		func() (string, error) {
 			out, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					return helpers.Kubectl(fmt.Sprintf("get secret -n %s %s-tls", RegistryDeploymentID, RegistryDeploymentID))
+					ca, err := helpers.Kubectl(fmt.Sprintf("get secret -n %s %s-tls -o 'go-template={{index .data \"ca.crt\"}}'", RegistryDeploymentID, RegistryDeploymentID))
+					if err != nil {
+						return "", err
+					}
+
+					// check if `ca.crt` is empty ?
+					if ca == "" {
+						return "", errors.New("ca.crt is nil")
+					}
+					return ca, nil
 				}, k.Timeout, duration.PollInterval())
 			return out, err
 		},

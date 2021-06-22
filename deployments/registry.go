@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -167,6 +168,29 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	if err := c.WaitForPodBySelectorRunning(ctx, ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
 		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
+	}
+
+	// We need the empty certificate secret with a specific annotation
+	// for it to be copied into `tekton-staging` namespace
+	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
+	emptySecret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-tls", RegistryDeploymentID),
+			Namespace: RegistryDeploymentID,
+			Annotations: map[string]string{
+				"kubed.appscode.com/sync": fmt.Sprintf("cert-manager-tls=%s", RegistryDeploymentID),
+			},
+		},
+		Type: v1.SecretTypeTLS,
+		Data: map[string][]byte{
+			"ca.crt":  nil,
+			"tls.crt": nil,
+			"tls.key": nil,
+		},
+	}
+	err = c.CreateSecret(ctx, RegistryDeploymentID, emptySecret)
+	if err != nil {
+		return err
 	}
 
 	// Workaround for cert-manager webhook service not being immediately ready.
