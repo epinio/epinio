@@ -21,6 +21,7 @@ const (
 	warmupJobReady        = 30 * time.Minute
 	certManagerReady      = 5 * time.Minute
 	quarksDeploymentReady = 5 * time.Minute
+	kubedReady            = 5 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	pollInterval = 3 * time.Second
@@ -46,6 +47,10 @@ func ToQuarksDeploymentReady() time.Duration {
 
 func ToCertManagerReady() time.Duration {
 	return Multiplier() * certManagerReady
+}
+
+func ToKubedReady() time.Duration {
+	return Multiplier() * kubedReady
 }
 
 // ToAppBuilt returns the duration to wait until giving up on the

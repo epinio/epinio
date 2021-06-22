@@ -133,6 +133,7 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 
 	installationWg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
+		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
@@ -181,6 +182,7 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Quarks{Timeout: duration.ToDeployment()},
+		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
