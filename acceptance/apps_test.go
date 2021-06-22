@@ -18,23 +18,23 @@ import (
 )
 
 var _ = Describe("Apps", func() {
-	var org string
+	var (
+		org     string
+		appName string
+	)
 
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
+
+		appName = newAppName()
 	})
 
 	When("pushing an app multiple times", func() {
 		var (
-			appName  string
 			timeout  = 30 * time.Second
 			interval = 1 * time.Second
 		)
-
-		BeforeEach(func() {
-			appName = newAppName()
-		})
 
 		act := func(arg string) (string, error) {
 			appDir := "../assets/sample-app"
@@ -48,6 +48,16 @@ var _ = Describe("Apps", func() {
 			}
 			return n
 		}
+
+		It("pushes the same app again successfully", func() {
+			makeApp(appName, 1, false)
+
+			By("pushing the app again")
+			makeApp(appName, 1, false)
+
+			By("deleting the app")
+			deleteApp(appName)
+		})
 
 		It("honours the given instance count", func() {
 			By("pushing without instance count", func() {
@@ -78,11 +88,6 @@ var _ = Describe("Apps", func() {
 	})
 
 	Describe("push and delete", func() {
-		var appName string
-		BeforeEach(func() {
-			appName = newAppName()
-		})
-
 		It("shows the staging logs", func() {
 			By("pushing the app")
 			out := makeApp(appName, 1, true)
@@ -93,8 +98,16 @@ var _ = Describe("Apps", func() {
 			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
 		})
 
-		It("pushes and deletes golang app", func() {
+		It("deploys a golang app", func() {
 			out := makeGolangApp(appName, 1, true)
+
+			By("checking for the application resource", func() {
+				Eventually(func() string {
+					out, _ := helpers.Kubectl(fmt.Sprintf("get app --namespace %s %s",
+						org, appName))
+					return out
+				}, "1m").Should(ContainSubstring("AGE")) // this checks for the table header from kubectl
+			})
 
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
@@ -107,9 +120,17 @@ var _ = Describe("Apps", func() {
 
 			By("deleting the app")
 			deleteApp(appName)
+
+			By("checking the application resource was removed", func() {
+				Eventually(func() string {
+					out, _ := helpers.Kubectl(fmt.Sprintf("get app --namespace %s %s",
+						org, appName))
+					return out
+				}, "1m").Should(ContainSubstring("NotFound"))
+			})
 		})
 
-		It("pushes and deletes an app", func() {
+		It("deploys an app from the current dir", func() {
 			By("pushing the app in the current working directory")
 			out := makeApp(appName, 1, true)
 
@@ -126,7 +147,7 @@ var _ = Describe("Apps", func() {
 			deleteApp(appName)
 		})
 
-		It("pushes and deletes an app", func() {
+		It("deploys an app from the specified dir", func() {
 			By("pushing the app in the specified app directory")
 			makeApp(appName, 1, false)
 
@@ -153,16 +174,6 @@ var _ = Describe("Apps", func() {
 			}, "1m").Should(ContainSubstring("not found"))
 		})
 
-		It("pushes the same app again successfully", func() {
-			makeApp(appName, 1, false)
-
-			By("pushing the app again")
-			makeApp(appName, 1, false)
-
-			By("deleting the app")
-			deleteApp(appName)
-		})
-
 		It("should not fail for a max-length application name", func() {
 			appNameLong := "app123456789012345678901234567890123456789012345678901234567890"
 			// 3+60 characters
@@ -172,7 +183,7 @@ var _ = Describe("Apps", func() {
 			deleteApp(appNameLong)
 		})
 
-		It("pushes an application with the desired number of instances", func() {
+		It("respects the desired number of instances", func() {
 			app := newAppName()
 			makeApp(app, 3, true)
 			defer deleteApp(app)
@@ -241,22 +252,21 @@ var _ = Describe("Apps", func() {
 
 	Describe("update", func() {
 		It("updates an application with the desired number of instances", func() {
-			app := newAppName()
-			makeApp(app, 1, true)
-			defer deleteApp(app)
+			makeApp(appName, 1, true)
+			defer deleteApp(appName)
 
 			Eventually(func() string {
-				out, err := Epinio("app show "+app, "")
+				out, err := Epinio("app show "+appName, "")
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
 			}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
 
-			out, err := Epinio(fmt.Sprintf("app update %s -i 3", app), "")
+			out, err := Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() string {
-				out, err := Epinio("app show "+app, "")
+				out, err := Epinio("app show "+appName, "")
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
@@ -265,10 +275,8 @@ var _ = Describe("Apps", func() {
 	})
 
 	Describe("list and show", func() {
-		var appName string
 		var serviceCustomName string
 		BeforeEach(func() {
-			appName = newAppName()
 			serviceCustomName = newServiceName()
 			makeApp(appName, 1, true)
 			makeCustomService(serviceCustomName)
@@ -307,12 +315,11 @@ var _ = Describe("Apps", func() {
 
 	Describe("logs", func() {
 		var (
-			appName, route string
-			logLength      int
+			route     string
+			logLength int
 		)
 
 		BeforeEach(func() {
-			appName = newAppName()
 			out := makeApp(appName, 1, true)
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route = string(routeRegexp.Find([]byte(out)))

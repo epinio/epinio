@@ -17,7 +17,6 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -133,10 +132,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 
 	err = client.Namespace(org).Delete(ctx, app.Name, metav1.DeleteOptions{})
 	if err != nil {
-		// ignore a missing app resource until we always create it
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
+		return err
 	}
 
 	err = w.Delete(ctx, gitea)

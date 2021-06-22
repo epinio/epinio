@@ -417,12 +417,12 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			// and the response contains an array of their
 			// names.
 
-			var apiError map[string][]api.APIError
+			var apiError api.ErrorResponse
 			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
 				return err
 			}
 
-			bound := strings.Split(apiError["errors"][0].Details, ",")
+			bound := strings.Split(apiError.Errors[0].Details, ",")
 
 			sort.Strings(bound)
 			msg := c.ui.Exclamation().WithTable("Bound Applications")
@@ -1074,20 +1074,21 @@ func (c *EpinioClient) Orgs() error {
 // * (tail logs)
 // * wait for pipelinerun
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, app string, source string, params PushParams) error {
+func (c *EpinioClient) Push(ctx context.Context, name string, source string, params PushParams) error {
+	appRef := models.AppRef{Name: name, Org: c.Config.Org}
 	log := c.Log.
 		WithName("Push").
-		WithValues("Name", app,
-			"Organization", c.Config.Org,
+		WithValues("Name", appRef.Name,
+			"Organization", appRef.Org,
 			"Sources", source)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
 	msg := c.ui.Note().
-		WithStringValue("Name", app).
+		WithStringValue("Name", appRef.Name).
 		WithStringValue("Sources", source).
-		WithStringValue("Organization", c.Config.Org)
+		WithStringValue("Organization", appRef.Org)
 
 	services := uniqueStrings(params.Services)
 
@@ -1103,9 +1104,30 @@ func (c *EpinioClient) Push(ctx context.Context, app string, source string, para
 		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
 
 	details.Info("validate app name")
-	errorMsgs := validation.IsDNS1123Subdomain(app)
+	errorMsgs := validation.IsDNS1123Subdomain(appRef.Name)
 	if len(errorMsgs) > 0 {
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
+	}
+
+	c.ui.Normal().Msg("Create the application resource ...")
+
+	request := models.ApplicationCreateRequest{Name: appRef.Name}
+	js, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+	_, err = c.curlWithCustomErrorHandling(
+		api.Routes.Path("AppCreate", appRef.Org), "POST", string(js), func(
+			response *http.Response, bodyBytes []byte, err error) error {
+			if response.StatusCode == http.StatusConflict {
+				c.ui.Normal().Msg("Application exists, updating ...")
+				return nil
+			}
+			return err
+		},
+	)
+	if err != nil {
+		return err
 	}
 
 	c.ui.Normal().Msg("Collecting the application sources ...")
@@ -1123,7 +1145,6 @@ func (c *EpinioClient) Push(ctx context.Context, app string, source string, para
 	c.ui.Normal().Msg("Uploading application code ...")
 
 	details.Info("upload code")
-	appRef := models.AppRef{Name: app, Org: c.Config.Org}
 	upload, err := c.uploadCode(appRef, tarball)
 	if err != nil {
 		return err
@@ -1132,7 +1153,7 @@ func (c *EpinioClient) Push(ctx context.Context, app string, source string, para
 
 	c.ui.Normal().Msg("Staging application ...")
 
-	route, err := appDefaultRoute(ctx, app)
+	route, err := appDefaultRoute(ctx, appRef.Name)
 	if err != nil {
 		return errors.Wrap(err, "unable to determine default app route")
 	}
@@ -1196,7 +1217,7 @@ func (c *EpinioClient) Push(ctx context.Context, app string, source string, para
 			return err
 		}
 
-		_, err = c.post(api.Routes.Path("ServiceBindingCreate", c.Config.Org, app), string(js))
+		_, err = c.post(api.Routes.Path("ServiceBindingCreate", appRef.Org, appRef.Name), string(js))
 		if err != nil {
 			return err
 		}
@@ -1205,8 +1226,8 @@ func (c *EpinioClient) Push(ctx context.Context, app string, source string, para
 	}
 
 	c.ui.Success().
-		WithStringValue("Name", app).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Name", appRef.Name).
+		WithStringValue("Organization", appRef.Org).
 		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
 		Msg("App is online.")
 

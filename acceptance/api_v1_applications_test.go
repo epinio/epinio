@@ -103,6 +103,18 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return response.StatusCode, bodyBytes
 	}
 
+	createApplication := func(name string, org string) (*http.Response, error) {
+		request := models.ApplicationCreateRequest{Name: name}
+		b, err := json.Marshal(request)
+		if err != nil {
+			return nil, err
+		}
+		body := string(b)
+
+		url := serverURL + "/" + v1.Routes.Path("AppCreate", org)
+		return Curl("POST", url, strings.NewReader(body))
+	}
+
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
@@ -397,6 +409,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		When("staging a new app", func() {
+			BeforeEach(func() {
+				_, err := createApplication(appName, org)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
 			It("returns a success", func() {
 				defer func() { // Cleanup
 					Eventually(func() error {
@@ -631,32 +648,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	Context("Creating", func() {
 		var (
 			appName string
-			request models.ApplicationCreateRequest
-			url     string
-			body    string
 		)
 
 		BeforeEach(func() {
 			org = newOrgName()
 			setupAndTargetOrg(org)
 			appName = newAppName()
-
-			request = models.ApplicationCreateRequest{
-				Name: appName,
-			}
-
-			url = serverURL + "/" + v1.Routes.Path("AppCreate", org)
-		})
-
-		JustBeforeEach(func() {
-			bodyBytes, err := json.Marshal(request)
-			Expect(err).ToNot(HaveOccurred())
-			body = string(bodyBytes)
 		})
 
 		When("creating a new app", func() {
 			It("creates the app resource", func() {
-				response, err := Curl("POST", url, strings.NewReader(body))
+				response, err := createApplication(appName, org)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
