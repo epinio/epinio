@@ -95,17 +95,18 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 	log := c.Log.WithName("ConfigUpdate")
 	log.Info("start")
 	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		Msg("Updating the stored credentials from the current cluster")
 
-	user, password, err := getCredentials(ctx)
+	user, password, err := getCredentials(details, ctx)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
 
-	certs, err := getCerts(ctx)
+	certs, err := getCerts(details, ctx)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -114,6 +115,8 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 	c.Config.User = user
 	c.Config.Password = password
 	c.Config.Certs = certs
+
+	details.Info("Saving", "User", c.Config.User, "Pass", c.Config.Password, "Cert", c.Config.Certs)
 
 	err = c.Config.Save()
 	if err != nil {
@@ -1464,20 +1467,13 @@ func uniqueStrings(stringSlice []string) []string {
 	return list
 }
 
-func getCredentials(ctx context.Context) (string, string, error) {
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		return "", "", nil
-	}
-
+func getCredentials(log logr.Logger, ctx context.Context) (string, string, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
 	}
+
+	log.Info("got cluster")
 
 	// Waiting for the secret is better than simply trying to get
 	// it. This way we automatically handle the case where we try
@@ -1496,6 +1492,8 @@ func getCredentials(ctx context.Context) (string, string, error) {
 		return "", "", errors.Wrap(err, "failed to get API auth secret")
 	}
 
+	log.Info("got secret", "secret", "epinio-api-auth-data")
+
 	user := string(secret.Data["user"])
 	pass := string(secret.Data["pass"])
 
@@ -1506,7 +1504,7 @@ func getCredentials(ctx context.Context) (string, string, error) {
 	return user, pass, nil
 }
 
-func getCerts(ctx context.Context) (string, error) {
+func getCerts(log logr.Logger, ctx context.Context) (string, error) {
 	// For a local deployment (using a self-signed cert) get the
 	// CA cert and save it into the config. The regular client
 	// will then extend the Cert pool with the same, so that it
@@ -1517,7 +1515,10 @@ func getCerts(ctx context.Context) (string, error) {
 		return "", err
 	}
 
+	log.Info("got main domain", "domain", mainDomain)
+
 	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+		log.Info("skip non-development domain")
 		return "", nil
 	}
 
@@ -1525,6 +1526,8 @@ func getCerts(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	log.Info("got cluster")
 
 	// Waiting for the secret is better than simply trying to get
 	// it. This way we automatically handle the case where we try
@@ -1541,9 +1544,12 @@ func getCerts(ctx context.Context) (string, error) {
 		deployments.EpinioDeploymentID+"-tls",
 		duration.ToServiceSecret(),
 	)
+
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get API CA cert secret")
 	}
+
+	log.Info("got secret", "secret", deployments.EpinioDeploymentID+"-tls")
 
 	return string(secret.Data["ca.crt"]), nil
 }
