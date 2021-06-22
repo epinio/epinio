@@ -104,7 +104,7 @@ running cluster.
 Another thing `epinio install` does after deploying all components is
 the creation and targeting of a standard organization, `workspace`.
 
-Wtih the failing server component these actions will fail, making the
+With the failing server component these actions will fail, making the
 installation fail. Using the option `--skip-default-org` instructs the
 command to forego these actions. Which in turn makes it necessary to
 run them manually to reach the standard state of a cluster. These are
