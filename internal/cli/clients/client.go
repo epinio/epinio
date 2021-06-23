@@ -927,10 +927,10 @@ func (c *EpinioClient) CreateOrg(org string) error {
 				strings.Contains(err.Error(), "Gateway")
 		}),
 		retry.OnRetry(func(n uint, err error) {
-			c.ui.Note().Msgf("Retrying (%d/10) after %s", n, err.Error())
+			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
 		}),
 		retry.Delay(time.Second),
-		retry.Attempts(10),
+		retry.Attempts(duration.RetryMax),
 	)
 
 	if err != nil {
