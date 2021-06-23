@@ -26,6 +26,36 @@ spec:
     port: 443
     targetPort: 443
 ---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  labels:
+    {{- include "container-registry.labels" . | nindent 4 }}
+  name: registry
+  namespace: {{ .Release.Namespace }}
+spec:
+  rules:
+  - host: {{ .Values.domain }}
+    http:
+      paths:
+      - backend:
+          serviceName: registry
+          servicePort: 5000
+        path: /
+  tls:
+  - hosts:
+    - {{ .Values.domain }}
+    secretName: epinio-registry-tls
+## We create a service with type `NodePort` only in 
+## local deployment as Kubelet cannot access the 
+## secured registry because there is no way to add
+## registry CA to kubelet.
+{{ if contains "omg.howdoi.website" .Values.domain }}
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -46,71 +76,7 @@ spec:
     port: 443
     targetPort: 443
     nodePort: 30501
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  name: registry-tls
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-spec:
-  request:
-    certificate:
-      alternativeNames:
-      - registry.{{ .Release.Namespace }}
-      commonName: registry
-      isCA: false
-      signerType: cluster
-  secretName: registry-tls
-  type: certificate
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  name: registry-tls-self-ca
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-spec:
-  request:
-    certificate:
-      alternativeNames: null
-      commonName: registryCA
-      isCA: true
-      signerType: local
-  secretName: registry-tls-self-ca
-  type: certificate
-  copies:
-  - name: registry-tls-self-ca
-    namespace: tekton-staging
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  name: registry-tls-self
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-spec:
-  request:
-    certificate:
-      CAKeyRef:
-        key: private_key
-        name: registry-tls-self-ca
-      CARef:
-        key: certificate
-        name: registry-tls-self-ca
-      alternativeNames:
-      - registry.{{ .Release.Namespace }}
-      commonName: registry
-      isCA: false
-      signerType: local
-  secretName: registry-tls-self
-  type: certificate
-  copies:
-  - name: registry-tls-self
-    namespace: tekton-staging
+{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -134,10 +100,6 @@ spec:
         image: {{ .Values.registry.image }}
         imagePullPolicy: {{ .Values.registry.imagePullPolicy }}
         env:
-        # - name: REGISTRY_HTTP_TLS_CERTIFICATE
-        #   value: /etc/registry/certs/cert.pem
-        # - name: REGISTRY_HTTP_TLS_KEY
-        #   value: /etc/registry/certs/key.pem
         - name: REGISTRY_AUTH
           value: htpasswd
         - name: REGISTRY_AUTH_HTPASSWD_REALM
@@ -148,9 +110,6 @@ spec:
         - name: registry
           mountPath: /var/lib/registry
           readOnly: false
-        - name: tls
-          mountPath: /etc/registry/certs
-          readOnly: true
         - name: auth
           mountPath: /etc/registry/auth
           readOnly: true
@@ -169,114 +128,9 @@ spec:
             port: 5000
           initialDelaySeconds: 5
           periodSeconds: 5
-      - name: nginx
-        image: {{ .Values.nginx.image }}
-        imagePullPolicy: {{ .Values.nginx.imagePullPolicy }}
-        ports:
-        - name: registry
-          containerPort: 443
-          protocol: TCP
-        volumeMounts:
-        - name: config
-          mountPath: /etc/nginx/conf.d/default.conf
-          subPath: default.conf
-          readOnly: true
-        - name: tls-self
-          mountPath: /etc/nginx/certs-self
-          readOnly: true
-        livenessProbe:
-          tcpSocket:
-            port: 443
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        readinessProbe:
-          tcpSocket:
-            port: 443
-          initialDelaySeconds: 5
-          periodSeconds: 5
       volumes:
       - name: registry
         emptyDir: {}
-      - name: config
-        configMap:
-          name: registry-nginx-config
-      - name: tls
-        secret:
-          secretName: registry-tls
-          items:
-          - key: certificate
-            path: cert.pem
-          - key: private_key
-            path: key.pem
-      - name: tls-self
-        secret:
-          secretName: registry-tls-self
-          items:
-          - key: certificate
-            path: cert.pem
-          - key: private_key
-            path: key.pem
       - name: auth
         secret:
           secretName: auth
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: registry-nginx-config
-  namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "container-registry.labels" . | nindent 4 }}
-data:
-  default.conf: |
-    upstream registry {
-      server 127.0.0.1:5000;
-    }
-    server {
-      listen                443 ssl;
-      server_name           {{ .Release.Name }}-registry.{{ .Release.Namespace }}.svc;
-      client_max_body_size  0;
-      ssl_certificate           /etc/nginx/certs-self/cert.pem;
-      ssl_certificate_key       /etc/nginx/certs-self/key.pem;
-      ssl_session_cache         builtin:1000  shared:SSL:10m;
-      ssl_protocols             TLSv1 TLSv1.1 TLSv1.2;
-      ssl_ciphers               HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
-      ssl_prefer_server_ciphers on;
-      access_log  /var/log/nginx/registry.access.log;
-      location / {
-        proxy_set_header  Host $host;
-        proxy_set_header  X-Real-IP $remote_addr;
-        proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header  X-Forwarded-Proto $scheme;
-        proxy_pass          http://registry;
-        proxy_read_timeout  90;
-      }
-    }
----
-# COPIES --------------------------
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  labels:
-    quarks.cloudfoundry.org/secret-kind: generated
-  annotations:
-    quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls-self
-  name: registry-tls-self
-  namespace: tekton-staging
-spec:
-  type: copy
-  secretName: registry-tls-self
----
-apiVersion: quarks.cloudfoundry.org/v1alpha1
-kind: QuarksSecret
-metadata:
-  labels:
-    quarks.cloudfoundry.org/secret-kind: generated
-  annotations:
-    quarks.cloudfoundry.org/secret-copy-of: epinio-registry/registry-tls-self-ca
-  name: registry-tls-self-ca
-  namespace: tekton-staging
-spec:
-  type: copy
-  secretName: registry-tls-self-ca

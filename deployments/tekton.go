@@ -8,6 +8,7 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
@@ -24,10 +25,14 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	yaml2 "sigs.k8s.io/yaml"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
@@ -141,7 +146,6 @@ func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 }
 
 func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
-
 	if err := c.CreateNamespace(ctx, tektonNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
@@ -151,6 +155,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	if err := c.CreateNamespace(ctx, TektonStagingNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 		"quarks.cloudfoundry.org/monitored": "quarks-secret",
+		"cert-manager-tls":                  RegistryDeploymentID,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}
@@ -221,22 +226,19 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	if err := k.createGiteaCredsSecret(ctx, c); err != nil {
-		return err
-	}
-	if err := k.createClusterRegistryCredsSecret(ctx, c); err != nil {
-		return err
-	}
-	if err := k.createServiceAccountWithSecretAccess(ctx, c); err != nil {
-		return err
-	}
-
-	waitForQuarks(c, ctx, ui, duration.ToQuarksDeploymentReady())
-
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
+
+	if err := k.createGiteaCredsSecret(ctx, c); err != nil {
+		return err
+	}
+	if err := k.createClusterRegistryCredsSecret(ctx, c, domain); err != nil {
+		return err
+	}
+
+	waitForQuarks(c, ctx, ui, duration.ToQuarksDeploymentReady())
 
 	if err := k.createCACertificate(ctx, c, domain); err != nil {
 		return err
@@ -247,23 +249,23 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	message = fmt.Sprintf("Creating registry certificates in %s", TektonStagingNamespace)
+	message = fmt.Sprintf("Checking registry certificates in %s", RegistryDeploymentID)
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			out1, err := helpers.ExecToSuccessWithTimeout(
+			out, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					return helpers.Kubectl(fmt.Sprintf("get secret -n %s registry-tls-self-ca", TektonStagingNamespace))
-				}, k.Timeout, duration.PollInterval())
-			if err != nil {
-				return out1, err
-			}
+					ca, err := helpers.Kubectl(fmt.Sprintf("get secret -n %s %s-tls -o 'go-template={{index .data \"ca.crt\"}}'", RegistryDeploymentID, RegistryDeploymentID))
+					if err != nil {
+						return "", err
+					}
 
-			out2, err := helpers.ExecToSuccessWithTimeout(
-				func() (string, error) {
-					return helpers.Kubectl(fmt.Sprintf("get secret -n %s registry-tls-self", TektonStagingNamespace))
+					// check if `ca.crt` is empty ?
+					if ca == "" {
+						return "", errors.New("ca.crt is nil")
+					}
+					return ca, nil
 				}, k.Timeout, duration.PollInterval())
-
-			return fmt.Sprintf("%s\n%s", out1, out2), err
+			return out, err
 		},
 	)
 	if err != nil {
@@ -273,7 +275,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	message = "Applying tekton staging resources"
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return applyTektonStaging(ctx, c, ui)
+			return "", applyTektonStaging(ctx, c, domain)
 		},
 	)
 	if err != nil {
@@ -333,16 +335,16 @@ func (k Tekton) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 }
 
 // The equivalent of:
-// kubectl get secret -n tekton-staging registry-tls-self -o json | jq -r '.["data"]["ca"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n tekton-staging epinio-registry-tls -o json | jq -r '.["data"]["ca.crt"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) (string, error) {
+func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).
-		Get(ctx, "registry-tls-self", metav1.GetOptions{})
+		Get(ctx, fmt.Sprintf("%s-tls", RegistryDeploymentID), metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	hash, err := GenerateHash(secret.Data["ca"])
+	hash, err := GenerateHash(secret.Data["ca.crt"])
 	if err != nil {
 		return "", err
 	}
@@ -350,35 +352,70 @@ func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	return hash, nil
 }
 
-func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) (string, error) {
-	caHash, err := getRegistryCAHash(ctx, c, ui)
-	if err != nil {
-		return "", errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
-	}
-
+func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, domain string) error {
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
+		return errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
 	}
 	defer os.Remove(yamlPathOnDisk)
 
 	fileContents, err := ioutil.ReadFile(yamlPathOnDisk)
 	if err != nil {
-		return "", err
+		return err
 	}
 
-	// Constructing the name of the cert file as required by openssl.
-	// Lookup "subject_hash" in the docs: https://www.openssl.org/docs/man1.0.2/man1/x509.html
-	re := regexp.MustCompile(`{{CA_SELF_HASHED_NAME}}`)
-	renderedFileContents := re.ReplaceAll(fileContents, []byte(caHash+".0"))
-
-	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
+	tektonTask := &v1beta1.Task{}
+	err = yaml2.Unmarshal(fileContents, tektonTask, func(opt *json.Decoder) *json.Decoder {
+		opt.UseNumber()
+		return opt
+	})
 	if err != nil {
-		return "", err
+		return errors.Wrapf(err, "failed to unmarshal task %s", string(fileContents))
 	}
-	defer os.Remove(tmpFilePath)
 
-	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", TektonStagingNamespace, tmpFilePath))
+	// Add volume and volume mount of registry-certs for local deployment
+	// since tekton should trust the registry-certs.
+	if strings.Contains(domain, "omg.howdoi.website") {
+		caHash, err := getRegistryCAHash(ctx, c)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
+		}
+
+		volume := corev1.Volume{
+			Name: "registry-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: fmt.Sprintf("%s-tls", RegistryDeploymentID),
+				},
+			},
+		}
+		tektonTask.Spec.Volumes = append(tektonTask.Spec.Volumes, volume)
+
+		volumeMount := corev1.VolumeMount{
+			Name:      "registry-certs",
+			MountPath: fmt.Sprintf("%s/%s", "/etc/ssl/certs", caHash),
+			SubPath:   "ca.crt",
+			ReadOnly:  true,
+		}
+		for stepIndex, step := range tektonTask.Spec.Steps {
+			if step.Name == "create" {
+				tektonTask.Spec.Steps[stepIndex].VolumeMounts = append(tektonTask.Spec.Steps[stepIndex].VolumeMounts, volumeMount)
+				break
+			}
+		}
+	}
+
+	clientSet, err := versioned.NewForConfig(c.RestConfig)
+	if err != nil {
+		return errors.Wrapf(err, "failed getting tekton Task clientSet")
+	}
+
+	_, err = clientSet.TektonV1beta1().Tasks(TektonStagingNamespace).Create(ctx, tektonTask, metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed creating tekton Task")
+	}
+
+	return nil
 }
 
 func (k Tekton) createGiteaCredsSecret(ctx context.Context, c *kubernetes.Cluster) error {
@@ -415,29 +452,7 @@ func (k Tekton) createGiteaCredsSecret(ctx context.Context, c *kubernetes.Cluste
 	return nil
 }
 
-// Adding the imagePullSecrets to the service account attached to the application
-// pods, will automatically assign the same imagePullSecrets to the pods themselves:
-// https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#verify-imagepullsecrets-was-added-to-pod-spec
-func (k Tekton) createServiceAccountWithSecretAccess(ctx context.Context, c *kubernetes.Cluster) error {
-	automountServiceAccountToken := false
-	_, err := c.Kubectl.CoreV1().ServiceAccounts(TektonStagingNamespace).Create(
-		ctx,
-		&corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: TektonStagingNamespace,
-			},
-			ImagePullSecrets: []corev1.LocalObjectReference{
-				{Name: "registry-creds"},
-				{Name: "gitea-creds"}, // TODO: Why does the app service account need access to these? Maybe this service account is use in other places too? (then split to another service account for apps and the other case)
-			},
-			AutomountServiceAccountToken: &automountServiceAccountToken,
-		}, metav1.CreateOptions{})
-
-	return err
-}
-
-func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kubernetes.Cluster) error {
-
+func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kubernetes.Cluster, domain string) error {
 	// Generate random credentials
 	registryAuth, err := RegistryInstallAuth()
 	if err != nil {
@@ -455,10 +470,8 @@ func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kuberne
 	// the registry and also kubernetes (when we deploy our app deployments)
 	auths := fmt.Sprintf(`{ "auths": {
 		"https://127.0.0.1:30500":{%s},
-		"http://127.0.0.1:30501":{%s},
-		"registry.epinio-registry":{%s},
-		"registry.epinio-registry:444":{%s} } }`,
-		jsonFull, jsonFull, jsonPart, jsonPart)
+		"%s":{%s} } }`,
+		jsonFull, fmt.Sprintf("%s.%s", RegistryDeploymentID, domain), jsonPart)
 	// The relevant place in the registry is `deployments/registry.go`, func `apply`, see (**).
 
 	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(ctx,

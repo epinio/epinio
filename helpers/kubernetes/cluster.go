@@ -508,19 +508,12 @@ func (c *Cluster) DeleteSecret(ctx context.Context, namespace, name string) erro
 	return nil
 }
 
-// CreateSecret posts a new secret with key/value dictionary.
-func (c *Cluster) CreateSecret(ctx context.Context, namespace, name string, data map[string][]byte) error {
-	secret := &v1.Secret{
-		Data: data,
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-	}
+func (c *Cluster) CreateSecret(ctx context.Context, namespace string, secret v1.Secret) error {
 	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(ctx,
-		secret,
+		&secret,
 		metav1.CreateOptions{})
 	if err != nil {
-		return errors.Wrap(err, "failed to create secret")
+		return errors.Wrapf(err, "failed to create secret %s", secret.Name)
 	}
 	return nil
 }

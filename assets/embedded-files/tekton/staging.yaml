@@ -143,10 +143,6 @@ spec:
           mountPath: /layers
         - name: $(params.PLATFORM_DIR)
           mountPath: /platform
-        - name: registry-certs-self
-          mountPath: /etc/ssl/certs/{{CA_SELF_HASHED_NAME}}
-          subPath: ca
-          readOnly: true
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -165,6 +161,3 @@ spec:
       emptyDir: {}
     - name: layers-dir
       emptyDir: {}
-    - name: registry-certs-self
-      secret:
-        secretName: registry-tls-self

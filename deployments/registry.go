@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
@@ -14,6 +15,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -144,10 +146,16 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.Wrap(err, "Failed to hash credentials")
 	}
 
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get system_domain option")
+	}
+
 	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
-	helmCmd := fmt.Sprintf("helm %s %s --set 'auth.htpasswd=%s' --namespace %s %s",
+	helmCmd := fmt.Sprintf("helm %s %s --set 'auth.htpasswd=%s' --set 'domain=%s' --namespace %s %s",
 		action, RegistryDeploymentID,
 		htpasswd,
+		fmt.Sprintf("%s.%s", RegistryDeploymentID, domain),
 		RegistryDeploymentID, tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Registry: " + out)
@@ -160,6 +168,48 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	if err := c.WaitForPodBySelectorRunning(ctx, ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
 		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
+	}
+
+	// We need the empty certificate secret with a specific annotation
+	// for it to be copied into `tekton-staging` namespace
+	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
+	emptySecret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-tls", RegistryDeploymentID),
+			Namespace: RegistryDeploymentID,
+			Annotations: map[string]string{
+				"kubed.appscode.com/sync": fmt.Sprintf("cert-manager-tls=%s", RegistryDeploymentID),
+			},
+		},
+		Type: v1.SecretTypeTLS,
+		Data: map[string][]byte{
+			"ca.crt":  nil,
+			"tls.crt": nil,
+			"tls.key": nil,
+		},
+	}
+	err = c.CreateSecret(ctx, RegistryDeploymentID, emptySecret)
+	if err != nil {
+		return err
+	}
+
+	// Workaround for cert-manager webhook service not being immediately ready.
+	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
+	err = retry.Do(func() error {
+		return auth.CreateCertificate(ctx, c.RestConfig, RegistryDeploymentID, RegistryDeploymentID, domain)
+	},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "failed calling webhook") ||
+				strings.Contains(err.Error(), "EOF")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("retrying to create the epinio cert using cert-manager")
+		}),
+		retry.Delay(5*time.Second),
+		retry.Attempts(10),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed trying to create the epinio API server cert")
 	}
 
 	ui.Success().Msg("Registry deployed")

@@ -100,7 +100,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("Name of organization to create not found"))
+					Equal("name of organization to create not found"))
 			})
 
 			It("fails for a known organization", func() {
