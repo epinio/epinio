@@ -165,7 +165,7 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 				strings.Contains(err.Error(), "EOF")
 		}),
 		retry.OnRetry(func(n uint, err error) {
-			ui.Note().Msgf("retrying to create the epinio cert using cert-manager")
+			ui.Note().Msgf("Retrying creation of API cert via cert-manager (%d/10)", n)
 		}),
 		retry.Delay(5*time.Second),
 		retry.Attempts(10),
