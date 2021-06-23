@@ -563,8 +563,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			BeforeEach(func() {
 				app = newAppName()
 				out := makeApp(app, 1, true)
-				routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
-				route = string(routeRegexp.Find([]byte(out)))
+				routeRegexp := regexp.MustCompile(`Route: (https:\/\/.*\.omg\.howdoi\.website)`)
+				route = routeRegexp.FindStringSubmatch(out)[1]
+				Expect(route).ToNot(BeEmpty())
 			})
 
 			AfterEach(func() {
@@ -628,6 +629,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Eventually(func() int {
 					resp, err := Curl("GET", route, strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
+
+					defer resp.Body.Close()
+
+					bodyBytes, err := ioutil.ReadAll(resp.Body)
+					Expect(err).ToNot(HaveOccurred(), resp)
+
+					// reply must be from the phpinfo app
+					if !strings.Contains(string(bodyBytes), "phpinfo()") {
+						return 0
+					}
+
 					return resp.StatusCode
 				}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
