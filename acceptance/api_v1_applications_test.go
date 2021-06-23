@@ -373,6 +373,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			setupAndTargetOrg(org)
 			appName = newAppName()
 
+			By("creating application resource first")
+			_, err := createApplication(appName, org)
+			Expect(err).ToNot(HaveOccurred())
+
 			// First upload to allow staging to succeed
 			uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
 			uploadPath := "../fixtures/sample-app.tar"
@@ -409,19 +413,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		When("staging a new app", func() {
-			BeforeEach(func() {
-				_, err := createApplication(appName, org)
-				Expect(err).ToNot(HaveOccurred())
+			AfterEach(func() {
+				Eventually(func() string {
+					out, err := Epinio("app delete "+appName, "")
+					if err != nil {
+						return out
+					}
+					return ""
+				}, "5m").Should(BeEmpty())
 			})
 
 			It("returns a success", func() {
-				defer func() { // Cleanup
-					Eventually(func() error {
-						_, err := Epinio("app delete "+appName, "")
-						return err
-					}, "5m").ShouldNot(HaveOccurred())
-				}()
-
 				response, err := Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
