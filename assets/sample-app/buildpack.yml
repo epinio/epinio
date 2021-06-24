@@ -1,4 +1,2 @@
----
-php:
-  webserver: httpd
-
+mri:
+  version: 2.6.7
