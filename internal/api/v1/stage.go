@@ -40,6 +40,7 @@ type stageParam struct {
 	Route     string
 	Stage     models.StageRef
 	Instances int32
+	Owner     metav1.OwnerReference
 }
 
 // GitURL returns the git URL by combining the server with the org and name
@@ -59,9 +60,9 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	name := params.ByName("app")
+	p := httprouter.ParamsFromContext(ctx)
+	org := p.ByName("org")
+	name := p.ByName("app")
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -87,12 +88,13 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err, "failed to get access to a kube client")
 	}
 
+	// check application resource
 	appClient, err := cluster.ClientApp()
 	if err != nil {
 		return InternalError(err, "failed to get access to a kube application client")
 	}
 
-	_, err = appClient.Namespace(org).Get(ctx, name, metav1.GetOptions{})
+	app, err := appClient.Namespace(org).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return AppIsNotKnown("cannot stage app, application resource is missing")
@@ -138,11 +140,17 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
-	app := stageParam{
+	params := stageParam{
 		AppRef:    req.App,
 		Git:       req.Git,
 		Route:     req.Route,
 		Instances: instances,
+		Owner: metav1.OwnerReference{
+			APIVersion: app.GetAPIVersion(),
+			Kind:       app.GetKind(),
+			Name:       app.GetName(),
+			UID:        app.GetUID(),
+		},
 	}
 
 	mainDomain, err := domain.MainDomain(ctx)
@@ -157,18 +165,18 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		deploymentImageURL = gitea.LocalRegistry
 	}
 
-	pr := newPipelineRun(uid, app, mainDomain, registryURL, deploymentImageURL)
+	pr := newPipelineRun(uid, params, mainDomain, registryURL, deploymentImageURL)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	err = auth.CreateCertificate(ctx, cluster.RestConfig, app.Name, app.Org, mainDomain)
+	err = auth.CreateCertificate(ctx, cluster.RestConfig, params.Name, params.Org, mainDomain)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	log.Info("staged app", "org", org, "app", app.AppRef, "uid", uid)
+	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
 
 	resp := models.StageResponse{Stage: models.NewStage(uid)}
 	err = jsonResponse(w, resp)
@@ -192,6 +200,7 @@ func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppR
 }
 
 func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploymentImageURL string) *v1beta1.PipelineRun {
+	str := v1beta1.NewArrayOrString
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: uid,
@@ -207,13 +216,18 @@ func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploym
 			ServiceAccountName: "staging-triggers-admin",
 			PipelineRef:        &v1beta1.PipelineRef{Name: "staging-pipeline"},
 			Params: []v1beta1.Param{
-				{Name: "APP_NAME", Value: *v1beta1.NewArrayOrString(app.Name)},
-				{Name: "ORG", Value: *v1beta1.NewArrayOrString(app.Org)},
-				{Name: "ROUTE", Value: *v1beta1.NewArrayOrString(app.Route)},
-				{Name: "INSTANCES", Value: *v1beta1.NewArrayOrString(strconv.Itoa(int(app.Instances)))},
-				{Name: "APP_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(registryURL))},
-				{Name: "DEPLOYMENT_IMAGE", Value: *v1beta1.NewArrayOrString(app.ImageURL(deploymentImageURL))},
-				{Name: "STAGE_ID", Value: *v1beta1.NewArrayOrString(uid)},
+				{Name: "APP_NAME", Value: *str(app.Name)},
+				{Name: "ORG", Value: *str(app.Org)},
+				{Name: "ROUTE", Value: *str(app.Route)},
+				{Name: "INSTANCES", Value: *str(strconv.Itoa(int(app.Instances)))},
+				{Name: "APP_IMAGE", Value: *str(app.ImageURL(registryURL))},
+				{Name: "DEPLOYMENT_IMAGE", Value: *str(app.ImageURL(deploymentImageURL))},
+				{Name: "STAGE_ID", Value: *str(uid)},
+
+				{Name: "OWNER_APIVERSION", Value: *str(app.Owner.APIVersion)},
+				{Name: "OWNER_NAME", Value: *str(app.Owner.Name)},
+				{Name: "OWNER_KIND", Value: *str(app.Owner.Kind)},
+				{Name: "OWNER_UID", Value: *str(string(app.Owner.UID))},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
