@@ -342,9 +342,24 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		return err
 	}
 
-	_, err = c.post(api.Routes.Path("ServiceBindingCreate", c.Config.Org, appName), string(js))
+	b, err := c.post(api.Routes.Path("ServiceBindingCreate", c.Config.Org, appName), string(js))
 	if err != nil {
 		return err
+	}
+
+	br := &models.BindResponse{}
+	if err := json.Unmarshal(b, br); err != nil {
+		return err
+	}
+
+	if len(br.WasBound) > 0 {
+		c.ui.Success().
+			WithStringValue("Service", serviceName).
+			WithStringValue("Application", appName).
+			WithStringValue("Organization", c.Config.Org).
+			Msg("Service Already Bound to Application.")
+
+		return nil
 	}
 
 	c.ui.Success().
@@ -1233,12 +1248,28 @@ func (c *EpinioClient) Push(ctx context.Context, name string, source string, par
 			return err
 		}
 
-		_, err = c.post(api.Routes.Path("ServiceBindingCreate", appRef.Org, appRef.Name), string(js))
+		b, err := c.post(api.Routes.Path("ServiceBindingCreate", appRef.Org, appRef.Name), string(js))
 		if err != nil {
 			return err
 		}
 
-		c.ui.Note().Msg("Done")
+		br := &models.BindResponse{}
+		if err := json.Unmarshal(b, br); err != nil {
+			return err
+		}
+
+		msg := c.ui.Note()
+		text := "Done"
+		if len(br.WasBound) > 0 {
+			text = text + ", With Already Bound Services"
+			msg = msg.WithTable("Name")
+
+			for _, wasbound := range br.WasBound {
+				msg = msg.WithTableRow(wasbound)
+			}
+		}
+
+		msg.Msg(text)
 	}
 
 	c.ui.Success().
