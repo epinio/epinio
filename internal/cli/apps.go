@@ -46,6 +46,8 @@ var CmdAppList = &cobra.Command{
 	Short: "Lists all applications",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -58,8 +60,6 @@ var CmdAppList = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 // CmdAppShow implements the epinio `apps show` command
@@ -68,6 +68,8 @@ var CmdAppShow = &cobra.Command{
 	Short: "Describe the named application",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 
 		if err != nil {
@@ -81,8 +83,6 @@ var CmdAppShow = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -105,6 +105,8 @@ var CmdAppLogs = &cobra.Command{
 	Short: "Streams the logs of the application",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -112,12 +114,12 @@ var CmdAppLogs = &cobra.Command{
 
 		follow, err := cmd.Flags().GetBool("follow")
 		if err != nil {
-			return errors.Wrap(err, "error reading the follow option")
+			return errors.Wrap(err, "error reading option --follow")
 		}
 
 		staging, err := cmd.Flags().GetBool("staging")
 		if err != nil {
-			return errors.Wrap(err, "error reading the staging option")
+			return errors.Wrap(err, "error reading option --staging")
 		}
 
 		stageId := ""
@@ -136,8 +138,6 @@ var CmdAppLogs = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 // CmdAppUpdate is used by the epinio `apps update` command to scale
@@ -148,6 +148,8 @@ var CmdAppUpdate = &cobra.Command{
 	Long:  "Update the running application's attributes (e.g. instances)",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 
 		if err != nil {
@@ -156,7 +158,7 @@ var CmdAppUpdate = &cobra.Command{
 
 		i, err := instances(cmd)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "trouble with instances")
 		}
 		if i == nil {
 			d := v1.DefaultInstances
@@ -169,8 +171,6 @@ var CmdAppUpdate = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp

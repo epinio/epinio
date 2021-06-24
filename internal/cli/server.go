@@ -21,6 +21,7 @@ import (
 	"github.com/epinio/epinio/internal/filesystem"
 	"github.com/epinio/epinio/internal/web"
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -37,6 +38,7 @@ var CmdServer = &cobra.Command{
 	Use:   "server",
 	Short: "starts the Epinio server. You can connect to it using either your browser or the Epinio client.",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
 		httpServerWg := &sync.WaitGroup{}
 		httpServerWg.Add(1)
 		port := viper.GetInt("port")
@@ -44,15 +46,13 @@ var CmdServer = &cobra.Command{
 		logger := tracelog.NewServerLogger()
 		_, listeningPort, err := startEpinioServer(httpServerWg, port, ui, logger)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to start server")
 		}
 		ui.Normal().Msg("listening on localhost on port " + listeningPort)
 		httpServerWg.Wait()
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.Logger) (*http.Server, string, error) {

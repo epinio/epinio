@@ -40,6 +40,8 @@ var CmdOrgList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all organizations",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -52,8 +54,6 @@ var CmdOrgList = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 // CmdOrgCreate implements the epinio `orgs create` command
@@ -62,6 +62,8 @@ var CmdOrgCreate = &cobra.Command{
 	Short: "Creates an organization",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -74,8 +76,6 @@ var CmdOrgCreate = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 // CmdOrgDelete implements the epinio `orgs delete` command
@@ -98,6 +98,8 @@ var CmdOrgDelete = &cobra.Command{
 		return nil
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -110,8 +112,6 @@ var CmdOrgDelete = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 func askConfirmation(cmd *cobra.Command) bool {
