@@ -611,7 +611,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				}
 			})
 
-			It("should follow logs", func() {
+			FIt("should follow logs", func() {
 				existingLogs := readLogs(org, app)
 				logLength := len(strings.Split(existingLogs, "\n"))
 

@@ -92,8 +92,8 @@ var _ = Describe("Apps", func() {
 			By("pushing the app")
 			out := makeApp(appName, 1, true)
 
-			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
-			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
+			Expect(out).To(MatchRegexp(`.*step-create.*Selected Bundler version (using Gemfile.lock).*`))
+			Expect(out).To(MatchRegexp(`.*step-create.*Adding layer 'paketo-buildpacks/bundler:bundler'.*`))
 			// Doesn't include linkerd sidecar logs
 			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
 		})
@@ -343,8 +343,8 @@ var _ = Describe("Apps", func() {
 			out, err := Epinio("app logs --staging "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
-			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
+			Expect(out).To(MatchRegexp(`.*step-create.*Selected Bundler version (using Gemfile.lock).*`))
+			Expect(out).To(MatchRegexp(`.*step-create.*Adding layer 'paketo-buildpacks/bundler:bundler'.*`))
 		})
 
 		It("follows logs", func() {
