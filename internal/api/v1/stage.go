@@ -82,12 +82,25 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
-	log.Info("staging app", "org", org, "app", req)
-
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err, "failed to get access to a kube client")
 	}
+
+	appClient, err := cluster.ClientApp()
+	if err != nil {
+		return InternalError(err, "failed to get access to a kube application client")
+	}
+
+	_, err = appClient.Namespace(org).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return AppIsNotKnown("cannot stage app, application resource is missing")
+		}
+		return InternalError(err, "failed to get the application resource")
+	}
+
+	log.Info("staging app", "org", org, "app", req)
 
 	cs, err := versioned.NewForConfig(cluster.RestConfig)
 	if err != nil {

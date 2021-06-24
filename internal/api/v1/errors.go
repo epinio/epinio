@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// All our actions match this type. They can return a list of errors.
+// APIActionFunc is matched by all actions. Actions can return a list of errors.
 // The "Status" of the first error in the list becomes the response Status Code.
 type APIActionFunc func(http.ResponseWriter, *http.Request) APIErrors
 
@@ -15,11 +15,13 @@ type ErrorResponse struct {
 	Errors []APIError `json:"errors"`
 }
 
+// APIErrors interface is used by all handlers to return one or more errors
 type APIErrors interface {
 	Errors() []APIError
 	FirstStatus() int
 }
 
+// APIError fulfills the error and APIErrors interfaces. It contains a single error.
 type APIError struct {
 	Status  int    `json:"status"`
 	Title   string `json:"title"`
@@ -27,13 +29,14 @@ type APIError struct {
 }
 
 var _ APIErrors = APIError{}
+var _ error = APIError{}
 
-// Satisfy the error interface
-func (err APIError) Error() string {
-	return err.Title
+// Error satisfies the error interface
+func (a APIError) Error() string {
+	return a.Title
 }
 
-// Satisfy the multi error interface
+// Errors satisfies the APIErrors interface
 func (a APIError) Errors() []APIError {
 	return []APIError{a}
 }
@@ -50,12 +53,20 @@ func NewAPIError(title string, details string, status int) APIError {
 	}
 }
 
-var _ APIErrors = MultiError{}
-
+// MultiError fulfills the APIErrors interface. It contains multiple errors.
 type MultiError struct {
 	errors []APIError
 }
 
+var _ APIErrors = MultiError{}
+var _ error = MultiError{}
+
+// Error satisfies the error interface
+func (m MultiError) Error() string {
+	return m.errors[0].Title
+}
+
+// Errors satisfies the APIErrors interface
 func (m MultiError) Errors() []APIError {
 	return m.errors
 }

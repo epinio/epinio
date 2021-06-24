@@ -103,6 +103,18 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return response.StatusCode, bodyBytes
 	}
 
+	createApplication := func(name string, org string) (*http.Response, error) {
+		request := models.ApplicationCreateRequest{Name: name}
+		b, err := json.Marshal(request)
+		if err != nil {
+			return nil, err
+		}
+		body := string(b)
+
+		url := serverURL + "/" + v1.Routes.Path("AppCreate", org)
+		return Curl("POST", url, strings.NewReader(body))
+	}
+
 	BeforeEach(func() {
 		org = newOrgName()
 		setupAndTargetOrg(org)
@@ -361,6 +373,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			setupAndTargetOrg(org)
 			appName = newAppName()
 
+			By("creating application resource first")
+			_, err := createApplication(appName, org)
+			Expect(err).ToNot(HaveOccurred())
+
 			// First upload to allow staging to succeed
 			uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
 			uploadPath := "../fixtures/sample-app.tar"
@@ -397,14 +413,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		When("staging a new app", func() {
-			It("returns a success", func() {
-				defer func() { // Cleanup
-					Eventually(func() error {
-						_, err := Epinio("app delete "+appName, "")
-						return err
-					}, "5m").ShouldNot(HaveOccurred())
-				}()
+			AfterEach(func() {
+				Eventually(func() string {
+					out, err := Epinio("app delete "+appName, "")
+					if err != nil {
+						return out
+					}
+					return ""
+				}, "5m").Should(BeEmpty())
+			})
 
+			It("returns a success", func() {
 				response, err := Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -546,8 +565,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			BeforeEach(func() {
 				app = newAppName()
 				out := makeApp(app, 1, true)
-				routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
-				route = string(routeRegexp.Find([]byte(out)))
+				routeRegexp := regexp.MustCompile(`Route: (https:\/\/.*\.omg\.howdoi\.website)`)
+				route = routeRegexp.FindStringSubmatch(out)[1]
+				Expect(route).ToNot(BeEmpty())
 			})
 
 			AfterEach(func() {
@@ -611,6 +631,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Eventually(func() int {
 					resp, err := Curl("GET", route, strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
+
+					defer resp.Body.Close()
+
+					bodyBytes, err := ioutil.ReadAll(resp.Body)
+					Expect(err).ToNot(HaveOccurred(), resp)
+
+					// reply must be from the phpinfo app
+					if !strings.Contains(string(bodyBytes), "phpinfo()") {
+						return 0
+					}
+
 					return resp.StatusCode
 				}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
@@ -631,32 +662,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	Context("Creating", func() {
 		var (
 			appName string
-			request models.ApplicationCreateRequest
-			url     string
-			body    string
 		)
 
 		BeforeEach(func() {
 			org = newOrgName()
 			setupAndTargetOrg(org)
 			appName = newAppName()
-
-			request = models.ApplicationCreateRequest{
-				Name: appName,
-			}
-
-			url = serverURL + "/" + v1.Routes.Path("AppCreate", org)
-		})
-
-		JustBeforeEach(func() {
-			bodyBytes, err := json.Marshal(request)
-			Expect(err).ToNot(HaveOccurred())
-			body = string(bodyBytes)
 		})
 
 		When("creating a new app", func() {
 			It("creates the app resource", func() {
-				response, err := Curl("POST", url, strings.NewReader(body))
+				response, err := createApplication(appName, org)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
