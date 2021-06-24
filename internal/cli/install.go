@@ -169,7 +169,8 @@ func Install(cmd *cobra.Command, args []string) error {
 	}
 
 	if !skipDefaultOrg {
-		err = epinio_client.CreateOrg(DefaultOrganization)
+		err := epinio_client.CreateOrg(DefaultOrganization)
+
 		if err != nil {
 			return errors.Wrap(err, "error creating org")
 		}

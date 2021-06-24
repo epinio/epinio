@@ -27,6 +27,9 @@ const (
 	pollInterval = 3 * time.Second
 	userAbort    = 5 * time.Second
 	logHistory   = 48 * time.Hour
+
+	// Fixed. Standard number of attempts to retry various operations.
+	RetryMax = 10
 )
 
 // Flags adds to viper flags

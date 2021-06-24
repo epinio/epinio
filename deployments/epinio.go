@@ -160,14 +160,15 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return auth.CreateCertificate(ctx, c.RestConfig, EpinioDeploymentID, EpinioDeploymentID, domain)
 	},
 		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), "failed calling webhook") ||
+			return strings.Contains(err.Error(), " x509: ") ||
+				strings.Contains(err.Error(), "failed calling webhook") ||
 				strings.Contains(err.Error(), "EOF")
 		}),
 		retry.OnRetry(func(n uint, err error) {
-			ui.Note().Msgf("retrying to create the epinio cert using cert-manager")
+			ui.Note().Msgf("Retrying creation of API cert via cert-manager (%d/%d)", n, duration.RetryMax)
 		}),
 		retry.Delay(5*time.Second),
-		retry.Attempts(10),
+		retry.Attempts(duration.RetryMax),
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed trying to create the epinio API server cert")

@@ -18,6 +18,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
@@ -916,7 +917,22 @@ func (c *EpinioClient) CreateOrg(org string) error {
 		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	_, err := c.post(api.Routes.Path("Orgs"), fmt.Sprintf(`{ "name": "%s" }`, org))
+	err := retry.Do(
+		func() error {
+			_, err := c.post(api.Routes.Path("Orgs"), fmt.Sprintf(`{ "name": "%s" }`, org))
+			return err
+		},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), " x509: ") ||
+				strings.Contains(err.Error(), "Gateway")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
+		}),
+		retry.Delay(time.Second),
+		retry.Attempts(duration.RetryMax),
+	)
+
 	if err != nil {
 		return err
 	}

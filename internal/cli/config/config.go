@@ -123,6 +123,13 @@ func (c *Config) Save() error {
 		return errors.Wrapf(err, "failed to write config file '%s'", c.v.ConfigFileUsed())
 	}
 
+	// Note: Install saves the config via ConfigUpdate. The newly
+	// retrieved cert(s) have to be made available now, so that
+	// creation of the default org can do proper verification.
+	if c.Certs != "" {
+		auth.ExtendLocalTrust(c.Certs)
+	}
+
 	return nil
 }
 
