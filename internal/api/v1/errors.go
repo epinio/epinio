@@ -15,14 +15,13 @@ type ErrorResponse struct {
 	Errors []APIError `json:"errors"`
 }
 
-// APIErrors interface is used by all the handlers to return a single or
-// multiple errors
+// APIErrors interface is used by all handlers to return one or more errors
 type APIErrors interface {
 	Errors() []APIError
 	FirstStatus() int
 }
 
-// APIError fulfills the error and the APIErrors interface and contains a single error
+// APIError fulfills the error and APIErrors interfaces. It contains a single error.
 type APIError struct {
 	Status  int    `json:"status"`
 	Title   string `json:"title"`
@@ -54,7 +53,7 @@ func NewAPIError(title string, details string, status int) APIError {
 	}
 }
 
-// MultiError fulfills the APIErrors interface and contains multiple errors
+// MultiError fulfills the APIErrors interface. It contains multiple errors.
 type MultiError struct {
 	errors []APIError
 }

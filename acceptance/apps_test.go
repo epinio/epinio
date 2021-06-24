@@ -251,7 +251,7 @@ var _ = Describe("Apps", func() {
 	})
 
 	Describe("update", func() {
-		It("updates an application with the desired number of instances", func() {
+		It("respects the desired number of instances", func() {
 			makeApp(appName, 1, true)
 			defer deleteApp(appName)
 
