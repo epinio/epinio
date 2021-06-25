@@ -72,11 +72,29 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 				TailLines:    config.TailLines,
 			})
 	}
+
+	acceptable := func(c corev1.Container) bool {
+		if !config.ContainerQuery.MatchString(c.Name) {
+			return false
+		}
+		if config.ExcludeContainerQuery != nil &&
+			config.ExcludeContainerQuery.MatchString(c.Name) {
+			return false
+		}
+		return true
+	}
+
 	for _, pod := range podList.Items {
 		for _, c := range pod.Spec.Containers {
+			if !acceptable(c) {
+				continue
+			}
 			tails = append(tails, newTail(pod, c))
 		}
 		for _, c := range pod.Spec.InitContainers {
+			if !acceptable(c) {
+				continue
+			}
 			tails = append(tails, newTail(pod, c))
 		}
 	}
