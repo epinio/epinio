@@ -30,6 +30,18 @@ var _ = Describe("Apps", func() {
 		appName = newAppName()
 	})
 
+	When("creating an application", func() {
+		AfterEach(func() {
+			deleteApp(appName)
+		})
+
+		It("creates the app", func() {
+			out, err := Epinio(fmt.Sprintf("app create %s", appName), "")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Ok"))
+		})
+	})
+
 	When("pushing an app multiple times", func() {
 		var (
 			timeout  = 30 * time.Second
