@@ -36,13 +36,11 @@ var CmdService = &cobra.Command{
 
 // CmdServiceShow implements the epinio service show command
 var CmdServiceShow = &cobra.Command{
-	Use:           "show NAME",
-	Short:         "Service information",
-	Long:          `Show detailed information of the named service.`,
-	Args:          cobra.ExactArgs(1),
-	RunE:          ServiceShow,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "show NAME",
+	Short: "Service information",
+	Long:  `Show detailed information of the named service.`,
+	Args:  cobra.ExactArgs(1),
+	RunE:  ServiceShow,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -70,9 +68,7 @@ var CmdServiceCreate = &cobra.Command{
 		}
 		return nil
 	},
-	RunE:          ServiceCreate,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	RunE: ServiceCreate,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) > 2 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -114,20 +110,16 @@ var CmdServiceCreateCustom = &cobra.Command{
 		}
 		return nil
 	},
-	RunE:          ServiceCreateCustom,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	RunE: ServiceCreateCustom,
 }
 
 // CmdServiceDelete implements the epinio service delete command
 var CmdServiceDelete = &cobra.Command{
-	Use:           "delete NAME",
-	Short:         "Delete a service",
-	Long:          `Delete service by name.`,
-	Args:          cobra.ExactArgs(1),
-	RunE:          ServiceDelete,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "delete NAME",
+	Short: "Delete a service",
+	Long:  `Delete service by name.`,
+	Args:  cobra.ExactArgs(1),
+	RunE:  ServiceDelete,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -146,13 +138,11 @@ var CmdServiceDelete = &cobra.Command{
 
 // CmdServiceBind implements the epinio service bind command
 var CmdServiceBind = &cobra.Command{
-	Use:           "bind NAME APP",
-	Short:         "Bind a service to an application",
-	Long:          `Bind service by name, to named application.`,
-	Args:          cobra.ExactArgs(2),
-	RunE:          ServiceBind,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "bind NAME APP",
+	Short: "Bind a service to an application",
+	Long:  `Bind service by name, to named application.`,
+	Args:  cobra.ExactArgs(2),
+	RunE:  ServiceBind,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) > 1 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -179,13 +169,11 @@ var CmdServiceBind = &cobra.Command{
 
 // CmdServiceUnbind implements the epinio service unbind command
 var CmdServiceUnbind = &cobra.Command{
-	Use:           "unbind NAME APP",
-	Short:         "Unbind service from an application",
-	Long:          `Unbind service by name, from named application.`,
-	Args:          cobra.ExactArgs(2),
-	RunE:          ServiceUnbind,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "unbind NAME APP",
+	Short: "Unbind service from an application",
+	Long:  `Unbind service by name, from named application.`,
+	Args:  cobra.ExactArgs(2),
+	RunE:  ServiceUnbind,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) > 1 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -211,21 +199,17 @@ var CmdServiceUnbind = &cobra.Command{
 
 // CmdServiceListClasses implements the epinio service classes command
 var CmdServiceListClasses = &cobra.Command{
-	Use:           "list-classes",
-	Short:         "Lists the available service classes",
-	RunE:          ServiceListClasses,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "list-classes",
+	Short: "Lists the available service classes",
+	RunE:  ServiceListClasses,
 }
 
 // CmdServiceListPlans implements the epinio service plans command
 var CmdServiceListPlans = &cobra.Command{
-	Use:           "list-plans CLASS",
-	Short:         "Lists all plans provided by the named service class",
-	Args:          cobra.ExactArgs(1),
-	RunE:          ServiceListPlans,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "list-plans CLASS",
+	Short: "Lists all plans provided by the named service class",
+	Args:  cobra.ExactArgs(1),
+	RunE:  ServiceListPlans,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
@@ -244,15 +228,15 @@ var CmdServiceListPlans = &cobra.Command{
 
 // CmdServiceList implements the epinio service list command
 var CmdServiceList = &cobra.Command{
-	Use:           "list",
-	Short:         "Lists all services",
-	RunE:          ServiceList,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "list",
+	Short: "Lists all services",
+	RunE:  ServiceList,
 }
 
 // ServiceShow implements the epinio service show command
 func ServiceShow(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -268,6 +252,8 @@ func ServiceShow(cmd *cobra.Command, args []string) error {
 
 // ServiceList implements the epinio service list command
 func ServiceList(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -283,6 +269,8 @@ func ServiceList(cmd *cobra.Command, args []string) error {
 
 // ServiceCreate implements the epinio service create command
 func ServiceCreate(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -290,13 +278,13 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 
 	dw, err := cmd.Flags().GetBool("dont-wait")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error reading option --dont-wait")
 	}
 	waitforProvision := !dw
 
 	data, err := cmd.Flags().GetString("data")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error reading option --data")
 	}
 
 	if data == "" {
@@ -306,6 +294,8 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 	var dataObj map[string]interface{}
 	err = json.Unmarshal([]byte(data), &dataObj)
 	if err != nil {
+		// User error. Show usage for this one.
+		cmd.SilenceUsage = false
 		return errors.Wrap(err, "Invalid json format for data")
 	}
 
@@ -319,6 +309,8 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 
 // ServiceCreateCustom implements the epinio service create-custom command
 func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -334,9 +326,11 @@ func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
 
 // ServiceDelete implements the epinio service delete command
 func ServiceDelete(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	unbind, err := cmd.Flags().GetBool("unbind")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error reading option --unbind")
 	}
 
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
@@ -354,6 +348,8 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 
 // ServiceBind implements the epinio service bind command
 func ServiceBind(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -369,6 +365,8 @@ func ServiceBind(cmd *cobra.Command, args []string) error {
 
 // ServiceUnbind implements the epinio service unbind command
 func ServiceUnbind(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -384,6 +382,8 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 
 // ServiceListClasses implements the epinio service list-classes command
 func ServiceListClasses(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -399,6 +399,8 @@ func ServiceListClasses(cmd *cobra.Command, args []string) error {
 
 // ServiceListPlans implements the epinio service list-plans command
 func ServiceListPlans(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")

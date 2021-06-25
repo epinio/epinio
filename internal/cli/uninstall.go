@@ -7,17 +7,17 @@ import (
 )
 
 var CmdUninstall = &cobra.Command{
-	Use:           "uninstall",
-	Short:         "uninstall Epinio from your configured kubernetes cluster",
-	Long:          `uninstall Epinio PaaS from your configured kubernetes cluster`,
-	Args:          cobra.ExactArgs(0),
-	RunE:          Uninstall,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "uninstall",
+	Short: "uninstall Epinio from your configured kubernetes cluster",
+	Long:  `uninstall Epinio PaaS from your configured kubernetes cluster`,
+	Args:  cobra.ExactArgs(0),
+	RunE:  Uninstall,
 }
 
 // Uninstall command removes epinio from a configured cluster
 func Uninstall(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	installClient, _, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), nil)
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
@@ -25,7 +25,7 @@ func Uninstall(cmd *cobra.Command, args []string) error {
 
 	err = installClient.Uninstall(cmd)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to remove")
 	}
 
 	return nil

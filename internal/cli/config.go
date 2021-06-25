@@ -32,7 +32,7 @@ func init() {
 
 // CmdConfigColors implements the `epinio config colors` command
 var CmdConfigColors = &cobra.Command{
-	Use:   "colors",
+	Use:   "colors BOOL",
 	Short: "Manage colored output",
 	Long:  "Enable/Disable colored output",
 	Args: func(cmd *cobra.Command, args []string) error {
@@ -49,17 +49,19 @@ var CmdConfigColors = &cobra.Command{
 		fmt.Println("Hello, World!")
 	},
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		ui := termui.NewUI()
 
 		theConfig, err := config.Load()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to load configuration")
 		}
 
 		colors, err := strconv.ParseBool(args[0])
 		// assert: err == nil -- see args validation
 		if err != nil {
-			return err
+			return errors.Wrap(err, "unexpected bool parsing error")
 		}
 
 		theConfig.Colors = colors
@@ -68,8 +70,6 @@ var CmdConfigColors = &cobra.Command{
 		ui.Success().WithBoolValue("Colors", theConfig.Colors).Msg("Ok")
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 // CmdConfigShow implements the `epinio config show` command
@@ -78,11 +78,13 @@ var CmdConfigShow = &cobra.Command{
 	Short: "Show the current configuration",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		ui := termui.NewUI()
 
 		theConfig, err := config.Load()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to load configuration")
 		}
 
 		certInfo := color.CyanString("None defined")
@@ -101,8 +103,6 @@ var CmdConfigShow = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 // CmdConfigUpdateCreds implements the `epinio config update-credentials` command
@@ -112,6 +112,8 @@ var CmdConfigUpdateCreds = &cobra.Command{
 	Long:  "Update the stored credentials from the current cluster",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 
 		if err != nil {
@@ -120,11 +122,9 @@ var CmdConfigUpdateCreds = &cobra.Command{
 
 		err = client.ConfigUpdate(cmd.Context())
 		if err != nil {
-			return errors.Wrap(err, "error updating the config")
+			return errors.Wrap(err, "failed to update the configuration")
 		}
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }

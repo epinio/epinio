@@ -58,6 +58,7 @@ func instances(cmd *cobra.Command) (*int32, error) {
 	var i *int32
 	instances, err := cmd.Flags().GetInt32("instances")
 	if err != nil {
+		cmd.SilenceUsage = false
 		return i, errors.Wrap(err, "could not read instances parameter")
 	}
 	cmd.Flags().Visit(func(f *pflag.Flag) {
@@ -75,6 +76,8 @@ var CmdPush = &cobra.Command{
 	Short: "Push an application from the specified directory, or the current working directory",
 	Args:  cobra.RangeArgs(1, 2),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -84,19 +87,21 @@ var CmdPush = &cobra.Command{
 		if len(args) == 1 {
 			path, err = os.Getwd()
 			if err != nil {
-				return errors.Wrap(err, "error pushing app")
+				return errors.Wrap(err, "working directory not accessible")
 			}
 		} else {
 			path = args[1]
 		}
 
 		if _, err := os.Stat(path); err != nil {
+			// Path issue is user error. Show usage
+			cmd.SilenceUsage = false
 			return errors.Wrap(err, "path not accessible")
 		}
 
 		i, err := instances(cmd)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "trouble with instances")
 		}
 		params := clients.PushParams{
 			Instances: i,
@@ -104,7 +109,7 @@ var CmdPush = &cobra.Command{
 
 		services, err := cmd.Flags().GetStringSlice("bind")
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to read option --bind")
 		}
 		params.Services = services
 
@@ -115,8 +120,6 @@ var CmdPush = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 }
 
 func init() {

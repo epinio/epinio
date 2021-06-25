@@ -20,23 +20,19 @@ var CmdEnable = &cobra.Command{
 }
 
 var CmdEnableInCluster = &cobra.Command{
-	Use:           "services-incluster",
-	Short:         "enable in-cluster services in Epinio",
-	Long:          `enable in-cluster services in Epinio which allows provisioning services which run on the same cluster as Epinio. Should be used mostly for development.`,
-	Args:          cobra.ExactArgs(0),
-	RunE:          EnableInCluster,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "services-incluster",
+	Short: "enable in-cluster services in Epinio",
+	Long:  `enable in-cluster services in Epinio which allows provisioning services which run on the same cluster as Epinio. Should be used mostly for development.`,
+	Args:  cobra.ExactArgs(0),
+	RunE:  EnableInCluster,
 }
 
 var CmdEnableGoogle = &cobra.Command{
-	Use:           "services-google",
-	Short:         "enable Google Cloud services in Epinio",
-	Long:          `enable Google Cloud services in Epinio which allows provisioning those kind of services.`,
-	Args:          cobra.ExactArgs(0),
-	RunE:          EnableGoogle,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	Use:   "services-google",
+	Short: "enable Google Cloud services in Epinio",
+	Long:  `enable Google Cloud services in Epinio which allows provisioning those kind of services.`,
+	Args:  cobra.ExactArgs(0),
+	RunE:  EnableGoogle,
 }
 
 func init() {
@@ -54,9 +50,11 @@ func EnableInCluster(cmd *cobra.Command, args []string) error {
 }
 
 func EnableGoogle(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
 	serviceAccountJSONPath, err := cmd.Flags().GetString("service-account-json")
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error reading option --service-account-json")
 	}
 
 	return InstallDeployment(
@@ -75,6 +73,8 @@ func EnableGoogle(cmd *cobra.Command, args []string) error {
 }
 
 func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, opts kubernetes.InstallationOptions, successMessage string) error {
+	cmd.SilenceUsage = true
+
 	uiUI := termui.NewUI()
 	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &opts)
 	defer func() {
@@ -86,10 +86,13 @@ func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, opt
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
+
 	uiUI.Note().Msg(deployment.ID() + " installing...")
+
 	if err := installClient.InstallDeployment(cmd.Context(), deployment, installClient.Log); err != nil {
-		return err
+		return errors.Wrap(err, "failed to deploy")
 	}
+
 	uiUI.Note().Msg(successMessage)
 
 	return nil
