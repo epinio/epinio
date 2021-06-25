@@ -736,7 +736,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					bindAppService(app, service, org)
 				})
 
-				It("returns a 'conflict'", func() {
+				It("returns a note about being bound", func() {
 					response, err := Curl("POST",
 						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s/servicebindings",
 							serverURL, org, app),
@@ -747,11 +747,10 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					defer response.Body.Close()
 					bodyBytes, err := ioutil.ReadAll(response.Body)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
+					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 					var responseBody map[string][]apiv1.APIError
 					json.Unmarshal(bodyBytes, &responseBody)
-					Expect(responseBody["errors"][0].Title).To(
-						Equal("Service '" + service + "' already bound"))
+					Expect(string(bodyBytes)).To(Equal(fmt.Sprintf(`{"wasbound":["%s"]}`, service)))
 				})
 			})
 
@@ -767,7 +766,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(`{"wasbound":null}`))
 			})
 		})
 	})

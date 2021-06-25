@@ -34,6 +34,10 @@ type BindRequest struct {
 	Names []string `json:"names"`
 }
 
+type BindResponse struct {
+	WasBound []string `json:"wasbound"`
+}
+
 type ApplicationCreateRequest struct {
 	Name string `json:"name"`
 }

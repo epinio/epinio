@@ -99,11 +99,13 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		theServices = append(theServices, service)
 	}
 
+	resp := models.BindResponse{}
+
 	for _, service := range theServices {
 		err = wl.Bind(ctx, service)
 		if err != nil {
 			if err.Error() == "service already bound" {
-				theIssues = append(theIssues, ServiceAlreadyBound(service.Name()))
+				resp.WasBound = append(resp.WasBound, service.Name())
 				continue
 			}
 
@@ -116,8 +118,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return MultiError{theIssues}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write([]byte{})
+	err = jsonResponse(w, resp)
 	if err != nil {
 		return InternalError(err)
 	}
