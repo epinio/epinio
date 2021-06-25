@@ -78,6 +78,7 @@ func setupAndTargetOrg(org string) {
 func setupInClusterServices() {
 	out, err := RunProc("../dist/epinio-linux-amd64 enable services-incluster", "", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(ContainSubstring("Beware, "))
 
 	// Wait until classes appear
 	EventuallyWithOffset(1, func() error {

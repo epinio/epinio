@@ -43,10 +43,21 @@ func init() {
 }
 
 func EnableInCluster(cmd *cobra.Command, args []string) error {
-	return InstallDeployment(
+	err := InstallDeployment(
 		cmd, &deployments.Minibroker{Timeout: duration.ToDeployment()},
 		kubernetes.InstallationOptions{},
 		"You can now use in-cluster services")
+	if err != nil {
+		return err
+	}
+
+	ui := termui.NewUI()
+	ui.Exclamation().Msg("Beware, minibroker requires some time to catalog and declare the available services.")
+	ui.Exclamation().Msg("And ServiceCatalog some more to pick up these declarations.")
+	ui.Exclamation().Msg("Please do not expect `list-classes` to show them instantly.")
+	ui.Exclamation().Msg("If they are not present when you try to list them, try again a bit later.")
+
+	return nil
 }
 
 func EnableGoogle(cmd *cobra.Command, args []string) error {
