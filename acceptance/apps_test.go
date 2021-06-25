@@ -30,7 +30,7 @@ var _ = Describe("Apps", func() {
 		appName = newAppName()
 	})
 
-	When("creating an application", func() {
+	When("creating just an application", func() {
 		AfterEach(func() {
 			deleteApp(appName)
 		})

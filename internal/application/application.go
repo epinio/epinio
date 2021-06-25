@@ -14,7 +14,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
-	"github.com/epinio/epinio/internal/services"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -57,7 +57,19 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return err
 }
 
-// Lookup locates an application's workload by org and name
+// Get returns the application resource from the cluster.  This should be
+// changed to return a typed application struct, like appv1beta1.Application if
+// needed in the future.
+func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*unstructured.Unstructured, error) {
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Namespace(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
+}
+
+// Lookup locates a workload by org and name
 func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp string) (*models.App, error) {
 	apps, err := List(ctx, cluster, org)
 	if err != nil {
@@ -73,7 +85,7 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp str
 	return nil, nil
 }
 
-// List returns an list of all available applications (in the org)
+// List returns an list of all available workloads (in the org)
 func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
@@ -107,47 +119,43 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 	return result, nil
 }
 
-// Delete deletes an application by org and name
-func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, org string, app models.App) error {
-	w := NewWorkload(cluster, app.AppRef())
-	if len(app.BoundServices) > 0 {
-		for _, bonded := range app.BoundServices {
-			bound, err := services.Lookup(ctx, cluster, org, bonded)
-			if err != nil {
-				return err
-			}
+// Delete an application, optionally its workload, bindings and git repo.
+// Finally unstage its pipelineruns and wait for the deployment's pods to disappear.
+func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, appRef models.AppRef, app *models.App) error {
+	if app != nil {
+		err := NewWorkload(cluster, appRef).UnbindAll(ctx, cluster, app.BoundServices)
+		if err != nil {
+			return err
+		}
 
-			err = w.Unbind(ctx, bound)
-			if err != nil {
-				return err
-			}
+		// if there was a workload, there should also be a gitea repo
+		err = gitea.DeleteRepo(appRef.Org, appRef.Name)
+		if err != nil {
+			return pkgerrors.Wrap(err, "failed to delete repository")
 		}
 	}
 
-	// delete appCRD
+	// delete application resource, will cascade and delete deployment,
+	// ingress, service and certificate
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
 	}
 
-	err = client.Namespace(org).Delete(ctx, app.Name, metav1.DeleteOptions{})
+	err = client.Namespace(appRef.Org).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = w.Delete(ctx, gitea)
-	if err != nil {
-		return err
-	}
-
-	err = Unstage(ctx, app.Name, app.Organization, "")
+	// delete pipelineruns in tekton-staging namespace
+	err = Unstage(ctx, appRef.Name, appRef.Org, "")
 	if err != nil {
 		return err
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx, nil,
-		app.Organization,
-		fmt.Sprintf("app.kubernetes.io/name=%s", app.Name),
+		appRef.Org,
+		fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
 		duration.ToDeployment())
 	if err != nil {
 		return err

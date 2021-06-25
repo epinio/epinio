@@ -998,7 +998,7 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 	if err != nil {
 		return err
 	}
-	var response map[string][]string
+	var response *models.ApplicationDeleteResponse
 	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return err
 	}
@@ -1015,10 +1015,7 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 		}
 	}
 
-	unboundServices, ok := response["UnboundServices"]
-	if !ok {
-		return errors.Errorf("bad response, expected key missing: %v", response)
-	}
+	unboundServices := response.UnboundServices
 	if len(unboundServices) > 0 {
 		s.Stop()
 

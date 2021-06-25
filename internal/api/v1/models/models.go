@@ -64,3 +64,7 @@ type StageRequest struct {
 type StageResponse struct {
 	Stage StageRef `json:"stage,omitempty"`
 }
+
+type ApplicationDeleteResponse struct {
+	UnboundServices []string `json:"unboundservices"`
+}
