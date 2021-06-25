@@ -373,22 +373,29 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	appRef := models.NewAppRef(appName, org)
+	_, err = application.Get(ctx, cluster, appRef)
 	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return AppIsNotKnown(appName)
+		}
 		return InternalError(err)
 	}
 
-	if app == nil {
-		return AppIsNotKnown(appName)
-	}
-
-	err = application.Delete(ctx, cluster, gitea, org, *app)
-	if err != nil {
+	app, err := application.Lookup(ctx, cluster, appRef.Org, appRef.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
 		return InternalError(err)
 	}
 
-	response := map[string][]string{}
-	response["UnboundServices"] = app.BoundServices
+	response := models.ApplicationDeleteResponse{}
+	if app != nil {
+		response.UnboundServices = app.BoundServices
+	}
+
+	err = application.Delete(ctx, cluster, gitea, appRef, app)
+	if err != nil {
+		return InternalError(err)
+	}
 
 	js, err := json.Marshal(response)
 	if err != nil {

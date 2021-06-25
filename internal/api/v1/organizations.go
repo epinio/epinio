@@ -143,6 +143,7 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
+	// Deleting the namespace here. That will automatically delete the application resources.
 	err = organizations.Delete(ctx, cluster, gitea, org)
 	if err != nil {
 		return InternalError(err)
@@ -158,6 +159,10 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
+// TODO this code will leave Gitea repos and pipelineruns of failed staging
+// attempts behind. We should switch this, to work on the application
+// resources, when we implement listing apps without workloads and binding
+// services to apps without workloads.
 func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.Client, org string) error {
 	apps, err := application.List(ctx, cluster, org)
 	if err != nil {
@@ -224,7 +229,7 @@ loop:
 			defer func() {
 				<-buffer // 2b
 			}()
-			err = application.Delete(ctx, cluster, gitea, org, app)
+			err = application.Delete(ctx, cluster, gitea, app.AppRef(), &app)
 			if err != nil {
 				errChan <- err // x
 			}

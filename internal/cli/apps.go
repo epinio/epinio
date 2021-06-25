@@ -77,7 +77,7 @@ var CmdAppCreate = &cobra.Command{
 
 		err = client.AppCreate(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error listing apps")
+			return errors.Wrap(err, "error creating app")
 		}
 
 		return nil
@@ -116,7 +116,7 @@ var CmdAppShow = &cobra.Command{
 
 		err = client.AppShow(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error listing apps")
+			return errors.Wrap(err, "error showing app")
 		}
 
 		return nil
