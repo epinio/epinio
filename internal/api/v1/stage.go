@@ -140,17 +140,18 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
+	owner := metav1.OwnerReference{
+		APIVersion: app.GetAPIVersion(),
+		Kind:       app.GetKind(),
+		Name:       app.GetName(),
+		UID:        app.GetUID(),
+	}
 	params := stageParam{
 		AppRef:    req.App,
 		Git:       req.Git,
 		Route:     req.Route,
 		Instances: instances,
-		Owner: metav1.OwnerReference{
-			APIVersion: app.GetAPIVersion(),
-			Kind:       app.GetKind(),
-			Name:       app.GetName(),
-			UID:        app.GetUID(),
-		},
+		Owner:     owner,
 	}
 
 	mainDomain, err := domain.MainDomain(ctx)
@@ -171,7 +172,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	err = auth.CreateCertificate(ctx, cluster.RestConfig, params.Name, params.Org, mainDomain)
+	err = auth.CreateCertificate(ctx, cluster, params.Name, params.Org, mainDomain, &owner)
 	if err != nil {
 		return InternalError(err)
 	}

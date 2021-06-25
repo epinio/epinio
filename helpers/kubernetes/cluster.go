@@ -161,6 +161,22 @@ func (c *Cluster) ClientCertManager() (dynamic.NamespaceableResourceInterface, e
 	return dynamicClient.Resource(gvr), nil
 }
 
+// ClientCertificate returns a dynamic namespaced client for the cert manager
+// certificate resource
+func (c *Cluster) ClientCertificate() (dynamic.NamespaceableResourceInterface, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    "cert-manager.io",
+		Version:  "v1alpha2",
+		Resource: "certificates",
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+	return dynamicClient.Resource(gvr), nil
+}
+
 // ClientServiceCatalog returns a dynamic namespaced client for the specified service catalog resource
 func (c *Cluster) ClientServiceCatalog(res string) (dynamic.NamespaceableResourceInterface, error) {
 	gvr := schema.GroupVersionResource{

@@ -157,7 +157,7 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
 	err = retry.Do(func() error {
-		return auth.CreateCertificate(ctx, c.RestConfig, EpinioDeploymentID, EpinioDeploymentID, domain)
+		return auth.CreateCertificate(ctx, c, EpinioDeploymentID, EpinioDeploymentID, domain, nil)
 	},
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), " x509: ") ||
