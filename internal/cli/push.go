@@ -58,6 +58,7 @@ func instances(cmd *cobra.Command) (*int32, error) {
 	var i *int32
 	instances, err := cmd.Flags().GetInt32("instances")
 	if err != nil {
+		cmd.SilenceUsage = false
 		return i, errors.Wrap(err, "could not read instances parameter")
 	}
 	cmd.Flags().Visit(func(f *pflag.Flag) {
