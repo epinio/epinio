@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -131,6 +132,10 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	}
 	if err := c.WaitForPodBySelectorRunning(ctx, ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to come up")
+	}
+
+	if err := c.WaitUntilServiceHasLoadBalancer(ctx, ui, TraefikDeploymentID, "traefik", duration.ToServiceLoadBalancer()); err != nil {
+		return errors.Wrap(err, "failed waiting for Traefik Ingress to have get a Load Balancer")
 	}
 
 	ui.Success().Msg("Traefik Ingress deployed")
