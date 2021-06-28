@@ -224,6 +224,10 @@ func ensureEpinio() {
 		"", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
+	ingressIP, err := RunProc("kubectl get service  traefik -n traefik -o jsonpath={.status.loadBalancer.ingress[*].ip}", nodeTmpDir, false)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(out).To(MatchRegexp(fmt.Sprintf("Traefik Ingress info:.*%s.*", ingressIP)))
+
 	domainSetting := ""
 	if domain := os.Getenv("EPINIO_SYSTEM_DOMAIN"); domain != "" {
 		domainSetting = fmt.Sprintf(" --system-domain %s", domain)

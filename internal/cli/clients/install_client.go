@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -153,10 +154,16 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 
 	installationWg.Wait()
 
+	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
+	if err != nil {
+		return err
+	}
+
 	c.ui.Success().
 		WithStringValue("System domain", domain.Value.(string)).
 		WithStringValue("API User", c.config.User).
 		WithStringValue("API Password", c.config.Password).
+		WithStringValue("Traefik Ingress info", traefikServiceIngressInfo).
 		Msg("Epinio installed.")
 
 	return nil
@@ -273,7 +280,14 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 		return err
 	}
 
-	c.ui.Success().Msg("Epinio Ingress done.")
+	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().
+		WithStringValue("Traefik Ingress info", traefikServiceIngressInfo).
+		Msg("Epinio Ingress done.")
 
 	return nil
 }
@@ -375,4 +389,23 @@ func (c *InstallClient) fetchIP(ctx context.Context, ip *string) error {
 	*ip = ingress[0].IP
 
 	return nil
+}
+
+func (c *InstallClient) traefikServiceIngressInfo(ctx context.Context) (string, error) {
+	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/name=traefik",
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(serviceList.Items) == 0 {
+		return "not found", nil
+	}
+
+	traefikServiceIngressInfo, err := json.Marshal(serviceList.Items[0].Status.LoadBalancer.Ingress)
+	if err != nil {
+		return "", err
+	}
+
+	return string(traefikServiceIngressInfo), nil
 }
