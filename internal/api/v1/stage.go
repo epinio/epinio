@@ -160,6 +160,8 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	var deploymentImageURL string
 	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
+	// If it's a local deployment the cert is self-signed so we use the NodePort
+	// (without TLS) as the Deployment image. This way kube won't complain.
 	if !strings.Contains(mainDomain, "omg.howdoi.website") {
 		deploymentImageURL = registryURL
 	} else {

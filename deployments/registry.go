@@ -173,6 +173,9 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	// We need the empty certificate secret with a specific annotation
 	// for it to be copied into `tekton-staging` namespace
 	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
+	// TODO: We won't need to create an empty secret as soon as this is resolved:
+	// https://github.com/jetstack/cert-manager/issues/2576
+	// https://github.com/jetstack/cert-manager/pull/3828
 	emptySecret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-tls", RegistryDeploymentID),
