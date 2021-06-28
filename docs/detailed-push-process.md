@@ -7,9 +7,9 @@ so you can understand what each components does.
 You can see an image that visualises the process later in this page. Refer to it while reading the text to help you understand the process more.
 The numbers on the various arrows on the image indicate the order of the various steps.
 
-## 1. Uploading the code
+## 1. Epinio Push
 
-When you run the `epinio push` command, the first thing the cli is going to do, is to put your code inside a tarball and send it to the `upload` endpoint of the Epinio API server which is running inside the Kubernetes cluster.
+Epinio exposes an API server running inside the kubernetes cluster for all clients including cli to talk to it. When you run the `epinio push` command, the first thing the cli is going to do, is to hit the relevant api endpoint for pushing apps. (1a) There is a Traefik ingress which sits in front of the Epinio API server which does BasicAuth for all the requests. (1b) After successful authentication, it routes the request to the Epinio API server. The cli puts your code inside a tarball and sends it to the `upload` endpoint of the Epinio API server which is running inside the Kubernetes cluster.
 
 ## 2. Pushing the code to Gitea
 
@@ -43,7 +43,12 @@ https://github.com/epinio/epinio/tree/main/assets/container-registry/chart/conta
 
 To run a workload on Kubernetes having a container image is not enough. You need at least a Pod running with at least one container running that image.
 
-The last step of the staging Tekton pipeline creates the runtime Kubernetes resources that are needed to make your application available to the users outside the Kubernetes cluster. The most important resources that are created are a [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), a [Service](https://kubernetes.io/docs/concepts/services-networking/service/) and an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) resource. The Deployment is using the image that was pushed as part of the staging step (see arrows 6 and 8 on the image).
+The last step of the staging Tekton pipeline creates the runtime Kubernetes resources that are needed to make your application available to the users outside the Kubernetes cluster. The most important resources that are created are a [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/), a [Service](https://kubernetes.io/docs/concepts/services-networking/service/) and an [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) resource.
+
+## 8. Pull Image
+
+The Deployment uses the image that was pushed as part of the staging step (see arrow 6). Now, the kubelet will pull the image from the registry for the deployment resource to use it.
+
 
 You can read how these resources work in Kubernetes following the provided links but if you have to know one thing is that Ingress is the thing that describes how a request that uses the Application's url is routed to the application container. In Kubernetes, the thing that reads that description and implements the routing is called an Ingress Controller. Such an Ingress Controller is provided by [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/).
 
