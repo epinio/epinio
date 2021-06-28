@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 type OrganizationsController struct {
@@ -138,7 +139,7 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 
 	for _, service := range serviceList {
 		err = service.Delete(ctx)
-		if err != nil {
+		if err != nil && !apierrors.IsNotFound(err) {
 			return InternalError(err)
 		}
 	}
@@ -159,12 +160,9 @@ func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-// TODO this code will leave Gitea repos and pipelineruns of failed staging
-// attempts behind. We should switch this, to work on the application
-// resources, when we implement listing apps without workloads and binding
-// services to apps without workloads.
+// deleteApps removes the application and its resources
 func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.Client, org string) error {
-	apps, err := application.List(ctx, cluster, org)
+	appRefs, err := application.ListAppRefs(ctx, cluster, org)
 	if err != nil {
 		return err
 	}
@@ -220,20 +218,20 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.C
 	var forLoopErr error
 
 loop:
-	for _, app := range apps {
+	for _, appRef := range appRefs {
 		buffer <- struct{}{} // 2a
 		wg.Add(1)            // 1a
 
-		go func(app models.App) {
+		go func(appRef models.AppRef) {
 			defer wg.Done() // 1b
 			defer func() {
 				<-buffer // 2b
 			}()
-			err = application.Delete(ctx, cluster, gitea, app.AppRef(), &app)
+			err := application.Delete(ctx, cluster, gitea, appRef)
 			if err != nil {
 				errChan <- err // x
 			}
-		}(app)
+		}(appRef)
 
 		// 3a1
 		select {

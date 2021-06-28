@@ -7,8 +7,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 )
 
-// AppCreate updates the credentials stored in the config from the
-// currently targeted kube cluster
+// AppCreate creates an app without a workload
 func (c *EpinioClient) AppCreate(appName string) error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")

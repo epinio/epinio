@@ -392,7 +392,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		response.UnboundServices = app.BoundServices
 	}
 
-	err = application.Delete(ctx, cluster, gitea, appRef, app)
+	err = application.Delete(ctx, cluster, gitea, appRef)
 	if err != nil {
 		return InternalError(err)
 	}
