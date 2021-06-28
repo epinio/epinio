@@ -32,6 +32,18 @@ spec:
     - name: STAGE_ID
       type: string
       description: "The identifier of the unique staging process"
+    - name: OWNER_APIVERSION
+      type: string
+      description: "The API version of the owner"
+    - name: OWNER_KIND
+      type: string
+      description: "The API kind of the owner"
+    - name: OWNER_NAME
+      type: string
+      description: "The name of the owner"
+    - name: OWNER_UID
+      type: string
+      description: "The uid of the owner"
   tasks:
   - name: clone
     taskRef:
@@ -74,6 +86,14 @@ spec:
         value: "$(params.DEPLOYMENT_IMAGE)"
       - name: STAGE_ID
         value: "$(params.STAGE_ID)"
+      - name: OWNER_APIVERSION
+        value: "$(params.OWNER_APIVERSION)"
+      - name: OWNER_KIND
+        value: "$(params.OWNER_KIND)"
+      - name: OWNER_NAME
+        value: "$(params.OWNER_NAME)"
+      - name: OWNER_UID
+        value: "$(params.OWNER_UID)"
     runAfter:
     - stage
     workspaces:
@@ -141,6 +161,14 @@ spec:
       type: string
     - name: STAGE_ID
       type: string
+    - name: OWNER_APIVERSION
+      type: string
+    - name: OWNER_KIND
+      type: string
+    - name: OWNER_NAME
+      type: string
+    - name: OWNER_UID
+      type: string
   steps:
   - name: run
     image: lachlanevenson/k8s-kubectl
@@ -162,6 +190,11 @@ spec:
             app.kubernetes.io/part-of: "$(params.ORG)"
             app.kubernetes.io/component: application
             app.kubernetes.io/managed-by: epinio
+          ownerReferences:
+          - apiVersion: "$(params.OWNER_APIVERSION)"
+            kind: "$(params.OWNER_KIND)"
+            name: "$(params.OWNER_NAME)"
+            uid: "$(params.OWNER_UID)"
         spec:
           replicas: $(params.INSTANCES)
           selector:
@@ -204,6 +237,11 @@ spec:
             app.kubernetes.io/managed-by: epinio
             app.kubernetes.io/name: $(params.APP_NAME)
             app.kubernetes.io/part-of: $(params.ORG)
+          ownerReferences:
+          - apiVersion: "$(params.OWNER_APIVERSION)"
+            kind: "$(params.OWNER_KIND)"
+            name: "$(params.OWNER_NAME)"
+            uid: "$(params.OWNER_UID)"
           name: $(params.APP_NAME)
           namespace: $(params.ORG)
         spec:
@@ -231,6 +269,11 @@ spec:
             app.kubernetes.io/managed-by: epinio
             app.kubernetes.io/name: $(params.APP_NAME)
             app.kubernetes.io/part-of: $(params.ORG)
+          ownerReferences:
+          - apiVersion: "$(params.OWNER_APIVERSION)"
+            kind: "$(params.OWNER_KIND)"
+            name: "$(params.OWNER_NAME)"
+            uid: "$(params.OWNER_UID)"
           name: $(params.APP_NAME)
           namespace: $(params.ORG)
         spec:

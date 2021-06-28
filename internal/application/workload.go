@@ -35,24 +35,6 @@ func (a *Workload) Delete(ctx context.Context, gitea GiteaInterface) error {
 		return pkgerrors.Wrap(err, "failed to delete repository")
 	}
 
-	err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).
-		Delete(ctx, a.app.Name, metav1.DeleteOptions{})
-	if err != nil {
-		return pkgerrors.Wrap(err, "failed to delete application deployment")
-	}
-
-	err = a.cluster.Kubectl.ExtensionsV1beta1().Ingresses(a.app.Org).
-		Delete(ctx, a.app.Name, metav1.DeleteOptions{})
-	if err != nil {
-		return pkgerrors.Wrap(err, "failed to delete application ingress")
-	}
-
-	err = a.cluster.Kubectl.CoreV1().Services(a.app.Org).
-		Delete(ctx, a.app.Name, metav1.DeleteOptions{})
-	if err != nil {
-		return pkgerrors.Wrap(err, "failed to delete application service")
-	}
-
 	return nil
 }
 

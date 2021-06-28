@@ -196,7 +196,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
 	err = retry.Do(func() error {
-		return auth.CreateCertificate(ctx, c.RestConfig, RegistryDeploymentID, RegistryDeploymentID, domain)
+		return auth.CreateCertificate(ctx, c, RegistryDeploymentID, RegistryDeploymentID, domain, nil)
 	},
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), "failed calling webhook") ||
