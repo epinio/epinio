@@ -11,3 +11,5 @@ registry:
 nginx:
   image: nginx:1.19.3
   imagePullPolicy: IfNotPresent
+
+magicDomain: omg.howdoi.website
