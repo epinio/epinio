@@ -337,6 +337,28 @@ var _ = Describe("Apps", func() {
 				return out
 			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
 		})
+
+		Describe("no instances", func() {
+			BeforeEach(func() {
+				out, err := Epinio(fmt.Sprintf("app update %s --instances 0", appName), "")
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+			It("lists apps without instances", func() {
+				Eventually(func() string {
+					out, err := Epinio("app list", "")
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(MatchRegexp("0/0"))
+			})
+			It("shows the details of an app without instances", func() {
+				Eventually(func() string {
+					out, err := Epinio("app show "+appName, "")
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					return out
+				}, "1m").Should(MatchRegexp(`Status\s*\|\s*0\/0\s*\|`))
+			})
+		})
 	})
 
 	Describe("logs", func() {
