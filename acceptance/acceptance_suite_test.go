@@ -224,10 +224,15 @@ func ensureEpinio() {
 		"", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 
+	domainSetting := ""
+	if domain := os.Getenv("EPINIO_SYSTEM_DOMAIN"); domain != "" {
+		domainSetting = fmt.Sprintf(" --system-domain %s", domain)
+	}
+
 	// Allow the installation to continue by not trying to create the default org
 	// before we patch.
 	out, err = RunProc(
-		fmt.Sprintf("../dist/epinio-linux-amd64 install --skip-default-org --user %s --password %s", epinioUser, epinioPassword),
+		fmt.Sprintf("../dist/epinio-linux-amd64 install --skip-default-org --user %s --password %s %s", epinioUser, epinioPassword, domainSetting),
 		"", false)
 	Expect(err).ToNot(HaveOccurred(), out)
 }
