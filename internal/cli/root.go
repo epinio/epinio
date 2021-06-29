@@ -59,6 +59,10 @@ func Execute() {
 	viper.BindPFlag("no-colors", pf.Lookup("no-colors"))
 	argToEnv["colors"] = "EPINIO_COLORS"
 
+	pf.StringP("magic-domain", "", "omg.howdoi.website", "Magic domain to use self-signed certs with")
+	viper.BindPFlag("magic-domain", pf.Lookup("magic-domain"))
+	argToEnv["magic-domain"] = "EPINIO_MAGIC_DOMAIN"
+
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)

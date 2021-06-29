@@ -7,8 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/domain"
@@ -158,7 +158,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
 	// If it's a local deployment the cert is self-signed so we use the NodePort
 	// (without TLS) as the Deployment image. This way kube won't complain.
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+	if !helpers.IsMagicDomain(mainDomain) {
 		deploymentImageURL = registryURL
 	} else {
 		deploymentImageURL = gitea.LocalRegistry

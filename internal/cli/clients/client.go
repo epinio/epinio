@@ -20,6 +20,7 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
@@ -1008,7 +1009,7 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 		return errors.Wrap(err, "failed to delete certificate")
 	}
 
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+	if !helpers.IsMagicDomain(mainDomain) {
 		err = c.deleteCertificate(ctx, appname)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete certificate")
@@ -1582,7 +1583,7 @@ func getCerts(log logr.Logger, ctx context.Context) (string, error) {
 
 	log.Info("got main domain", "domain", mainDomain)
 
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
+	if !helpers.IsMagicDomain(mainDomain) {
 		log.Info("skip non-development domain")
 		return "", nil
 	}

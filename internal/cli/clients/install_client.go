@@ -366,6 +366,7 @@ func (c *InstallClient) fillInMissingSystemDomain(ctx context.Context, domain *k
 
 		if ip != "" {
 			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
+			domain.Value = fmt.Sprintf("%s.%s", ip, helpers.MagicDomain())
 		}
 	}
 

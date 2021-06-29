@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -18,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/names"
 )
@@ -51,7 +51,7 @@ func CreateCertificate(ctx context.Context, cluster *kubernetes.Cluster, name, n
 	issuer := ""
 	origin := ""
 
-	if !strings.Contains(systemDomain, "omg.howdoi.website") {
+	if !helpers.IsMagicDomain(systemDomain) {
 		issuer = "letsencrypt-production"
 		origin = "production"
 	} else {
