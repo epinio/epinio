@@ -3,7 +3,9 @@ package acceptance_test
 import (
 	"fmt"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -12,18 +14,18 @@ var _ = Describe("Catalog Services", func() {
 	var org string
 	var serviceName string
 	BeforeEach(func() {
-		org = newOrgName()
-		serviceName = newServiceName()
-		setupAndTargetOrg(org)
+		org = catalog.NewOrgName()
+		serviceName = catalog.NewServiceName()
+		env.SetupAndTargetOrg(org)
 	})
 
 	Describe("service create", func() {
 		It("creates a catalog based service, with waiting", func() {
-			makeCatalogService(serviceName)
+			env.MakeCatalogService(serviceName)
 		})
 
 		It("creates a catalog based service, with additional data", func() {
-			makeCatalogService(serviceName, `{ "db": { "name": "wordpress" }}`)
+			env.MakeCatalogService(serviceName, `{ "db": { "name": "wordpress" }}`)
 			serviceInstanceName := fmt.Sprintf("service.org-%s.svc-%s", org, serviceName)
 
 			out, err := helpers.Kubectl(
@@ -34,40 +36,40 @@ var _ = Describe("Catalog Services", func() {
 		})
 
 		It("creates a catalog based service, without waiting", func() {
-			makeCatalogServiceDontWait(serviceName)
+			env.MakeCatalogServiceDontWait(serviceName)
 		})
 
 		AfterEach(func() {
-			cleanupService(serviceName)
+			env.CleanupService(serviceName)
 		})
 	})
 
 	Describe("service delete", func() {
 		BeforeEach(func() {
-			makeCatalogService(serviceName)
+			env.MakeCatalogService(serviceName)
 		})
 
 		It("deletes a catalog based service", func() {
-			deleteService(serviceName)
+			env.DeleteService(serviceName)
 		})
 
 		It("doesn't delete a bound service", func() {
-			appName := newAppName()
-			makeApp(appName, 1, true)
-			bindAppService(appName, serviceName, org)
+			appName := catalog.NewAppName()
+			env.MakeApp(appName, 1, true)
+			env.BindAppService(appName, serviceName, org)
 
-			out, err := Epinio("service delete "+serviceName, "")
+			out, err := env.Epinio("service delete "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Unable to delete service. It is still used by"))
 			Expect(out).To(MatchRegexp(appName))
 			Expect(out).To(MatchRegexp("Use --unbind to force the issue"))
 
-			verifyAppServiceBound(appName, serviceName, org, 1)
+			env.VerifyAppServiceBound(appName, serviceName, org, 1)
 
 			// Delete again, and force unbind
 
-			out, err = Epinio("service delete --unbind "+serviceName, "")
+			out, err = env.Epinio("service delete --unbind "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("PREVIOUSLY BOUND TO"))
@@ -75,11 +77,11 @@ var _ = Describe("Catalog Services", func() {
 
 			Expect(out).To(MatchRegexp("Service Removed"))
 
-			verifyAppServiceNotbound(appName, serviceName, org, 1)
+			env.VerifyAppServiceNotbound(appName, serviceName, org, 1)
 
 			// And check non-presence
 			Eventually(func() string {
-				out, err = Epinio("service list", "")
+				out, err = env.Epinio("service list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "10m").ShouldNot(MatchRegexp(serviceName))
@@ -89,49 +91,49 @@ var _ = Describe("Catalog Services", func() {
 	Describe("service bind", func() {
 		var appName string
 		BeforeEach(func() {
-			appName = newAppName()
+			appName = catalog.NewAppName()
 
-			makeCatalogService(serviceName)
-			makeApp(appName, 1, true)
+			env.MakeCatalogService(serviceName)
+			env.MakeApp(appName, 1, true)
 		})
 
 		AfterEach(func() {
-			cleanupApp(appName)
-			cleanupService(serviceName)
+			env.CleanupApp(appName)
+			env.CleanupService(serviceName)
 		})
 
 		It("binds a service to the application deployment", func() {
-			bindAppService(appName, serviceName, org)
+			env.BindAppService(appName, serviceName, org)
 		})
 	})
 
 	Describe("service unbind", func() {
 		var appName string
 		BeforeEach(func() {
-			appName = newAppName()
+			appName = catalog.NewAppName()
 
-			makeCatalogService(serviceName)
-			makeApp(appName, 1, true)
-			bindAppService(appName, serviceName, org)
+			env.MakeCatalogService(serviceName)
+			env.MakeApp(appName, 1, true)
+			env.BindAppService(appName, serviceName, org)
 		})
 
 		AfterEach(func() {
-			cleanupApp(appName)
-			cleanupService(serviceName)
+			env.CleanupApp(appName)
+			env.CleanupService(serviceName)
 		})
 
 		It("unbinds a service from the application deployment", func() {
-			unbindAppService(appName, serviceName, org)
+			env.UnbindAppService(appName, serviceName, org)
 		})
 	})
 
 	Describe("service show", func() {
 		BeforeEach(func() {
-			makeCatalogService(serviceName)
+			env.MakeCatalogService(serviceName)
 		})
 
 		It("it shows service details", func() {
-			out, err := Epinio("service show "+serviceName, "")
+			out, err := env.Epinio("service show "+serviceName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Service Details"))
 			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))
@@ -140,7 +142,7 @@ var _ = Describe("Catalog Services", func() {
 		})
 
 		AfterEach(func() {
-			cleanupService(serviceName)
+			env.CleanupService(serviceName)
 		})
 	})
 })

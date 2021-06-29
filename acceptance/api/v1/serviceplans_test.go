@@ -1,4 +1,4 @@
-package acceptance_test
+package v1_test
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ var _ = Describe("ServicePlans API Application Endpoints", func() {
 		var servicePlanFrees []bool
 
 		It("lists all serviceplans", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/serviceclasses/%s/serviceplans",
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/serviceclasses/%s/serviceplans",
 				serverURL, "mariadb"), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())

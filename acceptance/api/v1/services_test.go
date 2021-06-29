@@ -1,4 +1,4 @@
-package acceptance_test
+package v1_test
 
 import (
 	"encoding/json"
@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,26 +18,26 @@ var _ = Describe("Services API Application Endpoints", func() {
 	var svc1, svc2 string
 
 	BeforeEach(func() {
-		org = newOrgName()
-		setupAndTargetOrg(org)
+		org = catalog.NewOrgName()
+		env.SetupAndTargetOrg(org)
 
-		svc1 = newServiceName()
-		svc2 = newServiceName()
+		svc1 = catalog.NewServiceName()
+		svc2 = catalog.NewServiceName()
 
-		makeCatalogService(svc1)
-		makeCustomService(svc2)
+		env.MakeCatalogService(svc1)
+		env.MakeCustomService(svc2)
 	})
 
 	AfterEach(func() {
-		deleteService(svc1)
-		deleteService(svc2)
+		env.DeleteService(svc1)
+		env.DeleteService(svc2)
 	})
 
 	Describe("GET /api/v1/orgs/:org/services", func() {
 		var serviceNames []string
 
 		It("lists all services in the org", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services",
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services",
 				serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -54,7 +55,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the org does not exist", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/services", serverURL), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/services", serverURL), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -67,7 +68,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 
 	Describe("GET api/v1/orgs/:org/services/:service", func() {
 		It("lists the service data", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services/%s", serverURL, org, svc1), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services/%s", serverURL, org, svc1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
@@ -84,7 +85,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the org does not exist", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/services/%s", serverURL, svc1), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/services/%s", serverURL, svc1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -95,7 +96,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the service does not exist", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services/bogus", serverURL, org), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services/bogus", serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 

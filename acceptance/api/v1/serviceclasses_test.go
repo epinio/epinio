@@ -1,4 +1,4 @@
-package acceptance_test
+package v1_test
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ var _ = Describe("ServiceClasses API Application Endpoints", func() {
 		var serviceClassBroker []string
 
 		It("lists all serviceclasses", func() {
-			response, err := Curl("GET", fmt.Sprintf("%s/api/v1/serviceclasses",
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/serviceclasses",
 				serverURL), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())

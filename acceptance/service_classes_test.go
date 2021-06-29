@@ -1,6 +1,8 @@
 package acceptance_test
 
 import (
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -8,13 +10,13 @@ import (
 var _ = Describe("Service Classes, and Plans", func() {
 	var org string
 	BeforeEach(func() {
-		org = newOrgName()
-		setupAndTargetOrg(org)
+		org = catalog.NewOrgName()
+		env.SetupAndTargetOrg(org)
 	})
 
 	Describe("service list-classes", func() {
 		It("shows all available service classes", func() {
-			out, err := Epinio("service list-classes", "")
+			out, err := env.Epinio("service list-classes", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("mariadb"))
 			Expect(out).To(MatchRegexp("Helm Chart for mariadb"))
@@ -24,7 +26,7 @@ var _ = Describe("Service Classes, and Plans", func() {
 
 	Describe("service list-plans", func() {
 		It("shows all available service plans for a class", func() {
-			out, err := Epinio("service list-plans mariadb", "")
+			out, err := env.Epinio("service list-plans mariadb", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("10-3-22"))
 			Expect(out).To(MatchRegexp("MariaDB Server is intended"))
