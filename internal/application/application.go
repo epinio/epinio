@@ -71,6 +71,17 @@ func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*
 	return client.Namespace(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
 }
 
+func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (bool, error) {
+	_, err := Get(ctx, cluster, app)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
 // ListAppRefs returns an app ref for every application resource in the org's namespace
 func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]models.AppRef, error) {
 	client, err := cluster.ClientApp()

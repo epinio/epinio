@@ -30,7 +30,7 @@ var _ = Describe("Apps", func() {
 		appName = newAppName()
 	})
 
-	When("creating just an application", func() {
+	When("creating an application without a workload", func() {
 		AfterEach(func() {
 			deleteApp(appName)
 		})
@@ -39,6 +39,20 @@ var _ = Describe("Apps", func() {
 			out, err := Epinio(fmt.Sprintf("app create %s", appName), "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Ok"))
+		})
+
+		When("pushing a workload", func() {
+			BeforeEach(func() {
+				out, err := Epinio(fmt.Sprintf("app create %s", appName), "")
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("creates the workload", func() {
+				appDir := "../assets/sample-app"
+				out, err := Epinio(fmt.Sprintf("apps push %s", appName), appDir)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("App is online"))
+			})
 		})
 	})
 

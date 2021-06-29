@@ -57,16 +57,16 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return BadRequest(err)
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, createRequest.Name)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return InternalError(err, "failed to check for app")
+	appRef := models.NewAppRef(createRequest.Name, org)
+	found, err := application.Exists(ctx, cluster, appRef)
+	if err != nil {
+		return InternalError(err, "failed to check for app resource")
 	}
-
-	if app != nil {
+	if found {
 		return AppAlreadyKnown(createRequest.Name)
 	}
 
-	err = application.Create(ctx, cluster, models.NewAppRef(createRequest.Name, org))
+	err = application.Create(ctx, cluster, appRef)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -374,12 +374,12 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	}
 
 	appRef := models.NewAppRef(appName, org)
-	_, err = application.Get(ctx, cluster, appRef)
+	found, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return AppIsNotKnown(appName)
-		}
 		return InternalError(err)
+	}
+	if !found {
+		return AppIsNotKnown(appName)
 	}
 
 	app, err := application.Lookup(ctx, cluster, appRef.Org, appRef.Name)

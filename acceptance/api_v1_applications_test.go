@@ -670,6 +670,16 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			appName = newAppName()
 		})
 
+		AfterEach(func() {
+			Eventually(func() string {
+				out, err := Epinio("app delete "+appName, "")
+				if err != nil {
+					return out
+				}
+				return ""
+			}, "5m").Should(BeEmpty())
+		})
+
 		When("creating a new app", func() {
 			It("creates the app resource", func() {
 				response, err := createApplication(appName, org)
