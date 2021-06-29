@@ -28,17 +28,21 @@ func TestAcceptance(t *testing.T) {
 	RunSpecs(t, "Acceptance Suite")
 }
 
-var nodeSuffix, nodeTmpDir string
+var (
+	nodeSuffix, nodeTmpDir string
 
-// serverURL is the URL of the epinio API server
-var serverURL, websocketURL string
-var registryMirrorName = "epinio-acceptance-registry-mirror"
+	// serverURL is the URL of the epinio API server
+	serverURL, websocketURL string
+	registryMirrorName      = "epinio-acceptance-registry-mirror"
+	epinioMagicDomain       = "omg.howdoi.website"
+)
 
 const (
-	networkName         = "epinio-acceptance"
-	registryMirrorEnv   = "EPINIO_REGISTRY_CONFIG"
-	registryUsernameEnv = "REGISTRY_USERNAME"
-	registryPasswordEnv = "REGISTRY_PASSWORD"
+	networkName          = "epinio-acceptance"
+	registryMirrorEnv    = "EPINIO_REGISTRY_CONFIG"
+	registryUsernameEnv  = "REGISTRY_USERNAME"
+	registryPasswordEnv  = "REGISTRY_PASSWORD"
+	epinioMagicDomainEnv = "EPINIO_MAGIC_DOMAIN"
 
 	// skipCleanupPath is the path (relative to the test
 	// directory) of a file which, when present causes the system
@@ -72,6 +76,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Singleton setup. Run on node 1 before all
 
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
+
+	if d := os.Getenv(epinioMagicDomainEnv); d != "" {
+		epinioMagicDomain = d
+	}
 
 	if os.Getenv(registryUsernameEnv) == "" || os.Getenv(registryPasswordEnv) == "" {
 		fmt.Println("REGISTRY_USERNAME or REGISTRY_PASSWORD environment variables are empty. Pulling from dockerhub will be subject to rate limiting.")

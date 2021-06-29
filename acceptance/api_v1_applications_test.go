@@ -400,7 +400,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Revision: respObj.Git.Revision,
 					URL:      respObj.Git.URL,
 				},
-				Route: appName + ".omg.howdoi.website",
+				Route: appName + "." + epinioMagicDomain,
 			}
 
 			url = serverURL + "/" + v1.Routes.Path("AppStage", org, appName)

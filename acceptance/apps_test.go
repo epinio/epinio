@@ -19,8 +19,9 @@ import (
 
 var _ = Describe("Apps", func() {
 	var (
-		org     string
-		appName string
+		org         string
+		appName     string
+		routeRegexp *regexp.Regexp
 	)
 
 	BeforeEach(func() {
@@ -28,6 +29,7 @@ var _ = Describe("Apps", func() {
 		setupAndTargetOrg(org)
 
 		appName = newAppName()
+		routeRegexp = regexp.MustCompile(`https:\/\/.*` + epinioMagicDomain)
 	})
 
 	When("creating an application without a workload", func() {
@@ -135,7 +137,6 @@ var _ = Describe("Apps", func() {
 				}, "1m").Should(ContainSubstring("AGE")) // this checks for the table header from kubectl
 			})
 
-			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
@@ -160,7 +161,6 @@ var _ = Describe("Apps", func() {
 			By("pushing the app in the current working directory")
 			out := makeApp(appName, 1, true)
 
-			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
@@ -347,7 +347,6 @@ var _ = Describe("Apps", func() {
 
 		BeforeEach(func() {
 			out := makeApp(appName, 1, true)
-			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route = string(routeRegexp.Find([]byte(out)))
 
 			out, err := Epinio("app logs "+appName, "")
