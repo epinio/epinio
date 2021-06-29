@@ -53,4 +53,8 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          GINKGO_NODES=8 make test-acceptance
+          export GINKGO_NODES=8
+          make acceptance-cluster-delete
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make test-acceptance

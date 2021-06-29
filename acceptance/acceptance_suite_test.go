@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -54,16 +53,7 @@ const (
 	// (*) A number, i.e. just digits. __No trailing newline__
 	afterEachSleepPath = "../tmp/after_each_sleep"
 
-	kubeconfigPath = "../tmp/acceptance-kubeconfig"
-	epinioYAML     = "../tmp/epinio.yaml"
-
-	// k3dInstallArgsEnv contains the name of the environment
-	// variable which, when present and not empty has its contents
-	// added to the command creating the test cluster.  Does not
-	// apply if an existing cluster is re-used.
-	//
-	// Example: -p '80:80@server[0]' -p '443:443@server[0]'
-	k3dInstallArgsEnv = "EPINIO_K3D_INSTALL_ARGS"
+	epinioYAML = "../tmp/epinio.yaml"
 
 	// skipEpinioPatch contains the name of the environment
 	// variable which, when present and not empty causes system
@@ -99,15 +89,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	os.Setenv("EPINIO_CONFIG", epinioYAML)
 	os.Setenv("SKIP_SSL_VERIFICATION", "true")
 
-	fmt.Println("Ensuring a docker network")
-	out, err := ensureRegistryNetwork()
-	Expect(err).ToNot(HaveOccurred(), out)
-	out, err = ensureRegistryMirror()
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	fmt.Println("Ensuring acceptance cluster")
-	ensureCluster("epinio-acceptance")
-
 	if os.Getenv(registryUsernameEnv) != "" && os.Getenv(registryPasswordEnv) != "" {
 		fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
 		_, _ = helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
@@ -122,7 +103,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	if os.Getenv(skipEpinioPatch) == "" {
 		// Patch Epinio deployment to inject the current binary
 		fmt.Println("Patching Epinio deployment with test binary")
-		out, err = RunProc("make patch-epinio-deployment", "..", false)
+		out, err := RunProc("make patch-epinio-deployment", "..", false)
 		Expect(err).ToNot(HaveOccurred(), out)
 	}
 
@@ -135,7 +116,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// is not completely done yet.
 	fmt.Println("Ensure default workspace exists")
 	Eventually(func() string {
-		out, err = RunProc("../dist/epinio-linux-amd64 org create workspace", "", false)
+		out, err := RunProc("../dist/epinio-linux-amd64 org create workspace", "", false)
 		if err != nil {
 			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
 				return ""
@@ -147,7 +128,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	fmt.Println("Setup cluster services")
 	setupInClusterServices()
-	out, err = helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
+	out, err := helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(`minibroker.*2/2.*Running`))
 
@@ -168,22 +149,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 		panic("Could not create temp dir: " + err.Error())
 	}
 
-	os.Setenv("KUBECONFIG", nodeTmpDir+"/kubeconfig")
-	// Copy kubeconfig in the temp dir
-	out, err := RunProc(fmt.Sprintf("cp %s %s/kubeconfig", kubeconfigPath, nodeTmpDir), "", false)
-	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(os.Getenv("KUBECONFIG")).ToNot(BeEmpty(), "KUBECONFIG environment variable should not be empty")
 
-	out, err = copyEpinio()
+	out, err := copyEpinio()
 	Expect(err).ToNot(HaveOccurred(), out)
-
-	fmt.Println("Waiting for kubernetes node to be ready")
-	Eventually(func() string {
-		out, err = waitUntilClusterNodeReady()
-		if err != nil {
-			return err.Error()
-		}
-		return ""
-	}, "3m").Should(BeEmpty())
 
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
@@ -210,9 +179,6 @@ var _ = SynchronizedAfterSuite(func() {
 	if skipCleanup() {
 		fmt.Printf("Found '%s', skipping all cleanup", skipCleanupPath)
 	} else {
-		err := uninstallCluster()
-		Expect(err).NotTo(HaveOccurred())
-
 		// Delete left-overs no matter what
 		defer func() { _, _ = cleanupTmp() }()
 	}
@@ -235,44 +201,6 @@ var _ = AfterEach(func() {
 func skipCleanup() bool {
 	_, err := os.Stat(skipCleanupPath)
 	return err == nil
-}
-
-func ensureRegistryNetwork() (string, error) {
-	out, err := RunProc(fmt.Sprintf("docker network create %s", networkName), "", false)
-	if err != nil {
-		alreadyExists, regexpErr := regexp.Match(`already exists`, []byte(out))
-		if regexpErr != nil {
-			return "", regexpErr
-		}
-		if alreadyExists {
-			return "", nil
-		}
-
-		return "", err
-	}
-
-	return out, err
-}
-
-func ensureRegistryMirror() (string, error) {
-	if os.Getenv(registryMirrorEnv) != "" {
-		return "", nil
-	}
-	fmt.Println("Ensuring a registry mirror")
-
-	out, err := RunProc(fmt.Sprintf("docker ps --filter name=%s -q", registryMirrorName), "", false)
-	if err != nil {
-		return out, err
-	}
-	if out == "" {
-		fmt.Printf("Registry mirror %s is not running. I will try to create it.\n", registryMirrorName)
-		command := fmt.Sprintf("docker run -d --network %s --name %s -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io -e REGISTRY_PROXY_USERNAME=%s -e REGISTRY_PROXY_PASSWORD=%s registry:2",
-			networkName, registryMirrorName, os.Getenv(registryUsernameEnv), os.Getenv(registryPasswordEnv))
-
-		return RunProc(command, nodeTmpDir, false)
-	}
-
-	return out, err
 }
 
 func ensureEpinio() {
@@ -302,75 +230,6 @@ func ensureEpinio() {
 		fmt.Sprintf("../dist/epinio-linux-amd64 install --skip-default-org --user %s --password %s", epinioUser, epinioPassword),
 		"", false)
 	Expect(err).ToNot(HaveOccurred(), out)
-}
-
-func uninstallCluster() error {
-	_, err := RunProc("k3d cluster delete epinio-acceptance", "", false)
-	return err
-}
-
-func ensureCluster(k3dClusterName string) {
-	k3dConfigContents := fmt.Sprintf(`{"mirrors":{"docker.io":{"endpoint":["http://%s:5000"]}}}`, registryMirrorName)
-	if os.Getenv(registryMirrorEnv) != "" {
-		k3dConfigContents = os.Getenv(registryMirrorEnv)
-		fmt.Printf("Using custom registry mirror config from '%s' for docker.io images\n", registryMirrorEnv)
-	}
-
-	tmpk3dConfig, err := helpers.CreateTmpFile(k3dConfigContents)
-	if err != nil {
-		panic(err.Error())
-	}
-	defer os.Remove(tmpk3dConfig)
-
-	if _, err := exec.LookPath("k3d"); err != nil {
-		panic("Couldn't find k3d in PATH: " + err.Error())
-	}
-
-	out, err := RunProc("k3d cluster get "+k3dClusterName, "", false)
-	if err != nil {
-		notExists, regexpErr := regexp.Match(`No nodes found for given cluster`, []byte(out))
-		if regexpErr != nil {
-			panic(regexpErr)
-		}
-		if notExists {
-			fmt.Printf("k3d cluster %s doesn't exist. I will try to create it.\n", k3dClusterName)
-			out, err := RunProc(
-				fmt.Sprintf("k3d cluster create %s --registry-config %s --network %s %s"+
-					" --k3s-server-arg --disable --k3s-server-arg traefik",
-					k3dClusterName, tmpk3dConfig, networkName, os.Getenv(k3dInstallArgsEnv)),
-				"", false)
-			if err != nil {
-				panic(fmt.Sprintf("Creating k3d cluster failed: %s \n%s", err.Error(), out))
-			}
-		} else {
-			panic("Looking up k3d cluster failed: " + err.Error())
-		}
-	}
-
-	// Ensure we are talking to the correct cluster
-	kubeconfig, err := RunProc("k3d kubeconfig get epinio-acceptance", "", false)
-	if err != nil {
-		panic("Getting kubeconfig failed: " + err.Error())
-	}
-	if err := os.MkdirAll("../tmp", 0755); err != nil {
-		panic("cannot create tmp dir")
-	}
-	err = ioutil.WriteFile(kubeconfigPath, []byte(kubeconfig), 0644)
-	if err != nil {
-		panic("Writing kubeconfig failed: " + err.Error())
-	}
-	p, err := filepath.Abs(kubeconfigPath)
-	Expect(err).ToNot(HaveOccurred())
-	os.Setenv("KUBECONFIG", p)
-}
-
-func waitUntilClusterNodeReady() (string, error) {
-	nodeName, err := RunProc("kubectl get nodes -o name", nodeTmpDir, true)
-	if err != nil {
-		return nodeName, err
-	}
-
-	return RunProc("kubectl wait --for=condition=Ready "+nodeName, nodeTmpDir, true)
 }
 
 func deleteTmpDir() {
@@ -462,7 +321,6 @@ func checkDependencies() error {
 	}{
 		{CommandName: "wget"},
 		{CommandName: "tar"},
-		{CommandName: "k3d"},
 	}
 
 	for _, dependency := range dependencies {

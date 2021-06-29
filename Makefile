@@ -47,6 +47,13 @@ test: embed_files
 
 GINKGO_NODES ?= 2
 FLAKE_ATTEMPTS ?= 2
+
+acceptance-cluster-delete:
+	k3d cluster delete epinio-acceptance
+
+acceptance-cluster-setup:
+	@./scripts/acceptance-cluster-setup.sh
+
 test-acceptance: showfocus embed_files
 	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
