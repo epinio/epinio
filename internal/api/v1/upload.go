@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -72,6 +73,9 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	}
 
 	log.Info("uploaded app", "org", org, "app", name)
+
+	// Extend url to contain the full repo path
+	g.URL = fmt.Sprintf("%s/%s/%s", g.URL, org, name)
 
 	resp := models.UploadResponse{Git: &g}
 	err = jsonResponse(w, resp)

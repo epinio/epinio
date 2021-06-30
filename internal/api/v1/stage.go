@@ -248,7 +248,7 @@ func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploym
 						Type: v1alpha1.PipelineResourceTypeGit,
 						Params: []v1alpha1.ResourceParam{
 							{Name: "revision", Value: app.Git.Revision},
-							{Name: "url", Value: app.GitURL(deployments.GiteaURL)},
+							{Name: "url", Value: app.Git.URL},
 						},
 					},
 				},
