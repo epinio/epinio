@@ -1102,7 +1102,7 @@ func (c *EpinioClient) Orgs() error {
 // * (tail logs)
 // * wait for pipelinerun
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, name string, source string, params PushParams) error {
+func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, params PushParams) error {
 	appRef := models.AppRef{Name: name, Org: c.Config.Org}
 	log := c.Log.
 		WithName("Push").
@@ -1113,9 +1113,14 @@ func (c *EpinioClient) Push(ctx context.Context, name string, source string, par
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
+	sourceToShow := source
+	if rev != "" {
+		sourceToShow = fmt.Sprintf("%s @ %s", sourceToShow, rev)
+	}
+
 	msg := c.ui.Note().
 		WithStringValue("Name", appRef.Name).
-		WithStringValue("Sources", source).
+		WithStringValue("Sources", sourceToShow).
 		WithStringValue("Organization", appRef.Org)
 
 	services := uniqueStrings(params.Services)
@@ -1158,26 +1163,37 @@ func (c *EpinioClient) Push(ctx context.Context, name string, source string, par
 		return err
 	}
 
-	c.ui.Normal().Msg("Collecting the application sources ...")
+	var gitRef *models.GitRef
 
-	tmpDir, tarball, err := collectSources(log, source)
-	defer func() {
-		if tmpDir != "" {
-			_ = os.RemoveAll(tmpDir)
+	if rev == "" {
+		c.ui.Normal().Msg("Collecting the application sources ...")
+
+		tmpDir, tarball, err := collectSources(log, source)
+		defer func() {
+			if tmpDir != "" {
+				_ = os.RemoveAll(tmpDir)
+			}
+		}()
+		if err != nil {
+			return err
 		}
-	}()
-	if err != nil {
-		return err
-	}
 
-	c.ui.Normal().Msg("Uploading application code ...")
+		c.ui.Normal().Msg("Uploading application code ...")
 
-	details.Info("upload code")
-	upload, err := c.uploadCode(appRef, tarball)
-	if err != nil {
-		return err
+		details.Info("upload code")
+		upload, err := c.uploadCode(appRef, tarball)
+		if err != nil {
+			return err
+		}
+		log.V(3).Info("upload response", "response", upload)
+
+		gitRef = upload.Git
+	} else {
+		gitRef = &models.GitRef{
+			URL:      source,
+			Revision: rev,
+		}
 	}
-	log.V(3).Info("upload response", "response", upload)
 
 	c.ui.Normal().Msg("Staging application ...")
 
@@ -1188,10 +1204,10 @@ func (c *EpinioClient) Push(ctx context.Context, name string, source string, par
 	req := models.StageRequest{
 		App:       appRef,
 		Instances: params.Instances,
-		Git:       upload.Git,
+		Git:       gitRef,
 		Route:     route,
 	}
-	details.Info("staging code", "Git", upload.Git.Revision)
+	details.Info("staging code", "Git", gitRef.Revision)
 	stage, err := c.stageCode(req)
 	if err != nil {
 		return err
