@@ -10,6 +10,8 @@ import (
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/services"
 
+	pkgerrors "github.com/pkg/errors"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -212,27 +214,29 @@ func (a *Workload) Bind(ctx context.Context, service interfaces.Service) error {
 func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 	var err error
 
-	selector := fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio,app.kubernetes.io/name=%s",
-		a.app.Name)
-
-	listOptions := metav1.ListOptions{
-		LabelSelector: selector,
-	}
-
-	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Org).List(ctx, listOptions)
-	if err != nil {
-		return nil, err
-	}
-
 	app := a.app.App()
-	app.StageID = pods.Items[0].ObjectMeta.Labels["epinio.suse.org/stage-id"]
 
-	app.Status, err = a.cluster.DeploymentStatus(ctx,
-		app.Organization,
-		fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s",
-			app.Organization, app.Name))
+	// Query application deployment for stageID and status (ready vs desired replicas)
+
+	deploymentSelector := fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s", a.app.Org, a.app.Name)
+
+	deploymentListOptions := metav1.ListOptions{
+		LabelSelector: deploymentSelector,
+	}
+
+	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).List(ctx, deploymentListOptions)
+
 	if err != nil {
-		app.Status = err.Error()
+		app.Status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
+	} else if len(deployments.Items) < 1 {
+		app.Status = "0/0"
+	} else {
+		app.Status = fmt.Sprintf("%d/%d",
+			deployments.Items[0].Status.ReadyReplicas,
+			deployments.Items[0].Status.Replicas)
+
+		app.StageID = deployments.Items[0].
+			Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
 	}
 
 	app.Routes, err = a.cluster.ListIngressRoutes(ctx, app.Organization, app.Name)

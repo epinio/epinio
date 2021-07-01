@@ -608,27 +608,6 @@ func (c *Cluster) GetVersion() (string, error) {
 	return v.String(), nil
 }
 
-// DeploymentStatus returns running status for a Deployment
-// If the deployment doesn't exist, the status is set to 0/0
-func (c *Cluster) DeploymentStatus(ctx context.Context, namespace, selector string) (string, error) {
-	result, err := c.Kubectl.AppsV1().Deployments(namespace).List(
-		ctx,
-		metav1.ListOptions{
-			LabelSelector: selector,
-		},
-	)
-
-	if err != nil {
-		return "", errors.Wrap(err, "failed to get Deployment status")
-	}
-
-	if len(result.Items) < 1 {
-		return "0/0", nil
-	}
-
-	return fmt.Sprintf("%d/%d", result.Items[0].Status.ReadyReplicas, result.Items[0].Status.Replicas), nil
-}
-
 // ListIngressRoutes returns a list of all routes for ingresses in `namespace` with the given selector
 func (c *Cluster) ListIngressRoutes(ctx context.Context, namespace, name string) ([]string, error) {
 	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
