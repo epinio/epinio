@@ -263,8 +263,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				err = json.Unmarshal(bodyBytes, &resp)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp).To(HaveLen(1))
-				Expect(resp).To(HaveKey("UnboundServices"))
-				Expect(resp["UnboundServices"]).To(ContainElement(service))
+				Expect(resp).To(HaveKey("unboundservices"))
+				Expect(resp["unboundservices"]).To(ContainElement(service))
 			})
 
 			It("returns a 404 when the org does not exist", func() {
@@ -668,6 +668,16 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			org = newOrgName()
 			setupAndTargetOrg(org)
 			appName = newAppName()
+		})
+
+		AfterEach(func() {
+			Eventually(func() string {
+				out, err := Epinio("app delete "+appName, "")
+				if err != nil {
+					return out
+				}
+				return ""
+			}, "5m").Should(BeEmpty())
 		})
 
 		When("creating a new app", func() {

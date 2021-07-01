@@ -57,16 +57,16 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return BadRequest(err)
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, createRequest.Name)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return InternalError(err, "failed to check for app")
+	appRef := models.NewAppRef(createRequest.Name, org)
+	found, err := application.Exists(ctx, cluster, appRef)
+	if err != nil {
+		return InternalError(err, "failed to check for app resource")
 	}
-
-	if app != nil {
+	if found {
 		return AppAlreadyKnown(createRequest.Name)
 	}
 
-	err = application.Create(ctx, cluster, models.NewAppRef(createRequest.Name, org))
+	err = application.Create(ctx, cluster, appRef)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -373,22 +373,29 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	appRef := models.NewAppRef(appName, org)
+	found, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {
 		return InternalError(err)
 	}
-
-	if app == nil {
+	if !found {
 		return AppIsNotKnown(appName)
 	}
 
-	err = application.Delete(ctx, cluster, gitea, org, *app)
-	if err != nil {
+	app, err := application.Lookup(ctx, cluster, appRef.Org, appRef.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
 		return InternalError(err)
 	}
 
-	response := map[string][]string{}
-	response["UnboundServices"] = app.BoundServices
+	response := models.ApplicationDeleteResponse{}
+	if app != nil {
+		response.UnboundServices = app.BoundServices
+	}
+
+	err = application.Delete(ctx, cluster, gitea, appRef)
+	if err != nil {
+		return InternalError(err)
+	}
 
 	js, err := json.Marshal(response)
 	if err != nil {

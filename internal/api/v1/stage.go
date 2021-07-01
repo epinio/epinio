@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/julienschmidt/httprouter"
@@ -89,12 +90,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 
 	// check application resource
-	appClient, err := cluster.ClientApp()
-	if err != nil {
-		return InternalError(err, "failed to get access to a kube application client")
-	}
-
-	app, err := appClient.Namespace(org).Get(ctx, name, metav1.GetOptions{})
+	app, err := application.Get(ctx, cluster, req.App)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return AppIsNotKnown("cannot stage app, application resource is missing")

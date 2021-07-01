@@ -32,6 +32,7 @@ func init() {
 		panic(err)
 	}
 
+	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdDeleteApp)
@@ -62,6 +63,43 @@ var CmdAppList = &cobra.Command{
 	},
 }
 
+// CmdAppCreate implements the epinio `apps create` command
+var CmdAppCreate = &cobra.Command{
+	Use:   "create NAME",
+	Short: "Create just the app, without creating a workload",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
+
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		err = client.AppCreate(args[0])
+		if err != nil {
+			return errors.Wrap(err, "error creating app")
+		}
+
+		return nil
+	},
+	SilenceErrors: true,
+	SilenceUsage:  true,
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matches := app.AppsMatching(cmd.Context(), toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	},
+}
+
 // CmdAppShow implements the epinio `apps show` command
 var CmdAppShow = &cobra.Command{
 	Use:   "show NAME",
@@ -78,7 +116,7 @@ var CmdAppShow = &cobra.Command{
 
 		err = client.AppShow(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error listing apps")
+			return errors.Wrap(err, "error showing app")
 		}
 
 		return nil

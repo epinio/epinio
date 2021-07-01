@@ -88,10 +88,10 @@ func getGiteaCredentials(ctx context.Context, cluster *kubernetes.Cluster) (*aut
 	}, nil
 }
 
-func (c *Client) DeleteRepo(org, repo string) error {
-	_, err := c.Client.DeleteRepo(org, repo)
+func (c *Client) DeleteRepo(org, repo string) (int, error) {
+	r, err := c.Client.DeleteRepo(org, repo)
 
-	return err
+	return r.StatusCode, err
 }
 
 func (c *Client) CreateOrg(org string) error {

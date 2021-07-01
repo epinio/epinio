@@ -5,6 +5,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"regexp"
 	"sync"
 
@@ -14,9 +15,10 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
-	"github.com/epinio/epinio/internal/services"
+	pkgerrors "github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
@@ -26,7 +28,7 @@ import (
 )
 
 type GiteaInterface interface {
-	DeleteRepo(org, repo string) error
+	DeleteRepo(org, repo string) (int, error)
 }
 
 func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) error {
@@ -57,7 +59,50 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return err
 }
 
-// Lookup locates an application's workload by org and name
+// Get returns the application resource from the cluster.  This should be
+// changed to return a typed application struct, like appv1beta1.Application if
+// needed in the future.
+func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*unstructured.Unstructured, error) {
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return nil, err
+	}
+
+	return client.Namespace(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
+}
+
+func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (bool, error) {
+	_, err := Get(ctx, cluster, app)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// ListAppRefs returns an app ref for every application resource in the org's namespace
+func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]models.AppRef, error) {
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return nil, err
+	}
+
+	list, err := client.Namespace(org).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	apps := make([]models.AppRef, 0, len(list.Items))
+	for _, app := range list.Items {
+		apps = append(apps, models.NewAppRef(app.GetName(), org))
+	}
+
+	return apps, nil
+}
+
+// Lookup locates a workload by org and name
 func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp string) (*models.App, error) {
 	apps, err := List(ctx, cluster, org)
 	if err != nil {
@@ -73,7 +118,7 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp str
 	return nil, nil
 }
 
-// List returns an list of all available applications (in the org)
+// List returns a list of all available workloads (in the org)
 func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
@@ -107,47 +152,36 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 	return result, nil
 }
 
-// Delete deletes an application by org and name
-func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, org string, app models.App) error {
-	w := NewWorkload(cluster, app.AppRef())
-	if len(app.BoundServices) > 0 {
-		for _, bonded := range app.BoundServices {
-			bound, err := services.Lookup(ctx, cluster, org, bonded)
-			if err != nil {
-				return err
-			}
-
-			err = w.Unbind(ctx, bound)
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	// delete appCRD
+// Delete an application, optionally its workload, bindings and git repo.
+// Finally unstage its pipelineruns and wait for the deployment's pods to disappear.
+func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, appRef models.AppRef) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
 	}
 
-	err = client.Namespace(org).Delete(ctx, app.Name, metav1.DeleteOptions{})
+	// delete application resource, will cascade and delete deployment,
+	// ingress, service and certificate
+	err = client.Namespace(appRef.Org).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = w.Delete(ctx, gitea)
-	if err != nil {
-		return err
+	// there could be a gitea repo
+	code, err := gitea.DeleteRepo(appRef.Org, appRef.Name)
+	if err != nil && code != http.StatusNotFound {
+		return pkgerrors.Wrap(err, "failed to delete repository")
 	}
 
-	err = Unstage(ctx, app.Name, app.Organization, "")
-	if err != nil {
+	// delete pipelineruns in tekton-staging namespace
+	err = Unstage(ctx, cluster, appRef, "")
+	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx, nil,
-		app.Organization,
-		fmt.Sprintf("app.kubernetes.io/name=%s", app.Name),
+		appRef.Org,
+		fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
 		duration.ToDeployment())
 	if err != nil {
 		return err
@@ -157,12 +191,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 }
 
 // Unstage deletes either all PipelineRuns of the named application, or all but the current.
-func Unstage(ctx context.Context, app, org, stageIdCurrent string) error {
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return err
-	}
-
+func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	cs, err := versioned.NewForConfig(cluster.RestConfig)
 	if err != nil {
 		return err
@@ -172,14 +201,14 @@ func Unstage(ctx context.Context, app, org, stageIdCurrent string) error {
 
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
-			app, org),
+			appRef.Name, appRef.Org),
 	})
 	if err != nil {
 		return err
 	}
 
 	for _, pr := range l.Items {
-		if stageIdCurrent != "" && stageIdCurrent == pr.ObjectMeta.Name {
+		if stageIDCurrent != "" && stageIDCurrent == pr.ObjectMeta.Name {
 			continue
 		}
 

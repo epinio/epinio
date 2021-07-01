@@ -9,7 +9,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/services"
-	pkgerrors "github.com/pkg/errors"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -27,15 +26,6 @@ type Workload struct {
 
 func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
 	return &Workload{cluster: cluster, app: app}
-}
-
-// Delete a workload (repo, deployments, ingress, services)
-func (a *Workload) Delete(ctx context.Context, gitea GiteaInterface) error {
-	if err := gitea.DeleteRepo(a.app.Org, a.app.Name); err != nil {
-		return pkgerrors.Wrap(err, "failed to delete repository")
-	}
-
-	return nil
 }
 
 // Services returns the set of services bound to the application.
@@ -76,6 +66,22 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 
 		return err
 	})
+}
+
+// UnbindAll dissolves all bindings from the application.
+func (a *Workload) UnbindAll(ctx context.Context, cluster *kubernetes.Cluster, svcs []string) error {
+	for _, bonded := range svcs {
+		bound, err := services.Lookup(ctx, cluster, a.app.Org, bonded)
+		if err != nil {
+			return err
+		}
+
+		err = a.Unbind(ctx, bound)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Unbind dissolves the binding of the service to the application.
