@@ -95,11 +95,17 @@ var CmdPush = &cobra.Command{
 			return errors.Wrap(err, "could not read option --git")
 		}
 
+		// Syntax:
+		// 1. push NAME
+		// 2. push NAME PATH
+		// 3. push NAME URL --git REV
+
 		var path string
 		if len(args) == 1 {
 			if gitRevision != "" {
+				// Missing argument is user error. Show usage
 				cmd.SilenceUsage = false
-				return errors.Wrap(err, "git repository url missing")
+				return errors.New("git repository url missing")
 			}
 
 			path, err = os.Getwd()
