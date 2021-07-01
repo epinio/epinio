@@ -8,24 +8,26 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 ## Contents
 
-- [What problem does Epinio solve](#what-problem-does-epinio-solve)
-- [Principles](#principles)
-  - [Guidelines (Soft Principles)](#guidelines-soft-principles)
-- [Future Plans](#future-plans)
-- [Quick Start](#quick-start)
-  - [Install dependencies](#install-dependencies)
-  - [Get yourself a cluster](#get-yourself-a-cluster)
-  - [Install Epinio](#install-epinio)
-    - [A Quick Note On Security](#a-quick-note-on-security)
-  - [Push an application](#push-an-application)
-  - [Check that your application is working](#check-that-your-application-is-working)
-  - [List all commands](#list-all-commands)
-  - [Delete an application](#delete-an-application)
-  - [Create a separate org](#create-a-separate-org)
-  - [Uninstall](#uninstall)
-  - [Read command help](#read-command-help)
-- [Configuration](#configuration)
-- [Troubleshooting](#troubleshooting)
+- [Epinio](#epinio)
+  - [Contents](#contents)
+  - [What problem does Epinio solve](#what-problem-does-epinio-solve)
+  - [Design Principles](#design-principles)
+    - [Guidelines (Soft Principles)](#guidelines-soft-principles)
+  - [Future Plans](#future-plans)
+  - [Quick start](#quick-start)
+    - [Install dependencies](#install-dependencies)
+    - [Get yourself a cluster](#get-yourself-a-cluster)
+    - [Install Epinio](#install-epinio)
+      - [A Quick Note On Security](#a-quick-note-on-security)
+    - [Push an application](#push-an-application)
+    - [Check that your application is working](#check-that-your-application-is-working)
+    - [List all commands](#list-all-commands)
+    - [Delete an application](#delete-an-application)
+    - [Create a separate org](#create-a-separate-org)
+    - [Uninstall](#uninstall)
+    - [Read command help](#read-command-help)
+  - [Configuration](#configuration)
+  - [Troubleshooting](#troubleshooting)
     - [k3d inside a VM](#k3d-inside-a-vm)
 
 ## What problem does Epinio solve
@@ -47,15 +49,22 @@ not doing operations.
 Epinio is adding the needed abstractions and intelligence to allow Developers
 to use Kubernetes as a PaaS (Platform as a Service).
 
-## Principles
+## Design Principles
 
 Epinio's development is governed by the following principles:
 
-- must fit in less than 4GB of RAM
-- must install in less than 5 minutes when images are warm
-- must install with an one-line command and zero config
-- must completely uninstall and leave the cluster in its previous state with an one-line command
-- must work on local clusters (edge friendly)
+- **Greater Developer Experience**
+  - single command push for short learning curve
+- **Edge Friendly** 
+  - must fit in less than 4GB of RAM
+- **Easy Installation** 
+  - must install in less than 5 minutes when images are warm
+  - must completely uninstall and leave the cluster in its previous state with an one-line command
+- **Minimum Complexity**
+  - scale from desktop/local to data center environment
+  - must install with an one-line command and zero config
+- **API Driven Architecture**
+- **Security Focused**
 
 ### Guidelines (Soft Principles)
 
