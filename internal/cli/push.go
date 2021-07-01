@@ -105,7 +105,7 @@ var CmdPush = &cobra.Command{
 			if gitRevision != "" {
 				// Missing argument is user error. Show usage
 				cmd.SilenceUsage = false
-				return errors.New("git repository url missing")
+				return errors.New("app name or git repository url missing")
 			}
 
 			path, err = os.Getwd()
