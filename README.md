@@ -13,6 +13,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
   - [What problem does Epinio solve](#what-problem-does-epinio-solve)
   - [Design Principles](#design-principles)
     - [Guidelines (Soft Principles)](#guidelines-soft-principles)
+  - [Features](#features)
   - [Future Plans](#future-plans)
   - [Quick start](#quick-start)
     - [Install dependencies](#install-dependencies)
@@ -75,6 +76,23 @@ Epinio's development is governed by the following principles:
 - all acceptance tests should run in less than 10 minutes
 - all tests should be able to run on the minimal cluster
 
+## Features 
+
+- **Security**
+  - mTLS: Epinio uses `linkerd` to secure all communication between epinio components inside the kubernetes cluster
+  - Basic Authentication to access the API.
+- **Epinio Clients**
+  -  Web UI
+  - Epinio CLI
+- **Full Air-Gap Installation**
+  - can be installed and be used without internet
+- **Apps**
+  - CRUD operations of your app. (An app can be a tarball or in a github repo)
+  - uses Cloud Native Buildpacks for providing runtime environment for your apps
+- **Services**
+  - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
+  - Bind services to apps.
+
 ## Future Plans
 
 Epinio's development is driven by real world problems. That means, if something
@@ -84,11 +102,13 @@ helps avoid over-engineering and meaningless work.
 Epinio's main goal is to make existing solutions accessible, to the application
 developer. Those solutions include:
 
-- Kubernetes
-- External Cloud Services
-- In-cluster services
 - TLS Certificate Signers
-- more
+- Service mesh integration and testing
+- Open Telemetry
+- Multi-Tenancy
+- Serverless/Eventing framework
+- Supply Chain Secruity
+- Authorization/Authentication
 
 With so many communities working on the same problems at the same time, it's rare
 that a problem doesn't already have a solution. Most of the time, seamless integration
