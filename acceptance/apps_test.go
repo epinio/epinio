@@ -56,6 +56,60 @@ var _ = Describe("Apps", func() {
 		})
 	})
 
+	When("pushing an app from an external repository", func() {
+		It("pushes the app successfully", func() {
+			wordpress := "https://github.com/epinio/example-wordpress"
+			pushLog, err := Epinio(fmt.Sprintf("apps push %s %s --git main",
+				appName, wordpress), "")
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			Eventually(func() string {
+				out, err := Epinio("app list", "")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
+
+			By("deleting the app")
+			deleteApp(appName)
+		})
+
+		Describe("update", func() {
+			It("respects the desired number of instances", func() {
+				wordpress := "https://github.com/epinio/example-wordpress"
+				pushLog, err := Epinio(fmt.Sprintf("apps push %s %s --git main",
+					appName, wordpress), "")
+				Expect(err).ToNot(HaveOccurred(), pushLog)
+
+				Eventually(func() string {
+					out, err := Epinio("app list", "")
+					Expect(err).ToNot(HaveOccurred(), out)
+					return out
+				}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
+
+				Eventually(func() string {
+					out, err := Epinio("app show "+appName, "")
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					return out
+				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+
+				out, err := Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					out, err := Epinio("app show "+appName, "")
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					return out
+				}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+			})
+
+			AfterEach(func() {
+				deleteApp(appName)
+			})
+		})
+	})
+
 	When("pushing an app multiple times", func() {
 		var (
 			timeout  = 30 * time.Second
@@ -279,7 +333,6 @@ var _ = Describe("Apps", func() {
 	Describe("update", func() {
 		It("respects the desired number of instances", func() {
 			makeApp(appName, 1, true)
-			defer deleteApp(appName)
 
 			Eventually(func() string {
 				out, err := Epinio("app show "+appName, "")
@@ -297,6 +350,10 @@ var _ = Describe("Apps", func() {
 
 				return out
 			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+		})
+
+		AfterEach(func() {
+			deleteApp(appName)
 		})
 	})
 
