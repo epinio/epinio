@@ -19,9 +19,8 @@ import (
 	"github.com/epinio/epinio/internal/version"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 type Epinio struct {
@@ -317,12 +316,10 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 }
 
 func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdomain string) error {
-	_, err := c.Kubectl.ExtensionsV1beta1().Ingresses(EpinioDeploymentID).Create(
+	pathTypePrefix := networkingv1.PathTypeImplementationSpecific
+	_, err := c.Kubectl.NetworkingV1().Ingresses(EpinioDeploymentID).Create(
 		ctx,
-		// TODO: Switch to networking v1 when we don't care about <1.18 clusters
-		// Like this (which has been reverted):
-		// https://github.com/epinio/epinio/commit/7721d610fdf27a79be980af522783671d3ffc198
-		&v1beta1.Ingress{
+		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "epinio",
 				Namespace: EpinioDeploymentID,
@@ -344,23 +341,25 @@ func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdo
 					"app.kubernetes.io/name": "epinio",
 				},
 			},
-			Spec: v1beta1.IngressSpec{
-				Rules: []v1beta1.IngressRule{
+			Spec: networkingv1.IngressSpec{
+				Rules: []networkingv1.IngressRule{
 					{
 						Host: subdomain,
-						IngressRuleValue: v1beta1.IngressRuleValue{
-							HTTP: &v1beta1.HTTPIngressRuleValue{
-								Paths: []v1beta1.HTTPIngressPath{
+						IngressRuleValue: networkingv1.IngressRuleValue{
+							HTTP: &networkingv1.HTTPIngressRuleValue{
+								Paths: []networkingv1.HTTPIngressPath{
 									{
-										Path: "/",
-										Backend: v1beta1.IngressBackend{
-											ServiceName: "epinio-server",
-											ServicePort: intstr.IntOrString{
-												Type:   intstr.Int,
-												IntVal: 80,
+										Path:     "/",
+										PathType: &pathTypePrefix,
+										Backend: networkingv1.IngressBackend{
+											Service: &networkingv1.IngressServiceBackend{
+												Name: "epinio-server",
+												Port: networkingv1.ServiceBackendPort{
+													Number: 80,
+												},
 											},
 										}}}}}}},
-				TLS: []v1beta1.IngressTLS{{
+				TLS: []networkingv1.IngressTLS{{
 					Hosts:      []string{subdomain},
 					SecretName: "epinio-tls",
 				}},
