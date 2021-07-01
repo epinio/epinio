@@ -419,6 +419,24 @@ func (c *Cluster) WaitUntilDeploymentExists(ctx context.Context, ui *termui.UI, 
 	return wait.PollImmediate(time.Second, timeout, c.DeploymentExists(ctx, namespace, deploymentName))
 }
 
+func (c *Cluster) WaitUntilServiceHasLoadBalancer(ctx context.Context, ui *termui.UI, namespace, serviceName string, timeout time.Duration) error {
+	s := ui.Progressf("Waiting for service %s in %s to have a Load Balancer", serviceName, namespace)
+	defer s.Stop()
+
+	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
+		service, err := c.Kubectl.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		if len(service.Status.LoadBalancer.Ingress) == 0 {
+			return false, nil
+		}
+
+		return true, nil
+	})
+}
+
 // Wait up to timeout for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
 func (c *Cluster) WaitUntilPodBySelectorExist(ctx context.Context, ui *termui.UI, namespace, selector string, timeout time.Duration) error {

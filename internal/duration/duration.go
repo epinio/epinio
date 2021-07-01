@@ -16,6 +16,7 @@ const (
 	orgDeletion           = 5 * time.Minute
 	serviceSecret         = 5 * time.Minute
 	serviceProvision      = 5 * time.Minute
+	serviceLoadBalancer   = 5 * time.Minute
 	podReady              = 5 * time.Minute
 	appBuilt              = 10 * time.Minute
 	warmupJobReady        = 30 * time.Minute
@@ -108,6 +109,11 @@ func ToServiceSecret() time.Duration {
 // service instance to be provisioned
 func ToServiceProvision() time.Duration {
 	return Multiplier() * serviceProvision
+}
+
+// ToServiceLoadBalancer
+func ToServiceLoadBalancer() time.Duration {
+	return Multiplier() * serviceLoadBalancer
 }
 
 //
