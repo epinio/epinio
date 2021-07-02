@@ -114,9 +114,13 @@ With so many communities working on the same problems at the same time, it's rar
 that a problem doesn't already have a solution. Most of the time, seamless integration
 is the challenge and that's Epinio's domain.
 
-You can see what the team is up to on our [Github Project board](https://github.com/epinio/epinio/projects/1).
-Feel free to add issues if you want to discuss future work or comment on existing
-ones.
+__Note however__ that the above list does __not__ constitute a Roadmap of things
+we will do. It is only a list of areas of interest to investigate.
+
+You can see what the team is up to on our
+[Github Project board](https://github.com/epinio/epinio/projects/1).
+Feel free to add issues if you want to discuss future work or comment on
+existing ones.
 
 ## Quick start
 
