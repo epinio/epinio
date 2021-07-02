@@ -69,6 +69,8 @@ var CmdAppCreate = &cobra.Command{
 	Short: "Create just the app, without creating a workload",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
 		client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 
 		if err != nil {
@@ -82,8 +84,6 @@ var CmdAppCreate = &cobra.Command{
 
 		return nil
 	},
-	SilenceErrors: true,
-	SilenceUsage:  true,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp

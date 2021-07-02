@@ -21,7 +21,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/api/extensions/v1beta1"
+	networkingv1 "k8s.io/api/networking/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -610,8 +610,7 @@ func (c *Cluster) GetVersion() (string, error) {
 
 // ListIngressRoutes returns a list of all routes for ingresses in `namespace` with the given selector
 func (c *Cluster) ListIngressRoutes(ctx context.Context, namespace, name string) ([]string, error) {
-	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
-	ingress, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
+	ingress, err := c.Kubectl.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list ingresses")
 	}
@@ -626,14 +625,14 @@ func (c *Cluster) ListIngressRoutes(ctx context.Context, namespace, name string)
 }
 
 // ListIngress returns the list of available ingresses in `namespace` with the given selector
-func (c *Cluster) ListIngress(ctx context.Context, namespace, selector string) (*v1beta1.IngressList, error) {
+func (c *Cluster) ListIngress(ctx context.Context, namespace, selector string) (*networkingv1.IngressList, error) {
 	listOptions := metav1.ListOptions{}
 	if len(selector) > 0 {
 		listOptions.LabelSelector = selector
 	}
 
 	// TODO: Switch to networking v1 when we don't care about <1.18 clusters
-	ingressList, err := c.Kubectl.ExtensionsV1beta1().Ingresses(namespace).List(ctx, listOptions)
+	ingressList, err := c.Kubectl.NetworkingV1().Ingresses(namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}

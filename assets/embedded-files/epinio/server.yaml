@@ -75,6 +75,8 @@ rules:
   - ingresses
   verbs:
   - get
+  - list
+  - get
 - apiGroups:
   - ""
   resources:

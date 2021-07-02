@@ -26,7 +26,7 @@ spec:
     port: 443
     targetPort: 443
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   annotations:
@@ -43,15 +43,18 @@ spec:
     http:
       paths:
       - backend:
-          serviceName: registry
-          servicePort: 5000
+          service:
+            name: registry
+            port:
+              number: 5000
         path: /
+        pathType: ImplementationSpecific
   tls:
   - hosts:
     - {{ .Values.domain }}
     secretName: epinio-registry-tls
-## We create a service with type `NodePort` only in 
-## local deployment as Kubelet cannot access the 
+## We create a service with type `NodePort` only in
+## local deployment as Kubelet cannot access the
 ## secured registry because there is no way to add
 ## registry CA to kubelet.
 {{ if contains "omg.howdoi.website" .Values.domain }}
