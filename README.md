@@ -55,15 +55,15 @@ to use Kubernetes as a PaaS (Platform as a Service).
 Epinio's development is governed by the following principles:
 
 - **Greater Developer Experience**
-  - single command push for short learning curve
+  - Single command push for short learning curve
 - **Edge Friendly** 
-  - must fit in less than 4GB of RAM
+  - Has to fit in less than 4GB of RAM
 - **Easy Installation** 
-  - must install in less than 5 minutes when images are warm
-  - must completely uninstall and leave the cluster in its previous state with an one-line command
+  - Has to install in less than 5 minutes when images are warm
+  - Has to completely uninstall and leave the cluster in its previous state with a one-line command
 - **Minimum Complexity**
-  - scale from desktop/local to data center environment
-  - must install with an one-line command and zero config
+  - Scale from desktop/local to data center environment
+  - Has to install with a one-line command and zero config
 - **API Driven Architecture**
 - **Security Focused**
 
@@ -82,13 +82,13 @@ Epinio's development is governed by the following principles:
   - mTLS: Epinio uses `linkerd` to secure all communication between epinio components inside the kubernetes cluster
   - Basic Authentication to access the API.
 - **Epinio Clients**
-  -  Web UI
+  - Web UI
   - Epinio CLI
 - **Full Air-Gap Installation**
-  - can be installed and be used without internet
+  - Can be installed and be used without internet
 - **Apps**
   - CRUD operations of your app. (An app can be a tarball or in a github repo)
-  - uses Cloud Native Buildpacks for providing runtime environment for your apps
+  - Cloud Native Buildpacks provide the runtime environment for your apps
 - **Services**
   - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
   - Bind services to apps.
