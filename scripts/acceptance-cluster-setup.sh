@@ -28,17 +28,22 @@ fi
 echo "Ensuring a network"
 docker network create $NETWORK_NAME || echo "Network already exists"
 
-echo "Ensuring registry mirror (even if it's stopped)"
-existingMirror=$(docker ps -a --filter name=$MIRROR_NAME -q)
-if [[ $existingMirror  == "" ]]; then
-  echo "No mirror found, creating one"
-  docker run -d --network $NETWORK_NAME --name $MIRROR_NAME \
-    -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io \
-    -e REGISTRY_PROXY_USERNAME="${REGISTRY_USERNAME}" \
-    -e REGISTRY_PROXY_PASSWORD="${REGISTRY_PASSWORD}" \
-    registry:2
+if [[ "$SHARED_REGISTRY_MIRROR" == "" ]]; then
+  echo "Ensuring registry mirror (even if it's stopped)"
+  existingMirror=$(docker ps -a --filter name=$MIRROR_NAME -q)
+  if [[ $existingMirror  == "" ]]; then
+    echo "No mirror found, creating one"
+    docker run -d --network $NETWORK_NAME --name $MIRROR_NAME \
+      -e REGISTRY_PROXY_REMOTEURL=https://registry-1.docker.io \
+      -e REGISTRY_PROXY_USERNAME="${REGISTRY_USERNAME}" \
+      -e REGISTRY_PROXY_PASSWORD="${REGISTRY_PASSWORD}" \
+      registry:2
+  else
+    docker start $MIRROR_NAME # In case it was stopped (we used "-a" when listing)
+  fi
 else
-  docker start $MIRROR_NAME # In case it was stopped (we used "-a" when listing)
+  echo "Using local registry mirror"
+  MIRROR_NAME="$SHARED_REGISTRY_MIRROR"
 fi
 
 echo "Writing epinio config yaml"
@@ -55,15 +60,15 @@ EOF
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --k3s-server-arg --disable --k3s-server-arg traefik
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --k3s-server-arg '--disable=traefik' $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p 80:80@server[0] -p 443:443@server[0] --k3s-server-arg --disable --k3s-server-arg traefik
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server[0]' -p '443:443@server[0]' --k3s-server-arg '--disable=traefik' $EPINIO_K3D_INSTALL_ARGS
 fi
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
 
 echo "Waiting for node to be ready"
 nodeName=$(kubectl get nodes -o name)
-kubectl wait --for=condition=Ready ${nodeName}
+kubectl wait --for=condition=Ready "$nodeName"
 
 echo "Done! The cluster is ready."
