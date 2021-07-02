@@ -8,7 +8,9 @@ import (
 	"path"
 	"time"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -82,14 +84,14 @@ var _ = Describe("Wordpress", func() {
 	var wordpress WordpressApp
 
 	BeforeEach(func() {
-		org := newOrgName()
+		org := catalog.NewOrgName()
 		wordpress = WordpressApp{
 			SourceURL: "https://wordpress.org/wordpress-5.6.1.tar.gz",
-			Name:      newAppName(),
+			Name:      catalog.NewAppName(),
 			Org:       org,
 		}
 
-		setupAndTargetOrg(org)
+		env.SetupAndTargetOrg(org)
 
 		err := wordpress.CreateDir()
 		Expect(err).ToNot(HaveOccurred())
@@ -101,10 +103,10 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	It("can deploy Wordpress", func() {
-		out, err := Epinio(fmt.Sprintf("apps push %s", wordpress.Name), wordpress.Dir)
+		out, err := env.Epinio(fmt.Sprintf("apps push %s", wordpress.Name), wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		out, err = Epinio("app list", "")
+		out, err = env.Epinio("app list", "")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Expect(out).To(MatchRegexp(wordpress.Name + `.*\|.*1\/1.*\|.*`))
 
@@ -113,7 +115,7 @@ var _ = Describe("Wordpress", func() {
 
 		request, err := http.NewRequest("GET", appURL, nil)
 		Expect(err).ToNot(HaveOccurred())
-		client := Client()
+		client := env.Client()
 		Eventually(func() int {
 			resp, err := client.Do(request)
 			ExpectWithOffset(1, err).ToNot(HaveOccurred())

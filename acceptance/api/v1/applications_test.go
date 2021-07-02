@@ -1,4 +1,4 @@
-package acceptance_test
+package v1_test
 
 import (
 	"bytes"
@@ -14,12 +14,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/gorilla/websocket"
+	"github.com/pkg/errors"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/pkg/errors"
 )
 
 var _ = Describe("Apps API Application Endpoints", func() {
@@ -56,7 +58,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		// make the request
 		request, err := http.NewRequest("POST", url, body)
-		request.SetBasicAuth(epinioUser, epinioPassword)
+		request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to build request")
 		}
@@ -66,7 +68,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	appStatus := func(org, app string) string {
-		response, err := Curl("GET",
+		response, err := env.Curl("GET",
 			fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
 			strings.NewReader(""))
 
@@ -90,7 +92,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		data, err := json.Marshal(models.UpdateAppRequest{Instances: instances})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
-		response, err := Curl("PATCH",
+		response, err := env.Curl("PATCH",
 			fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
 			strings.NewReader(string(data)))
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -112,16 +114,16 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		body := string(b)
 
 		url := serverURL + "/" + v1.Routes.Path("AppCreate", org)
-		return Curl("POST", url, strings.NewReader(body))
+		return env.Curl("POST", url, strings.NewReader(body))
 	}
 
 	BeforeEach(func() {
-		org = newOrgName()
-		setupAndTargetOrg(org)
+		org = catalog.NewOrgName()
+		env.SetupAndTargetOrg(org)
 
 		// Wait for server to be up and running
 		Eventually(func() error {
-			_, err := Curl("GET", serverURL+"/api/v1/info", strings.NewReader(""))
+			_, err := env.Curl("GET", serverURL+"/api/v1/info", strings.NewReader(""))
 			return err
 		}, "1m").ShouldNot(HaveOccurred())
 	})
@@ -130,9 +132,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Describe("PATCH /orgs/:org/applications/:app", func() {
 			When("instances is valid integer", func() {
 				It("updates an application with the desired number of instances", func() {
-					app := newAppName()
-					makeApp(app, 1, true)
-					defer deleteApp(app)
+					app := catalog.NewAppName()
+					env.MakeApp(app, 1, true)
+					defer env.DeleteApp(app)
 
 					Expect(appStatus(org, app)).To(Equal("1/1"))
 
@@ -147,9 +149,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			When("instances is invalid", func() {
 				It("returns BadRequest", func() {
-					app := newAppName()
-					makeApp(app, 1, true)
-					defer deleteApp(app)
+					app := catalog.NewAppName()
+					env.MakeApp(app, 1, true)
+					defer env.DeleteApp(app)
 					Expect(appStatus(org, app)).To(Equal("1/1"))
 
 					status, updateResponseBody := updateAppInstances(org, app, -3)
@@ -167,14 +169,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		Describe("GET api/v1/orgs/:orgs/applications", func() {
 			It("lists all applications belonging to the org", func() {
-				app1 := newAppName()
-				makeApp(app1, 1, true)
-				defer deleteApp(app1)
-				app2 := newAppName()
-				makeApp(app2, 1, true)
-				defer deleteApp(app2)
+				app1 := catalog.NewAppName()
+				env.MakeApp(app1, 1, true)
+				defer env.DeleteApp(app1)
+				app2 := catalog.NewAppName()
+				env.MakeApp(app2, 1, true)
+				defer env.DeleteApp(app2)
 
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications",
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications",
 					serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -195,7 +197,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the org does not exist", func() {
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications", serverURL), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications", serverURL), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -208,19 +210,19 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		Describe("GET api/v1/orgs/:org/applications/:app", func() {
 			It("lists the application data", func() {
-				app := newAppName()
-				makeApp(app, 1, true)
-				defer deleteApp(app)
+				app := catalog.NewAppName()
+				env.MakeApp(app, 1, true)
+				defer env.DeleteApp(app)
 
 				Expect(appStatus(org, app)).To(Equal("1/1"))
 			})
 
 			It("returns a 404 when the org does not exist", func() {
-				app := newAppName()
-				makeApp(app, 1, true)
-				defer deleteApp(app)
+				app := catalog.NewAppName()
+				env.MakeApp(app, 1, true)
+				defer env.DeleteApp(app)
 
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -231,7 +233,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the app does not exist", func() {
-				response, err := Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -244,14 +246,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		Describe("DELETE api/v1/orgs/:org/applications/:app", func() {
 			It("removes the application, unbinds bound services", func() {
-				app1 := newAppName()
-				makeApp(app1, 1, true)
-				service := newServiceName()
-				makeCustomService(service)
-				bindAppService(app1, service, org)
-				defer cleanupService(service)
+				app1 := catalog.NewAppName()
+				env.MakeApp(app1, 1, true)
+				service := catalog.NewServiceName()
+				env.MakeCustomService(service)
+				env.BindAppService(app1, service, org)
+				defer env.CleanupService(service)
 
-				response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -268,11 +270,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the org does not exist", func() {
-				app1 := newAppName()
-				makeApp(app1, 1, true)
-				defer deleteApp(app1)
+				app1 := catalog.NewAppName()
+				env.MakeApp(app1, 1, true)
+				defer env.DeleteApp(app1)
 
-				response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -283,7 +285,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the app does not exist", func() {
-				response, err := Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -312,11 +314,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("uploading a broken tarball", func() {
 			BeforeEach(func() {
-				path = "../fixtures/untar.tgz"
+				path = "../../../fixtures/untar.tgz"
 			})
 
 			It("returns an error response", func() {
-				resp, err := Client().Do(request)
+				resp, err := env.Client().Do(request)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp).ToNot(BeNil())
 				defer resp.Body.Close()
@@ -336,11 +338,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("uploading a new dir", func() {
 			BeforeEach(func() {
-				path = "../fixtures/sample-app.tar"
+				path = "../../../fixtures/sample-app.tar"
 			})
 
 			It("returns the app response", func() {
-				resp, err := Client().Do(request)
+				resp, err := env.Client().Do(request)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(resp).ToNot(BeNil())
 				defer resp.Body.Close()
@@ -369,9 +371,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		)
 
 		BeforeEach(func() {
-			org = newOrgName()
-			setupAndTargetOrg(org)
-			appName = newAppName()
+			org = catalog.NewOrgName()
+			env.SetupAndTargetOrg(org)
+			appName = catalog.NewAppName()
 
 			By("creating application resource first")
 			_, err := createApplication(appName, org)
@@ -379,10 +381,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			// First upload to allow staging to succeed
 			uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
-			uploadPath := "../fixtures/sample-app.tar"
+			uploadPath := "../../../fixtures/sample-app.tar"
 			uploadRequest, err := uploadRequest(uploadURL, uploadPath)
 			Expect(err).ToNot(HaveOccurred())
-			resp, err := Client().Do(uploadRequest)
+			resp, err := env.Client().Do(uploadRequest)
 			Expect(err).ToNot(HaveOccurred())
 			bodyBytes, err := ioutil.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
@@ -415,7 +417,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		When("staging a new app", func() {
 			AfterEach(func() {
 				Eventually(func() string {
-					out, err := Epinio("app delete "+appName, "")
+					out, err := env.Epinio("app delete "+appName, "")
 					if err != nil {
 						return out
 					}
@@ -424,7 +426,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a success", func() {
-				response, err := Curl("POST", url, strings.NewReader(body))
+				response, err := env.Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -441,15 +443,15 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("creates an app with the specified number of instances", func() {
-				defer deleteApp(appName)
+				defer env.DeleteApp(appName)
 
-				response, err := Curl("POST", url, strings.NewReader(body))
+				response, err := env.Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
 
 				Eventually(func() int {
-					response, err := Curl("GET",
+					response, err := env.Curl("GET",
 						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, appName),
 						strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
@@ -475,7 +477,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					// Hack to make the Instances value non-integer
 					body = strings.Replace(body, "314", "3.14", 1)
 
-					resp, err := Curl("POST", url, strings.NewReader(body))
+					resp, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(resp).ToNot(BeNil())
 					defer resp.Body.Close()
@@ -504,7 +506,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				})
 
 				It("returns BadRequest", func() {
-					resp, err := Curl("POST", url, strings.NewReader(body))
+					resp, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(resp).ToNot(BeNil())
 					defer resp.Body.Close()
@@ -533,7 +535,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					// Hack to make the Instances value non-number
 					body = strings.Replace(body, "314", "thisisnotanumber", 1)
 
-					resp, err := Curl("POST", url, strings.NewReader(body))
+					resp, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(resp).ToNot(BeNil())
 					defer resp.Body.Close()
@@ -563,22 +565,22 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			)
 
 			BeforeEach(func() {
-				app = newAppName()
-				out := makeApp(app, 1, true)
+				app = catalog.NewAppName()
+				out := env.MakeApp(app, 1, true)
 				routeRegexp := regexp.MustCompile(`Route: (https:\/\/.*\.omg\.howdoi\.website)`)
 				route = routeRegexp.FindStringSubmatch(out)[1]
 				Expect(route).ToNot(BeEmpty())
 			})
 
 			AfterEach(func() {
-				deleteApp(app)
+				env.DeleteApp(app)
 			})
 
 			readLogs := func(org, app string) string {
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
 				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
-				wsConn := makeWebSocketConnection(wsURL)
+				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("read the logs")
 				var logs string
@@ -605,7 +607,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				logs := readLogs(org, app)
 
 				By("checking if the logs are right")
-				podNames := getPodNames(app, org)
+				podNames := env.GetPodNames(app, org)
 				for _, podName := range podNames {
 					Expect(logs).To(ContainSubstring(podName))
 				}
@@ -618,7 +620,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
 				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
-				wsConn := makeWebSocketConnection(wsURL)
+				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("get to the end of logs")
 				for i := 0; i < logLength-1; i++ {
@@ -629,7 +631,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				By("adding more logs")
 				Eventually(func() int {
-					resp, err := Curl("GET", route, strings.NewReader(""))
+					resp, err := env.Curl("GET", route, strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
 
 					defer resp.Body.Close()
@@ -665,14 +667,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		)
 
 		BeforeEach(func() {
-			org = newOrgName()
-			setupAndTargetOrg(org)
-			appName = newAppName()
+			org = catalog.NewOrgName()
+			env.SetupAndTargetOrg(org)
+			appName = catalog.NewAppName()
 		})
 
 		AfterEach(func() {
 			Eventually(func() string {
-				out, err := Epinio("app delete "+appName, "")
+				out, err := env.Epinio("app delete "+appName, "")
 				if err != nil {
 					return out
 				}

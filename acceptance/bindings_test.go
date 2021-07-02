@@ -1,6 +1,8 @@
 package acceptance_test
 
 import (
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -8,22 +10,22 @@ import (
 var _ = Describe("Bounds between Apps & Services", func() {
 	var org string
 	BeforeEach(func() {
-		org = newOrgName()
-		setupAndTargetOrg(org)
+		org = catalog.NewOrgName()
+		env.SetupAndTargetOrg(org)
 	})
 	Describe("Display", func() {
 		var appName string
 		var serviceName string
 		BeforeEach(func() {
-			appName = newAppName()
-			serviceName = newServiceName()
+			appName = catalog.NewAppName()
+			serviceName = catalog.NewServiceName()
 
-			makeApp(appName, 1, true)
-			makeCustomService(serviceName)
-			bindAppService(appName, serviceName, org)
+			env.MakeApp(appName, 1, true)
+			env.MakeCustomService(serviceName)
+			env.BindAppService(appName, serviceName, org)
 		})
 		It("shows the bound app for services list, and vice versa", func() {
-			out, err := Epinio("service list", "")
+			out, err := env.Epinio("service list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(serviceName + `.*` + appName))
 
@@ -36,15 +38,15 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			// system to settle back into a normal state.
 
 			Eventually(func() string {
-				out, err = Epinio("app list", "")
+				out, err = env.Epinio("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
 		})
 		AfterEach(func() {
 			// Delete app first, as this also unbinds the service
-			cleanupApp(appName)
-			cleanupService(serviceName)
+			env.CleanupApp(appName)
+			env.CleanupService(serviceName)
 		})
 	})
 })

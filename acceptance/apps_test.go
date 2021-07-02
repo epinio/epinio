@@ -11,8 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -24,32 +27,32 @@ var _ = Describe("Apps", func() {
 	)
 
 	BeforeEach(func() {
-		org = newOrgName()
-		setupAndTargetOrg(org)
+		org = catalog.NewOrgName()
+		env.SetupAndTargetOrg(org)
 
-		appName = newAppName()
+		appName = catalog.NewAppName()
 	})
 
 	When("creating an application without a workload", func() {
 		AfterEach(func() {
-			deleteApp(appName)
+			env.DeleteApp(appName)
 		})
 
 		It("creates the app", func() {
-			out, err := Epinio(fmt.Sprintf("app create %s", appName), "")
+			out, err := env.Epinio(fmt.Sprintf("app create %s", appName), "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Ok"))
 		})
 
 		When("pushing a workload", func() {
 			BeforeEach(func() {
-				out, err := Epinio(fmt.Sprintf("app create %s", appName), "")
+				out, err := env.Epinio(fmt.Sprintf("app create %s", appName), "")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
 			It("creates the workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := Epinio(fmt.Sprintf("apps push %s", appName), appDir)
+				out, err := env.Epinio(fmt.Sprintf("apps push %s", appName), appDir)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("App is online"))
 			})
@@ -59,45 +62,45 @@ var _ = Describe("Apps", func() {
 	When("pushing an app from an external repository", func() {
 		It("pushes the app successfully", func() {
 			wordpress := "https://github.com/epinio/example-wordpress"
-			pushLog, err := Epinio(fmt.Sprintf("apps push %s %s --git main",
+			pushLog, err := env.Epinio(fmt.Sprintf("apps push %s %s --git main",
 				appName, wordpress), "")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			Eventually(func() string {
-				out, err := Epinio("app list", "")
+				out, err := env.Epinio("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
 
 			By("deleting the app")
-			deleteApp(appName)
+			env.DeleteApp(appName)
 		})
 
 		Describe("update", func() {
 			It("respects the desired number of instances", func() {
 				wordpress := "https://github.com/epinio/example-wordpress"
-				pushLog, err := Epinio(fmt.Sprintf("apps push %s %s --git main",
+				pushLog, err := env.Epinio(fmt.Sprintf("apps push %s %s --git main",
 					appName, wordpress), "")
 				Expect(err).ToNot(HaveOccurred(), pushLog)
 
 				Eventually(func() string {
-					out, err := Epinio("app list", "")
+					out, err := env.Epinio("app list", "")
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
 				}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
 
 				Eventually(func() string {
-					out, err := Epinio("app show "+appName, "")
+					out, err := env.Epinio("app show "+appName, "")
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
 				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
 
-				out, err := Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
+				out, err := env.Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
-					out, err := Epinio("app show "+appName, "")
+					out, err := env.Epinio("app show "+appName, "")
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
@@ -105,7 +108,7 @@ var _ = Describe("Apps", func() {
 			})
 
 			AfterEach(func() {
-				deleteApp(appName)
+				env.DeleteApp(appName)
 			})
 		})
 	})
@@ -118,7 +121,7 @@ var _ = Describe("Apps", func() {
 
 		act := func(arg string) (string, error) {
 			appDir := "../assets/sample-app"
-			return Epinio(fmt.Sprintf("apps push %[1]s %[2]s", appName, arg), appDir)
+			return env.Epinio(fmt.Sprintf("apps push %[1]s %[2]s", appName, arg), appDir)
 		}
 
 		replicas := func(ns, name string) string {
@@ -130,13 +133,13 @@ var _ = Describe("Apps", func() {
 		}
 
 		It("pushes the same app again successfully", func() {
-			makeApp(appName, 1, false)
+			env.MakeApp(appName, 1, false)
 
 			By("pushing the app again")
-			makeApp(appName, 1, false)
+			env.MakeApp(appName, 1, false)
 
 			By("deleting the app")
-			deleteApp(appName)
+			env.DeleteApp(appName)
 		})
 
 		It("honours the given instance count", func() {
@@ -170,7 +173,7 @@ var _ = Describe("Apps", func() {
 	Describe("push and delete", func() {
 		It("shows the staging logs", func() {
 			By("pushing the app")
-			out := makeApp(appName, 1, true)
+			out := env.MakeApp(appName, 1, true)
 
 			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
 			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
@@ -179,7 +182,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("deploys a golang app", func() {
-			out := makeGolangApp(appName, 1, true)
+			out := env.MakeGolangApp(appName, 1, true)
 
 			By("checking for the application resource", func() {
 				Eventually(func() string {
@@ -193,13 +196,13 @@ var _ = Describe("Apps", func() {
 			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
-				resp, err := Curl("GET", route, strings.NewReader(""))
+				resp, err := env.Curl("GET", route, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				return resp.StatusCode
 			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
 			By("deleting the app")
-			deleteApp(appName)
+			env.DeleteApp(appName)
 
 			By("checking the application resource was removed", func() {
 				Eventually(func() string {
@@ -212,34 +215,34 @@ var _ = Describe("Apps", func() {
 
 		It("deploys an app from the current dir", func() {
 			By("pushing the app in the current working directory")
-			out := makeApp(appName, 1, true)
+			out := env.MakeApp(appName, 1, true)
 
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
 
 			Eventually(func() int {
-				resp, err := Curl("GET", route, strings.NewReader(""))
+				resp, err := env.Curl("GET", route, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				return resp.StatusCode
 			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
 			By("deleting the app")
-			deleteApp(appName)
+			env.DeleteApp(appName)
 		})
 
 		It("deploys an app from the specified dir", func() {
 			By("pushing the app in the specified app directory")
-			makeApp(appName, 1, false)
+			env.MakeApp(appName, 1, false)
 
 			By("deleting the app")
-			deleteApp(appName)
+			env.DeleteApp(appName)
 		})
 
 		It("removes the app's ingress when deleting an app", func() {
-			makeApp(appName, 1, false)
+			env.MakeApp(appName, 1, false)
 
 			By("deleting the app")
-			deleteApp(appName)
+			env.DeleteApp(appName)
 
 			Eventually(func() string {
 				out, _ := helpers.Kubectl(fmt.Sprintf("get ingress --namespace %s %s",
@@ -257,19 +260,19 @@ var _ = Describe("Apps", func() {
 		It("should not fail for a max-length application name", func() {
 			appNameLong := "app123456789012345678901234567890123456789012345678901234567890"
 			// 3+60 characters
-			makeApp(appNameLong, 1, false)
+			env.MakeApp(appNameLong, 1, false)
 
 			By("deleting the app")
-			deleteApp(appNameLong)
+			env.DeleteApp(appNameLong)
 		})
 
 		It("respects the desired number of instances", func() {
-			app := newAppName()
-			makeApp(app, 3, true)
-			defer deleteApp(app)
+			app := catalog.NewAppName()
+			env.MakeApp(app, 3, true)
+			defer env.DeleteApp(app)
 
 			Eventually(func() string {
-				out, err := Epinio("app show "+app, "")
+				out, err := env.Epinio("app show "+app, "")
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
@@ -280,27 +283,27 @@ var _ = Describe("Apps", func() {
 			var serviceName string
 
 			BeforeEach(func() {
-				serviceName = newServiceName()
-				makeCustomService(serviceName)
+				serviceName = catalog.NewServiceName()
+				env.MakeCustomService(serviceName)
 			})
 
 			AfterEach(func() {
-				deleteApp(appName)
-				deleteService(serviceName)
+				env.DeleteApp(appName)
+				env.DeleteService(serviceName)
 			})
 
 			It("pushes an app with bound services", func() {
 				currentDir, err := os.Getwd()
 				Expect(err).ToNot(HaveOccurred())
 
-				pushOutput, err := Epinio(fmt.Sprintf("apps push %s -b %s",
+				pushOutput, err := env.Epinio(fmt.Sprintf("apps push %s -b %s",
 					appName, serviceName),
 					path.Join(currentDir, "../assets/sample-app"))
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
 				Eventually(func() string {
-					out, err := Epinio("app list", "")
+					out, err := env.Epinio("app list", "")
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
 				}, "2m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
@@ -308,14 +311,14 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("unbinds bound services when deleting an app", func() {
-			serviceName := newServiceName()
+			serviceName := catalog.NewServiceName()
 
-			makeApp(appName, 1, true)
-			makeCustomService(serviceName)
-			bindAppService(appName, serviceName, org)
+			env.MakeApp(appName, 1, true)
+			env.MakeCustomService(serviceName)
+			env.BindAppService(appName, serviceName, org)
 
 			By("deleting the app")
-			out, err := Epinio("app delete "+appName, "")
+			out, err := env.Epinio("app delete "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
@@ -323,7 +326,7 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp(serviceName))
 
 			Eventually(func() string {
-				out, err := Epinio("app list", "")
+				out, err := env.Epinio("app list", "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
@@ -332,20 +335,20 @@ var _ = Describe("Apps", func() {
 
 	Describe("update", func() {
 		It("respects the desired number of instances", func() {
-			makeApp(appName, 1, true)
+			env.MakeApp(appName, 1, true)
 
 			Eventually(func() string {
-				out, err := Epinio("app show "+appName, "")
+				out, err := env.Epinio("app show "+appName, "")
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
 			}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
 
-			out, err := Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
+			out, err := env.Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() string {
-				out, err := Epinio("app show "+appName, "")
+				out, err := env.Epinio("app show "+appName, "")
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
@@ -353,26 +356,26 @@ var _ = Describe("Apps", func() {
 		})
 
 		AfterEach(func() {
-			deleteApp(appName)
+			env.DeleteApp(appName)
 		})
 	})
 
 	Describe("list and show", func() {
 		var serviceCustomName string
 		BeforeEach(func() {
-			serviceCustomName = newServiceName()
-			makeApp(appName, 1, true)
-			makeCustomService(serviceCustomName)
-			bindAppService(appName, serviceCustomName, org)
+			serviceCustomName = catalog.NewServiceName()
+			env.MakeApp(appName, 1, true)
+			env.MakeCustomService(serviceCustomName)
+			env.BindAppService(appName, serviceCustomName, org)
 		})
 
 		AfterEach(func() {
-			deleteApp(appName)
-			cleanupService(serviceCustomName)
+			env.DeleteApp(appName)
+			env.CleanupService(serviceCustomName)
 		})
 
 		It("lists all apps", func() {
-			out, err := Epinio("app list", "")
+			out, err := env.Epinio("app list", "")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing applications"))
 			Expect(out).To(MatchRegexp(" " + appName + " "))
@@ -380,7 +383,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("shows the details of an app", func() {
-			out, err := Epinio("app show "+appName, "")
+			out, err := env.Epinio("app show "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Show application details"))
@@ -389,7 +392,7 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
 
 			Eventually(func() string {
-				out, err = Epinio("app show "+appName, "")
+				out, err = env.Epinio("app show "+appName, "")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
@@ -397,19 +400,19 @@ var _ = Describe("Apps", func() {
 
 		Describe("no instances", func() {
 			BeforeEach(func() {
-				out, err := Epinio(fmt.Sprintf("app update %s --instances 0", appName), "")
+				out, err := env.Epinio(fmt.Sprintf("app update %s --instances 0", appName), "")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 			It("lists apps without instances", func() {
 				Eventually(func() string {
-					out, err := Epinio("app list", "")
+					out, err := env.Epinio("app list", "")
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
 				}, "1m").Should(MatchRegexp("0/0"))
 			})
 			It("shows the details of an app without instances", func() {
 				Eventually(func() string {
-					out, err := Epinio("app show "+appName, "")
+					out, err := env.Epinio("app show "+appName, "")
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
@@ -425,14 +428,14 @@ var _ = Describe("Apps", func() {
 		)
 
 		BeforeEach(func() {
-			out := makeApp(appName, 1, true)
+			out := env.MakeApp(appName, 1, true)
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route = string(routeRegexp.Find([]byte(out)))
 
-			out, err := Epinio("app logs "+appName, "")
+			out, err := env.Epinio("app logs "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			podNames := getPodNames(appName, org)
+			podNames := env.GetPodNames(appName, org)
 			for _, podName := range podNames {
 				Expect(out).To(ContainSubstring(podName))
 			}
@@ -441,11 +444,11 @@ var _ = Describe("Apps", func() {
 		})
 
 		AfterEach(func() {
-			deleteApp(appName)
+			env.DeleteApp(appName)
 		})
 
 		It("shows the staging logs", func() {
-			out, err := Epinio("app logs --staging "+appName, "")
+			out, err := env.Epinio("app logs --staging "+appName, "")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
@@ -455,7 +458,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("follows logs", func() {
-			p, err := GetProc(nodeTmpDir+"/epinio app logs --follow "+appName, "")
+			p, err := proc.Get(nodeTmpDir+"/epinio app logs --follow "+appName, "")
 			Expect(err).NotTo(HaveOccurred())
 
 			defer func() {
@@ -481,7 +484,7 @@ var _ = Describe("Apps", func() {
 			// 404. We are suspecting some bug in k3d networking which made the Ingress
 			// return 404 if accessed too quickly.
 			Eventually(func() int {
-				resp, err := Curl("GET", route, strings.NewReader(""))
+				resp, err := env.Curl("GET", route, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				return resp.StatusCode
 			}, "1m").Should(Equal(http.StatusOK))
