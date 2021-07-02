@@ -19,11 +19,12 @@ The quick way of pushing an application, as explained at
 [README: Push an application](../README.md#push-an-application), uses a local
 directory containing a checkout of the application's sources.
 
-Internally this is actually quite complex. It involves the creation and upload
-of a tarball from these sources by the client to the Epinio server, storage into
-Epinio's Gitea component, and then checkout from that git repository by the
-tekton pipeline for staging, i.e. compilation and creation of the docker image
-to be used by the underlying kubernetes cluster.
+Internally this is actually [quite complex](detailed-push-process.md). It
+involves the creation and upload of a tarball from these sources by the client
+to the Epinio server, storage into Epinio's Gitea component, and then checkout
+from that git repository by the tekton pipeline for staging, i.e. compilation
+and creation of the docker image to be used by the underlying kubernetes
+cluster.
 
 This process can be shortend however by using the Epinio client's "git mode". In
 this mode `epinio push` does not take a local directory of sources, but the
