@@ -191,8 +191,8 @@ configuration in that case, as Let's Encrypt is a known CA.
 
 ### Push an application
 
-NOTE: If you want to know the details of the `epinio push` process, read this
-page: [detailed push docs](/docs/detailed-push-process.md)
+__Note__: If you want to know the details of the `epinio push` process, please
+read the [detailed push docs](/docs/detailed-push-process.md)
 
 If you just want an application that works use the one inside the
 [sample-app directory](assets/sample-app). You can copy it to your system with
@@ -210,20 +210,24 @@ $ epinio push sample sample-app
 ```
 
 where `sample` is the name you want to give to your application. This name has
-to be unique within the targeted organization in Epinio. `sample-app` is path
-to the directory where your application's code resides.
+to be unique within the targeted organization in Epinio. `sample-app` is path to
+the directory where your application's code resides.
 
 Note that the path argument is __optional__.
 If not specified the __current working directory__ will be used.
 Always ensure that the chosen directory contains a supported application.
 
-If you want to know what applications are supported in Epinio, read this page: [supported applications](/docs/supported-apps.md)
+If you want to know what applications are supported in Epinio, please read the
+[notes about supported applications](/docs/supported-apps.md).
+
+We also provide information about the more advanced
+[git mode](docs/advanced.md#git-pushing).
 
 ### Check that your application is working
 
 After the application has been pushed, a unique URL is printed which you can use
-to access your application. If you don't have this URL available anymore you can find it again by
-running:
+to access your application. If you don't have this URL available anymore you can
+find it again by running:
 
 ```bash
 $ epinio app show sample
