@@ -5,10 +5,12 @@ on:
     branches: [ main ]
     paths-ignore:
     - 'docs/**'
+    - 'README.md'
   pull_request:
     branches: [ main ]
     paths-ignore:
     - 'docs/**'
+    - 'README.md'
   # nightly
   schedule:
     - cron:  '0 0 * * *'

@@ -6,6 +6,7 @@ on:
     types: [ labeled ]
     paths-ignore:
     - 'docs/**'
+    - 'README.md'
 
 jobs:
   build:
