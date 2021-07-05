@@ -30,4 +30,4 @@ E.g. [Instructions on how to add custom php.ini files for php-web buildpack](htt
 ## Detailed push process
 
 The above image is a simplified explanation of the `epinio push` process. If you don't want to know all the details on how that works, the above diagram should
-be all the information you need. If you are curious about the details, then read here: [Detailed push docs](/docs/detailed-push-process.md)
+be all the information you need. If you are curious about the details, then read here: [Detailed push docs](/docs/user/explanations/detailed-push-process.md)
