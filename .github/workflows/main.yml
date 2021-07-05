@@ -16,16 +16,44 @@ on:
     - cron:  '0 0 * * *'
 
 jobs:
-  build:
+  linter:
     runs-on: self-hosted
     if: contains(["kkaempf", "jimmykarily", "andreas-kupries", "rohitsakala", "svollath", "thardeck"], "${{ github.actor }}")
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Get all git tags
+      - name: Get All Git Tags
         run: git fetch --force --prune --unshallow --tags
-      - name: Setup Go for Building
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.13.7'
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+      - name: Install Tools
+        run: make tools-install
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Lint Epinio
+        run: make lint
+
+  acceptance-cli:
+    needs:
+      - linter
+    runs-on: self-hosted
+    if: contains(["kkaempf", "jimmykarily", "andreas-kupries", "rohitsakala", "svollath", "thardeck"], "${{ github.actor }}")
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+      - name: Setup Go
         uses: actions/setup-go@v2
         with:
           go-version: '^1.13.7'
@@ -46,11 +74,7 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
-      - name: lint Epinio
-        run: make lint
-      - name: Run unit tests
-        run: make test
-      - name: Acceptance tests
+      - name: CLI Acceptance Tests
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -59,4 +83,49 @@ jobs:
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-          make test-acceptance
+          make test-acceptance-cli
+
+  acceptance-api:
+    needs:
+      - linter
+    runs-on: self-hosted
+    if: contains(["kkaempf", "jimmykarily", "andreas-kupries", "rohitsakala", "svollath", "thardeck"], "${{ github.actor }}")
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.13.7'
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/ginkgo@v1.16.2
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Install Tools
+        run: make tools-install
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Unit Tests
+        run: make test
+      - name: API Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          export GINKGO_NODES=8
+          make acceptance-cluster-delete
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make test-acceptance-api
