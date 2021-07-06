@@ -177,6 +177,10 @@ func (c *EpinioClient) ServicePlanMatching(ctx context.Context, serviceClassName
 
 	result := []string{}
 
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
+
 	serviceClass, err := services.ClassLookup(ctx, c.Cluster, serviceClassName)
 	if err != nil {
 		return result
@@ -206,6 +210,10 @@ func (c *EpinioClient) ServiceClassMatching(ctx context.Context, prefix string) 
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
+
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
 
 	serviceClasses, err := services.ListClasses(ctx, c.Cluster)
 	if err != nil {
@@ -301,6 +309,10 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
+
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
 
 	orgServices, err := services.List(ctx, c.Cluster, c.Config.Org)
 	if err != nil {
@@ -662,6 +674,10 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
+
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
 
 	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
 	if err != nil {
@@ -1040,6 +1056,10 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
+
 	result := []string{}
 
 	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
@@ -1244,6 +1264,9 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
+
+	// TODO : This services work should be moved into the stage
+	// request, and server side.
 
 	if len(services) > 0 {
 		c.ui.Note().Msg("Binding Services")

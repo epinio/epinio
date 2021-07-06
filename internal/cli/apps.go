@@ -33,12 +33,12 @@ func init() {
 	}
 
 	CmdApp.AddCommand(CmdAppCreate)
-	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppList)
-	CmdApp.AddCommand(CmdDeleteApp)
-	CmdApp.AddCommand(CmdPush)
-	CmdApp.AddCommand(CmdAppUpdate)
 	CmdApp.AddCommand(CmdAppLogs)
+	CmdApp.AddCommand(CmdAppShow)
+	CmdApp.AddCommand(CmdAppUpdate)
+	CmdApp.AddCommand(CmdDeleteApp)
+	CmdApp.AddCommand(CmdPush) // See push.go for implementation
 }
 
 // CmdAppList implements the epinio `apps list` command
