@@ -1,11 +1,5 @@
 # Epinio, CLI configuration
 
-Opinionated platform that runs on Kubernetes, that takes you from App to URL in one step.
-
-![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg)
-
-<img src="../../epinio.png" width="50%" height="50%">
-
 The Epinio command line client uses a configuration file to store
 information which has to persist across invocations. This document
 discusses various aspects around this.
