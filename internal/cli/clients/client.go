@@ -93,31 +93,143 @@ func NewEpinioClient(ctx context.Context, flags *pflag.FlagSet) (*EpinioClient, 
 // EnvList displays a table of all environment variables and their
 // values for the named application.
 func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
+	log := c.Log.WithName("EnvList")
+	log.Info("start")
+	defer log.Info("return")
+	// details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		Msg("Show Application Environment")
+
+	jsonResponse, err := c.get(api.Routes.Path("EnvList", c.Config.Org, appName))
+	if err != nil {
+		return err
+	}
+
+	var eVariables models.EnvVariableList
+	if err := json.Unmarshal(jsonResponse, &eVariables); err != nil {
+		return err
+	}
+
+	msg := c.ui.Success().WithTable("Variable", "Value")
+
+	sort.Sort(eVariables)
+	for _, ev := range eVariables {
+		msg = msg.WithTableRow(ev.Name, ev.Value)
+	}
+
+	msg.Msg("Ok")
 	return nil
 }
 
 // EnvUnset adds or modifies the specified environment variable in the
 // named application, with the given value. A workload is restarted.
 func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue string) error {
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		WithStringValue("Variable", envName).
+		WithStringValue("Value", envValue).
+		Msg("Extend or modify application environment")
+
+	request := models.EnvVariableList{
+		models.EnvVariable{
+			Name:  envName,
+			Value: envValue,
+		},
+	}
+
+	js, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.post(api.Routes.Path("EnvSet", c.Config.Org, appName), string(js))
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("OK")
 	return nil
 }
 
 // EnvUnset shows the value of the specified environment variable in
 // the named application.
 func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) error {
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		WithStringValue("Variable", envName).
+		Msg("Show application environment variable")
+
+	jsonResponse, err := c.get(api.Routes.Path("EnvShow", c.Config.Org, appName, envName))
+	if err != nil {
+		return err
+	}
+
+	var eVariable models.EnvVariable
+	if err := json.Unmarshal(jsonResponse, &eVariable); err != nil {
+		return err
+	}
+
+	c.ui.Success().
+		WithStringValue("Value", eVariable.Value).
+		Msg("OK")
+
 	return nil
 }
 
 // EnvUnset removes the specified environment variable from the named
 // application. A workload is restarted.
 func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) error {
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		WithStringValue("Variable", envName).
+		Msg("Remove from application environment")
+
+	_, err := c.delete(api.Routes.Path("EnvUnset", c.Config.Org, appName, envName))
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("OK")
+
 	return nil
 }
 
 // EnvMatching retrieves all environment variables in the cluster, for
 // the specified application, and the given prefix
 func (c *EpinioClient) EnvMatching(ctx context.Context, appName, prefix string) []string {
-	return []string{}
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	jsonResponse, err := c.get(api.Routes.Path("EnvMatch", c.Config.Org, appName, prefix))
+	if err != nil {
+		return []string{}
+	}
+
+	var evNames []string
+	if err := json.Unmarshal(jsonResponse, &evNames); err != nil {
+		return []string{}
+	}
+
+	return evNames
 }
 
 // ConfigUpdate updates the credentials stored in the config from the

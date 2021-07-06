@@ -65,16 +65,24 @@ func patch(path string, h http.HandlerFunc) routes.Route {
 }
 
 var Routes = routes.NamedRoutes{
-	"Info":        get("/info", errorHandler(InfoController{}.Info)),
+	"Info": get("/info", errorHandler(InfoController{}.Info)),
+
 	"Apps":        get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
 	"AppCreate":   post("/orgs/:org/applications", errorHandler(ApplicationsController{}.Create)),
 	"AppShow":     get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
 	"AppLogs":     get("/orgs/:org/applications/:app/logs", ApplicationsController{}.Logs),
 	"StagingLogs": get("/orgs/:org/staging/:stage_id/logs", ApplicationsController{}.Logs),
 	"AppDelete":   delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
-	"AppUpload":   post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)),
-	"AppStage":    post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),
+	"AppUpload":   post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)), // See upload.go
+	"AppStage":    post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),  // See stage.go
 	"AppUpdate":   patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
+
+	// See env.go
+	"EnvList":  get("/orgs/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvIndex)),
+	"EnvMatch": get("/orgs/:org/applications/:app/environment/:env/match/:pattern", errorHandler(ApplicationsController{}.EnvMatch)),
+	"EnvSet":   post("/orgs/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvSet)),
+	"EnvShow":  get("/orgs/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvShow)),
+	"EnvUnset": delete("/orgs/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvUnset)),
 
 	// Bind and unbind services to/from applications, by means of servicebindings in applications
 	"ServiceBindingCreate": post("/orgs/:org/applications/:app/servicebindings",
