@@ -1,13 +1,3 @@
-# Installation
-
-- [Installation](#installation)
-  - [Provision of External IP for LoadBalancer service type in Kubernetes](#provision-of-external-ip-for-loadbalancer-service-type-in-kubernetes)
-    - [K3s/K3d](#k3sk3d)
-    - [Minikube](#minikube)
-    - [Kind](#kind)
-    - [MircoK8s](#mircok8s)
-  - [Prerequisites for Epinio](#prerequisites)
-
 ## Provision of External IP for LoadBalancer service type in Kubernetes
 
 Local kubernetes platforms do not have the ability to provide external IP address when you create a kubernetes service with `LoadBalancer` service type. The following steps will enable this ability for different local kubernetes platforms. Follow these steps before installing epinio.
