@@ -33,6 +33,7 @@ func init() {
 	}
 
 	CmdApp.AddCommand(CmdAppCreate)
+	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdAppLogs)
 	CmdApp.AddCommand(CmdAppShow)

@@ -90,6 +90,36 @@ func NewEpinioClient(ctx context.Context, flags *pflag.FlagSet) (*EpinioClient, 
 	return epinioClient, nil
 }
 
+// EnvList displays a table of all environment variables and their
+// values for the named application.
+func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
+	return nil
+}
+
+// EnvUnset adds or modifies the specified environment variable in the
+// named application, with the given value. A workload is restarted.
+func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue string) error {
+	return nil
+}
+
+// EnvUnset shows the value of the specified environment variable in
+// the named application.
+func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) error {
+	return nil
+}
+
+// EnvUnset removes the specified environment variable from the named
+// application. A workload is restarted.
+func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) error {
+	return nil
+}
+
+// EnvMatching retrieves all environment variables in the cluster, for
+// the specified application, and the given prefix
+func (c *EpinioClient) EnvMatching(ctx context.Context, appName, prefix string) []string {
+	return []string{}
+}
+
 // ConfigUpdate updates the credentials stored in the config from the
 // currently targeted kube cluster
 func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
