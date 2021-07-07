@@ -75,7 +75,7 @@ These services resolve all subdomains of the root domain to the subdomain's IP a
 
 ## The process visualized
 
-![epinio-push-detailed](/docs/images/epinio-push-detailed.svg?raw=true "Epinio push")
+![epinio-push-detailed](epinio-push-detailed.svg?raw=true "Epinio push")
 
 ## Credits
 
