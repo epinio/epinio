@@ -19,16 +19,6 @@ func (f *FakeReader) Read(opt *InstallationOption) error {
 }
 
 var _ = Describe("InstallationOption", func() {
-	Describe("ToOptMapKey", func() {
-		option := InstallationOption{
-			Name:         "TheName",
-			DeploymentID: "SomeDeployment",
-		}
-		It("returns a combination of Name + deploymentID", func() {
-			Expect(option.ToOptMapKey()).To(Equal("TheName-SomeDeployment"))
-		})
-	})
-
 	Describe("DynDefault", func() {
 		option := InstallationOption{
 			Name:         "TheName",
@@ -92,79 +82,6 @@ var _ = Describe("InstallationOption", func() {
 })
 
 var _ = Describe("InstallationOptions", func() {
-	Describe("ToOptMap", func() {
-		options := InstallationOptions{
-			{
-				Name:         "OptionName",
-				Value:        "ForDeployment1",
-				DeploymentID: "Deployment1",
-			},
-			{
-				Name:         "OptionName",
-				Value:        "ThisShouldBeLost",
-				DeploymentID: "Deployment2",
-			},
-			{
-				Name:         "OptionName",
-				Value:        "ForDeployment2",
-				DeploymentID: "Deployment2",
-			},
-			{
-				Name:         "OptionName",
-				Value:        "ForAllDeployments",
-				DeploymentID: "",
-			},
-		}
-		It("returns a map matching the InstallationOptions", func() {
-			optMap := options.ToOptMap()
-			Expect(len(optMap)).To(Equal(3))
-			Expect(optMap["OptionName-Deployment1"].Value).To(Equal("ForDeployment1"))
-			Expect(optMap["OptionName-Deployment2"].Value).To(Equal("ForDeployment2"))
-			Expect(optMap["OptionName-"].Value).To(Equal("ForAllDeployments"))
-		})
-	})
-
-	Describe("Merge", func() {
-		When("merging shared options", func() {
-			var sharedOption, privateOption InstallationOption
-			var installationOptions InstallationOptions
-			BeforeEach(func() {
-				sharedOption = InstallationOption{
-					Name:         "Option",
-					Value:        "the old value",
-					DeploymentID: "", // This is what makes it shared
-				}
-				privateOption = InstallationOption{
-					Name:         "Option",
-					Value:        "private value",
-					DeploymentID: "MyDeploymentID", // This is what makes it private
-				}
-				installationOptions = InstallationOptions{sharedOption, privateOption}
-			})
-			It("returns only one instance of the shared option", func() {
-				result := installationOptions.Merge(InstallationOptions{
-					{Name: "Option", Value: "the new value", DeploymentID: ""},
-				})
-				Expect(result.GetString("Option", "")).To(Equal("the new value"))
-			})
-
-			It("doesn't overwrite private options with shared ones", func() {
-				result := installationOptions.Merge(InstallationOptions{
-					{Name: "Option", Value: "the new value", DeploymentID: ""},
-				})
-				Expect(result.GetString("Option", "MyDeploymentID")).To(Equal("private value"))
-			})
-
-			It("Returns every instance of private options (even when name match)", func() {
-				result := installationOptions.Merge(InstallationOptions{
-					{Name: "Option", Value: "the new value", DeploymentID: "OtherDeploymentID"},
-				})
-				Expect(result.GetString("Option", "MyDeploymentID")).To(Equal("private value"))
-				Expect(result.GetString("Option", "OtherDeploymentID")).To(Equal("the new value"))
-			})
-		})
-	})
-
 	Describe("GetOpt", func() {
 		var options InstallationOptions
 		BeforeEach(func() {

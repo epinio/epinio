@@ -2,7 +2,6 @@ package kubernetes
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/spf13/pflag"
@@ -78,20 +77,6 @@ func (opts InstallationOptions) AsCobraFlagsFor(flags *pflag.FlagSet) {
 			}
 		}
 	}
-	return
-}
-
-func (opts InstallationOptions) ToOptMap() map[string]InstallationOption {
-	result := map[string]InstallationOption{}
-	for _, opt := range opts {
-		result[opt.ToOptMapKey()] = opt
-	}
-
-	return result
-}
-
-func (opt InstallationOption) ToOptMapKey() string {
-	return fmt.Sprintf("%s-%s", opt.Name, opt.DeploymentID)
 }
 
 func (opt *InstallationOption) DynDefault() error {
@@ -111,21 +96,6 @@ func (opt *InstallationOption) SetDefault() error {
 	}
 
 	return nil
-}
-
-// Merge returns a merge of the two options respecting uniqueness of name+deploymentID
-func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationOptions {
-	result := InstallationOptions{}
-	optMap := opts.ToOptMap()
-	for _, mergeOpt := range toMerge {
-		optMap[mergeOpt.ToOptMapKey()] = mergeOpt
-	}
-
-	for _, v := range optMap {
-		result = append(result, v)
-	}
-
-	return result
 }
 
 // GetOpt finds the given option in opts.
