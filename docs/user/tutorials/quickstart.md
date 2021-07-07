@@ -12,7 +12,7 @@ In this tutorial, you will learn how to create an organisation and how to push, 
 ### Clone the sample app
 
 If you just want an application that works use the one inside the
-[sample-app directory](assets/sample-app). You can copy it to your system with
+[sample-app directory](/assets/sample-app). You can copy it to your system with
 the following commands:
 
 ```bash
