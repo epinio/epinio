@@ -42,10 +42,20 @@ func EnvironmentUnset(ctx context.Context, cluster *kubernetes.Cluster, appRef m
 	})
 }
 
-func envUpdate(ctx context.Context,
-	cluster *kubernetes.Cluster,
-	appRef models.AppRef,
-	modifyEnvironment func(*v1.Secret)) error {
+func envNames(ev *v1.Secret) []string {
+	names := make([]string, len(ev.Data))
+	i := 0
+	for k := range ev.Data {
+		names[i] = k
+		i++
+	}
+	return names
+}
+
+func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
+	appRef models.AppRef, modifyEnvironment func(*v1.Secret)) error {
+
+	varNames := []string{}
 
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		evSecret, err := envLoad(ctx, cluster, appRef)
@@ -62,6 +72,10 @@ func envUpdate(ctx context.Context,
 		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Org).Update(
 			ctx, evSecret, metav1.UpdateOptions{})
 
+		// Pass current set of environment variables out for
+		// use by the worload restart
+		varNames = envNames(evSecret)
+
 		return err
 	})
 
@@ -69,12 +83,30 @@ func envUpdate(ctx context.Context,
 		return err
 	}
 
-	// restart workload, if any
+	// Restart the app workload, if it exists We ignore a missing deployment
+	// as this just means that the EV changes will simply stand ready for
+	// when the workload is actually launched.
+
+	app, err := Lookup(ctx, cluster, appRef.Org, appRef.Name)
+	if err != nil {
+		return err
+	}
+	if app != nil {
+		workload := NewWorkload(cluster, appRef)
+		err = workload.EnvironmentChange(ctx, varNames)
+		if err != nil {
+			if !apierrors.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+	}
+
 	return nil
 }
 
 func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
-	secretName := appRef.Name + "-env"
+	secretName := EnvSecret(appRef)
 
 	evSecret, err := cluster.GetSecret(ctx, appRef.Org, secretName)
 	if err != nil {
@@ -126,4 +158,8 @@ func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	}
 
 	return evSecret, nil
+}
+
+func EnvSecret(appRef models.AppRef) string {
+	return appRef.Name + "-env"
 }

@@ -14,6 +14,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -28,6 +29,67 @@ type Workload struct {
 
 func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
 	return &Workload{cluster: cluster, app: app}
+}
+
+// EnvironmentChange imports the current environment into the deployment
+func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		deployment, err := a.deployment(ctx)
+		if err != nil {
+			return err
+		}
+
+		evSecretName := EnvSecret(a.app)
+
+		// 1. Remove all the old EVs referencing the app's EV secret.
+		// 2. Add entries for the new set of EV's (S.a varNames).
+		// 3. Replace container spec
+		//
+		// Note: While 1+2 could be optimized to only remove entries of
+		//       EVs not in varNames, and add only entries for varNames
+		//       not in Env, this is way more complex for what is likely
+		//       just 10 entries. I expect any gain in perf to be
+		//       neglibible, and completely offset by the complexity of
+		//       understanding and maintaining it later. Full removal
+		//       and re-adding is much simpler to understand, and should
+		//       be fast enough.
+
+		newEnvironment := []v1.EnvVar{}
+
+		for _, ev := range deployment.Spec.Template.Spec.Containers[0].Env {
+			// Drop EV if pulled from EV secret of the app
+			if ev.ValueFrom != nil &&
+				ev.ValueFrom.SecretKeyRef != nil &&
+				ev.ValueFrom.SecretKeyRef.Name == evSecretName {
+				continue
+			}
+			// Keep everything else.
+			newEnvironment = append(newEnvironment, ev)
+		}
+
+		for _, varName := range varNames {
+			newEnvironment = append(newEnvironment, v1.EnvVar{
+				Name: varName,
+				ValueFrom: &v1.EnvVarSource{
+					SecretKeyRef: &v1.SecretKeySelector{
+						LocalObjectReference: v1.LocalObjectReference{
+							Name: evSecretName,
+						},
+						Key: varName,
+					},
+				},
+			})
+		}
+
+		deployment.Spec.Template.Spec.Containers[0].Env = newEnvironment
+
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
+			ctx, deployment, metav1.UpdateOptions{})
+
+		return err
+	})
 }
 
 // Services returns the set of services bound to the application.
@@ -72,6 +134,10 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 
 // UnbindAll dissolves all bindings from the application.
 func (a *Workload) UnbindAll(ctx context.Context, cluster *kubernetes.Cluster, svcs []string) error {
+
+	// TODO: Optimize this action to perform a single restart for
+	// the entire change, instead of one per service.
+
 	for _, bonded := range svcs {
 		bound, err := services.Lookup(ctx, cluster, a.app.Org, bonded)
 		if err != nil {
