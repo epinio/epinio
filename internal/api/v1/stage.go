@@ -9,9 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/julienschmidt/httprouter"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
@@ -27,11 +24,14 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/domain"
 )
 
 const (
 	DefaultInstances = int32(1)
+	LocalRegistry    = "127.0.0.1:30500/apps"
 )
 
 type stageParam struct {
@@ -172,7 +172,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	if !strings.Contains(mainDomain, "omg.howdoi.website") {
 		deploymentImageURL = registryURL
 	} else {
-		deploymentImageURL = gitea.LocalRegistry
+		deploymentImageURL = LocalRegistry
 	}
 
 	pr := newPipelineRun(uid, params, mainDomain, registryURL, deploymentImageURL)

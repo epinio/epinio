@@ -14,8 +14,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const LocalRegistry = "127.0.0.1:30500/apps"
-
 // Upload puts the app data into the gitea repo and creates the webhook and
 // accompanying app data.
 // The results are added to the struct App.
