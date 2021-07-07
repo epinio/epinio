@@ -53,7 +53,7 @@ chmod +x epinio
 * Move the binary to your PATH
 
 ```bash
-sudo mv ./kubectl /usr/local/bin/kubectl
+sudo mv ./epinio /usr/local/bin/epinio
 ```
 
 ##### MacOS 
@@ -73,7 +73,7 @@ chmod +x epinio
 * Move the binary to your PATH
 
 ```bash
-sudo mv ./kubectl /usr/local/bin/kubectl
+sudo mv ./epinio /usr/local/bin/epinio
 ```
 
 ##### Windows 
