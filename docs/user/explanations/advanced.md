@@ -16,10 +16,10 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 ## Git Pushing
 
 The quick way of pushing an application, as explained at
-[README: Push an application](../README.md#push-an-application), uses a local
+[Quickstart: Push an application](../tutorials/quickstart.md#push-an-application), uses a local
 directory containing a checkout of the application's sources.
 
-Internally this is actually [quite complex](../explanations/detailed-push-process.md). It
+Internally this is actually [quite complex](detailed-push-process.md). It
 involves the creation and upload of a tarball from these sources by the client
 to the Epinio server, storage into Epinio's Gitea component, and then checkout
 from that git repository by the tekton pipeline for staging, i.e. compilation
