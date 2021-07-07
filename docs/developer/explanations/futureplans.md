@@ -40,3 +40,32 @@ Epinio's development is governed by the following principles:
 - **Services**
   - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
   - Bind services to apps.
+
+## Future Plans
+
+Epinio's development is driven by real world problems. That means, if something
+is not a solution to a real user's problem then it is not a priority. This guideline
+helps avoid over-engineering and meaningless work.
+
+Epinio's main goal is to make existing solutions accessible, to the application
+developer. Those solutions include:
+
+- TLS Certificate Signers
+- Service mesh integration and testing
+- Open Telemetry
+- Multi-Tenancy
+- Serverless/Eventing framework
+- Supply Chain Secruity
+- Authorization/Authentication
+
+With so many communities working on the same problems at the same time, it's rare
+that a problem doesn't already have a solution. Most of the time, seamless integration
+is the challenge and that's Epinio's domain.
+
+__Note however__ that the above list does __not__ constitute a Roadmap of things
+we will do. It is only a list of areas of interest to investigate.
+
+You can see what the team is up to on our
+[Github Project board](https://github.com/epinio/epinio/projects/1).
+Feel free to add issues if you want to discuss future work or comment on
+existing ones.
