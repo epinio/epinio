@@ -11,6 +11,8 @@ spec:
   - name: source-repo
     type: git
   params:
+    - name: ENVIRONMENT
+      type: string
     - name: APP_NAME
       type: string
       description: "The application name (used as label or name in various resources)"
@@ -74,6 +76,8 @@ spec:
     taskRef:
       name: run
     params:
+      - name: ENVIRONMENT
+        value: "$(params.ENVIRONMENT)"
       - name: APP_NAME
         value: "$(params.APP_NAME)"
       - name: ORG
@@ -149,6 +153,8 @@ spec:
   workspaces:
   - name: source
   params:
+    - name: ENVIRONMENT
+      type: string
     - name: APP_NAME
       type: string
     - name: ORG
@@ -218,9 +224,7 @@ spec:
                 image: "$(params.DEPLOYMENT_IMAGE)"
                 ports:
                 - containerPort: 8080
-                env:
-                - name: PORT
-                  value: "8080"
+                env: $(params.ENVIRONMENT)
         EOF
 
         cat <<EOF | kubectl apply -f -

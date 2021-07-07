@@ -36,12 +36,13 @@ const (
 
 type stageParam struct {
 	models.AppRef
-	Image     models.ImageRef
-	Git       *models.GitRef
-	Route     string
-	Stage     models.StageRef
-	Instances int32
-	Owner     metav1.OwnerReference
+	Image       models.ImageRef
+	Git         *models.GitRef
+	Route       string
+	Stage       models.StageRef
+	Instances   int32
+	Owner       metav1.OwnerReference
+	Environment models.EnvVariableList
 }
 
 // GitURL returns the git URL by combining the server with the org and name
@@ -139,6 +140,12 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
+	// determine runtime environment, if any
+	env, err := application.Environment(ctx, cluster, req.App)
+	if err != nil {
+		return InternalError(err, "failed to access application runtime environment")
+	}
+
 	owner := metav1.OwnerReference{
 		APIVersion: app.GetAPIVersion(),
 		Kind:       app.GetKind(),
@@ -146,11 +153,12 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		UID:        app.GetUID(),
 	}
 	params := stageParam{
-		AppRef:    req.App,
-		Git:       req.Git,
-		Route:     req.Route,
-		Instances: instances,
-		Owner:     owner,
+		AppRef:      req.App,
+		Git:         req.Git,
+		Route:       req.Route,
+		Instances:   instances,
+		Owner:       owner,
+		Environment: env,
 	}
 
 	mainDomain, err := domain.MainDomain(ctx)
@@ -203,6 +211,17 @@ func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppR
 
 func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploymentImageURL string) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
+
+	assignments := []string{
+		fmt.Sprintf(`{ "name": "%s", "value": "%s"}`, `PORT`, `8080`),
+	}
+	for _, ev := range app.Environment {
+		assignments = append(assignments,
+			fmt.Sprintf(`{ "name": "%s", "valueFrom": { "secretKeyRef": {"key":"%s","name":"%s"}}}`,
+				ev.Name, ev.Name, application.EnvSecret(app.AppRef)))
+	}
+	environment := `[` + strings.Join(assignments, ",") + `]`
+
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: uid,
@@ -230,6 +249,7 @@ func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploym
 				{Name: "OWNER_NAME", Value: *str(app.Owner.Name)},
 				{Name: "OWNER_KIND", Value: *str(app.Owner.Kind)},
 				{Name: "OWNER_UID", Value: *str(string(app.Owner.UID))},
+				{Name: "ENVIRONMENT", Value: *str(environment)},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
