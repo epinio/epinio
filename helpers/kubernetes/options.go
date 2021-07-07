@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -51,7 +51,7 @@ type InstallationOption struct {
 
 type InstallationOptions []InstallationOption
 
-func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
+func (opts InstallationOptions) AsCobraFlagsFor(flags *pflag.FlagSet) {
 	for _, opt := range opts {
 		// Translate option name
 		flagName := strings.ReplaceAll(opt.Name, "_", "-")
@@ -60,21 +60,21 @@ func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
 		switch opt.Type {
 		case BooleanType:
 			if opt.Default == nil {
-				cmd.Flags().Bool(flagName, false, opt.Description)
+				flags.Bool(flagName, false, opt.Description)
 			} else {
-				cmd.Flags().Bool(flagName, opt.Default.(bool), opt.Description)
+				flags.Bool(flagName, opt.Default.(bool), opt.Description)
 			}
 		case StringType:
 			if opt.Default == nil {
-				cmd.Flags().String(flagName, "", opt.Description)
+				flags.String(flagName, "", opt.Description)
 			} else {
-				cmd.Flags().String(flagName, opt.Default.(string), opt.Description)
+				flags.String(flagName, opt.Default.(string), opt.Description)
 			}
 		case IntType:
 			if opt.Default == nil {
-				cmd.Flags().Int(flagName, 0, opt.Description)
+				flags.Int(flagName, 0, opt.Description)
 			} else {
-				cmd.Flags().Int(flagName, opt.Default.(int), opt.Description)
+				flags.Int(flagName, opt.Default.(int), opt.Description)
 			}
 		}
 	}

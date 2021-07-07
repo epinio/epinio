@@ -18,12 +18,12 @@ var CmdUninstall = &cobra.Command{
 func Uninstall(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	installClient, _, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), nil)
+	installClient, _, err := clients.NewInstallClient(cmd.Context(), nil)
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = installClient.Uninstall(cmd)
+	err = installClient.Uninstall(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "failed to remove")
 	}

@@ -3,17 +3,17 @@ package kubernetes
 import (
 	"strings"
 
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 type CLIOptionsReader struct {
-	cmd *cobra.Command
+	flags *pflag.FlagSet
 }
 
 // NewCLIOptionsReader is a reader used by the Installer to fill
 // configuration variables from cli options.
-func NewCLIOptionsReader(cmd *cobra.Command) CLIOptionsReader {
-	return CLIOptionsReader{cmd: cmd}
+func NewCLIOptionsReader(flags *pflag.FlagSet) CLIOptionsReader {
+	return CLIOptionsReader{flags: flags}
 }
 
 // Queries the cobra command for a flag associated with the given
@@ -37,7 +37,7 @@ func (reader CLIOptionsReader) Read(option *InstallationOption) error {
 	// Do nothing if the specified option has no associated cobra
 	// flag.
 
-	if reader.cmd.Flags().Lookup(flagName) == nil {
+	if reader.flags.Lookup(flagName) == nil {
 		return nil
 	}
 
@@ -47,13 +47,13 @@ func (reader CLIOptionsReader) Read(option *InstallationOption) error {
 
 	switch option.Type {
 	case BooleanType:
-		cliValue, err = reader.cmd.Flags().GetBool(flagName)
+		cliValue, err = reader.flags.GetBool(flagName)
 		cliValid = (err == nil) && (cliValue.(bool) != option.Default.(bool))
 	case StringType:
-		cliValue, err = reader.cmd.Flags().GetString(flagName)
+		cliValue, err = reader.flags.GetString(flagName)
 		cliValid = (err == nil) && (cliValue.(string) != option.Default.(string))
 	case IntType:
-		cliValue, err = reader.cmd.Flags().GetInt(flagName)
+		cliValue, err = reader.flags.GetInt(flagName)
 		cliValid = (err == nil) && (cliValue.(int) != option.Default.(int))
 	}
 
