@@ -8,6 +8,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableList, error) {
@@ -28,17 +29,46 @@ func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models
 }
 
 func EnvironmentSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, assignments models.EnvVariableList) error {
-	// get env from secret
-	// merge assignments
-	// update secret
-	// restart workload, if any
-	return nil
+	return envUpdate(ctx, cluster, appRef, func(evSecret *v1.Secret) {
+		for _, ev := range assignments {
+			evSecret.Data[ev.Name] = []byte(ev.Value)
+		}
+	})
 }
 
 func EnvironmentUnset(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, varName string) error {
-	// get env from secret
-	// remove assignment
-	// update secret
+	return envUpdate(ctx, cluster, appRef, func(evSecret *v1.Secret) {
+		delete(evSecret.Data, varName)
+	})
+}
+
+func envUpdate(ctx context.Context,
+	cluster *kubernetes.Cluster,
+	appRef models.AppRef,
+	modifyEnvironment func(*v1.Secret)) error {
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		evSecret, err := envLoad(ctx, cluster, appRef)
+		if err != nil {
+			return err
+		}
+
+		if evSecret.Data == nil {
+			evSecret.Data = make(map[string][]byte)
+		}
+
+		modifyEnvironment(evSecret)
+
+		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Org).Update(
+			ctx, evSecret, metav1.UpdateOptions{})
+
+		return err
+	})
+
+	if err != nil {
+		return err
+	}
+
 	// restart workload, if any
 	return nil
 }
