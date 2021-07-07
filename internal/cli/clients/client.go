@@ -906,6 +906,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 		WithTableRow("StageId", app.StageID).
 		WithTableRow("Routes", strings.Join(app.Routes, ", ")).
 		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).
+		WithTableRow("Environment", `See it by running the command "epinio app env list `+appName+`"`).
 		Msg("Details:")
 
 	return nil
