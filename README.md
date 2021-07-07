@@ -40,6 +40,7 @@ to use Kubernetes as a PaaS (Platform as a Service).
 ## Installation
 
 - [Install on K3d](./docs/user/tutorials/install_epinio_on_k3d.md) - Install K3d and then install epinio.
+- [Install on GKE](./docs/user/tutorials/install_epinio_on_gke.md) - Install Epinio in GKE.
 
 ## Usage
 
