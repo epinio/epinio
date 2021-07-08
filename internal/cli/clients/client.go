@@ -1152,9 +1152,6 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 
 // Delete removes the named application from the cluster
 func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
-
-	// TODO: Move the cert operations into the server!
-
 	log := c.Log.WithName("Delete").WithValues("Application", appname)
 	log.Info("start")
 	defer log.Info("return")
@@ -1174,18 +1171,6 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 	var response *models.ApplicationDeleteResponse
 	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return err
-	}
-
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete certificate")
-	}
-
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		err = c.deleteCertificate(ctx, appname)
-		if err != nil {
-			return errors.Wrap(err, "failed to delete certificate")
-		}
 	}
 
 	unboundServices := response.UnboundServices
@@ -1515,32 +1500,6 @@ func (c *EpinioClient) Target(org string) error {
 	}
 
 	c.ui.Success().Msg("Organization targeted.")
-
-	return nil
-}
-
-func (c *EpinioClient) deleteCertificate(ctx context.Context, appName string) error {
-	certificateInstanceGVR := schema.GroupVersionResource{
-		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
-		Resource: "certificates",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.Cluster.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	err = dynamicClient.Resource(certificateInstanceGVR).Namespace(c.Config.Org).
-		Delete(ctx, appName, metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	err = c.Cluster.Kubectl.CoreV1().Secrets(c.Config.Org).Delete(ctx, fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

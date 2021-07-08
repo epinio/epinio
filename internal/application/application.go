@@ -236,6 +236,11 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 		return err
 	}
 
+	err = cluster.Kubectl.CoreV1().Secrets(appRef.Org).Delete(ctx, fmt.Sprintf("%s-tls", appRef.Name), metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
 	return nil
 }
 
