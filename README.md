@@ -10,6 +10,7 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 - [Epinio](#epinio)
   - [Contents](#contents)
+  - [Features](#features)
   - [What problem does Epinio solve](#what-problem-does-epinio-solve)
   - [Installation](#installation)
   - [Usage](#usage)
@@ -36,6 +37,23 @@ not doing operations.
 
 Epinio is adding the needed abstractions and intelligence to allow Developers
 to use Kubernetes as a PaaS (Platform as a Service).
+
+## Features
+
+- **Security**
+  - mTLS: Epinio uses `linkerd` to secure all communication between epinio components inside the kubernetes cluster
+  - Basic Authentication to access the API.
+- **Epinio Clients**
+  - Web UI
+  - Epinio CLI
+- **Full Air-Gap Installation**
+  - Can be installed and be used without internet
+- **Apps**
+  - CRUD operations of your app. (An app can be a tarball or in a github repo)
+  - Cloud Native Buildpacks provide the runtime environment for your apps
+- **Services**
+  - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
+  - Bind services to apps.
 
 ## Installation
 
