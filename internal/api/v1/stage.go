@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
@@ -167,12 +168,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	var deploymentImageURL string
 	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
-	// If it's a local deployment the cert is self-signed so we use the NodePort
-	// (without TLS) as the Deployment image. This way kube won't complain.
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		deploymentImageURL = registryURL
-	} else {
+	if viper.GetBool("use-internal-registry-node-port") {
 		deploymentImageURL = LocalRegistry
+	} else {
+		deploymentImageURL = registryURL
 	}
 
 	pr := newPipelineRun(uid, params, mainDomain, registryURL, deploymentImageURL)
@@ -181,7 +180,13 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	err = auth.CreateCertificate(ctx, cluster, params.Name, params.Org, mainDomain, &owner)
+	cert := auth.CertParam{
+		Name:      params.Name,
+		Namespace: params.Org,
+		Issuer:    viper.GetString("tls-issuer"),
+		Domain:    mainDomain,
+	}
+	err = auth.CreateCertificate(ctx, cluster, cert, &owner)
 	if err != nil {
 		return InternalError(err)
 	}

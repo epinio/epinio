@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
@@ -31,6 +32,14 @@ func init() {
 	flags.Int("port", 0, "(PORT) The port to listen on. Leave empty to auto-assign a random port")
 	viper.BindPFlag("port", flags.Lookup("port"))
 	viper.BindEnv("port", "PORT")
+
+	flags.String("tls-issuer", deployments.SelfSignedIssuer, "(TLS_ISSUER) The cluster issuer to use for workload certificates")
+	viper.BindPFlag("tls-issuer", flags.Lookup("tls-issuer"))
+	viper.BindEnv("tls-issuer", "TLS_ISSUER")
+
+	flags.Bool("use-internal-registry-node-port", true, "(USE_INTERNAL_REGISTRY_NODE_PORT) Use the internal registry via a node port")
+	viper.BindPFlag("use-internal-registry-node-port", flags.Lookup("use-internal-registry-node-port"))
+	viper.BindEnv("use-internal-registry-node-port", "USE_INTERNAL_REGISTRY_NODE_PORT")
 }
 
 // CmdServer implements the epinio server command

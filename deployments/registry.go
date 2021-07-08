@@ -28,6 +28,7 @@ var _ kubernetes.Deployment = &Registry{}
 
 const (
 	RegistryDeploymentID = "epinio-registry"
+	RegistryCertSecret   = "epinio-registry-tls"
 	registryVersion      = "0.1.0"
 	registryChartFile    = "container-registry-0.1.0.tgz"
 )
@@ -152,11 +153,14 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	}
 
 	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
-	helmCmd := fmt.Sprintf("helm %s %s --set 'auth.htpasswd=%s' --set 'domain=%s' --namespace %s %s",
-		action, RegistryDeploymentID,
+	helmCmd := fmt.Sprintf("helm %[1]s %[2]s --set 'auth.htpasswd=%[3]s' --set 'domain=%[4]s' --set 'createNodePort=%[5]v' --namespace %[6]s %[7]s",
+		action,
+		RegistryDeploymentID,
 		htpasswd,
 		fmt.Sprintf("%s.%s", RegistryDeploymentID, domain),
-		RegistryDeploymentID, tarPath)
+		options.GetBoolNG("enable-internal-registry-node-port"),
+		RegistryDeploymentID,
+		tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
 		return errors.New("Failed installing Registry: " + out)
 	}
@@ -178,7 +182,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	// https://github.com/jetstack/cert-manager/pull/3828
 	emptySecret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-tls", RegistryDeploymentID),
+			Name:      RegistryCertSecret,
 			Namespace: RegistryDeploymentID,
 			Annotations: map[string]string{
 				"kubed.appscode.com/sync": fmt.Sprintf("cert-manager-tls=%s", RegistryDeploymentID),
@@ -196,10 +200,18 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return err
 	}
 
+	issuer := options.GetStringNG("tls-issuer")
+
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
+	cert := auth.CertParam{
+		Namespace: RegistryDeploymentID,
+		Name:      RegistryDeploymentID,
+		Issuer:    issuer,
+		Domain:    domain,
+	}
 	err = retry.Do(func() error {
-		return auth.CreateCertificate(ctx, c, RegistryDeploymentID, RegistryDeploymentID, domain, nil)
+		return auth.CreateCertificate(ctx, c, cert, nil)
 	},
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), "x509: certificate signed by unknown authority") ||

@@ -30,6 +30,8 @@ const (
 	CertManagerDeploymentID = "cert-manager"
 	certManagerVersion      = "1.2.0"
 	certManagerChartFile    = "cert-manager-v1.2.0.tgz"
+	SelfSignedIssuer        = "selfsigned-issuer"
+	LetsencryptIssuer       = "letsencrypt-production"
 )
 
 func (cm *CertManager) ID() string {

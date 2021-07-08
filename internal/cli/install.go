@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/cli/clients"
@@ -66,6 +67,20 @@ var NeededOptions = kubernetes.InstallationOptions{
 			o.Value = uid
 			return nil
 		},
+	},
+	{
+		Name:        "tls-issuer",
+		Description: "The name of the cluster issuer to use. Epinio creates two options: 'letsencrypt-production' and 'selfsigned-issuer'.",
+		Type:        kubernetes.StringType,
+		Default:     deployments.SelfSignedIssuer,
+		Value:       deployments.SelfSignedIssuer,
+	},
+	{
+		Name:        "enable-internal-registry-node-port",
+		Description: "Make the internal registry accessible via a node port, so kubelet can access the registry without trusting its cert.",
+		Type:        kubernetes.BooleanType,
+		Default:     true,
+		Value:       true,
 	},
 }
 

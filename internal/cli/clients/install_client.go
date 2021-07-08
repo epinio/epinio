@@ -128,7 +128,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		return errors.New("You didn't provide a system_domain and we were unable to setup a omg.howdoi.website domain (couldn't find an ExternalIP)")
 	}
 
-	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
+	c.ui.Success().Msg("Using system_domain: " + domain.Value.(string))
 
 	installationWg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{

@@ -8,7 +8,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -44,24 +43,26 @@ func ExtendLocalTrust(certs string) {
 	http.DefaultTransport.(*http.Transport).ForceAttemptHTTP2 = false
 }
 
-func CreateCertificate(ctx context.Context, cluster *kubernetes.Cluster, name, namespace, systemDomain string, owner *metav1.OwnerReference) error {
-	// Create production certificate if systemDomain is provided by user
-	// else create a local cluster self-signed tls secret.
+// CertParam describes the cert-manager certificate CRD. It's passed to
+// CreateCertificate to create the cert-manager certificate CR.
+type CertParam struct {
+	Name      string
+	Namespace string
+	Domain    string
+	Issuer    string
+}
 
-	issuer := ""
-	origin := ""
-
-	if !strings.Contains(systemDomain, "omg.howdoi.website") {
-		issuer = "letsencrypt-production"
-		origin = "production"
-	} else {
-		issuer = "selfsigned-issuer"
-		origin = "local"
-	}
-
-	obj, err := createCertificate(name, namespace, systemDomain, issuer)
+// CreateCertificate creates a certificate resource, for the given
+// cluster issuer
+func CreateCertificate(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	cert CertParam,
+	owner *metav1.OwnerReference,
+) error {
+	obj, err := newCertificate(cert)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("creation of %s ssl certificate failed", origin))
+		return errors.Wrap(err, fmt.Sprintf("creation of ssl certificate for issuer '%s' failed", cert.Issuer))
 	}
 
 	client, err := cluster.ClientCertificate()
@@ -73,8 +74,7 @@ func CreateCertificate(ctx context.Context, cluster *kubernetes.Cluster, name, n
 		obj.SetOwnerReferences([]metav1.OwnerReference{*owner})
 	}
 
-	_, err = client.Namespace(namespace).
-		Create(ctx, obj, metav1.CreateOptions{})
+	_, err = client.Namespace(cert.Namespace).Create(ctx, obj, metav1.CreateOptions{})
 	// Ignore the error if it's about cert already existing.
 	if err != nil && !apierrors.IsAlreadyExists(err) {
 		return err
@@ -83,7 +83,7 @@ func CreateCertificate(ctx context.Context, cluster *kubernetes.Cluster, name, n
 	return nil
 }
 
-func createCertificate(name, namespace, systemDomain, issuer string) (*unstructured.Unstructured, error) {
+func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
 	// Notes:
 	// - spec.CommonName is length-limited.
 	//   At most 64 characters are allowed, as per [RFC 3280](https://www.rfc-editor.org/rfc/rfc3280.txt).
@@ -99,26 +99,25 @@ func createCertificate(name, namespace, systemDomain, issuer string) (*unstructu
 	//   full string as means of keeping the text unique across
 	//   apps.
 
-	cn := names.TruncateMD5(fmt.Sprintf("%s.%s", name, systemDomain), 64)
+	cn := names.TruncateMD5(fmt.Sprintf("%s.%s", cert.Name, cert.Domain), 64)
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1alpha2",
 		"kind": "Certificate",
 		"metadata": {
-			"name": "%s",
-			"namespace": "%s"
+			"name": "%[1]s"
 		},
 		"spec": {
-			"commonName" : "%s",
-			"secretName" : "%s-tls",
+			"commonName" : "%[2]s",
+			"secretName" : "%[1]s-tls",
 			"dnsNames": [
-				"%s.%s"
+				"%[1]s.%[3]s"
 			],
 			"issuerRef" : {
-				"name" : "%s",
+				"name" : "%[4]s",
 				"kind" : "ClusterIssuer"
 			}
 		}
-        }`, name, namespace, cn, name, name, systemDomain, issuer)
+        }`, cert.Name, cn, cert.Domain, cert.Issuer)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
