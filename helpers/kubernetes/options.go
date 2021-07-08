@@ -173,6 +173,32 @@ func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (
 	return result, nil
 }
 
+// GetStringNG returns the string value for a needed, global option
+func (opts InstallationOptions) GetStringNG(optionName string) string {
+	option, err := opts.GetOpt(optionName, "")
+	if err != nil {
+		return ""
+	}
+	result, ok := option.Value.(string)
+	if !ok {
+		return ""
+	}
+	return result
+}
+
+// GetBoolNG returns the bool value for a needed, global option
+func (opts InstallationOptions) GetBoolNG(optionName string) bool {
+	option, err := opts.GetOpt(optionName, "")
+	if err != nil {
+		return false
+	}
+	result, ok := option.Value.(bool)
+	if !ok {
+		return false
+	}
+	return result
+}
+
 func (opts InstallationOptions) ForDeployment(deploymentID string) InstallationOptions {
 	result := InstallationOptions{}
 	for _, opt := range opts {

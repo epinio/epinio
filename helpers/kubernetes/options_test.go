@@ -180,6 +180,7 @@ var _ = Describe("InstallationOptions", func() {
 				Expect(result).To(Equal("the value"))
 			})
 		})
+
 		When("option is not a string", func() {
 			BeforeEach(func() {
 				options = InstallationOptions{
@@ -204,6 +205,51 @@ var _ = Describe("InstallationOptions", func() {
 				_, err := options.GetString("Option", "")
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+		})
+	})
+
+	Describe("GetStringNG", func() {
+		var options InstallationOptions
+		When("option is a string", func() {
+			BeforeEach(func() {
+				options = InstallationOptions{
+					InstallationOption{
+						Name:  "Option",
+						Value: "the value",
+						Type:  StringType,
+					},
+				}
+			})
+			It("returns a string value", func() {
+				result := options.GetStringNG("Option")
+				Expect(result).To(Equal("the value"))
+			})
+		})
+
+		When("option is not a string", func() {
+			BeforeEach(func() {
+				options = InstallationOptions{
+					InstallationOption{
+						Name:  "Option",
+						Value: true,
+						Type:  BooleanType,
+					},
+				}
+			})
+			It("returns an empty string", func() {
+				result := options.GetStringNG("Option")
+				Expect(result).To(Equal(""))
+			})
+		})
+
+		When("option doesn't exist", func() {
+			BeforeEach(func() {
+				options = InstallationOptions{}
+			})
+			It("returns an empty string", func() {
+				result := options.GetStringNG("Option")
+				Expect(result).To(Equal(""))
 			})
 		})
 	})
@@ -299,6 +345,52 @@ var _ = Describe("InstallationOptions", func() {
 				_, err := options.GetBool("Option", "")
 				Expect(err).To(HaveOccurred())
 				Expect(err.Error()).To(ContainSubstring("not set"))
+			})
+		})
+	})
+
+	Describe("GetBoolNG", func() {
+		var options InstallationOptions
+		When("option is a bool", func() {
+			BeforeEach(func() {
+				options = InstallationOptions{
+					InstallationOption{
+						Name:  "Option",
+						Value: true,
+						Type:  BooleanType,
+					},
+				}
+			})
+			It("returns a boolean value", func() {
+				result := options.GetBoolNG("Option")
+				Expect(result).To(BeTrue())
+			})
+		})
+
+		When("option is not a bool", func() {
+			BeforeEach(func() {
+				options = InstallationOptions{
+					InstallationOption{
+						Name:  "Option",
+						Value: "aString",
+						Type:  StringType,
+					},
+				}
+			})
+			It("returns false", func() {
+				result := options.GetBoolNG("Option")
+				Expect(result).To(BeFalse())
+			})
+		})
+
+		When("option doesn't exist", func() {
+			BeforeEach(func() {
+				options = InstallationOptions{}
+			})
+
+			It("returns false", func() {
+				result := options.GetBoolNG("Option")
+				Expect(result).To(BeFalse())
 			})
 		})
 	})
