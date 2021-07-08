@@ -37,10 +37,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/client-go/dynamic"
 )
 
 // EpinioClient provides functionality for talking to a
@@ -248,7 +245,7 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 		return nil
 	}
 
-	certs, err := getCerts(details, ctx)
+	certs, err := getCerts(ctx, details)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -1724,23 +1721,10 @@ func getCredentials(log logr.Logger, ctx context.Context) (string, string, error
 	return user, pass, nil
 }
 
-func getCerts(log logr.Logger, ctx context.Context) (string, error) {
-	// For a local deployment (using a self-signed cert) get the
-	// CA cert and save it into the config. The regular client
+func getCerts(ctx context.Context, log logr.Logger) (string, error) {
+	// Save the  CA cert into the config. The regular client
 	// will then extend the Cert pool with the same, so that it
 	// can cerify the server cert.
-
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	log.Info("got main domain", "domain", mainDomain)
-
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		log.Info("skip non-development domain")
-		return "", nil
-	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
