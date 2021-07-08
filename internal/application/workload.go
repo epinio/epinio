@@ -237,6 +237,8 @@ func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 
 		app.StageID = deployments.Items[0].
 			Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
+
+		app.Active = true
 	}
 
 	app.Routes, err = a.cluster.ListIngressRoutes(ctx, app.Organization, app.Name)

@@ -784,6 +784,10 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 		return "", err
 	}
 
+	if !app.Active {
+		return "", errors.New("Application has no workload")
+	}
+
 	return app.StageID, nil
 }
 

@@ -131,12 +131,26 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 		return OrgIsNotKnown(org)
 	}
 
+	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return AppIsNotKnown(appName)
+	}
+
+	// Application exists. It may not have a workload however.
+
 	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
 	if app == nil {
-		return AppIsNotKnown(appName)
+		// While the app exists, it has no workload.
+		// Return something barebones.
+		app = models.NewApp(appName, org)
+		app.Status = `Inactive, without workload. Launch via "epinio app push"`
 	}
 
 	js, err := json.Marshal(app)
@@ -173,13 +187,26 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(org)
 	}
 
+	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return AppIsNotKnown(appName)
+	}
+
+	// Application exists. It may not have a workload however.
+
 	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	if app == nil {
-		return AppIsNotKnown(appName)
+		// App without workload cannot be scaled at the moment.
+		// TODO: Extend to stash the request in the app or attached resource
+		return NewAPIError("Unable to scale application without workload", "", http.StatusBadRequest)
 	}
 
 	defer r.Body.Close()
@@ -222,24 +249,41 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		jsonErrorResponse(w, InternalError(err))
+		return
 	}
 
 	if !exists {
 		jsonErrorResponse(w, OrgIsNotKnown(org))
+		return
 	}
 
 	if appName != "" {
+		exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
+		if err != nil {
+			jsonErrorResponse(w, InternalError(err))
+			return
+		}
+
+		if !exists {
+			jsonErrorResponse(w, AppIsNotKnown(appName))
+			return
+		}
+
 		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
 			jsonErrorResponse(w, InternalError(err))
+			return
 		}
 		if app == nil {
-			jsonErrorResponse(w, AppIsNotKnown(appName))
+			// While app exists it has no workload
+			jsonErrorResponse(w, NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
+			return
 		}
 	}
 
 	if appName == "" && stageID == "" {
 		jsonErrorResponse(w, BadRequest(errors.New("You need to speficy either the stage id or the app")))
+		return
 	}
 
 	queryValues := r.URL.Query()
