@@ -79,6 +79,9 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	if name != req.App.Name {
 		return NewBadRequest("name parameter from URL does not match name param in body")
 	}
+	if org != req.App.Org {
+		return NewBadRequest("org parameter from URL does not match org param in body")
+	}
 
 	if req.Instances != nil && *req.Instances < 0 {
 		return NewBadRequest("instances param should be integer equal or greater than zero")
