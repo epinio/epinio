@@ -96,7 +96,6 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 	log := c.Log.WithName("EnvList")
 	log.Info("start")
 	defer log.Info("return")
-	// details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Organization", c.Config.Org).
