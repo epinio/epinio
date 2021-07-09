@@ -128,14 +128,14 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	}
 
 	if err := c.WaitUntilPodBySelectorExist(ctx, ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to exist")
+		return errors.Wrap(err, "failed waiting for Traefik Ingress deployment to exist")
 	}
 	if err := c.WaitForPodBySelectorRunning(ctx, ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Traefik Ingress deployment to come up")
+		return errors.Wrap(err, "failed waiting for Traefik Ingress deployment to come up")
 	}
 
 	if err := c.WaitUntilServiceHasLoadBalancer(ctx, ui, TraefikDeploymentID, "traefik", duration.ToServiceLoadBalancer()); err != nil {
-		return errors.Wrap(err, "failed waiting for Traefik Ingress to have get a Load Balancer")
+		return errors.Wrap(err, "failed waiting for Traefik Ingress to contact the Load Balancer")
 	}
 
 	ui.Success().Msg("Traefik Ingress deployed")
