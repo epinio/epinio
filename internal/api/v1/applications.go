@@ -282,7 +282,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if appName == "" && stageID == "" {
-		jsonErrorResponse(w, BadRequest(errors.New("You need to speficy either the stage id or the app")))
+		jsonErrorResponse(w, BadRequest(errors.New("You need to specify either the stage id or the app")))
 		return
 	}
 
