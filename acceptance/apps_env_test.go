@@ -53,7 +53,7 @@ var _ = Describe("apps env", func() {
 			BeforeEach(func() {
 				out, err := env.Epinio(fmt.Sprintf("apps env set %s MYVAR myvalue", appName), "")
 				Expect(err).ToNot(HaveOccurred(), out)
-				out, err = env.Epinio(fmt.Sprintf("apps env unset %s MYVAR myvalue", appName), "")
+				out, err = env.Epinio(fmt.Sprintf("apps env unset %s MYVAR", appName), "")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -139,7 +139,7 @@ var _ = Describe("apps env", func() {
 			})
 
 			It("modifies and restarts the app", func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env unset %s MYVAR myvalue", appName), "")
+				out, err := env.Epinio(fmt.Sprintf("apps env unset %s MYVAR", appName), "")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				// The deployment is not expected to be immediately modified, and/or
