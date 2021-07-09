@@ -90,6 +90,147 @@ func NewEpinioClient(ctx context.Context, flags *pflag.FlagSet) (*EpinioClient, 
 	return epinioClient, nil
 }
 
+// EnvList displays a table of all environment variables and their
+// values for the named application.
+func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
+	log := c.Log.WithName("EnvList")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		Msg("Show Application Environment")
+
+	jsonResponse, err := c.get(api.Routes.Path("EnvList", c.Config.Org, appName))
+	if err != nil {
+		return err
+	}
+
+	var eVariables models.EnvVariableList
+	if err := json.Unmarshal(jsonResponse, &eVariables); err != nil {
+		return err
+	}
+
+	msg := c.ui.Success().WithTable("Variable", "Value")
+
+	sort.Sort(eVariables)
+	for _, ev := range eVariables {
+		msg = msg.WithTableRow(ev.Name, ev.Value)
+	}
+
+	msg.Msg("Ok")
+	return nil
+}
+
+// EnvUnset adds or modifies the specified environment variable in the
+// named application, with the given value. A workload is restarted.
+func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue string) error {
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		WithStringValue("Variable", envName).
+		WithStringValue("Value", envValue).
+		Msg("Extend or modify application environment")
+
+	request := models.EnvVariableList{
+		models.EnvVariable{
+			Name:  envName,
+			Value: envValue,
+		},
+	}
+
+	js, err := json.Marshal(request)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.post(api.Routes.Path("EnvSet", c.Config.Org, appName), string(js))
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("OK")
+	return nil
+}
+
+// EnvUnset shows the value of the specified environment variable in
+// the named application.
+func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) error {
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		WithStringValue("Variable", envName).
+		Msg("Show application environment variable")
+
+	jsonResponse, err := c.get(api.Routes.Path("EnvShow", c.Config.Org, appName, envName))
+	if err != nil {
+		return err
+	}
+
+	var eVariable models.EnvVariable
+	if err := json.Unmarshal(jsonResponse, &eVariable); err != nil {
+		return err
+	}
+
+	c.ui.Success().
+		WithStringValue("Value", eVariable.Value).
+		Msg("OK")
+
+	return nil
+}
+
+// EnvUnset removes the specified environment variable from the named
+// application. A workload is restarted.
+func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) error {
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Application", appName).
+		WithStringValue("Variable", envName).
+		Msg("Remove from application environment")
+
+	_, err := c.delete(api.Routes.Path("EnvUnset", c.Config.Org, appName, envName))
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("OK")
+
+	return nil
+}
+
+// EnvMatching retrieves all environment variables in the cluster, for
+// the specified application, and the given prefix
+func (c *EpinioClient) EnvMatching(ctx context.Context, appName, prefix string) []string {
+	log := c.Log.WithName("Env")
+	log.Info("start")
+	defer log.Info("return")
+
+	jsonResponse, err := c.get(api.Routes.Path("EnvMatch", c.Config.Org, appName, prefix))
+	if err != nil {
+		return []string{}
+	}
+
+	var evNames []string
+	if err := json.Unmarshal(jsonResponse, &evNames); err != nil {
+		return []string{}
+	}
+
+	return evNames
+}
+
 // ConfigUpdate updates the credentials stored in the config from the
 // currently targeted kube cluster
 func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
@@ -177,6 +318,10 @@ func (c *EpinioClient) ServicePlanMatching(ctx context.Context, serviceClassName
 
 	result := []string{}
 
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
+
 	serviceClass, err := services.ClassLookup(ctx, c.Cluster, serviceClassName)
 	if err != nil {
 		return result
@@ -206,6 +351,10 @@ func (c *EpinioClient) ServiceClassMatching(ctx context.Context, prefix string) 
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
+
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
 
 	serviceClasses, err := services.ListClasses(ctx, c.Cluster)
 	if err != nil {
@@ -301,6 +450,10 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
+
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
 
 	orgServices, err := services.List(ctx, c.Cluster, c.Config.Org)
 	if err != nil {
@@ -663,6 +816,10 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 
 	result := []string{}
 
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
+
 	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
 	if err != nil {
 		return result
@@ -748,6 +905,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 		WithTableRow("StageId", app.StageID).
 		WithTableRow("Routes", strings.Join(app.Routes, ", ")).
 		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).
+		WithTableRow("Environment", `See it by running the command "epinio app env list `+appName+`"`).
 		Msg("Details:")
 
 	return nil
@@ -766,6 +924,10 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	var app models.App
 	if err := json.Unmarshal(jsonResponse, &app); err != nil {
 		return "", err
+	}
+
+	if !app.Active {
+		return "", errors.New("Application has no workload")
 	}
 
 	return app.StageID, nil
@@ -1040,6 +1202,10 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
+	// TODO Create and use server endpoints. Maybe use existing
+	// `Index`/Listing endpoint, either with parameter for
+	// matching, or local matching.
+
 	result := []string{}
 
 	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
@@ -1244,6 +1410,9 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
+
+	// TODO : This services work should be moved into the stage
+	// request, and server side.
 
 	if len(services) > 0 {
 		c.ui.Note().Msg("Binding Services")

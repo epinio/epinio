@@ -7,6 +7,7 @@ const (
 // App has all the app properties, like the routes and stage ID.
 // It is used in the CLI and  API responses.
 type App struct {
+	Active        bool     `json:"active,omitempty"`
 	StageID       string   `json:"stage_id,omitempty"`
 	Name          string   `json:"name,omitempty"`
 	Organization  string   `json:"organization,omitempty"`

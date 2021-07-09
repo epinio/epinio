@@ -33,12 +33,13 @@ func init() {
 	}
 
 	CmdApp.AddCommand(CmdAppCreate)
-	CmdApp.AddCommand(CmdAppShow)
+	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
-	CmdApp.AddCommand(CmdDeleteApp)
-	CmdApp.AddCommand(CmdPush)
-	CmdApp.AddCommand(CmdAppUpdate)
 	CmdApp.AddCommand(CmdAppLogs)
+	CmdApp.AddCommand(CmdAppShow)
+	CmdApp.AddCommand(CmdAppUpdate)
+	CmdApp.AddCommand(CmdDeleteApp)
+	CmdApp.AddCommand(CmdPush) // See push.go for implementation
 }
 
 // CmdAppList implements the epinio `apps list` command
@@ -160,16 +161,17 @@ var CmdAppLogs = &cobra.Command{
 			return errors.Wrap(err, "error reading option --staging")
 		}
 
-		stageId := ""
+		stageID, err := client.AppStageID(args[0])
+		if err != nil {
+			return errors.Wrap(err, "error checking app")
+		}
 		if staging {
 			follow = false
-			stageId, err = client.AppStageID(args[0])
-			if err != nil {
-				return errors.Wrap(err, "error retrieving the stage Id")
-			}
+		} else {
+			stageID = ""
 		}
 
-		err = client.AppLogs(args[0], stageId, follow, nil)
+		err = client.AppLogs(args[0], stageID, follow, nil)
 		if err != nil {
 			return errors.Wrap(err, "error streaming application logs")
 		}

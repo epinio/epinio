@@ -65,7 +65,7 @@ test-acceptance-cli: showfocus embed_files
 	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
 showfocus:
-	@if test `cat acceptance/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/* ; echo ; fi
+	@if test `cat acceptance/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go ; echo ; fi
 
 generate:
 	go generate ./...
