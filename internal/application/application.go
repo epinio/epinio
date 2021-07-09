@@ -152,6 +152,55 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 	return result, nil
 }
 
+// ListApps returns a list of all available apps (in the org)
+func ListApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
+	result := models.AppList{}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return result, err
+	}
+	if !exists {
+		return result, fmt.Errorf("organization %s does not exist", org)
+	}
+
+	// Get references for all apps, deployed or not
+
+	appRefs, err := ListAppRefs(ctx, cluster, org)
+	if err != nil {
+		return result, err
+	}
+
+	// Get apps with workloads
+
+	apps, err := List(ctx, cluster, org)
+	if err != nil {
+		return result, err
+	}
+
+	// Fuse the two, to get a list of all apps. The undeployed apps have partially filled
+	// structure. The fields related to deployment are left unfilled.  To fuse the deployed apps
+	// are mapped for quick access by name, and then an iteration over the refs assembles the
+	// final output, taking either a deployed app, or creating a partial filled.
+
+	appMap := make(map[string]models.App)
+	for _, app := range apps {
+		appMap[app.Name] = app
+	}
+
+	for _, ref := range appRefs {
+		app, ok := appMap[ref.Name]
+		if !ok {
+			app = *models.NewApp(ref.Name, ref.Org)
+			app.Status = `Inactive, without workload. Launch via "epinio app push"`
+		}
+
+		result = append(result, app)
+	}
+
+	return result, nil
+}
+
 // Delete an application, optionally its workload, bindings and git repo.
 // Finally unstage its pipelineruns and wait for the deployment's pods to disappear.
 func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, appRef models.AppRef) error {

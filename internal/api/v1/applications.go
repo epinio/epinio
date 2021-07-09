@@ -92,7 +92,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 		return OrgIsNotKnown(org)
 	}
 
-	apps, err := application.List(ctx, cluster, org)
+	apps, err := application.ListApps(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
