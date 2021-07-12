@@ -100,9 +100,6 @@ spec:
         value: "$(params.OWNER_UID)"
     runAfter:
     - stage
-    workspaces:
-    - name: source
-      workspace: source
   - name: clean
     taskRef:
       name: clean
@@ -115,9 +112,6 @@ spec:
         value: "$(params.STAGE_ID)"
     runAfter:
     - run
-    workspaces:
-    - name: source
-      workspace: source
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
@@ -150,8 +144,6 @@ metadata:
   name: run
   namespace: tekton-staging
 spec:
-  workspaces:
-  - name: source
   params:
     - name: ENVIRONMENT
       type: string
@@ -178,7 +170,6 @@ spec:
   steps:
   - name: run
     image: lachlanevenson/k8s-kubectl
-    workingDir: "/workspace/source/app"
     command:
       - sh
     args:
@@ -304,8 +295,6 @@ metadata:
   name: clean
   namespace: tekton-staging
 spec:
-  workspaces:
-  - name: source
   params:
     - name: APP_NAME
       type: string
@@ -316,7 +305,6 @@ spec:
   steps:
   - name: clean
     image: lachlanevenson/k8s-kubectl
-    workingDir: "/workspace/source/app"
     command:
       - sh
     args:
