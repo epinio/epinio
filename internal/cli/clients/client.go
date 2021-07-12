@@ -1102,10 +1102,13 @@ func (c *EpinioClient) CreateOrg(org string) error {
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
-			details.Info("create error", "error", err.Error())
+			emsg := err.Error()
+			details.Info("create error", "error", emsg)
 
-			retry := strings.Contains(err.Error(), " x509: ") ||
-				strings.Contains(err.Error(), "Gateway")
+			retry := strings.Contains(emsg, " x509: ") ||
+				strings.Contains(emsg, "Gateway") ||
+				(strings.Contains(emsg, "api/v1/orgs") &&
+					strings.Contains(emsg, "i/o timeout"))
 
 			details.Info("create error", "retry", retry)
 			return retry
