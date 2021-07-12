@@ -165,6 +165,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	defer os.Remove(tarPath)
 
 	helmArgs = append(helmArgs, `--set installCRDs=true`)
+	helmArgs = append(helmArgs, `--set extraArgs[0]=' --enable-certificate-owner-ref=true'`)
 	helmCmd := fmt.Sprintf("helm %s cert-manager --namespace %s %s %s", action, CertManagerDeploymentID, tarPath, strings.Join(helmArgs, " "))
 
 	if out, err := helpers.RunProc(helmCmd, currentdir, cm.Debug); err != nil {
