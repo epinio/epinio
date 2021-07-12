@@ -1084,6 +1084,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
 	log.Info("start")
 	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Name", org).
@@ -1096,14 +1097,21 @@ func (c *EpinioClient) CreateOrg(org string) error {
 
 	err := retry.Do(
 		func() error {
+			details.Info("create org", "org", org)
 			_, err := c.post(api.Routes.Path("Orgs"), fmt.Sprintf(`{ "name": "%s" }`, org))
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), " x509: ") ||
+			details.Info("create error", "error", err.Error())
+
+			retry := strings.Contains(err.Error(), " x509: ") ||
 				strings.Contains(err.Error(), "Gateway")
+
+			details.Info("create error", "retry", retry)
+			return retry
 		}),
 		retry.OnRetry(func(n uint, err error) {
+			details.Info("create org retry", "n", n)
 			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
 		}),
 		retry.Delay(time.Second),
