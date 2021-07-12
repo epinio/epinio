@@ -202,7 +202,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return auth.CreateCertificate(ctx, c, RegistryDeploymentID, RegistryDeploymentID, domain, nil)
 	},
 		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), "failed calling webhook") ||
+			return strings.Contains(err.Error(), "x509: certificate signed by unknown authority") ||
 				strings.Contains(err.Error(), "EOF")
 		}),
 		retry.OnRetry(func(n uint, err error) {
