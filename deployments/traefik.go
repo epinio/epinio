@@ -135,7 +135,7 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	}
 
 	if err := c.WaitUntilServiceHasLoadBalancer(ctx, ui, TraefikDeploymentID, "traefik", duration.ToServiceLoadBalancer()); err != nil {
-		return errors.Wrap(err, "failed waiting for Traefik Ingress to contact the Load Balancer.\n" +
+		return errors.Wrap(err, "timed out waiting for LoadBalancer IP on traefik service\n" +
 			"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
 			"Follow these steps to enable this ability\n" +
 			"https://github.com/epinio/epinio/blob/main/docs/install.md\n")
