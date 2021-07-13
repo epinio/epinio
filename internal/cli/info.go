@@ -12,7 +12,7 @@ var ()
 var CmdInfo = &cobra.Command{
 	Use:   "info",
 	Short: "Shows information about the Epinio environment",
-	Long:  `Shows status and version for Kubernetes, Gitea, Tekton, Quarks and Eirini.`,
+	Long:  `Shows status and version for Kubernetes, Gitea, Tekton and Eirini.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 

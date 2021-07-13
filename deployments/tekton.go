@@ -29,14 +29,9 @@ import (
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	yaml2 "sigs.k8s.io/yaml"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-	"k8s.io/client-go/dynamic"
 	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 )
 
@@ -90,11 +85,6 @@ func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
-	}
-
-	err = k.deleteCACertificate(ctx, c)
-	if err != nil {
-		return errors.Wrapf(err, "failed deleting ca-cert certificate")
 	}
 
 	message := "Deleting Tekton staging namespace " + TektonStagingNamespace
@@ -154,7 +144,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	if err := c.CreateNamespace(ctx, TektonStagingNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-		"quarks.cloudfoundry.org/monitored": "quarks-secret",
 		"cert-manager-tls":                  RegistryDeploymentID,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
@@ -235,17 +224,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 	if err := k.createClusterRegistryCredsSecret(ctx, c, domain); err != nil {
-		return err
-	}
-
-	waitForQuarks(c, ctx, ui, duration.ToQuarksDeploymentReady())
-
-	if err := k.createCACertificate(ctx, c, domain); err != nil {
-		return err
-	}
-
-	_, err = c.WaitForSecret(ctx, TektonStagingNamespace, "ca-cert", duration.ToServiceSecret())
-	if err != nil {
 		return err
 	}
 
@@ -499,81 +477,6 @@ func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kuberne
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (k Tekton) createCACertificate(ctx context.Context, c *kubernetes.Cluster, domain string) error {
-	data := fmt.Sprintf(`{
-		"apiVersion": "quarks.cloudfoundry.org/v1alpha1",
-		"kind": "QuarksSecret",
-		"metadata": {
-			"name": "generate-ca-certificate",
-			"namespace": "%s"
-		},
-		"spec": {
-			"request" : {
-				"certificate" : {
-					"commonName" : "%s",
-					"isCA" : true,
-					"alternativeNames": [
-						"%s"
-					],
-					"signerType" : "cluster"
-				}
-			},
-			"secretName" : "ca-cert",
-			"type" : "certificate"
-		}
-    }`, TektonStagingNamespace, domain, domain)
-
-	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	obj := &unstructured.Unstructured{}
-	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
-	if err != nil {
-		return err
-	}
-
-	quarksSecretInstanceGVR := schema.GroupVersionResource{
-		Group:    "quarks.cloudfoundry.org",
-		Version:  "v1alpha1",
-		Resource: "quarkssecrets",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
-	if err != nil {
-		return err
-	}
-	_, err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(TektonStagingNamespace).
-		Create(ctx,
-			obj,
-			metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (k Tekton) deleteCACertificate(ctx context.Context, c *kubernetes.Cluster) error {
-	quarksSecretInstanceGVR := schema.GroupVersionResource{
-		Group:    "quarks.cloudfoundry.org",
-		Version:  "v1alpha1",
-		Resource: "quarkssecrets",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	err = dynamicClient.Resource(quarksSecretInstanceGVR).Namespace(TektonStagingNamespace).
-		Delete(ctx,
-			"generate-ca-certificate",
-			metav1.DeleteOptions{})
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-
 	return nil
 }
 

@@ -76,7 +76,6 @@ rules:
   verbs:
   - get
   - list
-  - get
 - apiGroups:
   - ""
   resources:
@@ -139,12 +138,6 @@ rules:
   verbs:
   - create
   - delete
-- apiGroups:
-  - "quarks.cloudfoundry.org"
-  resources:
-  - quarkssecrets
-  verbs:
-  - create
 - apiGroups:
   - "cert-manager.io"
   resources:

@@ -123,7 +123,6 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	}
 
 	if err := c.CreateNamespace(ctx, RegistryDeploymentID, map[string]string{
-		"quarks.cloudfoundry.org/monitored": "quarks-secret",
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
@@ -133,8 +132,6 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	if err != nil {
 		return err
 	}
-
-	waitForQuarks(c, ctx, ui, duration.ToQuarksDeploymentReady())
 
 	tarPath, err := helpers.ExtractFile(registryChartFile)
 	if err != nil {
@@ -215,6 +212,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	},
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), "x509: certificate signed by unknown authority") ||
+				strings.Contains(err.Error(), "no endpoints available") ||
 				strings.Contains(err.Error(), "EOF")
 		}),
 		retry.OnRetry(func(n uint, err error) {

@@ -10,19 +10,18 @@ import (
 )
 
 const (
-	systemDomain          = 2 * time.Minute
-	appReady              = 2 * time.Minute
-	deployment            = 5 * time.Minute
-	orgDeletion           = 5 * time.Minute
-	serviceSecret         = 5 * time.Minute
-	serviceProvision      = 5 * time.Minute
-	serviceLoadBalancer   = 5 * time.Minute
-	podReady              = 5 * time.Minute
-	appBuilt              = 10 * time.Minute
-	warmupJobReady        = 30 * time.Minute
-	certManagerReady      = 5 * time.Minute
-	quarksDeploymentReady = 5 * time.Minute
-	kubedReady            = 5 * time.Minute
+	systemDomain        = 2 * time.Minute
+	appReady            = 2 * time.Minute
+	deployment          = 5 * time.Minute
+	orgDeletion         = 5 * time.Minute
+	serviceSecret       = 5 * time.Minute
+	serviceProvision    = 5 * time.Minute
+	serviceLoadBalancer = 5 * time.Minute
+	podReady            = 5 * time.Minute
+	appBuilt            = 10 * time.Minute
+	warmupJobReady      = 30 * time.Minute
+	certManagerReady    = 5 * time.Minute
+	kubedReady          = 5 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	pollInterval = 3 * time.Second
@@ -43,10 +42,6 @@ func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 // Multiplier returns the timeout-multiplier argument
 func Multiplier() time.Duration {
 	return time.Duration(viper.GetInt("timeout-multiplier"))
-}
-
-func ToQuarksDeploymentReady() time.Duration {
-	return Multiplier() * quarksDeploymentReady
 }
 
 func ToCertManagerReady() time.Duration {

@@ -100,10 +100,6 @@ update_tekton:
 	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.12.1/release.yaml -O assets/embedded-files/tekton/triggers-v0.12.1.yaml
 	wget https://github.com/tektoncd/dashboard/releases/download/v0.15.0/tekton-dashboard-release.yaml -O assets/embedded-files/tekton/dashboard-v0.15.0.yaml
 
-update_qsecrets:
-	mkdir -p assets/embedded-files/
-	wget https://cloudfoundry-incubator.github.io/quarks-helm/quarks-secret-1.0.760.tgz -O assets/embedded-files/quarks-secret-1.0.760.tgz
-
 embed_files: getstatik wrap_registry_chart
 	statik -m -f -src=./assets/embedded-files -dest assets
 	statik -m -f -src=./assets/embedded-web-files/views -ns webViews -p statikWebViews -dest assets
