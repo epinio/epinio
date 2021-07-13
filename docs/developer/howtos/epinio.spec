@@ -64,7 +64,7 @@ go build \
 install -d -m 0755 %{buildroot}%{_bindir}
 install -m 0755 epinio %{buildroot}/%{_bindir}/epinio
 
-%files -n epinio
+%files
 %license LICENSE
 %{_bindir}/epinio
 
