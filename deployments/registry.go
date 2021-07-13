@@ -199,6 +199,9 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 	issuer := options.GetStringNG("tls-issuer")
 
+	// Wait for the cert manager to be present and active. It is required
+	waitForCertManagerReady(ctx, ui, c)
+
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
 	cert := auth.CertParam{
@@ -212,6 +215,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	},
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), "x509: certificate signed by unknown authority") ||
+				strings.Contains(err.Error(), "connection refused") ||
 				strings.Contains(err.Error(), "no endpoints available") ||
 				strings.Contains(err.Error(), "EOF")
 		}),
