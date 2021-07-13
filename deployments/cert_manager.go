@@ -196,7 +196,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
-			return errors.Wrapf(err, "failed to create clusterissuer letsencrypt-production")
+			return errors.Wrapf(err, "failed to create cluster-issuer letsencrypt-production")
 		}
 		return err
 	}
@@ -207,7 +207,74 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
-			return errors.Wrapf(err, "failed to create clusterissuer selfsigned-issuer")
+			return errors.Wrapf(err, "failed to create cluster-issuer selfsigned-issuer")
+		}
+		return err
+	}
+
+	// With the selfsigned-issuer in place, bootstrap Epinio's private CA ...
+	// Start with the root certificate, signed by selfsigned.
+
+	caCert := fmt.Sprintf(`{
+		"apiVersion" : "cert-manager.io/v1alpha2",
+		"kind"       : "Certificate",
+		"metadata"   : {
+			"name"      : "epinio-ca",
+			"namespace" : "%s"
+		},
+		"spec" : {
+			"commonName" : "epinio-ca",
+			"secretName" : "epinio-ca-root",
+			"privateKey" : {
+				"algorithm" : "ECDSA",
+				"size"      : 256
+			},
+			"issuerRef" : {
+				"name" : "selfsigned-issuer",
+				"kind" : "ClusterIssuer"
+			}
+		}
+	}`, CertManagerDeploymentID)
+
+	cc, err := c.ClientCertificate()
+	if err != nil {
+		return err
+	}
+
+	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
+	obj := &unstructured.Unstructured{}
+	_, _, err = decoderUnstructured.Decode([]byte(caCert), nil, obj)
+	if err != nil {
+		return err
+	}
+
+	err = helpers.RunToSuccessWithTimeout(
+		func() error {
+			_, err = cc.Namespace(CertManagerDeploymentID).
+				Create(ctx, obj, metav1.CreateOptions{})
+			// Ignore the error if it's about cert already existing.
+			if err != nil && !apierrors.IsAlreadyExists(err) {
+				return err
+			}
+
+			return err
+		}, duration.ToDeployment(), duration.PollInterval())
+	if err != nil {
+		if strings.Contains(err.Error(), "Timed out after") {
+			return errors.Wrapf(err, "failed to create certificate epinio-ca")
+		}
+		return err
+	}
+
+	// Epinio CA bootstrap phase 2: Create issuer based on the above-made CA cert.
+
+	err = helpers.RunToSuccessWithTimeout(
+		func() error {
+			return cm.CreateClusterIssuer(ctx, c, clusterIssuerEpinio)
+		}, duration.ToDeployment(), duration.PollInterval())
+	if err != nil {
+		if strings.Contains(err.Error(), "Timed out after") {
+			return errors.Wrapf(err, "failed to create cluster-issuer epinio-issuer")
 		}
 		return err
 	}
@@ -255,6 +322,19 @@ const clusterIssuerLocal = `{
 	},
 	"spec": {
 		"selfSigned" : {}
+	}
+}`
+
+const clusterIssuerEpinio = `{
+	"apiVersion" : "cert-manager.io/v1alpha2",
+	"kind"       : "ClusterIssuer",
+	"metadata"   : {
+		"name" : "epinio-issuer"
+	},
+	"spec" : {
+		"ca" : {
+			"secretName": "epinio-ca-root"
+		}
 	}
 }`
 
