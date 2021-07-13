@@ -22,19 +22,31 @@ var (
 	kubeconfig     string
 )
 
-// Execute adds all child commands to the root command sets flags appropriately.
+// NewEpinioCLI returns the `epinio` cli.
+func NewEpinioCLI() *cobra.Command {
+	return rootCmd
+}
+
+var rootCmd = &cobra.Command{
+	Use:           "epinio",
+	Short:         "Epinio cli",
+	Long:          `epinio cli is the official command line interface for Epinio PaaS `,
+	Version:       fmt.Sprintf("%s", version.Version),
+	SilenceErrors: true,
+}
+
+// Execute executes the root command.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	ExitfIfError(checkDependencies(), "Cannot operate")
 
-	rootCmd := &cobra.Command{
-		Use:           "epinio",
-		Short:         "Epinio cli",
-		Long:          `epinio cli is the official command line interface for Epinio PaaS `,
-		Version:       fmt.Sprintf("%s", version.Version),
-		SilenceErrors: true,
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
+		os.Exit(-1)
 	}
+}
 
+func init() {
 	pf := rootCmd.PersistentFlags()
 	argToEnv := map[string]string{}
 
@@ -76,11 +88,6 @@ func Execute() {
 	rootCmd.AddCommand(CmdService)
 	rootCmd.AddCommand(CmdServer)
 	rootCmd.AddCommand(cmdVersion)
-
-	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
-		os.Exit(-1)
-	}
 }
 
 var cmdVersion = &cobra.Command{

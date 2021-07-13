@@ -70,6 +70,9 @@ showfocus:
 generate:
 	go generate ./...
 
+generate-cli-docs:
+	go run internal/cli/docs/generate-cli-docs.go docs/user/references/cli/
+
 lint: embed_files
 	go vet ./...
 

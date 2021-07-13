@@ -12,7 +12,7 @@ application. It does that by installing and using [the upstream maintained Tekto
 Staging starts with you (the developer) running `epinio push myapp` from the root of your application source code.
 You can see a simplified diagram of the process in the image below:
 
-![epinio-push-simplified](/docs/images/epinio-push-simple.svg?raw=true "Epinio push")
+![epinio-push-simplified](epinio-push-simple.svg?raw=true "Epinio push")
 
 After pushing your code, Epinio triggers a Tekton pipeline which uses the [paketo buildpacks](https://paketo.io/) to build a runtime image for your application.
 If you are not familiar with how buildpacks work, you should have a look at the official docs: https://buildpacks.io/docs/
@@ -30,4 +30,4 @@ E.g. [Instructions on how to add custom php.ini files for php-web buildpack](htt
 ## Detailed push process
 
 The above image is a simplified explanation of the `epinio push` process. If you don't want to know all the details on how that works, the above diagram should
-be all the information you need. If you are curious about the details, then read here: [Detailed push docs](/docs/detailed-push-process.md)
+be all the information you need. If you are curious about the details, then read here: [Detailed push docs](/docs/user/explanations/detailed-push-process.md)

@@ -1,6 +1,6 @@
 # Epinio push in detail
 
-Epinio strives to make use of well supported, well known, and loved projects instead of re-inventing the wheel ([link](README.md#guidelines-soft-principles)).
+Epinio strives to make use of well supported, well known, and loved projects instead of re-inventing the wheel ([link](principles.md#guidelines-soft-principles)).
 But while doing so, it makes sure those components are deployed correctly and work together seamlessly. Let's go through the `epinio push` process in detail,
 so you can understand what each components does.
 
@@ -32,7 +32,7 @@ The first step of the staging Tekton pipeline clones the code from Gitea to a [w
 
 ## 6. Stage
 
-The second step of the staging Tekton pipeline uses the [paketo](buildpacks) to create a container image for your application. The definition of this Tekton task can be found [in the relevant upstream repo](https://github.com/tektoncd/catalog/tree/main/task/buildpacks/0.2) (though a copy of that is embedded in the Epinio binary).
+The second step of the staging Tekton pipeline uses the [paketo buildpacks](https://paketo.io/) to create a container image for your application. The definition of this Tekton task can be found [in the relevant upstream repo](https://github.com/tektoncd/catalog/tree/main/task/buildpacks/0.2) (though a copy of that is embedded in the Epinio binary).
 The result of a successful staging process is a new image pushed to the Registry component of Epinio.
 
 This component is installed as part of the `epinio install` command and it is where the application images are stored. This makes the setup easier (by not having to configure an external registry) and staging faster (by keeping all image transferring local to the cluster).
@@ -75,7 +75,7 @@ These services resolve all subdomains of the root domain to the subdomain's IP a
 
 ## The process visualized
 
-![epinio-push-detailed](/docs/images/epinio-push-detailed.svg?raw=true "Epinio push")
+![epinio-push-detailed](epinio-push-detailed.svg?raw=true "Epinio push")
 
 ## Credits
 
