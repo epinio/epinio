@@ -254,16 +254,15 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		func() (string, error) {
 			out, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					ca, err := helpers.Kubectl(fmt.Sprintf("get secret -n %s %s -o 'go-template={{index .data \"ca.crt\"}}'", RegistryDeploymentID, RegistryCertSecret))
+					out, err := helpers.Kubectl(fmt.Sprintf(`get secret -n %s %s -o 'jsonpath={.data.tls\.crt}'`, RegistryDeploymentID, RegistryCertSecret))
 					if err != nil {
 						return "", err
 					}
 
-					// check if `ca.crt` is empty ?
-					if ca == "" {
-						return "", errors.New("ca.crt is nil")
+					if out == "" {
+						return "", errors.New("secret is not filled")
 					}
-					return ca, nil
+					return out, nil
 				}, k.Timeout, duration.PollInterval())
 			return out, err
 		},
