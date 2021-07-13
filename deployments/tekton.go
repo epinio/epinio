@@ -344,6 +344,12 @@ func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster) (string, erro
 		return "", err
 	}
 
+	// cert-manager doesn't add the CA for ACME certificates:
+	// https://github.com/jetstack/cert-manager/issues/2111
+	if _, found := secret.Data["ca.crt"]; !found {
+		return "", nil
+	}
+
 	hash, err := GenerateHash(secret.Data["ca.crt"])
 	if err != nil {
 		return "", err
@@ -373,11 +379,10 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, domain strin
 		return errors.Wrapf(err, "failed to unmarshal task %s", string(fileContents))
 	}
 
-	// TODO this workaround is only needed for untrusted certs, but it
-	// doesn't hurt to do it for trusted CAs, too.  Once we can reach
-	// Tekton via linkerd, blocked by
-	// https://github.com/tektoncd/catalog/issues/757, we can remove the
-	// workaround.
+	// TODO this workaround is only needed for untrusted certs.
+	//  Once we can reach Tekton via linkerd, blocked by
+	//  https://github.com/tektoncd/catalog/issues/757, we can remove the
+	//  workaround.
 
 	// Add volume and volume mount of registry-certs for local deployment
 	// since tekton should trust the registry-certs.
@@ -386,26 +391,28 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, domain strin
 		return errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
 	}
 
-	volume := corev1.Volume{
-		Name: "registry-certs",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: RegistryCertSecret,
+	if caHash != "" {
+		volume := corev1.Volume{
+			Name: "registry-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: RegistryCertSecret,
+				},
 			},
-		},
-	}
-	tektonTask.Spec.Volumes = append(tektonTask.Spec.Volumes, volume)
+		}
+		tektonTask.Spec.Volumes = append(tektonTask.Spec.Volumes, volume)
 
-	volumeMount := corev1.VolumeMount{
-		Name:      "registry-certs",
-		MountPath: fmt.Sprintf("%s/%s", "/etc/ssl/certs", caHash),
-		SubPath:   "ca.crt",
-		ReadOnly:  true,
-	}
-	for stepIndex, step := range tektonTask.Spec.Steps {
-		if step.Name == "create" {
-			tektonTask.Spec.Steps[stepIndex].VolumeMounts = append(tektonTask.Spec.Steps[stepIndex].VolumeMounts, volumeMount)
-			break
+		volumeMount := corev1.VolumeMount{
+			Name:      "registry-certs",
+			MountPath: fmt.Sprintf("%s/%s", "/etc/ssl/certs", caHash),
+			SubPath:   "ca.crt",
+			ReadOnly:  true,
+		}
+		for stepIndex, step := range tektonTask.Spec.Steps {
+			if step.Name == "create" {
+				tektonTask.Spec.Steps[stepIndex].VolumeMounts = append(tektonTask.Spec.Steps[stepIndex].VolumeMounts, volumeMount)
+				break
+			}
 		}
 	}
 
