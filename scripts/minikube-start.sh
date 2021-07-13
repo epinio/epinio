@@ -6,9 +6,8 @@ require_tools minikube
 : "${VM_CPUS:=4}"
 : "${VM_MEMORY:=16384}"
 : "${VM_DISK_SIZE:=120g}"
-
-: "${MINIKUBE_ISO_VERSION:=0.1.8}"
-: "${MINIKUBE_ISO_URL:=https://github.com/f0rmiga/opensuse-minikube-image/releases/download/v${MINIKUBE_ISO_VERSION}/minikube-openSUSE.x86_64-${MINIKUBE_ISO_VERSION}.iso}"
+: "${VM_DRIVER:=virtualbox}"
+: "${K8S_VERSION:=1.19.9}"
 
 if ! minikube status > /dev/null; then
     # shellcheck disable=SC2086
@@ -17,7 +16,6 @@ if ! minikube status > /dev/null; then
              --cpus "${VM_CPUS}" \
              --memory "${VM_MEMORY}" \
              --disk-size "${VM_DISK_SIZE}" \
-             --iso-url "${MINIKUBE_ISO_URL}" \
              ${VM_DRIVER:+--vm-driver "${VM_DRIVER}"} \
              --extra-config=apiserver.runtime-config=settings.k8s.io/v1alpha1=true \
              --extra-config=apiserver.enable-admission-plugins=MutatingAdmissionWebhook,PodPreset \
