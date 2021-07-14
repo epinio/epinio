@@ -225,6 +225,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 			"namespace" : "%s"
 		},
 		"spec" : {
+			"isCA"       : true,
 			"commonName" : "epinio-ca",
 			"secretName" : "epinio-ca-root",
 			"privateKey" : {
