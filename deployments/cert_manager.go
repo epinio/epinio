@@ -221,7 +221,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		"apiVersion" : "cert-manager.io/v1alpha2",
 		"kind"       : "Certificate",
 		"metadata"   : {
-			"name" : "epinio-ca",
+			"name" : "epinio-ca"
 		},
 		"spec" : {
 			"isCA"       : true,
