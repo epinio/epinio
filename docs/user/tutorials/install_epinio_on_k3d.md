@@ -1,10 +1,10 @@
-# Creating a K3d kubernetes cluster
+# Creating a K3d Kubernetes Cluster
 
 ## Get K3d Kubernetes Cluster
 
 ### Install K3d
 
-Follow the [instructions](https://k3d.io/) to install k3d on your system. 
+Follow the [instructions](https://k3d.io/) to install k3d on your system.
 
 #### Create a K3d kubernetes cluster
 
@@ -30,77 +30,78 @@ NAME                  STATUS   ROLES                  AGE   VERSION
 k3d-epinio-server-0   Ready    control-plane,master   38s   v1.20.0+k3s2
 ```
 
-#### Install Dependencies 
+## Install Dependencies
 
 Follow these [steps](./install_dependencies.md) to install dependencies.
 
-#### Install Epinio CLI
+## Install Epinio CLI
+
+### Download the Binary
+
+Change the version (v0.0.18) to the current release.
 
 ##### Linux
-
-* Download the binary
 
 ```bash
 curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.18/epinio-linux-amd64
 ```
 
-* Make the binary executable
-
-```bash
-chmod +x epinio
-```
-
-* Move the binary to your PATH
-
-```bash
-sudo mv ./epinio /usr/local/bin/epinio
-```
-
-##### MacOS 
-
-* Download the binary
+##### MacOS
 
 ```bash
 curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.18/epinio-darwin-amd64
 ```
 
-* Make the binary executable
-
-```bash
-chmod +x epinio
-```
-
-* Move the binary to your PATH
-
-```bash
-sudo mv ./epinio /usr/local/bin/epinio
-```
-
-##### Windows 
+##### Windows
 
 ```bash
  curl -LO https://github.com/epinio/epinio/releases/download/v0.0.18/epinio-windows-amd64
 ```
 
-#### Install Epinio in cluster
+### Make the binary executable
+
+For example on Linux and Mac:
+
+```bash
+chmod +x epinio
+```
+
+Move the binary to your PATH
+
+```bash
+sudo mv ./epinio /usr/local/bin/epinio
+```
+
+### Install Epinio on the Cluster
 
 ```bash
 epinio install
 ```
 
-#### Install Epinio in cluster when K3d is inside a VM
+If k3d is inside a VM, in addition to the special k3d setup, explained above, use this system domain instead:
 
 ```bash
 epinio install --system-domain=<YOUR-IP>.omg.howdoi.website
 ```
 
-`<YOUR-IP>` can be found by running 
+`<YOUR-IP>` can be found by running
 
 ```bash
 ifconfig |grep "inet.*broadcast
 ```
- 
-### Troubleshooting 
+
+
+### Troubleshooting
+
+#### Kubeconfig
+
+To get the kube config to access the cluster:
+
+```
+k3d kubeconfig get epinio
+```
+
+#### Traefik
 
 In case of trouble with Epinio's Traefik component or Ingress controllers, the [Traefik](../explanations/advanced.md#traefik) section in the
 [Advanced Topics](../explanations/advanced.md) document shall be your friend.

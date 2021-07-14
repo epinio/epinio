@@ -46,8 +46,6 @@ to use Kubernetes as a PaaS (Platform as a Service).
 - **Epinio Clients**
   - Web UI
   - Epinio CLI
-- **Full Air-Gap Installation**
-  - Can be installed and be used without internet
 - **Apps**
   - CRUD operations of your app. (An app can be a tarball or in a github repo)
   - Cloud Native Buildpacks provide the runtime environment for your apps

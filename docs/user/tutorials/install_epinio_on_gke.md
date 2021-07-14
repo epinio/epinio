@@ -4,7 +4,7 @@
 
 Follow the [quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart) to create a GKE cluster.
 
-#### Install Dependencies 
+#### Install Dependencies
 
 Follow these [steps](./install_dependencies.md) to install dependencies.
 
@@ -28,7 +28,7 @@ chmod +x epinio
 sudo mv ./epinio /usr/local/bin/epinio
 ```
 
-#### Install Ingress in cluster
+#### Install Ingress In Cluster
 
 In GKE, we install ingress first and wait for the `loadbalancer-ip` to be provisioned by GKE for the `traefik` ingress. Then, you can map the `loadbalancer-ip` to your `Domain Name` e.x `example.com` and wait for it to be mapped.
 
@@ -38,12 +38,12 @@ epinio install-ingress
 
 The output of the command will print the `loadbalancer-ip`.
 
-#### Install Epinio in cluster
+#### Install Epinio In Cluster
 
 ```bash
-epinio install --system-domain example.com
+epinio install --system-domain example.com --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
 ```
 
-### Troubleshooting 
+### Troubleshooting
 
 In case of trouble with Epinio's Traefik component or Ingress controllers, the [Traefik](../explanations/advanced.md#traefik) section in the [Advanced Topics](../explanations/advanced.md) document shall be your friend.
