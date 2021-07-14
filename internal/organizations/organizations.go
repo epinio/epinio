@@ -64,8 +64,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 			ObjectMeta: metav1.ObjectMeta{
 				Name: org,
 				Labels: map[string]string{
-					kubernetes.EpinioOrgLabelKey:        kubernetes.EpinioOrgLabelValue,
-					"quarks.cloudfoundry.org/monitored": "quarks-secret",
+					kubernetes.EpinioOrgLabelKey: kubernetes.EpinioOrgLabelValue,
 				},
 				Annotations: map[string]string{
 					"linkerd.io/inject": "enabled",
@@ -84,13 +83,6 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 	// in order to allow the image to be pulled from the registry.
 	if err := copySecret(ctx, "registry-creds", deployments.TektonStagingNamespace, org, kubeClient); err != nil {
 		return errors.Wrap(err, "failed to copy the registry credentials secret")
-	}
-
-	// Copy the CA certificate from the tekton-staging namespace.
-	// This is needed to sign the self signed certificates on the application in
-	// this new namespace.
-	if err := copySecret(ctx, "ca-cert", deployments.TektonStagingNamespace, org, kubeClient); err != nil {
-		return errors.Wrap(err, "failed to copy the ca certificate")
 	}
 
 	if err := createServiceAccount(ctx, kubeClient, org); err != nil {

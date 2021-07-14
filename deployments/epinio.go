@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/epinio/epinio/internal/version"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -129,7 +131,10 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		Username: apiUser.Value.(string),
 		Password: apiPassword.Value.(string),
 	}
-	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, authAPI); err != nil {
+
+	issuer := options.GetStringNG("tls-issuer")
+	nodePort := options.GetBoolNG("enable-internal-registry-node-port")
+	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, authAPI, issuer, nodePort); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -139,24 +144,18 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	}
 
 	// Wait for the cert manager to be present and active. It is required
-	for _, deployment := range []string{
-		"cert-manager",
-		"cert-manager-webhook",
-		"cert-manager-cainjector",
-	} {
-		if err := c.WaitUntilDeploymentExists(ctx, ui, CertManagerDeploymentID, deployment, duration.ToCertManagerReady()); err != nil {
-			return errors.Wrapf(err, "failed waiting CertManager %s deployment to exist in namespace %s", deployment, CertManagerDeploymentID)
-		}
-
-		if err := c.WaitForDeploymentCompleted(ctx, ui, CertManagerDeploymentID, deployment, duration.ToCertManagerReady()); err != nil {
-			return errors.Wrapf(err, "failed waiting CertManager %s deployment to be ready in namespace %s", deployment, CertManagerDeploymentID)
-		}
-	}
+	waitForCertManagerReady(ctx, ui, c)
 
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
+	cert := auth.CertParam{
+		Name:      EpinioDeploymentID,
+		Namespace: EpinioDeploymentID,
+		Issuer:    issuer,
+		Domain:    domain,
+	}
 	err = retry.Do(func() error {
-		return auth.CreateCertificate(ctx, c, EpinioDeploymentID, EpinioDeploymentID, domain, nil)
+		return auth.CreateCertificate(ctx, c, cert, nil)
 	},
 		retry.RetryIf(func(err error) bool {
 			return strings.Contains(err.Error(), " x509: ") ||
@@ -242,7 +241,7 @@ func (k Epinio) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 }
 
 // Replaces ##current_epinio_version## with version.Version and applies the embedded yaml
-func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, auth auth.PasswordAuth) (string, error) {
+func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, auth auth.PasswordAuth, issuer string, nodePort bool) (string, error) {
 	// (xxx) Apply traefik v2 middleware. This will fail for a
 	// traefik v1 controller.  Ignore error if it was due due to a
 	// missing Middleware CRD. That indicates presence of the
@@ -290,6 +289,15 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 
 	re = regexp.MustCompile(`##api_password##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(encodedPass))
+
+	re = regexp.MustCompile(`##tls_issuer##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(issuer))
+
+	re = regexp.MustCompile(`##use_internal_registry_node_port##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(strconv.FormatBool(nodePort)))
+
+	re = regexp.MustCompile(`##trace_level##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(strconv.Itoa(viper.GetInt("trace-level"))))
 
 	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
 	if err != nil {

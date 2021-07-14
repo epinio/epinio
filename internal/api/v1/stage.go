@@ -9,10 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/julienschmidt/httprouter"
+	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
@@ -27,11 +25,14 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/domain"
 )
 
 const (
 	DefaultInstances = int32(1)
+	LocalRegistry    = "127.0.0.1:30500/apps"
 )
 
 type stageParam struct {
@@ -167,12 +168,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	var deploymentImageURL string
 	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
-	// If it's a local deployment the cert is self-signed so we use the NodePort
-	// (without TLS) as the Deployment image. This way kube won't complain.
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		deploymentImageURL = registryURL
+	if viper.GetBool("use-internal-registry-node-port") {
+		deploymentImageURL = LocalRegistry
 	} else {
-		deploymentImageURL = gitea.LocalRegistry
+		deploymentImageURL = registryURL
 	}
 
 	pr := newPipelineRun(uid, params, mainDomain, registryURL, deploymentImageURL)
@@ -181,7 +180,13 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	err = auth.CreateCertificate(ctx, cluster, params.Name, params.Org, mainDomain, &owner)
+	cert := auth.CertParam{
+		Name:      params.Name,
+		Namespace: params.Org,
+		Issuer:    viper.GetString("tls-issuer"),
+		Domain:    mainDomain,
+	}
+	err = auth.CreateCertificate(ctx, cluster, cert, &owner)
 	if err != nil {
 		return InternalError(err)
 	}

@@ -37,10 +37,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation"
-	"k8s.io/client-go/dynamic"
 )
 
 // EpinioClient provides functionality for talking to a
@@ -248,7 +245,7 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 		return nil
 	}
 
-	certs, err := getCerts(details, ctx)
+	certs, err := getCerts(ctx, details)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -1152,9 +1149,6 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 
 // Delete removes the named application from the cluster
 func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
-
-	// TODO: Move the cert operations into the server!
-
 	log := c.Log.WithName("Delete").WithValues("Application", appname)
 	log.Info("start")
 	defer log.Info("return")
@@ -1174,18 +1168,6 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 	var response *models.ApplicationDeleteResponse
 	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return err
-	}
-
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete certificate")
-	}
-
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		err = c.deleteCertificate(ctx, appname)
-		if err != nil {
-			return errors.Wrap(err, "failed to delete certificate")
-		}
 	}
 
 	unboundServices := response.UnboundServices
@@ -1519,32 +1501,6 @@ func (c *EpinioClient) Target(org string) error {
 	return nil
 }
 
-func (c *EpinioClient) deleteCertificate(ctx context.Context, appName string) error {
-	certificateInstanceGVR := schema.GroupVersionResource{
-		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
-		Resource: "certificates",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.Cluster.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	err = dynamicClient.Resource(certificateInstanceGVR).Namespace(c.Config.Org).
-		Delete(ctx, appName, metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	err = c.Cluster.Kubectl.CoreV1().Secrets(c.Config.Org).Delete(ctx, fmt.Sprintf("%s-tls", appName), metav1.DeleteOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[string]models.AppList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
@@ -1765,23 +1721,10 @@ func getCredentials(log logr.Logger, ctx context.Context) (string, string, error
 	return user, pass, nil
 }
 
-func getCerts(log logr.Logger, ctx context.Context) (string, error) {
-	// For a local deployment (using a self-signed cert) get the
-	// CA cert and save it into the config. The regular client
+func getCerts(ctx context.Context, log logr.Logger) (string, error) {
+	// Save the  CA cert into the config. The regular client
 	// will then extend the Cert pool with the same, so that it
 	// can cerify the server cert.
-
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return "", err
-	}
-
-	log.Info("got main domain", "domain", mainDomain)
-
-	if !strings.Contains(mainDomain, "omg.howdoi.website") {
-		log.Info("skip non-development domain")
-		return "", nil
-	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

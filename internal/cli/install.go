@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/cli/clients"
@@ -67,6 +68,20 @@ var NeededOptions = kubernetes.InstallationOptions{
 			return nil
 		},
 	},
+	{
+		Name:        "tls-issuer",
+		Description: "The name of the cluster issuer to use. Epinio creates two options: 'letsencrypt-production' and 'selfsigned-issuer'.",
+		Type:        kubernetes.StringType,
+		Default:     deployments.SelfSignedIssuer,
+		Value:       deployments.SelfSignedIssuer,
+	},
+	{
+		Name:        "enable-internal-registry-node-port",
+		Description: "Make the internal registry accessible via a node port, so kubelet can access the registry without trusting its cert.",
+		Type:        kubernetes.BooleanType,
+		Default:     true,
+		Value:       true,
+	},
 }
 
 var TraefikOptions = kubernetes.InstallationOptions{
@@ -113,15 +128,15 @@ func init() {
 
 	CmdInstallIngress.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 
-	NeededOptions.AsCobraFlagsFor(CmdInstall)
-	TraefikOptions.AsCobraFlagsFor(CmdInstallIngress)
+	NeededOptions.AsCobraFlagsFor(CmdInstall.Flags())
+	TraefikOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
 }
 
 // Install command installs epinio on a configured cluster
 func Install(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &NeededOptions)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &NeededOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -132,14 +147,14 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = installClient.Install(cmd)
+	err = installClient.Install(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error installing Epinio")
 	}
 
 	// Installation complete. Run `org create`, and `target`.
 
-	epinio_client, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
+	epinioClient, err := clients.NewEpinioClient(cmd.Context(), cmd.Flags())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -156,7 +171,7 @@ func Install(cmd *cobra.Command, args []string) error {
 	// now invalid organization from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
-	err = epinio_client.ConfigUpdate(cmd.Context())
+	err = epinioClient.ConfigUpdate(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error updating config")
 	}
@@ -167,13 +182,13 @@ func Install(cmd *cobra.Command, args []string) error {
 	}
 
 	if !skipDefaultOrg {
-		err := epinio_client.CreateOrg(DefaultOrganization)
+		err := epinioClient.CreateOrg(DefaultOrganization)
 
 		if err != nil {
 			return errors.Wrap(err, "error creating org")
 		}
 
-		err = epinio_client.Target(DefaultOrganization)
+		err = epinioClient.Target(DefaultOrganization)
 		if err != nil {
 			return errors.Wrap(err, "failed to set target")
 		}
@@ -186,7 +201,7 @@ func Install(cmd *cobra.Command, args []string) error {
 func InstallIngress(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &TraefikOptions)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &TraefikOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()

@@ -91,13 +91,11 @@ var _ = Describe("CLIOptionsReader", func() {
 		optionIntD,
 	}
 
-	options.AsCobraFlagsFor(dummyCmd)
-	reader := NewCLIOptionsReader(dummyCmd)
+	options.AsCobraFlagsFor(dummyCmd.Flags())
+	reader := NewCLIOptionsReader(dummyCmd.Flags())
 
-	optionsD.AsCobraFlagsFor(dummyDefaultCmd)
-	readerDefaults := NewCLIOptionsReader(dummyDefaultCmd)
-
-	options = append(options, optionUnknown)
+	optionsD.AsCobraFlagsFor(dummyDefaultCmd.Flags())
+	readerDefaults := NewCLIOptionsReader(dummyDefaultCmd.Flags())
 
 	// Fake having seen the flags on the command line.
 	_ = dummyCmd.Flags().Set("a-flag", "false")

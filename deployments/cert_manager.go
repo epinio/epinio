@@ -30,6 +30,8 @@ const (
 	CertManagerDeploymentID = "cert-manager"
 	certManagerVersion      = "1.2.0"
 	certManagerChartFile    = "cert-manager-v1.2.0.tgz"
+	SelfSignedIssuer        = "selfsigned-issuer"
+	LetsencryptIssuer       = "letsencrypt-production"
 )
 
 func (cm *CertManager) ID() string {
@@ -163,6 +165,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	defer os.Remove(tarPath)
 
 	helmArgs = append(helmArgs, `--set installCRDs=true`)
+	helmArgs = append(helmArgs, `--set extraArgs[0]=' --enable-certificate-owner-ref=true'`)
 	helmCmd := fmt.Sprintf("helm %s cert-manager --namespace %s %s %s", action, CertManagerDeploymentID, tarPath, strings.Join(helmArgs, " "))
 
 	if out, err := helpers.RunProc(helmCmd, currentdir, cm.Debug); err != nil {
@@ -328,4 +331,23 @@ func (cm CertManager) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *te
 	ui.Note().Msg("Upgrading CertManager...")
 
 	return cm.apply(ctx, c, ui, options, true)
+}
+
+func waitForCertManagerReady(ctx context.Context, ui *termui.UI, c *kubernetes.Cluster) error {
+	for _, deployment := range []string{
+		"cert-manager",
+		"cert-manager-webhook",
+		"cert-manager-cainjector",
+	} {
+
+		if err := c.WaitUntilDeploymentExists(ctx, ui, CertManagerDeploymentID, deployment, duration.ToCertManagerReady()); err != nil {
+			return errors.Wrapf(err, "failed waiting CertManager %s deployment to exist in namespace %s", deployment, CertManagerDeploymentID)
+		}
+
+		if err := c.WaitForDeploymentCompleted(ctx, ui, CertManagerDeploymentID, deployment, duration.ToCertManagerReady()); err != nil {
+			return errors.Wrapf(err, "failed waiting CertManager %s deployment to be ready in namespace %s", deployment, CertManagerDeploymentID)
+		}
+	}
+
+	return nil
 }

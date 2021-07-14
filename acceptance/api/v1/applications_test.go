@@ -442,27 +442,19 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				request.Instances = &two
 			})
 
-			It("creates an app with the specified number of instances", func() {
-				defer env.DeleteApp(appName)
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
 
+			It("creates an app with the specified number of instances", func() {
 				response, err := env.Curl("POST", url, strings.NewReader(body))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
 
-				Eventually(func() int {
-					response, err := env.Curl("GET",
-						fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, appName),
-						strings.NewReader(""))
-					Expect(err).ToNot(HaveOccurred())
-					Expect(response).ToNot(BeNil())
-					defer response.Body.Close()
-					return response.StatusCode
-				}, "5m").Should(Equal(200))
-
 				Eventually(func() string {
 					return appStatus(org, appName)
-				}, "2m").Should(Equal("2/2"))
+				}, "5m").Should(Equal("2/2"))
 			})
 		})
 

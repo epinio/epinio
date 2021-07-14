@@ -57,7 +57,7 @@ func UninstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, s
 	cmd.SilenceUsage = true
 
 	uiUI := termui.NewUI()
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), cmd.Flags(), &kubernetes.InstallationOptions{})
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &kubernetes.InstallationOptions{})
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()

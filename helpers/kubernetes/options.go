@@ -2,10 +2,9 @@ package kubernetes
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 const (
@@ -51,7 +50,7 @@ type InstallationOption struct {
 
 type InstallationOptions []InstallationOption
 
-func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
+func (opts InstallationOptions) AsCobraFlagsFor(flags *pflag.FlagSet) {
 	for _, opt := range opts {
 		// Translate option name
 		flagName := strings.ReplaceAll(opt.Name, "_", "-")
@@ -60,38 +59,24 @@ func (opts InstallationOptions) AsCobraFlagsFor(cmd *cobra.Command) {
 		switch opt.Type {
 		case BooleanType:
 			if opt.Default == nil {
-				cmd.Flags().Bool(flagName, false, opt.Description)
+				flags.Bool(flagName, false, opt.Description)
 			} else {
-				cmd.Flags().Bool(flagName, opt.Default.(bool), opt.Description)
+				flags.Bool(flagName, opt.Default.(bool), opt.Description)
 			}
 		case StringType:
 			if opt.Default == nil {
-				cmd.Flags().String(flagName, "", opt.Description)
+				flags.String(flagName, "", opt.Description)
 			} else {
-				cmd.Flags().String(flagName, opt.Default.(string), opt.Description)
+				flags.String(flagName, opt.Default.(string), opt.Description)
 			}
 		case IntType:
 			if opt.Default == nil {
-				cmd.Flags().Int(flagName, 0, opt.Description)
+				flags.Int(flagName, 0, opt.Description)
 			} else {
-				cmd.Flags().Int(flagName, opt.Default.(int), opt.Description)
+				flags.Int(flagName, opt.Default.(int), opt.Description)
 			}
 		}
 	}
-	return
-}
-
-func (opts InstallationOptions) ToOptMap() map[string]InstallationOption {
-	result := map[string]InstallationOption{}
-	for _, opt := range opts {
-		result[opt.ToOptMapKey()] = opt
-	}
-
-	return result
-}
-
-func (opt InstallationOption) ToOptMapKey() string {
-	return fmt.Sprintf("%s-%s", opt.Name, opt.DeploymentID)
 }
 
 func (opt *InstallationOption) DynDefault() error {
@@ -111,21 +96,6 @@ func (opt *InstallationOption) SetDefault() error {
 	}
 
 	return nil
-}
-
-// Merge returns a merge of the two options respecting uniqueness of name+deploymentID
-func (opts InstallationOptions) Merge(toMerge InstallationOptions) InstallationOptions {
-	result := InstallationOptions{}
-	optMap := opts.ToOptMap()
-	for _, mergeOpt := range toMerge {
-		optMap[mergeOpt.ToOptMapKey()] = mergeOpt
-	}
-
-	for _, v := range optMap {
-		result = append(result, v)
-	}
-
-	return result
 }
 
 // GetOpt finds the given option in opts.
@@ -201,6 +171,32 @@ func (opts InstallationOptions) GetInt(optionName string, deploymentID string) (
 	}
 
 	return result, nil
+}
+
+// GetStringNG returns the string value for a needed, global option
+func (opts InstallationOptions) GetStringNG(optionName string) string {
+	option, err := opts.GetOpt(optionName, "")
+	if err != nil {
+		return ""
+	}
+	result, ok := option.Value.(string)
+	if !ok {
+		return ""
+	}
+	return result
+}
+
+// GetBoolNG returns the bool value for a needed, global option
+func (opts InstallationOptions) GetBoolNG(optionName string) bool {
+	option, err := opts.GetOpt(optionName, "")
+	if err != nil {
+		return false
+	}
+	result, ok := option.Value.(bool)
+	if !ok {
+		return false
+	}
+	return result
 }
 
 func (opts InstallationOptions) ForDeployment(deploymentID string) InstallationOptions {

@@ -33,7 +33,7 @@ type InstallClient struct {
 	Log        logr.Logger
 }
 
-func NewInstallClient(ctx context.Context, flags *pflag.FlagSet, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
+func NewInstallClient(ctx context.Context, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -56,24 +56,22 @@ func NewInstallClient(ctx context.Context, flags *pflag.FlagSet, options *kubern
 }
 
 // Install deploys epinio to the cluster.
-func (c *InstallClient) Install(cmd *cobra.Command) error {
+func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error {
 	log := c.Log.WithName("Install")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	ctx := cmd.Context()
-
 	c.ui.Note().Msg("Epinio installing...")
 
 	var err error
 	details.Info("process cli options")
-	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(flags))
 	if err != nil {
 		return err
 	}
 
-	interactive, err := cmd.Flags().GetBool("interactive")
+	interactive, err := flags.GetBool("interactive")
 	if err != nil {
 		return err
 	}
@@ -130,14 +128,13 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 		return errors.New("You didn't provide a system_domain and we were unable to setup a omg.howdoi.website domain (couldn't find an ExternalIP)")
 	}
 
-	c.ui.Success().Msg("Created system_domain: " + domain.Value.(string))
+	c.ui.Success().Msg("Using system_domain: " + domain.Value.(string))
 
 	installationWg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
-		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
@@ -170,13 +167,11 @@ func (c *InstallClient) Install(cmd *cobra.Command) error {
 }
 
 // Uninstall removes epinio from the cluster.
-func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
+func (c *InstallClient) Uninstall(ctx context.Context) error {
 	log := c.Log.WithName("Uninstall")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	ctx := cmd.Context()
 
 	c.ui.Note().Msg("Epinio uninstalling...")
 
@@ -192,7 +187,6 @@ func (c *InstallClient) Uninstall(cmd *cobra.Command) error {
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
-		&deployments.Quarks{Timeout: duration.ToDeployment()},
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
@@ -233,7 +227,7 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 
 	var err error
 	details.Info("process cli options")
-	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd))
+	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd.Flags()))
 	if err != nil {
 		return err
 	}
