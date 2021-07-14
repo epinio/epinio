@@ -77,8 +77,8 @@ var NeededOptions = kubernetes.InstallationOptions{
 			deployments.LetsencryptIssuer,
 			deployments.SelfSignedIssuer),
 		Type:    kubernetes.StringType,
-		Default: deployments.SelfSignedIssuer,
-		Value:   deployments.SelfSignedIssuer,
+		Default: deployments.EpinioCAIssuer,
+		Value:   deployments.EpinioCAIssuer,
 	},
 	{
 		Name:        "enable-internal-registry-node-port",

@@ -186,6 +186,9 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Issuer:    viper.GetString("tls-issuer"),
 		Domain:    mainDomain,
 	}
+
+	log.Info("app cert", "domain", cert.Domain, "issuer", cert.Issuer)
+
 	err = auth.CreateCertificate(ctx, cluster, cert, &owner)
 	if err != nil {
 		return InternalError(err)
