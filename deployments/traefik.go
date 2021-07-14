@@ -138,7 +138,7 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 		return errors.Wrap(err, "timed out waiting for LoadBalancer IP on traefik service\n" +
 			"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
 			"Follow these steps to enable this ability\n" +
-			"https://github.com/epinio/epinio/blob/main/docs/install.md\n")
+			"https://github.com/epinio/epinio/blob/main/docs/user/howtos/proivision_externalIP_kube_distros.md\n")
 	}
 
 	ui.Success().Msg("Traefik Ingress deployed")
