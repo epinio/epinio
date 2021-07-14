@@ -46,6 +46,9 @@ spec:
     - name: OWNER_UID
       type: string
       description: "The uid of the owner"
+    - name: ENV_VARS
+      type: array
+      description: "Build time environment variables"
   tasks:
   - name: clone
     taskRef:
@@ -69,6 +72,8 @@ spec:
       value: app
     - name: APP_IMAGE
       value: "$(params.APP_IMAGE)"
+    - name: ENV_VARS
+      value: ["$(params.ENV_VARS[*])"]
     workspaces:
     - name: source
       workspace: source
