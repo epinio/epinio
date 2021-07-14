@@ -33,7 +33,7 @@ func init() {
 	viper.BindPFlag("port", flags.Lookup("port"))
 	viper.BindEnv("port", "PORT")
 
-	flags.String("tls-issuer", deployments.SelfSignedIssuer, "(TLS_ISSUER) The cluster issuer to use for workload certificates")
+	flags.String("tls-issuer", deployments.EpinioCAIssuer, "(TLS_ISSUER) The cluster issuer to use for workload certificates")
 	viper.BindPFlag("tls-issuer", flags.Lookup("tls-issuer"))
 	viper.BindEnv("tls-issuer", "TLS_ISSUER")
 
