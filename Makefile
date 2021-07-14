@@ -71,8 +71,10 @@ generate:
 	go generate ./...
 
 generate-cli-docs:
+	rm -f docs/user/references/cli/*
 	go run internal/cli/docs/generate-cli-docs.go docs/user/references/cli/
 	perl -pi -e "s@${HOME}@~@" docs/user/references/cli/*md
+	git add docs/user/references/cli/*
 
 lint: embed_files
 	go vet ./...

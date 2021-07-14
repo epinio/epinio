@@ -30,6 +30,7 @@ weight: 1
 }
 
 func genCLIDocsyMarkDown(cmd *cobra.Command, docDir string) error {
+	cmd.DisableAutoGenTag = true
 	return doc.GenMarkdownTreeCustom(cmd, filepath.Join("./", docDir), func(s string) string { return docsyPrepend(s, docDir) }, markdownURLsToDocsy)
 }
 
