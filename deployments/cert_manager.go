@@ -32,6 +32,7 @@ const (
 	certManagerChartFile    = "cert-manager-v1.2.0.tgz"
 	SelfSignedIssuer        = "selfsigned-issuer"
 	LetsencryptIssuer       = "letsencrypt-production"
+	EpinioCAIssuer          = "epinio-ca"
 )
 
 func (cm *CertManager) ID() string {
@@ -69,7 +70,7 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 
 	err = cm.DeleteClusterIssuer(ctx, c)
 	if err != nil {
-		return errors.Wrapf(err, "Failed deleting clusterissuer letsencrypt-production")
+		return errors.Wrapf(err, "Failed deleting cluster-issuer %s", LetsencryptIssuer)
 	}
 
 	message := "Removing helm release " + CertManagerDeploymentID
@@ -196,7 +197,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
-			return errors.Wrapf(err, "failed to create cluster-issuer letsencrypt-production")
+			return errors.Wrapf(err, "failed to create cluster-issuer %s", LetsencryptIssuer)
 		}
 		return err
 	}
@@ -207,13 +208,14 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
-			return errors.Wrapf(err, "failed to create cluster-issuer selfsigned-issuer")
+			return errors.Wrapf(err, "failed to create cluster-issuer %s", SelfSignedIssuer)
 		}
 		return err
 	}
 
-	// With the selfsigned-issuer in place, bootstrap Epinio's private CA ...
-	// Start with the root certificate, signed by selfsigned.
+	// With the self signed issuer in place it is now possible to bootstrap
+	// Epinio's private CA. Phase 1, the CA root certificate, signed by self
+	// signed.
 
 	caCert := fmt.Sprintf(`{
 		"apiVersion" : "cert-manager.io/v1alpha2",
@@ -230,11 +232,11 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 				"size"      : 256
 			},
 			"issuerRef" : {
-				"name" : "selfsigned-issuer",
+				"name" : "%s",
 				"kind" : "ClusterIssuer"
 			}
 		}
-	}`, CertManagerDeploymentID)
+	}`, CertManagerDeploymentID, SelfSignedIssuer)
 
 	cc, err := c.ClientCertificate()
 	if err != nil {
@@ -274,7 +276,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
-			return errors.Wrapf(err, "failed to create cluster-issuer epinio-issuer")
+			return errors.Wrapf(err, "failed to create cluster-issuer %s", EpinioCAIssuer)
 		}
 		return err
 	}
@@ -292,14 +294,14 @@ const clusterIssuerLetsencrypt = `{
 	"apiVersion": "cert-manager.io/v1alpha2",
 	"kind": "ClusterIssuer",
 	"metadata": {
-		"name": "letsencrypt-production"
+		"name": "` + LetsencryptIssuer + `"
 	},
 	"spec": {
 		"acme" : {
 			"email" : "%s",
 			"server" : "https://acme-v02.api.letsencrypt.org/directory",
 			"privateKeySecretRef" : {
-				"name" : "letsencrypt-production"
+				"name" : "` + LetsencryptIssuer + `"
 			},
 			"solvers" : [
 			{
@@ -318,7 +320,7 @@ const clusterIssuerLocal = `{
 	"apiVersion": "cert-manager.io/v1alpha2",
 	"kind": "ClusterIssuer",
 	"metadata": {
-		"name": "selfsigned-issuer"
+		"name": "` + SelfSignedIssuer + `"
 	},
 	"spec": {
 		"selfSigned" : {}
@@ -329,7 +331,7 @@ const clusterIssuerEpinio = `{
 	"apiVersion" : "cert-manager.io/v1alpha2",
 	"kind"       : "ClusterIssuer",
 	"metadata"   : {
-		"name" : "epinio-issuer"
+		"name" : "` + EpinioCAIssuer + `"
 	},
 	"spec" : {
 		"ca" : {
@@ -365,12 +367,12 @@ func (cm CertManager) DeleteClusterIssuer(ctx context.Context, c *kubernetes.Clu
 		return err
 	}
 
-	err = client.Delete(ctx, "letsencrypt-production", metav1.DeleteOptions{})
+	err = client.Delete(ctx, LetsencryptIssuer, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}
 
-	err = c.Kubectl.CoreV1().Secrets(CertManagerDeploymentID).Delete(ctx, "letsencrypt-production", metav1.DeleteOptions{})
+	err = c.Kubectl.CoreV1().Secrets(CertManagerDeploymentID).Delete(ctx, LetsencryptIssuer, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
 	}

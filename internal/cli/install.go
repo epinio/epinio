@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -69,11 +71,14 @@ var NeededOptions = kubernetes.InstallationOptions{
 		},
 	},
 	{
-		Name:        "tls-issuer",
-		Description: "The name of the cluster issuer to use. Epinio creates two options: 'letsencrypt-production' and 'selfsigned-issuer'.",
-		Type:        kubernetes.StringType,
-		Default:     deployments.SelfSignedIssuer,
-		Value:       deployments.SelfSignedIssuer,
+		Name: "tls-issuer",
+		Description: fmt.Sprintf("The name of the cluster issuer to use. Epinio creates three options: '%s', '%s', and '%s'.",
+			deployments.EpinioCAIssuer,
+			deployments.LetsencryptIssuer,
+			deployments.SelfSignedIssuer),
+		Type:    kubernetes.StringType,
+		Default: deployments.SelfSignedIssuer,
+		Value:   deployments.SelfSignedIssuer,
 	},
 	{
 		Name:        "enable-internal-registry-node-port",
