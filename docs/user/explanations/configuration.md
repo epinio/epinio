@@ -29,16 +29,15 @@ Epinio's configuration contains
   - Epinio API password
   - Epinio API certificate
 
-The organization can be changed by running `epoinio target` with the
+The organization can be changed by running `epinio target` with the
 name of the desired org as its single argument.
 
 User name and password are used by the client to authenticate itself
 when talking to Epinio's API server. The `epinio install` command
 saves the initial information to the configuration.
 
-The certificate information is set only when installing epinio with
-`--tls-issuer=selfsigned-issuer`.  The installation uses a the wildcard domain
-`omg.howdoi.website` and the self-signed issuer by default.
+The installation uses a the wildcard domain `omg.howdoi.website` and the
+`epinio-ca` issuer by default.
 
 `epinio install` saves the associated CA
 certificate to the configuration so that future invocations of the

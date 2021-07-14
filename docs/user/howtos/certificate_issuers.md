@@ -2,6 +2,7 @@
 
 Epinio comes with two [cert-manager issuers](https://cert-manager.io/docs/configuration/) for creating certificates:
 
+* epinio-ca (default)
 * letsencrypt-production
 * selfsigned-issuer
 

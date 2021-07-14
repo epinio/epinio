@@ -28,7 +28,7 @@ chmod +x epinio
 sudo mv ./epinio /usr/local/bin/epinio
 ```
 
-#### Install Ingress in cluster
+#### Install Ingress In Cluster
 
 In GKE, we install ingress first and wait for the `loadbalancer-ip` to be provisioned by GKE for the `traefik` ingress. Then, you can map the `loadbalancer-ip` to your `Domain Name` e.x `example.com` and wait for it to be mapped.
 
@@ -38,7 +38,7 @@ epinio install-ingress
 
 The output of the command will print the `loadbalancer-ip`.
 
-#### Install Epinio in cluster
+#### Install Epinio In Cluster
 
 ```bash
 epinio install --system-domain example.com --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
