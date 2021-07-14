@@ -1,4 +1,4 @@
-# Epinio push in detail
+# Epinio Push in Detail
 
 Epinio strives to make use of well supported, well known, and loved projects instead of re-inventing the wheel ([link](principles.md#guidelines-soft-principles)).
 But while doing so, it makes sure those components are deployed correctly and work together seamlessly. Let's go through the `epinio push` process in detail,
@@ -11,18 +11,18 @@ The numbers on the various arrows on the image indicate the order of the various
 
 Epinio exposes an API server running inside the kubernetes cluster for all clients including cli to talk to it. When you run the `epinio push` command, the first thing the cli is going to do, is to hit the relevant api endpoint for pushing apps. (1a) There is a Traefik ingress which sits in front of the Epinio API server which does BasicAuth for all the requests. (1b) After successful authentication, it routes the request to the Epinio API server. The cli puts your code inside a tarball and sends it to the `upload` endpoint of the Epinio API server which is running inside the Kubernetes cluster.
 
-## 2. Pushing the code to Gitea
+## 2. Pushing the Code to gitea
 
 One of the components Epinio installs on your cluster is [Gitea](https://gitea.io/en-us/). Gitea is an Open Source code hosting solution. Among other things it allows
 us to create repositories using API calls. Those repositories are used to store your application's code.
 
 So the first thing the Epinio API server does when it receives the upload request (the previous step), is to create a new project on Gitea. Then it uses `git` to push your code there.
 
-## 3. Staging the app
+## 3. Staging the App
 
 When the upload request is complete, the cli will send a request to the `stage` endpoint of the Epinio API server. This will instruct the server to start the staging of the uploaded code.
 
-## 4. Trigger the pipeline
+## 4. Trigger the Pipeline
 
 When the Epinio API server receives the stage request, it will create a [`PipelineRun`](https://github.com/tektoncd/pipeline/blob/main/docs/pipelineruns.md) that will run the staging Tekton pipeline using the version of the code referenced in the request. This pipeline has 3 steps. Their role is described in the following 3 sections.
 
@@ -52,7 +52,7 @@ The Deployment uses the image that was pushed as part of the staging step (see a
 
 You can read how these resources work in Kubernetes following the provided links but if you have to know one thing is that Ingress is the thing that describes how a request that uses the Application's url is routed to the application container. In Kubernetes, the thing that reads that description and implements the routing is called an Ingress Controller. Such an Ingress Controller is provided by [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/).
 
-## Ingress implementation (Traefik)
+## Ingress Implementation (Traefik)
 
 When you installed Epinio, it looked at your cluster to see if you had [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/) running. If it wasn't there it installed it. Traefik among other things, is an Ingress Controller. As explained above, the Ingress Controller reads your Ingress Resource Definitions and implements the desired routing to the appropriate Services/Pods.
 
@@ -64,7 +64,7 @@ myapplication.my_epinio_system_domain.com
 
 You can get the route of your application with `epinio apps list` or `epinio apps show myapplication`
 
-## Additional things
+## Additional Things
 
 During installation, if you specified a system domain using the `--system-domain` parameter, then your application routes will be subdomains of that domain.
 Epinio considers this domain to be a production server and thus creates a production level TLS certificate for your application using [Let's Encrypt](https://letsencrypt.org/). This is done by the [cert-manager](https://cert-manager.io/docs/installation/kubernetes/), which is one more of the components Epinio installs with `epinio install`.
@@ -73,7 +73,7 @@ If you didn't specify a system domain then Epinio uses a "magic DNS" service run
 These services resolve all subdomains of the root domain to the subdomain's IP address. E.g. `1.2.3.4.omg.howdoi.website` simply resolves to `1.2.3.4`. They are useful when you don't have a real domain but you still need a wildcard domain to create subdomains for. Depending on your setup, the IP address of the cluster which Epinio discovers automatically may not be accessible by your browser and thus you may need to set the system domain when installing to use another IP. This is the case for example when you run a Kubernetes cluster with docker (e.g. [k3d](https://k3d.io/) or [kind](https://github.com/kubernetes-sigs/kind)) inside a VM (for example when using docker on Mac). Then the IP address which Epinio detects is the IP address of the docker container but that is not accessible from your host. You will need to bind the container's ports `80` and `443` to the VMs ports `80` and `443` and then use the VMs IP address instead.
 
 
-## The process visualized
+## The Process Visualized
 
 ![epinio-push-detailed](epinio-push-detailed.svg?raw=true "Epinio push")
 
