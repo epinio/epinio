@@ -155,7 +155,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		RegistryDeploymentID,
 		htpasswd,
 		fmt.Sprintf("%s.%s", RegistryDeploymentID, domain),
-		options.GetBoolNG("enable-internal-registry-node-port"),
+		options.GetBoolNG("use-internal-registry-node-port"),
 		RegistryDeploymentID,
 		tarPath)
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {

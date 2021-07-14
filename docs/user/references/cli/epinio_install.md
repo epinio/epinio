@@ -19,7 +19,7 @@ epinio install [flags]
 
 ```
       --email-address string                 The email address you are planning to use for getting notifications about your certificates (default "epinio@suse.com")
-      --enable-internal-registry-node-port   Make the internal registry accessible via a node port, so kubelet can access the registry without trusting its cert. (default true)
+      --use-internal-registry-node-port   Make the internal registry accessible via a node port, so kubelet can access the registry without trusting its cert. (default true)
   -h, --help                                 help for install
   -i, --interactive                          Whether to ask the user or not (default not)
       --password string                      The password for authenticating all API requests

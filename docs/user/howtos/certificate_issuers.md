@@ -58,7 +58,7 @@ Epinio comes with its own registry for Docker images. This registry needs to be 
 If you are using a certificate issuer whose CA is trusted by the Kubernetes nodes, you can turn on SSL for pulling images from the internal registry:
 
 ```
-epinio install --tls-issuer=letsencrypt-production --enable-internal-registry-node-port=false
+epinio install --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
 ```
 
 Pushing images to the registry uses the "epinio-registry" ingress otherwise, where encryption is handled by Traefik.

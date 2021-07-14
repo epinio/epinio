@@ -81,7 +81,7 @@ var NeededOptions = kubernetes.InstallationOptions{
 		Value:   deployments.EpinioCAIssuer,
 	},
 	{
-		Name:        "enable-internal-registry-node-port",
+		Name:        "use-internal-registry-node-port",
 		Description: "Make the internal registry accessible via a node port, so kubelet can access the registry without trusting its cert.",
 		Type:        kubernetes.BooleanType,
 		Default:     true,
