@@ -350,10 +350,7 @@ func (c *InstallClient) fillInMissingSystemDomain(ctx context.Context, domain *k
 			}, duration.ToSystemDomain(), duration.PollInterval())
 		if err != nil {
 			if strings.Contains(err.Error(), "Timed out after") {
-				return errors.New("Timed out waiting for LoadBalancer IP on traefik service.\n" +
-					"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
-					"Follow these steps to enable this ability\n" +
-					"https://github.com/epinio/epinio/blob/main/docs/install.md")
+				return errors.Wrap(err, deployments.MessageLoadbalancerIP)
 			}
 			return err
 		}
