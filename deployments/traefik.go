@@ -31,7 +31,7 @@ const (
 	traefikVersion        = "9.11.0"
 	traefikChartURL       = "https://helm.traefik.io/traefik/traefik-9.11.0.tgz"
 	MessageLoadbalancerIP = "timed out waiting for LoadBalancer IP on traefik service\n" +
-		"Ensure your kubernetes platform has the ability to provision LoadBalancer IP address.\n\n" +
+		"Ensure your kubernetes platform has the ability to provision a LoadBalancer IP address.\n\n" +
 		"Follow these steps to enable this ability\n" +
 		"https://github.com/epinio/epinio/blob/main/docs/user/howtos/provision_external_ip_for_local_kubernetes.md\n"
 )
