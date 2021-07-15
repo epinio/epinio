@@ -62,4 +62,4 @@ If you are using a certificate issuer whose CA is trusted by the Kubernetes node
 epinio install --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
 ```
 
-Pushing images to the registry uses the "epinio-registry" ingress otherwise, where encryption is handled by Traefik.
+Without the node port, pushing images to the registry uses the "epinio-registry" ingress, which is handled by Traefik.
