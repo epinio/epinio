@@ -220,6 +220,8 @@ func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppR
 func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploymentImageURL string) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
 
+	stagingVariables := []string{}
+
 	assignments := []string{
 		fmt.Sprintf(`{ "name": "%s", "value": "%s"}`, `PORT`, `8080`),
 	}
@@ -227,6 +229,7 @@ func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploym
 		assignments = append(assignments,
 			fmt.Sprintf(`{ "name": "%s", "valueFrom": { "secretKeyRef": {"key":"%s","name":"%s"}}}`,
 				ev.Name, ev.Name, application.EnvSecret(app.AppRef)))
+		stagingVariables = append(stagingVariables, fmt.Sprintf("%s=%s", ev.Name, ev.Value))
 	}
 	environment := `[` + strings.Join(assignments, ",") + `]`
 
@@ -252,12 +255,15 @@ func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploym
 				{Name: "APP_IMAGE", Value: *str(app.ImageURL(registryURL))},
 				{Name: "DEPLOYMENT_IMAGE", Value: *str(app.ImageURL(deploymentImageURL))},
 				{Name: "STAGE_ID", Value: *str(uid)},
-
 				{Name: "OWNER_APIVERSION", Value: *str(app.Owner.APIVersion)},
 				{Name: "OWNER_NAME", Value: *str(app.Owner.Name)},
 				{Name: "OWNER_KIND", Value: *str(app.Owner.Kind)},
 				{Name: "OWNER_UID", Value: *str(string(app.Owner.UID))},
 				{Name: "ENVIRONMENT", Value: *str(environment)},
+				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
+					Type:     v1beta1.ParamTypeArray,
+					ArrayVal: stagingVariables},
+				},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
