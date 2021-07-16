@@ -51,7 +51,7 @@ const (
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.23.0.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
 	tektonStagingYamlPath         = "tekton/buildpacks-task.yaml"
-	tektonPipelineYamlPath        = "tekton/pipeline.yaml"
+	tektonPipelineYamlPath        = "tekton/stage-pipeline.yaml"
 )
 
 func (k *Tekton) ID() string {

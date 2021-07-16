@@ -1,0 +1,146 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: staging-pipeline
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  resources:
+  - name: source-repo
+    type: git
+  params:
+    - name: ENVIRONMENT
+      type: string
+    - name: APP_NAME
+      type: string
+      description: "The application name (used as label or name in various resources)"
+    - name: ORG
+      type: string
+      description: "The application organization (used as the namespace where the app runs)"
+    - name: ROUTE
+      type: string
+      description: "The application route (used for Ingress)"
+    - name: INSTANCES
+      type: string
+      description: "The number of instances the application should have"
+    - name: APP_IMAGE
+      type: string
+      description: "The image as built and pushed by Tekton (uses Kube internal service DNS)"
+    - name: DEPLOYMENT_IMAGE
+      type: string
+      description: "The container image for the application Deployment"
+    - name: STAGE_ID
+      type: string
+      description: "The identifier of the unique staging process"
+    - name: OWNER_APIVERSION
+      type: string
+      description: "The API version of the owner"
+    - name: OWNER_KIND
+      type: string
+      description: "The API kind of the owner"
+    - name: OWNER_NAME
+      type: string
+      description: "The name of the owner"
+    - name: OWNER_UID
+      type: string
+      description: "The uid of the owner"
+  tasks:
+  - name: clone
+    taskRef:
+      name: clone
+    resources:
+      inputs:
+      - name: source-repo
+        resource: source-repo
+    workspaces:
+    - name: source
+      workspace: source
+  - name: stage
+    taskRef:
+      name: buildpacks
+    runAfter:
+    - clone
+    params:
+    - name: BUILDER_IMAGE
+      value: paketobuildpacks/builder:full
+    - name: SOURCE_SUBPATH
+      value: app
+    - name: APP_IMAGE
+      value: "$(params.APP_IMAGE)"
+    workspaces:
+    - name: source
+      workspace: source
+  - name: clean
+    taskRef:
+      name: clean
+    params:
+      - name: APP_NAME
+        value: "$(params.APP_NAME)"
+      - name: ORG
+        value: "$(params.ORG)"
+      - name: STAGE_ID
+        value: "$(params.STAGE_ID)"
+    runAfter:
+    - stage
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clone
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  resources:
+    inputs:
+    - name: source-repo
+      type: git
+      targetPath: source/app
+  steps:
+  - name: stage
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source/app"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        pwd
+        ls -la
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clean
+  namespace: tekton-staging
+spec:
+  params:
+    - name: APP_NAME
+      type: string
+    - name: ORG
+      type: string
+    - name: STAGE_ID
+      type: string
+  steps:
+  - name: clean
+    image: lachlanevenson/k8s-kubectl
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        # (kubectl get ..) Get all pipeline runs for the application specified by name and org.
+        # (jsonpath)       Just their names.
+        # (if test)        Exclude the current run (name == stage_id).
+        # (for/kube ...)   Delete the remainder.
+        #
+        echo "Cleaning up old runs of application '$(params.APP_NAME)' in organization '$(params.ORG)'"
+        echo "Current run to ignore is '$(params.STAGE_ID)'"
+        for run in $(kubectl get pipelinerun -n tekton-staging -l "app.kubernetes.io/name=$(params.APP_NAME),app.kubernetes.io/part-of=$(params.ORG)" -o "jsonpath={.items[*].metadata.name}")
+        do
+          if test "$run" == "$(params.STAGE_ID)" ; then continue ; fi
+          echo "Remove: $run"
+          kubectl delete pipelinerun -n tekton-staging "$run"
+        done
