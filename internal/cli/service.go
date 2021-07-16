@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/epinio/epinio/internal/cli/clients"
@@ -46,12 +47,12 @@ var CmdServiceShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.ServiceMatching(cmd.Context(), toComplete)
+		matches := app.ServiceMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -79,19 +80,19 @@ var CmdServiceCreate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		if len(args) == 2 {
 			// #args == 2: service plan name.
-			matches := app.ServicePlanMatching(cmd.Context(), args[1], toComplete)
+			matches := app.ServicePlanMatching(context.Background(), args[1], toComplete)
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		// #args == 1: service class name.
-		matches := app.ServiceClassMatching(cmd.Context(), toComplete)
+		matches := app.ServiceClassMatching(context.Background(), toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }
@@ -125,12 +126,12 @@ var CmdServiceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.ServiceMatching(cmd.Context(), toComplete)
+		matches := app.ServiceMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -148,20 +149,20 @@ var CmdServiceBind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		if len(args) == 1 {
 			// #args == 1: app name.
-			matches := app.AppsMatching(cmd.Context(), toComplete)
+			matches := app.AppsMatching(context.Background(), toComplete)
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		// #args == 0: service name.
 
-		matches := app.ServiceMatching(cmd.Context(), toComplete)
+		matches := app.ServiceMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -179,19 +180,19 @@ var CmdServiceUnbind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		if len(args) == 1 {
 			// #args == 1: app name.
-			matches := app.AppsMatching(cmd.Context(), toComplete)
+			matches := app.AppsMatching(context.Background(), toComplete)
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		// #args == 0: service name.
-		matches := app.ServiceMatching(cmd.Context(), toComplete)
+		matches := app.ServiceMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -215,12 +216,12 @@ var CmdServiceListPlans = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.ServiceClassMatching(cmd.Context(), toComplete)
+		matches := app.ServiceClassMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

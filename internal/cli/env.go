@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -51,12 +53,12 @@ var CmdEnvList = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -91,13 +93,13 @@ var CmdEnvSet = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		// #args == 0: application name.
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -129,19 +131,19 @@ var CmdEnvShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		if len(args) == 1 {
 			// #args == 1: environment variable name (in application)
-			matches := app.EnvMatching(cmd.Context(), args[0], toComplete)
+			matches := app.EnvMatching(context.Background(), args[0], toComplete)
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 
 		// #args == 0: application name.
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -174,14 +176,14 @@ var CmdEnvUnset = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		// TODO: arg 1: EV match
+		// TODO: match EV names for arg 1 completion
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

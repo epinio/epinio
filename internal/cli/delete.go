@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -32,12 +34,12 @@ var CmdDeleteApp = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

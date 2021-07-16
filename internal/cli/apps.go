@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
@@ -90,12 +92,12 @@ var CmdAppCreate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -127,12 +129,12 @@ var CmdAppShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -216,12 +218,12 @@ var CmdAppUpdate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.AppsMatching(cmd.Context(), toComplete)
+		matches := app.AppsMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
