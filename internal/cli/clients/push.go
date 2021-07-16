@@ -75,7 +75,7 @@ func (c *EpinioClient) uploadCode(app models.AppRef, tarball string) (*models.Up
 func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse, error) {
 	out, err := json.Marshal(req)
 	if err != nil {
-		return nil, errors.Wrap(err, "can't marshal upload response")
+		return nil, errors.Wrap(err, "can't marshal stage request")
 	}
 
 	b, err := c.post(api.Routes.Path("AppStage", req.App.Org, req.App.Name), string(out))
