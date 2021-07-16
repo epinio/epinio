@@ -45,6 +45,9 @@ rules:
   resources:
   - services
   verbs:
+  - create
+  - get
+  - update
   - delete
 - apiGroups:
   - ""
@@ -62,18 +65,12 @@ rules:
   - list
   - watch
 - apiGroups:
-  - extensions
-  resources:
-  - ingresses
-  verbs:
-  - delete
-  - list
-  - get
-- apiGroups:
   - networking.k8s.io
   resources:
   - ingresses
   verbs:
+  - create
+  - update
   - get
   - list
 - apiGroups:
@@ -92,6 +89,7 @@ rules:
   resources:
   - deployments
   verbs:
+  - create
   - delete
   - get
   - list
