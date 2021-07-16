@@ -1259,6 +1259,7 @@ func (c *EpinioClient) Orgs() error {
 // * stage
 // * (tail logs)
 // * wait for pipelinerun
+// * deploy
 // * wait for app
 func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, params PushParams) error {
 	appRef := models.AppRef{Name: name, Org: c.Config.Org}
@@ -1396,6 +1397,21 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 		return errors.Wrap(err, "waiting for staging failed")
 	}
 	stopChan <- true // Stop the printing go routine
+
+	c.ui.Normal().Msg("Deploying application ...")
+	deployRequest := models.DeployRequest{
+		App:       appRef,
+		Instances: params.Instances,
+		Stage: models.StageRef{
+			ID: stage.Stage.ID,
+		},
+		Route: route,
+		Git:   gitRef,
+	}
+	_, err = c.deployCode(deployRequest)
+	if err != nil {
+		return err
+	}
 
 	details.Info("wait for app", "StageID", stage.Stage.ID)
 	err = c.waitForApp(ctx, appRef)

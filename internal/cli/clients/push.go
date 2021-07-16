@@ -92,6 +92,20 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 	return stage, nil
 }
 
+func (c *EpinioClient) deployCode(req models.DeployRequest) ([]byte, error) {
+	out, err := json.Marshal(req)
+	if err != nil {
+		return nil, errors.Wrap(err, "can't marshal deploy request")
+	}
+
+	b, err := c.post(api.Routes.Path("AppDeploy", req.App.Org, req.App.Name), string(out))
+	if err != nil {
+		return nil, errors.Wrap(err, "can't run app")
+	}
+
+	return b, nil
+}
+
 func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
