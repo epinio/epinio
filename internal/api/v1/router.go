@@ -75,6 +75,7 @@ var Routes = routes.NamedRoutes{
 	"AppDelete":   delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
 	"AppUpload":   post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)), // See upload.go
 	"AppStage":    post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),  // See stage.go
+	"AppDeploy":   post("/orgs/:org/applications/:app/deploy", errorHandler(ApplicationsController{}.Deploy)),
 	"AppUpdate":   patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
 
 	// See env.go
