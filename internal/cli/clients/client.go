@@ -1398,7 +1398,7 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	stopChan <- true // Stop the printing go routine
 
 	details.Info("wait for app", "StageID", stage.Stage.ID)
-	err = c.waitForApp(ctx, appRef, stage.Stage.ID)
+	err = c.waitForApp(ctx, appRef)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}

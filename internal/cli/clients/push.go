@@ -127,7 +127,7 @@ func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef
 		})
 }
 
-func (c *EpinioClient) waitForApp(ctx context.Context, app models.AppRef, id string) error {
+func (c *EpinioClient) waitForApp(ctx context.Context, app models.AppRef) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
 	err := c.Cluster.WaitForDeploymentCompleted(
