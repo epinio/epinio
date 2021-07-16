@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -38,7 +40,7 @@ var CmdTarget = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(cmd.Context())
+		app, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
