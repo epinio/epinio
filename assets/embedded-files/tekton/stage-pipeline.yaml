@@ -11,41 +11,18 @@ spec:
   - name: source-repo
     type: git
   params:
-    - name: ENVIRONMENT
-      type: string
     - name: APP_NAME
       type: string
       description: "The application name (used as label or name in various resources)"
     - name: ORG
       type: string
       description: "The application organization (used as the namespace where the app runs)"
-    - name: ROUTE
-      type: string
-      description: "The application route (used for Ingress)"
-    - name: INSTANCES
-      type: string
-      description: "The number of instances the application should have"
     - name: APP_IMAGE
       type: string
       description: "The image as built and pushed by Tekton (uses Kube internal service DNS)"
-    - name: DEPLOYMENT_IMAGE
-      type: string
-      description: "The container image for the application Deployment"
     - name: STAGE_ID
       type: string
       description: "The identifier of the unique staging process"
-    - name: OWNER_APIVERSION
-      type: string
-      description: "The API version of the owner"
-    - name: OWNER_KIND
-      type: string
-      description: "The API kind of the owner"
-    - name: OWNER_NAME
-      type: string
-      description: "The name of the owner"
-    - name: OWNER_UID
-      type: string
-      description: "The uid of the owner"
   tasks:
   - name: clone
     taskRef:
