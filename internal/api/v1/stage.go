@@ -58,7 +58,7 @@ func (app *stageParam) ImageURL(server string) string {
 	return fmt.Sprintf("%s/%s-%s", server, app.Name, app.Git.Revision)
 }
 
-// Stage will create a Tekton PipelineRun resource to stage and start the app
+// Stage will create a Tekton PipelineRun resource to stage the app
 func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
