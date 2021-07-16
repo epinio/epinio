@@ -50,7 +50,7 @@ const (
 	TektonStagingNamespace        = "tekton-staging"
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.23.0.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
-	tektonStagingYamlPath         = "tekton/staging.yaml"
+	tektonStagingYamlPath         = "tekton/buildpacks-task.yaml"
 	tektonPipelineYamlPath        = "tekton/pipeline.yaml"
 )
 
