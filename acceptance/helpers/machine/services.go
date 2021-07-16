@@ -83,7 +83,19 @@ func (m *Machine) VerifyAppServiceBound(appName, serviceName, org string, offset
 }
 
 func (m *Machine) DeleteService(serviceName string) {
-	out, err := m.Epinio("service delete "+serviceName, "")
+	m.DeleteServiceWithUnbind(serviceName, false)
+}
+
+func (m *Machine) DeleteServiceUnbind(serviceName string) {
+	m.DeleteServiceWithUnbind(serviceName, true)
+}
+
+func (m *Machine) DeleteServiceWithUnbind(serviceName string, unbind bool) {
+	unbindFlag := ""
+	if unbind {
+		unbindFlag = "--unbind"
+	}
+	out, err := m.Epinio(fmt.Sprintf("service delete %s %s", serviceName, unbindFlag), "")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check non-presence
