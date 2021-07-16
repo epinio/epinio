@@ -12,7 +12,7 @@ type App struct {
 	Name          string   `json:"name,omitempty"`
 	Organization  string   `json:"organization,omitempty"`
 	Status        string   `json:"status,omitempty"`
-	Routes        []string `json:"routes,omitempty"`
+	Route         string   `json:"routes,omitempty"`
 	BoundServices []string `json:"bound_services,omitempty"`
 }
 

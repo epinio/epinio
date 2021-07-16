@@ -863,7 +863,7 @@ func (c *EpinioClient) Apps() error {
 		msg = msg.WithTableRow(
 			app.Name,
 			app.Status,
-			strings.Join(app.Routes, ", "),
+			app.Route,
 			strings.Join(app.BoundServices, ", "))
 	}
 
@@ -899,7 +899,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 		WithTable("Key", "Value").
 		WithTableRow("Status", app.Status).
 		WithTableRow("StageId", app.StageID).
-		WithTableRow("Routes", strings.Join(app.Routes, ", ")).
+		WithTableRow("Routes", app.Route).
 		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).
 		WithTableRow("Environment", `See it by running the command "epinio app env list `+appName+`"`).
 		Msg("Details:")
