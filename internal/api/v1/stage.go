@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,7 +15,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -28,20 +26,11 @@ import (
 	"github.com/epinio/epinio/internal/domain"
 )
 
-const (
-	DefaultInstances = int32(1)
-	LocalRegistry    = "127.0.0.1:30500/apps"
-)
-
 type stageParam struct {
 	models.AppRef
-	Image       models.ImageRef
-	Git         *models.GitRef
-	Route       string
-	Stage       models.StageRef
-	Instances   int32
-	Owner       metav1.OwnerReference
-	Environment models.EnvVariableList
+	Git   *models.GitRef
+	Stage models.StageRef
+	Owner metav1.OwnerReference
 }
 
 // GitURL returns the git URL by combining the server with the org and name
@@ -81,10 +70,6 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	if org != req.App.Org {
 		return NewBadRequest("org parameter from URL does not match org param in body")
-	}
-
-	if req.Instances != nil && *req.Instances < 0 {
-		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -128,23 +113,6 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
-	// find out the instances
-	var instances int32
-	if req.Instances != nil {
-		instances = int32(*req.Instances)
-	} else {
-		instances, err = existingReplica(ctx, cluster.Kubectl, req.App)
-		if err != nil {
-			return InternalError(err)
-		}
-	}
-
-	// determine runtime environment, if any
-	env, err := application.Environment(ctx, cluster, req.App)
-	if err != nil {
-		return InternalError(err, "failed to access application runtime environment")
-	}
-
 	owner := metav1.OwnerReference{
 		APIVersion: app.GetAPIVersion(),
 		Kind:       app.GetKind(),
@@ -152,27 +120,18 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		UID:        app.GetUID(),
 	}
 	params := stageParam{
-		AppRef:      req.App,
-		Git:         req.Git,
-		Route:       req.Route,
-		Instances:   instances,
-		Owner:       owner,
-		Environment: env,
+		AppRef: req.App,
+		Git:    req.Git,
+		Owner:  owner,
 	}
 
 	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
-	var deploymentImageURL string
 	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
-	if viper.GetBool("use-internal-registry-node-port") {
-		deploymentImageURL = LocalRegistry
-	} else {
-		deploymentImageURL = registryURL
-	}
 
-	pr := newPipelineRun(uid, params, mainDomain, registryURL, deploymentImageURL)
+	pr := newPipelineRun(uid, params, registryURL)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
@@ -203,19 +162,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
-func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppRef) (int32, error) {
-	// if a deployment exists, use that deployment's replica count
-	result, err := client.AppsV1().Deployments(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return DefaultInstances, nil
-		}
-		return 0, err
-	}
-	return *result.Spec.Replicas, nil
-}
-
-func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploymentImageURL string) *v1beta1.PipelineRun {
+func newPipelineRun(uid string, app stageParam, registryURL string) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
 
 	return &v1beta1.PipelineRun{

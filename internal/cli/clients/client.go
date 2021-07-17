@@ -1361,10 +1361,9 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 		return errors.Wrap(err, "unable to determine default app route")
 	}
 	req := models.StageRequest{
-		App:       appRef,
-		Instances: params.Instances,
-		Git:       gitRef,
-		Route:     route,
+		App:   appRef,
+		Git:   gitRef,
+		Route: route,
 	}
 	details.Info("staging code", "Git", gitRef.Revision)
 	stage, err := c.stageCode(req)
