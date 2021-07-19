@@ -67,7 +67,7 @@ func EpinioYAML() string {
 	return Root() + "/tmp/epinio.yaml"
 }
 
-func EnsureEpinio() error {
+func EnsureEpinio(epinioBinary string) error {
 	out, err := helpers.Kubectl(`get pods -n epinio --selector=app.kubernetes.io/name=epinio-server`)
 	if err == nil {
 		running, err := regexp.Match(`epinio-server.*Running`, []byte(out))
@@ -83,8 +83,7 @@ func EnsureEpinio() error {
 	// Installing linkerd and ingress separate from the main
 	// pieces.  Ensures that the main install command invokes and
 	// passes the presence checks for linkerd and traefik.
-	out, err = proc.Run(
-		Root()+"/dist/epinio-linux-amd64 install-ingress",
+	out, err = proc.Run(fmt.Sprintf("%s%s install-ingress", Root(), epinioBinary),
 		"", false)
 	if err != nil {
 		return errors.Wrap(err, out)
@@ -98,7 +97,7 @@ func EnsureEpinio() error {
 	// Allow the installation to continue by not trying to create the default org
 	// before we patch.
 	out, err = proc.Run(
-		fmt.Sprintf(Root()+"/dist/epinio-linux-amd64 install --skip-default-org --user %s --password %s %s", epinioUser, epinioPassword, domainSetting),
+		fmt.Sprintf("%s%s install --skip-default-org --user %s --password %s %s", Root(), epinioBinary, epinioUser, epinioPassword, domainSetting),
 		"", false)
 	if err != nil {
 		return errors.Wrap(err, out)
@@ -113,8 +112,8 @@ func BuildEpinio() {
 	}
 }
 
-func ExpectGoodInstallation() {
-	info, err := proc.Run(Root()+"/dist/epinio-linux-amd64 info", "", false)
+func ExpectGoodInstallation(epinioBinary string) {
+	info, err := proc.Run(fmt.Sprintf("%s%s info", Root(), epinioBinary), "", false)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	gomega.Expect(info).To(gomega.MatchRegexp("Platform: k3s"))
 	gomega.Expect(info).To(gomega.MatchRegexp("Kubernetes Version: v1.20"))
@@ -146,9 +145,9 @@ func CheckDependencies() error {
 	return errors.New("Please check your PATH, some of our dependencies were not found")
 }
 
-func EnsureDefaultWorkspace() {
+func EnsureDefaultWorkspace(epinioBinary string) {
 	gomega.Eventually(func() string {
-		out, err := proc.Run(Root()+"/dist/epinio-linux-amd64 org create workspace", "", false)
+		out, err := proc.Run(fmt.Sprintf("%s%s org create workspace", Root(), epinioBinary), "", false)
 		if err != nil {
 			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
 				return ""
