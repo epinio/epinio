@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/epinio/epinio/deployments"
@@ -92,6 +93,33 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 	return stage, nil
 }
 
+func (c *EpinioClient) stageLogs(ctx context.Context, details logr.Logger, appRef models.AppRef, stageID string) error {
+	// Buffered because the go routine may no longer be listening when we try
+	// to stop it. Stopping it should be a fire and forget. We have wg to wait
+	// for the routine to be gone.
+	stopChan := make(chan bool, 1)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	defer wg.Wait()
+	go func() {
+		defer wg.Done()
+		err := c.AppLogs(appRef.Name, stageID, true, stopChan)
+		if err != nil {
+			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
+		}
+	}()
+
+	details.Info("wait for pipelinerun", "StageID", stageID)
+	err := c.waitForPipelineRun(ctx, appRef, stageID)
+	if err != nil {
+		stopChan <- true // Stop the printing go routine
+		return errors.Wrap(err, "waiting for staging failed")
+	}
+	stopChan <- true // Stop the printing go routine
+
+	return err
+}
+
 func (c *EpinioClient) deployCode(req models.DeployRequest) ([]byte, error) {
 	out, err := json.Marshal(req)
 	if err != nil {
@@ -100,7 +128,7 @@ func (c *EpinioClient) deployCode(req models.DeployRequest) ([]byte, error) {
 
 	b, err := c.post(api.Routes.Path("AppDeploy", req.App.Org, req.App.Name), string(out))
 	if err != nil {
-		return nil, errors.Wrap(err, "can't run app")
+		return nil, errors.Wrap(err, "can't deploy app")
 	}
 
 	return b, nil

@@ -32,19 +32,23 @@ const (
 
 type deployParam struct {
 	models.AppRef
-	Git         *models.GitRef
-	Route       string
-	Instances   int32
-	Domain      string
-	Stage       models.StageRef
-	Owner       metav1.OwnerReference
-	Environment models.EnvVariableList
+	Git            *models.GitRef
+	Route          string
+	CustomImageURL string
+	Instances      int32
+	Domain         string
+	Stage          models.StageRef
+	Owner          metav1.OwnerReference
+	Environment    models.EnvVariableList
 }
 
 // ImageURL returns the URL of the image, using the ImageID. The ImageURL is
 // later used in app.yml. It checks if node-port registry url or ingress registry
 // should be used based on a viper flag
 func (param *deployParam) ImageURL() string {
+	if param.CustomImageURL != "" {
+		return param.CustomImageURL
+	}
 	var server string
 	if viper.GetBool("use-internal-registry-node-port") {
 		server = LocalRegistry
@@ -128,13 +132,14 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 	}
 
 	deployParams := deployParam{
-		AppRef:      req.App,
-		Git:         req.Git,
-		Route:       req.Route,
-		Owner:       owner,
-		Environment: environment,
-		Instances:   instances,
-		Domain:      mainDomain,
+		AppRef:         req.App,
+		Git:            req.Git,
+		Route:          req.Route,
+		Owner:          owner,
+		Environment:    environment,
+		Instances:      instances,
+		Domain:         mainDomain,
+		CustomImageURL: req.CustomImageURL,
 	}
 
 	log.Info("deploying app", "org", org, "app", req.App)
@@ -195,6 +200,15 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 // newAppDeployment will create a deployment for the app
 func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deployment, error) {
 	automountServiceAccountToken := false
+	labels := map[string]string{
+		"app.kubernetes.io/name":       deployParams.Name,
+		"app.kubernetes.io/part-of":    deployParams.Org,
+		"app.kubernetes.io/component":  "application",
+		"app.kubernetes.io/managed-by": "epinio",
+	}
+	if stageID != "" {
+		labels["epinio.suse.org/stage-id"] = stageID
+	}
 
 	deploymentData := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -215,13 +229,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app.kubernetes.io/name":       deployParams.Name,
-						"epinio.suse.org/stage-id":     stageID,
-						"app.kubernetes.io/part-of":    deployParams.Org,
-						"app.kubernetes.io/component":  "application",
-						"app.kubernetes.io/managed-by": "epinio",
-					},
+					Labels: labels,
 					Annotations: map[string]string{
 						"app.kubernetes.io/name": deployParams.Name,
 					},

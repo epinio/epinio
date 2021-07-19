@@ -65,11 +65,12 @@ type StageResponse struct {
 }
 
 type DeployRequest struct {
-	App       AppRef   `json:"app,omitempty"`
-	Instances *int32   `json:"instances,omitempty"`
-	Stage     StageRef `json:"stage,omitempty"`
-	Route     string   `json:"route,omitempty"`
-	Git       *GitRef  `json:"git,omitempty"`
+	App            AppRef   `json:"app,omitempty"`
+	Instances      *int32   `json:"instances,omitempty"`
+	Stage          StageRef `json:"stage,omitempty"`
+	Route          string   `json:"route,omitempty"`
+	Git            *GitRef  `json:"git,omitempty"`
+	CustomImageURL string   `json:"image,omitempty"`
 }
 
 type ApplicationDeleteResponse struct {

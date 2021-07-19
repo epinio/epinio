@@ -53,6 +53,8 @@ type EpinioClient struct {
 type PushParams struct {
 	Instances *int32
 	Services  []string
+	Docker    string
+	GitRev    string
 }
 
 func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
@@ -1261,7 +1263,7 @@ func (c *EpinioClient) Orgs() error {
 // * wait for pipelinerun
 // * deploy
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, params PushParams) error {
+func (c *EpinioClient) Push(ctx context.Context, name, source string, params PushParams) error {
 	appRef := models.AppRef{Name: name, Org: c.Config.Org}
 	log := c.Log.
 		WithName("Push").
@@ -1273,8 +1275,8 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
 	sourceToShow := source
-	if rev != "" {
-		sourceToShow = fmt.Sprintf("%s @ %s", sourceToShow, rev)
+	if params.GitRev != "" {
+		sourceToShow = fmt.Sprintf("%s @ %s", sourceToShow, params.GitRev)
 	}
 
 	msg := c.ui.Note().
@@ -1301,6 +1303,11 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
+	route, err := appDefaultRoute(ctx, appRef.Name)
+	if err != nil {
+		return errors.Wrap(err, "unable to determine default app route")
+	}
+
 	c.ui.Normal().Msg("Create the application resource ...")
 
 	request := models.ApplicationCreateRequest{Name: appRef.Name}
@@ -1323,8 +1330,7 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	}
 
 	var gitRef *models.GitRef
-
-	if rev == "" {
+	if params.GitRev == "" && params.Docker == "" {
 		c.ui.Normal().Msg("Collecting the application sources ...")
 
 		tmpDir, tarball, err := collectSources(log, source)
@@ -1347,72 +1353,53 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 		log.V(3).Info("upload response", "response", upload)
 
 		gitRef = upload.Git
-	} else {
+	} else if params.GitRev != "" {
 		gitRef = &models.GitRef{
 			URL:      source,
-			Revision: rev,
+			Revision: params.GitRev,
 		}
 	}
 
-	c.ui.Normal().Msg("Staging application ...")
-
-	route, err := appDefaultRoute(ctx, appRef.Name)
-	if err != nil {
-		return errors.Wrap(err, "unable to determine default app route")
-	}
-	req := models.StageRequest{
-		App:   appRef,
-		Git:   gitRef,
-		Route: route,
-	}
-	details.Info("staging code", "Git", gitRef.Revision)
-	stage, err := c.stageCode(req)
-	if err != nil {
-		return err
-	}
-	log.V(3).Info("stage response", "response", stage)
-
-	details.Info("start tailing logs", "StageID", stage.Stage.ID)
-
-	// Buffered because the go routine may no longer be listening when we try
-	// to stop it. Stopping it should be a fire and forget. We have wg to wait
-	// for the routine to be gone.
-	stopChan := make(chan bool, 1)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
-	go func() {
-		defer wg.Done()
-		err := c.AppLogs(appRef.Name, stage.Stage.ID, true, stopChan)
+	stageID := ""
+	if params.Docker == "" {
+		c.ui.Normal().Msg("Staging application ...")
+		req := models.StageRequest{
+			App:   appRef,
+			Git:   gitRef,
+			Route: route,
+		}
+		details.Info("staging code", "Git", gitRef.Revision)
+		stage, err := c.stageCode(req)
 		if err != nil {
-			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
+			return err
 		}
-	}()
+		stageID = stage.Stage.ID
+		log.V(3).Info("stage response", "response", stage)
 
-	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
-	err = c.waitForPipelineRun(ctx, appRef, stage.Stage.ID)
-	if err != nil {
-		stopChan <- true // Stop the printing go routine
-		return errors.Wrap(err, "waiting for staging failed")
+		details.Info("start tailing logs", "StageID", stage.Stage.ID)
+		err = c.stageLogs(ctx, details, appRef, stage.Stage.ID)
+		if err != nil {
+			return err
+		}
 	}
-	stopChan <- true // Stop the printing go routine
 
 	c.ui.Normal().Msg("Deploying application ...")
 	deployRequest := models.DeployRequest{
-		App:       appRef,
-		Instances: params.Instances,
-		Stage: models.StageRef{
-			ID: stage.Stage.ID,
-		},
-		Route: route,
-		Git:   gitRef,
+		App:            appRef,
+		Instances:      params.Instances,
+		Route:          route,
+		Git:            gitRef,
+		CustomImageURL: params.Docker,
+	}
+	if stageID != "" {
+		deployRequest.Stage = models.StageRef{ID: stageID}
 	}
 	_, err = c.deployCode(deployRequest)
 	if err != nil {
 		return err
 	}
 
-	details.Info("wait for app", "StageID", stage.Stage.ID)
+	details.Info("wait for application resources")
 	err = c.waitForApp(ctx, appRef)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
