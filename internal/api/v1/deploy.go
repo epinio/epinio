@@ -171,6 +171,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 			}
 
 			svc.ResourceVersion = service.ResourceVersion
+			svc.Spec.ClusterIP = service.Spec.ClusterIP
 			if _, err := cluster.Kubectl.CoreV1().Services(req.App.Org).Update(ctx, svc, metav1.UpdateOptions{}); err != nil {
 				return InternalError(err)
 			}
