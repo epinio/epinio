@@ -1,7 +1,6 @@
 package models
 
 import (
-	"github.com/epinio/epinio/internal/application"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -49,10 +48,12 @@ func (evl EnvVariableList) ToEnvVarArray(appRef AppRef) []v1.EnvVar {
 				SecretKeyRef: &v1.SecretKeySelector{
 					Key: ev.Name,
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: application.EnvSecret(appRef),
+						Name: appRef.EnvSecret(),
 					},
 				},
 			},
 		})
 	}
+
+	return deploymentEnvironment
 }

@@ -58,6 +58,10 @@ func (ar *AppRef) App() *App {
 	return NewApp(ar.Name, ar.Org)
 }
 
+func (ar *AppRef) EnvSecret() string {
+	return ar.Name + "-env"
+}
+
 // StageRef references a tekton staging run by ID, currently randomly generated
 // for each POST to the staging endpoint
 type StageRef struct {

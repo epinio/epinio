@@ -106,7 +106,7 @@ func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 }
 
 func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
-	secretName := EnvSecret(appRef)
+	secretName := appRef.EnvSecret()
 
 	evSecret, err := cluster.GetSecret(ctx, appRef.Org, secretName)
 	if err != nil {
@@ -158,8 +158,4 @@ func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	}
 
 	return evSecret, nil
-}
-
-func EnvSecret(appRef models.AppRef) string {
-	return appRef.Name + "-env"
 }

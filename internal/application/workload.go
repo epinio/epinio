@@ -41,7 +41,7 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 			return err
 		}
 
-		evSecretName := EnvSecret(a.app)
+		evSecretName := a.app.EnvSecret()
 
 		// 1. Remove all the old EVs referencing the app's EV secret.
 		// 2. Add entries for the new set of EV's (S.a varNames).
