@@ -51,8 +51,14 @@ FLAKE_ATTEMPTS ?= 2
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
 
+acceptance-cluster-delete-kind:
+	kind delete cluster --name epinio-acceptance
+
 acceptance-cluster-setup:
 	@./scripts/acceptance-cluster-setup.sh
+
+acceptance-cluster-setup-kind:
+	@./scripts/acceptance-cluster-setup-kind.sh
 
 test-acceptance: showfocus embed_files
 	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/. acceptance/api/v1/.
