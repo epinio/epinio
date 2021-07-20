@@ -15,6 +15,8 @@ import (
 
 var _ = Describe("Services API Application Endpoints, Mutations", func() {
 	var org string
+	dockerImageURL := "rohitsakala/app1"
+	//TODO: change this docker image url
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -537,7 +539,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				service = catalog.NewServiceName()
 				app = catalog.NewAppName()
 				env.MakeCustomService(service)
-				env.MakeApp(app, 1, true)
+				env.MakeDockerImageApp(app, 1, dockerImageURL)
 				env.BindAppService(app, service, org)
 			})
 
@@ -705,7 +707,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			BeforeEach(func() {
 				app = catalog.NewAppName()
 				service = catalog.NewServiceName()
-				env.MakeApp(app, 1, true)
+				env.MakeDockerImageApp(app, 1, dockerImageURL)
 				env.MakeCustomService(service)
 			})
 
@@ -823,7 +825,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 			BeforeEach(func() {
 				app = catalog.NewAppName()
-				env.MakeApp(app, 1, true)
+				env.MakeDockerImageApp(app, 1, dockerImageURL)
 			})
 
 			AfterEach(func() {
