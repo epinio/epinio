@@ -13,8 +13,7 @@ import (
 var _ = Describe("Catalog Services", func() {
 	var org string
 	var serviceName string
-	dockerImageURL := "rohitsakala/app1"
-	//TODO: change this docker image url
+	dockerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()

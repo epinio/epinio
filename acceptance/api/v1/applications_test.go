@@ -31,8 +31,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		one int32 = 1
 		two int32 = 2
 	)
-	dockerImageURL := "rohitsakala/app1"
-	//TODO: change this docker image url
+	dockerImageURL := "splatform/sample-app"
 
 	uploadRequest := func(url, path string) (*http.Request, error) {
 		file, err := os.Open(path)
@@ -496,8 +495,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					},
 					Instances:      &one,
 					Route:          appName + ".omg.howdoi.website",
-					CustomImageURL: "rohitsakala/app1",
-					// TODO: replace this with officald ocekr image
+					CustomImageURL: "splatform/sample-app",
 				}
 
 				url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)

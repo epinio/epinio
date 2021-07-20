@@ -25,8 +25,7 @@ var _ = Describe("Apps", func() {
 		org     string
 		appName string
 	)
-	dockerImageURL := "rohitsakala/app1"
-	//TODO: change this docker image url
+	dockerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()

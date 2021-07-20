@@ -9,8 +9,7 @@ import (
 
 var _ = Describe("Bounds between Apps & Services", func() {
 	var org string
-	dockerImageURL := "rohitsakala/app1"
-	//TODO: change this docker image url
+	dockerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
