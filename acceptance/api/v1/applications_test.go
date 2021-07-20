@@ -231,12 +231,15 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				var apps models.AppList
 				err = json.Unmarshal(bodyBytes, &apps)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(apps[0].Name).To(Equal(app1))
-				Expect(apps[0].Organization).To(Equal(org))
-				Expect(apps[0].Status).To(Equal("1/1"))
-				Expect(apps[1].Name).To(Equal(app2))
-				Expect(apps[1].Organization).To(Equal(org))
-				Expect(apps[1].Status).To(Equal("1/1"))
+
+				appNames := []string{apps[0].Name, apps[1].Name}
+				Expect(appNames).To(ContainElements(app1, app2))
+
+				orgNames := []string{apps[0].Organization, apps[1].Organization}
+				Expect(orgNames).To(ContainElements(org, org))
+
+				statuses := []string{apps[0].Status, apps[1].Status}
+				Expect(statuses).To(ContainElements("1/1", "1/1"))
 			})
 
 			It("returns a 404 when the org does not exist", func() {
