@@ -217,7 +217,8 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 			return strings.Contains(err.Error(), "x509: certificate signed by unknown authority") ||
 				strings.Contains(err.Error(), "connection refused") ||
 				strings.Contains(err.Error(), "no endpoints available") ||
-				strings.Contains(err.Error(), "EOF")
+				strings.Contains(err.Error(), "EOF") ||
+				strings.Contains(err.Error(), "i/o timeout")
 		}),
 		retry.OnRetry(func(n uint, err error) {
 			ui.Note().Msgf("retrying to create the epinio cert using cert-manager")
