@@ -98,7 +98,10 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	AfterEach(func() {
-		err := os.RemoveAll(wordpress.Dir)
+		out, err := env.Epinio(fmt.Sprintf("apps delete %s", wordpress.Name), "")
+		Expect(err).ToNot(HaveOccurred(), out)
+
+		err = os.RemoveAll(wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
