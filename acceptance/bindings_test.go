@@ -9,6 +9,9 @@ import (
 
 var _ = Describe("Bounds between Apps & Services", func() {
 	var org string
+	dockerImageURL := "rohitsakala/app1"
+	//TODO: change this docker image url
+
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
 		env.SetupAndTargetOrg(org)
@@ -20,7 +23,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			appName = catalog.NewAppName()
 			serviceName = catalog.NewServiceName()
 
-			env.MakeApp(appName, 1, true)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 			env.MakeCustomService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 		})

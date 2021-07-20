@@ -13,6 +13,9 @@ import (
 var _ = Describe("Catalog Services", func() {
 	var org string
 	var serviceName string
+	dockerImageURL := "rohitsakala/app1"
+	//TODO: change this docker image url
+
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
 		serviceName = catalog.NewServiceName()
@@ -55,7 +58,7 @@ var _ = Describe("Catalog Services", func() {
 
 		It("doesn't delete a bound service", func() {
 			appName := catalog.NewAppName()
-			env.MakeApp(appName, 1, true)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 			env.BindAppService(appName, serviceName, org)
 
 			out, err := env.Epinio("service delete "+serviceName, "")
@@ -94,7 +97,7 @@ var _ = Describe("Catalog Services", func() {
 			appName = catalog.NewAppName()
 
 			env.MakeCatalogService(serviceName)
-			env.MakeApp(appName, 1, true)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 		})
 
 		AfterEach(func() {
@@ -113,7 +116,7 @@ var _ = Describe("Catalog Services", func() {
 			appName = catalog.NewAppName()
 
 			env.MakeCatalogService(serviceName)
-			env.MakeApp(appName, 1, true)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 			env.BindAppService(appName, serviceName, org)
 		})
 
