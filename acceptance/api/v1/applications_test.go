@@ -645,7 +645,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(message).NotTo(BeNil())
 					return string(message)
-				}).Should(ContainSubstring("GET / HTTP/1.1"))
+				}, "10s").Should(ContainSubstring("GET / HTTP/1.1"))
 
 				err := wsConn.Close()
 				Expect(err).ToNot(HaveOccurred())
