@@ -134,3 +134,7 @@ minikube-start:
 
 minikube-delete:
 	@./scripts/minikube-delete.sh
+
+local-install:
+	EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 epinio install --skip-default-org
+	@./scripts/patch-epinio-deployment.sh
