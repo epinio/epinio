@@ -176,6 +176,13 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	// Delete previous pipelineruns except for the current one
+	if req.Stage.ID != "" {
+		if err := application.Unstage(ctx, cluster, req.App, req.Stage.ID); err != nil {
+			return InternalError(err)
+		}
+	}
+
 	return nil
 }
 
