@@ -16,6 +16,19 @@ func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bo
 	return m.MakeAppWithDir(appName, instances, deployFromCurrentDir, appDir)
 }
 
+func (m *Machine) MakeDockerImageApp(appName string, instances int, dockerImageURL string) string {
+	pushOutput, err := m.Epinio(fmt.Sprintf("apps push %s --docker-image-url %s --instances %d", appName, dockerImageURL, instances), "")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
+
+	EventuallyWithOffset(1, func() string {
+		out, err := m.Epinio("app list", "")
+		Expect(err).ToNot(HaveOccurred(), out)
+		return out
+	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+
+	return pushOutput
+}
+
 func (m *Machine) MakeGolangApp(appName string, instances int, deployFromCurrentDir bool) string {
 	currentDir, err := os.Getwd()
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())

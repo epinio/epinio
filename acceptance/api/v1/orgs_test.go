@@ -17,6 +17,7 @@ import (
 
 var _ = Describe("Orgs API Application Endpoints", func() {
 	var org string
+	dockerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -180,7 +181,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 
 			It("deletes an organization including apps and services", func() {
 				app1 := catalog.NewAppName()
-				env.MakeApp(app1, 1, true)
+				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				svc1 := catalog.NewServiceName()
 				env.MakeCustomService(svc1)
 				env.BindAppService(app1, svc1, org)

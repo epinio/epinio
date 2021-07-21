@@ -3,7 +3,7 @@ package testenv
 import (
 	"fmt"
 	"os"
-	"path"
+	"runtime"
 )
 
 func SetupEnv() {
@@ -12,9 +12,10 @@ func SetupEnv() {
 	}
 
 	// this env var is for the Makefile, which has the top level as root dir
-	os.Setenv("EPINIO_BINARY_PATH", path.Join("dist", "epinio-linux-amd64"))
+	if os.Getenv("EPINIO_BINARY_PATH") == "" {
+		os.Setenv("EPINIO_BINARY_PATH", fmt.Sprintf("./dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH))
+	}
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	os.Setenv("EPINIO_CONFIG", EpinioYAML())
 	os.Setenv("SKIP_SSL_VERIFICATION", "true")
-
 }

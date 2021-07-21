@@ -1,0 +1,82 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: staging-pipeline
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  resources:
+  - name: source-repo
+    type: git
+  params:
+    - name: APP_NAME
+      type: string
+      description: "The application name (used as label or name in various resources)"
+    - name: ORG
+      type: string
+      description: "The application organization (used as the namespace where the app runs)"
+    - name: APP_IMAGE
+      type: string
+      description: "The image as built and pushed by Tekton (uses Kube internal service DNS)"
+    - name: STAGE_ID
+      type: string
+      description: "The identifier of the unique staging process"
+    - name: ENV_VARS
+      type: array
+      description: "Build time environment variables"
+    
+  tasks:
+  - name: clone
+    taskRef:
+      name: clone
+    resources:
+      inputs:
+      - name: source-repo
+        resource: source-repo
+    workspaces:
+    - name: source
+      workspace: source
+  - name: stage
+    taskRef:
+      name: buildpacks
+    runAfter:
+    - clone
+    params:
+    - name: BUILDER_IMAGE
+      value: paketobuildpacks/builder:full
+    - name: SOURCE_SUBPATH
+      value: app
+    - name: APP_IMAGE
+      value: "$(params.APP_IMAGE)"
+    - name: ENV_VARS
+      value: ["$(params.ENV_VARS[*])"]
+    workspaces:
+    - name: source
+      workspace: source
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: clone
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  resources:
+    inputs:
+    - name: source-repo
+      type: git
+      targetPath: source/app
+  steps:
+  - name: stage
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source/app"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        pwd
+        ls -la

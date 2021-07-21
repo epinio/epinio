@@ -17,6 +17,7 @@ func init() {
 	CmdPush.Flags().Int32P("instances", "i", v1.DefaultInstances,
 		"The number of desired instances for the application, default only applies to new deployments")
 	CmdPush.Flags().String("git", "", "git revision of sources. PATH becomes repository location")
+	CmdPush.Flags().String("docker-image-url", "", "docker image url for the app workload image")
 	CmdPush.Flags().StringSliceP("bind", "b", []string{}, "services to bind immediately")
 	CmdPush.RegisterFlagCompletionFunc("bind",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -95,10 +96,20 @@ var CmdPush = &cobra.Command{
 			return errors.Wrap(err, "could not read option --git")
 		}
 
+		dockerImageURL, err := cmd.Flags().GetString("docker-image-url")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --docker-image-url")
+		}
+
+		if gitRevision != "" && dockerImageURL != "" {
+			return errors.Wrap(err, "cannot use both, git and docker image url")
+		}
+
 		// Syntax:
 		// 1. push NAME
 		// 2. push NAME PATH
 		// 3. push NAME URL --git REV
+		// 4. push NAME --docker-image-url URL
 
 		var path string
 		if len(args) == 1 {
@@ -116,7 +127,11 @@ var CmdPush = &cobra.Command{
 			path = args[1]
 		}
 
-		if gitRevision == "" {
+		if dockerImageURL != "" {
+			path = ""
+		}
+
+		if gitRevision == "" && dockerImageURL == "" {
 			if _, err := os.Stat(path); err != nil {
 				// Path issue is user error. Show usage
 				cmd.SilenceUsage = false
@@ -130,6 +145,8 @@ var CmdPush = &cobra.Command{
 		}
 		params := clients.PushParams{
 			Instances: i,
+			GitRev:    gitRevision,
+			Docker:    dockerImageURL,
 		}
 
 		services, err := cmd.Flags().GetStringSlice("bind")
@@ -138,7 +155,7 @@ var CmdPush = &cobra.Command{
 		}
 		params.Services = services
 
-		err = client.Push(cmd.Context(), args[0], gitRevision, path, params)
+		err = client.Push(cmd.Context(), args[0], path, params)
 		if err != nil {
 			return errors.Wrap(err, "error pushing app to server")
 		}

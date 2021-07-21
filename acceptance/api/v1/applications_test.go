@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/gorilla/websocket"
@@ -30,6 +32,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		one int32 = 1
 		two int32 = 2
 	)
+	dockerImageURL := "splatform/sample-app"
 
 	uploadRequest := func(url, path string) (*http.Request, error) {
 		file, err := os.Open(path)
@@ -117,6 +120,46 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return env.Curl("POST", url, strings.NewReader(body))
 	}
 
+	waitForPipeline := func(stageID string) {
+		Eventually(func() string {
+			out, err := helpers.Kubectl(fmt.Sprintf("-n %s get pipelinerun %s  -o jsonpath='{.status.conditions[0].status}'", deployments.TektonStagingNamespace, stageID))
+			Expect(err).NotTo(HaveOccurred())
+			return out
+		}, "5m").Should(Equal("True"))
+	}
+
+	stageApplication := func(appName, org string, uploadResponse *models.UploadResponse) *models.StageResponse {
+		request := models.StageRequest{
+			App: models.AppRef{
+				Name: appName,
+				Org:  org,
+			},
+			Git: &models.GitRef{
+				Revision: uploadResponse.Git.Revision,
+				URL:      uploadResponse.Git.URL,
+			},
+			Route: appName + ".omg.howdoi.website",
+		}
+		b, err := json.Marshal(request)
+		Expect(err).NotTo(HaveOccurred())
+		body := string(b)
+
+		url := serverURL + "/" + v1.Routes.Path("AppStage", org, appName)
+		response, err := env.Curl("POST", url, strings.NewReader(body))
+		Expect(err).NotTo(HaveOccurred())
+
+		b, err = ioutil.ReadAll(response.Body)
+		Expect(err).NotTo(HaveOccurred())
+
+		stage := &models.StageResponse{}
+		err = json.Unmarshal(b, stage)
+		Expect(err).NotTo(HaveOccurred())
+
+		waitForPipeline(stage.Stage.ID)
+
+		return stage
+	}
+
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
 		env.SetupAndTargetOrg(org)
@@ -133,7 +176,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			When("instances is valid integer", func() {
 				It("updates an application with the desired number of instances", func() {
 					app := catalog.NewAppName()
-					env.MakeApp(app, 1, true)
+					env.MakeDockerImageApp(app, 1, dockerImageURL)
 					defer env.DeleteApp(app)
 
 					Expect(appStatus(org, app)).To(Equal("1/1"))
@@ -150,7 +193,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			When("instances is invalid", func() {
 				It("returns BadRequest", func() {
 					app := catalog.NewAppName()
-					env.MakeApp(app, 1, true)
+					env.MakeDockerImageApp(app, 1, dockerImageURL)
 					defer env.DeleteApp(app)
 					Expect(appStatus(org, app)).To(Equal("1/1"))
 
@@ -170,10 +213,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Describe("GET api/v1/orgs/:orgs/applications", func() {
 			It("lists all applications belonging to the org", func() {
 				app1 := catalog.NewAppName()
-				env.MakeApp(app1, 1, true)
+				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				defer env.DeleteApp(app1)
 				app2 := catalog.NewAppName()
-				env.MakeApp(app2, 1, true)
+				env.MakeDockerImageApp(app2, 1, dockerImageURL)
 				defer env.DeleteApp(app2)
 
 				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications",
@@ -188,12 +231,15 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				var apps models.AppList
 				err = json.Unmarshal(bodyBytes, &apps)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(apps[0].Name).To(Equal(app1))
-				Expect(apps[0].Organization).To(Equal(org))
-				Expect(apps[0].Status).To(Equal("1/1"))
-				Expect(apps[1].Name).To(Equal(app2))
-				Expect(apps[1].Organization).To(Equal(org))
-				Expect(apps[1].Status).To(Equal("1/1"))
+
+				appNames := []string{apps[0].Name, apps[1].Name}
+				Expect(appNames).To(ContainElements(app1, app2))
+
+				orgNames := []string{apps[0].Organization, apps[1].Organization}
+				Expect(orgNames).To(ContainElements(org, org))
+
+				statuses := []string{apps[0].Status, apps[1].Status}
+				Expect(statuses).To(ContainElements("1/1", "1/1"))
 			})
 
 			It("returns a 404 when the org does not exist", func() {
@@ -211,7 +257,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Describe("GET api/v1/orgs/:org/applications/:app", func() {
 			It("lists the application data", func() {
 				app := catalog.NewAppName()
-				env.MakeApp(app, 1, true)
+				env.MakeDockerImageApp(app, 1, dockerImageURL)
 				defer env.DeleteApp(app)
 
 				Expect(appStatus(org, app)).To(Equal("1/1"))
@@ -219,7 +265,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			It("returns a 404 when the org does not exist", func() {
 				app := catalog.NewAppName()
-				env.MakeApp(app, 1, true)
+				env.MakeDockerImageApp(app, 1, dockerImageURL)
 				defer env.DeleteApp(app)
 
 				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
@@ -247,7 +293,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Describe("DELETE api/v1/orgs/:org/applications/:app", func() {
 			It("removes the application, unbinds bound services", func() {
 				app1 := catalog.NewAppName()
-				env.MakeApp(app1, 1, true)
+				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				service := catalog.NewServiceName()
 				env.MakeCustomService(service)
 				env.BindAppService(app1, service, org)
@@ -271,7 +317,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			It("returns a 404 when the org does not exist", func() {
 				app1 := catalog.NewAppName()
-				env.MakeApp(app1, 1, true)
+				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				defer env.DeleteApp(app1)
 
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
@@ -362,12 +408,12 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 	})
 
-	Context("Staging", func() {
+	Context("Deploying", func() {
 		var (
 			url     string
 			body    string
 			appName string
-			request models.StageRequest
+			request models.DeployRequest
 		)
 
 		BeforeEach(func() {
@@ -378,171 +424,188 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			By("creating application resource first")
 			_, err := createApplication(appName, org)
 			Expect(err).ToNot(HaveOccurred())
-
-			// First upload to allow staging to succeed
-			uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
-			uploadPath := "../../../fixtures/sample-app.tar"
-			uploadRequest, err := uploadRequest(uploadURL, uploadPath)
-			Expect(err).ToNot(HaveOccurred())
-			resp, err := env.Client().Do(uploadRequest)
-			Expect(err).ToNot(HaveOccurred())
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
-			Expect(err).ToNot(HaveOccurred())
-			respObj := &models.UploadResponse{}
-			err = json.Unmarshal(bodyBytes, &respObj)
-			Expect(err).ToNot(HaveOccurred())
-
-			request = models.StageRequest{
-				App: models.AppRef{
-					Name: appName,
-					Org:  org,
-				},
-				Instances: &one,
-				Git: &models.GitRef{
-					Revision: respObj.Git.Revision,
-					URL:      respObj.Git.URL,
-				},
-				Route: appName + ".omg.howdoi.website",
-			}
-
-			url = serverURL + "/" + v1.Routes.Path("AppStage", org, appName)
 		})
 
-		JustBeforeEach(func() {
-			bodyBytes, err := json.Marshal(request)
-			Expect(err).ToNot(HaveOccurred())
-			body = string(bodyBytes)
+		AfterEach(func() {
+			env.DeleteApp(appName)
 		})
 
-		When("staging a new app", func() {
-			AfterEach(func() {
-				Eventually(func() string {
-					out, err := env.Epinio("app delete "+appName, "")
-					if err != nil {
-						return out
+		Context("with staging", func() {
+			When("deploying a new app", func() {
+				It("returns a success", func() {
+					// First upload to allow staging to succeed
+					uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
+					uploadPath := "../../../fixtures/sample-app.tar"
+					uploadRequest, err := uploadRequest(uploadURL, uploadPath)
+					Expect(err).ToNot(HaveOccurred())
+					resp, err := env.Client().Do(uploadRequest)
+					Expect(err).ToNot(HaveOccurred())
+					bodyBytes, err := ioutil.ReadAll(resp.Body)
+					Expect(err).ToNot(HaveOccurred())
+					respObj := &models.UploadResponse{}
+					err = json.Unmarshal(bodyBytes, &respObj)
+					Expect(err).ToNot(HaveOccurred())
+
+					By("creating staging resource first")
+					stageResponse := stageApplication(appName, org, respObj)
+
+					request = models.DeployRequest{
+						App: models.AppRef{
+							Name: appName,
+							Org:  org,
+						},
+						Instances: &one,
+						Stage: models.StageRef{
+							ID: stageResponse.Stage.ID,
+						},
+						Route: appName + ".omg.howdoi.website",
+						Git: &models.GitRef{
+							Revision: respObj.Git.Revision,
+							URL:      respObj.Git.URL,
+						},
+						ImageURL: stageResponse.ImageURL,
 					}
-					return ""
-				}, "5m").Should(BeEmpty())
-			})
 
-			It("returns a success", func() {
-				response, err := env.Curl("POST", url, strings.NewReader(body))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
+					bodyBytes, err = json.Marshal(request)
+					Expect(err).ToNot(HaveOccurred())
+					body = string(bodyBytes)
 
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+					url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)
+
+					response, err := env.Curl("POST", url, strings.NewReader(body))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
+					defer response.Body.Close()
+
+					bodyBytes, err = ioutil.ReadAll(response.Body)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+					Eventually(func() string {
+						return appStatus(org, appName)
+					}, "5m").Should(Equal("1/1"))
+				})
 			})
 		})
 
-		When("staging with more instances", func() {
+		Context("with non-staging using custom docker image", func() {
 			BeforeEach(func() {
-				request.Instances = &two
+				request = models.DeployRequest{
+					App: models.AppRef{
+						Name: appName,
+						Org:  org,
+					},
+					Instances: &one,
+					Route:     appName + ".omg.howdoi.website",
+					ImageURL:  "splatform/sample-app",
+				}
+
+				url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)
 			})
 
-			AfterEach(func() {
-				env.DeleteApp(appName)
-			})
-
-			It("creates an app with the specified number of instances", func() {
-				response, err := env.Curl("POST", url, strings.NewReader(body))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-
-				Eventually(func() string {
-					return appStatus(org, appName)
-				}, "5m").Should(Equal("2/2"))
-			})
-		})
-
-		When("staging with invalid instances", func() {
-			When("instances is not a integer", func() {
+			When("deploying a new app", func() {
 				BeforeEach(func() {
-					n := int32(314)
-					request.Instances = &n // Hack: see below too
+					bodyBytes, err := json.Marshal(request)
+					Expect(err).ToNot(HaveOccurred())
+					body = string(bodyBytes)
 				})
 
-				It("returns BadRequest", func() {
-					// Hack to make the Instances value non-integer
-					body = strings.Replace(body, "314", "3.14", 1)
-
-					resp, err := env.Curl("POST", url, strings.NewReader(body))
+				It("returns a success", func() {
+					response, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
-					Expect(resp).ToNot(BeNil())
-					defer resp.Body.Close()
+					Expect(response).ToNot(BeNil())
+					defer response.Body.Close()
 
-					bodyBytes, err := ioutil.ReadAll(resp.Body)
+					bodyBytes, err := ioutil.ReadAll(response.Body)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-					r := &v1.ErrorResponse{}
-					err = json.Unmarshal(bodyBytes, &r)
-					Expect(err).ToNot(HaveOccurred())
-
-					responseErr := r.Errors[0]
-					Expect(responseErr.Status).To(Equal(400))
-					Expect(responseErr.Title).To(Equal("Failed to construct an Application from the request"))
-					Expect(responseErr.Details).To(MatchRegexp(
-						"cannot unmarshal number 3.14 into Go struct field StageRequest.instances of type int",
-					))
+					Eventually(func() string {
+						return appStatus(org, appName)
+					}, "5m").Should(Equal("1/1"))
 				})
 			})
 
-			When("instances is a negative integer", func() {
+			When("deloying with more instances", func() {
 				BeforeEach(func() {
-					n := int32(-3)
-					request.Instances = &n
+					request.Instances = &two
+					bodyBytes, err := json.Marshal(request)
+					Expect(err).ToNot(HaveOccurred())
+					body = string(bodyBytes)
 				})
 
-				It("returns BadRequest", func() {
-					resp, err := env.Curl("POST", url, strings.NewReader(body))
+				It("creates an app with the specified number of instances", func() {
+					response, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
-					Expect(resp).ToNot(BeNil())
-					defer resp.Body.Close()
+					Expect(response).ToNot(BeNil())
+					defer response.Body.Close()
 
-					bodyBytes, err := ioutil.ReadAll(resp.Body)
-					Expect(err).ToNot(HaveOccurred())
-					Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-
-					r := &v1.ErrorResponse{}
-					err = json.Unmarshal(bodyBytes, &r)
-					Expect(err).ToNot(HaveOccurred())
-
-					responseErr := r.Errors[0]
-					Expect(responseErr.Status).To(Equal(400))
-					Expect(responseErr.Title).To(Equal("instances param should be integer equal or greater than zero"))
+					Eventually(func() string {
+						return appStatus(org, appName)
+					}, "5m").Should(Equal("2/2"))
 				})
 			})
 
-			When("instances is not a number", func() {
-				BeforeEach(func() {
-					n := int32(314)
-					request.Instances = &n // Hack: see below too
+			When("deploying with invalid instances", func() {
+				When("instances is a negative integer", func() {
+					BeforeEach(func() {
+						n := int32(-3)
+						request.Instances = &n
+						bodyBytes, err := json.Marshal(request)
+						Expect(err).ToNot(HaveOccurred())
+						body = string(bodyBytes)
+					})
+
+					It("returns BadRequest", func() {
+						resp, err := env.Curl("POST", url, strings.NewReader(body))
+						Expect(err).ToNot(HaveOccurred())
+						Expect(resp).ToNot(BeNil())
+						defer resp.Body.Close()
+
+						bodyBytes, err := ioutil.ReadAll(resp.Body)
+						Expect(err).ToNot(HaveOccurred())
+						Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+						r := &v1.ErrorResponse{}
+						err = json.Unmarshal(bodyBytes, &r)
+						Expect(err).ToNot(HaveOccurred())
+
+						responseErr := r.Errors[0]
+						Expect(responseErr.Status).To(Equal(400))
+						Expect(responseErr.Title).To(Equal("instances param should be integer equal or greater than zero"))
+					})
 				})
 
-				It("returns BadRequest", func() {
-					// Hack to make the Instances value non-number
-					body = strings.Replace(body, "314", "thisisnotanumber", 1)
+				When("instances is not a number", func() {
+					BeforeEach(func() {
+						n := int32(314)
+						request.Instances = &n // Hack: see below too
+						bodyBytes, err := json.Marshal(request)
+						Expect(err).ToNot(HaveOccurred())
+						body = string(bodyBytes)
+					})
 
-					resp, err := env.Curl("POST", url, strings.NewReader(body))
-					Expect(err).ToNot(HaveOccurred())
-					Expect(resp).ToNot(BeNil())
-					defer resp.Body.Close()
+					It("returns BadRequest", func() {
+						// Hack to make the Instances value non-number
+						body = strings.Replace(body, "314", "thisisnotanumber", 1)
 
-					bodyBytes, err := ioutil.ReadAll(resp.Body)
-					Expect(err).ToNot(HaveOccurred())
-					Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+						resp, err := env.Curl("POST", url, strings.NewReader(body))
+						Expect(err).ToNot(HaveOccurred())
+						Expect(resp).ToNot(BeNil())
+						defer resp.Body.Close()
 
-					r := &v1.ErrorResponse{}
-					err = json.Unmarshal(bodyBytes, &r)
-					Expect(err).ToNot(HaveOccurred())
+						bodyBytes, err := ioutil.ReadAll(resp.Body)
+						Expect(err).ToNot(HaveOccurred())
+						Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 
-					responseErr := r.Errors[0]
-					Expect(responseErr.Status).To(Equal(400))
-					Expect(responseErr.Title).To(Equal("Failed to construct an Application from the request"))
+						r := &v1.ErrorResponse{}
+						err = json.Unmarshal(bodyBytes, &r)
+						Expect(err).ToNot(HaveOccurred())
+
+						responseErr := r.Errors[0]
+						Expect(responseErr.Status).To(Equal(400))
+						Expect(responseErr.Title).To(ContainSubstring("Failed to unmarshal deploy request"))
+					})
 				})
 			})
 		})

@@ -1,13 +1,10 @@
 package v1
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
@@ -18,7 +15,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -31,19 +27,16 @@ import (
 )
 
 const (
-	DefaultInstances = int32(1)
-	LocalRegistry    = "127.0.0.1:30500/apps"
+	LocalRegistry = "127.0.0.1:30500/apps"
 )
 
 type stageParam struct {
 	models.AppRef
-	Image       models.ImageRef
 	Git         *models.GitRef
-	Route       string
 	Stage       models.StageRef
-	Instances   int32
 	Owner       metav1.OwnerReference
 	Environment models.EnvVariableList
+	RegistryURL string
 }
 
 // GitURL returns the git URL by combining the server with the org and name
@@ -52,13 +45,12 @@ func (app *stageParam) GitURL(server string) string {
 }
 
 // ImageURL returns the URL of the image, using the ImageID. The ImageURL is
-// later used in app.yml.  Since the final commit is not known when the app.yml
-// is written, we cannot use Repo.Revision
-func (app *stageParam) ImageURL(server string) string {
-	return fmt.Sprintf("%s/%s-%s", server, app.Name, app.Git.Revision)
+// later used in app.yml and to send in the stage response.
+func (app *stageParam) ImageURL(registryURL string) string {
+	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
 }
 
-// Stage will create a Tekton PipelineRun resource to stage and start the app
+// Stage will create a Tekton PipelineRun resource to stage the app
 func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
@@ -83,10 +75,6 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	if org != req.App.Org {
 		return NewBadRequest("org parameter from URL does not match org param in body")
-	}
-
-	if req.Instances != nil && *req.Instances < 0 {
-		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -130,19 +118,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
-	// find out the instances
-	var instances int32
-	if req.Instances != nil {
-		instances = int32(*req.Instances)
-	} else {
-		instances, err = existingReplica(ctx, cluster.Kubectl, req.App)
-		if err != nil {
-			return InternalError(err)
-		}
-	}
-
-	// determine runtime environment, if any
-	env, err := application.Environment(ctx, cluster, req.App)
+	environment, err := application.Environment(ctx, cluster, req.App)
 	if err != nil {
 		return InternalError(err, "failed to access application runtime environment")
 	}
@@ -153,28 +129,20 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Name:       app.GetName(),
 		UID:        app.GetUID(),
 	}
-	params := stageParam{
-		AppRef:      req.App,
-		Git:         req.Git,
-		Route:       req.Route,
-		Instances:   instances,
-		Owner:       owner,
-		Environment: env,
-	}
 
 	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
-	var deploymentImageURL string
-	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
-	if viper.GetBool("use-internal-registry-node-port") {
-		deploymentImageURL = LocalRegistry
-	} else {
-		deploymentImageURL = registryURL
+	params := stageParam{
+		AppRef:      req.App,
+		Git:         req.Git,
+		Owner:       owner,
+		Environment: environment,
+		RegistryURL: fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
 	}
 
-	pr := newPipelineRun(uid, params, mainDomain, registryURL, deploymentImageURL)
+	pr := newPipelineRun(uid, params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
@@ -195,8 +163,16 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
-
-	resp := models.StageResponse{Stage: models.NewStage(uid)}
+	// The ImageURL in the response should be the one accessible by kubernetes.
+	// In stageParam above, the registry is passed with the registry ingress url,
+	// since it's where tekton will push.
+	if viper.GetBool("use-internal-registry-node-port") {
+		params.RegistryURL = LocalRegistry
+	}
+	resp := models.StageResponse{
+		Stage:    models.NewStage(uid),
+		ImageURL: params.ImageURL(params.RegistryURL),
+	}
 	err = jsonResponse(w, resp)
 	if err != nil {
 		return InternalError(err)
@@ -205,33 +181,8 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
-func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppRef) (int32, error) {
-	// if a deployment exists, use that deployment's replica count
-	result, err := client.AppsV1().Deployments(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return DefaultInstances, nil
-		}
-		return 0, err
-	}
-	return *result.Spec.Replicas, nil
-}
-
-func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploymentImageURL string) *v1beta1.PipelineRun {
+func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
-
-	stagingVariables := []string{}
-
-	assignments := []string{
-		fmt.Sprintf(`{ "name": "%s", "value": "%s"}`, `PORT`, `8080`),
-	}
-	for _, ev := range app.Environment {
-		assignments = append(assignments,
-			fmt.Sprintf(`{ "name": "%s", "valueFrom": { "secretKeyRef": {"key":"%s","name":"%s"}}}`,
-				ev.Name, ev.Name, application.EnvSecret(app.AppRef)))
-		stagingVariables = append(stagingVariables, fmt.Sprintf("%s=%s", ev.Name, ev.Value))
-	}
-	environment := `[` + strings.Join(assignments, ",") + `]`
 
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
@@ -250,19 +201,11 @@ func newPipelineRun(uid string, app stageParam, mainDomain, registryURL, deploym
 			Params: []v1beta1.Param{
 				{Name: "APP_NAME", Value: *str(app.Name)},
 				{Name: "ORG", Value: *str(app.Org)},
-				{Name: "ROUTE", Value: *str(app.Route)},
-				{Name: "INSTANCES", Value: *str(strconv.Itoa(int(app.Instances)))},
-				{Name: "APP_IMAGE", Value: *str(app.ImageURL(registryURL))},
-				{Name: "DEPLOYMENT_IMAGE", Value: *str(app.ImageURL(deploymentImageURL))},
+				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
 				{Name: "STAGE_ID", Value: *str(uid)},
-				{Name: "OWNER_APIVERSION", Value: *str(app.Owner.APIVersion)},
-				{Name: "OWNER_NAME", Value: *str(app.Owner.Name)},
-				{Name: "OWNER_KIND", Value: *str(app.Owner.Kind)},
-				{Name: "OWNER_UID", Value: *str(string(app.Owner.UID))},
-				{Name: "ENVIRONMENT", Value: *str(environment)},
 				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
 					Type:     v1beta1.ParamTypeArray,
-					ArrayVal: stagingVariables},
+					ArrayVal: app.Environment.StagingEnvArray()},
 				},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{

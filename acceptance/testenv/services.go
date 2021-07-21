@@ -1,14 +1,16 @@
 package testenv
 
 import (
+	"fmt"
+
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/helpers"
 
 	. "github.com/onsi/gomega"
 )
 
-func SetupInClusterServices() {
-	out, err := proc.Run(Root()+"/dist/epinio-linux-amd64 enable services-incluster", "", false)
+func SetupInClusterServices(epinioBinary string) {
+	out, err := proc.Run(fmt.Sprintf("%s%s enable services-incluster", Root(), epinioBinary), "", false)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(ContainSubstring("Beware, "))
 

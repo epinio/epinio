@@ -53,6 +53,8 @@ type EpinioClient struct {
 type PushParams struct {
 	Instances *int32
 	Services  []string
+	Docker    string
+	GitRev    string
 }
 
 func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
@@ -863,7 +865,7 @@ func (c *EpinioClient) Apps() error {
 		msg = msg.WithTableRow(
 			app.Name,
 			app.Status,
-			strings.Join(app.Routes, ", "),
+			app.Route,
 			strings.Join(app.BoundServices, ", "))
 	}
 
@@ -899,7 +901,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 		WithTable("Key", "Value").
 		WithTableRow("Status", app.Status).
 		WithTableRow("StageId", app.StageID).
-		WithTableRow("Routes", strings.Join(app.Routes, ", ")).
+		WithTableRow("Routes", app.Route).
 		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).
 		WithTableRow("Environment", `See it by running the command "epinio app env list `+appName+`"`).
 		Msg("Details:")
@@ -1259,8 +1261,9 @@ func (c *EpinioClient) Orgs() error {
 // * stage
 // * (tail logs)
 // * wait for pipelinerun
+// * deploy
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, params PushParams) error {
+func (c *EpinioClient) Push(ctx context.Context, name, source string, params PushParams) error {
 	appRef := models.AppRef{Name: name, Org: c.Config.Org}
 	log := c.Log.
 		WithName("Push").
@@ -1272,8 +1275,8 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
 	sourceToShow := source
-	if rev != "" {
-		sourceToShow = fmt.Sprintf("%s @ %s", sourceToShow, rev)
+	if params.GitRev != "" {
+		sourceToShow = fmt.Sprintf("%s @ %s", sourceToShow, params.GitRev)
 	}
 
 	msg := c.ui.Note().
@@ -1300,6 +1303,11 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
+	route, err := appDefaultRoute(ctx, appRef.Name)
+	if err != nil {
+		return errors.Wrap(err, "unable to determine default app route")
+	}
+
 	c.ui.Normal().Msg("Create the application resource ...")
 
 	request := models.ApplicationCreateRequest{Name: appRef.Name}
@@ -1309,7 +1317,7 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	}
 	_, err = c.curlWithCustomErrorHandling(
 		api.Routes.Path("AppCreate", appRef.Org), "POST", string(js), func(
-			response *http.Response, bodyBytes []byte, err error) error {
+			response *http.Response, _ []byte, err error) error {
 			if response.StatusCode == http.StatusConflict {
 				c.ui.Normal().Msg("Application exists, updating ...")
 				return nil
@@ -1322,8 +1330,7 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 	}
 
 	var gitRef *models.GitRef
-
-	if rev == "" {
+	if params.GitRev == "" && params.Docker == "" {
 		c.ui.Normal().Msg("Collecting the application sources ...")
 
 		tmpDir, tarball, err := collectSources(log, source)
@@ -1346,59 +1353,60 @@ func (c *EpinioClient) Push(ctx context.Context, name, rev, source string, param
 		log.V(3).Info("upload response", "response", upload)
 
 		gitRef = upload.Git
-	} else {
+	} else if params.GitRev != "" {
 		gitRef = &models.GitRef{
 			URL:      source,
-			Revision: rev,
+			Revision: params.GitRev,
 		}
 	}
 
-	c.ui.Normal().Msg("Staging application ...")
+	stageID := ""
+	var stageResponse *models.StageResponse
+	if params.Docker == "" {
+		c.ui.Normal().Msg("Staging application ...")
+		req := models.StageRequest{
+			App:   appRef,
+			Git:   gitRef,
+			Route: route,
+		}
+		details.Info("staging code", "Git", gitRef.Revision)
+		stageResponse, err = c.stageCode(req)
+		if err != nil {
+			return err
+		}
+		stageID = stageResponse.Stage.ID
+		log.V(3).Info("stage response", "response", stageResponse)
 
-	route, err := appDefaultRoute(ctx, appRef.Name)
-	if err != nil {
-		return errors.Wrap(err, "unable to determine default app route")
+		details.Info("start tailing logs", "StageID", stageResponse.Stage.ID)
+		err = c.stageLogs(ctx, details, appRef, stageResponse.Stage.ID)
+		if err != nil {
+			return err
+		}
 	}
-	req := models.StageRequest{
+
+	c.ui.Normal().Msg("Deploying application ...")
+	deployRequest := models.DeployRequest{
 		App:       appRef,
 		Instances: params.Instances,
-		Git:       gitRef,
 		Route:     route,
+		Git:       gitRef,
 	}
-	details.Info("staging code", "Git", gitRef.Revision)
-	stage, err := c.stageCode(req)
+	// If docker param is specified, then we just take it into ImageURL
+	// If not, we take the one from the staging response
+	if params.Docker != "" {
+		deployRequest.ImageURL = params.Docker
+	} else {
+		deployRequest.ImageURL = stageResponse.ImageURL
+		deployRequest.Stage = models.StageRef{ID: stageID}
+	}
+
+	_, err = c.deployCode(deployRequest)
 	if err != nil {
 		return err
 	}
-	log.V(3).Info("stage response", "response", stage)
 
-	details.Info("start tailing logs", "StageID", stage.Stage.ID)
-
-	// Buffered because the go routine may no longer be listening when we try
-	// to stop it. Stopping it should be a fire and forget. We have wg to wait
-	// for the routine to be gone.
-	stopChan := make(chan bool, 1)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
-	go func() {
-		defer wg.Done()
-		err := c.AppLogs(appRef.Name, stage.Stage.ID, true, stopChan)
-		if err != nil {
-			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
-		}
-	}()
-
-	details.Info("wait for pipelinerun", "StageID", stage.Stage.ID)
-	err = c.waitForPipelineRun(ctx, appRef, stage.Stage.ID)
-	if err != nil {
-		stopChan <- true // Stop the printing go routine
-		return errors.Wrap(err, "waiting for staging failed")
-	}
-	stopChan <- true // Stop the printing go routine
-
-	details.Info("wait for app", "StageID", stage.Stage.ID)
-	err = c.waitForApp(ctx, appRef, stage.Stage.ID)
+	details.Info("wait for application resources")
+	err = c.waitForApp(ctx, appRef)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}

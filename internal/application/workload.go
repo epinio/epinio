@@ -41,7 +41,7 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 			return err
 		}
 
-		evSecretName := EnvSecret(a.app)
+		evSecretName := a.app.EnvSecret()
 
 		// 1. Remove all the old EVs referencing the app's EV secret.
 		// 2. Add entries for the new set of EV's (S.a varNames).
@@ -307,9 +307,11 @@ func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 		app.Active = true
 	}
 
-	app.Routes, err = a.cluster.ListIngressRoutes(ctx, app.Organization, app.Name)
+	routes, err := a.cluster.ListIngressRoutes(ctx, app.Organization, app.Name)
 	if err != nil {
-		app.Routes = []string{err.Error()}
+		app.Route = err.Error()
+	} else {
+		app.Route = routes[0]
 	}
 
 	app.BoundServices = []string{}

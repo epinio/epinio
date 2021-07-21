@@ -12,7 +12,7 @@ type App struct {
 	Name          string   `json:"name,omitempty"`
 	Organization  string   `json:"organization,omitempty"`
 	Status        string   `json:"status,omitempty"`
-	Routes        []string `json:"routes,omitempty"`
+	Route         string   `json:"routes,omitempty"`
 	BoundServices []string `json:"bound_services,omitempty"`
 }
 
@@ -56,6 +56,10 @@ func NewAppRef(name string, org string) AppRef {
 // App returns an fresh app model for the reference
 func (ar *AppRef) App() *App {
 	return NewApp(ar.Name, ar.Org)
+}
+
+func (ar *AppRef) EnvSecret() string {
+	return ar.Name + "-env"
 }
 
 // StageRef references a tekton staging run by ID, currently randomly generated

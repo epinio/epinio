@@ -25,6 +25,7 @@ var _ = Describe("Apps", func() {
 		org     string
 		appName string
 	)
+	dockerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -239,7 +240,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("removes the app's ingress when deleting an app", func() {
-			env.MakeApp(appName, 1, false)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 
 			By("deleting the app")
 			env.DeleteApp(appName)
@@ -260,7 +261,7 @@ var _ = Describe("Apps", func() {
 		It("should not fail for a max-length application name", func() {
 			appNameLong := "app123456789012345678901234567890123456789012345678901234567890"
 			// 3+60 characters
-			env.MakeApp(appNameLong, 1, false)
+			env.MakeDockerImageApp(appNameLong, 1, dockerImageURL)
 
 			By("deleting the app")
 			env.DeleteApp(appNameLong)
@@ -268,7 +269,7 @@ var _ = Describe("Apps", func() {
 
 		It("respects the desired number of instances", func() {
 			app := catalog.NewAppName()
-			env.MakeApp(app, 3, true)
+			env.MakeDockerImageApp(app, 3, dockerImageURL)
 			defer env.DeleteApp(app)
 
 			Eventually(func() string {
@@ -313,7 +314,7 @@ var _ = Describe("Apps", func() {
 		It("unbinds bound services when deleting an app", func() {
 			serviceName := catalog.NewServiceName()
 
-			env.MakeApp(appName, 1, true)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 			env.MakeCustomService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 
@@ -335,7 +336,7 @@ var _ = Describe("Apps", func() {
 
 	Describe("update", func() {
 		It("respects the desired number of instances", func() {
-			env.MakeApp(appName, 1, true)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 
 			Eventually(func() string {
 				out, err := env.Epinio("app show "+appName, "")
@@ -364,7 +365,7 @@ var _ = Describe("Apps", func() {
 		var serviceCustomName string
 		BeforeEach(func() {
 			serviceCustomName = catalog.NewServiceName()
-			env.MakeApp(appName, 1, true)
+			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 			env.MakeCustomService(serviceCustomName)
 			env.BindAppService(appName, serviceCustomName, org)
 		})

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -49,7 +50,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	testenv.CreateRegistrySecret()
 
-	err := testenv.EnsureEpinio()
+	epinioBinary := fmt.Sprintf("/dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
+	err := testenv.EnsureEpinio(epinioBinary)
 	Expect(err).ToNot(HaveOccurred(), "installing epinio")
 
 	out, err := testenv.PatchEpinio()
@@ -63,21 +65,21 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Eventually is used to retry in case the rollout of the patched deployment
 	// is not completely done yet.
 	fmt.Println("Ensure default workspace exists")
-	testenv.EnsureDefaultWorkspace()
+	testenv.EnsureDefaultWorkspace(epinioBinary)
 
 	fmt.Println("Setup cluster services")
-	testenv.SetupInClusterServices()
+	testenv.SetupInClusterServices(epinioBinary)
 
 	out, err = helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(`minibroker.*2/2.*Running`))
 
 	fmt.Println("Setup google")
-	err = testenv.SetupGoogleServices()
+	err = testenv.SetupGoogleServices(epinioBinary)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	fmt.Println("SynchronizedBeforeSuite is done, checking Epinio info endpoint")
-	testenv.ExpectGoodInstallation()
+	testenv.ExpectGoodInstallation(epinioBinary)
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {

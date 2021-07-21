@@ -1,6 +1,7 @@
 package testenv
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func SetupGoogleServices() error {
+func SetupGoogleServices(epinioBinary string) error {
 	serviceAccountJSON, err := helpers.CreateTmpFile(`
 				{
 					"type": "service_account",
@@ -30,7 +31,7 @@ func SetupGoogleServices() error {
 
 	defer os.Remove(serviceAccountJSON)
 
-	out, err := proc.Run(Root()+"/dist/epinio-linux-amd64 enable services-google --service-account-json "+serviceAccountJSON, "", false)
+	out, err := proc.Run(fmt.Sprintf("%s%s enable services-google --service-account-json %s", Root(), epinioBinary, serviceAccountJSON), "", false)
 	if err != nil {
 		return errors.Wrap(err, out)
 	}
