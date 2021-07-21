@@ -39,10 +39,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-const (
-	LocalRegistry = "127.0.0.1:30500/apps"
-)
-
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {

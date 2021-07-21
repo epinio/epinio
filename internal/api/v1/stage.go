@@ -44,8 +44,7 @@ func (app *stageParam) GitURL(server string) string {
 }
 
 // ImageURL returns the URL of the image, using the ImageID. The ImageURL is
-// later used in app.yml.  Since the final commit is not known when the app.yml
-// is written, we cannot use Repo.Revision
+// later used in app.yml and to send in the stage response.
 func (app *stageParam) ImageURL(registryURL string) string {
 	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
 }
@@ -157,7 +156,9 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
-
+	// The ImageURL in the response should be the one accessible by kubernetes.
+	// In stageParam above, the registry is passed with the registry ingress url,
+	// since it's where tekton will push.
 	if viper.GetBool("use-internal-registry-node-port") {
 		params.RegistryURL = LocalRegistry
 	}
