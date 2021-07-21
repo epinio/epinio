@@ -463,6 +463,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 							Revision: respObj.Git.Revision,
 							URL:      respObj.Git.URL,
 						},
+						ImageURL: stageResponse.ImageURL,
 					}
 
 					bodyBytes, err = json.Marshal(request)
@@ -494,9 +495,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						Name: appName,
 						Org:  org,
 					},
-					Instances:      &one,
-					Route:          appName + ".omg.howdoi.website",
-					CustomImageURL: "splatform/sample-app",
+					Instances: &one,
+					Route:     appName + ".omg.howdoi.website",
+					ImageURL:  "splatform/sample-app",
 				}
 
 				url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)

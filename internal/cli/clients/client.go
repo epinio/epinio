@@ -39,6 +39,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
+const (
+	LocalRegistry = "127.0.0.1:30500/apps"
+)
+
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
@@ -1317,7 +1321,7 @@ func (c *EpinioClient) Push(ctx context.Context, name, source string, params Pus
 	}
 	_, err = c.curlWithCustomErrorHandling(
 		api.Routes.Path("AppCreate", appRef.Org), "POST", string(js), func(
-			response *http.Response, bodyBytes []byte, err error) error {
+			response *http.Response, _ []byte, err error) error {
 			if response.StatusCode == http.StatusConflict {
 				c.ui.Normal().Msg("Application exists, updating ...")
 				return nil
@@ -1361,6 +1365,7 @@ func (c *EpinioClient) Push(ctx context.Context, name, source string, params Pus
 	}
 
 	stageID := ""
+	var stageResponse *models.StageResponse
 	if params.Docker == "" {
 		c.ui.Normal().Msg("Staging application ...")
 		req := models.StageRequest{
@@ -1369,15 +1374,15 @@ func (c *EpinioClient) Push(ctx context.Context, name, source string, params Pus
 			Route: route,
 		}
 		details.Info("staging code", "Git", gitRef.Revision)
-		stage, err := c.stageCode(req)
+		stageResponse, err = c.stageCode(req)
 		if err != nil {
 			return err
 		}
-		stageID = stage.Stage.ID
-		log.V(3).Info("stage response", "response", stage)
+		stageID = stageResponse.Stage.ID
+		log.V(3).Info("stage response", "response", stageResponse)
 
-		details.Info("start tailing logs", "StageID", stage.Stage.ID)
-		err = c.stageLogs(ctx, details, appRef, stage.Stage.ID)
+		details.Info("start tailing logs", "StageID", stageResponse.Stage.ID)
+		err = c.stageLogs(ctx, details, appRef, stageResponse.Stage.ID)
 		if err != nil {
 			return err
 		}
@@ -1385,15 +1390,20 @@ func (c *EpinioClient) Push(ctx context.Context, name, source string, params Pus
 
 	c.ui.Normal().Msg("Deploying application ...")
 	deployRequest := models.DeployRequest{
-		App:            appRef,
-		Instances:      params.Instances,
-		Route:          route,
-		Git:            gitRef,
-		CustomImageURL: params.Docker,
+		App:       appRef,
+		Instances: params.Instances,
+		Route:     route,
+		Git:       gitRef,
 	}
-	if stageID != "" {
+	// If docker param is specified, then we just take it into ImageURL
+	// If not, we take the one from the staging response
+	if params.Docker != "" {
+		deployRequest.ImageURL = params.Docker
+	} else {
+		deployRequest.ImageURL = stageResponse.ImageURL
 		deployRequest.Stage = models.StageRef{ID: stageID}
 	}
+
 	_, err = c.deployCode(deployRequest)
 	if err != nil {
 		return err

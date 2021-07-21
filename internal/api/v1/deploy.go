@@ -10,7 +10,6 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/julienschmidt/httprouter"
-	"github.com/spf13/viper"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -19,7 +18,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	k8s "k8s.io/client-go/kubernetes"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
@@ -27,35 +25,18 @@ import (
 
 const (
 	DefaultInstances = int32(1)
-	LocalRegistry    = "127.0.0.1:30500/apps"
 )
 
 type deployParam struct {
 	models.AppRef
-	Git            *models.GitRef
-	Route          string
-	CustomImageURL string
-	Instances      int32
-	Domain         string
-	Stage          models.StageRef
-	Owner          metav1.OwnerReference
-	Environment    models.EnvVariableList
-}
-
-// ImageURL returns the URL of the image, using the ImageID. The ImageURL is
-// later used in app.yml. It checks if node-port registry url or ingress registry
-// should be used based on a viper flag
-func (param *deployParam) ImageURL() string {
-	if param.CustomImageURL != "" {
-		return param.CustomImageURL
-	}
-	var server string
-	if viper.GetBool("use-internal-registry-node-port") {
-		server = LocalRegistry
-	} else {
-		server = fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, param.Domain, "apps")
-	}
-	return fmt.Sprintf("%s/%s-%s", server, param.Name, param.Git.Revision)
+	Git         *models.GitRef
+	Route       string
+	ImageURL    string
+	Instances   int32
+	Domain      string
+	Stage       models.StageRef
+	Owner       metav1.OwnerReference
+	Environment models.EnvVariableList
 }
 
 // Deploy will create the deployment, service and ingress for the app
@@ -132,14 +113,14 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 	}
 
 	deployParams := deployParam{
-		AppRef:         req.App,
-		Git:            req.Git,
-		Route:          req.Route,
-		Owner:          owner,
-		Environment:    environment,
-		Instances:      instances,
-		Domain:         mainDomain,
-		CustomImageURL: req.CustomImageURL,
+		AppRef:      req.App,
+		Git:         req.Git,
+		Route:       req.Route,
+		Owner:       owner,
+		Environment: environment,
+		Instances:   instances,
+		Domain:      mainDomain,
+		ImageURL:    req.ImageURL,
 	}
 
 	log.Info("deploying app", "org", org, "app", req.App)
@@ -241,7 +222,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 					Containers: []v1.Container{
 						{
 							Name:  deployParams.Name,
-							Image: deployParams.ImageURL(),
+							Image: deployParams.ImageURL,
 							Ports: []v1.ContainerPort{
 								{
 									ContainerPort: 8080,

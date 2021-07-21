@@ -26,11 +26,16 @@ import (
 	"github.com/epinio/epinio/internal/domain"
 )
 
+const (
+	LocalRegistry = "127.0.0.1:30500/apps"
+)
+
 type stageParam struct {
 	models.AppRef
-	Git   *models.GitRef
-	Stage models.StageRef
-	Owner metav1.OwnerReference
+	Git         *models.GitRef
+	Stage       models.StageRef
+	Owner       metav1.OwnerReference
+	RegistryURL string
 }
 
 // GitURL returns the git URL by combining the server with the org and name
@@ -41,8 +46,8 @@ func (app *stageParam) GitURL(server string) string {
 // ImageURL returns the URL of the image, using the ImageID. The ImageURL is
 // later used in app.yml.  Since the final commit is not known when the app.yml
 // is written, we cannot use Repo.Revision
-func (app *stageParam) ImageURL(server string) string {
-	return fmt.Sprintf("%s/%s-%s", server, app.Name, app.Git.Revision)
+func (app *stageParam) ImageURL(registryURL string) string {
+	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
 }
 
 // Stage will create a Tekton PipelineRun resource to stage the app
@@ -119,19 +124,19 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Name:       app.GetName(),
 		UID:        app.GetUID(),
 	}
-	params := stageParam{
-		AppRef: req.App,
-		Git:    req.Git,
-		Owner:  owner,
-	}
 
 	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
-	registryURL := fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps")
+	params := stageParam{
+		AppRef:      req.App,
+		Git:         req.Git,
+		Owner:       owner,
+		RegistryURL: fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
+	}
 
-	pr := newPipelineRun(uid, params, registryURL)
+	pr := newPipelineRun(uid, params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
@@ -153,7 +158,13 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
 
-	resp := models.StageResponse{Stage: models.NewStage(uid)}
+	if viper.GetBool("use-internal-registry-node-port") {
+		params.RegistryURL = LocalRegistry
+	}
+	resp := models.StageResponse{
+		Stage:    models.NewStage(uid),
+		ImageURL: params.ImageURL(params.RegistryURL),
+	}
 	err = jsonResponse(w, resp)
 	if err != nil {
 		return InternalError(err)
@@ -162,7 +173,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
-func newPipelineRun(uid string, app stageParam, registryURL string) *v1beta1.PipelineRun {
+func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
 
 	return &v1beta1.PipelineRun{
@@ -182,7 +193,7 @@ func newPipelineRun(uid string, app stageParam, registryURL string) *v1beta1.Pip
 			Params: []v1beta1.Param{
 				{Name: "APP_NAME", Value: *str(app.Name)},
 				{Name: "ORG", Value: *str(app.Org)},
-				{Name: "APP_IMAGE", Value: *str(app.ImageURL(registryURL))},
+				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
 				{Name: "STAGE_ID", Value: *str(uid)},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
