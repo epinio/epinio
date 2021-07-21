@@ -35,6 +35,7 @@ type stageParam struct {
 	Git         *models.GitRef
 	Stage       models.StageRef
 	Owner       metav1.OwnerReference
+	Environment models.EnvVariableList
 	RegistryURL string
 }
 
@@ -117,6 +118,11 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		}
 	}
 
+	environment, err := application.Environment(ctx, cluster, req.App)
+	if err != nil {
+		return InternalError(err, "failed to access application runtime environment")
+	}
+
 	owner := metav1.OwnerReference{
 		APIVersion: app.GetAPIVersion(),
 		Kind:       app.GetKind(),
@@ -132,6 +138,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		AppRef:      req.App,
 		Git:         req.Git,
 		Owner:       owner,
+		Environment: environment,
 		RegistryURL: fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
 	}
 
@@ -196,6 +203,10 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 				{Name: "ORG", Value: *str(app.Org)},
 				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
 				{Name: "STAGE_ID", Value: *str(uid)},
+				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
+					Type:     v1beta1.ParamTypeArray,
+					ArrayVal: app.Environment.StagingEnvArray()},
+				},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{

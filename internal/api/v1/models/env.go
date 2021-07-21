@@ -1,6 +1,8 @@
 package models
 
 import (
+	"fmt"
+
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -56,4 +58,14 @@ func (evl EnvVariableList) ToEnvVarArray(appRef AppRef) []v1.EnvVar {
 	}
 
 	return deploymentEnvironment
+}
+
+func (evl EnvVariableList) StagingEnvArray() []string {
+	stagingVariables := []string{}
+
+	for _, ev := range evl {
+		stagingVariables = append(stagingVariables, fmt.Sprintf("%s=%s", ev.Name, ev.Value))
+	}
+
+	return stagingVariables
 }
