@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
@@ -121,7 +122,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 	waitForPipeline := func(stageID string) {
 		Eventually(func() string {
-			out, err := helpers.Kubectl(fmt.Sprintf("-n tekton-staging get pipelinerun %s  -o jsonpath='{.status.conditions[0].status}'", stageID))
+			out, err := helpers.Kubectl(fmt.Sprintf("-n %s get pipelinerun %s  -o jsonpath='{.status.conditions[0].status}'", deployments.TektonStagingNamespace, stageID))
 			Expect(err).NotTo(HaveOccurred())
 			return out
 		}, "5m").Should(Equal("True"))
