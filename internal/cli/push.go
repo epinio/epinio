@@ -98,7 +98,7 @@ var CmdPush = &cobra.Command{
 
 		dockerImageURL, err := cmd.Flags().GetString("docker-image-url")
 		if err != nil {
-			return errors.Wrap(err, "could not read option --docker")
+			return errors.Wrap(err, "could not read option --docker-image-url")
 		}
 
 		if gitRevision != "" && dockerImageURL != "" {
