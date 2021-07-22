@@ -12,9 +12,10 @@ if [ -z "$GITHUB_RUNNER_TOKEN" ]; then
 fi
 
 # Install needed packages
-if $(cat /etc/os-release | grep SLES); then
-  sudo zypper --gpg-auto-import-keys ref && sudo zypper --non-interactive in -y make gcc docker git-core libicu screen wget
-else $(cat /etc/os-release | grep openSUSE); then
+if [ $(cat /etc/os-release | grep SLES) ]; then
+  echo -e "\x1B[31m In order to install tmux, you need to register with SUSE Package Hub"
+  sudo zypper --gpg-auto-import-keys ref && sudo zypper --non-interactive in -y make gcc docker git-core libicu tmux wget
+else
   sudo zypper --gpg-auto-import-keys ref && sudo zypper --non-interactive in -y make gcc docker git libicu tmux wget
 fi
 
@@ -41,8 +42,4 @@ sed -i 's/Runner.Listener configure/Runner.Listener configure --unattended/' con
 
 echo "Your worker will be ready to be used after you re-login (to be able to call 'docker' as non root)"
 echo "After login run:"
-if $(cat /etc/os-release | grep SLES); then
-  echo "screen -d -m bash -c 'cd actions-runner && ./run.sh'"
-else $(cat /etc/os-release | grep openSUSE); then
-  echo "tmux new-session -d -s runner 'cd actions-runner && ./run.sh'"
-fi
+echo "tmux new-session -d -s runner 'cd actions-runner && ./run.sh'"
