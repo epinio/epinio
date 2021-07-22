@@ -145,6 +145,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
+		&deployments.Dex{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment()},
@@ -226,6 +227,7 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
+		&deployments.Dex{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 	} {
 		wg.Add(1)
