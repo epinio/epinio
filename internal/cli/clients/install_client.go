@@ -13,7 +13,6 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
-	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -29,7 +28,6 @@ type InstallClient struct {
 	kubeClient *kubernetes.Cluster
 	options    *kubernetes.InstallationOptions
 	ui         *termui.UI
-	config     *config.Config
 	Log        logr.Logger
 }
 
@@ -39,15 +37,11 @@ func NewInstallClient(ctx context.Context, options *kubernetes.InstallationOptio
 		return nil, nil, err
 	}
 	uiUI := termui.NewUI()
-	configConfig, err := config.Load()
-	if err != nil {
-		return nil, nil, err
-	}
+
 	logger := tracelog.NewInstallClientLogger()
 	installClient := &InstallClient{
 		kubeClient: cluster,
 		ui:         uiUI,
-		config:     configConfig,
 		Log:        logger,
 		options:    options,
 	}
@@ -156,10 +150,20 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		return err
 	}
 
+	apiUser, err := c.options.GetString("user", "")
+	if err != nil {
+		return err
+	}
+
+	apiPassword, err := c.options.GetString("password", "")
+	if err != nil {
+		return err
+	}
+
 	c.ui.Success().
 		WithStringValue("System domain", domain.Value.(string)).
-		WithStringValue("API User", c.config.User).
-		WithStringValue("API Password", c.config.Password).
+		WithStringValue("API User", apiUser).
+		WithStringValue("API Password", apiPassword).
 		WithStringValue("Traefik Ingress info", traefikServiceIngressInfo).
 		Msg("Epinio installed.")
 
