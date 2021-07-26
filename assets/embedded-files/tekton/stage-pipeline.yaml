@@ -14,6 +14,8 @@ spec:
     - name: APP_NAME
       type: string
       description: "The application name (used as label or name in various resources)"
+    - name: BUILDER_IMAGE
+      description: The image on which builds will run (must include lifecycle and compatible buildpacks).
     - name: ORG
       type: string
       description: "The application organization (used as the namespace where the app runs)"
@@ -45,7 +47,7 @@ spec:
     - clone
     params:
     - name: BUILDER_IMAGE
-      value: paketobuildpacks/builder:full
+      value: "$(params.BUILDER_IMAGE)"
     - name: SOURCE_SUBPATH
       value: app
     - name: APP_IMAGE
