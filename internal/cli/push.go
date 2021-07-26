@@ -106,7 +106,7 @@ var CmdPush = &cobra.Command{
 			return errors.Wrap(err, "cannot use both, git and docker image url")
 		}
 
-		builderImage, err := cmd.Flags().GetString("builderImage")
+		builderImage, err := cmd.Flags().GetString("builder-image")
 		if err != nil {
 			return errors.Wrap(err, "could not read option --builder-image")
 		}
