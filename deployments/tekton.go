@@ -253,7 +253,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", applyTektonStaging(ctx, c, domain)
+			return "", applyTektonStaging(ctx, c, ui, domain)
 		},
 	)
 	if err != nil {
@@ -336,7 +336,9 @@ func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster) (string, erro
 	return hash, nil
 }
 
-func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, domain string) error {
+func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, domain string) error {
+	var caHash string
+
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
@@ -364,7 +366,19 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, domain strin
 
 	// Add volume and volume mount of registry-certs for local deployment
 	// since tekton should trust the registry-certs.
-	caHash, err := getRegistryCAHash(ctx, c)
+	err = retry.Do(func() error {
+		caHash, err = getRegistryCAHash(ctx, c)
+		return err
+	},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "failed find PEM data")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("Retrying fetching of CA hash from registry certificate secret (%d/%d)", n, duration.RetryMax)
+		}),
+		retry.Delay(5*time.Second),
+		retry.Attempts(duration.RetryMax),
+	)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
 	}
