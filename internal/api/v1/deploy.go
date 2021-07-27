@@ -188,7 +188,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 
 // newAppDeployment will create a deployment for the app
 func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deployment, error) {
-	automountServiceAccountToken := false
+	automountServiceAccountToken := true
 	labels := map[string]string{
 		"app.kubernetes.io/name":       deployParams.Name,
 		"app.kubernetes.io/part-of":    deployParams.Org,
