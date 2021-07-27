@@ -138,7 +138,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Revision: uploadResponse.Git.Revision,
 				URL:      uploadResponse.Git.URL,
 			},
-			Route: appName + ".omg.howdoi.website",
+			Route:        appName + ".omg.howdoi.website",
+			BuilderImage: "paketobuildpacks/builder:full",
 		}
 		b, err := json.Marshal(request)
 		Expect(err).NotTo(HaveOccurred())
