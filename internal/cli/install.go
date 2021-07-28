@@ -123,6 +123,7 @@ func init() {
 	CommonInstallOptions.AsCobraFlagsFor(CmdInstall.Flags())
 
 	TraefikOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
+	CommonInstallOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
 }
 
 var CmdInstall = &cobra.Command{
@@ -233,7 +234,8 @@ var CmdInstallIngress = &cobra.Command{
 func InstallIngress(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &TraefikOptions)
+	installIngressOptions := append(TraefikOptions, CommonInstallOptions...)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &installIngressOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
