@@ -116,6 +116,7 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	if err != nil {
 		return err
 	}
+	loadBalancerIP := options.GetStringNG("ingress-service-ip")
 
 	// Setup Traefik helm values
 	var helmArgs []string
@@ -125,6 +126,7 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	// Overwrite globalArguments until https://github.com/traefik/traefik-helm-chart/issues/357 is fixed
 	helmArgs = append(helmArgs, `--set "globalArguments="`)
 	helmArgs = append(helmArgs, `--set-string deployment.podAnnotations."linkerd\.io/inject"=enabled`)
+	helmArgs = append(helmArgs, fmt.Sprintf("--set-string service.spec.loadBalancerIP=%s", loadBalancerIP))
 
 	helmCmd := fmt.Sprintf("helm %s traefik --namespace %s %s %s", action, TraefikDeploymentID, traefikChartURL, strings.Join(helmArgs, " "))
 	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
