@@ -57,6 +57,7 @@ to use Kubernetes as a PaaS (Platform as a Service).
 
 - [Install on K3d](./docs/user/tutorials/install_epinio_on_k3d.md) - Install K3d and then install epinio.
 - [Install on GKE](./docs/user/tutorials/install_epinio_on_gke.md) - Install Epinio in GKE.
+- [Install on AKS](./docs/user/tutorials/install_epinio_on_aks.md) - Install Epinio in Azure AKS clusters.
 
 ## Usage
 
