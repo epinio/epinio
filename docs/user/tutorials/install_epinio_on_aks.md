@@ -43,7 +43,7 @@ If you would just run `epinio install` it will automatically use a magic DNS sys
 
 #### Install Ingress In Cluster (for a custom DOMAIN)
 
-Install ingress first and wait for the `loadbalancer-ip` to be provisioned for the `traefik` ingress. Then, you can map the `loadbalancer-ip` to your `Domain Name` e.x `example.com` and wait for it to be mapped.
+Install ingress first and wait for the `loadbalancer-ip` to be provisioned for the `traefik` ingress. Then, you can map the `loadbalancer-ip` to your `Domain Name` e.g. `example.com` and wait for it to be mapped.
 
 ```bash
 epinio install-ingress
