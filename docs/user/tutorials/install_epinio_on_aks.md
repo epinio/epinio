@@ -54,7 +54,7 @@ The output of the command will print the `loadbalancer-ip`.
 #### Install Epinio In Cluster
 
 ```bash
-epinio install --system-domain example.com --tls-issuer=letsencrypt-production
+epinio install --system-domain example.com --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
 ```
 
 ### Troubleshooting
