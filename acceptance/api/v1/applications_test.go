@@ -523,6 +523,12 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Eventually(func() string {
 						return appStatus(org, appName)
 					}, "5m").Should(Equal("1/1"))
+
+					// Check if autoserviceaccounttoken is true
+					labels := fmt.Sprintf("app.kubernetes.io/name=%s", appName)
+					out, err := helpers.Kubectl(fmt.Sprintf("-n %s get pod -l %s  -o jsonpath='{.items[*].spec.automountServiceAccountToken}'", org, labels))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(out).To(ContainSubstring("true"))
 				})
 			})
 
