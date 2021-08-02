@@ -3,18 +3,13 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -30,8 +25,8 @@ var _ kubernetes.Deployment = &Dex{}
 
 const (
 	DexDeploymentID = "dex"
-	dexServerYaml   = "dex/server.yaml"
 	dexVersion      = "2.29.0"
+	dexChartFile    = "dex-0.5.0.tgz"
 )
 
 func (k *Dex) ID() string {
@@ -54,6 +49,11 @@ func (k Dex) Describe() string {
 func (k Dex) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Dex...")
 
+	currentdir, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
 	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, DexDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", DexDeploymentID)
@@ -63,14 +63,22 @@ func (k Dex) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) e
 		return nil
 	}
 
-	// We are taking a shortcut here. When we applied the file we had to replace
-	// ##current_dex_version## with the correct version. No need to do any parsing when
-	// deleting though.
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(dexServerYaml, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", dexServerYaml, out))
+	message := "Removing helm release " + DexDeploymentID
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			helmCmd := fmt.Sprintf("helm uninstall %[1]s --namespace %[1]s", DexDeploymentID)
+			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+		},
+	)
+	if err != nil {
+		if strings.Contains(out, "release: not found") {
+			ui.Exclamation().Msgf("%s helm release not found, skipping.\n", DexDeploymentID)
+		} else {
+			return errors.Wrapf(err, "Failed uninstalling helm release %s: %s", DexDeploymentID, out)
+		}
 	}
 
-	message := "Deleting Dex namespace " + DexDeploymentID
+	message = "Deleting Dex namespace " + DexDeploymentID
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			return "", c.DeleteNamespace(ctx, DexDeploymentID)
@@ -91,15 +99,15 @@ func (k Dex) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) e
 }
 
 func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+	action := "install"
+	if upgrade {
+		action = "upgrade"
+	}
+
 	if err := c.CreateNamespace(ctx, DexDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
-	}
-
-	issuer := options.GetStringNG("tls-issuer")
-	if out, err := k.applyDexConfigYaml(ctx, c, ui); err != nil {
-		return errors.Wrap(err, out)
 	}
 
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
@@ -110,47 +118,81 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 	// Wait for the cert manager to be present and active. It is required
 	waitForCertManagerReady(ctx, ui, c)
 
-	// Workaround for cert-manager webhook service not being immediately ready.
-	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
-	cert := auth.CertParam{
-		Name:      DexDeploymentID,
-		Namespace: DexDeploymentID,
-		Issuer:    issuer,
-		Domain:    domain,
-	}
-	err = retry.Do(func() error {
-		return auth.CreateCertificate(ctx, c, cert, nil)
-	},
-		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), " x509: ") ||
-				strings.Contains(err.Error(), "failed calling webhook") ||
-				strings.Contains(err.Error(), "EOF")
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			ui.Note().Msgf("Retrying creation of API cert via cert-manager (%d/%d)", n, duration.RetryMax)
-		}),
-		retry.Delay(5*time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
+	// TODO: does the helm chart cope with cert manager not being ready?
+
+	currentdir, err := os.Getwd()
 	if err != nil {
-		return errors.Wrap(err, "failed trying to create the dex API server cert")
+		return err
 	}
 
-	message := "Creating Dex server ingress"
-	_, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return "", k.createIngress(ctx, c, DexDeploymentID+"."+domain)
-		},
-	)
+	tarPath, err := helpers.ExtractFile(dexChartFile)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
+		return errors.New("Failed to extract embedded file: " + tarPath + " - " + err.Error())
+	}
+	defer os.Remove(tarPath)
+
+	issuer := options.GetStringNG("tls-issuer")
+
+	// https://github.com/dexidp/dex/blob/master/config.yaml.dist
+	config := fmt.Sprintf(`
+issuer: http://127.0.0.1:5556/dex
+
+ingress:
+  enabled: true
+
+  annotations:
+    kubernetes.io/ingress.class: "traefik"
+  cert-manager.io/cluster-issuer: %[1]s
+  hosts:
+    - host: %[2]s
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+  tls:
+    - hosts:
+        - %[2]s
+      secretName: dex-cert
+config:
+  # TODO: What should this be?
+  issuer: http://127.0.0.1:5556/dex
+
+  storage:
+    type: kubernetes
+    config:
+      inCluster: true
+
+  web:
+    http: 127.0.0.1:5556
+
+  enablePasswordDB: true
+
+  # TODO: Templetize and generate this
+  staticPasswords:
+    - email: "admin@example.com"
+      hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+      username: "admin"
+      userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+`, issuer, DexDeploymentID+"."+domain)
+
+	configPath, err := helpers.CreateTmpFile(config)
+	if err != nil {
+		return err
+	}
+	defer os.Remove(configPath)
+
+	helmCmd := fmt.Sprintf("helm %[1]s %[2]s --values %[3]s --namespace %[2]s %[4]s",
+		action, DexDeploymentID, configPath, tarPath)
+
+	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+		return errors.New("Failed installing Dex: " + out)
 	}
 
-	if err := c.WaitUntilPodBySelectorExist(ctx, ui, DexDeploymentID, "app.kubernetes.io/name=dex-server", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Dex dex-server deployment to exist")
+	if err := c.WaitUntilPodBySelectorExist(ctx, ui, DexDeploymentID, "app.kubernetes.io/name=dex", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Dex deployment to exist")
 	}
-	if err := c.WaitForPodBySelectorRunning(ctx, ui, DexDeploymentID, "app.kubernetes.io/name=dex-server", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting Dex dex-server deployment to be running")
+	if err := c.WaitForPodBySelectorRunning(ctx, ui, DexDeploymentID, "app.kubernetes.io/name=dex", k.Timeout); err != nil {
+		return errors.Wrap(err, "failed waiting Dex deployment to come up")
 	}
 
 	ui.Success().Msg("Dex deployed")
@@ -192,31 +234,6 @@ func (k Dex) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 	ui.Note().Msg("Upgrading Dex...")
 
 	return k.apply(ctx, c, ui, options, true)
-}
-
-// Replaces ##current_dex_version## with version.Version and applies the embedded yaml
-func (k Dex) applyDexConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) (string, error) {
-	yamlPathOnDisk, err := helpers.ExtractFile(dexServerYaml)
-	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + dexServerYaml + " - " + err.Error())
-	}
-	defer os.Remove(yamlPathOnDisk)
-
-	fileContents, err := ioutil.ReadFile(yamlPathOnDisk)
-	if err != nil {
-		return "", err
-	}
-
-	re := regexp.MustCompile(`##dex_version##`)
-	renderedFileContents := re.ReplaceAll(fileContents, []byte(dexVersion))
-
-	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
-	if err != nil {
-		return "", err
-	}
-	defer os.Remove(tmpFilePath)
-
-	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", DexDeploymentID, tmpFilePath))
 }
 
 func (k *Dex) createIngress(ctx context.Context, c *kubernetes.Cluster, subdomain string) error {
