@@ -330,7 +330,7 @@ func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, e
 					Hosts: []string{
 						route,
 					},
-					SecretName: fmt.Sprintf("%s-tls", route),
+					SecretName: fmt.Sprintf("%s-tls", appRef.Name),
 				},
 			},
 		},
