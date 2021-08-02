@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"runtime"
 
 	"github.com/epinio/epinio/helpers/epinio"
@@ -11,24 +12,39 @@ import (
 )
 
 var _ = Describe("Epinio Installation", func() {
-	var flags string
-	epinioBinary := fmt.Sprintf("../../dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
+	var (
+		flags      string
+		configFile string
+	)
 
-	configFile := "./assets/tests/config.yaml"
+	epinioBinary := fmt.Sprintf("../../dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
 	epinioHelper := epinio.NewEpinioHelper(epinioBinary)
 	epinioUser := "epinio"
 	epinioPassword := "password"
 
 	BeforeEach(func() {
+		input, err := ioutil.ReadFile("../../assets/tests/config.yaml")
+		Expect(err).NotTo(HaveOccurred())
+		f, err := ioutil.TempFile("", "config")
+		Expect(err).NotTo(HaveOccurred())
+
+		configFile = f.Name()
+		err = ioutil.WriteFile(configFile, input, 0644)
+		Expect(err).NotTo(HaveOccurred())
+		err = f.Close()
+		Expect(err).NotTo(HaveOccurred())
+
 		flags = fmt.Sprintf("--config-file %s", configFile)
 		flags = fmt.Sprintf("%s --skip-default-org", flags)
 		flags = fmt.Sprintf("%s --user %s --password %s", flags, epinioUser, epinioPassword)
-
 		epinioHelper.Flags = flags
 	})
 
 	AfterEach(func() {
 		epinioHelper.Uninstall()
+
+		err := os.Remove(configFile)
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	When("a epinio config file already exits", func() {
