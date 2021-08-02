@@ -162,7 +162,7 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
-      - name: API Acceptance Tests
+      - name: Installation Acceptance Tests
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
