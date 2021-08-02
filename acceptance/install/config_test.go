@@ -6,7 +6,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/epinio/epinio/helpers/epinio"
+	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
