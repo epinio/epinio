@@ -1465,6 +1465,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Organization", appRef.Org).
 		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
+		WithStringValue("Builder Image", params.BuilderImage).
 		Msg("App is online.")
 
 	return nil
