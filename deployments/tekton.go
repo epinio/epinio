@@ -27,12 +27,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	yaml2 "sigs.k8s.io/yaml"
-
-	typedbatchv1 "k8s.io/client-go/kubernetes/typed/batch/v1"
 )
 
 type Tekton struct {
@@ -287,13 +284,6 @@ func (k Tekton) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 		return err
 	}
 
-	s := ui.Progress("Warming up cluster with builder image")
-	err = k.warmupBuilder(ctx, c)
-	if err != nil {
-		return err
-	}
-	s.Stop()
-
 	return nil
 }
 
@@ -478,57 +468,6 @@ func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kuberne
 		return err
 	}
 	return nil
-}
-
-// This function creates a dummy Job using the buildpack builder image
-// in order to avoid pulling it the first time we an application is staged.
-// TODO: This doesn't work in a multi-node cluster because it will only pull
-// the image on one node. Maybe we could use a dummy daemonset for that.
-// This does not help with custom builder images.
-func (k Tekton) warmupBuilder(ctx context.Context, c *kubernetes.Cluster) error {
-	client, err := typedbatchv1.NewForConfig(c.RestConfig)
-	if err != nil {
-		return err
-	}
-
-	jobName := "buildpack-builder-warmup"
-	var backoffLimit = int32(1)
-	if _, err = client.Jobs(TektonStagingNamespace).Create(
-		ctx,
-		&batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: jobName,
-				Labels: map[string]string{
-					kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-				},
-			},
-			Spec: batchv1.JobSpec{
-				BackoffLimit: &backoffLimit,
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: jobName,
-						Labels: map[string]string{
-							kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-						},
-						Annotations: map[string]string{
-							"linkerd.io/inject": "disabled", // Let it finish
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:    "warmup",
-								Image:   "paketobuildpacks/builder:full",
-								Command: []string{"/bin/ls"},
-							}},
-						RestartPolicy: "Never",
-					}}}},
-		metav1.CreateOptions{},
-	); err != nil {
-		return err
-	}
-
-	return c.WaitForJobCompleted(ctx, TektonStagingNamespace, jobName, duration.ToWarmupJobReady())
 }
 
 // -----------------------------------------------------------------------------------
