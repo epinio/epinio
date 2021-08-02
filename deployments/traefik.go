@@ -213,7 +213,7 @@ func (k Traefik) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	if err == nil {
 		log.Info("service present")
 
-		ui.Exclamation().Msg("System Ingress present, skipping")
+		ui.Exclamation().Msg("System Traefik Ingress present, skipping traefik installation and related flags `--ingress-service-ip`  will be ignored")
 		return nil
 	} else if !apierrors.IsNotFound(err) {
 		return err
