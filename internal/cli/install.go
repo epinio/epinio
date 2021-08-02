@@ -157,7 +157,7 @@ func Install(cmd *cobra.Command, args []string) error {
 	}
 
 	if ingressIP != "" && skipTraefik {
-		return errors.New("cannot have --skip-traeifk and --ingress-service-ip together")
+		return errors.New("cannot have --skip-traefik and --ingress-service-ip together")
 	}
 
 	installOptions := append(NeededOptions, CommonInstallOptions...)
