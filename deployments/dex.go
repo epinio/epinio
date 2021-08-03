@@ -12,7 +12,6 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -135,19 +134,24 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 
 	// https://github.com/dexidp/dex/blob/master/config.yaml.dist
 	config := fmt.Sprintf(`
-issuer: http://127.0.0.1:5556/dex
+issuer: http://%[5]s
+
+https:
+  port: 5554
 
 ingress:
   enabled: true
 
   annotations:
     kubernetes.io/ingress.class: "traefik"
-  cert-manager.io/cluster-issuer: %[1]s
+    cert-manager.io/cluster-issuer: %[1]s
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
   hosts:
     - host: %[2]s
       paths:
         - path: /
-          pathType: ImplementationSpecific
+          pathType: Prefix
 
   tls:
     - hosts:
@@ -155,7 +159,7 @@ ingress:
       secretName: dex-cert
 config:
   # TODO: What should this be?
-  issuer: http://127.0.0.1:5556/dex
+  issuer: http://%[5]s
 
   storage:
     type: kubernetes
@@ -163,7 +167,7 @@ config:
       inCluster: true
 
   web:
-    http: 127.0.0.1:5556
+    http: %[5]s
 
   enablePasswordDB: true
 
@@ -173,7 +177,20 @@ config:
       hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
       username: "admin"
       userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
-`, issuer, DexDeploymentID+"."+domain)
+
+  staticClients:
+    - id: epinio
+      secret: %[3]s
+      name: 'Epinio'
+      # Where the app will be running.
+      redirectURIs:
+      - '%[4]s'
+`,
+		issuer,
+		DexDeploymentID+"."+domain,
+		"123", // TODO: Generate and store the secret somewhere
+		fmt.Sprintf("https://%s.%s", EpinioDeploymentID, domain),
+		fmt.Sprintf("%s.%s", DexDeploymentID, domain))
 
 	configPath, err := helpers.CreateTmpFile(config)
 	if err != nil {
@@ -234,59 +251,4 @@ func (k Dex) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 	ui.Note().Msg("Upgrading Dex...")
 
 	return k.apply(ctx, c, ui, options, true)
-}
-
-func (k *Dex) createIngress(ctx context.Context, c *kubernetes.Cluster, subdomain string) error {
-	pathTypePrefix := networkingv1.PathTypeImplementationSpecific
-	_, err := c.Kubectl.NetworkingV1().Ingresses(DexDeploymentID).Create(
-		ctx,
-		&networkingv1.Ingress{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dex",
-				Namespace: DexDeploymentID,
-				Annotations: map[string]string{
-					"kubernetes.io/ingress.class": "traefik",
-					// Traefik v1 annotations for ingress with basic auth.
-					// See `assets/embedded-files/dex/server.yaml` for
-					// the definition of the secret.
-					"ingress.kubernetes.io/auth-type":   "basic",
-					"ingress.kubernetes.io/auth-secret": "dex-api-auth-secret",
-					// Traefik v2 annotation for ingress with basic auth.
-					// The name of the middleware is `(namespace)-(object)@kubernetescrd`.
-					"traefik.ingress.kubernetes.io/router.middlewares": DexDeploymentID + "-dex-api-auth@kubernetescrd",
-					// Traefik v1/v2 tls annotations.
-					"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
-					"traefik.ingress.kubernetes.io/router.tls":         "true",
-				},
-				Labels: map[string]string{
-					"app.kubernetes.io/name": "dex",
-				},
-			},
-			Spec: networkingv1.IngressSpec{
-				Rules: []networkingv1.IngressRule{
-					{
-						Host: subdomain,
-						IngressRuleValue: networkingv1.IngressRuleValue{
-							HTTP: &networkingv1.HTTPIngressRuleValue{
-								Paths: []networkingv1.HTTPIngressPath{
-									{
-										Path:     "/",
-										PathType: &pathTypePrefix,
-										Backend: networkingv1.IngressBackend{
-											Service: &networkingv1.IngressServiceBackend{
-												Name: "dex-server",
-												Port: networkingv1.ServiceBackendPort{
-													Number: 80,
-												},
-											},
-										}}}}}}},
-				TLS: []networkingv1.IngressTLS{{
-					Hosts:      []string{subdomain},
-					SecretName: "dex-tls",
-				}},
-			}},
-		metav1.CreateOptions{},
-	)
-
-	return err
 }
