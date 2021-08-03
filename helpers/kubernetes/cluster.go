@@ -760,3 +760,33 @@ func (c *Cluster) CreateNamespace(ctx context.Context, name string, labels map[s
 
 	return err
 }
+
+// ClusterIssuerExists checks if the resource exists
+func (c *Cluster) ClusterIssuerExists(ctx context.Context, name string) (bool, error) {
+	client, err := c.ClientCertManager()
+	if err != nil {
+		return false, err
+	}
+
+	_, err = client.Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// WaitForClusterIssuer waits up to timeout for ClusterIssuer to exist
+func (c *Cluster) WaitForClusterIssuer(ctx context.Context, ui *termui.UI, name string, timeout time.Duration) error {
+	if ui != nil {
+		s := ui.Progressf("Waiting for ClusterIssuer '%s'", name)
+		defer s.Stop()
+	}
+
+	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
+		exists, err := c.ClusterIssuerExists(ctx, name)
+		return exists, err
+	})
+}

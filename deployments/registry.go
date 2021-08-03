@@ -197,10 +197,9 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return err
 	}
 
-	issuer := options.GetStringNG("tls-issuer")
-
 	// Wait for the cert manager to be present and active. It is required
-	waitForCertManagerReady(ctx, ui, c)
+	issuer := options.GetStringNG("tls-issuer")
+	waitForCertManagerReady(ctx, ui, c, issuer)
 
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
