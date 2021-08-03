@@ -14,10 +14,12 @@ epinio push NAME [URL|PATH_TO_APPLICATION_SOURCES] [flags]
 ### Options
 
 ```
-  -b, --bind strings      services to bind immediately
-      --git string        git revision of sources. PATH becomes repository location
-  -h, --help              help for push
-  -i, --instances int32   The number of desired instances for the application, default only applies to new deployments (default 1)
+  -b, --bind strings              services to bind immediately
+      --builder-image string      paketo builder image to use for staging (default "paketobuildpacks/builder:full")
+      --docker-image-url string   docker image url for the app workload image
+      --git string                git revision of sources. PATH becomes repository location
+  -h, --help                      help for push
+  -i, --instances int32           The number of desired instances for the application, default only applies to new deployments (default 1)
 ```
 
 ### Options inherited from parent commands

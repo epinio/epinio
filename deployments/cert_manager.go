@@ -387,6 +387,11 @@ func (cm CertManager) DeleteClusterIssuer(ctx context.Context, c *kubernetes.Clu
 }
 
 func (cm CertManager) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	if skip := options.GetBoolNG("skip-cert-manager"); skip {
+		ui.Exclamation().Msg("Skipping cert-manager deployment by user request")
+		return nil
+	}
+
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
 		CertManagerDeploymentID,

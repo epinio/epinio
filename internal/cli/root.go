@@ -77,6 +77,7 @@ func init() {
 	rootCmd.AddCommand(CmdConfig)
 	rootCmd.AddCommand(CmdInstall)
 	rootCmd.AddCommand(CmdInstallIngress)
+	rootCmd.AddCommand(CmdInstallCertManager)
 	rootCmd.AddCommand(CmdUninstall)
 	rootCmd.AddCommand(CmdInfo)
 	rootCmd.AddCommand(CmdOrg)

@@ -322,6 +322,57 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 	return nil
 }
 
+// InstallCertManager deploys epinio's ingress controller to the cluster.
+func (c *InstallClient) InstallCertManager(cmd *cobra.Command) error {
+	log := c.Log.WithName("InstallCertManager")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	ctx := cmd.Context()
+
+	c.ui.Note().Msg("Epinio installing cert-manager...")
+
+	var err error
+	details.Info("process cli options")
+	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd.Flags()))
+	if err != nil {
+		return err
+	}
+
+	interactive, err := cmd.Flags().GetBool("interactive")
+	if err != nil {
+		return err
+	}
+
+	if interactive {
+		details.Info("query user for options")
+		c.options, err = c.options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		if err != nil {
+			return err
+		}
+	} else {
+		details.Info("fill defaults into options")
+		c.options, err = c.options.Populate(kubernetes.NewDefaultOptionsReader())
+		if err != nil {
+			return err
+		}
+	}
+
+	details.Info("show option configuration")
+	c.showInstallConfiguration(c.options)
+
+	if err := c.InstallDeployment(ctx, &deployments.CertManager{
+		Timeout: duration.ToDeployment(),
+	}, details); err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("Epinio cert-manager done.")
+
+	return nil
+}
+
 func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) error {
 	var nsList *corev1.NamespaceList
 	var err error

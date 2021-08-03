@@ -1,26 +1,26 @@
 ---
-title: "epinio install-ingress"
-linkTitle: "epinio install-ingress"
+title: "epinio install-cert-manager"
+linkTitle: "epinio install-cert-manager"
 weight: 1
 ---
-## epinio install-ingress
+## epinio install-cert-manager
 
-install Epinio's Ingress in your configured kubernetes cluster
+install Epinio's cert-manager in your configured kubernetes cluster
 
 ### Synopsis
 
-install Epinio Ingress controller in your configured kubernetes cluster
+install Epinio cert-manager controller in your configured kubernetes cluster
 
 ```
-epinio install-ingress [flags]
+epinio install-cert-manager [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help           help for install-ingress
-  -i, --interactive    Whether to ask the user or not (default not)
-      --skip-linkerd   Assert to epinio that Linkerd is already installed.
+      --email-address string   The email address you are planning to use for getting notifications about your certificates (default "epinio@suse.com")
+  -h, --help                   help for install-cert-manager
+  -i, --interactive            Whether to ask the user or not (default not)
 ```
 
 ### Options inherited from parent commands

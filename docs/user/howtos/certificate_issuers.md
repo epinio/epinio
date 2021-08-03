@@ -20,11 +20,28 @@ epinio install --tls-issuer=letsencrypt-production
 
 It's possible to create a cert-manager cluster issuer in the cluster, before installing Epinio and referencing it by name when installing.
 
-*Note*: The cert-manager cluster-issuer CRD must be applied to the cluster.
+However, this is only possible if the cert-manager CRD is present in the cluster.
 
-### ACME DNS Challenge
+We can use a split install, to install cert-manager first, then create the cluster issuer and finally install Epinio.
 
-For example to use Letsencrypt with a DNS challenge, which supports wildcards and private IPs:
+
+### Split Install
+
+Install cert-manager first:
+
+```
+epinio install-cert-manager
+```
+
+Then after creating the cluster issuer, install Epinio:
+
+```
+epinio install --skip-cert-manager
+```
+
+### Cluster Issuer for ACME DNS Challenge
+
+For example to use Letsencrypt with a DNS challenge, which supports wildcards and private IPs, create this cluster issuer after installing cert-manager:
 
 ```
 apiVersion: cert-manager.io/v1
@@ -49,15 +66,15 @@ spec:
         - '*.example.com'
 ```
 
-Note: This uses the staging endpoint for testing.
+Note: This uses the Letsencrypt staging endpoint for testing. More information in the [cert-manager ACME docs](https://cert-manager.io/docs/configuration/acme/dns01/).
 
-You can then install Epinio:
+You can then install Epinio, without cert-manager, pointing to the new cluster issuer:
 
 ```
-epinio install --tls-issuer=dns-staging
+epinio install --skip-cert-manager --tls-issuer=dns-staging
 ```
 
-### Existing Private CA
+### Cluster Issuer for Existing Private CA
 
 According to the instructions from https://cert-manager.io/docs/configuration/ca/, follow these steps:
 
@@ -65,32 +82,31 @@ According to the instructions from https://cert-manager.io/docs/configuration/ca
 
 If you don't already have a private CA, use a tool like openssl or easy-rsa to create it.
 
-
-Copy the certificate and key into a secret in the cert-manager namespace.
+The following oneliner creates a CA:
 
 ```
-apiVersion: v1
-kind: Secret
-metadata:
-  name: private-ca-secret
-  namespace: cert-manager
-data:
-  tls.crt: ...
-  tls.key: ...
+openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes \
+  -keyout example.key -out example.crt -subj "/CN=*.omg.howdoi.website"
 ```
 
-Note: Replace `...` with your base64 encoded certificate, e.g. `cat crt.pem | base64 -w0`. The cert-manager documentation has more details about this.
+Create a Kubernetes secret from the CA, in the cert-manager namespace.
+
+```
+kubectl create secret -n cert-manager tls private-ca-secret \
+  --cert=./example.crt --key=./example.key
+```
+
+The cert-manager documentation has more details about this.
 
 #### Create ClusterIssuer
 
-Then create the ClusterIssuer
+Then create the cluster issuer:
 
 ```
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: private-ca
-  namespace: sandbox
 spec:
   ca:
     secretName: private-ca-secret
@@ -98,13 +114,13 @@ spec:
 
 #### Install Epinio
 
-Use the `--tls-issuer` argument to choose your ClusterIssuer:
+Use the `--tls-issuer` argument to choose your cluster issuer:
 
 ```
-epinio install --tls-issuer=private-ca
+epinio install --skip-cert-manager --tls-issuer=private-ca
 ```
 
-## Use TLS When Pulling From Internal Registry
+# Use TLS When Pulling From Internal Registry
 
 Epinio comes with its own registry for Docker images. This registry needs to be reachable from the Kubernetes nodes.
 If you are using a certificate issuer whose CA is trusted by the Kubernetes nodes, you can turn on SSL for pulling images from the internal registry:
