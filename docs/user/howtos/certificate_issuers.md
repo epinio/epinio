@@ -57,6 +57,53 @@ You can then install Epinio:
 epinio install --tls-issuer=dns-staging
 ```
 
+### Existing Private CA
+
+According to the instructions from https://cert-manager.io/docs/configuration/ca/, follow these steps:
+
+#### Create Secret With CA Cert and Key
+
+If you don't already have a private CA, use a tool like openssl or easy-rsa to create it.
+
+
+Copy the certificate and key into a secret in the cert-manager namespace.
+
+```
+apiVersion: v1
+kind: Secret
+metadata:
+  name: private-ca-secret
+  namespace: cert-manager
+data:
+  tls.crt: ...
+  tls.key: ...
+```
+
+Note: Replace `...` with your base64 encoded certificate, e.g. `cat crt.pem | base64 -w0`. The cert-manager documentation has more details about this.
+
+#### Create ClusterIssuer
+
+Then create the ClusterIssuer
+
+```
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: private-ca
+  namespace: sandbox
+spec:
+  ca:
+    secretName: private-ca-secret
+```
+
+#### Install Epinio
+
+Use the `--tls-issuer` argument to choose your ClusterIssuer:
+
+```
+epinio install --tls-issuer=private-ca
+```
+
 ## Use TLS When Pulling From Internal Registry
 
 Epinio comes with its own registry for Docker images. This registry needs to be reachable from the Kubernetes nodes.
