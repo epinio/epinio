@@ -133,6 +133,17 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	}
 
 	issuer := options.GetStringNG("tls-issuer")
+	if !internalIssuer(issuer) {
+		found, err := c.ClusterIssuerExists(ctx, issuer)
+		if err != nil {
+			return err
+		}
+		if !found {
+			ui.Exclamation().Msgf("Specified cluster issuer '%s' is missing. Please create it first.", issuer)
+			return nil
+		}
+	}
+
 	nodePort := options.GetBoolNG("use-internal-registry-node-port")
 	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, authAPI, issuer, nodePort); err != nil {
 		return errors.Wrap(err, out)

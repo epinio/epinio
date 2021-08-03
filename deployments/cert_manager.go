@@ -35,6 +35,12 @@ const (
 	EpinioCAIssuer          = "epinio-ca"
 )
 
+func internalIssuer(issuer string) bool {
+	return issuer == SelfSignedIssuer ||
+		issuer == LetsencryptIssuer ||
+		issuer == EpinioCAIssuer
+}
+
 func (cm *CertManager) ID() string {
 	return CertManagerDeploymentID
 }
