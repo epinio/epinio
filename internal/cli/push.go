@@ -14,6 +14,7 @@ import (
 var ()
 
 func init() {
+	CmdPush.Flags().String("builder-image", "paketobuildpacks/builder:full", "paketo builder image to use for staging")
 	CmdPush.Flags().Int32P("instances", "i", v1.DefaultInstances,
 		"The number of desired instances for the application, default only applies to new deployments")
 	CmdPush.Flags().String("git", "", "git revision of sources. PATH becomes repository location")
@@ -105,6 +106,11 @@ var CmdPush = &cobra.Command{
 			return errors.Wrap(err, "cannot use both, git and docker image url")
 		}
 
+		builderImage, err := cmd.Flags().GetString("builder-image")
+		if err != nil {
+			return errors.Wrap(err, "could not read option --builder-image")
+		}
+
 		// Syntax:
 		// 1. push NAME
 		// 2. push NAME PATH
@@ -144,9 +150,12 @@ var CmdPush = &cobra.Command{
 			return errors.Wrap(err, "trouble with instances")
 		}
 		params := clients.PushParams{
-			Instances: i,
-			GitRev:    gitRevision,
-			Docker:    dockerImageURL,
+			Name:         args[0],
+			Instances:    i,
+			GitRev:       gitRevision,
+			Docker:       dockerImageURL,
+			Path:         path,
+			BuilderImage: builderImage,
 		}
 
 		services, err := cmd.Flags().GetStringSlice("bind")
@@ -155,7 +164,7 @@ var CmdPush = &cobra.Command{
 		}
 		params.Services = services
 
-		err = client.Push(cmd.Context(), args[0], path, params)
+		err = client.Push(cmd.Context(), params)
 		if err != nil {
 			return errors.Wrap(err, "error pushing app to server")
 		}

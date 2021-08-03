@@ -32,11 +32,12 @@ const (
 
 type stageParam struct {
 	models.AppRef
-	Git         *models.GitRef
-	Stage       models.StageRef
-	Owner       metav1.OwnerReference
-	Environment models.EnvVariableList
-	RegistryURL string
+	Git          *models.GitRef
+	Stage        models.StageRef
+	Owner        metav1.OwnerReference
+	Environment  models.EnvVariableList
+	RegistryURL  string
+	BuilderImage string
 }
 
 // GitURL returns the git URL by combining the server with the org and name
@@ -75,6 +76,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	if org != req.App.Org {
 		return NewBadRequest("org parameter from URL does not match org param in body")
+	}
+
+	if req.BuilderImage == "" {
+		return NewBadRequest("builder image cannot be empty")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -135,11 +140,12 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err)
 	}
 	params := stageParam{
-		AppRef:      req.App,
-		Git:         req.Git,
-		Owner:       owner,
-		Environment: environment,
-		RegistryURL: fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
+		AppRef:       req.App,
+		Git:          req.Git,
+		Owner:        owner,
+		Environment:  environment,
+		RegistryURL:  fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
+		BuilderImage: req.BuilderImage,
 	}
 
 	pr := newPipelineRun(uid, params)
@@ -203,6 +209,7 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 				{Name: "ORG", Value: *str(app.Org)},
 				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
 				{Name: "STAGE_ID", Value: *str(uid)},
+				{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
 				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
 					Type:     v1beta1.ParamTypeArray,
 					ArrayVal: app.Environment.StagingEnvArray()},

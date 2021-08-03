@@ -55,9 +55,10 @@ type UploadResponse struct {
 }
 
 type StageRequest struct {
-	App   AppRef  `json:"app,omitempty"`
-	Git   *GitRef `json:"git,omitempty"`
-	Route string  `json:"route,omitempty"`
+	App          AppRef  `json:"app,omitempty"`
+	Git          *GitRef `json:"git,omitempty"`
+	Route        string  `json:"route,omitempty"`
+	BuilderImage string  `json:"builderimage,omitempty"`
 }
 
 type StageResponse struct {

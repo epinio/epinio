@@ -51,10 +51,13 @@ type EpinioClient struct {
 }
 
 type PushParams struct {
-	Instances *int32
-	Services  []string
-	Docker    string
-	GitRev    string
+	Instances    *int32
+	Services     []string
+	Docker       string
+	GitRev       string
+	BuilderImage string
+	Name         string
+	Path         string
 }
 
 func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
@@ -1263,7 +1266,10 @@ func (c *EpinioClient) Orgs() error {
 // * wait for pipelinerun
 // * deploy
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, name, source string, params PushParams) error {
+func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
+	name := params.Name
+	source := params.Path
+
 	appRef := models.AppRef{Name: name, Org: c.Config.Org}
 	log := c.Log.
 		WithName("Push").
@@ -1365,9 +1371,10 @@ func (c *EpinioClient) Push(ctx context.Context, name, source string, params Pus
 	if params.Docker == "" {
 		c.ui.Normal().Msg("Staging application ...")
 		req := models.StageRequest{
-			App:   appRef,
-			Git:   gitRef,
-			Route: route,
+			App:          appRef,
+			Git:          gitRef,
+			Route:        route,
+			BuilderImage: params.BuilderImage,
 		}
 		details.Info("staging code", "Git", gitRef.Revision)
 		stageResponse, err = c.stageCode(req)
@@ -1458,6 +1465,7 @@ func (c *EpinioClient) Push(ctx context.Context, name, source string, params Pus
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Organization", appRef.Org).
 		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
+		WithStringValue("Builder Image", params.BuilderImage).
 		Msg("App is online.")
 
 	return nil

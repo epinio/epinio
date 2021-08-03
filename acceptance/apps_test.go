@@ -13,6 +13,7 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
@@ -111,6 +112,26 @@ var _ = Describe("Apps", func() {
 			AfterEach(func() {
 				env.DeleteApp(appName)
 			})
+		})
+	})
+
+	When("pushing with custom builder flag", func() {
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("uses the custom builder to stage", func() {
+			By("Pushing a golang app")
+			appDir := "../assets/golang-sample-app"
+			pushLog, err := env.Epinio(fmt.Sprintf("apps push %s --builder-image paketobuildpacks/builder:tiny",
+				appName), appDir)
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			By("checking if the staging is using custom builder image")
+			labels := fmt.Sprintf("app.kubernetes.io/name=%s,tekton.dev/pipelineTask=stage", appName)
+			imageList, err := helpers.Kubectl(fmt.Sprintf("-n %s get pod -l %s  -o jsonpath={.items[0].spec.containers[*].image}", deployments.TektonStagingNamespace, labels))
+			Expect(err).NotTo(HaveOccurred())
+			Expect(imageList).To(ContainSubstring("paketobuildpacks/builder:tiny"))
 		})
 	})
 
