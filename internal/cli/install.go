@@ -102,7 +102,7 @@ var TraefikOptions = kubernetes.InstallationOptions{
 var CommonInstallOptions = kubernetes.InstallationOptions{
 	{
 		Name:        "ingress-service-ip",
-		Description: "IP address to be assgined to ingress loadbalancer service",
+		Description: "IP address to be assigned to ingress loadbalancer service",
 		Type:        kubernetes.StringType,
 		Default:     "",
 		Value:       "",
