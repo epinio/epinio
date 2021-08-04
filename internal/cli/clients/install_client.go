@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"sync"
@@ -124,6 +125,22 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 
 	c.ui.Success().Msg("Using system_domain: " + domain.Value.(string))
 
+	// Validate if ingress svc IP belongs to system domain
+	// if it is specified by user
+	ingressIP, err := flags.GetString("ingress-service-ip")
+	if err != nil {
+		return errors.Wrap(err, "could not read option --ingress-service-ip")
+	}
+	if ingressIP != "" {
+		bound, err := validateIngressIPDNSBind(domain.Value.(string), ingressIP)
+		if err != nil {
+			return errors.Wrapf(err, "could not map domain name and ingress service ip address")
+		}
+		if !bound {
+			return errors.New("system domain name is not pointing to ingress service loadbalancer ip address")
+		}
+	}
+
 	installationWg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
@@ -168,6 +185,21 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		Msg("Epinio installed.")
 
 	return nil
+}
+
+func validateIngressIPDNSBind(systemDomain string, ingressIP string) (bool, error) {
+	ips, err := net.LookupIP(systemDomain)
+	if err != nil {
+		return false, err
+	}
+	for _, ip := range ips {
+		if ipv4 := ip.To4(); ipv4 != nil {
+			if ipv4.String() == ingressIP {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 // Uninstall removes epinio from the cluster.

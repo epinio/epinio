@@ -99,9 +99,32 @@ var TraefikOptions = kubernetes.InstallationOptions{
 	},
 }
 
+var CommonInstallOptions = kubernetes.InstallationOptions{
+	{
+		Name:        "ingress-service-ip",
+		Description: "IP address to be assigned to ingress loadbalancer service",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
+}
+
 const (
 	DefaultOrganization = "workspace"
 )
+
+func init() {
+	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
+	CmdInstall.Flags().BoolP("skip-default-org", "s", false, "Set this to skip creating a default org")
+
+	CmdInstallIngress.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
+
+	NeededOptions.AsCobraFlagsFor(CmdInstall.Flags())
+	CommonInstallOptions.AsCobraFlagsFor(CmdInstall.Flags())
+
+	TraefikOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
+	CommonInstallOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
+}
 
 var CmdInstall = &cobra.Command{
 	Use:   "install",
@@ -119,29 +142,26 @@ var CmdInstall = &cobra.Command{
 // the quick install more verbose. So, for now the new functionality
 // is exposed through a new toplevel command.
 
-var CmdInstallIngress = &cobra.Command{
-	Use:   "install-ingress",
-	Short: "install Epinio's Ingress in your configured kubernetes cluster",
-	Long:  `install Epinio Ingress Controller in your configured kubernetes cluster`,
-	Args:  cobra.ExactArgs(0),
-	RunE:  InstallIngress,
-}
-
-func init() {
-	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
-	CmdInstall.Flags().BoolP("skip-default-org", "s", false, "Set this to skip creating a default org")
-
-	CmdInstallIngress.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
-
-	NeededOptions.AsCobraFlagsFor(CmdInstall.Flags())
-	TraefikOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
-}
-
 // Install command installs epinio on a configured cluster
 func Install(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &NeededOptions)
+	skipTraefik, err := cmd.Flags().GetBool("skip-traefik")
+	if err != nil {
+		return errors.Wrap(err, "could not read option --skip-traefik")
+	}
+
+	ingressIP, err := cmd.Flags().GetString("ingress-service-ip")
+	if err != nil {
+		return errors.Wrap(err, "could not read option --ingress-service-ip")
+	}
+
+	if ingressIP != "" && skipTraefik {
+		return errors.New("cannot have --skip-traefik and --ingress-service-ip together")
+	}
+
+	installOptions := append(NeededOptions, CommonInstallOptions...)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &installOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -202,11 +222,20 @@ func Install(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+var CmdInstallIngress = &cobra.Command{
+	Use:   "install-ingress",
+	Short: "install Epinio's Ingress in your configured kubernetes cluster",
+	Long:  `install Epinio Ingress Controller in your configured kubernetes cluster`,
+	Args:  cobra.ExactArgs(0),
+	RunE:  InstallIngress,
+}
+
 // InstallIngress command installs epinio's ingress controller on a configured cluster
 func InstallIngress(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &TraefikOptions)
+	installIngressOptions := append(TraefikOptions, CommonInstallOptions...)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &installIngressOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
