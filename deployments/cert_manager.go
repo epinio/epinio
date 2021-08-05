@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -217,6 +218,32 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	// Epinio's private CA. Phase 1, the CA root certificate, signed by self
 	// signed.
 
+	// Create an empty secret that the cert manager will fill-in with values.
+	// We do that, because we want to put the "kubed.appscode.com/sync" annotation
+	// as per the docs:
+	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
+	secretName := "epinio-ca-root"
+
+	emptySecret := v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: CertManagerDeploymentID,
+			Annotations: map[string]string{
+				"kubed.appscode.com/sync": fmt.Sprintf("kubed-target-namespace=%s", TraefikForwardAuthDeploymentID),
+			},
+		},
+		Type: v1.SecretTypeTLS,
+		Data: map[string][]byte{
+			"ca.crt":  nil,
+			"tls.crt": nil,
+			"tls.key": nil,
+		},
+	}
+	err = c.CreateSecret(ctx, RegistryDeploymentID, emptySecret)
+	if err != nil {
+		return err
+	}
+
 	caCert := fmt.Sprintf(`{
 		"apiVersion" : "cert-manager.io/v1alpha2",
 		"kind"       : "Certificate",
@@ -226,7 +253,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		"spec" : {
 			"isCA"       : true,
 			"commonName" : "epinio-ca",
-			"secretName" : "epinio-ca-root",
+			"secretName" : "%s",
 			"privateKey" : {
 				"algorithm" : "ECDSA",
 				"size"      : 256
@@ -236,7 +263,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 				"kind" : "ClusterIssuer"
 			}
 		}
-	}`, SelfSignedIssuer)
+	}`, secretName, SelfSignedIssuer)
 
 	cc, err := c.ClientCertificate()
 	if err != nil {

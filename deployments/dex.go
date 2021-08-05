@@ -134,7 +134,7 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 
 	// https://github.com/dexidp/dex/blob/master/config.yaml.dist
 	config := fmt.Sprintf(`
-issuer: http://%[5]s
+issuer: https://%[5]s
 
 https:
   port: 5554
@@ -159,7 +159,7 @@ ingress:
       secretName: dex-cert
 config:
   # TODO: What should this be?
-  issuer: http://%[5]s
+  issuer: https://%[5]s
 
   storage:
     type: kubernetes
