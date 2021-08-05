@@ -150,6 +150,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		&deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
+		&deployments.TraefikForwardAuth{Timeout: duration.ToDeployment()},
 	}
 
 	for _, deployment := range steps {
@@ -226,6 +227,7 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 
 	wg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
+		&deployments.TraefikForwardAuth{Timeout: duration.ToDeployment()},
 		&deployments.Minibroker{Timeout: duration.ToDeployment()},
 		&deployments.GoogleServices{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},

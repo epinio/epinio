@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -114,8 +115,12 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
+	issuer := options.GetStringNG("tls-issuer")
+
 	// Wait for the cert manager to be present and active. It is required
-	waitForCertManagerReady(ctx, ui, c)
+	if err := waitForCertManagerReady(ctx, ui, c, issuer); err != nil {
+		return errors.Wrap(err, "waiting for cert-manager failed")
+	}
 
 	currentdir, err := os.Getwd()
 	if err != nil {
@@ -128,11 +133,21 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 	}
 	defer os.Remove(tarPath)
 
-	issuer := options.GetStringNG("tls-issuer")
+	// We wait for Traefik Forward Auth client secret
+	// to be created so that we can use the values of the
+	// secret in the dex config.
+	if err := c.WaitForNamespace(ctx, ui, TraefikForwardAuthDeploymentID, duration.ToDeploymentNamespaceCreated()); err != nil {
+		return errors.Wrapf(err, "waiting for %s deployment", TraefikForwardAuthDeploymentID)
+	}
+	traefikAuthClientSecretName := fmt.Sprintf("%s-client", TraefikForwardAuthDeploymentID)
+	traefikAuthClientSecret, err := c.WaitForSecret(ctx, TraefikForwardAuthDeploymentID, traefikAuthClientSecretName, duration.ToAuthClientSecretCreated())
+	if err != nil {
+		return errors.Wrapf(err, "waiting for %s secret", traefikAuthClientSecretName)
+	}
 
 	// https://github.com/dexidp/dex/blob/master/config.yaml.dist
 	config := fmt.Sprintf(`
-issuer: http://%[5]s
+issuer: https://%[6]s
 
 https:
   port: 5554
@@ -164,7 +179,7 @@ config:
       inCluster: true
 
   web:
-    http: %[5]s
+    http: %[6]s
 
   enablePasswordDB: true
 
@@ -176,17 +191,18 @@ config:
       userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
 
   staticClients:
-    - id: epinio
-      secret: %[3]s
+    - id: %[3]s
+      secret: %[4]s
       name: 'Epinio'
       # Where the app will be running.
       redirectURIs:
-      - '%[4]s'
+      - '%[5]s'
 `,
 		issuer,
 		DexDeploymentID+"."+domain,
-		"123", // TODO: Generate and store the secret somewhere
-		fmt.Sprintf("https://%s.%s", EpinioDeploymentID, domain),
+		traefikAuthClientSecret.Data["username"],
+		traefikAuthClientSecret.Data["password"],
+		fmt.Sprintf("https://auth.%s/_oauth", domain),
 		fmt.Sprintf("%s.%s", DexDeploymentID, domain))
 
 	configPath, err := helpers.CreateTmpFile(config)
@@ -216,6 +232,10 @@ config:
 
 func (k Dex) GetVersion() string {
 	return dexVersion
+}
+
+func (k Dex) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 func (k Dex) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {

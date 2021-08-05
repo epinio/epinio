@@ -219,7 +219,9 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	log.Info("waiting for cert manager to be present and active")
 
 	issuer := options.GetStringNG("tls-issuer")
-	waitForCertManagerReady(ctx, ui, c, issuer)
+	if err := waitForCertManagerReady(ctx, ui, c, issuer); err != nil {
+		return errors.Wrap(err, "waiting for cert manager to be ready")
+	}
 
 	log.Info("issue registry cert")
 

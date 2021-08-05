@@ -1699,6 +1699,7 @@ func uniqueStrings(stringSlice []string) []string {
 	return list
 }
 
+// TODO: https://github.com/epinio/epinio/issues/667
 func getCredentials(log logr.Logger, ctx context.Context) (string, string, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
