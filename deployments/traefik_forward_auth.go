@@ -12,12 +12,12 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -106,9 +106,10 @@ func (k TraefikForwardAuth) apply(ctx context.Context, c *kubernetes.Cluster, ui
 		return err
 	}
 
-	if err := k.copyEpinioCACert(ctx, c); err != nil {
-		return errors.Wrap(err, "Copying Epinio CA")
+	if _, err := c.WaitForSecret(ctx, TraefikForwardAuthDeploymentID, "epinio-ca-root", duration.ToSecretCopied()); err != nil {
+		return errors.Wrap(err, "Waiting for epinio CA to be copied")
 	}
+
 	if err := k.createOauthClientSecret(ctx, c); err != nil {
 		return errors.Wrap(err, "Creating Oauth2 client credentials")
 	}
@@ -145,26 +146,6 @@ func (k TraefikForwardAuth) createOauthClientSecret(ctx context.Context, c *kube
 		}, metav1.CreateOptions{})
 
 	return err
-}
-
-func (k TraefikForwardAuth) copyEpinioCACert(ctx context.Context, c *kubernetes.Cluster) error {
-	emptySecret := v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "epinio-ca-root",
-			Namespace: CertManagerDeploymentID,
-			Annotations: map[string]string{
-				"kubed.appscode.com/sync": fmt.Sprintf("cert-manager-tls=%s", RegistryDeploymentID),
-			},
-		},
-		Type: v1.SecretTypeTLS,
-		Data: map[string][]byte{
-			"ca.crt":  nil,
-			"tls.crt": nil,
-			"tls.key": nil,
-		},
-	}
-
-	return c.CreateSecret(ctx, RegistryDeploymentID, emptySecret)
 }
 
 func (k TraefikForwardAuth) createDeployment(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions) error {
@@ -211,8 +192,8 @@ func (k TraefikForwardAuth) createDeployment(ctx context.Context, c *kubernetes.
 					Volumes: []corev1.Volume{
 						{
 							Name: "epinio-ca-root",
-							VolumeSource: v1.VolumeSource{
-								Secret: &v1.SecretVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
 									SecretName: "epinio-ca-root",
 								},
 							},
@@ -222,14 +203,14 @@ func (k TraefikForwardAuth) createDeployment(ctx context.Context, c *kubernetes.
 						{
 							Name:  "traefik-forward-auth",
 							Image: "docker.io/thomseddon/traefik-forward-auth:" + TraefikForwardAuthVersion,
-							Ports: []v1.ContainerPort{
+							Ports: []corev1.ContainerPort{
 								{
 									Name:          "http",
 									Protocol:      "TCP",
 									ContainerPort: 4181,
 								},
 							},
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{
 									Name:  "AUTH_HOST",
 									Value: "auth." + domain,
@@ -273,16 +254,16 @@ func (k TraefikForwardAuth) createDeployment(ctx context.Context, c *kubernetes.
 									Value: fmt.Sprintf("https://%s.%s", DexDeploymentID, domain),
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									MountPath: "/etc/ssl/certs/epinio-ca-root.crt",
 									Name:      "epinio-ca-root",
 									SubPath:   "ca.crt",
 								},
 							},
-							LivenessProbe: &v1.Probe{
-								Handler: v1.Handler{
-									TCPSocket: &v1.TCPSocketAction{
+							LivenessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									TCPSocket: &corev1.TCPSocketAction{
 										Port: intstr.IntOrString{
 											StrVal: "http",
 										},
@@ -293,9 +274,9 @@ func (k TraefikForwardAuth) createDeployment(ctx context.Context, c *kubernetes.
 								SuccessThreshold: 1,
 								FailureThreshold: 3,
 							},
-							ReadinessProbe: &v1.Probe{
-								Handler: v1.Handler{
-									TCPSocket: &v1.TCPSocketAction{
+							ReadinessProbe: &corev1.Probe{
+								Handler: corev1.Handler{
+									TCPSocket: &corev1.TCPSocketAction{
 										Port: intstr.IntOrString{
 											StrVal: "http",
 										},
@@ -323,13 +304,7 @@ func (k TraefikForwardAuth) GetVersion() string {
 }
 
 func (k TraefikForwardAuth) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
-	log := k.Log.WithName("Deploy")
-	log.Info("start")
-	defer log.Info("return")
-
 	ui.Note().KeeplineUnder(1).Msg("Deploying TraefikForwardAuth ...")
-
-	log.Info("deploying traefik")
 
 	return k.apply(ctx, c, ui, options, false)
 }

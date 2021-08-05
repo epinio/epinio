@@ -239,7 +239,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 			"tls.key": nil,
 		},
 	}
-	err = c.CreateSecret(ctx, RegistryDeploymentID, emptySecret)
+	err = c.CreateSecret(ctx, CertManagerDeploymentID, emptySecret)
 	if err != nil {
 		return err
 	}

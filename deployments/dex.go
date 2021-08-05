@@ -189,7 +189,7 @@ config:
 		issuer,
 		DexDeploymentID+"."+domain,
 		"123", // TODO: Generate and store the secret somewhere
-		fmt.Sprintf("https://%s.%s", EpinioDeploymentID, domain),
+		"https://auth.10.86.4.38.omg.howdoi.website/_oauth", // TODO: DRY this? (with the forward auth installation)
 		fmt.Sprintf("%s.%s", DexDeploymentID, domain))
 
 	configPath, err := helpers.CreateTmpFile(config)

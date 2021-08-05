@@ -22,6 +22,7 @@ const (
 	warmupJobReady      = 30 * time.Minute
 	certManagerReady    = 5 * time.Minute
 	kubedReady          = 5 * time.Minute
+	secretCopied        = 5 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	pollInterval = 3 * time.Second
@@ -50,6 +51,10 @@ func ToCertManagerReady() time.Duration {
 
 func ToKubedReady() time.Duration {
 	return Multiplier() * kubedReady
+}
+
+func ToSecretCopied() time.Duration {
+	return Multiplier() * secretCopied
 }
 
 // ToAppBuilt returns the duration to wait until giving up on the
