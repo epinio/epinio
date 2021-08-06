@@ -2,7 +2,6 @@ package deployments
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -61,8 +60,8 @@ func (k Minibroker) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termu
 	message := "Removing helm release " + MinibrokerDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace %s", MinibrokerDeploymentID, MinibrokerDeploymentID)
-			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+			return helpers.RunProc(currentdir, k.Debug,
+				"helm", "uninstall", MinibrokerDeploymentID, "--namespace", MinibrokerDeploymentID)
 		},
 	)
 	if err != nil {
@@ -116,8 +115,8 @@ func (k Minibroker) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --namespace %s %s", action, MinibrokerDeploymentID, MinibrokerDeploymentID, tarPath)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	if out, err := helpers.RunProc(currentdir, k.Debug,
+		"helm", action, MinibrokerDeploymentID, "--namespace", MinibrokerDeploymentID, tarPath); err != nil {
 		return errors.New("Failed installing Minibroker: " + out)
 	}
 

@@ -64,8 +64,8 @@ func (k Kubed) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI)
 	message := "Removing helm release " + KubedDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall kubed --namespace %s", KubedDeploymentID)
-			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+			return helpers.RunProc(currentdir, k.Debug,
+				"helm", "uninstall", "kubed", "--namespace", KubedDeploymentID)
 		},
 	)
 	if err != nil {
@@ -111,10 +111,9 @@ func (k Kubed) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 	defer os.Remove(tarPath)
 
 	// Setup Kubed helm values
-	var helmArgs = []string{}
-	helmCmd := fmt.Sprintf("helm %s kubed --namespace %s %s %s", action, KubedDeploymentID, tarPath, strings.Join(helmArgs, " "))
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed installing Kubed:\n%s\nReturning\n%s", helmCmd, out))
+	if out, err := helpers.RunProc(currentdir, k.Debug,
+		"helm", action, "kubed", "--namespace", KubedDeploymentID, tarPath); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Failed installing Kubed, Returning\n%s", out))
 	}
 
 	if err := c.WaitForDeploymentCompleted(ctx, ui, KubedDeploymentID, "kubed", duration.ToKubedReady()); err != nil {

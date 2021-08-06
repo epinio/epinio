@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -29,17 +30,25 @@ func (w *WordpressApp) CreateDir() error {
 	if w.Dir, err = ioutil.TempDir("", "epinio-acceptance"); err != nil {
 		return err
 	}
-	if out, err := helpers.RunProc("wget "+w.SourceURL, w.Dir, false); err != nil {
-		return errors.Wrap(err, out)
-	}
-	if out, err := helpers.RunProc("tar xvf wordpress-*.tar.gz", w.Dir, false); err != nil {
-		return errors.Wrap(err, out)
-	}
-	if out, err := helpers.RunProc("mv wordpress htdocs", w.Dir, false); err != nil {
+	if out, err := helpers.RunProc(w.Dir, false, "wget", w.SourceURL); err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	if out, err := helpers.RunProc("rm wordpress-*.tar.gz", w.Dir, false); err != nil {
+	tarPaths, err := filepath.Glob(w.Dir + "/wordpress-*.tar.gz")
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("tarPaths := %v\n", tarPaths)
+
+	if out, err := helpers.RunProc(w.Dir, false, "tar", append([]string{"xvf"}, tarPaths...)...); err != nil {
+		return errors.Wrap(err, out)
+	}
+	if out, err := helpers.RunProc(w.Dir, false, "mv", "wordpress", "htdocs"); err != nil {
+		return errors.Wrap(err, out)
+	}
+
+	if out, err := helpers.RunProc("", false, "rm", tarPaths...); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -71,8 +80,10 @@ extension=mysqli
 
 // Uri Finds the application ingress and returns the url to the app.
 func (w *WordpressApp) AppURL() (string, error) {
-	helpers.Kubectl(fmt.Sprintf(`get ingress  -n %s --field-selector=metadata.name=%s -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`, w.Org, w.Name))
-	host, err := helpers.Kubectl(fmt.Sprintf(`get ingress  -n %s --field-selector=metadata.name=%s -o=jsonpath="{.items[0].spec['rules'][0]['host']}"`, w.Org, w.Name))
+	host, err := helpers.Kubectl("get", "ingress",
+		"--namespace", w.Org,
+		"--field-selector", "metadata.name="+w.Name,
+		"-o", "jsonpath={.items[0].spec['rules'][0]['host']}")
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +109,7 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	AfterEach(func() {
-		out, err := env.Epinio(fmt.Sprintf("apps delete %s", wordpress.Name), "")
+		out, err := env.Epinio("", "apps", "delete", wordpress.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		err = os.RemoveAll(wordpress.Dir)
@@ -106,10 +117,10 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	It("can deploy Wordpress", func() {
-		out, err := env.Epinio(fmt.Sprintf("apps push %s", wordpress.Name), wordpress.Dir)
+		out, err := env.Epinio(wordpress.Dir, "apps", "push", wordpress.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		out, err = env.Epinio("app list", "")
+		out, err = env.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Expect(out).To(MatchRegexp(wordpress.Name + `.*\|.*1\/1.*\|.*`))
 

@@ -41,20 +41,20 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("creates the app", func() {
-			out, err := env.Epinio(fmt.Sprintf("app create %s", appName), "")
+			out, err := env.Epinio("", "app", "create", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Ok"))
 		})
 
 		When("pushing a workload", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio(fmt.Sprintf("app create %s", appName), "")
+				out, err := env.Epinio("", "app", "create", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
 			It("creates the workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(fmt.Sprintf("apps push %s", appName), appDir)
+				out, err := env.Epinio(appDir, "app", "push", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("App is online"))
 			})
@@ -64,12 +64,11 @@ var _ = Describe("Apps", func() {
 	When("pushing an app from an external repository", func() {
 		It("pushes the app successfully", func() {
 			wordpress := "https://github.com/epinio/example-wordpress"
-			pushLog, err := env.Epinio(fmt.Sprintf("apps push %s %s --git main",
-				appName, wordpress), "")
+			pushLog, err := env.Epinio("", "apps", "push", appName, wordpress, "--git", "main")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			Eventually(func() string {
-				out, err := env.Epinio("app list", "")
+				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
@@ -81,28 +80,27 @@ var _ = Describe("Apps", func() {
 		Describe("update", func() {
 			It("respects the desired number of instances", func() {
 				wordpress := "https://github.com/epinio/example-wordpress"
-				pushLog, err := env.Epinio(fmt.Sprintf("apps push %s %s --git main",
-					appName, wordpress), "")
+				pushLog, err := env.Epinio("", "apps", "push", appName, wordpress, "--git", "main")
 				Expect(err).ToNot(HaveOccurred(), pushLog)
 
 				Eventually(func() string {
-					out, err := env.Epinio("app list", "")
+					out, err := env.Epinio("", "app", "list")
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
 				}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
 
 				Eventually(func() string {
-					out, err := env.Epinio("app show "+appName, "")
+					out, err := env.Epinio("", "app", "show", appName)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
 				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
 
-				out, err := env.Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
+				out, err := env.Epinio("", "app", "update", appName, "-i", "3")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
-					out, err := env.Epinio("app show "+appName, "")
+					out, err := env.Epinio("", "app", "show", appName)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
@@ -123,13 +121,15 @@ var _ = Describe("Apps", func() {
 		It("uses the custom builder to stage", func() {
 			By("Pushing a golang app")
 			appDir := "../assets/golang-sample-app"
-			pushLog, err := env.Epinio(fmt.Sprintf("apps push %s --builder-image paketobuildpacks/builder:tiny",
-				appName), appDir)
+			pushLog, err := env.Epinio(appDir, "apps", "push", appName, "--builder-image", "paketobuildpacks/builder:tiny")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			By("checking if the staging is using custom builder image")
 			labels := fmt.Sprintf("app.kubernetes.io/name=%s,tekton.dev/pipelineTask=stage", appName)
-			imageList, err := helpers.Kubectl(fmt.Sprintf("-n %s get pod -l %s  -o jsonpath={.items[0].spec.containers[*].image}", deployments.TektonStagingNamespace, labels))
+			imageList, err := helpers.Kubectl("get", "pod",
+				"--namespace", deployments.TektonStagingNamespace,
+				"-l", labels,
+				"-o", "jsonpath={.items[0].spec.containers[*].image}")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(imageList).To(ContainSubstring("paketobuildpacks/builder:tiny"))
 		})
@@ -141,13 +141,15 @@ var _ = Describe("Apps", func() {
 			interval = 1 * time.Second
 		)
 
-		act := func(arg string) (string, error) {
+		act := func(arg ...string) (string, error) {
 			appDir := "../assets/sample-app"
-			return env.Epinio(fmt.Sprintf("apps push %[1]s %[2]s", appName, arg), appDir)
+			return env.Epinio(appDir, "app", append([]string{"push", appName}, arg...)...)
 		}
 
 		replicas := func(ns, name string) string {
-			n, err := helpers.Kubectl(fmt.Sprintf("get deployment --namespace %s %s -o=jsonpath='{.status.replicas}'", ns, name))
+			n, err := helpers.Kubectl("get", "deployment",
+				"--namespace", ns, name,
+				"-o", "jsonpath={.status.replicas}")
 			if err != nil {
 				return ""
 			}
@@ -166,7 +168,7 @@ var _ = Describe("Apps", func() {
 
 		It("honours the given instance count", func() {
 			By("pushing without instance count", func() {
-				out, err := act("")
+				out, err := act()
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
@@ -174,7 +176,7 @@ var _ = Describe("Apps", func() {
 				}, timeout, interval).Should(Equal(strconv.Itoa(int(v1.DefaultInstances))))
 			})
 			By("pushing with an instance count", func() {
-				out, err := act("--instances 2")
+				out, err := act("--instances", "2")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
@@ -182,7 +184,7 @@ var _ = Describe("Apps", func() {
 				}, timeout, interval).Should(Equal("2"))
 			})
 			By("pushing again, without an instance count", func() {
-				out, err := act("")
+				out, err := act()
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
@@ -208,8 +210,8 @@ var _ = Describe("Apps", func() {
 
 			By("checking for the application resource", func() {
 				Eventually(func() string {
-					out, _ := helpers.Kubectl(fmt.Sprintf("get app --namespace %s %s",
-						org, appName))
+					out, _ := helpers.Kubectl("get", "app",
+						"--namespace", org, appName)
 					return out
 				}, "1m").Should(ContainSubstring("AGE")) // this checks for the table header from kubectl
 			})
@@ -228,8 +230,8 @@ var _ = Describe("Apps", func() {
 
 			By("checking the application resource was removed", func() {
 				Eventually(func() string {
-					out, _ := helpers.Kubectl(fmt.Sprintf("get app --namespace %s %s",
-						org, appName))
+					out, _ := helpers.Kubectl("get", "app",
+						"--namespace", org, appName)
 					return out
 				}, "1m").Should(ContainSubstring("NotFound"))
 			})
@@ -267,14 +269,14 @@ var _ = Describe("Apps", func() {
 			env.DeleteApp(appName)
 
 			Eventually(func() string {
-				out, _ := helpers.Kubectl(fmt.Sprintf("get ingress --namespace %s %s",
-					org, appName))
+				out, _ := helpers.Kubectl("get", "ingress",
+					"--namespace", org, appName)
 				return out
 			}, "1m").Should(ContainSubstring("not found"))
 
 			Eventually(func() string {
-				out, _ := helpers.Kubectl(fmt.Sprintf("get service --namespace %s %s",
-					org, appName))
+				out, _ := helpers.Kubectl("get", "service",
+					"--namespace", org, appName)
 				return out
 			}, "1m").Should(ContainSubstring("not found"))
 		})
@@ -294,7 +296,7 @@ var _ = Describe("Apps", func() {
 			defer env.DeleteApp(app)
 
 			Eventually(func() string {
-				out, err := env.Epinio("app show "+app, "")
+				out, err := env.Epinio("", "app", "show", app)
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
@@ -318,14 +320,13 @@ var _ = Describe("Apps", func() {
 				currentDir, err := os.Getwd()
 				Expect(err).ToNot(HaveOccurred())
 
-				pushOutput, err := env.Epinio(fmt.Sprintf("apps push %s -b %s",
-					appName, serviceName),
-					path.Join(currentDir, "../assets/sample-app"))
+				pushOutput, err := env.Epinio(path.Join(currentDir, "../assets/sample-app"),
+					"apps", "push", appName, "-b", serviceName)
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
 				Eventually(func() string {
-					out, err := env.Epinio("app list", "")
+					out, err := env.Epinio("", "app", "list")
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
 				}, "2m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
@@ -340,7 +341,7 @@ var _ = Describe("Apps", func() {
 			env.BindAppService(appName, serviceName, org)
 
 			By("deleting the app")
-			out, err := env.Epinio("app delete "+appName, "")
+			out, err := env.Epinio("", "app", "delete", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
@@ -348,7 +349,7 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp(serviceName))
 
 			Eventually(func() string {
-				out, err := env.Epinio("app list", "")
+				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
@@ -360,17 +361,17 @@ var _ = Describe("Apps", func() {
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 
 			Eventually(func() string {
-				out, err := env.Epinio("app show "+appName, "")
+				out, err := env.Epinio("", "app", "show", appName)
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
 			}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
 
-			out, err := env.Epinio(fmt.Sprintf("app update %s -i 3", appName), "")
+			out, err := env.Epinio("", "app", "update", appName, "-i", "3")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() string {
-				out, err := env.Epinio("app show "+appName, "")
+				out, err := env.Epinio("", "app", "show", appName)
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
@@ -397,7 +398,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("lists all apps", func() {
-			out, err := env.Epinio("app list", "")
+			out, err := env.Epinio("", "app", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing applications"))
 			Expect(out).To(MatchRegexp(" " + appName + " "))
@@ -405,7 +406,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("shows the details of an app", func() {
-			out, err := env.Epinio("app show "+appName, "")
+			out, err := env.Epinio("", "app", "show", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Show application details"))
@@ -414,7 +415,7 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
 
 			Eventually(func() string {
-				out, err = env.Epinio("app show "+appName, "")
+				out, err := env.Epinio("", "app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
@@ -422,19 +423,19 @@ var _ = Describe("Apps", func() {
 
 		Describe("no instances", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio(fmt.Sprintf("app update %s --instances 0", appName), "")
+				out, err := env.Epinio("", "app", "update", appName, "--instances", "0")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 			It("lists apps without instances", func() {
 				Eventually(func() string {
-					out, err := env.Epinio("app list", "")
+					out, err := env.Epinio("", "app", "list")
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
 				}, "1m").Should(MatchRegexp("0/0"))
 			})
 			It("shows the details of an app without instances", func() {
 				Eventually(func() string {
-					out, err := env.Epinio("app show "+appName, "")
+					out, err := env.Epinio("", "app", "show", appName)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
@@ -454,7 +455,7 @@ var _ = Describe("Apps", func() {
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route = string(routeRegexp.Find([]byte(out)))
 
-			out, err := env.Epinio("app logs "+appName, "")
+			out, err := env.Epinio("", "app", "logs", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			podNames := env.GetPodNames(appName, org)
@@ -470,7 +471,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("shows the staging logs", func() {
-			out, err := env.Epinio("app logs --staging "+appName, "")
+			out, err := env.Epinio("", "app", "logs", "--staging", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
@@ -480,7 +481,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("follows logs", func() {
-			p, err := proc.Get(nodeTmpDir+"/epinio app logs --follow "+appName, "")
+			p, err := proc.Get("", nodeTmpDir+"/epinio", "app", "logs", "--follow", appName)
 			Expect(err).NotTo(HaveOccurred())
 
 			defer func() {

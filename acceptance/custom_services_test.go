@@ -45,7 +45,7 @@ var _ = Describe("Custom Services", func() {
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 			env.BindAppService(appName, serviceName, org)
 
-			out, err := env.Epinio("service delete "+serviceName, "")
+			out, err := env.Epinio("", "service", "delete", serviceName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("Unable to delete service. It is still used by"))
@@ -56,7 +56,7 @@ var _ = Describe("Custom Services", func() {
 
 			// Delete again, and force unbind
 
-			out, err = env.Epinio("service delete --unbind "+serviceName, "")
+			out, err = env.Epinio("", "service", "delete", "--unbind", serviceName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp("PREVIOUSLY BOUND TO"))
@@ -68,7 +68,7 @@ var _ = Describe("Custom Services", func() {
 
 			// And check non-presence
 			Eventually(func() string {
-				out, err = env.Epinio("service list", "")
+				out, err = env.Epinio("", "service", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "2m").ShouldNot(MatchRegexp(serviceName))
@@ -120,7 +120,7 @@ var _ = Describe("Custom Services", func() {
 		})
 
 		It("it shows service details", func() {
-			out, err := env.Epinio("service show "+serviceName, "")
+			out, err := env.Epinio("", "service", "show", serviceName)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Service Details"))
 			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))

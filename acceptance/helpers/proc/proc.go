@@ -8,7 +8,7 @@ import (
 	"github.com/codeskyblue/kexec"
 )
 
-func Get(command string, dir string) (*kexec.KCommand, error) {
+func Get(dir, command string, arg ...string) (*kexec.KCommand, error) {
 	var commandDir string
 	var err error
 
@@ -21,14 +21,14 @@ func Get(command string, dir string) (*kexec.KCommand, error) {
 		commandDir = dir
 	}
 
-	p := kexec.CommandString(command)
+	p := kexec.Command(command, arg...)
 	p.Dir = commandDir
 
 	return p, nil
 }
 
-func Run(cmd, dir string, toStdout bool) (string, error) {
-	p, err := Get(cmd, dir)
+func Run(dir string, toStdout bool, cmd string, arg ...string) (string, error) {
+	p, err := Get(dir, cmd, arg...)
 	if err != nil {
 		return "", err
 	}

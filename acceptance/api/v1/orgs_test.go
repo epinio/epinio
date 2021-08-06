@@ -175,7 +175,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(""))
 
-				_, err = helpers.Kubectl(fmt.Sprintf("get namespace %s", org))
+				_, err = helpers.Kubectl("get", "namespace", org)
 				Expect(err).To(HaveOccurred())
 			})
 

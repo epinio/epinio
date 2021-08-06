@@ -1,7 +1,6 @@
 package testenv
 
 import (
-	"fmt"
 	"os"
 	"regexp"
 
@@ -31,12 +30,15 @@ func SetupGoogleServices(epinioBinary string) error {
 
 	defer os.Remove(serviceAccountJSON)
 
-	out, err := proc.Run(fmt.Sprintf("%s%s enable services-google --service-account-json %s", Root(), epinioBinary, serviceAccountJSON), "", false)
+	out, err := proc.Run("", false, Root()+epinioBinary, "enable", "services-google",
+		"--service-account-json", serviceAccountJSON)
 	if err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	out, err = helpers.Kubectl(`get pods -n google-service-broker --selector=app.kubernetes.io/name=gcp-service-broker`)
+	out, err = helpers.Kubectl("get", "pods",
+		"--namespace", "google-service-broker",
+		"--selector", "app.kubernetes.io/name=gcp-service-broker")
 	if err != nil {
 		return errors.Wrap(err, out)
 	}

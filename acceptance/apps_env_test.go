@@ -1,8 +1,6 @@
 package acceptance_test
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo"
@@ -16,8 +14,7 @@ var _ = Describe("apps env", func() {
 	)
 
 	secret := func(ns, appname string) string {
-		n, err := helpers.Kubectl(fmt.Sprintf("get secret --namespace %s %s-env -o=jsonpath='{.metadata.name}'",
-			ns, appname))
+		n, err := helpers.Kubectl("get", "secret", "--namespace", ns, appname+"-env", "-o", "jsonpath={.metadata.name}")
 		if err != nil {
 			return ""
 		}
@@ -25,9 +22,7 @@ var _ = Describe("apps env", func() {
 	}
 
 	deployedEnv := func(ns, app string) string {
-		out, err := helpers.Kubectl(
-			fmt.Sprintf("get deployment --namespace %s %s -o=jsonpath='{.spec.template.spec.containers[0].env}'",
-				ns, app))
+		out, err := helpers.Kubectl("get", "deployment", "--namespace", ns, app, "-o", "jsonpath={.spec.template.spec.containers[0].env}")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}
@@ -41,7 +36,7 @@ var _ = Describe("apps env", func() {
 
 	Describe("app without workload", func() {
 		BeforeEach(func() {
-			out, err := env.Epinio(fmt.Sprintf("apps create %s", appName), "")
+			out, err := env.Epinio("", "apps", "create", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
@@ -51,21 +46,21 @@ var _ = Describe("apps env", func() {
 
 		When("unsetting an environment variable", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env set %s MYVAR myvalue", appName), "")
+				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
 				Expect(err).ToNot(HaveOccurred(), out)
-				out, err = env.Epinio(fmt.Sprintf("apps env unset %s MYVAR", appName), "")
+				out, err = env.Epinio("", "apps", "env", "unset", appName, "MYVAR")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
 			It("is not shown in the environment listing", func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env list %s", appName), "")
+				out, err := env.Epinio("", "apps", "env", "list", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).ToNot(ContainSubstring(`MYVAR`))
 				Expect(out).ToNot(ContainSubstring(`myvalue`))
 			})
 
 			It("is retrieved as empty string with show", func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env show %s MYVAR", appName), "")
+				out, err := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring(`MYVAR`)) // Var name ois shown, value is empty
 				Expect(out).ToNot(ContainSubstring(`myvalue`))
@@ -73,7 +68,7 @@ var _ = Describe("apps env", func() {
 
 			It("is not present in the pushed workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(fmt.Sprintf("apps push %s", appName), appDir)
+				out, err := env.Epinio(appDir, "apps", "push", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(org, appName)).ToNot(MatchRegexp("MYVAR"))
@@ -82,7 +77,7 @@ var _ = Describe("apps env", func() {
 
 		When("setting an environment variable", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env set %s MYVAR myvalue", appName), "")
+				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -92,14 +87,14 @@ var _ = Describe("apps env", func() {
 			})
 
 			It("is shown in the environment listing", func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env list %s", appName), "")
+				out, err := env.Epinio("", "apps", "env", "list", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring(`MYVAR`))
 				Expect(out).To(ContainSubstring(`myvalue`))
 			})
 
 			It("is retrieved with show", func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env show %s MYVAR", appName), "")
+				out, err := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring(`MYVAR`))
 				Expect(out).To(ContainSubstring(`myvalue`))
@@ -107,7 +102,7 @@ var _ = Describe("apps env", func() {
 
 			It("is injected into the pushed workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(fmt.Sprintf("apps push %s", appName), appDir)
+				out, err := env.Epinio(appDir, "apps", "push", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(org, appName)).To(MatchRegexp("MYVAR"))
@@ -118,7 +113,7 @@ var _ = Describe("apps env", func() {
 	Describe("deployed app", func() {
 		BeforeEach(func() {
 			appDir := "../assets/sample-app"
-			out, err := env.Epinio(fmt.Sprintf("apps push %s", appName), appDir)
+			out, err := env.Epinio(appDir, "apps", "push", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
@@ -128,7 +123,7 @@ var _ = Describe("apps env", func() {
 
 		When("unsetting an environment variable", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env set %s MYVAR myvalue", appName), "")
+				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				// Wait for variable to appear so that we can verify its proper
@@ -139,7 +134,7 @@ var _ = Describe("apps env", func() {
 			})
 
 			It("modifies and restarts the app", func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env unset %s MYVAR", appName), "")
+				out, err := env.Epinio("", "apps", "env", "unset", appName, "MYVAR")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				// The deployment is not expected to be immediately modified, and/or
@@ -154,7 +149,7 @@ var _ = Describe("apps env", func() {
 
 		When("setting an environment variable", func() {
 			It("modifies and restarts the app", func() {
-				out, err := env.Epinio(fmt.Sprintf("apps env set %s MYVAR myvalue", appName), "")
+				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				// The deployment is not expected to be immediately modified, and/or

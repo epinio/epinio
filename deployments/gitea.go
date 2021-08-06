@@ -79,8 +79,8 @@ func (k Gitea) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI)
 	message := "Removing helm release " + GiteaDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall gitea --namespace %s", GiteaDeploymentID)
-			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+			return helpers.RunProc(currentdir, k.Debug,
+				"helm", "uninstall", "gitea", "--namespace", GiteaDeploymentID)
 		},
 	)
 	if err != nil {
@@ -122,9 +122,6 @@ func (k Gitea) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 	if err != nil {
 		return err
 	}
-
-	// Setup Gitea helm values
-	var helmArgs []string
 
 	domain, err := options.GetString("system_domain", GiteaDeploymentID)
 	if err != nil {
@@ -204,9 +201,8 @@ postgresql:
 	}
 	defer os.Remove(configPath)
 
-	helmCmd := fmt.Sprintf("helm %s gitea --values %s --namespace %s %s %s", action, configPath, GiteaDeploymentID, giteaChartURL, strings.Join(helmArgs, " "))
-
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	if out, err := helpers.RunProc(currentdir, k.Debug,
+		"helm", action, "gitea", "--values", configPath, "--namespace", GiteaDeploymentID, giteaChartURL); err != nil {
 		return errors.New("Failed installing Gitea: " + out)
 	}
 

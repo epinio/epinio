@@ -13,5 +13,5 @@ func PatchEpinio() (string, error) {
 	}
 	// Patch Epinio deployment to inject the current binary
 	fmt.Println("Patching Epinio deployment with test binary")
-	return proc.Run("make patch-epinio-deployment", Root(), false)
+	return proc.Run(Root(), false, "make", "patch-epinio-deployment")
 }

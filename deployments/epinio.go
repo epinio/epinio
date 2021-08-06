@@ -249,7 +249,9 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 	}
 	defer os.Remove(yamlPathOnDisk)
 
-	out, err := helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", EpinioDeploymentID, yamlPathOnDisk))
+	out, err := helpers.Kubectl("apply",
+		"--namespace", EpinioDeploymentID,
+		"--filename", yamlPathOnDisk)
 	if err != nil && !strings.Contains(out, `no matches for kind "Middleware"`) {
 		return "", err
 	}
@@ -301,7 +303,9 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 	}
 	defer os.Remove(tmpFilePath)
 
-	if out, err := helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", EpinioDeploymentID, tmpFilePath)); err != nil {
+	if out, err := helpers.Kubectl("apply",
+		"--namespace", EpinioDeploymentID,
+		"--filename", tmpFilePath); err != nil {
 		return out, err
 	}
 
@@ -316,7 +320,9 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 	}
 	defer os.Remove(yamlPathOnDisk)
 
-	return helpers.Kubectl(fmt.Sprintf("apply -n %s --filename %s", TektonStagingNamespace, yamlPathOnDisk))
+	return helpers.Kubectl("apply",
+		"--namespace", TektonStagingNamespace,
+		"--filename", yamlPathOnDisk)
 }
 
 func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdomain string) error {

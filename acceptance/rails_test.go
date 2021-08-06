@@ -34,22 +34,23 @@ func (r *RailsApp) CreateDir() error {
 		return err
 	}
 
-	if out, err := helpers.RunProc(
-		fmt.Sprintf("wget %s -O rails.tar", r.SourceURL), tmpDir, false); err != nil {
+	if out, err := helpers.RunProc(tmpDir, false,
+		"wget", r.SourceURL, "-O", "rails.tar"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	if out, err := helpers.RunProc("mkdir rails", tmpDir, false); err != nil {
+	if out, err := helpers.RunProc(tmpDir, false, "mkdir", "rails"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	if out, err := helpers.RunProc("tar xvf rails.tar -C rails --strip-components 1", tmpDir, false); err != nil {
+	if out, err := helpers.RunProc(tmpDir, false,
+		"tar", "xvf", "rails.tar", "-C", "rails", "--strip-components", "1"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
 	r.Dir = path.Join(tmpDir, "rails")
 
-	if out, err := helpers.RunProc("rm rails.tar", tmpDir, false); err != nil {
+	if out, err := helpers.RunProc(tmpDir, false, "rm", "rails.tar"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -81,20 +82,20 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Create the app
-		out, err := env.Epinio(fmt.Sprintf("apps create %s", rails.Name), "")
+		out, err := env.Epinio("", "apps", "create", rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Set the RAILS_MASTER_KEY env variable
-		out, err = env.Epinio(fmt.Sprintf("apps env set %s RAILS_MASTER_KEY %s", rails.Name, rails.MasterKey), "")
+		out, err = env.Epinio("", "apps", "env", "set", rails.Name, "RAILS_MASTER_KEY", rails.MasterKey)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Create a database for Rails
 		serviceName = catalog.NewServiceName()
-		out, err = env.Epinio(fmt.Sprintf("service create %s mariadb 10-3-22", serviceName), "")
+		out, err = env.Epinio("", "service", "create", serviceName, "mariadb", "10-3-22")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Change Rails database configuration to match the service name
-		out, err = proc.Run(fmt.Sprintf("sed -i 's/mydb/%s/' config/database.yml", serviceName), rails.Dir, false)
+		out, err = proc.Run(rails.Dir, false, "sed", "-i", fmt.Sprintf("s/mydb/%s/", serviceName), "config/database.yml")
 		Expect(err).ToNot(HaveOccurred(), out)
 	})
 
@@ -104,7 +105,7 @@ var _ = Describe("RubyOnRails", func() {
 	})
 
 	It("can deploy Rails", func() {
-		out, err := env.Epinio(fmt.Sprintf("apps push %s -b %s", rails.Name, serviceName), rails.Dir)
+		out, err := env.Epinio(rails.Dir, "apps", "push", rails.Name, "-b", serviceName)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)

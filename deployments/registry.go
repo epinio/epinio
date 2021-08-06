@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -22,6 +23,7 @@ import (
 type Registry struct {
 	Debug   bool
 	Timeout time.Duration
+	Log     logr.Logger
 }
 
 var _ kubernetes.Deployment = &Registry{}
@@ -79,8 +81,8 @@ func (k Registry) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.
 	message := "Removing helm release " + RegistryDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace '%s'", RegistryDeploymentID, RegistryDeploymentID)
-			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+			return helpers.RunProc(currentdir, k.Debug,
+				"helm", "uninstall", RegistryDeploymentID, "--namespace", RegistryDeploymentID)
 		},
 	)
 	if err != nil {
@@ -106,7 +108,7 @@ func (k Registry) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.
 	return nil
 }
 
-func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool, log logr.Logger) error {
 	// Generate random credentials
 	registryAuth, err := RegistryInstallAuth()
 	if err != nil {
@@ -118,6 +120,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		action = "upgrade"
 	}
 
+	log.Info("creating namespace", "namespace", RegistryDeploymentID)
 	if err := c.CreateNamespace(ctx, RegistryDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
@@ -129,44 +132,64 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return err
 	}
 
+	log.Info("extracting chart file", "name", registryChartFile)
 	tarPath, err := helpers.ExtractFile(registryChartFile)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tarPath + " - " + err.Error())
 	}
 	defer os.Remove(tarPath)
 
+	log.Info("local transient tar archive", "name", tarPath)
+
 	htpasswd, err := registryAuth.Htpassword()
 	if err != nil {
 		return errors.Wrap(err, "Failed to hash credentials")
 	}
+
+	log.Info("htpasswd from credentials", "htpasswd", htpasswd)
 
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
+	log.Info("system domain", "domain", domain)
+
+	var helmArgs []string
+
+	log.Info("assembling helm command")
 	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
-	helmCmd := fmt.Sprintf("helm %[1]s %[2]s --set 'auth.htpasswd=%[3]s' --set 'domain=%[4]s' --set 'createNodePort=%[5]v' --namespace %[6]s %[7]s",
-		action,
-		RegistryDeploymentID,
-		htpasswd,
-		fmt.Sprintf("%s.%s", RegistryDeploymentID, domain),
-		options.GetBoolNG("use-internal-registry-node-port"),
-		RegistryDeploymentID,
-		tarPath)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+
+	helmArgs = append(helmArgs, action, RegistryDeploymentID)
+	helmArgs = append(helmArgs, `--namespace`, RegistryDeploymentID)
+	helmArgs = append(helmArgs, tarPath)
+	helmArgs = append(helmArgs, `--set`, `auth.htpasswd=`+htpasswd)
+	helmArgs = append(helmArgs, `--set`, fmt.Sprintf("domain=%s.%s", RegistryDeploymentID, domain))
+	helmArgs = append(helmArgs, `--set`, fmt.Sprintf(`createNodePort=%v`, options.GetBoolNG("use-internal-registry-node-port")))
+
+	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))
+	log.Info("run helm command")
+
+	if out, err := helpers.RunProc(currentdir, k.Debug, "helm", helmArgs...); err != nil {
 		return errors.New("Failed installing Registry: " + out)
 	}
+
+	log.Info("completed helm command")
+	log.Info("waiting for pods to exist")
 
 	if err := c.WaitUntilPodBySelectorExist(ctx, ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
 		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
+
+	log.Info("waiting for pods to run")
+
 	if err := c.WaitForPodBySelectorRunning(ctx, ui, RegistryDeploymentID, "app.kubernetes.io/name=container-registry",
 		duration.ToPodReady()); err != nil {
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 
+	log.Info("create properly annotated secret")
 	// We need the empty certificate secret with a specific annotation
 	// for it to be copied into `tekton-staging` namespace
 	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
@@ -194,8 +217,12 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	}
 
 	// Wait for the cert manager to be present and active. It is required
+	log.Info("waiting for cert manager to be present and active")
+
 	issuer := options.GetStringNG("tls-issuer")
 	waitForCertManagerReady(ctx, ui, c, issuer)
+
+	log.Info("issue registry cert")
 
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
@@ -227,6 +254,8 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 	ui.Success().Msg("Registry deployed")
 
+	log.Info("apply done")
+
 	return nil
 }
 
@@ -235,6 +264,9 @@ func (k Registry) GetVersion() string {
 }
 
 func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	log := k.Log.WithName("Deploy")
+	log.Info("start")
+	defer log.Info("return")
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
@@ -247,7 +279,7 @@ func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Registry...")
 
-	err = k.apply(ctx, c, ui, options, false)
+	err = k.apply(ctx, c, ui, options, false, log)
 	if err != nil {
 		return err
 	}
@@ -256,6 +288,10 @@ func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.
 }
 
 func (k Registry) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	log := k.Log.WithName("Upgrade")
+	log.Info("start")
+	defer log.Info("return")
+
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
 		RegistryDeploymentID,
@@ -267,5 +303,5 @@ func (k Registry) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui
 
 	ui.Note().Msg("Upgrading Registry...")
 
-	return k.apply(ctx, c, ui, options, true)
+	return k.apply(ctx, c, ui, options, true, log)
 }

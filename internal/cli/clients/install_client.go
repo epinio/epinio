@@ -143,10 +143,10 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 
 	steps := []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
-		&deployments.CertManager{Timeout: duration.ToDeployment()},
+		&deployments.CertManager{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
-		&deployments.Registry{Timeout: duration.ToDeployment()},
+		&deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
 	}
@@ -229,11 +229,11 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 		&deployments.GoogleServices{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
-		&deployments.Registry{Timeout: duration.ToDeployment()},
+		&deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
-		&deployments.CertManager{Timeout: duration.ToDeployment()},
+		&deployments.CertManager{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
 	} {
 		wg.Add(1)

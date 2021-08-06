@@ -1,13 +1,11 @@
 package epinio
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
 
 type Epinio struct {
-	Flags            string
+	Flags            []string
 	EpinioBinaryPath string
 }
 
@@ -18,8 +16,7 @@ func NewEpinioHelper(epinioBinaryPath string) Epinio {
 }
 
 func (e *Epinio) Install() (string, error) {
-	out, err := proc.Run(fmt.Sprintf("%s install %s", e.EpinioBinaryPath, e.Flags),
-		"", false)
+	out, err := proc.Run("", false, e.EpinioBinaryPath, append([]string{"install"}, e.Flags...)...)
 	if err != nil {
 		return out, err
 	}
@@ -27,8 +24,7 @@ func (e *Epinio) Install() (string, error) {
 }
 
 func (e *Epinio) Uninstall() (string, error) {
-	out, err := proc.Run(fmt.Sprintf("%s uninstall", e.EpinioBinaryPath),
-		"", false)
+	out, err := proc.Run("", false, e.EpinioBinaryPath, "uninstall")
 	if err != nil {
 		return out, err
 	}

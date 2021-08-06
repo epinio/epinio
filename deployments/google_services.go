@@ -63,8 +63,8 @@ func (k GoogleServices) Delete(ctx context.Context, c *kubernetes.Cluster, ui *t
 	message := "Removing helm release " + GoogleServicesDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace %s", GoogleServicesDeploymentID, GoogleServicesDeploymentID)
-			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+			return helpers.RunProc(currentdir, k.Debug,
+				"helm", "uninstall", GoogleServicesDeploymentID, "--namespace", GoogleServicesDeploymentID)
 		},
 	)
 	if err != nil {
@@ -144,8 +144,8 @@ broker:
 		return err
 	}
 
-	helmCmd := fmt.Sprintf("helm %s %s --namespace %s --values %s %s", action, GoogleServicesDeploymentID, GoogleServicesDeploymentID, valuesYamlPath, tarPath)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	if out, err := helpers.RunProc(currentdir, k.Debug,
+		"helm", action, GoogleServicesDeploymentID, "--namespace", GoogleServicesDeploymentID, "--values", valuesYamlPath, tarPath); err != nil {
 		return errors.New("Failed installing GoogleServices: " + out)
 	}
 

@@ -11,7 +11,7 @@ import (
 
 var _ = Describe("Orgs", func() {
 	It("has a default org", func() {
-		orgs, err := env.Epinio("org list", "")
+		orgs, err := env.Epinio("", "org", "list")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(orgs).To(MatchRegexp("workspace"))
 	})
@@ -22,7 +22,7 @@ var _ = Describe("Orgs", func() {
 			env.SetupAndTargetOrg(org)
 
 			By("switching org back to default")
-			out, err := env.Epinio("target workspace", "")
+			out, err := env.Epinio("", "target", "workspace")
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
@@ -30,7 +30,7 @@ var _ = Describe("Orgs", func() {
 			org := catalog.NewOrgName()
 			env.SetupAndTargetOrg(org)
 
-			out, err := env.Epinio("org create "+org, "")
+			out, err := env.Epinio("", "org", "create", org)
 			Expect(err).To(HaveOccurred(), out)
 
 			Expect(out).To(MatchRegexp(fmt.Sprintf("Organization '%s' already exists", org)))
@@ -43,7 +43,7 @@ var _ = Describe("Orgs", func() {
 			env.SetupAndTargetOrg(org)
 
 			By("deleting organization")
-			out, err := env.Epinio("org delete -f "+org, "")
+			out, err := env.Epinio("", "org", "delete", "-f", org)
 
 			Expect(err).ToNot(HaveOccurred(), out)
 		})

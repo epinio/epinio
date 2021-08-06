@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strconv"
 
 	. "github.com/onsi/gomega"
 )
@@ -17,11 +18,13 @@ func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bo
 }
 
 func (m *Machine) MakeDockerImageApp(appName string, instances int, dockerImageURL string) string {
-	pushOutput, err := m.Epinio(fmt.Sprintf("apps push %s --docker-image-url %s --instances %d", appName, dockerImageURL, instances), "")
+	pushOutput, err := m.Epinio("", "apps", "push", appName,
+		"--docker-image-url", dockerImageURL,
+		"--instances", strconv.Itoa(instances))
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("app list", "")
+		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
@@ -43,18 +46,20 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
-		pushOutput, err = m.Epinio(fmt.Sprintf("apps push %s --instances %d", appName, instances), appDir)
+		pushOutput, err = m.Epinio(appDir, "apps", "push", appName,
+			"--instances", strconv.Itoa(instances))
 	} else {
 		// Note: appDir is handed as second argument to the epinio cli.
 		// This means that the command gets the sources from that directory instead of CWD.
-		pushOutput, err = m.Epinio(fmt.Sprintf("apps push %s %s --instances %d", appName, appDir, instances), "")
+		pushOutput, err = m.Epinio("", "apps", "push", appName, appDir,
+			"--instances", strconv.Itoa(instances))
 	}
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
 
 	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("app list", "")
+		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
@@ -63,19 +68,19 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 }
 
 func (m *Machine) DeleteApp(appName string) {
-	out, err := m.Epinio("app delete "+appName, "")
+	out, err := m.Epinio("", "app", "delete", appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("app list", "")
+		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 }
 
 func (m *Machine) CleanupApp(appName string) {
-	out, err := m.Epinio("app delete "+appName, "")
+	out, err := m.Epinio("", "app", "delete", appName)
 	// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 	if err != nil {
