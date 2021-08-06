@@ -27,6 +27,11 @@ func Get(dir, command string, arg ...string) (*kexec.KCommand, error) {
 	return p, nil
 }
 
+// RunW runs the command in the current working dir
+func RunW(cmd string, args ...string) (string, error) {
+	return Run("", false, cmd, args...)
+}
+
 func Run(dir string, toStdout bool, cmd string, arg ...string) (string, error) {
 	p, err := Get(dir, cmd, arg...)
 	if err != nil {

@@ -58,6 +58,7 @@ tag:
 
 GINKGO_NODES ?= 2
 FLAKE_ATTEMPTS ?= 2
+REGEX ?= ""
 
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
@@ -82,7 +83,8 @@ test-acceptance-cli: showfocus embed_files
 	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
 test-acceptance-install: showfocus embed_files
-	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/install/.
+	# TODO support for labels is coming in ginkgo v2
+	ginkgo -nodes ${GINKGO_NODES} -focus "${REGEX}" -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} acceptance/install/.
 
 
 showfocus:

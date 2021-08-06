@@ -1,8 +1,7 @@
-package acceptance_test
+package install_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"testing"
@@ -41,25 +40,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
-	var err error
 	testenv.SetRoot("../..")
 
-	nodeSuffix = fmt.Sprintf("%d-%s", config.GinkgoConfig.ParallelNode, string(randomSuffix))
-	nodeTmpDir, err = ioutil.TempDir("", "epinio-"+nodeSuffix)
-	if err != nil {
-		panic("Could not create temp dir: " + err.Error())
-	}
-
 	Expect(os.Getenv("KUBECONFIG")).ToNot(BeEmpty(), "KUBECONFIG environment variable should not be empty")
-
-	env = testenv.New(nodeTmpDir, testenv.Root())
 })
 
 var _ = SynchronizedAfterSuite(func() {
-	if !testenv.SkipCleanup() {
-		fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
-		testenv.DeleteTmpDir(nodeTmpDir)
-	}
 }, func() { // Runs only on one node after all are done
 	if testenv.SkipCleanup() {
 		fmt.Printf("Found '%s', skipping all cleanup", testenv.SkipCleanupPath())
