@@ -1,28 +1,27 @@
 package acceptance_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime"
+	"path"
 
 	"github.com/epinio/epinio/acceptance/helpers/epinio"
+	"github.com/epinio/epinio/acceptance/testenv"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Epinio Installation", func() {
+var _ = Describe("Epinio Installation with <ConfigFile>, pushing a PHP app", func() {
 	var (
-		configFile string
+		configFile     string
+		epinioUser     = "epinio"
+		epinioPassword = "password"
 	)
 
-	epinioBinary := fmt.Sprintf("../../dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
-	epinioHelper := epinio.NewEpinioHelper(epinioBinary)
-	epinioUser := "epinio"
-	epinioPassword := "password"
+	epinioHelper := epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
 	BeforeEach(func() {
-		input, err := ioutil.ReadFile("../../assets/tests/config.yaml")
+		input, err := ioutil.ReadFile(path.Join(testenv.Root(), "assets/tests/config.yaml"))
 		Expect(err).NotTo(HaveOccurred())
 		f, err := ioutil.TempFile("", "config")
 		Expect(err).NotTo(HaveOccurred())

@@ -30,7 +30,7 @@ func SetupGoogleServices(epinioBinary string) error {
 
 	defer os.Remove(serviceAccountJSON)
 
-	out, err := proc.Run("", false, Root()+epinioBinary, "enable", "services-google",
+	out, err := proc.Run("", false, epinioBinary, "enable", "services-google",
 		"--service-account-json", serviceAccountJSON)
 	if err != nil {
 		return errors.Wrap(err, out)

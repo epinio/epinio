@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -50,7 +49,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	testenv.CreateRegistrySecret()
 
-	epinioBinary := fmt.Sprintf("/dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
+	epinioBinary := testenv.EpinioBinaryPath()
 	err := testenv.EnsureEpinio(epinioBinary)
 	Expect(err).ToNot(HaveOccurred(), "installing epinio")
 

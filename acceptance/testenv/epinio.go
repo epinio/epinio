@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"runtime"
 
@@ -58,8 +59,18 @@ func New(nodeDir string, rootDir string) EpinioEnv {
 	}
 }
 
+// BinaryName returns the name of the epinio binary for the current platform
+func BinaryName() string {
+	return fmt.Sprintf("epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
+}
+
+// EpinioBinaryPath returns the relative path to the dist/epinio binary
+func EpinioBinaryPath() string {
+	return filepath.Join(Root(), "dist", BinaryName())
+}
+
 func (e *EpinioEnv) CopyEpinio() (string, error) {
-	binaryPath := path.Join("dist", "epinio-"+runtime.GOOS+"-"+runtime.GOARCH)
+	binaryPath := path.Join("dist", BinaryName())
 	return proc.Run(Root(), false, "cp", binaryPath, e.nodeTmpDir+"/epinio")
 }
 
@@ -85,7 +96,7 @@ func EnsureEpinio(epinioBinary string) error {
 	// Installing linkerd and ingress separate from the main
 	// pieces.  Ensures that the main install command invokes and
 	// passes the presence checks for linkerd and traefik.
-	out, err = proc.Run("", false, Root()+epinioBinary, "install-ingress")
+	out, err = proc.Run("", false, epinioBinary, "install-ingress")
 	if err != nil {
 		return errors.Wrap(err, out)
 	}
@@ -103,7 +114,7 @@ func EnsureEpinio(epinioBinary string) error {
 		installArgs = append(installArgs, "--system-domain", domain)
 	}
 
-	out, err = proc.Run("", false, Root()+epinioBinary, installArgs...)
+	out, err = proc.Run("", false, epinioBinary, installArgs...)
 	if err != nil {
 		return errors.Wrap(err, out)
 	}
@@ -116,9 +127,15 @@ func BuildEpinio() {
 		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
 	}
 }
+func BuildEpinioRuntime() {
+	output, err := proc.Run(Root(), false, "make", fmt.Sprintf("build-%s-%s", runtime.GOOS, runtime.GOARCH))
+	if err != nil {
+		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
+	}
+}
 
 func ExpectGoodInstallation(epinioBinary string) {
-	info, err := proc.Run("", false, Root()+epinioBinary, "info")
+	info, err := proc.Run("", false, epinioBinary, "info")
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	gomega.Expect(info).To(gomega.Or(
 		gomega.MatchRegexp("Kubernetes Version: v1.21"),
@@ -154,7 +171,7 @@ func CheckDependencies() error {
 
 func EnsureDefaultWorkspace(epinioBinary string) {
 	gomega.Eventually(func() string {
-		out, err := proc.Run("", false, Root()+epinioBinary, "org", "create", "workspace")
+		out, err := proc.Run("", false, epinioBinary, "org", "create", "workspace")
 		if err != nil {
 			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
 				return ""

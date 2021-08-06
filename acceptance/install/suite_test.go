@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -24,7 +23,6 @@ func TestAcceptance(t *testing.T) {
 var (
 	nodeSuffix, nodeTmpDir string
 	env                    testenv.EpinioEnv
-	epinioBinary           string
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -38,18 +36,15 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
-	testenv.BuildEpinio()
+	testenv.BuildEpinioRuntime()
 	testenv.CreateRegistrySecret()
-
-	epinioBinary = fmt.Sprintf("/dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
 	var err error
 	testenv.SetRoot("../..")
 
-	nodeSuffix = fmt.Sprintf("%d-%s",
-		config.GinkgoConfig.ParallelNode, string(randomSuffix))
+	nodeSuffix = fmt.Sprintf("%d-%s", config.GinkgoConfig.ParallelNode, string(randomSuffix))
 	nodeTmpDir, err = ioutil.TempDir("", "epinio-"+nodeSuffix)
 	if err != nil {
 		panic("Could not create temp dir: " + err.Error())
