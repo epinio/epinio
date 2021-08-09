@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -145,6 +146,23 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 		return errors.Wrapf(err, "waiting for %s secret", traefikAuthClientSecretName)
 	}
 
+	apiUserOpt, err := options.GetOpt("user", "")
+	if err != nil {
+		return err
+	}
+
+	apiPasswordOpt, err := options.GetOpt("password", "")
+	if err != nil {
+		return err
+	}
+
+	username := apiUserOpt.Value.(string)
+	password := apiPasswordOpt.Value.(string)
+	passwordHash, err := auth.HashBcrypt(password)
+	if err != nil {
+		return errors.Wrap(err, "generating hash for api password")
+	}
+
 	// https://github.com/dexidp/dex/blob/master/config.yaml.dist
 	config := fmt.Sprintf(`
 issuer: https://%[6]s
@@ -183,12 +201,11 @@ config:
 
   enablePasswordDB: true
 
-  # TODO: Templetize and generate this
   staticPasswords:
-    - email: "admin@example.com"
-      hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
-      username: "admin"
-      userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
+    - email: "%[7]s"
+      hash: "%[8]s"
+      username: "%[7]s"
+      userID: "1"
 
   staticClients:
     - id: %[3]s
@@ -203,7 +220,8 @@ config:
 		traefikAuthClientSecret.Data["username"],
 		traefikAuthClientSecret.Data["password"],
 		fmt.Sprintf("https://auth.%s/_oauth", domain),
-		fmt.Sprintf("%s.%s", DexDeploymentID, domain))
+		fmt.Sprintf("%s.%s", DexDeploymentID, domain),
+		username, passwordHash)
 
 	configPath, err := helpers.CreateTmpFile(config)
 	if err != nil {
