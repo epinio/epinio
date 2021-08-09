@@ -35,20 +35,35 @@ const (
 	EpinioCAIssuer          = "epinio-ca"
 )
 
-func (cm *CertManager) ID() string {
+// internalIssuer returns true if the given issuer is an issuer created by Epinio
+func internalIssuer(issuer string) bool {
+	return issuer == SelfSignedIssuer ||
+		issuer == LetsencryptIssuer ||
+		issuer == EpinioCAIssuer
+}
+
+func (cm CertManager) ID() string {
 	return CertManagerDeploymentID
-}
-
-func (cm *CertManager) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (cm *CertManager) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (cm CertManager) Describe() string {
 	return emoji.Sprintf(":cloud:CertManager version: %s\n:clipboard:CertManager chart: %s", certManagerVersion, certManagerChartFile)
+}
+
+func (cm CertManager) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	// Validate cert-manager issuer
+	issuer := options.GetStringNG("tls-issuer")
+	if !internalIssuer(issuer) {
+		found, err := c.ClusterIssuerExists(ctx, issuer)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return fmt.Errorf("specified cluster issuer '%s' is missing. Please create it first", issuer)
+		}
+	}
+
+	return nil
 }
 
 func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
@@ -381,6 +396,11 @@ func (cm CertManager) DeleteClusterIssuer(ctx context.Context, c *kubernetes.Clu
 }
 
 func (cm CertManager) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	if skip := options.GetBoolNG("skip-cert-manager"); skip {
+		ui.Exclamation().Msg("Skipping cert-manager deployment by user request")
+		return nil
+	}
+
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
 		CertManagerDeploymentID,
@@ -415,7 +435,7 @@ func (cm CertManager) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *te
 	return cm.apply(ctx, c, ui, options, true)
 }
 
-func waitForCertManagerReady(ctx context.Context, ui *termui.UI, c *kubernetes.Cluster) error {
+func waitForCertManagerReady(ctx context.Context, ui *termui.UI, c *kubernetes.Cluster, issuer string) error {
 	for _, deployment := range []string{
 		"cert-manager",
 		"cert-manager-webhook",
@@ -429,6 +449,10 @@ func waitForCertManagerReady(ctx context.Context, ui *termui.UI, c *kubernetes.C
 		if err := c.WaitForDeploymentCompleted(ctx, ui, CertManagerDeploymentID, deployment, duration.ToCertManagerReady()); err != nil {
 			return errors.Wrapf(err, "failed waiting CertManager %s deployment to be ready in namespace %s", deployment, CertManagerDeploymentID)
 		}
+	}
+
+	if err := c.WaitForClusterIssuer(ctx, ui, issuer, duration.ToCertManagerReady()); err != nil {
+		return errors.Wrapf(err, "waiting for cluster issuer '%s'", issuer)
 	}
 
 	return nil

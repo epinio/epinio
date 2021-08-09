@@ -33,6 +33,7 @@ epinio cli is the official command line interface for Epinio PaaS
 * [epinio enable](../epinio_enable)	 - enable Epinio features
 * [epinio info](../epinio_info)	 - Shows information about the Epinio environment
 * [epinio install](../epinio_install)	 - install Epinio in your configured kubernetes cluster
+* [epinio install-cert-manager](../epinio_install-cert-manager)	 - install Epinio's cert-manager in your configured kubernetes cluster
 * [epinio install-ingress](../epinio_install-ingress)	 - install Epinio's Ingress in your configured kubernetes cluster
 * [epinio org](../epinio_org)	 - Epinio organizations
 * [epinio push](../epinio_push)	 - Push an application from the specified directory, or the current working directory

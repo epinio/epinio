@@ -29,21 +29,17 @@ const (
 	KubedChartFile    = "kubed-v0.12.0.tgz"
 )
 
-func (k *Kubed) ID() string {
+func (k Kubed) ID() string {
 	return KubedDeploymentID
-}
-
-func (k *Kubed) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Kubed) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Kubed) Describe() string {
 	return emoji.Sprintf(":cloud:Epinio version: %s\n", KubedVersion)
 
+}
+
+func (k *Kubed) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes Kubed from kubernetes cluster

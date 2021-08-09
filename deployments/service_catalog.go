@@ -28,20 +28,16 @@ const (
 	serviceCatalogChartFile    = "catalog-0.3.1.tgz"
 )
 
-func (k *ServiceCatalog) ID() string {
+func (k ServiceCatalog) ID() string {
 	return ServiceCatalogDeploymentID
-}
-
-func (k *ServiceCatalog) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *ServiceCatalog) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k ServiceCatalog) Describe() string {
 	return emoji.Sprintf(":cloud:Service Catalog version: %s\n", serviceCatalogVersion)
+}
+
+func (k ServiceCatalog) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes ServiceCatalog from kubernetes cluster

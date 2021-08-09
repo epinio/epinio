@@ -30,20 +30,16 @@ const (
 	googleServicesChartFile    = "gcp-service-broker-0.1.0.tgz"
 )
 
-func (k *GoogleServices) ID() string {
+func (k GoogleServices) ID() string {
 	return GoogleServicesDeploymentID
-}
-
-func (k *GoogleServices) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *GoogleServices) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k GoogleServices) Describe() string {
 	return emoji.Sprintf(":cloud:GoogleServices version: %s\n", googleServicesVersion)
+}
+
+func (k GoogleServices) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes GoogleServices from kubernetes cluster

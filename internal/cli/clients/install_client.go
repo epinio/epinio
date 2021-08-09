@@ -141,8 +141,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		}
 	}
 
-	installationWg := &sync.WaitGroup{}
-	for _, deployment := range []kubernetes.Deployment{
+	steps := []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
@@ -150,7 +149,16 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
-	} {
+	}
+
+	for _, deployment := range steps {
+		if err := c.PreInstallCheck(ctx, deployment, details); err != nil {
+			return errors.Wrapf(err, "Deployment %s failed pre-installation checks", deployment.ID())
+		}
+	}
+
+	installationWg := &sync.WaitGroup{}
+	for _, deployment := range steps {
 		installationWg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
@@ -322,6 +330,57 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 	return nil
 }
 
+// InstallCertManager deploys epinio's ingress controller to the cluster.
+func (c *InstallClient) InstallCertManager(cmd *cobra.Command) error {
+	log := c.Log.WithName("InstallCertManager")
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	ctx := cmd.Context()
+
+	c.ui.Note().Msg("Epinio installing cert-manager...")
+
+	var err error
+	details.Info("process cli options")
+	c.options, err = c.options.Populate(kubernetes.NewCLIOptionsReader(cmd.Flags()))
+	if err != nil {
+		return err
+	}
+
+	interactive, err := cmd.Flags().GetBool("interactive")
+	if err != nil {
+		return err
+	}
+
+	if interactive {
+		details.Info("query user for options")
+		c.options, err = c.options.Populate(kubernetes.NewInteractiveOptionsReader(os.Stdout, os.Stdin))
+		if err != nil {
+			return err
+		}
+	} else {
+		details.Info("fill defaults into options")
+		c.options, err = c.options.Populate(kubernetes.NewDefaultOptionsReader())
+		if err != nil {
+			return err
+		}
+	}
+
+	details.Info("show option configuration")
+	c.showInstallConfiguration(c.options)
+
+	if err := c.InstallDeployment(ctx, &deployments.CertManager{
+		Timeout: duration.ToDeployment(),
+	}, details); err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("Epinio cert-manager done.")
+
+	return nil
+}
+
 func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) error {
 	var nsList *corev1.NamespaceList
 	var err error
@@ -341,6 +400,14 @@ func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) erro
 		}
 	}
 	return nil
+}
+
+// PreInstallCheck checks the pre conditions for a single deployment
+func (c *InstallClient) PreInstallCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
+	logger.Info("check", "Deployment", deployment.ID())
+	defer logger.Info("return")
+
+	return deployment.PreDeployCheck(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
 // InstallDeployment installs one single Deployment on the cluster

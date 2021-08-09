@@ -46,20 +46,16 @@ func RegistryInstallAuth() (*auth.PasswordAuth, error) {
 	return registryAuthMemo, nil
 }
 
-func (k *Registry) ID() string {
+func (k Registry) ID() string {
 	return RegistryDeploymentID
-}
-
-func (k *Registry) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Registry) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Registry) Describe() string {
 	return emoji.Sprintf(":cloud:Registry version: %s\n:clipboard:Registry chart: %s", registryVersion, registryChartFile)
+}
+
+func (k Registry) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes Registry from kubernetes cluster
@@ -197,10 +193,9 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return err
 	}
 
-	issuer := options.GetStringNG("tls-issuer")
-
 	// Wait for the cert manager to be present and active. It is required
-	waitForCertManagerReady(ctx, ui, c)
+	issuer := options.GetStringNG("tls-issuer")
+	waitForCertManagerReady(ctx, ui, c, issuer)
 
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation

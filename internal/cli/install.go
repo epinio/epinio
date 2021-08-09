@@ -11,7 +11,33 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var NeededOptions = kubernetes.InstallationOptions{
+var (
+	skipLinkerdOption = kubernetes.InstallationOption{
+		Name:        "skip-linkerd",
+		Description: "Assert to epinio that Linkerd is already installed.",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       false,
+	}
+
+	emailOption = kubernetes.InstallationOption{
+		Name:        "email_address",
+		Description: "The email address you are planning to use for getting notifications about your certificates",
+		Type:        kubernetes.StringType,
+		Default:     "epinio@suse.com",
+		Value:       "",
+	}
+
+	ingressServiceIPOption = kubernetes.InstallationOption{
+		Name:        "ingress-service-ip",
+		Description: "IP address to be assigned to ingress loadbalancer service",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	}
+)
+
+var neededOptions = kubernetes.InstallationOptions{
 	{
 		Name:        "skip-traefik",
 		Description: "Assert to epinio that there is a Traefik active, even if epinio cannot find it.",
@@ -19,9 +45,10 @@ var NeededOptions = kubernetes.InstallationOptions{
 		Default:     false,
 		Value:       false,
 	},
+	skipLinkerdOption,
 	{
-		Name:        "skip-linkerd",
-		Description: "Assert to epinio that Linkerd is already installed.",
+		Name:        "skip-cert-manager",
+		Description: "Assert to epinio that cert-manager is already installed.",
 		Type:        kubernetes.BooleanType,
 		Default:     false,
 		Value:       false,
@@ -33,13 +60,7 @@ var NeededOptions = kubernetes.InstallationOptions{
 		Default:     "",
 		Value:       "",
 	},
-	{
-		Name:        "email_address",
-		Description: "The email address you are planning to use for getting notifications about your certificates",
-		Type:        kubernetes.StringType,
-		Default:     "epinio@suse.com",
-		Value:       "",
-	},
+	emailOption,
 	{
 		Name:        "user",
 		Description: "The user name for authenticating all API requests",
@@ -87,27 +108,12 @@ var NeededOptions = kubernetes.InstallationOptions{
 		Default:     true,
 		Value:       true,
 	},
+	ingressServiceIPOption,
 }
 
-var TraefikOptions = kubernetes.InstallationOptions{
-	{
-		Name:        "skip-linkerd",
-		Description: "Assert to epinio that Linkerd is already installed.",
-		Type:        kubernetes.BooleanType,
-		Default:     false,
-		Value:       false,
-	},
-}
+var traefikOptions = kubernetes.InstallationOptions{skipLinkerdOption, ingressServiceIPOption}
 
-var CommonInstallOptions = kubernetes.InstallationOptions{
-	{
-		Name:        "ingress-service-ip",
-		Description: "IP address to be assigned to ingress loadbalancer service",
-		Type:        kubernetes.StringType,
-		Default:     "",
-		Value:       "",
-	},
-}
+var certManagerOptions = kubernetes.InstallationOptions{emailOption}
 
 const (
 	DefaultOrganization = "workspace"
@@ -119,11 +125,11 @@ func init() {
 
 	CmdInstallIngress.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 
-	NeededOptions.AsCobraFlagsFor(CmdInstall.Flags())
-	CommonInstallOptions.AsCobraFlagsFor(CmdInstall.Flags())
+	CmdInstallCertManager.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 
-	TraefikOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
-	CommonInstallOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
+	neededOptions.AsCobraFlagsFor(CmdInstall.Flags())
+	traefikOptions.AsCobraFlagsFor(CmdInstallIngress.Flags())
+	certManagerOptions.AsCobraFlagsFor(CmdInstallCertManager.Flags())
 }
 
 var CmdInstall = &cobra.Command{
@@ -131,7 +137,7 @@ var CmdInstall = &cobra.Command{
 	Short: "install Epinio in your configured kubernetes cluster",
 	Long:  `install Epinio PaaS in your configured kubernetes cluster`,
 	Args:  cobra.ExactArgs(0),
-	RunE:  Install,
+	RunE:  install,
 }
 
 // Note: The command is called `install-ingress` instead of `install
@@ -142,8 +148,24 @@ var CmdInstall = &cobra.Command{
 // the quick install more verbose. So, for now the new functionality
 // is exposed through a new toplevel command.
 
-// Install command installs epinio on a configured cluster
-func Install(cmd *cobra.Command, args []string) error {
+var CmdInstallIngress = &cobra.Command{
+	Use:   "install-ingress",
+	Short: "install Epinio's Ingress in your configured kubernetes cluster",
+	Long:  `install Epinio Ingress controller in your configured kubernetes cluster`,
+	Args:  cobra.ExactArgs(0),
+	RunE:  installIngress,
+}
+
+var CmdInstallCertManager = &cobra.Command{
+	Use:   "install-cert-manager",
+	Short: "install Epinio's cert-manager in your configured kubernetes cluster",
+	Long:  `install Epinio cert-manager controller in your configured kubernetes cluster`,
+	Args:  cobra.ExactArgs(0),
+	RunE:  installCertManager,
+}
+
+// install command installs epinio on a configured cluster
+func install(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
 	skipTraefik, err := cmd.Flags().GetBool("skip-traefik")
@@ -160,8 +182,7 @@ func Install(cmd *cobra.Command, args []string) error {
 		return errors.New("cannot have --skip-traefik and --ingress-service-ip together")
 	}
 
-	installOptions := append(NeededOptions, CommonInstallOptions...)
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &installOptions)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &neededOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -222,20 +243,11 @@ func Install(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-var CmdInstallIngress = &cobra.Command{
-	Use:   "install-ingress",
-	Short: "install Epinio's Ingress in your configured kubernetes cluster",
-	Long:  `install Epinio Ingress Controller in your configured kubernetes cluster`,
-	Args:  cobra.ExactArgs(0),
-	RunE:  InstallIngress,
-}
-
-// InstallIngress command installs epinio's ingress controller on a configured cluster
-func InstallIngress(cmd *cobra.Command, args []string) error {
+// installIngress command installs epinio's ingress controller on a configured cluster
+func installIngress(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	installIngressOptions := append(TraefikOptions, CommonInstallOptions...)
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &installIngressOptions)
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &traefikOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -248,7 +260,30 @@ func InstallIngress(cmd *cobra.Command, args []string) error {
 
 	err = installClient.InstallIngress(cmd)
 	if err != nil {
-		return errors.Wrap(err, "error installing Epinio")
+		return errors.Wrap(err, "error installing Epinio ingress")
+	}
+
+	return nil
+}
+
+// installCertManager command installs epinio's ingress controller on a configured cluster
+func installCertManager(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
+	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &certManagerOptions)
+	defer func() {
+		if installCleanup != nil {
+			installCleanup()
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	err = installClient.InstallCertManager(cmd)
+	if err != nil {
+		return errors.Wrap(err, "error installing Epinio cert-manager")
 	}
 
 	return nil
