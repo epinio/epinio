@@ -35,7 +35,8 @@ const (
 	EpinioCAIssuer          = "epinio-ca"
 )
 
-func internalIssuer(issuer string) bool {
+// InternalIssuer returns true if the given issuer is an issuer created by Epinio
+func InternalIssuer(issuer string) bool {
 	return issuer == SelfSignedIssuer ||
 		issuer == LetsencryptIssuer ||
 		issuer == EpinioCAIssuer

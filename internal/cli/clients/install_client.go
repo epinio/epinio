@@ -141,6 +141,18 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		}
 	}
 
+	// Validate cert-manager issuer
+	issuer := c.options.GetStringNG("tls-issuer")
+	if !deployments.InternalIssuer(issuer) {
+		found, err := c.kubeClient.ClusterIssuerExists(ctx, issuer)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return fmt.Errorf("specified cluster issuer '%s' is missing. Please create it first", issuer)
+		}
+	}
+
 	installationWg := &sync.WaitGroup{}
 	for _, deployment := range []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
