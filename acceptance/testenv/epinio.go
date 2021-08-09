@@ -115,7 +115,10 @@ func BuildEpinio() {
 func ExpectGoodInstallation(epinioBinary string) {
 	info, err := proc.Run(fmt.Sprintf("%s%s info", Root(), epinioBinary), "", false)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
-	gomega.Expect(info).To(gomega.Or(gomega.MatchRegexp("Kubernetes Version: v1.20"), gomega.MatchRegexp("Kubernetes Version: v1.19")))
+	gomega.Expect(info).To(gomega.Or(
+		gomega.MatchRegexp("Kubernetes Version: v1.21"),
+		gomega.MatchRegexp("Kubernetes Version: v1.20"),
+		gomega.MatchRegexp("Kubernetes Version: v1.19")))
 	gomega.Expect(info).To(gomega.MatchRegexp("Gitea Version: unavailable"))
 }
 
