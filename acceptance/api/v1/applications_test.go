@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
@@ -364,7 +365,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("uploading a broken tarball", func() {
 			BeforeEach(func() {
-				path = "../../../fixtures/untar.tgz"
+				path = testenv.AssetPath("untar.tgz")
 			})
 
 			It("returns an error response", func() {
@@ -388,7 +389,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("uploading a new dir", func() {
 			BeforeEach(func() {
-				path = "../../../fixtures/sample-app.tar"
+				path = testenv.AssetPath("sample-app.tar")
 			})
 
 			It("returns the app response", func() {
@@ -439,7 +440,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				It("returns a success", func() {
 					// First upload to allow staging to succeed
 					uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
-					uploadPath := "../../../fixtures/sample-app.tar"
+					uploadPath := testenv.AssetPath("sample-app.tar")
 					uploadRequest, err := uploadRequest(uploadURL, uploadPath)
 					Expect(err).ToNot(HaveOccurred())
 					resp, err := env.Client().Do(uploadRequest)

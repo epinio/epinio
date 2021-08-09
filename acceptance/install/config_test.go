@@ -3,7 +3,6 @@ package acceptance_test
 import (
 	"io/ioutil"
 	"os"
-	"path"
 
 	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	"github.com/epinio/epinio/acceptance/testenv"
@@ -21,7 +20,7 @@ var _ = Describe("Epinio Installation with <ConfigFile>, pushing a PHP app", fun
 	epinioHelper := epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
 	BeforeEach(func() {
-		input, err := ioutil.ReadFile(path.Join(testenv.Root(), "assets/tests/config.yaml"))
+		input, err := ioutil.ReadFile(testenv.AssetPath("config.yaml"))
 		Expect(err).NotTo(HaveOccurred())
 		f, err := ioutil.TempFile("", "config")
 		Expect(err).NotTo(HaveOccurred())
