@@ -46,20 +46,16 @@ func RegistryInstallAuth() (*auth.PasswordAuth, error) {
 	return registryAuthMemo, nil
 }
 
-func (k *Registry) ID() string {
+func (k Registry) ID() string {
 	return RegistryDeploymentID
-}
-
-func (k *Registry) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Registry) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Registry) Describe() string {
 	return emoji.Sprintf(":cloud:Registry version: %s\n:clipboard:Registry chart: %s", registryVersion, registryChartFile)
+}
+
+func (k Registry) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes Registry from kubernetes cluster

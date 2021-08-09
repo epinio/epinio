@@ -31,20 +31,16 @@ const (
 	linkerdUninstallJobYAML = "linkerd/uninstall-job.yaml"
 )
 
-func (k *Linkerd) ID() string {
+func (k Linkerd) ID() string {
 	return LinkerdDeploymentID
-}
-
-func (k *Linkerd) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Linkerd) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Linkerd) Describe() string {
 	return emoji.Sprintf(":cloud:Linkerd version: %s\n", linkerdVersion)
+}
+
+func (k *Linkerd) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes linkerd from kubernetes cluster

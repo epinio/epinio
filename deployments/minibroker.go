@@ -28,20 +28,16 @@ const (
 	minibrokerChartFile    = "minibroker-1.2.0.tgz"
 )
 
-func (k *Minibroker) ID() string {
+func (k Minibroker) ID() string {
 	return MinibrokerDeploymentID
-}
-
-func (k *Minibroker) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Minibroker) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Minibroker) Describe() string {
 	return emoji.Sprintf(":cloud:Minibroker version: %s\n", minibrokerVersion)
+}
+
+func (k *Minibroker) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes Minibroker from kubernetes cluster

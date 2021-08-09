@@ -51,20 +51,16 @@ const (
 	tektonPipelineYamlPath        = "tekton/stage-pipeline.yaml"
 )
 
-func (k *Tekton) ID() string {
+func (k Tekton) ID() string {
 	return TektonDeploymentID
-}
-
-func (k *Tekton) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Tekton) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Tekton) Describe() string {
 	return emoji.Sprintf(":cloud:Tekton pipeline: %s\n", tektonPipelineReleaseYamlPath)
+}
+
+func (k Tekton) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes Tekton from kubernetes cluster

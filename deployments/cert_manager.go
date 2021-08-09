@@ -35,27 +35,35 @@ const (
 	EpinioCAIssuer          = "epinio-ca"
 )
 
-// InternalIssuer returns true if the given issuer is an issuer created by Epinio
-func InternalIssuer(issuer string) bool {
+// internalIssuer returns true if the given issuer is an issuer created by Epinio
+func internalIssuer(issuer string) bool {
 	return issuer == SelfSignedIssuer ||
 		issuer == LetsencryptIssuer ||
 		issuer == EpinioCAIssuer
 }
 
-func (cm *CertManager) ID() string {
+func (cm CertManager) ID() string {
 	return CertManagerDeploymentID
-}
-
-func (cm *CertManager) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (cm *CertManager) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (cm CertManager) Describe() string {
 	return emoji.Sprintf(":cloud:CertManager version: %s\n:clipboard:CertManager chart: %s", certManagerVersion, certManagerChartFile)
+}
+
+func (cm CertManager) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	// Validate cert-manager issuer
+	issuer := options.GetStringNG("tls-issuer")
+	if !internalIssuer(issuer) {
+		found, err := c.ClusterIssuerExists(ctx, issuer)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return fmt.Errorf("specified cluster issuer '%s' is missing. Please create it first", issuer)
+		}
+	}
+
+	return nil
 }
 
 func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {

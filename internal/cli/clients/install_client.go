@@ -141,20 +141,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		}
 	}
 
-	// Validate cert-manager issuer
-	issuer := c.options.GetStringNG("tls-issuer")
-	if !deployments.InternalIssuer(issuer) {
-		found, err := c.kubeClient.ClusterIssuerExists(ctx, issuer)
-		if err != nil {
-			return err
-		}
-		if !found {
-			return fmt.Errorf("specified cluster issuer '%s' is missing. Please create it first", issuer)
-		}
-	}
-
-	installationWg := &sync.WaitGroup{}
-	for _, deployment := range []kubernetes.Deployment{
+	steps := []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment()},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
@@ -162,7 +149,16 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		&deployments.Registry{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
-	} {
+	}
+
+	for _, deployment := range steps {
+		if err := c.PreInstallCheck(ctx, deployment, details); err != nil {
+			return errors.Wrapf(err, "Deployment %s failed pre-installation checks", deployment.ID())
+		}
+	}
+
+	installationWg := &sync.WaitGroup{}
+	for _, deployment := range steps {
 		installationWg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
@@ -404,6 +400,14 @@ func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) erro
 		}
 	}
 	return nil
+}
+
+// PreInstallCheck checks the pre conditions for a single deployment
+func (c *InstallClient) PreInstallCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
+	logger.Info("check", "Deployment", deployment.ID())
+	defer logger.Info("return")
+
+	return deployment.PreDeployCheck(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
 // InstallDeployment installs one single Deployment on the cluster

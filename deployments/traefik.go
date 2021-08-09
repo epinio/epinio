@@ -36,20 +36,16 @@ const (
 		"https://github.com/epinio/epinio/blob/main/docs/user/howtos/provision_external_ip_for_local_kubernetes.md\n"
 )
 
-func (k *Traefik) ID() string {
+func (k Traefik) ID() string {
 	return TraefikDeploymentID
-}
-
-func (k *Traefik) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Traefik) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Traefik) Describe() string {
 	return emoji.Sprintf(":cloud:Traefik version: %s\n:clipboard:Traefik Ingress chart: %s", traefikVersion, traefikChartURL)
+}
+
+func (k Traefik) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes traefik from kubernetes cluster

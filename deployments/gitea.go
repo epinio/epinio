@@ -46,20 +46,16 @@ func GiteaInstallAuth() (*auth.PasswordAuth, error) {
 	return giteaAuthMemo, nil
 }
 
-func (k *Gitea) ID() string {
+func (k Gitea) ID() string {
 	return GiteaDeploymentID
-}
-
-func (k *Gitea) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Gitea) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Gitea) Describe() string {
 	return emoji.Sprintf(":cloud:Gitea version: %s\n:clipboard:Gitea chart: %s", giteaVersion, giteaChartURL)
+}
+
+func (k Gitea) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 // Delete removes Gitea from kubernetes cluster

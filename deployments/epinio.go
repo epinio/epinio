@@ -40,16 +40,8 @@ const (
 	applicationCRDYaml  = "epinio/app-crd.yaml"
 )
 
-func (k *Epinio) ID() string {
+func (k Epinio) ID() string {
 	return EpinioDeploymentID
-}
-
-func (k *Epinio) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Epinio) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
 }
 
 func (k Epinio) Describe() string {
@@ -206,6 +198,10 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 func (k Epinio) GetVersion() string {
 	return version.Version
+}
+
+func (k Epinio) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
 }
 
 func (k Epinio) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
