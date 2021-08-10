@@ -138,18 +138,16 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 		return errors.Wrapf(err, "waiting for %s secret", traefikAuthClientSecretName)
 	}
 
-	apiUserOpt, err := options.GetOpt("user", "")
+	username, err := options.GetString("user", "")
 	if err != nil {
 		return err
 	}
 
-	apiPasswordOpt, err := options.GetOpt("password", "")
+	password, err := options.GetString("password", "")
 	if err != nil {
 		return err
 	}
 
-	username := apiUserOpt.Value.(string)
-	password := apiPasswordOpt.Value.(string)
 	passwordHash, err := auth.HashBcrypt(password)
 	if err != nil {
 		return errors.Wrap(err, "generating hash for api password")

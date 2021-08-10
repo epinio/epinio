@@ -109,19 +109,19 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	apiUser, err := options.GetOpt("user", "")
+	apiUser, err := options.GetString("user", "")
 	if err != nil {
 		return err
 	}
 
-	apiPassword, err := options.GetOpt("password", "")
+	apiPassword, err := options.GetString("password", "")
 	if err != nil {
 		return err
 	}
 
 	authAPI := auth.PasswordAuth{
-		Username: apiUser.Value.(string),
-		Password: apiPassword.Value.(string),
+		Username: apiUser,
+		Password: apiPassword,
 	}
 
 	issuer := options.GetStringNG("tls-issuer")
