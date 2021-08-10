@@ -122,7 +122,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 	waitForPipeline := func(stageID string) {
 		Eventually(func() string {
-			out, err := helpers.Kubectl(fmt.Sprintf("-n %s get pipelinerun %s  -o jsonpath='{.status.conditions[0].status}'", deployments.TektonStagingNamespace, stageID))
+			out, err := helpers.Kubectl("get", "pipelinerun",
+				"--namespace", deployments.TektonStagingNamespace,
+				stageID,
+				"-o", "jsonpath={.status.conditions[0].status}")
 			Expect(err).NotTo(HaveOccurred())
 			return out
 		}, "5m").Should(Equal("True"))
@@ -527,7 +530,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					// Check if autoserviceaccounttoken is true
 					labels := fmt.Sprintf("app.kubernetes.io/name=%s", appName)
-					out, err := helpers.Kubectl(fmt.Sprintf("-n %s get pod -l %s  -o jsonpath='{.items[*].spec.automountServiceAccountToken}'", org, labels))
+					out, err := helpers.Kubectl("get", "pod",
+						"--namespace", org,
+						"-l", labels,
+						"-o", "jsonpath={.items[*].spec.automountServiceAccountToken}")
 					Expect(err).NotTo(HaveOccurred())
 					Expect(out).To(ContainSubstring("true"))
 				})
@@ -736,7 +742,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		AfterEach(func() {
 			Eventually(func() string {
-				out, err := env.Epinio("app delete "+appName, "")
+				out, err := env.Epinio("", "app", "delete", appName)
 				if err != nil {
 					return out
 				}

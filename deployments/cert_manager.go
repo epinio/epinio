@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -22,6 +23,7 @@ import (
 type CertManager struct {
 	Debug   bool
 	Timeout time.Duration
+	Log     logr.Logger
 }
 
 var _ kubernetes.Deployment = &CertManager{}
@@ -91,8 +93,8 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 	message := "Removing helm release " + CertManagerDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall cert-manager --namespace %s", CertManagerDeploymentID)
-			return helpers.RunProc(helmCmd, currentdir, cm.Debug)
+			return helpers.RunProc(currentdir, cm.Debug,
+				"helm", "uninstall", "cert-manager", "--namespace", CertManagerDeploymentID)
 		},
 	)
 	if err != nil {
@@ -110,7 +112,9 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 		"clusterissuers.cert-manager.io",
 		"orders.acme.cert-manager.io",
 	} {
-		out, err := helpers.Kubectl("delete crds --ignore-not-found=true " + crd)
+		out, err := helpers.Kubectl("delete", "crds",
+			"--ignore-not-found", "true",
+			crd)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Deleting cert-manager CRD failed:\n%s", out))
 		}
@@ -119,7 +123,9 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 	for _, webhook := range []string{
 		"cert-manager-webhook",
 	} {
-		out, err := helpers.Kubectl("delete validatingwebhookconfigurations --ignore-not-found=true " + webhook)
+		out, err := helpers.Kubectl("delete", "validatingwebhookconfigurations",
+			"--ignore-not-found", "true",
+			webhook)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Deleting cert-manager validatingwebhook failed:\n%s", out))
 		}
@@ -128,7 +134,9 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 	for _, webhook := range []string{
 		"cert-manager-webhook",
 	} {
-		out, err := helpers.Kubectl("delete mutatingwebhookconfigurations --ignore-not-found=true " + webhook)
+		out, err := helpers.Kubectl("delete", "mutatingwebhookconfigurations",
+			"--ignore-not-found", "true",
+			webhook)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Deleting cert-manager mutatingwebhook failed:\n%s", out))
 		}
@@ -154,7 +162,7 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 	return nil
 }
 
-func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool, log logr.Logger) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"
@@ -165,14 +173,14 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		return err
 	}
 
+	log.Info("creating namespace", "namespace", CertManagerDeploymentID)
 	if err := c.CreateNamespace(ctx, CertManagerDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{}); err != nil {
 		return err
 	}
 
-	// Setup CertManager helm values
-	var helmArgs []string
+	log.Info("extracting chart file", "name", certManagerChartFile)
 
 	tarPath, err := helpers.ExtractFile(certManagerChartFile)
 	if err != nil {
@@ -180,13 +188,28 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	}
 	defer os.Remove(tarPath)
 
-	helmArgs = append(helmArgs, `--set installCRDs=true`)
-	helmArgs = append(helmArgs, `--set extraArgs[0]=' --enable-certificate-owner-ref=true'`)
-	helmCmd := fmt.Sprintf("helm %s cert-manager --namespace %s %s %s", action, CertManagerDeploymentID, tarPath, strings.Join(helmArgs, " "))
+	log.Info("local transient tar archive", "name", tarPath)
 
-	if out, err := helpers.RunProc(helmCmd, currentdir, cm.Debug); err != nil {
+	// Setup CertManager helm values
+
+	log.Info("assembling helm command")
+	helmArgs := []string{
+		action, CertManagerDeploymentID,
+		`--namespace`, CertManagerDeploymentID,
+		tarPath,
+		`--set`, `installCRDs=true`,
+		`--set`, `extraArgs[0]=--enable-certificate-owner-ref=true`,
+	}
+
+	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))
+	log.Info("run helm command")
+
+	if out, err := helpers.RunProc(currentdir, cm.Debug, "helm", helmArgs...); err != nil {
 		return errors.New("Failed installing CertManager: " + out)
 	}
+
+	log.Info("completed helm command")
+	log.Info("waiting for pods to exist, and run")
 
 	for _, podname := range []string{
 		"webhook",
@@ -206,9 +229,12 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		return err
 	}
 
+	leIssuer := fmt.Sprintf(clusterIssuerLetsencrypt, emailAddress.Value)
+	log.Info("create cluster issuer", "issuer", leIssuer)
+
 	err = helpers.RunToSuccessWithTimeout(
 		func() error {
-			return cm.CreateClusterIssuer(ctx, c, fmt.Sprintf(clusterIssuerLetsencrypt, emailAddress.Value))
+			return cm.CreateClusterIssuer(ctx, c, leIssuer)
 		}, duration.ToDeployment(), duration.PollInterval())
 	if err != nil {
 		if strings.Contains(err.Error(), "Timed out after") {
@@ -216,6 +242,8 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		}
 		return err
 	}
+
+	log.Info("create cluster issuer", "issuer", clusterIssuerLocal)
 
 	err = helpers.RunToSuccessWithTimeout(
 		func() error {
@@ -265,6 +293,8 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		return err
 	}
 
+	log.Info("create private CA cert", "spec", caCert)
+
 	err = helpers.RunToSuccessWithTimeout(
 		func() error {
 			_, err = cc.Namespace(CertManagerDeploymentID).
@@ -285,6 +315,8 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 
 	// Epinio CA bootstrap phase 2: Create issuer based on the above-made CA cert.
 
+	log.Info("create cluster issuer", "issuer", clusterIssuerEpinio)
+
 	err = helpers.RunToSuccessWithTimeout(
 		func() error {
 			return cm.CreateClusterIssuer(ctx, c, clusterIssuerEpinio)
@@ -297,6 +329,8 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	}
 
 	ui.Success().Msg("CertManager deployed")
+
+	log.Info("apply done")
 
 	return nil
 }
@@ -396,6 +430,10 @@ func (cm CertManager) DeleteClusterIssuer(ctx context.Context, c *kubernetes.Clu
 }
 
 func (cm CertManager) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	log := cm.Log.WithName("Deploy")
+	log.Info("start")
+	defer log.Info("return")
+
 	if skip := options.GetBoolNG("skip-cert-manager"); skip {
 		ui.Exclamation().Msg("Skipping cert-manager deployment by user request")
 		return nil
@@ -412,7 +450,7 @@ func (cm CertManager) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *ter
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying CertManager...")
 
-	err = cm.apply(ctx, c, ui, options, false)
+	err = cm.apply(ctx, c, ui, options, false, log)
 	if err != nil {
 		return err
 	}
@@ -421,6 +459,10 @@ func (cm CertManager) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *ter
 }
 
 func (cm CertManager) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	log := cm.Log.WithName("Upgrade")
+	log.Info("start")
+	defer log.Info("return")
+
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
 		CertManagerDeploymentID,
@@ -432,7 +474,7 @@ func (cm CertManager) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *te
 
 	ui.Note().Msg("Upgrading CertManager...")
 
-	return cm.apply(ctx, c, ui, options, true)
+	return cm.apply(ctx, c, ui, options, true, log)
 }
 
 func waitForCertManagerReady(ctx context.Context, ui *termui.UI, c *kubernetes.Cluster, issuer string) error {

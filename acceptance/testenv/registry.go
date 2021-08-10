@@ -22,10 +22,10 @@ func RegistryPassword() string {
 func CreateRegistrySecret() {
 	if RegistryUsername() != "" && RegistryPassword() != "" {
 		fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
-		_, _ = helpers.Kubectl(fmt.Sprintf("create secret docker-registry regcred --docker-server=%s --docker-username=%s --docker-password=%s",
-			"https://index.docker.io/v1/",
-			RegistryUsername(),
-			RegistryPassword(),
-		))
+		_, _ = helpers.Kubectl("create", "secret", "docker-registry", "regcred",
+			"--docker-server", "https://index.docker.io/v1/",
+			"--docker-username", RegistryUsername(),
+			"--docker-password", RegistryPassword(),
+		)
 	}
 }

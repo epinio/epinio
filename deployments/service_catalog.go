@@ -2,7 +2,6 @@ package deployments
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -61,8 +60,8 @@ func (k ServiceCatalog) Delete(ctx context.Context, c *kubernetes.Cluster, ui *t
 	message := "Removing helm release " + ServiceCatalogDeploymentID
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			helmCmd := fmt.Sprintf("helm uninstall '%s' --namespace %s", ServiceCatalogDeploymentID, ServiceCatalogDeploymentID)
-			return helpers.RunProc(helmCmd, currentdir, k.Debug)
+			return helpers.RunProc(currentdir, k.Debug,
+				"helm", "uninstall", ServiceCatalogDeploymentID, "--namespace", ServiceCatalogDeploymentID)
 		},
 	)
 	if err != nil {
@@ -116,8 +115,8 @@ func (k ServiceCatalog) apply(ctx context.Context, c *kubernetes.Cluster, ui *te
 	}
 	defer os.Remove(tarPath)
 
-	helmCmd := fmt.Sprintf("helm %s %s --namespace %s %s", action, ServiceCatalogDeploymentID, ServiceCatalogDeploymentID, tarPath)
-	if out, err := helpers.RunProc(helmCmd, currentdir, k.Debug); err != nil {
+	if out, err := helpers.RunProc(currentdir, k.Debug,
+		"helm", action, ServiceCatalogDeploymentID, "--namespace", ServiceCatalogDeploymentID, tarPath); err != nil {
 		return errors.New("Failed installing ServiceCatalog: " + out)
 	}
 

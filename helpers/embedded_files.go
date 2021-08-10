@@ -2,7 +2,6 @@ package helpers
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -48,7 +47,7 @@ func KubectlApplyEmbeddedYaml(yamlPath string) (string, error) {
 	}
 	defer os.Remove(yamlPathOnDisk)
 
-	return Kubectl(fmt.Sprintf("apply --filename %s", yamlPathOnDisk))
+	return Kubectl("apply", "--filename", yamlPathOnDisk)
 }
 
 // KubectlDeleteEmbeddedYaml un-embeds the given yaml file and calls `kubectl delete`
@@ -61,8 +60,11 @@ func KubectlDeleteEmbeddedYaml(yamlPath string, ignoreMissing bool) (string, err
 	defer os.Remove(yamlPathOnDisk)
 
 	if ignoreMissing {
-		return Kubectl(fmt.Sprintf("delete --ignore-not-found=true --wait=false --filename %s", yamlPathOnDisk))
+		return Kubectl("delete",
+			"--ignore-not-found", "true",
+			"--wait", "false",
+			"--filename", yamlPathOnDisk)
 	} else {
-		return Kubectl(fmt.Sprintf("delete --filename %s", yamlPathOnDisk))
+		return Kubectl("delete", "--filename", yamlPathOnDisk)
 	}
 }

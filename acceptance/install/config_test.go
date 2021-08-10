@@ -13,7 +13,6 @@ import (
 
 var _ = Describe("Epinio Installation", func() {
 	var (
-		flags      string
 		configFile string
 	)
 
@@ -34,10 +33,12 @@ var _ = Describe("Epinio Installation", func() {
 		err = f.Close()
 		Expect(err).NotTo(HaveOccurred())
 
-		flags = fmt.Sprintf("--config-file %s", configFile)
-		flags = fmt.Sprintf("%s --skip-default-org", flags)
-		flags = fmt.Sprintf("%s --user %s --password %s", flags, epinioUser, epinioPassword)
-		epinioHelper.Flags = flags
+		epinioHelper.Flags = []string{
+			"--config-file", configFile,
+			"--skip-default-org",
+			"--user", epinioUser,
+			"--password", epinioPassword,
+		}
 	})
 
 	AfterEach(func() {
@@ -47,7 +48,7 @@ var _ = Describe("Epinio Installation", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 
-	When("a epinio config file already exits", func() {
+	When("a epinio config file already exists", func() {
 		It("should install epinio with new values and update the file", func() {
 			By("Installing epinio")
 			out, err := epinioHelper.Install()

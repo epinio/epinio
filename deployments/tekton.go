@@ -173,7 +173,10 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		message := fmt.Sprintf("Establish CRD %s", crd)
 		out, err := helpers.WaitForCommandCompletion(ui, message,
 			func() (string, error) {
-				return helpers.Kubectl("wait --for=condition=established --timeout=" + kTimeout + "s crd/" + crd)
+				return helpers.Kubectl("wait",
+					"--for", "condition=established",
+					"--timeout", kTimeout+"s",
+					"crd/"+crd)
 			},
 		)
 		if err != nil {
@@ -225,7 +228,9 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		func() (string, error) {
 			out, err := helpers.ExecToSuccessWithTimeout(
 				func() (string, error) {
-					out, err := helpers.Kubectl(fmt.Sprintf(`get secret -n %s %s -o 'jsonpath={.data.tls\.crt}'`, RegistryDeploymentID, RegistryCertSecret))
+					out, err := helpers.Kubectl("get", "secret",
+						"--namespace", RegistryDeploymentID, RegistryCertSecret,
+						"-o", "jsonpath={.data.tls\\.crt}")
 					if err != nil {
 						return "", err
 					}

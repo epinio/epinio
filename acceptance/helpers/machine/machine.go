@@ -35,33 +35,32 @@ func New(dir string, user string, password string, root string) Machine {
 // It returns the command output and/or error.
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
-func (m *Machine) Epinio(command string, dir string) (string, error) {
-	cmd := fmt.Sprintf(m.nodeTmpDir+"/epinio %s", command)
-	return proc.Run(cmd, dir, false)
+func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
+	return proc.Run(dir, false, m.nodeTmpDir+"/epinio", append([]string{command}, arg...)...)
 }
 
 func (m *Machine) SetupAndTargetOrg(org string) {
 	By("creating an org")
 
-	out, err := m.Epinio("org create "+org, "")
+	out, err := m.Epinio("", "org", "create", org)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	orgs, err := m.Epinio("org list", "")
+	orgs, err := m.Epinio("", "org", "list")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	ExpectWithOffset(1, orgs).To(MatchRegexp(org))
 
 	By("targeting an org")
 
-	out, err = m.Epinio(fmt.Sprintf("target %s", org), m.nodeTmpDir)
+	out, err = m.Epinio(m.nodeTmpDir, "target", org)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	out, err = m.Epinio("target", m.nodeTmpDir)
+	out, err = m.Epinio(m.nodeTmpDir, "target")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted organization: " + org))
 }
 
 func (m *Machine) VerifyOrgNotExist(org string) {
-	out, err := m.Epinio("org list", "")
+	out, err := m.Epinio("", "org", "list")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).ToNot(MatchRegexp(org))
 }
@@ -82,8 +81,11 @@ func (m *Machine) MakeWebSocketConnection(url string) *websocket.Conn {
 }
 
 func (m *Machine) GetPodNames(appName, orgName string) []string {
-	jsonPath := `'{range .items[*]}{.metadata.name}{"\n"}{end}'`
-	out, err := helpers.Kubectl(fmt.Sprintf("get pods -n %s --selector 'app.kubernetes.io/component=application,app.kubernetes.io/name=%s, app.kubernetes.io/part-of=%s' -o=jsonpath=%s", orgName, appName, orgName, jsonPath))
+	jsonPath := `{range .items[*]}{.metadata.name}{"\n"}{end}`
+	out, err := helpers.Kubectl("get", "pods",
+		"--namespace", orgName,
+		"--selector", fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/name=%s, app.kubernetes.io/part-of=%s", appName, orgName),
+		"-o", "jsonpath="+jsonPath)
 	Expect(err).NotTo(HaveOccurred())
 
 	return strings.Split(out, "\n")

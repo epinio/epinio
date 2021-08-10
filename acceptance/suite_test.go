@@ -70,7 +70,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Println("Setup cluster services")
 	testenv.SetupInClusterServices(epinioBinary)
 
-	out, err = helpers.Kubectl(`get pods -n minibroker --selector=app=minibroker-minibroker`)
+	out, err = helpers.Kubectl("get", "pods", "--namespace", "minibroker", "--selector", "app=minibroker-minibroker")
 	Expect(err).ToNot(HaveOccurred(), out)
 	Expect(out).To(MatchRegexp(`minibroker.*2/2.*Running`))
 
@@ -103,13 +103,15 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
 	// Get config from the installation (API credentials)
-	out, err = proc.Run(fmt.Sprintf("cp %s %s/epinio.yaml", testenv.EpinioYAML(), nodeTmpDir), "", false)
+	out, err = proc.Run("", false, "cp", testenv.EpinioYAML(), nodeTmpDir+"/epinio.yaml")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	out, err = env.Epinio("target workspace", nodeTmpDir)
+	out, err = env.Epinio(nodeTmpDir, "target", "workspace")
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	out, err = proc.Run("kubectl get ingress -n epinio epinio -o=jsonpath='{.spec.rules[0].host}'", testenv.Root(), false)
+	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
+		"--namespace", "epinio", "epinio",
+		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	serverURL = "https://" + out

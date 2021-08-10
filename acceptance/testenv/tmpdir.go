@@ -3,6 +3,7 @@ package testenv
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
@@ -40,5 +41,9 @@ func DeleteTmpDir(nodeTmpDir string) {
 // is run in parallel (e.g. two PRs on one worker). However we keep it as an
 // extra measure.
 func CleanupTmp() (string, error) {
-	return proc.Run("rm -rf /tmp/epinio-*", "", true)
+	temps, err := filepath.Glob("/tmp/epinio-*")
+	if err != nil {
+		return "", err
+	}
+	return proc.Run("", true, "rm", append([]string{"-rf"}, temps...)...)
 }

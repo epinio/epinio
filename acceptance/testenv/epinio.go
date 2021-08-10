@@ -60,7 +60,7 @@ func New(nodeDir string, rootDir string) EpinioEnv {
 
 func (e *EpinioEnv) CopyEpinio() (string, error) {
 	binaryPath := path.Join("dist", "epinio-"+runtime.GOOS+"-"+runtime.GOARCH)
-	return proc.Run("cp "+binaryPath+" "+e.nodeTmpDir+"/epinio", Root(), false)
+	return proc.Run(Root(), false, "cp", binaryPath, e.nodeTmpDir+"/epinio")
 }
 
 func EpinioYAML() string {
@@ -68,7 +68,9 @@ func EpinioYAML() string {
 }
 
 func EnsureEpinio(epinioBinary string) error {
-	out, err := helpers.Kubectl(`get pods -n epinio --selector=app.kubernetes.io/name=epinio-server`)
+	out, err := helpers.Kubectl("get", "pods",
+		"--namespace", "epinio",
+		"--selector", "app.kubernetes.io/name=epinio-server")
 	if err == nil {
 		running, err := regexp.Match(`epinio-server.*Running`, []byte(out))
 		if err != nil {
@@ -83,22 +85,25 @@ func EnsureEpinio(epinioBinary string) error {
 	// Installing linkerd and ingress separate from the main
 	// pieces.  Ensures that the main install command invokes and
 	// passes the presence checks for linkerd and traefik.
-	out, err = proc.Run(fmt.Sprintf("%s%s install-ingress", Root(), epinioBinary),
-		"", false)
+	out, err = proc.Run("", false, Root()+epinioBinary, "install-ingress")
 	if err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	domainSetting := ""
-	if domain := os.Getenv("EPINIO_SYSTEM_DOMAIN"); domain != "" {
-		domainSetting = fmt.Sprintf(" --system-domain %s", domain)
+	// Allow the installation to continue by not trying to create
+	// the default org before we patch.
+	installArgs := []string{
+		"install",
+		"--skip-default-org",
+		"--user", epinioUser,
+		"--password", epinioPassword,
 	}
 
-	// Allow the installation to continue by not trying to create the default org
-	// before we patch.
-	out, err = proc.Run(
-		fmt.Sprintf("%s%s install --skip-default-org --user %s --password %s %s", Root(), epinioBinary, epinioUser, epinioPassword, domainSetting),
-		"", false)
+	if domain := os.Getenv("EPINIO_SYSTEM_DOMAIN"); domain != "" {
+		installArgs = append(installArgs, "--system-domain", domain)
+	}
+
+	out, err = proc.Run("", false, Root()+epinioBinary, installArgs...)
 	if err != nil {
 		return errors.Wrap(err, out)
 	}
@@ -106,16 +111,19 @@ func EnsureEpinio(epinioBinary string) error {
 }
 
 func BuildEpinio() {
-	output, err := proc.Run("make", Root(), false)
+	output, err := proc.Run(Root(), false, "make")
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
 	}
 }
 
 func ExpectGoodInstallation(epinioBinary string) {
-	info, err := proc.Run(fmt.Sprintf("%s%s info", Root(), epinioBinary), "", false)
+	info, err := proc.Run("", false, Root()+epinioBinary, "info")
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
-	gomega.Expect(info).To(gomega.Or(gomega.MatchRegexp("Kubernetes Version: v1.20"), gomega.MatchRegexp("Kubernetes Version: v1.19")))
+	gomega.Expect(info).To(gomega.Or(
+		gomega.MatchRegexp("Kubernetes Version: v1.21"),
+		gomega.MatchRegexp("Kubernetes Version: v1.20"),
+		gomega.MatchRegexp("Kubernetes Version: v1.19")))
 	gomega.Expect(info).To(gomega.MatchRegexp("Gitea Version: unavailable"))
 }
 
@@ -146,7 +154,7 @@ func CheckDependencies() error {
 
 func EnsureDefaultWorkspace(epinioBinary string) {
 	gomega.Eventually(func() string {
-		out, err := proc.Run(fmt.Sprintf("%s%s org create workspace", Root(), epinioBinary), "", false)
+		out, err := proc.Run("", false, Root()+epinioBinary, "org", "create", "workspace")
 		if err != nil {
 			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
 				return ""

@@ -19,11 +19,11 @@ type ExternalFuncWithString func() (output string, err error)
 
 type ExternalFunc func() (err error)
 
-func RunProc(cmd, dir string, toStdout bool) (string, error) {
+func RunProc(dir string, toStdout bool, cmd string, args ...string) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
-		fmt.Println("Executing ", cmd)
+		fmt.Printf("Executing: %s %v (in: %s)\n", cmd, args, dir)
 	}
-	p := kexec.CommandString(cmd)
+	p := kexec.Command(cmd, args...)
 
 	var b bytes.Buffer
 	if toStdout {
@@ -44,11 +44,11 @@ func RunProc(cmd, dir string, toStdout bool) (string, error) {
 	return b.String(), err
 }
 
-func RunProcNoErr(cmd, dir string, toStdout bool) (string, error) {
+func RunProcNoErr(dir string, toStdout bool, cmd string, args ...string) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
-		fmt.Println("Executing ", cmd)
+		fmt.Printf("Executing %s %v\n", cmd, args)
 	}
-	p := kexec.CommandString(cmd)
+	p := kexec.Command(cmd, args...)
 
 	var b bytes.Buffer
 	if toStdout {
@@ -88,7 +88,7 @@ func CreateTmpFile(contents string) (string, error) {
 
 // Kubectl invokes the `kubectl` command in PATH, running the specified command.
 // It returns the command output and/or error.
-func Kubectl(command string) (string, error) {
+func Kubectl(command ...string) (string, error) {
 	_, err := exec.LookPath("kubectl")
 	if err != nil {
 		return "", errors.Wrap(err, "kubectl not in path")
@@ -99,9 +99,7 @@ func Kubectl(command string) (string, error) {
 		return "", err
 	}
 
-	cmd := fmt.Sprintf("kubectl " + command)
-
-	return RunProc(cmd, currentdir, false)
+	return RunProc(currentdir, false, "kubectl", command...)
 }
 
 // WaitForCommandCompletion prints progress dots until the func completes

@@ -27,7 +27,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			env.BindAppService(appName, serviceName, org)
 		})
 		It("shows the bound app for services list, and vice versa", func() {
-			out, err := env.Epinio("service list", "")
+			out, err := env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(serviceName + `.*` + appName))
 
@@ -40,7 +40,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			// system to settle back into a normal state.
 
 			Eventually(func() string {
-				out, err = env.Epinio("app list", "")
+				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))

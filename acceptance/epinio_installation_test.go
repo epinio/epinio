@@ -11,15 +11,16 @@ import (
 
 var _ = Describe("Epinio Installation", func() {
 	It("has linkerd sidecars", func() {
-		kubectlCommand := "get pods -n epinio -l app.kubernetes.io/component=epinio-server -o=jsonpath='{.items[0].spec.containers[*].name}'"
-		out, err := helpers.Kubectl(kubectlCommand)
+		out, err := helpers.Kubectl("get", "pods",
+			"--namespace", "epinio",
+			"-l", "app.kubernetes.io/component=epinio-server",
+			"-o", "jsonpath={.items[0].spec.containers[*].name}")
 		Expect(err).ToNot(HaveOccurred())
 		containers := strings.Split(out, " ")
 		Expect(containers).To(ContainElement("linkerd-proxy"))
 	})
 	It("has linkerd control plane components running", func() {
-		kubectlCommand := "get pods -n linkerd -o name"
-		out, err := helpers.Kubectl(kubectlCommand)
+		out, err := helpers.Kubectl("get", "pods", "--namespace", "linkerd", "-o", "name")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(out).To(MatchRegexp("linkerd-identity"))
 		Expect(out).To(MatchRegexp("linkerd-proxy-injector"))

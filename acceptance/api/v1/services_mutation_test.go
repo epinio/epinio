@@ -254,7 +254,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(""))
 
-				out, err := env.Epinio("service list", "")
+				out, err := env.Epinio("", "service", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(service))
 			})
@@ -282,7 +282,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				// This takes the place of the `service list` command in the previous test,
 				// which simply checks for presence.
 				Eventually(func() string {
-					out, err := env.Epinio("service show "+service, "")
+					out, err := env.Epinio("", "service", "show", service)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
 				}, "5m").Should(MatchRegexp(`Status .*\|.* Provisioned`))
