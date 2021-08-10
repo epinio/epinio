@@ -43,6 +43,9 @@ compress:
 test: embed_files
 	ginkgo -r -p -race -failOnPending helpers internal
 
+tag:
+	@git describe --tags --abbrev=0
+
 # acceptance is not part of the unit tests, and has its own target, see below.
 
 GINKGO_NODES ?= 2
