@@ -34,14 +34,6 @@ func (k *Dex) ID() string {
 	return DexDeploymentID
 }
 
-func (k *Dex) Backup(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
-func (k *Dex) Restore(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, d string) error {
-	return nil
-}
-
 func (k Dex) Describe() string {
 	return emoji.Sprintf(":cloud:Dex version: %s\n", dexVersion)
 }
