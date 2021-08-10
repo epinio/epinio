@@ -72,11 +72,11 @@ failing server component does not matter.
 
 If the cluster is not running on linux-amd64 it will be necessary to set
 `EPINIO_BINARY_PATH` to the correct binary to place into the epinio server
-([See here](https://github.com/epinio/epinio/blob/2c3c93f79b1019fe7895273b94f40b725ede2996/scripts/patch-epinio-deployment.sh#L19)).
+([See here](https://github.com/epinio/epinio/blob/a4b679af88d58177cecf4a5717c8c96f382058ed/scripts/patch-epinio-deployment.sh#L19)).
 
 If the client operation is performed outside of a git checkout it will be
 necessary to set `EPINIO_BINARY_TAG` to the correct tag
-([See here](https://github.com/epinio/epinio/blob/2c3c93f79b1019fe7895273b94f40b725ede2996/scripts/patch-epinio-deployment.sh#L20)).
+([See here](https://github.com/epinio/epinio/blob/a4b679af88d58177cecf4a5717c8c96f382058ed/scripts/patch-epinio-deployment.sh#L20)).
 
 The make target `tag` can be used in the checkout the binary came from to
 determine this value.
