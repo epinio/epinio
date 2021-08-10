@@ -10,18 +10,21 @@ import (
 )
 
 const (
-	systemDomain        = 2 * time.Minute
-	appReady            = 2 * time.Minute
-	deployment          = 5 * time.Minute
-	orgDeletion         = 5 * time.Minute
-	serviceSecret       = 5 * time.Minute
-	serviceProvision    = 5 * time.Minute
-	serviceLoadBalancer = 5 * time.Minute
-	podReady            = 5 * time.Minute
-	appBuilt            = 10 * time.Minute
-	warmupJobReady      = 30 * time.Minute
-	certManagerReady    = 5 * time.Minute
-	kubedReady          = 5 * time.Minute
+	systemDomain             = 2 * time.Minute
+	appReady                 = 2 * time.Minute
+	deployment               = 5 * time.Minute
+	orgDeletion              = 5 * time.Minute
+	serviceSecret            = 5 * time.Minute
+	serviceProvision         = 5 * time.Minute
+	serviceLoadBalancer      = 5 * time.Minute
+	podReady                 = 5 * time.Minute
+	appBuilt                 = 10 * time.Minute
+	warmupJobReady           = 30 * time.Minute
+	certManagerReady         = 5 * time.Minute
+	kubedReady               = 5 * time.Minute
+	secretCopied             = 5 * time.Minute
+	deploymentNamespaceReady = 3 * time.Minute
+	authClientSecretCreated  = 3 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	pollInterval = 3 * time.Second
@@ -52,6 +55,16 @@ func ToKubedReady() time.Duration {
 	return Multiplier() * kubedReady
 }
 
+func ToSecretCopied() time.Duration {
+	return Multiplier() * secretCopied
+}
+
+// ToAuthClientSecretCreated returns the duration to wait until giving up on the
+// auth type secret creation
+func ToAuthClientSecretCreated() time.Duration {
+	return Multiplier() * authClientSecretCreated
+}
+
 // ToAppBuilt returns the duration to wait until giving up on the
 // application being built
 func ToAppBuilt() time.Duration {
@@ -62,6 +75,12 @@ func ToAppBuilt() time.Duration {
 // a system domain
 func ToPodReady() time.Duration {
 	return Multiplier() * podReady
+}
+
+// ToDeploymentNamespaceCreated returns the duration to wait until giving up
+// deployment namespace creation
+func ToDeploymentNamespaceCreated() time.Duration {
+	return Multiplier() * deploymentNamespaceReady
 }
 
 // ToWarmupJobReady return the duration to wait until the builder image

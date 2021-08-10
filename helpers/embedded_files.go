@@ -61,8 +61,8 @@ func KubectlDeleteEmbeddedYaml(yamlPath string, ignoreMissing bool) (string, err
 
 	if ignoreMissing {
 		return Kubectl("delete",
-			"--ignore-not-found", "true",
-			"--wait", "false",
+			"--ignore-not-found=true",
+			"--wait=false",
 			"--filename", yamlPathOnDisk)
 	} else {
 		return Kubectl("delete", "--filename", yamlPathOnDisk)

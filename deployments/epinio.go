@@ -109,19 +109,19 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	apiUser, err := options.GetOpt("user", "")
+	apiUser, err := options.GetString("user", "")
 	if err != nil {
 		return err
 	}
 
-	apiPassword, err := options.GetOpt("password", "")
+	apiPassword, err := options.GetString("password", "")
 	if err != nil {
 		return err
 	}
 
 	authAPI := auth.PasswordAuth{
-		Username: apiUser.Value.(string),
-		Password: apiPassword.Value.(string),
+		Username: apiUser,
+		Password: apiPassword,
 	}
 
 	issuer := options.GetStringNG("tls-issuer")
@@ -136,7 +136,9 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	}
 
 	// Wait for the cert manager to be present and active. It is required
-	waitForCertManagerReady(ctx, ui, c, issuer)
+	if err := waitForCertManagerReady(ctx, ui, c, issuer); err != nil {
+		return errors.Wrap(err, "waiting for cert manager to be ready")
+	}
 
 	// Workaround for cert-manager webhook service not being immediately ready.
 	// More here: https://cert-manager.io/v1.2-docs/concepts/webhook/#webhook-connection-problems-shortly-after-cert-manager-installation
@@ -162,6 +164,11 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed trying to create the epinio API server cert")
+	}
+
+	// Wait until the cert is there before we create the Ingress
+	if _, err := c.WaitForSecret(ctx, EpinioDeploymentID, "epinio-tls", duration.ToSecretCopied()); err != nil {
+		return errors.Wrap(err, "waiting for the Epinio tls certificate to be created")
 	}
 
 	message := "Creating Epinio server ingress"
@@ -327,8 +334,7 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 
 func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdomain string) error {
 	pathTypePrefix := networkingv1.PathTypeImplementationSpecific
-	_, err := c.Kubectl.NetworkingV1().Ingresses(EpinioDeploymentID).Create(
-		ctx,
+	_, err := c.Kubectl.NetworkingV1().Ingresses(EpinioDeploymentID).Create(ctx,
 		&networkingv1.Ingress{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "epinio",
@@ -371,7 +377,7 @@ func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdo
 										}}}}}}},
 				TLS: []networkingv1.IngressTLS{{
 					Hosts:      []string{subdomain},
-					SecretName: "epinio-tls",
+					SecretName: EpinioDeploymentID + "-tls",
 				}},
 			}},
 		metav1.CreateOptions{},
