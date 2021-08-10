@@ -155,17 +155,16 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 	log.Info("system domain", "domain", domain)
 
-	var helmArgs []string
-
 	log.Info("assembling helm command")
 	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
-
-	helmArgs = append(helmArgs, action, RegistryDeploymentID)
-	helmArgs = append(helmArgs, `--namespace`, RegistryDeploymentID)
-	helmArgs = append(helmArgs, tarPath)
-	helmArgs = append(helmArgs, `--set`, `auth.htpasswd=`+htpasswd)
-	helmArgs = append(helmArgs, `--set`, fmt.Sprintf("domain=%s.%s", RegistryDeploymentID, domain))
-	helmArgs = append(helmArgs, `--set`, fmt.Sprintf(`createNodePort=%v`, options.GetBoolNG("use-internal-registry-node-port")))
+	helmArgs := []string{
+		action, RegistryDeploymentID,
+		`--namespace`, RegistryDeploymentID,
+		tarPath,
+		`--set`, `auth.htpasswd=` + htpasswd,
+		`--set`, fmt.Sprintf("domain=%s.%s", RegistryDeploymentID, domain),
+		`--set`, fmt.Sprintf(`createNodePort=%v`, options.GetBoolNG("use-internal-registry-node-port")),
+	}
 
 	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))
 	log.Info("run helm command")

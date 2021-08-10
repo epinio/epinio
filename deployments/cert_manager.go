@@ -191,15 +191,15 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	log.Info("local transient tar archive", "name", tarPath)
 
 	// Setup CertManager helm values
-	var helmArgs []string
 
 	log.Info("assembling helm command")
-
-	helmArgs = append(helmArgs, action, `cert-manager`)
-	helmArgs = append(helmArgs, `--namespace`, CertManagerDeploymentID)
-	helmArgs = append(helmArgs, tarPath)
-	helmArgs = append(helmArgs, `--set`, `installCRDs=true`)
-	helmArgs = append(helmArgs, `--set`, `extraArgs[0]=--enable-certificate-owner-ref=true`)
+	helmArgs := []string{
+		action, CertManagerDeploymentID,
+		`--namespace`, CertManagerDeploymentID,
+		tarPath,
+		`--set`, `installCRDs=true`,
+		`--set`, `extraArgs[0]=--enable-certificate-owner-ref=true`,
+	}
 
 	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))
 	log.Info("run helm command")

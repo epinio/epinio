@@ -117,19 +117,18 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	loadBalancerIP := options.GetStringNG("ingress-service-ip")
 
 	// Setup Traefik helm values
-	var helmArgs []string
-
 	log.Info("assembling helm command")
 	// Disable sending anonymous usage statistics
 	// https://github.com/traefik/traefik-helm-chart/blob/v9.11.0/traefik/values.yaml#L170
 	// Overwrite globalArguments until https://github.com/traefik/traefik-helm-chart/issues/357 is fixed
-
-	helmArgs = append(helmArgs, action, `traefik`)
-	helmArgs = append(helmArgs, `--namespace`, TraefikDeploymentID)
-	helmArgs = append(helmArgs, traefikChartURL)
-	helmArgs = append(helmArgs, `--set`, `globalArguments=`)
-	helmArgs = append(helmArgs, `--set-string`, `deployment.podAnnotations.linkerd\.io/inject=enabled`)
-	helmArgs = append(helmArgs, `--set-string`, fmt.Sprintf("service.spec.loadBalancerIP=%s", loadBalancerIP))
+	helmArgs := []string{
+		action, TraefikDeploymentID,
+		`--namespace`, TraefikDeploymentID,
+		traefikChartURL,
+		`--set`, `globalArguments=`,
+		`--set-string`, `deployment.podAnnotations.linkerd\.io/inject=enabled`,
+		`--set-string`, fmt.Sprintf("service.spec.loadBalancerIP=%s", loadBalancerIP),
+	}
 
 	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))
 	log.Info("run helm command")
