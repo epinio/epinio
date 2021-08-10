@@ -114,7 +114,7 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 		"orders.acme.cert-manager.io",
 	} {
 		out, err := helpers.Kubectl("delete", "crds",
-			"--ignore-not-found", "true",
+			"--ignore-not-found=true",
 			crd)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Deleting cert-manager CRD failed:\n%s", out))
@@ -125,7 +125,7 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 		"cert-manager-webhook",
 	} {
 		out, err := helpers.Kubectl("delete", "validatingwebhookconfigurations",
-			"--ignore-not-found", "true",
+			"--ignore-not-found=true",
 			webhook)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Deleting cert-manager validatingwebhook failed:\n%s", out))
@@ -136,7 +136,7 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 		"cert-manager-webhook",
 	} {
 		out, err := helpers.Kubectl("delete", "mutatingwebhookconfigurations",
-			"--ignore-not-found", "true",
+			"--ignore-not-found=true",
 			webhook)
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("Deleting cert-manager mutatingwebhook failed:\n%s", out))
