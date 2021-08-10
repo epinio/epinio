@@ -155,7 +155,12 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 	log.Info("system domain", "domain", domain)
 
+	if k.createCertificate(ctx, c, options, ui, log); err != nil {
+		return errors.Wrap(err, "creating Registry TLS certificate")
+	}
+
 	log.Info("assembling helm command")
+
 	// (**) See also `deployments/tekton.go`, func `createClusterRegistryCredsSecret`.
 	helmArgs := []string{
 		action, RegistryDeploymentID,
@@ -188,7 +193,47 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.Wrap(err, "failed waiting Registry deployment to come up")
 	}
 
+	ui.Success().Msg("Registry deployed")
+
+	return nil
+}
+
+func (k Registry) GetVersion() string {
+	return registryVersion
+}
+
+func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	log := k.Log.WithName("Deploy")
+	log.Info("start")
+	defer log.Info("return")
+
+	_, err := c.Kubectl.CoreV1().Namespaces().Get(
+		ctx,
+		RegistryDeploymentID,
+		metav1.GetOptions{},
+	)
+	if err == nil {
+		return errors.New("Namespace " + RegistryDeploymentID + " present already")
+	}
+
+	ui.Note().KeeplineUnder(1).Msg("Deploying Registry...")
+
+	err = k.apply(ctx, c, ui, options, false, log)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (k Registry) createCertificate(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions, ui *termui.UI, log logr.Logger) error {
+	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	if err != nil {
+		return errors.Wrap(err, "Couldn't get system_domain option")
+	}
+
 	log.Info("create properly annotated secret")
+
 	// We need the empty certificate secret with a specific annotation
 	// for it to be copied into `tekton-staging` namespace
 	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
@@ -253,36 +298,9 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.Wrap(err, "failed trying to create the epinio API server cert")
 	}
 
-	ui.Success().Msg("Registry deployed")
-
-	log.Info("apply done")
-
-	return nil
-}
-
-func (k Registry) GetVersion() string {
-	return registryVersion
-}
-
-func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
-	log := k.Log.WithName("Deploy")
-	log.Info("start")
-	defer log.Info("return")
-
-	_, err := c.Kubectl.CoreV1().Namespaces().Get(
-		ctx,
-		RegistryDeploymentID,
-		metav1.GetOptions{},
-	)
-	if err == nil {
-		return errors.New("Namespace " + RegistryDeploymentID + " present already")
-	}
-
-	ui.Note().KeeplineUnder(1).Msg("Deploying Registry...")
-
-	err = k.apply(ctx, c, ui, options, false, log)
-	if err != nil {
-		return err
+	// Wait until the cert is there before we create the Ingress
+	if _, err := c.WaitForSecret(ctx, RegistryDeploymentID, RegistryDeploymentID+"-tls", duration.ToSecretCopied()); err != nil {
+		return errors.Wrap(err, "waiting for the Registry tls certificate to be created")
 	}
 
 	return nil

@@ -166,6 +166,11 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, "failed trying to create the epinio API server cert")
 	}
 
+	// Wait until the cert is there before we create the Ingress
+	if _, err := c.WaitForSecret(ctx, EpinioDeploymentID, "epinio-tls", duration.ToSecretCopied()); err != nil {
+		return errors.Wrap(err, "waiting for the Epinio tls certificate to be created")
+	}
+
 	message := "Creating Epinio server ingress"
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
@@ -372,7 +377,7 @@ func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdo
 										}}}}}}},
 				TLS: []networkingv1.IngressTLS{{
 					Hosts:      []string{subdomain},
-					SecretName: "epinio-tls",
+					SecretName: EpinioDeploymentID + "-tls",
 				}},
 			}},
 		metav1.CreateOptions{},
