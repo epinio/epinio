@@ -1717,21 +1717,21 @@ func getCredentials(log logr.Logger, ctx context.Context) (string, string, error
 	// definition
 
 	secret, err := cluster.WaitForSecret(ctx,
-		deployments.EpinioDeploymentID,
-		"epinio-api-auth-data",
+		deployments.DexDeploymentID,
+		"dex-static-user",
 		duration.ToServiceSecret(),
 	)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to get API auth secret")
 	}
 
-	log.Info("got secret", "secret", "epinio-api-auth-data")
+	log.Info("got secret", "secret", "dex:dex-static-user")
 
-	user := string(secret.Data["user"])
-	pass := string(secret.Data["pass"])
+	user := string(secret.Data["username"])
+	pass := string(secret.Data["password"])
 
 	if user == "" || pass == "" {
-		return "", "", errors.New("bad API auth secret, expected fields missing")
+		return "", "", errors.New("bad Dex static user secret, expected fields missing")
 	}
 
 	return user, pass, nil

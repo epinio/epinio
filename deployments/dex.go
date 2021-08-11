@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -153,6 +154,8 @@ func (k Dex) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, op
 		return errors.Wrap(err, "generating hash for api password")
 	}
 
+	k.createStaticUserSecret(ctx, c, username, password)
+
 	// https://github.com/dexidp/dex/blob/master/config.yaml.dist
 	config := fmt.Sprintf(`
 issuer: https://%[6]s
@@ -276,4 +279,20 @@ func (k Dex) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 	ui.Note().Msg("Upgrading Dex...")
 
 	return k.apply(ctx, c, ui, options, true)
+}
+
+func (k Dex) createStaticUserSecret(ctx context.Context, c *kubernetes.Cluster, username, password string) error {
+	_, err := c.Kubectl.CoreV1().Secrets(DexDeploymentID).Create(ctx,
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "dex-static-user",
+			},
+			StringData: map[string]string{
+				"username": username,
+				"password": password,
+			},
+			Type: "Opaque",
+		}, metav1.CreateOptions{})
+
+	return err
 }
