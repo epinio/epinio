@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -33,6 +34,15 @@ type InstallClient struct {
 }
 
 func NewInstallClient(ctx context.Context, options *kubernetes.InstallationOptions) (*InstallClient, func(), error) {
+	// We do this for the side effect: colorized output vs not.
+	// May also extend the internal CA cert pool.
+	// This and everything else done by loading does not matter.
+	// The later phases of the installer will write a new config.
+	_, err := config.Load()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, nil, err
