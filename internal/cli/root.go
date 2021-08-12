@@ -89,6 +89,8 @@ func init() {
 	rootCmd.AddCommand(CmdService)
 	rootCmd.AddCommand(CmdServer)
 	rootCmd.AddCommand(cmdVersion)
+	// Hidden command providing developer tools
+	rootCmd.AddCommand(CmdDebug)
 }
 
 var cmdVersion = &cobra.Command{

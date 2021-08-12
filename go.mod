@@ -17,6 +17,7 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
+	github.com/mattn/go-isatty v0.0.12
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/mholt/archiver/v3 v3.5.0
 	github.com/olekukonko/tablewriter v0.0.4
