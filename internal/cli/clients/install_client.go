@@ -127,9 +127,9 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 
 	// Validate if ingress svc IP belongs to system domain
 	// if it is specified by user
-	ingressIP, err := flags.GetString("ingress-service-ip")
+	ingressIP, err := flags.GetString("loadbalancer-ip")
 	if err != nil {
-		return errors.Wrap(err, "could not read option --ingress-service-ip")
+		return errors.Wrap(err, "could not read option --loadbalancer-ip")
 	}
 	if ingressIP != "" {
 		bound, err := validateIngressIPDNSBind(domain.Value.(string), ingressIP)

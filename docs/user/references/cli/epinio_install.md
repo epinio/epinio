@@ -21,8 +21,9 @@ epinio install [flags]
       --email-address string              The email address you are planning to use for getting notifications about your certificates (default "epinio@suse.com")
   -h, --help                              help for install
   -i, --interactive                       Whether to ask the user or not (default not)
+      --loadbalancer-ip string            IP address to be assigned to ingress loadbalancer service
       --password string                   The password for authenticating all API requests
-      --skip-cert-manager                 Assert to epinio that there is a cert-manager active, even if epinio cannot find it.
+      --skip-cert-manager                 Assert to epinio that cert-manager is already installed.
   -s, --skip-default-org                  Set this to skip creating a default org
       --skip-linkerd                      Assert to epinio that Linkerd is already installed.
       --skip-traefik                      Assert to epinio that there is a Traefik active, even if epinio cannot find it.

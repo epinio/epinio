@@ -18,9 +18,10 @@ epinio install-ingress [flags]
 ### Options
 
 ```
-  -h, --help           help for install-ingress
-  -i, --interactive    Whether to ask the user or not (default not)
-      --skip-linkerd   Assert to epinio that Linkerd is already installed.
+  -h, --help                     help for install-ingress
+  -i, --interactive              Whether to ask the user or not (default not)
+      --loadbalancer-ip string   IP address to be assigned to ingress loadbalancer service
+      --skip-linkerd             Assert to epinio that Linkerd is already installed.
 ```
 
 ### Options inherited from parent commands

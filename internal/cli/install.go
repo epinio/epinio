@@ -29,7 +29,7 @@ var (
 	}
 
 	ingressServiceIPOption = kubernetes.InstallationOption{
-		Name:        "ingress-service-ip",
+		Name:        "loadbalancer-ip",
 		Description: "IP address to be assigned to ingress loadbalancer service",
 		Type:        kubernetes.StringType,
 		Default:     "",
@@ -173,13 +173,13 @@ func install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "could not read option --skip-traefik")
 	}
 
-	ingressIP, err := cmd.Flags().GetString("ingress-service-ip")
+	ingressIP, err := cmd.Flags().GetString("loadbalancer-ip")
 	if err != nil {
-		return errors.Wrap(err, "could not read option --ingress-service-ip")
+		return errors.Wrap(err, "could not read option --loadbalancer-ip")
 	}
 
 	if ingressIP != "" && skipTraefik {
-		return errors.New("cannot have --skip-traefik and --ingress-service-ip together")
+		return errors.New("cannot have --skip-traefik and --loadbalancer-ip together")
 	}
 
 	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &neededOptions)
