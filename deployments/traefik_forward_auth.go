@@ -393,6 +393,15 @@ func (k TraefikForwardAuth) createDeployment(ctx context.Context, c *kubernetes.
 									Value: cookieSecret,
 								},
 								{
+									// 10 seconds lifetime for tokens. Keep the short lived,
+									// otherwise there is no way to block a user unless they delete
+									// their cookies:
+									// https://github.com/thomseddon/traefik-forward-auth/blob/c4317b7503fb0528d002eb1e5ee43c4a37f055d0/README.md#logging-out
+									// https://www.oauth.com/oauth2-servers/listing-authorizations/revoking-access/#self-encoded
+									Name:  "LIFETIME",
+									Value: "1000",
+								},
+								{
 									Name: "PROVIDERS_OIDC_CLIENT_ID",
 									ValueFrom: &corev1.EnvVarSource{
 										SecretKeyRef: &corev1.SecretKeySelector{

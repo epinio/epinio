@@ -1629,7 +1629,8 @@ func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error
 		return []byte{}, err
 	}
 
-	request.SetBasicAuth(c.Config.User, c.Config.Password)
+	request.Header.Set("Cookie", "_forward_auth=uSluplAJLvj6Lsk0RuKLQVABQtyy8Z3GwQomvCiP6qs=|1628691318|9592404bee25fd0f")
+	//request.SetBasicAuth(c.Config.User, c.Config.Password)
 
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
