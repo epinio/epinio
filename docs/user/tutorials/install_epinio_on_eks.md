@@ -62,17 +62,29 @@ Traefik Ingress info: [{"hostname":"abcdefg12345671234567abcdefg1234-1234567890.
 
 you will have to add two CNAME records, for the subdomain, e.g. "test" to have "test.example.net", resp. "\*.test.example.net".
 
-##### test.example.net
+#### test.example.net
+
+```bash
 Record name: test
 Record type: CNAME - Routes traffic to another domain name and some AWS resources
 Value: abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com
+```
 
-##### \*.test.example.net
-Record name: \*.test
+#### \*.test.example.net
+
+```bash
+Record name: *.test
 Record type: CNAME - Routes traffic to another domain name and some AWS resources
 Value: abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com
+```
 
-Finally, `> host test.example.net`, or even `> host epinio.test.example.net` would resolve to "abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com".
+Finally,
+
+`> host test.example.net`,
+
+or even `> host epinio.test.example.net`
+
+should resolve to e.g. "abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com".
 
 #### Install Epinio In Cluster
 
