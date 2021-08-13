@@ -33,7 +33,7 @@ make build
 ```
 
 This is building Epinio for linux on amd64 architecture. If you are on a
-different OS or architecture you can use one of the available `build-*` targets.
+different OS or architecture you can use one of other the available `build-*` targets.
 Look at the Makefile at the root of the project to see what is available.
 
 ### Installing Epinio
@@ -50,8 +50,6 @@ make install
 In case you're curious why `make install` is used here instead of
 `epinio install`, [look behind the curtains](behind-the-curtains.md)
 explains the details of running an Epinio dev environment.
-
-
 
 After making changes to the binary simply invoking `make
 patch-epinio-deployment` again will upload the changes into the
@@ -72,9 +70,16 @@ API credentials and certs into the client configuration file. As that
 command talks directly to the cluster and not the epinio API the
 failing server component does not matter.
 
-If the cluster is not running on linux-x64 it may be necessary to set
-`EPINIO_BINARY_PATH` to the right binary
-([See here](https://github.com/epinio/epinio/blob/2c3c93f79b1019fe7895273b94f40b725ede2996/scripts/patch-epinio-deployment.sh#L19)).
+If the cluster is not running on linux-amd64 it will be necessary to set
+`EPINIO_BINARY_PATH` to the correct binary to place into the epinio server
+([See here](https://github.com/epinio/epinio/blob/a4b679af88d58177cecf4a5717c8c96f382058ed/scripts/patch-epinio-deployment.sh#L19)).
+
+If the client operation is performed outside of a git checkout it will be
+necessary to set `EPINIO_BINARY_TAG` to the correct tag
+([See here](https://github.com/epinio/epinio/blob/a4b679af88d58177cecf4a5717c8c96f382058ed/scripts/patch-epinio-deployment.sh#L20)).
+
+The make target `tag` can be used in the checkout the binary came from to
+determine this value.
 
 Also, the default `make build` target builds a dynamically linked
 binary. This can cause issues if for example the glibc library in the
@@ -85,3 +90,21 @@ command like:
 ```
 GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go build -o dist/epinio-linux-amd64
 ```
+
+#### Mixed Windows/Linux Scenario
+
+A concrete example of the above would be the installation of Epinio from a
+Windows host without a checkout, to a Linux-based cluster.
+
+In that scenario the Windows host has to have both windows-amd64 and linux-amd64
+binaries. The first to perform the installation, the second for
+`EPINIO_BINARY_PATH` to be put into the server.
+
+Furthermore, as the Windows host is without a checkout, the tag has to be
+determined in the actual checkout and set into `EPINIO_BINARY_PATH`.
+
+Lastly, do not forget to set up a proper domain so that the client can talk to
+the server after installation is done. While during installation only a suitable
+`KUBECONFIG` is required after the client will go and use the information from
+the ingress, and that then has to properly resolve in the DNS.
+

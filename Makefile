@@ -7,6 +7,8 @@ export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION
 
 build: embed_files build-amd64
 
+build-win: embed_files build-windows
+
 build-all: embed_files build-amd64 build-arm64 build-arm32 build-windows build-darwin
 
 build-all-small:
@@ -42,6 +44,9 @@ compress:
 
 test: embed_files
 	ginkgo -r -p -race -failOnPending helpers internal
+
+tag:
+	@git describe --tags --abbrev=0
 
 # acceptance is not part of the unit tests, and has its own target, see below.
 

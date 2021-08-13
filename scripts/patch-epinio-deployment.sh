@@ -16,8 +16,14 @@
 # Patching the deployment forces the pod to restart with a now existing image
 # and the correct binary is in place.
 
-export EPINIO_BINARY_PATH=${EPINIO_BINARY_PATH:-'dist/epinio-linux-amd64'}
+export EPINIO_BINARY_PATH="${EPINIO_BINARY_PATH:-dist/epinio-linux-amd64}"
+export EPINIO_BINARY_TAG="${EPINIO_BINARY_TAG:-$(git describe --tags --abbrev=0)}"
 
+echo
+echo Configuration
+echo "  - Binary: ${EPINIO_BINARY_PATH}"
+echo "  - Tag:    ${EPINIO_BINARY_TAG}"
+echo
 echo "Creating the PVC"
 cat <<EOF | kubectl apply -f -
 ---
@@ -60,7 +66,19 @@ echo "Waiting for dummy pod to be ready"
 kubectl wait --for=condition=ready pod -n epinio epinio-copier
 
 echo "Copying the binary on the PVC"
-kubectl cp ${EPINIO_BINARY_PATH} epinio/epinio-copier:/epinio/epinio
+# Notes
+# 1. kubectl cp breaks because of the colon in `pod:path`. Thus the more complex tar construction.
+# 2. Cannot use absolute paths, i.e. `/foo`. This is a disk-relative path on Windows, and gets
+#    expanded weirdly by the kubectl commands.
+#    Relative paths are ok, as the default CWD in the container is the root (`/`).
+#    I.e. `foo` is `/foo` pod-side.
+
+( cd       "$(dirname  "${EPINIO_BINARY_PATH}")"
+  tar cf - "$(basename "${EPINIO_BINARY_PATH}")"
+) | kubectl exec -i -n epinio -c copier epinio-copier -- tar xf -
+kubectl exec -i -n epinio -c copier epinio-copier -- mv "$(basename "${EPINIO_BINARY_PATH}")" epinio/epinio
+kubectl exec -i -n epinio -c copier epinio-copier -- chmod ugo+x epinio/epinio
+kubectl exec -i -n epinio -c copier epinio-copier -- ls -l epinio
 
 echo "Patching the epinio-server deployment to use the copied binary"
 read -r -d '' PATCH <<EOF
@@ -77,7 +95,7 @@ read -r -d '' PATCH <<EOF
         ],
         "containers": [{
           "name": "epinio-server",
-          "image": "splatform/epinio-base:$(git describe --tags --abbrev=0)",
+          "image": "splatform/epinio-base:${EPINIO_BINARY_TAG}",
           "command": [
             "/epinio-binary/epinio",
             "server"

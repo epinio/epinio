@@ -9,7 +9,6 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
-	github.com/coreos/go-oidc/v3 v3.0.0
 	github.com/fatih/color v1.12.0
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/stdr v0.4.0
@@ -17,6 +16,7 @@ require (
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
+	github.com/mattn/go-isatty v0.0.12
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/mholt/archiver/v3 v3.5.0
 	github.com/olekukonko/tablewriter v0.0.4
@@ -31,7 +31,6 @@ require (
 	github.com/stretchr/testify v1.7.0 // indirect
 	github.com/tektoncd/pipeline v0.23.0
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
-	golang.org/x/oauth2 v0.0.0-20210126194326-f9ce19ea3013
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 	golang.org/x/tools v0.1.1 // indirect
 	k8s.io/api v0.20.5

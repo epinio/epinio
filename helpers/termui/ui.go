@@ -194,7 +194,7 @@ func (u *Message) Msg(message string) {
 		message = color.RedString(message)
 	}
 
-	fmt.Printf("%s", message)
+	fmt.Fprintf(color.Output, "%s", message)
 
 	for _, interaction := range u.interactions {
 		switch interaction.variant {
@@ -211,17 +211,17 @@ func (u *Message) Msg(message string) {
 		case show:
 			switch interaction.valueType {
 			case tBool:
-				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%t", interaction.value))
+				fmt.Fprintf(color.Output, "%s: %s\n", emoji.Sprint(interaction.name), color.MagentaString("%t", interaction.value))
 			case tInt:
-				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.CyanString("%d", interaction.value))
+				fmt.Fprintf(color.Output, "%s: %s\n", emoji.Sprint(interaction.name), color.CyanString("%d", interaction.value))
 			case tString:
-				fmt.Printf("%s: %s\n", emoji.Sprint(interaction.name), color.GreenString("%s", interaction.value))
+				fmt.Fprintf(color.Output, "%s: %s\n", emoji.Sprint(interaction.name), color.GreenString("%s", interaction.value))
 			}
 		}
 	}
 
 	for idx, headers := range u.tableHeaders {
-		table := tablewriter.NewWriter(os.Stdout)
+		table := tablewriter.NewWriter(color.Output)
 		table.SetHeader(headers)
 		table.SetBorders(tablewriter.Border{Left: true, Top: false, Right: true, Bottom: false})
 		table.SetCenterSeparator("|")
