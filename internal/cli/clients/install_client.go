@@ -376,6 +376,7 @@ func (c *InstallClient) InstallCertManager(cmd *cobra.Command) error {
 
 	if err := c.InstallDeployment(ctx, &deployments.CertManager{
 		Timeout: duration.ToDeployment(),
+		Log:     details.V(1),
 	}, details); err != nil {
 		return err
 	}
