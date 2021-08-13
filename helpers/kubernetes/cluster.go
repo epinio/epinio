@@ -177,22 +177,6 @@ func (c *Cluster) ClientCertificate() (dynamic.NamespaceableResourceInterface, e
 	return dynamicClient.Resource(gvr), nil
 }
 
-// ClientMiddleware returns a dynamic namespaced client for the cert manager
-// middleware resource
-func (c *Cluster) ClientMiddleware() (dynamic.NamespaceableResourceInterface, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    "traefik.containo.us",
-		Version:  "v1alpha1",
-		Resource: "middlewares",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
-	if err != nil {
-		return nil, err
-	}
-	return dynamicClient.Resource(gvr), nil
-}
-
 // ClientServiceCatalog returns a dynamic namespaced client for the specified service catalog resource
 func (c *Cluster) ClientServiceCatalog(res string) (dynamic.NamespaceableResourceInterface, error) {
 	gvr := schema.GroupVersionResource{
