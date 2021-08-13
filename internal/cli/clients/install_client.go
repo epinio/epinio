@@ -173,7 +173,8 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
 			if err := c.InstallDeployment(ctx, deployment, details); err != nil {
-				panic(fmt.Sprintf("Deployment %s failed with error: %s\n", deployment.ID(), err.Error()))
+				c.ui.Exclamation().Msgf("Deployment %s failed with error: %v\n", deployment.ID(), err)
+				os.Exit(1)
 			}
 		}(deployment, installationWg)
 	}
@@ -250,7 +251,8 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
 			if err := c.UninstallDeployment(ctx, deployment, details); err != nil {
-				panic(err)
+				c.ui.Exclamation().Msgf("Uninstall of %s failed: %v", deployment.ID(), err)
+				os.Exit(1)
 			}
 		}(deployment, wg)
 	}
@@ -260,7 +262,8 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 		Timeout: duration.ToDeployment(),
 		Log:     details.V(1),
 	}, details); err != nil {
-		panic(err)
+		c.ui.Exclamation().Msgf("Uninstall of linkerd failed: %v", err)
+		os.Exit(1)
 	}
 
 	c.ui.Success().Msg("Epinio uninstalled.")
