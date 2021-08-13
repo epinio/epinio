@@ -209,7 +209,7 @@ func (k Linkerd) createLinkerdJob(ctx context.Context,
 						{
 							Name:            jobName,
 							Image:           imageName,
-							ImagePullPolicy: "Always",
+							ImagePullPolicy: "IfNotPresent",
 							Command: []string{
 								"/bin/sh",
 								"-c",
