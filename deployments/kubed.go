@@ -38,7 +38,18 @@ func (k Kubed) Describe() string {
 
 }
 
-func (k *Kubed) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Kubed) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
+}
+
+func (k Kubed) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, KubedDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("Kubed removed")
+
 	return nil
 }
 
@@ -85,8 +96,6 @@ func (k Kubed) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", KubedDeploymentID)
 	}
-
-	ui.Success().Msg("Kubed removed")
 
 	return nil
 }

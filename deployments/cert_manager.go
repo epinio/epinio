@@ -69,6 +69,17 @@ func (cm CertManager) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster,
 	return nil
 }
 
+func (cm CertManager) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, CertManagerDeploymentID, cm.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("CertManager removed")
+
+	return nil
+}
+
 func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing CertManager...")
 
@@ -152,13 +163,6 @@ func (cm CertManager) Delete(ctx context.Context, c *kubernetes.Cluster, ui *ter
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", CertManagerDeploymentID)
 	}
-
-	err = c.WaitForNamespaceMissing(ctx, ui, CertManagerDeploymentID, cm.Timeout)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete namespace")
-	}
-
-	ui.Success().Msg("CertManager removed")
 
 	return nil
 }

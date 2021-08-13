@@ -63,6 +63,17 @@ func (k Tekton) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *t
 	return nil
 }
 
+func (k Tekton) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, tektonNamespace, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("Tekton removed")
+
+	return nil
+}
+
 // Delete removes Tekton from kubernetes cluster
 func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Tekton...")
@@ -117,13 +128,6 @@ func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
 	}
-
-	err = c.WaitForNamespaceMissing(ctx, ui, tektonNamespace, k.Timeout)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete namespace")
-	}
-
-	ui.Success().Msg("Tekton removed")
 
 	return nil
 }

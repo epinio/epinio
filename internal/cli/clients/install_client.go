@@ -254,6 +254,9 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 				c.ui.Exclamation().Msgf("Uninstall of %s failed: %v", deployment.ID(), err)
 				os.Exit(1)
 			}
+			if err := c.PostDeleteCheck(ctx, deployment, details); err != nil {
+				c.ui.Exclamation().Msgf("Failed to delete deployment %s", deployment.ID())
+			}
 		}(deployment, wg)
 	}
 	wg.Wait()
@@ -422,6 +425,14 @@ func (c *InstallClient) PreInstallCheck(ctx context.Context, deployment kubernet
 	defer logger.Info("return")
 
 	return deployment.PreDeployCheck(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
+}
+
+// PostDeleteCheck checks the if the deployment was deleted and waits
+func (c *InstallClient) PostDeleteCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
+	logger.Info("check", "Uninstall", deployment.ID())
+	defer logger.Info("return")
+
+	return deployment.PostDeleteCheck(ctx, c.kubeClient, c.ui)
 }
 
 // InstallDeployment installs one single Deployment on the cluster

@@ -39,6 +39,17 @@ func (k ServiceCatalog) PreDeployCheck(ctx context.Context, c *kubernetes.Cluste
 	return nil
 }
 
+func (k ServiceCatalog) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, ServiceCatalogDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("ServiceCatalog removed")
+
+	return nil
+}
+
 // Delete removes ServiceCatalog from kubernetes cluster
 func (k ServiceCatalog) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing ServiceCatalog...")
@@ -81,13 +92,6 @@ func (k ServiceCatalog) Delete(ctx context.Context, c *kubernetes.Cluster, ui *t
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", ServiceCatalogDeploymentID)
 	}
-
-	err = c.WaitForNamespaceMissing(ctx, ui, ServiceCatalogDeploymentID, k.Timeout)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete namespace")
-	}
-
-	ui.Success().Msg("ServiceCatalog removed")
 
 	return nil
 }
