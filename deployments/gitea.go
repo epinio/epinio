@@ -58,6 +58,17 @@ func (k Gitea) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *te
 	return nil
 }
 
+func (k Gitea) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, GiteaDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("Gitea removed")
+
+	return nil
+}
+
 // Delete removes Gitea from kubernetes cluster
 func (k Gitea) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Gitea...")
@@ -100,8 +111,6 @@ func (k Gitea) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI)
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", GiteaDeploymentID)
 	}
-
-	ui.Success().Msg("Gitea removed")
 
 	return nil
 }

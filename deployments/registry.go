@@ -60,6 +60,17 @@ func (k Registry) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui 
 	return nil
 }
 
+func (k Registry) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, RegistryDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("Registry removed")
+
+	return nil
+}
+
 // Delete removes Registry from kubernetes cluster
 func (k Registry) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Registry...")
@@ -102,8 +113,6 @@ func (k Registry) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", RegistryDeploymentID)
 	}
-
-	ui.Success().Msg("Registry removed")
 
 	return nil
 }

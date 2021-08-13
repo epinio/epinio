@@ -35,7 +35,18 @@ func (k Minibroker) Describe() string {
 	return emoji.Sprintf(":cloud:Minibroker version: %s\n", minibrokerVersion)
 }
 
-func (k *Minibroker) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Minibroker) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
+}
+
+func (k Minibroker) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, MinibrokerDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("Minibroker removed")
+
 	return nil
 }
 
@@ -81,13 +92,6 @@ func (k Minibroker) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termu
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", MinibrokerDeploymentID)
 	}
-
-	err = c.WaitForNamespaceMissing(ctx, ui, MinibrokerDeploymentID, k.Timeout)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete namespace")
-	}
-
-	ui.Success().Msg("Minibroker removed")
 
 	return nil
 }

@@ -42,6 +42,17 @@ func (k GoogleServices) PreDeployCheck(ctx context.Context, c *kubernetes.Cluste
 	return nil
 }
 
+func (k GoogleServices) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, GoogleServicesDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("GoogleServices removed")
+
+	return nil
+}
+
 // Delete removes GoogleServices from kubernetes cluster
 func (k GoogleServices) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing GoogleServices...")
@@ -84,13 +95,6 @@ func (k GoogleServices) Delete(ctx context.Context, c *kubernetes.Cluster, ui *t
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", GoogleServicesDeploymentID)
 	}
-
-	err = c.WaitForNamespaceMissing(ctx, ui, GoogleServicesDeploymentID, k.Timeout)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete namespace")
-	}
-
-	ui.Success().Msg("GoogleServices removed")
 
 	return nil
 }

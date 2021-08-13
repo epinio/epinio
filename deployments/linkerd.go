@@ -43,7 +43,11 @@ func (k Linkerd) Describe() string {
 	return emoji.Sprintf(":cloud:Linkerd version: %s\n", linkerdVersion)
 }
 
-func (k *Linkerd) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Linkerd) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	return nil
+}
+
+func (k Linkerd) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	return nil
 }
 

@@ -48,6 +48,17 @@ func (k Traefik) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *
 	return nil
 }
 
+func (k Traefik) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
+	err := c.WaitForNamespaceMissing(ctx, ui, TraefikDeploymentID, k.Timeout)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete namespace")
+	}
+
+	ui.Success().Msg("Traefik removed")
+
+	return nil
+}
+
 // Delete removes traefik from kubernetes cluster
 func (k Traefik) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Traefik...")
@@ -90,8 +101,6 @@ func (k Traefik) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	if err != nil {
 		return errors.Wrapf(err, "Failed deleting namespace %s", TraefikDeploymentID)
 	}
-
-	ui.Success().Msg("Traefik removed")
 
 	return nil
 }
