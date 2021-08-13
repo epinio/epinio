@@ -12,7 +12,7 @@ import (
 const (
 	systemDomain        = 2 * time.Minute
 	appReady            = 2 * time.Minute
-	deployment          = 5 * time.Minute
+	deployment          = 10 * time.Minute
 	orgDeletion         = 5 * time.Minute
 	serviceSecret       = 5 * time.Minute
 	serviceProvision    = 5 * time.Minute
