@@ -7,4 +7,4 @@
 |           |        | install-traefik      |               | org |
 |           |        | install-cert-manager |               | target |
 |           |        | enable               |               | push |
-|           |        | disable              |               | config show|colors |
+|           |        | disable              |               | config show\|colors |
