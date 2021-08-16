@@ -1,6 +1,6 @@
-|           | Server | Admin                | User          |
-| --------- | ------ | -------------------- | ------------- |
-| *component* | **API**    | **Installation**   | **CLI**           |  |
+|           | Server | Admin                | User          | | 
+| --------- | ------ | -------------------- | ------------- | |
+| *component* | **API**    | **Installation**   | **CLI**   |  |
 | *needs*   |   *(kubeconfig)*     | *kubeconfig*           | *kubeconfig*    | *config file* |
 |           |        |                      |               |  |
 | *commands*  | server | install              | config update | info |
