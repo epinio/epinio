@@ -41,8 +41,8 @@ var _ = Describe("Config", func() {
 			Expect(config).To(MatchRegexp(`Certificates.*\|.*Present`))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API User Name.*\|.*%s`, env.EpinioUser)))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Password.*\|.*%s`, env.EpinioPassword)))
-			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Url.*\| https://epinio.*%s`)))
-			Expect(config).To(MatchRegexp(fmt.Sprintf(`WSS Url.*\| wss://epinio.*%s`)))
+			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Url.*\| https://epinio.*`)))
+			Expect(config).To(MatchRegexp(fmt.Sprintf(`WSS Url.*\| wss://epinio.*`)))
 		})
 	})
 
