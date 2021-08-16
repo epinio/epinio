@@ -249,7 +249,13 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 		return nil
 	}
 
-	certs, err := getCerts(ctx, details)
+	api, wss, err := getAPI(details, ctx)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	certs, err := getCerts(details, ctx)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -257,6 +263,8 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 
 	c.Config.User = user
 	c.Config.Password = password
+	c.Config.API = api
+	c.Config.WSS = wss
 	c.Config.Certs = certs
 
 	details.Info("Saving", "User", c.Config.User, "Pass", c.Config.Password, "Cert", c.Config.Certs)
@@ -1699,6 +1707,22 @@ func uniqueStrings(stringSlice []string) []string {
 	return list
 }
 
+func getAPI(log logr.Logger, ctx context.Context) (string, string, error) {
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	log.Info("got cluster")
+
+	epinioURL, epinioWsURL, err := getEpinioURL(ctx, cluster)
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to resolve epinio api host")
+	}
+
+	return epinioURL, epinioWsURL, err
+}
+
 // TODO: https://github.com/epinio/epinio/issues/667
 func getCredentials(log logr.Logger, ctx context.Context) (string, string, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -1737,7 +1761,7 @@ func getCredentials(log logr.Logger, ctx context.Context) (string, string, error
 	return user, pass, nil
 }
 
-func getCerts(ctx context.Context, log logr.Logger) (string, error) {
+func getCerts(log logr.Logger, ctx context.Context) (string, error) {
 	// Save the  CA cert into the config. The regular client
 	// will then extend the Cert pool with the same, so that it
 	// can cerify the server cert.
