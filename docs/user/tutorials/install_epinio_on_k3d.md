@@ -38,24 +38,24 @@ Follow these [steps](./install_dependencies.md) to install dependencies.
 
 ### Download the Binary
 
-Change the version (v0.0.18) to the current release.
+Change the version (v0.0.21) to the current release.
 
 ##### Linux
 
 ```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.18/epinio-linux-amd64
+curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.21/epinio-linux-amd64
 ```
 
 ##### MacOS
 
 ```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.18/epinio-darwin-amd64
+curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.21/epinio-darwin-amd64
 ```
 
 ##### Windows
 
 ```bash
- curl -LO https://github.com/epinio/epinio/releases/download/v0.0.18/epinio-windows-amd64
+ curl -LO https://github.com/epinio/epinio/releases/download/v0.0.21/epinio-windows-amd64.exe
 ```
 
 ### Make the binary executable

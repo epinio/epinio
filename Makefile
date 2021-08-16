@@ -39,7 +39,7 @@ compress:
 	upx --brute -1 ./dist/epinio-linux-arm32
 	upx --brute -1 ./dist/epinio-linux-arm64
 	upx --brute -1 ./dist/epinio-linux-amd64
-	upx --brute -1 ./dist/epinio-windows-amd64
+	upx --brute -1 ./dist/epinio-windows-amd64.exe
 	upx --brute -1 ./dist/epinio-darwin-amd64
 
 test: embed_files
