@@ -1,5 +1,5 @@
 |           | Server | Admin                | User          | | 
-| --------- | ------ | -------------------- | ------------- | |
+| --------- | ------ | -------------------- | ------------- | --- |
 | *component* | **API**    | **Installation**   | **CLI**   |  |
 | *needs*   |   *(kubeconfig)*     | *kubeconfig*           | *kubeconfig*    | *config file* |
 |           |        |                      |               |  |
