@@ -45,7 +45,8 @@ func init() {
 // CmdServer implements the epinio server command
 var CmdServer = &cobra.Command{
 	Use:   "server",
-	Short: "starts the Epinio server. You can connect to it using either your browser or the Epinio client.",
+	Short: "Starts the Epinio server.",
+	Long:  "This command starts the Epinio server. `epinio install` ensures the server is running inside your cluster. Normally you don't need to run this command manually.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		httpServerWg := &sync.WaitGroup{}

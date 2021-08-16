@@ -5,7 +5,11 @@ weight: 1
 ---
 ## epinio server
 
-starts the Epinio server. You can connect to it using either your browser or the Epinio client.
+Starts the Epinio server.
+
+### Synopsis
+
+This command starts the Epinio server. `epinio install` ensures the server is running inside your cluster. Normally you don't need to run this command manually.
 
 ```
 epinio server [flags]
