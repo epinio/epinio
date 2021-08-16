@@ -41,10 +41,12 @@ var _ = Describe("Config", func() {
 			Expect(config).To(MatchRegexp(`Certificates.*\|.*Present`))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API User Name.*\|.*%s`, env.EpinioUser)))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Password.*\|.*%s`, env.EpinioPassword)))
+			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Url.*\| https://epinio.*%s`)))
+			Expect(config).To(MatchRegexp(fmt.Sprintf(`WSS Url.*\| wss://epinio.*%s`)))
 		})
 	})
 
-	Describe("Update-Credentials", func() {
+	Describe("Update", func() {
 		BeforeEach(func() {
 			// Set current configuration aside
 			out, err := proc.Run("", false, "mv", nodeTmpDir+"/epinio.yaml", nodeTmpDir+"/epinio.yaml.bak")
@@ -59,8 +61,8 @@ var _ = Describe("Config", func() {
 
 		It("regenerates certs and credentials", func() {
 			// Get back the certs and credentials
-			// Note that org, as a purely local setting, is not restored
-			_, err := env.Epinio("", "config", "update-credentials")
+			// Note that `org`, as a purely local setting, is not restored
+			_, err := env.Epinio("", "config", "update")
 			Expect(err).ToNot(HaveOccurred())
 
 			newConfig, err := env.GetConfig()
@@ -69,8 +71,10 @@ var _ = Describe("Config", func() {
 			oldConfig, err := env.GetConfigFrom(fmt.Sprintf("%s/epinio.yaml.bak", nodeTmpDir))
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(newConfig.Certs).To(Equal(oldConfig.Certs))
+			Expect(newConfig.User).To(Equal(oldConfig.User))
 			Expect(newConfig.Password).To(Equal(oldConfig.Password))
+			Expect(newConfig.API).To(Equal(oldConfig.API))
+			Expect(newConfig.WSS).To(Equal(oldConfig.WSS))
 			Expect(newConfig.Certs).To(Equal(oldConfig.Certs))
 		})
 	})
