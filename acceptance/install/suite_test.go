@@ -1,10 +1,8 @@
-package acceptance_test
+package install_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
-	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -24,7 +22,6 @@ func TestAcceptance(t *testing.T) {
 var (
 	nodeSuffix, nodeTmpDir string
 	env                    testenv.EpinioEnv
-	epinioBinary           string
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -38,33 +35,17 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
-	testenv.BuildEpinio()
+	testenv.BuildEpinioRuntime()
 	testenv.CreateRegistrySecret()
-
-	epinioBinary = fmt.Sprintf("/dist/epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
-	var err error
 	testenv.SetRoot("../..")
 
-	nodeSuffix = fmt.Sprintf("%d-%s",
-		config.GinkgoConfig.ParallelNode, string(randomSuffix))
-	nodeTmpDir, err = ioutil.TempDir("", "epinio-"+nodeSuffix)
-	if err != nil {
-		panic("Could not create temp dir: " + err.Error())
-	}
-
 	Expect(os.Getenv("KUBECONFIG")).ToNot(BeEmpty(), "KUBECONFIG environment variable should not be empty")
-
-	env = testenv.New(nodeTmpDir, testenv.Root())
 })
 
 var _ = SynchronizedAfterSuite(func() {
-	if !testenv.SkipCleanup() {
-		fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
-		testenv.DeleteTmpDir(nodeTmpDir)
-	}
 }, func() { // Runs only on one node after all are done
 	if testenv.SkipCleanup() {
 		fmt.Printf("Found '%s', skipping all cleanup", testenv.SkipCleanupPath())

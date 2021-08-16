@@ -8,7 +8,7 @@ import (
 )
 
 func SetupInClusterServices(epinioBinary string) {
-	out, err := proc.Run("", false, Root()+epinioBinary, "enable", "services-incluster")
+	out, err := proc.Run("", false, epinioBinary, "enable", "services-incluster")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(ContainSubstring("Beware, "))
 

@@ -14,21 +14,27 @@ build-all: embed_files build-amd64 build-arm64 build-arm32 build-windows build-d
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
 
+build-linux-arm: build-arm32
 build-arm32:
 	GOARCH="arm" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm32
 
+build-linux-arm64: build-arm64
 build-arm64:
 	GOARCH="arm64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-arm64
 
+build-linux-amd64: build-amd64
 build-amd64:
 	GOARCH="amd64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
 
+build-windows-amd64: build-windows
 build-windows:
 	GOARCH="amd64" GOOS="windows" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-windows-amd64.exe
 
+build-darwin-amd64: build-darwin
 build-darwin:
 	GOARCH="amd64" GOOS="darwin" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-amd64
 
+build-linux-s390x: build-s390x
 build-s390x:
 	GOARCH="s390x" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-s390x
 
@@ -52,6 +58,7 @@ tag:
 
 GINKGO_NODES ?= 2
 FLAKE_ATTEMPTS ?= 2
+REGEX ?= ""
 
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
@@ -76,7 +83,8 @@ test-acceptance-cli: showfocus embed_files
 	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
 test-acceptance-install: showfocus embed_files
-	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/install/.
+	# TODO support for labels is coming in ginkgo v2
+	ginkgo -nodes ${GINKGO_NODES} -focus "${REGEX}" -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} acceptance/install/.
 
 
 showfocus:

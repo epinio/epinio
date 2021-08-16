@@ -17,7 +17,7 @@ var _ = Describe("Untar", func() {
 	BeforeEach(func() {
 		targetDirectory, err = ioutil.TempDir("", "epinio-test")
 		Expect(err).ToNot(HaveOccurred())
-		tarFile = FixturePath("untar.tgz")
+		tarFile = assetPath("untar.tgz")
 	})
 
 	AfterEach(func() {

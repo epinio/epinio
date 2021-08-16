@@ -5,7 +5,6 @@ import (
 )
 
 type Epinio struct {
-	Flags            []string
 	EpinioBinaryPath string
 }
 
@@ -15,8 +14,16 @@ func NewEpinioHelper(epinioBinaryPath string) Epinio {
 	}
 }
 
-func (e *Epinio) Install() (string, error) {
-	out, err := proc.Run("", false, e.EpinioBinaryPath, append([]string{"install"}, e.Flags...)...)
+func (e *Epinio) Run(cmd string, args ...string) (string, error) {
+	out, err := proc.RunW(e.EpinioBinaryPath, append([]string{cmd}, args...)...)
+	if err != nil {
+		return out, err
+	}
+	return out, nil
+}
+
+func (e *Epinio) Install(args ...string) (string, error) {
+	out, err := e.Run("install", args...)
 	if err != nil {
 		return out, err
 	}
@@ -24,7 +31,7 @@ func (e *Epinio) Install() (string, error) {
 }
 
 func (e *Epinio) Uninstall() (string, error) {
-	out, err := proc.Run("", false, e.EpinioBinaryPath, "uninstall")
+	out, err := e.Run("uninstall")
 	if err != nil {
 		return out, err
 	}
