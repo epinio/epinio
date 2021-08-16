@@ -30,7 +30,7 @@ func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 		return epinioClientMemo, nil
 	}
 
-	// Check for information cached in the peinio configuration,
+	// Check for information cached in the Epinio configuration,
 	// and return if such is found. Cache into memory as well.
 	configConfig, err := config.Load()
 	if err != nil {
