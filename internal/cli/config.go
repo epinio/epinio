@@ -19,9 +19,13 @@ var CmdConfig = &cobra.Command{
 	Use:           "config",
 	Short:         "Epinio config management",
 	Long:          `Manage the epinio cli configuration`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return errors.New(fmt.Sprintf(`Unknown method "%s"`, args[0]))
+	},
 }
 
 func init() {

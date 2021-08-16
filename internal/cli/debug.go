@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -20,9 +21,13 @@ var CmdDebug = &cobra.Command{
 	Use:           "debug",
 	Short:         "Dev Tools",
 	Long:          `Developer Tools. Hidden From Regular User.`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return errors.New(fmt.Sprintf(`Unknown method "%s"`, args[0]))
+	},
 }
 
 // CmdDebug implements the epinio debug command

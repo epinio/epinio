@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
@@ -30,9 +31,13 @@ var CmdService = &cobra.Command{
 	Aliases:       []string{"services"},
 	Short:         "Epinio service features",
 	Long:          `Handle service features with Epinio`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return errors.New(fmt.Sprintf(`Unknown method "%s"`, args[0]))
+	},
 }
 
 // CmdServiceShow implements the epinio service show command

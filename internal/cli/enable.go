@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"fmt"
+
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
@@ -14,9 +16,13 @@ var CmdEnable = &cobra.Command{
 	Use:           "enable",
 	Short:         "enable Epinio features",
 	Long:          `enable Epinio features that are not enabled by default`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return errors.New(fmt.Sprintf(`Unknown method "%s"`, args[0]))
+	},
 }
 
 var CmdEnableInCluster = &cobra.Command{

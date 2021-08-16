@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/clients"
@@ -17,9 +18,13 @@ var CmdApp = &cobra.Command{
 	Aliases:       []string{"apps"},
 	Short:         "Epinio application features",
 	Long:          `Manage epinio application`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return errors.New(fmt.Sprintf(`Unknown method "%s"`, args[0]))
+	},
 }
 
 func init() {

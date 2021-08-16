@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"fmt"
 	"os"
 	"strings"
 
@@ -14,15 +15,19 @@ var (
 	force bool
 )
 
-// CmdOrg implements the epinio -app command
+// CmdOrg implements the `epinio org` command
 var CmdOrg = &cobra.Command{
 	Use:           "org",
 	Aliases:       []string{"orgs"},
 	Short:         "Epinio organizations",
 	Long:          `Manage epinio organizations`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return errors.New(fmt.Sprintf(`Unknown method "%s"`, args[0]))
+	},
 }
 
 func init() {
