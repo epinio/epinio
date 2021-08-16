@@ -10,6 +10,14 @@ import (
 )
 
 var _ = Describe("Config", func() {
+	Describe("Ensemble", func() {
+		It("fails for a bogus sub command", func() {
+			out, err := env.Epinio("", "config", "bogus", "...")
+			Expect(err).To(HaveOccurred())
+			Expect(out).To(MatchRegexp(`Unknown method "bogus"`))
+		})
+	})
+
 	Describe("Colors", func() {
 		It("changes the configuration when disabling colors", func() {
 			config, err := env.Epinio("", "config", "colors", "0")
@@ -62,8 +70,9 @@ var _ = Describe("Config", func() {
 		It("regenerates certs and credentials", func() {
 			// Get back the certs and credentials
 			// Note that `org`, as a purely local setting, is not restored
-			_, err := env.Epinio("", "config", "update")
+			out, err := env.Epinio("", "config", "update")
 			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(MatchRegexp(`Updating the stored credentials`))
 
 			newConfig, err := env.GetConfig()
 			Expect(err).ToNot(HaveOccurred())
