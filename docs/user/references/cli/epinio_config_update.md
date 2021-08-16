@@ -1,24 +1,24 @@
 ---
-title: "epinio config update-credentials"
-linkTitle: "epinio config update-credentials"
+title: "epinio config update"
+linkTitle: "epinio config update"
 weight: 1
 ---
-## epinio config update-credentials
+## epinio config update
 
-Update the stored credentials
+Update the api location & stored credentials
 
 ### Synopsis
 
-Update the stored credentials from the current cluster
+Update the api location and stored credentials from the current cluster
 
 ```
-epinio config update-credentials [flags]
+epinio config update [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for update-credentials
+  -h, --help   help for update
 ```
 
 ### Options inherited from parent commands
