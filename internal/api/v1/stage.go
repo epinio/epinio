@@ -52,11 +52,12 @@ func (app *stageParam) ImageURL(registryURL string) string {
 	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
 }
 
-func (app *stageParam) CachePVCName() string {
-	return app.Org + app.Name
+func (app *stageParam) PVCName() string {
+	// TODO: Can this exceed the allowed limit in characters?
+	return fmt.Sprintf("%s-%s", app.Org, app.Name)
 }
 
-func (c ApplicationsController) ensureCachePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
+func (c ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
 	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
@@ -75,13 +76,8 @@ func (c ApplicationsController) ensureCachePVC(ctx context.Context, cluster *kub
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 				Resources: corev1.ResourceRequirements{
-					Limits: map[corev1.ResourceName]resource.Quantity{
-						"": {
-							Format: "",
-						},
-					},
 					Requests: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceStorage: resource.MustParse("1Gi"), // TODO: Is this too big? Make configurable?
+						corev1.ResourceStorage: resource.MustParse("1Gi"),
 					},
 				},
 			},
@@ -187,11 +183,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		BuilderImage: req.BuilderImage,
 	}
 
-	// TODO: Ensure a PVC exists for the 'cache' volume for this application
 	// TODO: Delete the PVC when the application is deleted
-	err = hc.ensureCachePVC(ctx, cluster, params.CachePVCName())
+	err = hc.ensurePVC(ctx, cluster, params.PVCName())
 	if err != nil {
-		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application cache")
+		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}
 
 	pr := newPipelineRun(uid, params)
@@ -263,21 +258,19 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
-					Name: "cache",
+					Name:    "cache",
+					SubPath: "cache",
 					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: app.CachePVCName(),
+						ClaimName: app.PVCName(),
 						ReadOnly:  false,
 					},
 				},
 				{
-					Name: "source",
-					VolumeClaimTemplate: &corev1.PersistentVolumeClaim{
-						Spec: corev1.PersistentVolumeClaimSpec{
-							AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-							Resources: corev1.ResourceRequirements{Requests: corev1.ResourceList{
-								corev1.ResourceName(corev1.ResourceStorage): resource.MustParse("1Gi"),
-							}},
-						},
+					Name:    "source",
+					SubPath: "source",
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: app.PVCName(),
+						ReadOnly:  false,
 					},
 				},
 			},
