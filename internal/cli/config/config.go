@@ -37,10 +37,14 @@ func DefaultLocation() string {
 	return defaultConfigFilePath
 }
 
-// Load loads the Epinio config
+// Load loads the Epinio config from the default location
 func Load() (*Config, error) {
+	return LoadFrom(location())
+}
+
+// LoadFrom loads the Epinio config from a specific file
+func LoadFrom(file string) (*Config, error) {
 	v := viper.New()
-	file := location()
 
 	v.SetConfigType("yaml")
 	v.SetConfigFile(file)

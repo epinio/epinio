@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -92,11 +91,7 @@ func (m *Machine) GetPodNames(appName, orgName string) []string {
 }
 
 func (m *Machine) GetConfigFrom(location string) (*config.Config, error) {
-	os.Setenv("EPINIO_CONFIG", location)
-	defer func() {
-		os.Setenv("EPINIO_CONFIG", m.nodeTmpDir+"/epinio.yaml")
-	}()
-	return config.Load()
+	return config.LoadFrom(location)
 }
 
 func (m *Machine) GetConfig() (*config.Config, error) {
