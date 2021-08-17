@@ -245,7 +245,7 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 
 	details.Info("retrieving credentials")
 
-	user, password, err := getCredentials(details, ctx)
+	user, password, err := getCredentials(ctx, details)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -254,7 +254,7 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 	details.Info("retrieved credentials", "user", user, "password", password)
 	details.Info("retrieving server locations")
 
-	api, wss, err := getAPI(details, ctx)
+	api, wss, err := getAPI(ctx, details)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -263,7 +263,7 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 	details.Info("retrieved server locations", "api", api, "wss", wss)
 	details.Info("retrieving certs")
 
-	certs, err := getCerts(details, ctx)
+	certs, err := getCerts(ctx, details)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -1724,7 +1724,7 @@ func uniqueStrings(stringSlice []string) []string {
 	return list
 }
 
-func getAPI(log logr.Logger, ctx context.Context) (string, string, error) {
+func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
@@ -1741,7 +1741,7 @@ func getAPI(log logr.Logger, ctx context.Context) (string, string, error) {
 }
 
 // TODO: https://github.com/epinio/epinio/issues/667
-func getCredentials(log logr.Logger, ctx context.Context) (string, string, error) {
+func getCredentials(ctx context.Context, log logr.Logger) (string, string, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
@@ -1778,7 +1778,7 @@ func getCredentials(log logr.Logger, ctx context.Context) (string, string, error
 	return user, pass, nil
 }
 
-func getCerts(log logr.Logger, ctx context.Context) (string, error) {
+func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 	// Save the  CA cert into the config. The regular client
 	// will then extend the Cert pool with the same, so that it
 	// can cerify the server cert.
