@@ -23,7 +23,7 @@ var CmdApp = &cobra.Command{
 	Args:          cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.Usage()
-		return errors.New(fmt.Sprintf(`Unknown method "%s"`, args[0]))
+		return fmt.Errorf(`Unknown method "%s"`, args[0])
 	},
 }
 
