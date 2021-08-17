@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -49,6 +50,44 @@ func (app *stageParam) GitURL(server string) string {
 // later used in app.yml and to send in the stage response.
 func (app *stageParam) ImageURL(registryURL string) string {
 	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
+}
+
+func (app *stageParam) CachePVCName() string {
+	return app.Org + app.Name
+}
+
+func (c ApplicationsController) ensureCachePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
+	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
+		return err
+	}
+	if err == nil { // pvc already exists
+		return nil
+	}
+
+	// From here on, only if the PVC is missing
+	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
+		Create(ctx, &corev1.PersistentVolumeClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      pvcName,
+				Namespace: deployments.TektonStagingNamespace,
+			},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+				Resources: corev1.ResourceRequirements{
+					Limits: map[corev1.ResourceName]resource.Quantity{
+						"": {
+							Format: "",
+						},
+					},
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceStorage: resource.MustParse("1Gi"), // TODO: Is this too big? Make configurable?
+					},
+				},
+			},
+		}, metav1.CreateOptions{})
+
+	return err
 }
 
 // Stage will create a Tekton PipelineRun resource to stage the app
@@ -148,6 +187,13 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		BuilderImage: req.BuilderImage,
 	}
 
+	// TODO: Ensure a PVC exists for the 'cache' volume for this application
+	// TODO: Delete the PVC when the application is deleted
+	err = hc.ensureCachePVC(ctx, cluster, params.CachePVCName())
+	if err != nil {
+		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application cache")
+	}
+
 	pr := newPipelineRun(uid, params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
@@ -216,6 +262,13 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 				},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
+				{
+					Name: "cache",
+					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+						ClaimName: app.CachePVCName(),
+						ReadOnly:  false,
+					},
+				},
 				{
 					Name: "source",
 					VolumeClaimTemplate: &corev1.PersistentVolumeClaim{
