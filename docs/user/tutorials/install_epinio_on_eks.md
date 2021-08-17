@@ -2,13 +2,14 @@
 
 ## Create an EKS cluster
 
-If you don't have an existing cluster, follow the [quickstart](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html) to create an AKS cluster.
+If you don't have an existing cluster, follow the [quickstart](https://docs.aws.amazon.com/eks/latest/userguide/getting-started.html) to create an EKS cluster.
 
 ## EKS Prerequisites
 
-* Epinio v0.0.20 has been tested with AWS EKS incl. kubernetes version v1.20.4
-* Epinio Acceptance Tests passed on a 2 node cluster with t2.xlarge instances
-* To just try out Epinio, e.g. 2 t2.xlarge are sufficient
+* We follow the documented recommendation of having at least 2 nodes for EKS
+* Epinio v0.0.21 has been tested with AWS EKS incl. kubernetes version v1.20.4
+* To do more extensive testing we recommend a 2 node cluster with "t3.xlarge" instances
+* To just try out Epinio, e.g. 2 "t3a.large" are sufficient
 
 #### Install Dependencies
 
@@ -48,7 +49,7 @@ Install ingress first and wait for the `loadbalancer-ip` to be provisioned for t
 epinio install-ingress
 ```
 
-The output of the command will print the `loadbalancer-ip`, but with EKS it will print a FQDN resolving to two IPs.
+The output of the command will print the `loadbalancer-ip`, but with EKS it will print a loadbalanced FQDN, possibly resolving to multiple IPs. Therefore we recommend to create a wildcard domain using CNAME records.
 
 #### Example wildcard DOMAIN with AWS "route53" service
 
