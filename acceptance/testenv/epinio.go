@@ -55,7 +55,7 @@ func New(nodeDir string, rootDir string) EpinioEnv {
 		nodeTmpDir:     nodeDir,
 		EpinioUser:     epinioUser,
 		EpinioPassword: epinioPassword,
-		Machine:        machine.New(nodeDir, epinioUser, epinioPassword, root),
+		Machine:        machine.New(nodeDir, epinioUser, epinioPassword, root, EpinioBinaryPath()),
 	}
 }
 

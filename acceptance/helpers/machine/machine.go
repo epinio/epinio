@@ -20,14 +20,15 @@ import (
 )
 
 type Machine struct {
-	nodeTmpDir string
-	user       string
-	password   string
-	root       string
+	nodeTmpDir       string
+	user             string
+	password         string
+	root             string
+	epinioBinaryPath string
 }
 
-func New(dir string, user string, password string, root string) Machine {
-	return Machine{dir, user, password, root}
+func New(dir string, user string, password string, root string, epinioBinaryPath string) Machine {
+	return Machine{dir, user, password, root, epinioBinaryPath}
 }
 
 // Epinio invokes the `epinio` binary, running the specified command.
@@ -35,7 +36,7 @@ func New(dir string, user string, password string, root string) Machine {
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
-	return proc.Run(dir, false, m.nodeTmpDir+"/epinio", append([]string{command}, arg...)...)
+	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
 }
 
 func (m *Machine) SetupAndTargetOrg(org string) {
