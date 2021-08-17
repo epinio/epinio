@@ -32,15 +32,15 @@ func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 
 	// Check for information cached in the Epinio configuration,
 	// and return if such is found. Cache into memory as well.
-	configConfig, err := config.Load()
+	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
 
-	if configConfig.API != "" && configConfig.WSS != "" {
+	if cfg.API != "" && cfg.WSS != "" {
 		epinioClient := &EpinioAPIClient{
-			URL:   configConfig.API,
-			WsURL: configConfig.WSS,
+			URL:   cfg.API,
+			WsURL: cfg.WSS,
 		}
 
 		epinioClientMemo = epinioClient
@@ -61,10 +61,10 @@ func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 		return nil, errors.Wrap(err, "failed to resolve epinio api host")
 	}
 
-	configConfig.API = epinioURL
-	configConfig.WSS = epinioWsURL
+	cfg.API = epinioURL
+	cfg.WSS = epinioWsURL
 
-	err = configConfig.Save()
+	err = cfg.Save()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to save configuration")
 	}
