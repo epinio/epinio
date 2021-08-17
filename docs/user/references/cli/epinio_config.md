@@ -34,5 +34,5 @@ Manage the epinio cli configuration
 * [epinio](../epinio)	 - Epinio cli
 * [epinio config colors](../epinio_config_colors)	 - Manage colored output
 * [epinio config show](../epinio_config_show)	 - Show the current configuration
-* [epinio config update-credentials](../epinio_config_update-credentials)	 - Update the stored credentials
+* [epinio config update](../epinio_config_update)	 - Update the api location & stored credentials
 

@@ -243,11 +243,25 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 	c.ui.Note().
 		Msg("Updating the stored credentials from the current cluster")
 
-	user, password, err := getCredentials(details, ctx)
+	details.Info("retrieving credentials")
+
+	user, password, err := getCredentials(ctx, details)
 	if err != nil {
 		c.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
+
+	details.Info("retrieved credentials", "user", user, "password", password)
+	details.Info("retrieving server locations")
+
+	api, wss, err := getAPI(ctx, details)
+	if err != nil {
+		c.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
+
+	details.Info("retrieved server locations", "api", api, "wss", wss)
+	details.Info("retrieving certs")
 
 	certs, err := getCerts(ctx, details)
 	if err != nil {
@@ -255,17 +269,28 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 		return nil
 	}
 
+	details.Info("retrieved certs", "certs", certs)
+
 	c.Config.User = user
 	c.Config.Password = password
+	c.Config.API = api
+	c.Config.WSS = wss
 	c.Config.Certs = certs
 
-	details.Info("Saving", "User", c.Config.User, "Pass", c.Config.Password, "Cert", c.Config.Certs)
+	details.Info("saving",
+		"user", c.Config.User,
+		"pass", c.Config.Password,
+		"api", c.Config.API,
+		"wss", c.Config.WSS,
+		"cert", c.Config.Certs)
 
 	err = c.Config.Save()
 	if err != nil {
 		c.ui.Exclamation().Msg(errors.Wrap(err, "failed to save configuration").Error())
 		return nil
 	}
+
+	details.Info("saved")
 
 	c.ui.Success().Msg("Ok")
 	return nil
@@ -1699,8 +1724,24 @@ func uniqueStrings(stringSlice []string) []string {
 	return list
 }
 
+func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	log.Info("got cluster")
+
+	epinioURL, epinioWsURL, err := getEpinioURL(ctx, cluster)
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to resolve epinio api host")
+	}
+
+	return epinioURL, epinioWsURL, err
+}
+
 // TODO: https://github.com/epinio/epinio/issues/667
-func getCredentials(log logr.Logger, ctx context.Context) (string, string, error) {
+func getCredentials(ctx context.Context, log logr.Logger) (string, string, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err

@@ -19,13 +19,17 @@ var CmdConfig = &cobra.Command{
 	Use:           "config",
 	Short:         "Epinio config management",
 	Long:          `Manage the epinio cli configuration`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return fmt.Errorf(`Unknown method "%s"`, args[0])
+	},
 }
 
 func init() {
-	CmdConfig.AddCommand(CmdConfigUpdateCreds)
+	CmdConfig.AddCommand(CmdConfigUpdate)
 	CmdConfig.AddCommand(CmdConfigShow)
 	CmdConfig.AddCommand(CmdConfigColors)
 }
@@ -98,6 +102,8 @@ var CmdConfigShow = &cobra.Command{
 			WithTableRow("Current Organization", color.CyanString(theConfig.Org)).
 			WithTableRow("API User Name", color.BlueString(theConfig.User)).
 			WithTableRow("API Password", color.BlueString(theConfig.Password)).
+			WithTableRow("API Url", color.BlueString(theConfig.API)).
+			WithTableRow("WSS Url", color.BlueString(theConfig.WSS)).
 			WithTableRow("Certificates", certInfo).
 			Msg("Ok")
 
@@ -105,11 +111,11 @@ var CmdConfigShow = &cobra.Command{
 	},
 }
 
-// CmdConfigUpdateCreds implements the `epinio config update-credentials` command
-var CmdConfigUpdateCreds = &cobra.Command{
-	Use:   "update-credentials",
-	Short: "Update the stored credentials",
-	Long:  "Update the stored credentials from the current cluster",
+// CmdConfigUpdate implements the `epinio config update` command
+var CmdConfigUpdate = &cobra.Command{
+	Use:   "update",
+	Short: "Update the api location & stored credentials",
+	Long:  "Update the api location and stored credentials from the current cluster",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true

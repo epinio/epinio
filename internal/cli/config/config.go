@@ -24,6 +24,8 @@ type Config struct {
 	Org      string `mapstructure:"org"`
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"pass"`
+	API      string `mapstructure:"api"`
+	WSS      string `mapstructure:"wss"`
 	Certs    string `mapstructure:"certs"`
 	Colors   bool   `mapstructure:"colors"`
 
@@ -35,10 +37,14 @@ func DefaultLocation() string {
 	return defaultConfigFilePath
 }
 
-// Load loads the Epinio config
+// Load loads the Epinio config from the default location
 func Load() (*Config, error) {
+	return LoadFrom(location())
+}
+
+// LoadFrom loads the Epinio config from a specific file
+func LoadFrom(file string) (*Config, error) {
 	v := viper.New()
-	file := location()
 
 	v.SetConfigType("yaml")
 	v.SetConfigFile(file)
@@ -50,6 +56,8 @@ func Load() (*Config, error) {
 	// Use empty defaults in viper to allow NeededOptions defaults to apply
 	v.SetDefault("user", "")
 	v.SetDefault("pass", "")
+	v.SetDefault("api", "")
+	v.SetDefault("wss", "")
 	v.SetDefault("certs", "")
 	v.SetDefault("colors", true)
 
@@ -110,6 +118,8 @@ func (c *Config) Save() error {
 	c.v.Set("org", c.Org)
 	c.v.Set("user", c.User)
 	c.v.Set("pass", c.Password)
+	c.v.Set("api", c.API)
+	c.v.Set("wss", c.WSS)
 	c.v.Set("certs", c.Certs)
 	c.v.Set("colors", c.Colors)
 

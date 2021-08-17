@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
@@ -15,9 +16,13 @@ var CmdAppEnv = &cobra.Command{
 	Use:           "env",
 	Short:         "Epinio application configuration",
 	Long:          `Manage epinio application environment variables`,
-	Args:          cobra.ExactArgs(0),
 	SilenceErrors: true,
 	SilenceUsage:  true,
+	Args:          cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.Usage()
+		return fmt.Errorf(`Unknown method "%s"`, args[0])
+	},
 }
 
 func init() {

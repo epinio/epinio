@@ -6,6 +6,7 @@ import (
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/pkg/errors"
 )
 
@@ -24,9 +25,31 @@ type EpinioAPIClient struct {
 var epinioClientMemo *EpinioAPIClient
 
 func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
+	// Check for information cached in memory, and return if such is found
 	if epinioClientMemo != nil {
 		return epinioClientMemo, nil
 	}
+
+	// Check for information cached in the Epinio configuration,
+	// and return if such is found. Cache into memory as well.
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.API != "" && cfg.WSS != "" {
+		epinioClient := &EpinioAPIClient{
+			URL:   cfg.API,
+			WsURL: cfg.WSS,
+		}
+
+		epinioClientMemo = epinioClient
+
+		return epinioClient, nil
+	}
+
+	// Not cached at all. Query and return the cluster
+	// ingress. Cache to configuration, and memory.
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -36,6 +59,14 @@ func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 	epinioURL, epinioWsURL, err := getEpinioURL(ctx, cluster)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve epinio api host")
+	}
+
+	cfg.API = epinioURL
+	cfg.WSS = epinioWsURL
+
+	err = cfg.Save()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to save configuration")
 	}
 
 	epinioClient := &EpinioAPIClient{

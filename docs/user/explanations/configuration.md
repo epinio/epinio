@@ -61,7 +61,7 @@ explicitly targeting the configuration. These are:
      field, due to its expected size. The command's output only notes
      if certificate data is present or not.
 
-  3. `epinio config update-credentials`
+  3. `epinio config update`
 
      Epinio allows users to switch between multiple installations (on
      different clusters) by simply re-targeting the cluster to talk to
