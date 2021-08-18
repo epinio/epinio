@@ -8,6 +8,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
+func GenerateResourceName(names ...string) string {
+	return TruncateMD5(strings.Join(names, "."), 63)
+}
+
 func GenerateDNS1123SubDomainName(names ...string) string {
 	return TruncateMD5(strings.Join(names, "."), validation.DNS1123SubdomainMaxLength)
 }

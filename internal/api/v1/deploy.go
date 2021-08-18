@@ -9,6 +9,7 @@ import (
 
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/julienschmidt/httprouter"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -139,10 +140,15 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	log.Info("deploying app service", "org", org, "app", req.App)
+
 	svc, err := newAppService(req.App)
 	if err != nil {
 		return InternalError(err)
 	}
+
+	log.Info("app service", "name", svc.ObjectMeta.Name)
+
 	svc.SetOwnerReferences([]metav1.OwnerReference{owner})
 	if _, err := cluster.Kubectl.CoreV1().Services(req.App.Org).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -161,10 +167,15 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
+	log.Info("deploying app ingress", "org", org, "app", req.App, "", req.Route)
+
 	ing, err := newAppIngress(req.App, req.Route)
 	if err != nil {
 		return InternalError(err)
 	}
+
+	log.Info("app ingress", "name", ing.ObjectMeta.Name)
+
 	ing.SetOwnerReferences([]metav1.OwnerReference{owner})
 	if _, err := cluster.Kubectl.NetworkingV1().Ingresses(req.App.Org).Create(ctx, ing, metav1.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -250,7 +261,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 func newAppService(app models.AppRef) (*v1.Service, error) {
 	serviceData := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "s-" + app.Name,
+			Name:      names.GenerateResourceName("s-" + app.Name),
 			Namespace: app.Org,
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":                      "traefik",
@@ -288,7 +299,7 @@ func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, e
 
 	ingressData := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "i-" + appRef.Name,
+			Name: names.GenerateResourceName("i-" + appRef.Name),
 			Annotations: map[string]string{
 				"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
 				"traefik.ingress.kubernetes.io/router.tls":         "true",
@@ -311,7 +322,7 @@ func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, e
 								{
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
-											Name: "s-" + appRef.Name,
+											Name: names.GenerateResourceName("s-" + appRef.Name),
 											Port: networkingv1.ServiceBackendPort{
 												Number: 8080,
 											},
