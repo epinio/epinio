@@ -24,7 +24,7 @@ Find the latest version at [Releases](https://github.com/epinio/epinio/releases)
 ```bash
 curl -o epinio -L https://github.com/epinio/epinio/releases/download/<epinio-version>/epinio-linux-amd64
 ```
-
+where `<epinio-version>` is a placeholder for the chosen version.
 * Make the binary executable
 
 ```bash
