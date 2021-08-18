@@ -88,6 +88,7 @@ Finally, running
 should resolve to e.g. "abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com".
 
 #### Install Epinio In Cluster
+With DNS now available the second step actually installs the cluster:
 
 ```bash
 epinio install --system-domain test.example.net --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
