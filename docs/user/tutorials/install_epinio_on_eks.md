@@ -39,7 +39,7 @@ sudo mv ./epinio /usr/local/bin/epinio
 
 #### Install
 
-Installing Epinio in an EKS cluster will be done in two steps.
+Installing Epinio in an EKS cluster is done in two steps.
 
 #### Install Ingress In Cluster (for a custom DOMAIN)
 
