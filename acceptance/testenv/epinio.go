@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -64,18 +63,16 @@ func BinaryName() string {
 	return fmt.Sprintf("epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
 }
 
-// EpinioBinaryPath returns the relative path to the dist/epinio binary
+// EpinioBinaryPath returns the absolute path to the dist/epinio binary
 func EpinioBinaryPath() string {
-	return filepath.Join(Root(), "dist", BinaryName())
+	p, _ := filepath.Abs(filepath.Join(Root(), "dist", BinaryName()))
+	return p
 }
 
-func (e *EpinioEnv) CopyEpinio() (string, error) {
-	binaryPath := path.Join("dist", BinaryName())
-	return proc.Run(Root(), false, "cp", binaryPath, e.nodeTmpDir+"/epinio")
-}
-
+// EpinioYAML returns the absolute path to the epinio config YAML
 func EpinioYAML() string {
-	return Root() + "/tmp/epinio.yaml"
+	p, _ := filepath.Abs(filepath.Join(Root(), "/tmp/epinio.yaml"))
+	return p
 }
 
 func EnsureEpinio(epinioBinary string) error {
