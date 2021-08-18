@@ -22,7 +22,7 @@ Follow these [steps](./install_dependencies.md) to install dependencies.
 Find the latest version at [Releases](https://github.com/epinio/epinio/releases) and run e.g.
 
 ```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.20/epinio-linux-amd64
+curl -o epinio -L https://github.com/epinio/epinio/releases/download/<epinio-version>/epinio-linux-amd64
 ```
 
 * Make the binary executable
