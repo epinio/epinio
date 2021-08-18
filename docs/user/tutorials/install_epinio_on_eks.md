@@ -49,7 +49,7 @@ First install ingress and wait for the `loadbalancer-ip` to be provisioned for t
 epinio install-ingress
 ```
 
-The output of the command will print the `loadbalancer-ip`, but with EKS it will print a loadbalanced FQDN, possibly resolving to multiple IPs. Therefore we recommend to create a wildcard domain using CNAME records.
+The command prints the `loadbalancer-ip` needed. Note however that for EKS it prints a loadbalanced FQDN instead, which may resolve to multiple IPs. Therefore we recommend to create a wildcard domain using CNAME records.
 
 #### Example wildcard DOMAIN with AWS "route53" service
 
