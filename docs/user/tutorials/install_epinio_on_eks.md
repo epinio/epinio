@@ -79,7 +79,7 @@ Record type: CNAME - Routes traffic to another domain name and some AWS resource
 Value: abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com
 ```
 
-Finally,
+Finally, running 
 
 `> host test.example.net`, or even
 
