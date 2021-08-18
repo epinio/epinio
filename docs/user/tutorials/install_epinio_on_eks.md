@@ -43,7 +43,7 @@ Installing Epinio in an EKS cluster is done in two steps.
 
 #### Install Ingress In Cluster (for a custom DOMAIN)
 
-Install ingress first and wait for the `loadbalancer-ip` to be provisioned for the `traefik` ingress. Then, you can map the `loadbalancer-ip` to your `Domain Name` e.g. `example.net` and wait for it to be mapped.
+First install ingress and wait for the `loadbalancer-ip` to be provisioned for the `traefik` ingress. Then map the `loadbalancer-ip` to your `Domain Name` e.g. `example.net` and wait for it to be mapped.
 
 ```bash
 epinio install-ingress
