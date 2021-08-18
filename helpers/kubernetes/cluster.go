@@ -17,6 +17,7 @@ import (
 	kind "github.com/epinio/epinio/helpers/kubernetes/platform/kind"
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/names"
 
 	appsv1 "k8s.io/api/apps/v1"
 	apibatchv1 "k8s.io/api/batch/v1"
@@ -610,7 +611,8 @@ func (c *Cluster) GetVersion() (string, error) {
 
 // ListIngressRoutes returns a list of all routes for ingresses in `namespace` with the given selector
 func (c *Cluster) ListIngressRoutes(ctx context.Context, namespace, name string) ([]string, error) {
-	ingress, err := c.Kubectl.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
+	ingress, err := c.Kubectl.NetworkingV1().Ingresses(namespace).Get(
+		ctx, names.GenerateResourceName("i-"+name), metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list ingresses")
 	}
