@@ -52,11 +52,6 @@ func (app *stageParam) ImageURL(registryURL string) string {
 	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
 }
 
-func (app *stageParam) PVCName() string {
-	// TODO: Can this exceed the allowed limit in characters?
-	return fmt.Sprintf("%s-%s", app.Org, app.Name)
-}
-
 func (c ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
 	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
@@ -183,8 +178,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		BuilderImage: req.BuilderImage,
 	}
 
-	// TODO: Delete the PVC when the application is deleted
-	err = hc.ensurePVC(ctx, cluster, params.PVCName())
+	err = hc.ensurePVC(ctx, cluster, req.App.PVCName())
 	if err != nil {
 		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}

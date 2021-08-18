@@ -194,6 +194,44 @@ var _ = Describe("Apps", func() {
 		})
 	})
 
+	Describe("build cache", func() {
+		push := func(arg ...string) (string, error) {
+			appDir := "../assets/sample-app"
+			return env.Epinio(appDir, "app", append([]string{"push", appName}, arg...)...)
+		}
+		BeforeEach(func() {
+			out, err := push()
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		When("pushing for the second time", func() {
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+
+			It("is using the cache PVC", func() {
+				out, err := helpers.Kubectl("get", "pvc", "-n", deployments.TektonStagingNamespace, fmt.Sprintf("%s-%s", org, appName))
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = push()
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Expect(out).To(MatchRegexp("Reusing cache layer"))
+			})
+		})
+		When("deleting the app", func() {
+			It("deletes the cache PVC too", func() {
+				out, err := helpers.Kubectl("get", "pvc", "-n", deployments.TektonStagingNamespace, fmt.Sprintf("%s-%s", org, appName))
+				Expect(err).ToNot(HaveOccurred(), out)
+				env.DeleteApp(appName)
+
+				out, err = helpers.Kubectl("get", "pvc", "-n", deployments.TektonStagingNamespace, fmt.Sprintf("%s-%s", org, appName))
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s-%s" not found`, org, appName)))
+			})
+		})
+	})
+
 	Describe("push and delete", func() {
 		It("shows the staging logs", func() {
 			By("pushing the app")
