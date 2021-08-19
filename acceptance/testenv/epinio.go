@@ -178,3 +178,8 @@ func EnsureDefaultWorkspace(epinioBinary string) {
 		return ""
 	}, "1m").Should(gomega.BeEmpty())
 }
+
+func AppRouteFromOutput(out string) string {
+	routeRegexp := regexp.MustCompile(`Route: (https:\/\/.*\.omg\.howdoi\.website)`)
+	return routeRegexp.FindStringSubmatch(out)[1]
+}

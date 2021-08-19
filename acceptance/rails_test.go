@@ -5,12 +5,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -108,8 +108,8 @@ var _ = Describe("RubyOnRails", func() {
 		out, err := env.Epinio(rails.Dir, "apps", "push", rails.Name, "-b", serviceName)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
-		route := string(routeRegexp.Find([]byte(out)))
+		route := testenv.AppRouteFromOutput(out)
+		Expect(route).ToNot(BeEmpty())
 
 		Eventually(func() int {
 			resp, err := env.Curl("GET", route, strings.NewReader(""))
