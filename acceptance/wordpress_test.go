@@ -11,6 +11,7 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -82,7 +83,7 @@ extension=mysqli
 func (w *WordpressApp) AppURL() (string, error) {
 	host, err := helpers.Kubectl("get", "ingress",
 		"--namespace", w.Org,
-		"--field-selector", "metadata.name="+w.Name,
+		"--field-selector", "metadata.name="+names.IngressName(w.Name),
 		"-o", "jsonpath={.items[0].spec['rules'][0]['host']}")
 	if err != nil {
 		return "", err

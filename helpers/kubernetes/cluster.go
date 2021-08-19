@@ -610,7 +610,8 @@ func (c *Cluster) GetVersion() (string, error) {
 
 // ListIngressRoutes returns a list of all routes for ingresses in `namespace` with the given selector
 func (c *Cluster) ListIngressRoutes(ctx context.Context, namespace, name string) ([]string, error) {
-	ingress, err := c.Kubectl.NetworkingV1().Ingresses(namespace).Get(ctx, name, metav1.GetOptions{})
+	ingress, err := c.Kubectl.NetworkingV1().Ingresses(namespace).Get(
+		ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to list ingresses")
 	}

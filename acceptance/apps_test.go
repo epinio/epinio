@@ -290,6 +290,14 @@ var _ = Describe("Apps", func() {
 			env.DeleteApp(appNameLong)
 		})
 
+		It("should not fail for an application name with leading digits", func() {
+			appNameLeadNumeric := "12monkeys"
+			env.MakeDockerImageApp(appNameLeadNumeric, 1, dockerImageURL)
+
+			By("deleting the app")
+			env.DeleteApp(appNameLeadNumeric)
+		})
+
 		It("respects the desired number of instances", func() {
 			app := catalog.NewAppName()
 			env.MakeDockerImageApp(app, 3, dockerImageURL)
