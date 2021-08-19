@@ -1,6 +1,8 @@
 package models
 
-import "fmt"
+import (
+	"github.com/epinio/epinio/internal/names"
+)
 
 const (
 	EpinioStageIDLabel = "epinio.suse.org/stage-id"
@@ -65,7 +67,7 @@ func (ar *AppRef) EnvSecret() string {
 }
 
 func (ar *AppRef) PVCName() string {
-	return fmt.Sprintf("%s-%s", ar.Org, ar.Name)
+	return names.GenerateResourceName(ar.Org, ar.Name)
 }
 
 // StageRef references a tekton staging run by ID, currently randomly generated

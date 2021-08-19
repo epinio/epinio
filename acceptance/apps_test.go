@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -210,7 +211,8 @@ var _ = Describe("Apps", func() {
 			})
 
 			It("is using the cache PVC", func() {
-				out, err := helpers.Kubectl("get", "pvc", "-n", deployments.TektonStagingNamespace, fmt.Sprintf("%s-%s", org, appName))
+				out, err := helpers.Kubectl("get", "pvc", "-n",
+					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				out, err = push()
@@ -221,13 +223,15 @@ var _ = Describe("Apps", func() {
 		})
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
-				out, err := helpers.Kubectl("get", "pvc", "-n", deployments.TektonStagingNamespace, fmt.Sprintf("%s-%s", org, appName))
+				out, err := helpers.Kubectl("get", "pvc", "-n",
+					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
-				out, err = helpers.Kubectl("get", "pvc", "-n", deployments.TektonStagingNamespace, fmt.Sprintf("%s-%s", org, appName))
+				out, err = helpers.Kubectl("get", "pvc", "-n",
+					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
 				Expect(err).To(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s-%s" not found`, org, appName)))
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(org, appName))))
 			})
 		})
 	})
