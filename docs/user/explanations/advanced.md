@@ -60,7 +60,7 @@ When you installed Epinio, it looked at your cluster to see if you had
 [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/)
 running. If it wasn't there it installed it.
 
-As Epinio only check two namespaces for Traefik's presence, namely
+As Epinio only checks two namespaces for Traefik's presence, namely
 `traefik` and `kube-system`, it is possible that it tries to install
 it, despite the cluster having Traefik running. Just in an unexpected
 place.
@@ -79,6 +79,14 @@ forces Epinio to not install its own Traefik.
 Note that having some other (non-Traefik) Ingress controller running
 is __not__ a reason to prevent Epinio from installing Traefik. All the
 Ingresses used by Epinio expect to be handled by Traefik.
+
+Also, the Traefik instance installed by Epinio, is configured to redirect all
+http requests to https automatically (e.g. the requests to the Epinio API, and
+the application routes). If you decide to use a Traefik instance which you
+deployed, you have to set this up yourself, Epinio won't change your Traefik
+installation in any way. Here are the relevant upstream docs for the redirection:
+
+https://doc.traefik.io/traefik/routing/entrypoints/#redirection
 
 ## Linkerd
 
