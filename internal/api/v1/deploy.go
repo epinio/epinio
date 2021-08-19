@@ -261,7 +261,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 func newAppService(app models.AppRef) (*v1.Service, error) {
 	serviceData := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.GenerateResourceName("s-" + app.Name),
+			Name:      names.ServiceName(app.Name),
 			Namespace: app.Org,
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":                      "traefik",
@@ -299,7 +299,7 @@ func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, e
 
 	ingressData := networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: names.GenerateResourceName("i-" + appRef.Name),
+			Name: names.IngressName(appRef.Name),
 			Annotations: map[string]string{
 				"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
 				"traefik.ingress.kubernetes.io/router.tls":         "true",
@@ -322,7 +322,7 @@ func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, e
 								{
 									Backend: networkingv1.IngressBackend{
 										Service: &networkingv1.IngressServiceBackend{
-											Name: names.GenerateResourceName("s-" + appRef.Name),
+											Name: names.ServiceName(appRef.Name),
 											Port: networkingv1.ServiceBackendPort{
 												Number: 8080,
 											},

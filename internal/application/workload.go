@@ -8,6 +8,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/interfaces"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 
 	pkgerrors "github.com/pkg/errors"
@@ -307,7 +308,7 @@ func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 		app.Active = true
 	}
 
-	routes, err := a.cluster.ListIngressRoutes(ctx, app.Organization, app.Name)
+	routes, err := a.cluster.ListIngressRoutes(ctx, app.Organization, names.IngressName(app.Name))
 	if err != nil {
 		app.Route = err.Error()
 	} else {
