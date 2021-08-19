@@ -228,6 +228,12 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 		return err
 	}
 
+	// delete staging PVC (the one that stores "source" and "cache" tekton workspaces)
+	err = DeleteStagePVC(ctx, cluster, appRef)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
 	err = cluster.WaitForPodBySelectorMissing(ctx, nil,
 		appRef.Org,
 		fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
@@ -237,6 +243,11 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 	}
 
 	return nil
+}
+
+func DeleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
+	return cluster.Kubectl.CoreV1().
+		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.PVCName(), metav1.DeleteOptions{})
 }
 
 // Unstage deletes either all PipelineRuns of the named application, or all but the current.

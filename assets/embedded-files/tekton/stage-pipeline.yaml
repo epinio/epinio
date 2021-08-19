@@ -7,6 +7,8 @@ metadata:
 spec:
   workspaces:
   - name: source
+  - name: cache
+    optional: true
   resources:
   - name: source-repo
     type: git
@@ -30,6 +32,12 @@ spec:
       description: "Build time environment variables"
     
   tasks:
+  - name: cleanup
+    taskRef:
+      name: cleanup
+    workspaces:
+    - name: source
+      workspace: source
   - name: clone
     taskRef:
       name: clone
@@ -40,6 +48,8 @@ spec:
     workspaces:
     - name: source
       workspace: source
+    runAfter:
+    - cleanup
   - name: stage
     taskRef:
       name: buildpacks
@@ -57,6 +67,29 @@ spec:
     workspaces:
     - name: source
       workspace: source
+    - name: cache
+      workspace: cache
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: cleanup
+    image: lachlanevenson/k8s-kubectl
+    workingDir: "/workspace/source"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        rm -rf app
+
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task

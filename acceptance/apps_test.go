@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -190,6 +191,47 @@ var _ = Describe("Apps", func() {
 				Eventually(func() string {
 					return replicas(org, appName)
 				}, timeout, interval).Should(Equal("2"))
+			})
+		})
+	})
+
+	Describe("build cache", func() {
+		push := func(arg ...string) (string, error) {
+			appDir := "../assets/sample-app"
+			return env.Epinio(appDir, "app", append([]string{"push", appName}, arg...)...)
+		}
+		BeforeEach(func() {
+			out, err := push()
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		When("pushing for the second time", func() {
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+
+			It("is using the cache PVC", func() {
+				out, err := helpers.Kubectl("get", "pvc", "-n",
+					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = push()
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Expect(out).To(MatchRegexp("Reusing cache layer"))
+			})
+		})
+		When("deleting the app", func() {
+			It("deletes the cache PVC too", func() {
+				out, err := helpers.Kubectl("get", "pvc", "-n",
+					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
+				Expect(err).ToNot(HaveOccurred(), out)
+				env.DeleteApp(appName)
+
+				out, err = helpers.Kubectl("get", "pvc", "-n",
+					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(org, appName))))
 			})
 		})
 	})
