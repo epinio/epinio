@@ -94,16 +94,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	Expect(os.Getenv("KUBECONFIG")).ToNot(BeEmpty(), "KUBECONFIG environment variable should not be empty")
 
-	env = testenv.New(nodeTmpDir, testenv.Root())
-
-	out, err := env.CopyEpinio()
+	// Get config from the installation (API credentials)
+	out, err := testenv.CopyEpinioConfig(nodeTmpDir)
 	Expect(err).ToNot(HaveOccurred(), out)
-
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
-	// Get config from the installation (API credentials)
-	out, err = proc.Run("", false, "cp", testenv.EpinioYAML(), nodeTmpDir+"/epinio.yaml")
-	Expect(err).ToNot(HaveOccurred(), out)
+	env = testenv.New(nodeTmpDir, testenv.Root())
 
 	out, err = env.Epinio(nodeTmpDir, "target", "workspace")
 	Expect(err).ToNot(HaveOccurred(), out)

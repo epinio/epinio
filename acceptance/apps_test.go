@@ -13,6 +13,7 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
@@ -531,7 +532,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("follows logs", func() {
-			p, err := proc.Get("", nodeTmpDir+"/epinio", "app", "logs", "--follow", appName)
+			p, err := proc.Get("", testenv.EpinioBinaryPath(), "app", "logs", "--follow", appName)
 			Expect(err).NotTo(HaveOccurred())
 
 			defer func() {

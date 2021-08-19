@@ -41,6 +41,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
 	testenv.SetRoot("../..")
+	os.Setenv("EPINIO_CONFIG", testenv.EpinioYAML())
 
 	Expect(os.Getenv("KUBECONFIG")).ToNot(BeEmpty(), "KUBECONFIG environment variable should not be empty")
 })

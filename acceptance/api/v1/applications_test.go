@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -636,8 +635,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			BeforeEach(func() {
 				app = catalog.NewAppName()
 				out := env.MakeApp(app, 1, true)
-				routeRegexp := regexp.MustCompile(`Route: (https:\/\/.*\.omg\.howdoi\.website)`)
-				route = routeRegexp.FindStringSubmatch(out)[1]
+				route = testenv.AppRouteFromOutput(out)
 				Expect(route).ToNot(BeEmpty())
 			})
 
