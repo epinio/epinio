@@ -27,6 +27,7 @@ Epinio's configuration contains
   - The name of the organization currently targeted.
   - Epinio API user name
   - Epinio API password
+  - Epinio API urls (regular and websocket)
   - Epinio API certificate
 
 The organization can be changed by running `epinio target` with the
@@ -67,12 +68,11 @@ explicitly targeting the configuration. These are:
      different clusters) by simply re-targeting the cluster to talk to
      via changes to the  environment variable `KUBECONFIG`.
 
-     When such is done the credentials and cert data stored in the
-     configuration will not match the newly targeted cluster, except
-     by coincidence.
+     When such is done the credentials, cert data, and urls stored in
+     the configuration will not match the newly targeted cluster,
+     except by coincidence.
 
      To be actually able to talk to the newly targeted installation it
      is necessary to run this command to refresh the stored
-     credentials and cert data with information retrieved from the new
-     cluster.
-
+     credentials, cert data, and urls with information retrieved from
+     the new cluster.
