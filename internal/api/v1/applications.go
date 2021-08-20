@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
@@ -233,6 +234,54 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 
 	return nil
 }
+
+func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
+	org := params.ByName("org")
+	appName := params.ByName("app")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return OrgIsNotKnown(org)
+	}
+
+	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return AppIsNotKnown(appName)
+	}
+
+	app, err := application.Lookup(ctx, cluster, org, appName)
+	if err != nil {
+		return InternalError(err)
+	}
+	if app == nil {
+		// While app exists it has no workload
+		return NewAPIError("No status available for application without workload", "", http.StatusBadRequest)
+	}
+
+	err = cluster.WaitForDeploymentCompleted(
+		ctx, nil, org, appName, duration.ToAppBuilt())
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
 func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

@@ -3,19 +3,23 @@ package v1
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -25,6 +29,8 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/organizations"
 )
 
 const (
@@ -215,6 +221,67 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		ImageURL: params.ImageURL(params.RegistryURL),
 	}
 	err = jsonResponse(w, resp)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
+// Staged will wait for the Tekton PipelineRun resource staging the app to complete
+func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+
+	p := httprouter.ParamsFromContext(ctx)
+	org := p.ByName("org")
+	id := p.ByName("stage_id")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return InternalError(err)
+	}
+
+	cs, err := tekton.NewForConfig(cluster.RestConfig)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+
+	err = wait.PollImmediate(time.Second, duration.ToAppBuilt(),
+		func() (bool, error) {
+			l, err := client.List(ctx, metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
+			if err != nil {
+				return false, err
+			}
+			if len(l.Items) == 0 {
+				return false, nil
+			}
+			for _, pr := range l.Items {
+				// any failed conditions, throw an error so we can exit early
+				for _, c := range pr.Status.Conditions {
+					if c.IsFalse() {
+						return false, errors.New(c.Message)
+					}
+				}
+				// it worked
+				if pr.Status.CompletionTime != nil {
+					return true, nil
+				}
+			}
+			// pr exists, but still running
+			return false, nil
+		})
+
 	if err != nil {
 		return InternalError(err)
 	}

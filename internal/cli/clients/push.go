@@ -7,18 +7,12 @@ import (
 	"io/ioutil"
 	"path"
 	"sync"
-	"time"
 
-	"github.com/epinio/epinio/deployments"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
-	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 func collectSources(log logr.Logger, source string) (string, string, error) {
@@ -137,47 +131,13 @@ func (c *EpinioClient) deployCode(req models.DeployRequest) ([]byte, error) {
 func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
-	cs, err := tekton.NewForConfig(c.Cluster.RestConfig)
-	if err != nil {
-		return err
-	}
-	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
-
-	return wait.PollImmediate(time.Second, duration.ToAppBuilt(),
-		func() (bool, error) {
-			l, err := client.List(ctx, metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
-			if err != nil {
-				return false, err
-			}
-			if len(l.Items) == 0 {
-				return false, nil
-			}
-			for _, pr := range l.Items {
-				// any failed conditions, throw an error so we can exit early
-				for _, c := range pr.Status.Conditions {
-					if c.IsFalse() {
-						return false, errors.New(c.Message)
-					}
-				}
-				// it worked
-				if pr.Status.CompletionTime != nil {
-					return true, nil
-				}
-			}
-			// pr exists, but still running
-			return false, nil
-		})
+	_, err := c.get(api.Routes.Path("StagingComplete", app.Org, id))
+	return err
 }
 
 func (c *EpinioClient) waitForApp(ctx context.Context, app models.AppRef) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
-	err := c.Cluster.WaitForDeploymentCompleted(
-		ctx,
-		c.ui, app.Org, app.Name, duration.ToAppBuilt())
-	if err != nil {
-		return errors.Wrap(err, "waiting for app to come online failed")
-	}
-
-	return nil
+	_, err := c.get(api.Routes.Path("AppRunning", app.Org, app.Name))
+	return err
 }
