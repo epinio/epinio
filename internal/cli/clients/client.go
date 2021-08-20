@@ -378,13 +378,15 @@ func (c *EpinioClient) ServiceClassMatching(ctx context.Context, prefix string) 
 
 	result := []string{}
 
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
+	// Ask for all service classes. Filtering is local.
+	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	serviceClasses, err := services.ListClasses(ctx, c.Cluster)
+	jsonResponse, err := c.get(api.Routes.Path("ServiceClasses"))
 	if err != nil {
-		details.Info("Error", err)
+		return result
+	}
+	var serviceClasses services.ServiceClassList
+	if err := json.Unmarshal(jsonResponse, &serviceClasses); err != nil {
 		return result
 	}
 
