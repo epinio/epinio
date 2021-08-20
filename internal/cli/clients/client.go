@@ -842,12 +842,16 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 
 	result := []string{}
 
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
+	// Ask for all apps. Filtering is local.
+	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
+	jsonResponse, err := c.get(api.Routes.Path("Apps", c.Config.Org))
 	if err != nil {
+		return result
+	}
+
+	var apps models.AppList
+	if err := json.Unmarshal(jsonResponse, &apps); err != nil {
 		return result
 	}
 
@@ -859,6 +863,8 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 			result = append(result, app.Name)
 		}
 	}
+
+	sort.Strings(result)
 
 	return result
 }
