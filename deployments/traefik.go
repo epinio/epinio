@@ -136,6 +136,7 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 		traefikChartURL,
 		`--set`, `globalArguments=`,
 		`--set-string`, `deployment.podAnnotations.linkerd\.io/inject=enabled`,
+		`--set-string`, `ports.web.redirectTo=websecure`,
 		`--set-string`, fmt.Sprintf("service.spec.loadBalancerIP=%s", loadBalancerIP),
 	}
 

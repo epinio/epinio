@@ -1,6 +1,8 @@
 package acceptance_test
 
 import (
+	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/helpers"
@@ -27,5 +29,30 @@ var _ = Describe("Epinio Installation", func() {
 		Expect(out).To(MatchRegexp("linkerd-controller"))
 		Expect(out).To(MatchRegexp("linkerd-sp-validator"))
 		Expect(out).To(MatchRegexp("linkerd-destination"))
+	})
+
+	It("redirects http to https", func() {
+		infoURL := fmt.Sprintf("%s/info", serverURL)
+		request, err := http.NewRequest(
+			"GET",
+			strings.Replace(infoURL, "https", "http", 1),
+			strings.NewReader(""))
+
+		Expect(err).ToNot(HaveOccurred())
+		request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
+		client := env.Client()
+
+		// Don't follow redirects
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+
+		r, err := client.Do(request)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(r.StatusCode).To(Equal(http.StatusMovedPermanently))
+		location, err := r.Location()
+		Expect(err).ToNot(HaveOccurred())
+		Expect(location.String()).To(Equal(infoURL))
+		Expect(location.String()).To(MatchRegexp("https://"))
 	})
 })
