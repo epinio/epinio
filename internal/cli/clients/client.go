@@ -1723,6 +1723,10 @@ func uniqueStrings(stringSlice []string) []string {
 }
 
 func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
+	// This is called only by the admin command `config update`
+	// which has to talk to the cluster to retrieve the
+	// information. This is allowed.
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
@@ -1740,6 +1744,10 @@ func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 
 // TODO: https://github.com/epinio/epinio/issues/667
 func getCredentials(ctx context.Context, log logr.Logger) (string, string, error) {
+	// This is called only by the admin command `config update`
+	// which has to talk to the cluster to retrieve the
+	// information. This is allowed.
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
@@ -1777,6 +1785,10 @@ func getCredentials(ctx context.Context, log logr.Logger) (string, string, error
 }
 
 func getCerts(ctx context.Context, log logr.Logger) (string, error) {
+	// This is called only by the admin command `config update`
+	// which has to talk to the cluster to retrieve the
+	// information. This is allowed.
+
 	// Save the  CA cert into the config. The regular client
 	// will then extend the Cert pool with the same, so that it
 	// can cerify the server cert.
