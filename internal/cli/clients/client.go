@@ -442,7 +442,7 @@ func (c *EpinioClient) Services() error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Listing services")
 
-	details.Info("list applications")
+	details.Info("list services")
 
 	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
 	if err != nil {
@@ -477,17 +477,20 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 
 	result := []string{}
 
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
+	// Ask for all services. Filtering is local.
+	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	orgServices, err := services.List(ctx, c.Cluster, c.Config.Org)
+	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
 	if err != nil {
 		return result
 	}
+	var response models.ServiceResponseList
+	if err := json.Unmarshal(jsonResponse, &response); err != nil {
+		return result
+	}
 
-	for _, s := range orgServices {
-		service := s.Name()
+	for _, s := range response {
+		service := s.Name
 		details.Info("Found", "Name", service)
 		if strings.HasPrefix(service, prefix) {
 			details.Info("Matched", "Name", service)
