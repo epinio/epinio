@@ -1,5 +1,6 @@
 VERSION ?= $(shell git describe --tags)
 CGO_ENABLED ?= 0
+GINKGO_SLOW_TRESHOLD ?= 200
 export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 
 ########################################################################
@@ -73,14 +74,14 @@ acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
 
 test-acceptance: showfocus embed_files
-	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/. acceptance/api/v1/.
+	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/. acceptance/api/v1/.
 
 
 test-acceptance-api: showfocus embed_files
-	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/api/v1/.
+	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/api/v1/.
 
 test-acceptance-cli: showfocus embed_files
-	ginkgo -nodes ${GINKGO_NODES} -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
+	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
 test-acceptance-install: showfocus embed_files
 	# TODO support for labels is coming in ginkgo v2
