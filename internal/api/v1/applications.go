@@ -168,6 +168,62 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 	return nil
 }
 
+func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
+	org := params.ByName("org")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return OrgIsNotKnown(org)
+	}
+
+	var appsOf = map[string]models.AppList{}
+
+	apps, err := application.List(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	for _, app := range apps {
+		w := application.NewWorkload(cluster, app.AppRef())
+		bound, err := w.Services(ctx)
+		if err != nil {
+			return InternalError(err)
+		}
+		for _, bonded := range bound {
+			bname := bonded.Name()
+			if theapps, found := appsOf[bname]; found {
+				appsOf[bname] = append(theapps, app)
+			} else {
+				appsOf[bname] = models.AppList{app}
+			}
+		}
+	}
+
+	js, err := json.Marshal(appsOf)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
 func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

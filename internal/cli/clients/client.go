@@ -26,7 +26,6 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/domain"
@@ -1558,27 +1557,14 @@ func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[stri
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
-	var appsOf = map[string]models.AppList{}
-
-	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
+	jsonResponse, err := c.get(api.Routes.Path("ServiceApps", c.Config.Org))
 	if err != nil {
 		return nil, err
 	}
 
-	for _, app := range apps {
-		w := application.NewWorkload(c.Cluster, app.AppRef())
-		bound, err := w.Services(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, bonded := range bound {
-			bname := bonded.Name()
-			if theapps, found := appsOf[bname]; found {
-				appsOf[bname] = append(theapps, app)
-			} else {
-				appsOf[bname] = models.AppList{app}
-			}
-		}
+	var appsOf map[string]models.AppList
+	if err := json.Unmarshal(jsonResponse, &appsOf); err != nil {
+		return nil, err
 	}
 
 	return appsOf, nil

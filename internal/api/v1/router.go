@@ -99,6 +99,8 @@ var Routes = routes.NamedRoutes{
 	"OrgDelete": delete("/orgs/:org", errorHandler(OrganizationsController{}.Delete)),
 
 	// List, show, create and delete services, catalog and custom
+	"ServiceApps": get("/orgs/:org/serviceapps", errorHandler(ApplicationsController{}.ServiceApps)),
+	//
 	"Services":            get("/orgs/:org/services", errorHandler(ServicesController{}.Index)),
 	"ServiceShow":         get("/orgs/:org/services/:service", errorHandler(ServicesController{}.Show)),
 	"ServiceCreate":       post("/orgs/:org/services", errorHandler(ServicesController{}.Create)),
