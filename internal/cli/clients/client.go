@@ -40,7 +40,6 @@ import (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	Cluster     *kubernetes.Cluster
 	Config      *config.Config
 	Log         logr.Logger
 	ui          *termui.UI
@@ -64,11 +63,6 @@ func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
 		return nil, err
 	}
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	uiUI := termui.NewUI()
 	epClient, err := GetEpinioAPIClient(ctx)
 	if err != nil {
@@ -79,7 +73,6 @@ func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
 
 	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
-		Cluster:     cluster,
 		ui:          uiUI,
 		Config:      configConfig,
 		Log:         logger,
