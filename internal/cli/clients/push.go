@@ -114,7 +114,7 @@ func (c *EpinioClient) stageLogs(ctx context.Context, details logr.Logger, appRe
 	return err
 }
 
-func (c *EpinioClient) deployCode(req models.DeployRequest) ([]byte, error) {
+func (c *EpinioClient) deployCode(req models.DeployRequest) (*models.DeployResponse, error) {
 	out, err := json.Marshal(req)
 	if err != nil {
 		return nil, errors.Wrap(err, "can't marshal deploy request")
@@ -125,7 +125,13 @@ func (c *EpinioClient) deployCode(req models.DeployRequest) ([]byte, error) {
 		return nil, errors.Wrap(err, "can't deploy app")
 	}
 
-	return b, nil
+	// returns app default route
+	deploy := &models.DeployResponse{}
+	if err := json.Unmarshal(b, deploy); err != nil {
+		return nil, err
+	}
+
+	return deploy, nil
 }
 
 func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef, id string) error {

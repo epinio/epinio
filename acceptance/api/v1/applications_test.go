@@ -141,7 +141,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Revision: uploadResponse.Git.Revision,
 				URL:      uploadResponse.Git.URL,
 			},
-			Route:        appName + ".omg.howdoi.website",
 			BuilderImage: "paketobuildpacks/builder:full",
 		}
 		b, err := json.Marshal(request)
@@ -462,7 +461,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						Stage: models.StageRef{
 							ID: stageResponse.Stage.ID,
 						},
-						Route: appName + ".omg.howdoi.website",
 						Git: &models.GitRef{
 							Revision: respObj.Git.Revision,
 							URL:      respObj.Git.URL,
@@ -485,6 +483,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
+					deploy := &models.DeployResponse{}
+					err = json.Unmarshal(bodyBytes, deploy)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+
 					Eventually(func() string {
 						return appStatus(org, appName)
 					}, "5m").Should(Equal("1/1"))
@@ -500,7 +503,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						Org:  org,
 					},
 					Instances: &one,
-					Route:     appName + ".omg.howdoi.website",
 					ImageURL:  "splatform/sample-app",
 				}
 
@@ -523,6 +525,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					bodyBytes, err := ioutil.ReadAll(response.Body)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+					deploy := &models.DeployResponse{}
+					err = json.Unmarshal(bodyBytes, deploy)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					Eventually(func() string {
 						return appStatus(org, appName)

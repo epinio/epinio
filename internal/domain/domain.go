@@ -17,7 +17,7 @@ func MainDomain(ctx context.Context) (string, error) {
 		return mainDomain, nil
 	}
 
-	cluster, err := kubernetes.GetCluster(ctx)
+	cluster, err := kubernetes.GetCluster(ctx) // Push -> MainDomain -> here (client-side! FIXIT?)
 	if err != nil {
 		return "", err
 	}

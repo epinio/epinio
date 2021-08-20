@@ -28,7 +28,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
 
@@ -1345,11 +1344,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	route, err := appDefaultRoute(ctx, appRef.Name)
-	if err != nil {
-		return errors.Wrap(err, "unable to determine default app route")
-	}
-
 	c.ui.Normal().Msg("Create the application resource ...")
 
 	request := models.ApplicationCreateRequest{Name: appRef.Name}
@@ -1409,7 +1403,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		req := models.StageRequest{
 			App:          appRef,
 			Git:          gitRef,
-			Route:        route,
 			BuilderImage: params.BuilderImage,
 		}
 		details.Info("staging code", "Git", gitRef.Revision)
@@ -1431,7 +1424,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	deployRequest := models.DeployRequest{
 		App:       appRef,
 		Instances: params.Instances,
-		Route:     route,
 		Git:       gitRef,
 	}
 	// If docker param is specified, then we just take it into ImageURL
@@ -1443,7 +1435,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		deployRequest.Stage = models.StageRef{ID: stageID}
 	}
 
-	_, err = c.deployCode(deployRequest)
+	deployResponse, err := c.deployCode(deployRequest)
 	if err != nil {
 		return err
 	}
@@ -1500,19 +1492,11 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	c.ui.Success().
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Organization", appRef.Org).
-		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
+		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
 		WithStringValue("Builder Image", params.BuilderImage).
 		Msg("App is online.")
 
 	return nil
-}
-
-func appDefaultRoute(ctx context.Context, name string) (string, error) {
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s.%s", name, mainDomain), nil
 }
 
 // Target targets an org in gitea
