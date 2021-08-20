@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/version"
 )
 
@@ -11,11 +12,30 @@ type InfoController struct {
 }
 
 func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) APIErrors {
-	info := struct {
-		Version string
-	}{
-		Version: version.Version,
+	ctx := r.Context()
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
 	}
+
+	kubeVersion, err := cluster.GetVersion()
+	if err != nil {
+		return InternalError(err)
+	}
+
+	platform := cluster.GetPlatform()
+
+	info := struct {
+		Version     string
+		KubeVersion string
+		Platform    string
+	}{
+		Version:     version.Version,
+		Platform:    platform.String(),
+		KubeVersion: kubeVersion,
+	}
+
 	js, err := json.Marshal(info)
 	if err != nil {
 		return InternalError(err)

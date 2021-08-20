@@ -806,27 +806,30 @@ func (c *EpinioClient) Info() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	platform := c.Cluster.GetPlatform()
-	kubeVersion, err := c.Cluster.GetVersion()
-	if err != nil {
-		return errors.Wrap(err, "failed to get kube version")
-	}
-
 	// TODO: Extend the epinio API to get the gitea version
 	// information again. Or remove it entirely.
+	// Note: See also Spike #699 for possible full removal of Gitea
 
 	giteaVersion := "unavailable"
-
 	epinioVersion := "unavailable"
+	platform := "unknown"
+	kubeVersion := "unknown"
+
 	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {
-		v := struct{ Version string }{}
+		v := struct {
+			Version     string
+			KubeVersion string
+			Platform    string
+		}{}
 		if err := json.Unmarshal(jsonResponse, &v); err == nil {
 			epinioVersion = v.Version
+			platform = v.Platform
+			kubeVersion = v.KubeVersion
 		}
 	}
 
 	c.ui.Success().
-		WithStringValue("Platform", platform.String()).
+		WithStringValue("Platform", platform).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
 		WithStringValue("Epinio Version", epinioVersion).
