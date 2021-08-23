@@ -3,13 +3,24 @@ name: EKS-CI
 on:
   schedule:
     - cron:  '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      aws_id:
+        description: "AWS_ACCESS_KEY_ID"
+        required: false
+        default: ""
+      aws_key:
+        description: "AWS_SECRET_ACCESS_KEY"
+        required: false
+        default: ""
 
 env:
   SETUP_GO_VERSION: '^1.13.7'
+  GINKGO_NODES: 1
 
 jobs:
-  acceptance-cli:
-    runs-on: ubuntu-latest
+  acceptance-scenario4:
+    runs-on: macos-latest
 
     steps:
       - name: Checkout
@@ -32,15 +43,34 @@ jobs:
       - name: Add Tools to PATH
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-access-key-id: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
       - name: Install eksctl
         run: brew install eksctl
-      - name: Create EKS cluster 
-        run: eksctl create cluster --name=epinio-ci --region=us-east-2 --nodes=2 --node-type=t3.xlarge --node-volume-size=40 --managed --kubeconfig=~/kubeconfig-epinio-ci
+      - name: Create EKS cluster
+        id: create-cluster
+        run: |
+          id=$RANDOM
+          echo '::set-output name=ID::'$id
+          eksctl create cluster --name=epinio-ci$id --region=us-east-2 --nodes=2 --node-type=t3.xlarge --node-volume-size=40 --managed --kubeconfig=~/kubeconfig-epinio-ci
+
+      - name: Installation Acceptance Tests
+        env:
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          KUBECONFIG: ~/kubeconfig-epinio-ci
+          REGEX: Scenario4
+          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          AWS_DOMAIN: ${{ secrets.AWS_DOMAIN }}
+        run: |
+          make test-acceptance-install
+
       - name: Delete EKS cluster
-        run: eksctl delete cluster --region=us-east-2 --name=epinio-ci
+        run: |
+          id=${{ steps.create-cluster.outputs.ID }}"
+          eksctl delete cluster --region=us-east-2 --name=epinio-ci$id

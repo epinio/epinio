@@ -207,22 +207,10 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          GINKGO_NODES: 1
+          REGEX: "<ConfigFile>"
         run: |
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-          export REGEX="<ConfigFile>"
           make test-acceptance-install
-
-          # TODO move these to different test runners, see https://github.com/epinio/epinio/wiki/Release-Test-Plan(s)#test-scenarios
-          # and https://github.com/epinio/epinio/issues/600#issuecomment-897506337
-
-          # export REGEX="<JavaAppWithService>"
-          # make test-acceptance-install
-
-          # TODO Needs DNS Setup
-          # export REGEX="<RailsAppWithEnv>"
-          # make test-acceptance-install
-
-          # export REGEX="<SplitTraefik>"
-          # make test-acceptance-install

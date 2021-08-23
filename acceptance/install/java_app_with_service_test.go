@@ -66,7 +66,7 @@ var _ = Describe("Install with private CA and push <JavaAppWithService>", func()
 			Expect(out).To(ContainSubstring("CertManager deployed"))
 
 			// create certificate secret and cluster_issuer
-			out, err = proc.RunW("kubectl", "apply", "-f", testenv.AssetPath("cluster-issuer-private-ca.yml"))
+			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 

@@ -1,10 +1,9 @@
-VERSION ?= $(shell git describe --tags)
-CGO_ENABLED ?= 0
-GINKGO_SLOW_TRESHOLD ?= 200
-export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
-
 ########################################################################
 ## Development
+
+VERSION ?= $(shell git describe --tags)
+CGO_ENABLED ?= 0
+export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 
 build: embed_files build-amd64
 
@@ -55,10 +54,12 @@ test: embed_files
 tag:
 	@git describe --tags --abbrev=0
 
-# acceptance is not part of the unit tests, and has its own target, see below.
+########################################################################
+# Acceptance tests
 
-GINKGO_NODES ?= 2
 FLAKE_ATTEMPTS ?= 2
+GINKGO_NODES ?= 2
+GINKGO_SLOW_TRESHOLD ?= 200
 REGEX ?= ""
 
 acceptance-cluster-delete:

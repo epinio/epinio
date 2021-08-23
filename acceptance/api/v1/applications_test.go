@@ -363,7 +363,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("uploading a broken tarball", func() {
 			BeforeEach(func() {
-				path = testenv.AssetPath("untar.tgz")
+				path = testenv.TestAssetPath("untar.tgz")
 			})
 
 			It("returns an error response", func() {
@@ -387,7 +387,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("uploading a new dir", func() {
 			BeforeEach(func() {
-				path = testenv.AssetPath("sample-app.tar")
+				path = testenv.TestAssetPath("sample-app.tar")
 			})
 
 			It("returns the app response", func() {
@@ -438,7 +438,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				It("returns a success", func() {
 					// First upload to allow staging to succeed
 					uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
-					uploadPath := testenv.AssetPath("sample-app.tar")
+					uploadPath := testenv.TestAssetPath("sample-app.tar")
 					uploadRequest, err := uploadRequest(uploadURL, uploadPath)
 					Expect(err).ToNot(HaveOccurred())
 					resp, err := env.Client().Do(uploadRequest)
