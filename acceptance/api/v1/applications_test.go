@@ -449,9 +449,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					err = json.Unmarshal(bodyBytes, &respObj)
 					Expect(err).ToNot(HaveOccurred())
 
-					By("creating staging resource first")
+					By("staging first")
 					stageResponse := stageApplication(appName, org, respObj)
 
+					By("deploying the staged resource")
 					request = models.DeployRequest{
 						App: models.AppRef{
 							Name: appName,
@@ -488,6 +489,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
+					By("waiting for the deployment to complete")
+
+					url = serverURL + "/" + v1.Routes.Path("AppRunning", org, appName)
+
+					response, err = env.Curl("GET", url, strings.NewReader(body))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
+					defer response.Body.Close()
+
+					By("confirming at highlevel")
+					// Highlevel check and confirmation
 					Eventually(func() string {
 						return appStatus(org, appName)
 					}, "5m").Should(Equal("1/1"))
