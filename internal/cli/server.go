@@ -121,7 +121,8 @@ func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 func logRequest(r *http.Request, log logr.Logger) {
 	uri := r.URL.String()
 	method := r.Method
-	log.V(1).Info("received request", "method", method, "uri", uri)
+	log.V(1).Info("received request",
+		"method", method, "uri", uri, "user", r.Header.Get("X-Webauth-User"))
 
 	// Read request body for logging
 	bodyBytes, err := ioutil.ReadAll(r.Body)
