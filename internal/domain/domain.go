@@ -2,6 +2,7 @@ package domain
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/epinio/epinio/deployments"
@@ -10,6 +11,14 @@ import (
 )
 
 var mainDomain = ""
+
+func AppDefaultRoute(ctx context.Context, name string) (string, error) {
+	mainDomain, err := MainDomain(ctx)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s.%s", name, mainDomain), nil
+}
 
 // GetMain finds the main domain for Epinio
 func MainDomain(ctx context.Context) (string, error) {

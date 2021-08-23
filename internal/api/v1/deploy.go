@@ -100,7 +100,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	route, err := appDefaultRoute(ctx, req.App.Name)
+	route, err := domain.AppDefaultRoute(ctx, req.App.Name)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -364,12 +364,4 @@ func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppR
 		return 0, err
 	}
 	return *result.Spec.Replicas, nil
-}
-
-func appDefaultRoute(ctx context.Context, name string) (string, error) {
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s.%s", name, mainDomain), nil
 }
