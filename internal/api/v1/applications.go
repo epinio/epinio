@@ -27,6 +27,7 @@ type ApplicationsController struct {
 	conn *websocket.Conn
 }
 
+// Create creates a new and empty application. I.e. without a workload.
 func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -74,6 +75,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+// Index lists all the known applications, with and without workload.
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -112,6 +114,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
+// Show returns the details of the specified application.
 func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -168,6 +171,9 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 	return nil
 }
 
+// ServiceApps returns a map from services to the apps they are bound to, in the specified org.
+// Internally it asks each app in the org for its bound services and then inverts that map to
+// get the desired result.
 func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -224,6 +230,8 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
+// Update modifies the specified application. currently this is only
+// the number of instances to run.
 func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -291,6 +299,11 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+// Running waits for the specified application to be running (i.e. its
+// deployment to be complete), before it returns. An exception is if
+// the application does not become running without `duration.ToAppBuilt()`
+// (default: 10 minutes). In that case it returns with an error after
+// that time.
 func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -338,6 +351,8 @@ func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
+// Logs arranges for the logs of the specified application to be
+// streamed over a websocket.
 func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -497,6 +512,7 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 	return hc.conn.Close()
 }
 
+// Delete removes the application
 func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
