@@ -232,6 +232,7 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
+		WithStringValue("Config", c.Config.Location).
 		Msg("Updating the stored credentials from the current cluster")
 
 	details.Info("retrieving credentials")

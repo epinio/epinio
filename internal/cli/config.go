@@ -62,6 +62,8 @@ var CmdConfigColors = &cobra.Command{
 			return errors.Wrap(err, "failed to load configuration")
 		}
 
+		ui.Note().WithStringValue("Config", theConfig.Location).Msg("Edit Colorization Flag")
+
 		colors, err := strconv.ParseBool(args[0])
 		// assert: err == nil -- see args validation
 		if err != nil {
@@ -90,6 +92,8 @@ var CmdConfigShow = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "failed to load configuration")
 		}
+
+		ui.Note().WithStringValue("Config", theConfig.Location).Msg("Show Configuration")
 
 		certInfo := color.CyanString("None defined")
 		if theConfig.Certs != "" {
