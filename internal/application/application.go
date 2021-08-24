@@ -209,6 +209,21 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 		return err
 	}
 
+	// get bounded services
+	app, err := Lookup(ctx, cluster, appRef.Org, appRef.Name)
+	if err != nil && !apierrors.IsNotFound(err) {
+		return err
+	}
+
+	// delete all service bindings
+	if app != nil {
+		workload := NewWorkload(cluster, appRef)
+		err = workload.UnbindAll(ctx, cluster, app.BoundServices)
+		if err != nil {
+			return err
+		}
+	}
+
 	// delete application resource, will cascade and delete deployment,
 	// ingress, service and certificate
 	err = client.Namespace(appRef.Org).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
