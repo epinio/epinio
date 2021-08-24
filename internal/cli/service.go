@@ -131,12 +131,12 @@ var CmdServiceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		epinioClient, err := clients.NewEpinioClient(context.Background())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.ServiceMatching(context.Background(), toComplete)
+		matches := epinioClient.ServiceMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
