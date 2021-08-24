@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/internal/filesystem"
 	"github.com/epinio/epinio/internal/web"
 	"github.com/go-logr/logr"
+	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -75,6 +76,7 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.
 	listeningPort := elements[len(elements)-1]
 
 	http.Handle("/api/v1/", logRequestHandler(apiv1.Router(), logger))
+	http.Handle("/ready", ReadyRouter())
 	http.Handle("/", logRequestHandler(web.Router(), logger))
 	// Static files
 	var assetsDir http.FileSystem
@@ -95,6 +97,15 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.
 	}()
 
 	return srv, listeningPort, nil
+}
+
+func ReadyRouter() *httprouter.Router {
+	router := httprouter.New()
+	router.HandlerFunc("GET", "/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	})
+	return router
 }
 
 // logging middleware for requests
