@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -10,14 +9,13 @@ import (
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/julienschmidt/httprouter"
 	"github.com/mholt/archiver/v3"
 )
 
 // Upload handles the API endpoint /orgs/:org/applications/:app/store.
-// It receives the application data as a tarball, and creates the
-// gitea as well as k8s resources needed for staging
+// It receives the application data as a tarball and stores it. Then
+// it creates the k8s resources needed for staging
 func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
@@ -27,11 +25,6 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	name := params.ByName("app")
 
 	log.Info("processing upload", "org", org, "app", name)
-
-	client, err := gitea.New(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
 
 	log.V(2).Info("parsing multipart form")
 
@@ -66,19 +59,13 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err, "failed to unpack app sources to temp location")
 	}
 
-	log.V(2).Info("create gitea app repo")
-	app := models.NewAppRef(name, org)
-	g, err := client.Upload(app, appDir)
-	if err != nil {
-		return InternalError(err)
-	}
+	// TODO: Put the code on the PVC here
 
 	log.Info("uploaded app", "org", org, "app", name)
 
-	// Extend url to contain the full repo path
-	g.URL = fmt.Sprintf("%s/%s/%s", g.URL, org, name)
-
-	resp := models.UploadResponse{Git: &g}
+	// TODO: Put the "id" of the uploaded code version (UUID?) in the response
+	// to be used for the staging request.
+	resp := models.UploadResponse{Git: nil}
 	err = jsonResponse(w, resp)
 	if err != nil {
 		return InternalError(err)

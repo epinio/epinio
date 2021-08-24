@@ -31,7 +31,7 @@ func collectSources(log logr.Logger, source string) (string, string, error) {
 		// application directory to get the proper paths to
 		// the files and directories to assemble in the
 		// tarball.
-		// Ignore git config files in the app sources to prevent conflicts with the gitea git repo
+		// Ignore git config files in the app sources TODO: Is it possible that they are needed?
 		if f.Name() == ".git" || f.Name() == ".gitignore" || f.Name() == ".gitmodules" || f.Name() == ".gitconfig" || f.Name() == ".git-credentials" {
 			log.V(3).Info(fmt.Sprintf("Skipping upload of file/dir '%s'.", f.Name()))
 			continue

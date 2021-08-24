@@ -21,21 +21,6 @@ type Organization struct {
 	Name string
 }
 
-// GiteaInterface is the interface to whatever backend is used to
-// manage epinio-controlled namespaces beyond them being kube
-// namespaces. The chosen name stronly implies gitea and a client for
-// it, unfortunately. See also file
-// `internal/cli/clients/gitea/gitea.go`. TODO: Seek a better name.
-type GiteaInterface interface {
-	// Create a new epinio-controlled namespace
-	CreateOrg(org string) error
-	// Delete the named epinio-controlled namespace
-	DeleteOrg(org string) error
-}
-
-// List returns a list of the known epinio-controlled namespaces. This
-// is essentially the set of kube namespaces tagged as being under
-// epinio's control.
 func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Organization, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: kubernetes.EpinioOrgLabelKey + "=" + kubernetes.EpinioOrgLabelValue,
@@ -71,10 +56,8 @@ func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupOrg strin
 }
 
 // Create generates a new epinio-controlled namespace, i.e. a kube
-// namespace plus a service account. The provided giteaInterface is
-// used to create whatever other dependent (non-kube) resources are
-// needed.
-func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) error {
+// namespace plus a service account.
+func Create(ctx context.Context, kubeClient *kubernetes.Cluster, org string) error {
 	if _, err := kubeClient.Kubectl.CoreV1().Namespaces().Create(
 		ctx,
 		&corev1.Namespace{
@@ -106,25 +89,18 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
-	return gitea.CreateOrg(org)
+	return nil
 }
 
 // Delete destroys an epinio-controlled namespace, i.e. the associated
-// kube namespace and service account.  The provided giteaInterface is
-// used to delete whatever other dependent (non-kube) resources are
-// associated with it.
-func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) error {
+// kube namespace and service account.
+func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, org string) error {
 	err := kubeClient.Kubectl.CoreV1().Namespaces().Delete(ctx, org, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
 
-	err = kubeClient.WaitForNamespaceMissing(ctx, nil, org, duration.ToOrgDeletion())
-	if err != nil {
-		return err
-	}
-
-	return gitea.DeleteOrg(org)
+	return kubeClient.WaitForNamespaceMissing(ctx, nil, org, duration.ToOrgDeletion())
 }
 
 // copySecret is helper to Create which replicates the specified kube

@@ -219,9 +219,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
-	if err := k.createGiteaCredsSecret(ctx, c); err != nil {
-		return err
-	}
 	if err := k.createClusterRegistryCredsSecret(ctx, c, domain); err != nil {
 		return err
 	}
@@ -412,40 +409,6 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.Wrapf(err, "failed creating tekton Task")
 	}
 
-	return nil
-}
-
-func (k Tekton) createGiteaCredsSecret(ctx context.Context, c *kubernetes.Cluster) error {
-	// See internal/cli/clients/gitea/gitea.go, func
-	// `getGiteaCredentials` for where the cli retrieves the
-	// information for its own gitea client.
-	//
-	// See deployments/gitea.go func `apply` where `install`
-	// configures gitea for the same credentials.
-
-	giteaAuth, err := GiteaInstallAuth()
-	if err != nil {
-		return err
-	}
-
-	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(ctx,
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "gitea-creds",
-				Annotations: map[string]string{
-					"tekton.dev/git-0": GiteaURL,
-				},
-			},
-			StringData: map[string]string{
-				"username": giteaAuth.Username,
-				"password": giteaAuth.Password,
-			},
-			Type: "kubernetes.io/basic-auth",
-		}, metav1.CreateOptions{})
-
-	if err != nil {
-		return err
-	}
 	return nil
 }
 

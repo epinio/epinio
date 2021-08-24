@@ -1111,7 +1111,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 	}
 }
 
-// CreateOrg creates an Org in gitea
+// CreateOrg creates an Org namespace
 func (c *EpinioClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateNamespace").WithValues("Namespace", org)
 	log.Info("start")
@@ -1159,7 +1159,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 	return nil
 }
 
-// DeleteOrg deletes an Org in gitea
+// DeleteOrg deletes an Org
 func (c *EpinioClient) DeleteOrg(org string) error {
 	log := c.Log.WithName("DeleteNamespace").WithValues("Namespace", org)
 	log.Info("start")
@@ -1491,7 +1491,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	return nil
 }
 
-// Target targets an org in gitea
+// Target targets an org
 func (c *EpinioClient) Target(org string) error {
 	log := c.Log.WithName("Target").WithValues("Namespace", org)
 	log.Info("start")
