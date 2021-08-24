@@ -15,7 +15,6 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
@@ -57,7 +56,7 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 		//       and re-adding is much simpler to understand, and should
 		//       be fast enough.
 
-		newEnvironment := []v1.EnvVar{}
+		newEnvironment := []corev1.EnvVar{}
 
 		for _, ev := range deployment.Spec.Template.Spec.Containers[0].Env {
 			// Drop EV if pulled from EV secret of the app
@@ -71,11 +70,11 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 		}
 
 		for _, varName := range varNames {
-			newEnvironment = append(newEnvironment, v1.EnvVar{
+			newEnvironment = append(newEnvironment, corev1.EnvVar{
 				Name: varName,
-				ValueFrom: &v1.EnvVarSource{
-					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
 							Name: evSecretName,
 						},
 						Key: varName,
