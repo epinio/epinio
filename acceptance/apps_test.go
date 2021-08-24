@@ -384,11 +384,11 @@ var _ = Describe("Apps", func() {
 			})
 		})
 
-		It("unbinds bound services when deleting an app", func() {
+		It("unbinds bound services when deleting an app and then delete's service", func() {
 			serviceName := catalog.NewServiceName()
 
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
-			env.MakeCustomService(serviceName)
+			env.MakeCatalogService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 
 			By("deleting the app")
@@ -404,6 +404,14 @@ var _ = Describe("Apps", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
+
+			By("checking if servicebinding is deleted")
+			serviceBindings, err := helpers.Kubectl("get", "servicebindings",
+				"--namespace", org)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(serviceBindings).NotTo(ContainSubstring(fmt.Sprintf("svc.org-%s.svc-%s.app-%s", org, serviceName, appName)))
+
+			env.DeleteService(serviceName)
 		})
 	})
 
