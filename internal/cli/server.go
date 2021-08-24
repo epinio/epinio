@@ -132,7 +132,7 @@ func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 func logRequest(r *http.Request, log logr.Logger) {
 	uri := r.URL.String()
 	method := r.Method
-	log.V(1).Info("received request",
+	log.Info("received request",
 		"method", method, "uri", uri, "user", r.Header.Get("X-Webauth-User"))
 
 	// Read request body for logging
@@ -146,10 +146,11 @@ func logRequest(r *http.Request, log logr.Logger) {
 	// Recreate body for the actual handler
 	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
+	// log body only at higher trace levels
 	if len(bodyBytes) == 0 {
-		log.V(2).Info("request", "body", "n/a")
+		log.V(1).Info("request", "body", "n/a")
 		return
 	}
 
-	log.V(2).Info("request", "body", string(bodyBytes))
+	log.V(1).Info("request", "body", string(bodyBytes))
 }
