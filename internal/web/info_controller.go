@@ -3,7 +3,7 @@ package web
 import (
 	"net/http"
 
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/version"
 )
@@ -13,18 +13,19 @@ type InfoController struct {
 
 func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	client, err := clients.NewEpinioClient(ctx)
-	if handleError(w, err, 500) {
-		return
-	}
 
 	giteaClient, err := gitea.New(ctx)
 	if handleError(w, err, 500) {
 		return
 	}
 
-	platform := client.Cluster.GetPlatform()
-	kubeVersion, err := client.Cluster.GetVersion()
+	cluster, err := kubernetes.GetCluster(ctx)
+	if handleError(w, err, 500) {
+		return
+	}
+
+	platform := cluster.GetPlatform()
+	kubeVersion, err := cluster.GetVersion()
 	if handleError(w, err, 500) {
 		return
 	}

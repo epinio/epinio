@@ -357,8 +357,10 @@ func (c *Cluster) IsDeploymentCompleted(ctx context.Context, deploymentName, nam
 }
 
 func (c *Cluster) WaitForDeploymentCompleted(ctx context.Context, ui *termui.UI, namespace, deploymentName string, timeout time.Duration) error {
-	s := ui.Progressf("Waiting for deployment %s in %s to be ready", deploymentName, namespace)
-	defer s.Stop()
+	if ui != nil {
+		s := ui.Progressf("Waiting for deployment %s in %s to be ready", deploymentName, namespace)
+		defer s.Stop()
+	}
 
 	return wait.PollImmediate(time.Second, timeout, c.IsDeploymentCompleted(ctx, deploymentName, namespace))
 }

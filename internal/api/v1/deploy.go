@@ -8,7 +8,6 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/julienschmidt/httprouter"
 	appsv1 "k8s.io/api/apps/v1"
@@ -22,6 +21,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/internal/domain"
 )
 
 const (
@@ -31,10 +31,8 @@ const (
 type deployParam struct {
 	models.AppRef
 	Git         *models.GitRef
-	Route       string
 	ImageURL    string
 	Instances   int32
-	Domain      string
 	Stage       models.StageRef
 	Owner       metav1.OwnerReference
 	Environment models.EnvVariableList
@@ -102,7 +100,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	mainDomain, err := domain.MainDomain(ctx)
+	route, err := domain.AppDefaultRoute(ctx, req.App.Name)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -116,11 +114,9 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 	deployParams := deployParam{
 		AppRef:      req.App,
 		Git:         req.Git,
-		Route:       req.Route,
 		Owner:       owner,
 		Environment: environment,
 		Instances:   instances,
-		Domain:      mainDomain,
 		ImageURL:    req.ImageURL,
 	}
 
@@ -167,9 +163,9 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	log.Info("deploying app ingress", "org", org, "app", req.App, "", req.Route)
+	log.Info("deploying app ingress", "org", org, "app", req.App, "", route)
 
-	ing, err := newAppIngress(req.App, req.Route)
+	ing, err := newAppIngress(req.App, route)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -192,6 +188,14 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		if err := application.Unstage(ctx, cluster, req.App, req.Stage.ID); err != nil {
 			return InternalError(err)
 		}
+	}
+
+	resp := models.DeployResponse{
+		Route: route,
+	}
+	err = jsonResponse(w, resp)
+	if err != nil {
+		return InternalError(err)
 	}
 
 	return nil

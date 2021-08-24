@@ -67,16 +67,18 @@ func patch(path string, h http.HandlerFunc) routes.Route {
 var Routes = routes.NamedRoutes{
 	"Info": get("/info", errorHandler(InfoController{}.Info)),
 
-	"Apps":        get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
-	"AppCreate":   post("/orgs/:org/applications", errorHandler(ApplicationsController{}.Create)),
-	"AppShow":     get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
-	"AppLogs":     get("/orgs/:org/applications/:app/logs", ApplicationsController{}.Logs),
-	"StagingLogs": get("/orgs/:org/staging/:stage_id/logs", ApplicationsController{}.Logs),
-	"AppDelete":   delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
-	"AppUpload":   post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)), // See upload.go
-	"AppStage":    post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),  // See stage.go
-	"AppDeploy":   post("/orgs/:org/applications/:app/deploy", errorHandler(ApplicationsController{}.Deploy)),
-	"AppUpdate":   patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
+	"Apps":            get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
+	"AppCreate":       post("/orgs/:org/applications", errorHandler(ApplicationsController{}.Create)),
+	"AppShow":         get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
+	"AppLogs":         get("/orgs/:org/applications/:app/logs", ApplicationsController{}.Logs),
+	"StagingLogs":     get("/orgs/:org/staging/:stage_id/logs", ApplicationsController{}.Logs),
+	"StagingComplete": get("/orgs/:org/staging/:stage_id/complete", errorHandler(ApplicationsController{}.Staged)), // See stage.go
+	"AppDelete":       delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
+	"AppUpload":       post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)), // See upload.go
+	"AppStage":        post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),  // See stage.go
+	"AppDeploy":       post("/orgs/:org/applications/:app/deploy", errorHandler(ApplicationsController{}.Deploy)),
+	"AppUpdate":       patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
+	"AppRunning":      get("/orgs/:org/applications/:app/running", errorHandler(ApplicationsController{}.Running)),
 
 	// See env.go
 	"EnvList":  get("/orgs/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvIndex)),
@@ -97,6 +99,8 @@ var Routes = routes.NamedRoutes{
 	"OrgDelete": delete("/orgs/:org", errorHandler(OrganizationsController{}.Delete)),
 
 	// List, show, create and delete services, catalog and custom
+	"ServiceApps": get("/orgs/:org/serviceapps", errorHandler(ApplicationsController{}.ServiceApps)),
+	//
 	"Services":            get("/orgs/:org/services", errorHandler(ServicesController{}.Index)),
 	"ServiceShow":         get("/orgs/:org/services/:service", errorHandler(ServicesController{}.Show)),
 	"ServiceCreate":       post("/orgs/:org/services", errorHandler(ServicesController{}.Create)),

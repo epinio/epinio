@@ -26,10 +26,8 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/services"
 
@@ -42,7 +40,6 @@ import (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	Cluster     *kubernetes.Cluster
 	Config      *config.Config
 	Log         logr.Logger
 	ui          *termui.UI
@@ -66,11 +63,6 @@ func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
 		return nil, err
 	}
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	uiUI := termui.NewUI()
 	epClient, err := GetEpinioAPIClient(ctx)
 	if err != nil {
@@ -81,7 +73,6 @@ func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
 
 	logger := tracelog.NewClientLogger()
 	epinioClient := &EpinioClient{
-		Cluster:     cluster,
 		ui:          uiUI,
 		Config:      configConfig,
 		Log:         logger,
@@ -344,17 +335,15 @@ func (c *EpinioClient) ServicePlanMatching(ctx context.Context, serviceClassName
 
 	result := []string{}
 
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
+	// Ask for all service plans of a service class. Filtering is local.
+	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	serviceClass, err := services.ClassLookup(ctx, c.Cluster, serviceClassName)
+	jsonResponse, err := c.get(api.Routes.Path("ServicePlans", serviceClassName))
 	if err != nil {
 		return result
 	}
-
-	servicePlans, err := serviceClass.ListPlans(ctx)
-	if err != nil {
+	var servicePlans services.ServicePlanList
+	if err := json.Unmarshal(jsonResponse, &servicePlans); err != nil {
 		return result
 	}
 
@@ -378,13 +367,15 @@ func (c *EpinioClient) ServiceClassMatching(ctx context.Context, prefix string) 
 
 	result := []string{}
 
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
+	// Ask for all service classes. Filtering is local.
+	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	serviceClasses, err := services.ListClasses(ctx, c.Cluster)
+	jsonResponse, err := c.get(api.Routes.Path("ServiceClasses"))
 	if err != nil {
-		details.Info("Error", err)
+		return result
+	}
+	var serviceClasses services.ServiceClassList
+	if err := json.Unmarshal(jsonResponse, &serviceClasses); err != nil {
 		return result
 	}
 
@@ -442,7 +433,7 @@ func (c *EpinioClient) Services() error {
 		WithStringValue("Organization", c.Config.Org).
 		Msg("Listing services")
 
-	details.Info("list applications")
+	details.Info("list services")
 
 	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
 	if err != nil {
@@ -477,17 +468,20 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 
 	result := []string{}
 
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
+	// Ask for all services. Filtering is local.
+	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	orgServices, err := services.List(ctx, c.Cluster, c.Config.Org)
+	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
 	if err != nil {
 		return result
 	}
+	var response models.ServiceResponseList
+	if err := json.Unmarshal(jsonResponse, &response); err != nil {
+		return result
+	}
 
-	for _, s := range orgServices {
-		service := s.Name()
+	for _, s := range response {
+		service := s.Name
 		details.Info("Found", "Name", service)
 		if strings.HasPrefix(service, prefix) {
 			details.Info("Matched", "Name", service)
@@ -803,27 +797,30 @@ func (c *EpinioClient) Info() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	platform := c.Cluster.GetPlatform()
-	kubeVersion, err := c.Cluster.GetVersion()
-	if err != nil {
-		return errors.Wrap(err, "failed to get kube version")
-	}
-
 	// TODO: Extend the epinio API to get the gitea version
 	// information again. Or remove it entirely.
+	// Note: See also Spike #699 for possible full removal of Gitea
 
 	giteaVersion := "unavailable"
-
 	epinioVersion := "unavailable"
+	platform := "unknown"
+	kubeVersion := "unknown"
+
 	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {
-		v := struct{ Version string }{}
+		v := struct {
+			Version     string
+			KubeVersion string
+			Platform    string
+		}{}
 		if err := json.Unmarshal(jsonResponse, &v); err == nil {
 			epinioVersion = v.Version
+			platform = v.Platform
+			kubeVersion = v.KubeVersion
 		}
 	}
 
 	c.ui.Success().
-		WithStringValue("Platform", platform.String()).
+		WithStringValue("Platform", platform).
 		WithStringValue("Kubernetes Version", kubeVersion).
 		WithStringValue("Gitea Version", giteaVersion).
 		WithStringValue("Epinio Version", epinioVersion).
@@ -842,12 +839,16 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 
 	result := []string{}
 
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
+	// Ask for all apps. Filtering is local.
+	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
+	jsonResponse, err := c.get(api.Routes.Path("Apps", c.Config.Org))
 	if err != nil {
+		return result
+	}
+
+	var apps models.AppList
+	if err := json.Unmarshal(jsonResponse, &apps); err != nil {
 		return result
 	}
 
@@ -859,6 +860,8 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 			result = append(result, app.Name)
 		}
 	}
+
+	sort.Strings(result)
 
 	return result
 }
@@ -1334,11 +1337,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	route, err := appDefaultRoute(ctx, appRef.Name)
-	if err != nil {
-		return errors.Wrap(err, "unable to determine default app route")
-	}
-
 	c.ui.Normal().Msg("Create the application resource ...")
 
 	request := models.ApplicationCreateRequest{Name: appRef.Name}
@@ -1398,7 +1396,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		req := models.StageRequest{
 			App:          appRef,
 			Git:          gitRef,
-			Route:        route,
 			BuilderImage: params.BuilderImage,
 		}
 		details.Info("staging code", "Git", gitRef.Revision)
@@ -1420,7 +1417,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	deployRequest := models.DeployRequest{
 		App:       appRef,
 		Instances: params.Instances,
-		Route:     route,
 		Git:       gitRef,
 	}
 	// If docker param is specified, then we just take it into ImageURL
@@ -1432,7 +1428,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		deployRequest.Stage = models.StageRef{ID: stageID}
 	}
 
-	_, err = c.deployCode(deployRequest)
+	deployResponse, err := c.deployCode(deployRequest)
 	if err != nil {
 		return err
 	}
@@ -1489,19 +1485,11 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	c.ui.Success().
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Organization", appRef.Org).
-		WithStringValue("Route", fmt.Sprintf("https://%s", route)).
+		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
 		WithStringValue("Builder Image", params.BuilderImage).
 		Msg("App is online.")
 
 	return nil
-}
-
-func appDefaultRoute(ctx context.Context, name string) (string, error) {
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprintf("%s.%s", name, mainDomain), nil
 }
 
 // Target targets an org in gitea
@@ -1546,27 +1534,14 @@ func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[stri
 	// (inversion of services bound to apps)
 	// Literally query apps in the org for their services and invert.
 
-	var appsOf = map[string]models.AppList{}
-
-	apps, err := application.List(ctx, c.Cluster, c.Config.Org)
+	jsonResponse, err := c.get(api.Routes.Path("ServiceApps", c.Config.Org))
 	if err != nil {
 		return nil, err
 	}
 
-	for _, app := range apps {
-		w := application.NewWorkload(c.Cluster, app.AppRef())
-		bound, err := w.Services(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, bonded := range bound {
-			bname := bonded.Name()
-			if theapps, found := appsOf[bname]; found {
-				appsOf[bname] = append(theapps, app)
-			} else {
-				appsOf[bname] = models.AppList{app}
-			}
-		}
+	var appsOf map[string]models.AppList
+	if err := json.Unmarshal(jsonResponse, &appsOf); err != nil {
+		return nil, err
 	}
 
 	return appsOf, nil
@@ -1725,6 +1700,10 @@ func uniqueStrings(stringSlice []string) []string {
 }
 
 func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
+	// This is called only by the admin command `config update`
+	// which has to talk to the cluster to retrieve the
+	// information. This is allowed.
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
@@ -1742,6 +1721,10 @@ func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 
 // TODO: https://github.com/epinio/epinio/issues/667
 func getCredentials(ctx context.Context, log logr.Logger) (string, string, error) {
+	// This is called only by the admin command `config update`
+	// which has to talk to the cluster to retrieve the
+	// information. This is allowed.
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return "", "", err
@@ -1779,6 +1762,10 @@ func getCredentials(ctx context.Context, log logr.Logger) (string, string, error
 }
 
 func getCerts(ctx context.Context, log logr.Logger) (string, error) {
+	// This is called only by the admin command `config update`
+	// which has to talk to the cluster to retrieve the
+	// information. This is allowed.
+
 	// Save the  CA cert into the config. The regular client
 	// will then extend the Cert pool with the same, so that it
 	// can cerify the server cert.

@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
@@ -26,6 +27,7 @@ type ApplicationsController struct {
 	conn *websocket.Conn
 }
 
+// Create creates a new and empty application. I.e. without a workload.
 func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -73,6 +75,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+// Index lists all the known applications, with and without workload.
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -111,6 +114,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
+// Show returns the details of the specified application.
 func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -167,6 +171,67 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 	return nil
 }
 
+// ServiceApps returns a map from services to the apps they are bound to, in the specified org.
+// Internally it asks each app in the org for its bound services and then inverts that map to
+// get the desired result.
+func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
+	org := params.ByName("org")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return OrgIsNotKnown(org)
+	}
+
+	var appsOf = map[string]models.AppList{}
+
+	apps, err := application.List(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	for _, app := range apps {
+		w := application.NewWorkload(cluster, app.AppRef())
+		bound, err := w.Services(ctx)
+		if err != nil {
+			return InternalError(err)
+		}
+		for _, bonded := range bound {
+			bname := bonded.Name()
+			if theapps, found := appsOf[bname]; found {
+				appsOf[bname] = append(theapps, app)
+			} else {
+				appsOf[bname] = models.AppList{app}
+			}
+		}
+	}
+
+	js, err := json.Marshal(appsOf)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
+// Update modifies the specified application. currently this is only
+// the number of instances to run.
 func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -233,6 +298,61 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 
 	return nil
 }
+
+// Running waits for the specified application to be running (i.e. its
+// deployment to be complete), before it returns. An exception is if
+// the application does not become running without `duration.ToAppBuilt()`
+// (default: 10 minutes). In that case it returns with an error after
+// that time.
+func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
+	org := params.ByName("org")
+	appName := params.ByName("app")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return OrgIsNotKnown(org)
+	}
+
+	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return AppIsNotKnown(appName)
+	}
+
+	app, err := application.Lookup(ctx, cluster, org, appName)
+	if err != nil {
+		return InternalError(err)
+	}
+	if app == nil {
+		// While app exists it has no workload
+		return NewAPIError("No status available for application without workload", "", http.StatusBadRequest)
+	}
+
+	err = cluster.WaitForDeploymentCompleted(
+		ctx, nil, org, appName, duration.ToAppBuilt())
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
+// Logs arranges for the logs of the specified application to be
+// streamed over a websocket.
 func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -392,6 +512,7 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 	return hc.conn.Close()
 }
 
+// Delete removes the application
 func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

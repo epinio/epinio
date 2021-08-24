@@ -57,7 +57,6 @@ type UploadResponse struct {
 type StageRequest struct {
 	App          AppRef  `json:"app,omitempty"`
 	Git          *GitRef `json:"git,omitempty"`
-	Route        string  `json:"route,omitempty"`
 	BuilderImage string  `json:"builderimage,omitempty"`
 }
 
@@ -70,9 +69,12 @@ type DeployRequest struct {
 	App       AppRef   `json:"app,omitempty"`
 	Instances *int32   `json:"instances,omitempty"`
 	Stage     StageRef `json:"stage,omitempty"`
-	Route     string   `json:"route,omitempty"`
 	Git       *GitRef  `json:"git,omitempty"`
 	ImageURL  string   `json:"image,omitempty"`
+}
+
+type DeployResponse struct {
+	Route string `json:"route,omitempty"`
 }
 
 type ApplicationDeleteResponse struct {
