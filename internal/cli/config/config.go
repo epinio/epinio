@@ -29,6 +29,8 @@ type Config struct {
 	Certs    string `mapstructure:"certs"`
 	Colors   bool   `mapstructure:"colors"`
 
+	Location string // Origin of data, file which was loaded
+
 	v *viper.Viper
 }
 
@@ -81,6 +83,7 @@ func LoadFrom(file string) (*Config, error) {
 	}
 
 	cfg.v = v
+	cfg.Location = file
 
 	if cfg.Certs != "" {
 		auth.ExtendLocalTrust(cfg.Certs)
