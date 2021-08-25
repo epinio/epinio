@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/internal/filesystem"
 	"github.com/epinio/epinio/internal/web"
 	"github.com/go-logr/logr"
+	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -75,6 +76,7 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.
 	listeningPort := elements[len(elements)-1]
 
 	http.Handle("/api/v1/", logRequestHandler(apiv1.Router(), logger))
+	http.Handle("/ready", ReadyRouter())
 	http.Handle("/", logRequestHandler(web.Router(), logger))
 	// Static files
 	var assetsDir http.FileSystem
@@ -95,6 +97,15 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.
 	}()
 
 	return srv, listeningPort, nil
+}
+
+func ReadyRouter() *httprouter.Router {
+	router := httprouter.New()
+	router.HandlerFunc("GET", "/ready", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	})
+	return router
 }
 
 // logging middleware for requests
@@ -121,7 +132,8 @@ func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 func logRequest(r *http.Request, log logr.Logger) {
 	uri := r.URL.String()
 	method := r.Method
-	log.V(1).Info("received request", "method", method, "uri", uri)
+	log.Info("received request",
+		"method", method, "uri", uri, "user", r.Header.Get("X-Webauth-User"))
 
 	// Read request body for logging
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -134,10 +146,11 @@ func logRequest(r *http.Request, log logr.Logger) {
 	// Recreate body for the actual handler
 	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
+	// log body only at higher trace levels
 	if len(bodyBytes) == 0 {
-		log.V(2).Info("request", "body", "n/a")
+		log.V(1).Info("request", "body", "n/a")
 		return
 	}
 
-	log.V(2).Info("request", "body", string(bodyBytes))
+	log.V(1).Info("request", "body", string(bodyBytes))
 }

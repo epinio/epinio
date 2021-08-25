@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+func NewTmpName(base string) string {
+	return base + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
 func NewOrgName() string {
 	return "orgs-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }

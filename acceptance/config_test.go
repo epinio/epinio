@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"fmt"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	. "github.com/onsi/ginkgo"
@@ -10,7 +11,11 @@ import (
 )
 
 var _ = Describe("Config", func() {
-	tmpConfigPath := "tmpEpinio.yaml"
+	var tmpConfigPath string
+
+	BeforeEach(func() {
+		tmpConfigPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
+	})
 
 	AfterEach(func() {
 		// Remove transient config

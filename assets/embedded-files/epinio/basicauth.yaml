@@ -7,3 +7,4 @@ metadata:
 spec:
   basicAuth:
     secret: epinio-api-auth-secret
+    headerField: X-WebAuth-User
