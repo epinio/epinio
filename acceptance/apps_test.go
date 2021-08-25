@@ -405,7 +405,7 @@ var _ = Describe("Apps", func() {
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 
-			By("checking if servicebinding is deleted")
+			By("checking if the servicebinding is deleted")
 			serviceBindings, err := helpers.Kubectl("get", "servicebindings",
 				"--namespace", org)
 			Expect(err).NotTo(HaveOccurred())
