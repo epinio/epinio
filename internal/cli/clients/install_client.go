@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/version"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -67,7 +68,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Epinio installing...")
+	c.ui.Note().Msgf("Epinio %s installing...", version.Version)
 
 	var err error
 	details.Info("process cli options")
