@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"gopkg.in/ini.v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -59,27 +60,47 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 		return details, err
 	}
 
+	configIni, err := ini.Load(secret.Data["config"])
+	if err != nil {
+		return details, err
+	}
+	credentialsIni, err := ini.Load(secret.Data["credentials"])
+	if err != nil {
+		return details, err
+	}
+
+	details.AccessKeyID = credentialsIni.Section("default").Key("aws_access_key_id").MustString("")
+	details.SecretAccessKey = credentialsIni.Section("default").Key("aws_secret_access_key").MustString("")
+	details.Location = configIni.Section("default").Key("region").MustString("")
 	details.Endpoint = string(secret.Data["endpoint"])
-	details.AccessKeyID = string(secret.Data["access-key-id"])
-	details.SecretAccessKey = string(secret.Data["secret-access-key"])
 	details.Bucket = string(secret.Data["bucket"])
-	details.Location = string(secret.Data["locatino"])
 
 	return details, nil
 }
 
+// StoreConnectionDetails stores the S3 connection details in a format compatible with the aws
+// tekton task: https://hub.tekton.dev/tekton/task/aws-cli
 func StoreConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string, details ConnectionDetails) (*corev1.Secret, error) {
+	credentials := fmt.Sprintf(`
+[default]
+aws_access_key_id     = %s
+aws_secret_access_key = %s
+`, details.AccessKeyID, details.SecretAccessKey)
+	config := fmt.Sprintf(`
+[default]
+region = %s
+`, details.Location)
+
 	secret, err := cluster.Kubectl.CoreV1().Secrets(secretNamespace).Create(ctx,
 		&corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: secretName,
 			},
 			StringData: map[string]string{
-				"endpoint":          details.Endpoint,
-				"access-key-id":     details.AccessKeyID,
-				"secret-access-key": details.SecretAccessKey,
-				"bucket":            details.Bucket,
-				"location":          details.Location,
+				"credentials": credentials,
+				"config":      config,
+				"endpoint":    details.Endpoint,
+				"bucket":      details.Bucket,
 			},
 			Type: "Opaque",
 		}, metav1.CreateOptions{})
@@ -111,13 +132,11 @@ func (m *Manager) Upload(ctx context.Context, filepath string) (string, error) {
 	objectName := uuid.New().String()
 	contentType := "application/tar"
 
-	info, err := m.minioClient.FPutObject(ctx, m.connectionDetails.Bucket,
+	_, err := m.minioClient.FPutObject(ctx, m.connectionDetails.Bucket,
 		objectName, filepath, minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
 		return "", err
 	}
-	// TODO: Check if there is a uid already here that can be used
-	fmt.Printf("info = %+v\n", info)
 
 	return objectName, nil
 }

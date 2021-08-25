@@ -137,10 +137,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Name: appName,
 				Org:  org,
 			},
-			Git: &models.GitRef{
-				Revision: uploadResponse.Git.Revision,
-				URL:      uploadResponse.Git.URL,
-			},
+			BlobUID:      uploadResponse.BlobUID,
 			BuilderImage: "paketobuildpacks/builder:full",
 		}
 		b, err := json.Marshal(request)
@@ -404,8 +401,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				err = json.Unmarshal(bodyBytes, &r)
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(r.Git.URL).ToNot(BeEmpty())
-				Expect(r.Git.Revision).ToNot(BeEmpty())
+				Expect(r.BlobUID).ToNot(BeEmpty())
 			})
 		})
 
@@ -461,10 +457,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						Instances: &one,
 						Stage: models.StageRef{
 							ID: stageResponse.Stage.ID,
-						},
-						Git: &models.GitRef{
-							Revision: respObj.Git.Revision,
-							URL:      respObj.Git.URL,
 						},
 						ImageURL: stageResponse.ImageURL,
 					}

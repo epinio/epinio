@@ -61,7 +61,7 @@ func (c *EpinioClient) uploadCode(app models.AppRef, tarball string) (*models.Up
 		return nil, errors.Wrap(err, "can't upload archive")
 	}
 
-	// returns git commit and app route
+	// returns the source blob's UUID
 	upload := &models.UploadResponse{}
 	if err := json.Unmarshal(b, upload); err != nil {
 		return nil, err

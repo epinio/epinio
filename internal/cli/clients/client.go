@@ -1357,7 +1357,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return err
 	}
 
-	var gitRef *models.GitRef
+	var blobUID string
 	if params.GitRev == "" && params.Docker == "" {
 		c.ui.Normal().Msg("Collecting the application sources ...")
 
@@ -1380,12 +1380,14 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		}
 		log.V(3).Info("upload response", "response", upload)
 
-		gitRef = upload.Git
+		blobUID = upload.BlobUID
 	} else if params.GitRev != "" {
-		gitRef = &models.GitRef{
-			URL:      source,
-			Revision: params.GitRev,
-		}
+		// TODO: When pushing with a git remote, Epinio has to pull the code
+		// and create a blob out of it.
+		// Maybe the "uploaded" endpoint should accept a git remote too?
+		// Or maybe we need a new endpoint? e.g. the "pull" endpoint that
+		// pull the code from a git remote and puts it in the S3 storage?
+		blobUID = ""
 	}
 
 	stageID := ""
@@ -1394,10 +1396,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		c.ui.Normal().Msg("Staging application ...")
 		req := models.StageRequest{
 			App:          appRef,
-			Git:          gitRef,
+			BlobUID:      blobUID,
 			BuilderImage: params.BuilderImage,
 		}
-		details.Info("staging code", "Git", gitRef.Revision)
+		details.Info("staging code", "Blob", blobUID)
 		stageResponse, err = c.stageCode(req)
 		if err != nil {
 			return err
@@ -1416,7 +1418,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	deployRequest := models.DeployRequest{
 		App:       appRef,
 		Instances: params.Instances,
-		Git:       gitRef,
 	}
 	// If docker param is specified, then we just take it into ImageURL
 	// If not, we take the one from the staging response

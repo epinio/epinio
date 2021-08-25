@@ -49,7 +49,9 @@ const (
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.23.0.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
 	tektonStagingYamlPath         = "tekton/buildpacks-task.yaml"
+	tektonAWSYamlPath             = "tekton/aws-cli-0.2.yaml"
 	tektonPipelineYamlPath        = "tekton/stage-pipeline.yaml"
+	S3ConnectionDetailsSecret     = "epinio-s3-connection-details"
 )
 
 func (k Tekton) ID() string {
@@ -127,6 +129,10 @@ func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+	}
+
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAWSYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAWSYamlPath, out))
 	}
 
 	message = "Deleting Tekton namespace " + tektonNamespace
@@ -214,6 +220,30 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		},
 		retry.RetryIf(func(err error) bool {
 			return helpers.Retryable(err.Error())
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
+		}),
+		retry.Delay(5*time.Second),
+	)
+	if err != nil {
+		return err
+	}
+	err = retry.Do(
+		func() error {
+			out, err := helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.KubectlApplyEmbeddedYaml(tektonAWSYamlPath)
+				},
+			)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			}
+			return nil
+		},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "connection refused") ||
+				strings.Contains(err.Error(), "EOF")
 		}),
 		retry.OnRetry(func(n uint, err error) {
 			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
@@ -591,7 +621,7 @@ func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster
 		return err
 	}
 
-	_, err = s3manager.StoreConnectionDetails(ctx, cluster, EpinioDeploymentID, S3ConnectionDetailsSecret, details)
+	_, err = s3manager.StoreConnectionDetails(ctx, cluster, TektonStagingNamespace, S3ConnectionDetailsSecret, details)
 
 	return err
 }

@@ -30,7 +30,6 @@ const (
 
 type deployParam struct {
 	models.AppRef
-	Git         *models.GitRef
 	ImageURL    string
 	Username    string
 	Instances   int32
@@ -119,7 +118,6 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 
 	deployParams := deployParam{
 		AppRef:      req.App,
-		Git:         req.Git,
 		Owner:       owner,
 		Environment: environment,
 		Instances:   instances,

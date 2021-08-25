@@ -70,14 +70,14 @@ type UpdateAppRequest struct {
 
 // UploadResponse represents the server's response to a successful app sources upload
 type UploadResponse struct {
-	Git *GitRef `json:"git,omitempty"`
+	BlobUID string `json:"blob_uid,omitempty"`
 }
 
 // StageRequest represents and contains the data needed to stage an application
 type StageRequest struct {
-	App          AppRef  `json:"app,omitempty"`
-	Git          *GitRef `json:"git,omitempty"`
-	BuilderImage string  `json:"builderimage,omitempty"`
+	App          AppRef `json:"app,omitempty"`
+	BlobUID      string `json:"blob_uid,omitempty"`
+	BuilderImage string `json:"builderimage,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging
@@ -91,7 +91,6 @@ type DeployRequest struct {
 	App       AppRef   `json:"app,omitempty"`
 	Instances *int32   `json:"instances,omitempty"`
 	Stage     StageRef `json:"stage,omitempty"`
-	Git       *GitRef  `json:"git,omitempty"`
 	ImageURL  string   `json:"image,omitempty"`
 }
 

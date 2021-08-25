@@ -34,6 +34,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2
 	golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 // indirect
 	golang.org/x/tools v0.1.1 // indirect
+	gopkg.in/ini.v1 v1.57.0
 	k8s.io/api v0.20.5
 	k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery v0.20.5

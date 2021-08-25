@@ -7,10 +7,12 @@ import (
 	"os"
 	"path"
 
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/julienschmidt/httprouter"
-	"github.com/mholt/archiver/v3"
 )
 
 // Upload handles the API endpoint /orgs/:org/applications/:app/store.
@@ -52,20 +54,28 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err, "failed to copy app sources to temp location")
 	}
 
-	log.V(2).Info("unpacking temp dir")
-	appDir := path.Join(tmpDir, "app")
-	err = archiver.Unarchive(blob, appDir)
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err, "failed to unpack app sources to temp location")
+		return InternalError(err, "failed to get access to a kube client")
 	}
 
-	// TODO: Put the code on the PVC here
+	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+	if err != nil {
+		return InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
+	}
+	manager, err := s3manager.New(connectionDetails)
+	if err != nil {
+		return InternalError(err, "creating an S3 manager")
+	}
+
+	blobUID, err := manager.Upload(ctx, blob)
+	if err != nil {
+		return InternalError(err, "uploading the application sources blob")
+	}
 
 	log.Info("uploaded app", "org", org, "app", name)
 
-	// TODO: Put the "id" of the uploaded code version (UUID?) in the response
-	// to be used for the staging request.
-	resp := models.UploadResponse{Git: nil}
+	resp := models.UploadResponse{BlobUID: blobUID}
 	err = jsonResponse(w, resp)
 	if err != nil {
 		return InternalError(err)

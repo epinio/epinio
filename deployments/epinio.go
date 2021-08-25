@@ -33,12 +33,11 @@ type Epinio struct {
 var _ kubernetes.Deployment = &Epinio{}
 
 const (
-	EpinioDeploymentID        = "epinio"
-	epinioServerYaml          = "epinio/server.yaml"
-	epinioRolesYAML           = "epinio/roles.yaml"
-	epinioBasicAuthYaml       = "epinio/basicauth.yaml"
-	applicationCRDYaml        = "epinio/app-crd.yaml"
-	S3ConnectionDetailsSecret = "epinio-s3-connection-details"
+	EpinioDeploymentID  = "epinio"
+	epinioServerYaml    = "epinio/server.yaml"
+	epinioRolesYAML     = "epinio/roles.yaml"
+	epinioBasicAuthYaml = "epinio/basicauth.yaml"
+	applicationCRDYaml  = "epinio/app-crd.yaml"
 )
 
 func (k Epinio) ID() string {
