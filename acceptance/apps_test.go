@@ -384,7 +384,7 @@ var _ = Describe("Apps", func() {
 			})
 		})
 
-		It("unbinds bound services when deleting an app and then delete's service", func() {
+		It("unbinds bound services when deleting an app, and then deletes the service", func() {
 			serviceName := catalog.NewServiceName()
 
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
