@@ -209,7 +209,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 		return err
 	}
 
-	// get bounded services
+	// get application workload, if any, and its bounded services, if any
 	app, err := Lookup(ctx, cluster, appRef.Org, appRef.Name)
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
