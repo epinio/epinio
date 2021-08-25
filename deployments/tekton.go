@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
@@ -59,8 +60,17 @@ func (k Tekton) Describe() string {
 	return emoji.Sprintf(":cloud:Tekton pipeline: %s\n", tektonPipelineReleaseYamlPath)
 }
 
+// PreDeployCheck checks if the user set any of the s3 settings without
+// setting the rest of them. E.g. setting s3-access-key-id without setting
+// the s3-secret-access-key and s3-bucket is invalid because there is not enough
+// infromation provided in order to store objects.
 func (k Tekton) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
-	return nil
+	details, err := k.collectS3Settings(options)
+	if err != nil {
+		return err
+	}
+
+	return details.Validate()
 }
 
 func (k Tekton) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
@@ -256,6 +266,12 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	// Create the secret that will be used to store and retrieve application
+	// sources from the S3 compatible storage.
+	if err := k.storeS3Settings(ctx, c, options); err != nil {
+		return errors.Wrap(err, "storing the S3 options")
 	}
 
 	ui.Success().Msg("Tekton deployed")
@@ -566,4 +582,39 @@ func CanonicalString(s string) string {
 	s = strings.TrimRight(s, " \f\t\n\v")
 	s = strings.ToLower(s)
 	return string(regexp.MustCompile(`[[:space:]]+`).ReplaceAll([]byte(s), []byte(" ")))
+}
+
+// storeS3Settings stores the provides S3 settings in a Secret.
+func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+	details, err := k.collectS3Settings(options)
+	if err != nil {
+		return err
+	}
+
+	_, err = s3manager.StoreConnectionDetails(ctx, cluster, EpinioDeploymentID, S3ConnectionDetailsSecret, details)
+
+	return err
+}
+
+func (k Tekton) collectS3Settings(options kubernetes.InstallationOptions) (s3manager.ConnectionDetails, error) {
+	details := s3manager.ConnectionDetails{}
+	var err error
+
+	if details.Endpoint, err = options.GetString("s3-endpoint", ""); err != nil {
+		return details, err
+	}
+	if details.AccessKeyID, err = options.GetString("s3-access-key-id", ""); err != nil {
+		return details, err
+	}
+	if details.SecretAccessKey, err = options.GetString("s3-secret-access-key", ""); err != nil {
+		return details, err
+	}
+	if details.Bucket, err = options.GetString("s3-bucket", ""); err != nil {
+		return details, err
+	}
+	if details.Location, err = options.GetString("s3-location", ""); err != nil {
+		return details, err
+	}
+
+	return details, nil
 }

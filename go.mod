@@ -3,7 +3,6 @@ module github.com/epinio/epinio
 go 1.15
 
 require (
-	code.gitea.io/sdk/gitea v0.13.2
 	github.com/Azure/go-autorest/autorest v0.11.17 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.10 // indirect
 	github.com/avast/retry-go v3.0.0+incompatible
@@ -12,6 +11,7 @@ require (
 	github.com/fatih/color v1.12.0
 	github.com/go-logr/logr v0.4.0
 	github.com/go-logr/stdr v0.4.0
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/websocket v1.4.2
 	github.com/imdario/mergo v0.3.11 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
@@ -19,6 +19,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/mholt/archiver/v3 v3.5.0
+	github.com/minio/minio-go/v7 v7.0.13
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.16.2
 	github.com/onsi/gomega v1.10.5
