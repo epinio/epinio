@@ -409,7 +409,7 @@ var _ = Describe("Apps", func() {
 			serviceBindings, err := helpers.Kubectl("get", "servicebindings",
 				"--namespace", org)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(serviceBindings).NotTo(ContainSubstring(fmt.Sprintf("svc.org-%s.svc-%s.app-%s", org, serviceName, appName)))
+			Expect(serviceBindings).NotTo(ContainSubstring(catalog.GetServiceBindingName(org, serviceName, appName)))
 
 			env.DeleteService(serviceName)
 		})

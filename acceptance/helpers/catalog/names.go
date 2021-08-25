@@ -2,6 +2,7 @@
 package catalog
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 )
@@ -20,4 +21,8 @@ func NewAppName() string {
 
 func NewServiceName() string {
 	return "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
+func GetServiceBindingName(orgName, serviceName, appName string) string {
+	return fmt.Sprintf("svc.org-%s.svc-%s.app-%s", orgName, serviceName, appName)
 }
