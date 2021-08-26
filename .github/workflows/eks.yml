@@ -63,6 +63,7 @@ jobs:
           make test-acceptance-install
 
       - name: Delete EKS cluster
+        if: ${{ always() }}
         run: |
           id=${{ steps.create-cluster.outputs.ID }}"
           eksctl delete cluster --region=us-east-2 --name=epinio-ci$id
