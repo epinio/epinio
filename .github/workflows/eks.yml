@@ -49,21 +49,23 @@ jobs:
         run: |
           id=$RANDOM
           echo '::set-output name=ID::'$id
-          eksctl create cluster --name=epinio-ci$id --region=us-east-2 --nodes=2 --node-type=t3.xlarge --node-volume-size=40 --managed --kubeconfig=~/kubeconfig-epinio-ci
+          eksctl create cluster --name=epinio-ci$id --region=us-east-2 --nodes=2 --node-type=t3.xlarge --node-volume-size=40 --managed --kubeconfig=kubeconfig-epinio-ci
 
       - name: Installation Acceptance Tests
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          KUBECONFIG: ~/kubeconfig-epinio-ci
           REGEX: Scenario4
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
           AWS_DOMAIN: ${{ secrets.AWS_DOMAIN }}
         run: |
+          export KUBECONFIG=$PWD/kubeconfig-epinio-ci
           make test-acceptance-install
 
       - name: Delete EKS cluster
         if: ${{ always() }}
+        env:
+          KUBECONFIG: kubeconfig-epinio-ci
         run: |
-          id=${{ steps.create-cluster.outputs.ID }}"
+          id="${{ steps.create-cluster.outputs.ID }}"
           eksctl delete cluster --region=us-east-2 --name=epinio-ci$id
