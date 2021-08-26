@@ -63,6 +63,12 @@ func BinaryName() string {
 	return fmt.Sprintf("epinio-%s-%s", runtime.GOOS, runtime.GOARCH)
 }
 
+// ServerBinaryName returns the name of the epinio binary for the server
+// platform. Currently only linux servers are supported.
+func ServerBinaryName() string {
+	return "epinio-linux-amd64"
+}
+
 // EpinioBinaryPath returns the absolute path to the dist/epinio binary
 func EpinioBinaryPath() string {
 	p, _ := filepath.Abs(filepath.Join(Root(), "dist", BinaryName()))
@@ -118,14 +124,15 @@ func EnsureEpinio(epinioBinary string) error {
 	return nil
 }
 
+// BuildEpinio builds the epinio binaries for the server and if platforms are different also for the CLI
 func BuildEpinio() {
-	output, err := proc.Run(Root(), false, "make")
-	if err != nil {
-		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
+	targets := []string{"embed_files", "build-linux-amd64"}
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		// we need a different binary to run locally
+		targets = append(targets, fmt.Sprintf("build-%s-%s", runtime.GOOS, runtime.GOARCH))
 	}
-}
-func BuildEpinioRuntime() {
-	output, err := proc.Run(Root(), false, "make", fmt.Sprintf("build-%s-%s", runtime.GOOS, runtime.GOARCH))
+
+	output, err := proc.Run(Root(), false, "make", targets...)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
 	}
@@ -166,9 +173,11 @@ func CheckDependencies() error {
 	return errors.New("Please check your PATH, some of our dependencies were not found")
 }
 
+const DefaultWorkspace = "workspace"
+
 func EnsureDefaultWorkspace(epinioBinary string) {
 	gomega.Eventually(func() string {
-		out, err := proc.Run("", false, epinioBinary, "org", "create", "workspace")
+		out, err := proc.Run("", false, epinioBinary, "org", "create", DefaultWorkspace)
 		if err != nil {
 			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
 				return ""

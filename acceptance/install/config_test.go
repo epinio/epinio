@@ -27,7 +27,7 @@ var _ = Describe("Install with <ConfigFile> and push a PHP app", func() {
 	BeforeEach(func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
-		input, err := ioutil.ReadFile(testenv.AssetPath("config.yaml"))
+		input, err := ioutil.ReadFile(testenv.TestAssetPath("config.yaml"))
 		Expect(err).NotTo(HaveOccurred())
 		f, err := ioutil.TempFile("", "config")
 		Expect(err).NotTo(HaveOccurred())

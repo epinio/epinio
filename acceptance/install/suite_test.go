@@ -35,7 +35,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	}
 
 	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
-	testenv.BuildEpinioRuntime()
+	testenv.BuildEpinio()
+
 	testenv.CreateRegistrySecret()
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
