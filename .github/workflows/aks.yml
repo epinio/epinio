@@ -15,6 +15,10 @@ on:
         description: "AWS_SECRET_ACCESS_KEY"
         required: false
         default: ""
+      azure_credentials:
+        description: "AZURE_CREDENTIALS"
+        required: false
+        default: ""
       keep_cluster:
         description: "Keep the cluster afterwards? (empty/yes)"
         required: false
@@ -40,9 +44,6 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
       - name: Setup Ginkgo Test Framework
         run: go install github.com/onsi/ginkgo/ginkgo@v1.16.2
-      - name: Install Dependencies
-        run: |
-          choco install eksctl
 
       - name: Configure AWS credentials for Route53
         uses: aws-actions/configure-aws-credentials@v1
@@ -50,13 +51,23 @@ jobs:
           aws-access-key-id: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-2
-      - name: Create EKS cluster
+
+      # follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
+      # az group create --name epinioCI --location westeurope
+      # az ad sp create-for-rbac --name "epinioCI" --sdk-auth --role contributor \
+      #   --scopes /subscriptions/{id}/resourceGroups/epinioC
+      - uses: azure/login@v1
+        with:
+          creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
+
+      - name: Create AKS cluster
         id: create-cluster
         shell: bash
         run: |
           id=$RANDOM
           echo '::set-output name=ID::'$id
-          eksctl create cluster --name=epinio-ci$id --region=us-east-2 --nodes=2 --node-type=t3.xlarge --node-volume-size=40 --managed --kubeconfig=kubeconfig-epinio-ci
+          az aks create --resource-group epinioCI --name epinioCI$id --node-count 1 --generate-ssh-keys
+          az aks get-credentials --resource-group epinioCI --name epinioCI$id --file kubeconfig
 
       - name: Installation Acceptance Tests
         env:
@@ -64,17 +75,15 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           REGEX: Scenario4
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
-          AWS_DOMAIN: ${{ secrets.AWS_DOMAIN }}
+          AWS_DOMAIN: ${{ secrets.AKS_DOMAIN }}
         shell: bash
         run: |
-          export KUBECONFIG=$PWD/kubeconfig-epinio-ci
+          export KUBECONFIG=$PWD/kubeconfig
           make test-acceptance-install
 
-      - name: Delete EKS cluster
+      - name: Delete AKS cluster
         if: ${{ always() && !github.event.inputs.keep_cluster }}
-        env:
-          KUBECONFIG: kubeconfig-epinio-ci
         shell: bash
         run: |
           id="${{ steps.create-cluster.outputs.ID }}"
-          eksctl delete cluster --region=us-east-2 --name=epinio-ci$id
+          az aks delete --resource-group epinioCI --name epinioCI$id --yes
