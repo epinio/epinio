@@ -30,10 +30,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	testenv.SetRoot("../..")
 	testenv.SetupEnv()
 
-	if err := testenv.CheckDependencies(); err != nil {
-		panic("Missing dependencies: " + err.Error())
-	}
-
 	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
 	testenv.BuildEpinio()
 
