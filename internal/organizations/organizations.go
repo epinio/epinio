@@ -1,4 +1,4 @@
-// Package organizations incapsulates all the functionality around Epinio organizations
+// Package organizations encapsulates all the functionality around Epinio organizations
 // TODO: Consider moving this + the applications + the services packages under
 // "models".
 package organizations
@@ -16,15 +16,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// Organization represents an organization in the system
 type Organization struct {
 	Name string
 }
 
+// GiteaInterface is the interface to whatever backend is used to
+// manage organizations beyond them being kube namespaces. The chosen
+// name stronly implies gitea and a client for it, unfortunately.  See
+// also file `internal/cli/clients/gitea/gitea.go` TODO: Seek a better
+// name.
 type GiteaInterface interface {
+	// Create a new organization
 	CreateOrg(org string) error
+	// Delete the named organization
 	DeleteOrg(org string) error
 }
 
+// List returns a list of the known organizations. This is essentially
+// the set of kube namespaces tagged as being under epinio's control.
 func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Organization, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: kubernetes.EpinioOrgLabelKey + "=" + kubernetes.EpinioOrgLabelValue,
@@ -43,6 +53,7 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Organization, 
 	return result, nil
 }
 
+// Exists checks if the named org exists or not, and returns an appropriate boolean flag
 func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupOrg string) (bool, error) {
 	orgs, err := List(ctx, kubeClient)
 	if err != nil {
@@ -57,6 +68,9 @@ func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupOrg strin
 	return false, nil
 }
 
+// Create generates a new organization, i.e. a kube namespace plus a
+// service account. The provided giteaInterface is used to create
+// whatever other dependent (non-kube) resources are needed.
 func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) error {
 	if _, err := kubeClient.Kubectl.CoreV1().Namespaces().Create(
 		ctx,
@@ -92,6 +106,9 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 	return gitea.CreateOrg(org)
 }
 
+// Delete destroys an organization, i.e. the associated kube namespace
+// and service account.  The provided giteaInterface is used to delete
+// whatever other dependent (non-kube) resources are associated with it.
 func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInterface, org string) error {
 	err := kubeClient.Kubectl.CoreV1().Namespaces().Delete(ctx, org, metav1.DeleteOptions{})
 	if err != nil {
@@ -106,6 +123,8 @@ func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, gitea GiteaInte
 	return gitea.DeleteOrg(org)
 }
 
+// copySecret is helper to Create which replicates the specified kube
+// secret into a target organization/namespace.
 func copySecret(ctx context.Context, secretName, originOrg, targetOrg string, kubeClient *kubernetes.Cluster) error {
 	log := tracelog.Logger(ctx)
 	log.V(1).Info("will now copy secret", "name", secretName)
@@ -128,6 +147,9 @@ func copySecret(ctx context.Context, secretName, originOrg, targetOrg string, ku
 	return err
 }
 
+// createServiceAccount is a helper to Create which creates the
+// service account applications pushed to org/namespace need for
+// permission handling.
 func createServiceAccount(ctx context.Context, kubeClient *kubernetes.Cluster, targetOrg string) error {
 	automountServiceAccountToken := true
 	_, err := kubeClient.Kubectl.CoreV1().ServiceAccounts(targetOrg).Create(

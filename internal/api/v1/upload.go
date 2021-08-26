@@ -15,8 +15,9 @@ import (
 	"github.com/mholt/archiver/v3"
 )
 
-// Upload receives the application data, as tarball, and creates the gitea as
-// well as k8s resources to trigger staging
+// Upload handles the API endpoint /orgs/:org/applications/:app/store.
+// It receives the application data as a tarball, and creates the
+// gitea as well as k8s resources needed for staging
 func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)

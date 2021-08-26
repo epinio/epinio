@@ -47,17 +47,21 @@ type stageParam struct {
 	BuilderImage string
 }
 
-// GitURL returns the git URL by combining the server with the org and name
+// GitURL returns the gitea repository URL by combining the server
+// with the org and name
 func (app *stageParam) GitURL(server string) string {
 	return fmt.Sprintf("%s/%s/%s", server, app.Org, app.Name)
 }
 
-// ImageURL returns the URL of the image, using the ImageID. The ImageURL is
-// later used in app.yml and to send in the stage response.
+// ImageURL returns the URL of the docker image to be, using the
+// ImageID. The ImageURL is later used in app.yml and to send in the
+// stage response.
 func (app *stageParam) ImageURL(registryURL string) string {
 	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
 }
 
+// ensurePVC is a helper creating the kube PVC associated with an
+// application, if needed, i.e. not already present.
 func (c ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
 	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
@@ -87,7 +91,8 @@ func (c ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernet
 	return err
 }
 
-// Stage will create a Tekton PipelineRun resource to stage the app
+// Stage handles the API endpoint /orgs/:org/applications/:app/stage
+// It creates a Tekton PipelineRun resource to stage the app
 func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
@@ -228,7 +233,8 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
-// Staged will wait for the Tekton PipelineRun resource staging the app to complete
+// Staged handles the API endpoint /orgs/:org/staging/:stage_id/complete
+// It waits for the Tekton PipelineRun resource staging the app to complete
 func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 
@@ -289,6 +295,8 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+// newPipelineRun is a helper which creates a Tekton pipeline run
+// resource from the given staging id and app name
 func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
 

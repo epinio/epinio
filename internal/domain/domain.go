@@ -1,3 +1,5 @@
+// Package auth collects structures and functions around the domains
+// the client works with.
 package domain
 
 import (
@@ -10,8 +12,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+// mainDomain is the memoization cache for the name of the main domain
+// of the currently accessed epinio installation.
 var mainDomain = ""
 
+// AppDefaultRoute constructs and returns an application's default
+// route from the main domain and the name of the application
 func AppDefaultRoute(ctx context.Context, name string) (string, error) {
 	mainDomain, err := MainDomain(ctx)
 	if err != nil {
@@ -20,7 +26,12 @@ func AppDefaultRoute(ctx context.Context, name string) (string, error) {
 	return fmt.Sprintf("%s.%s", name, mainDomain), nil
 }
 
-// GetMain finds the main domain for Epinio
+// MainDomain determines the name of the main domain of the currently
+// accessed epinio installation. The result is cached in-memory (see
+// variable mainDomain). The function preferably returns cached data,
+// and queries the cluster ingresses only the first time the data is
+// asked for. This is especially useful for long running commands. In
+// other other words, epinio's API server.
 func MainDomain(ctx context.Context) (string, error) {
 	if mainDomain != "" {
 		return mainDomain, nil

@@ -8,7 +8,7 @@ import (
 
 var ()
 
-// CmdInfo implements the epinio info command
+// CmdInfo implements the command: epinio info
 var CmdInfo = &cobra.Command{
 	Use:   "info",
 	Short: "Shows information about the Epinio environment",

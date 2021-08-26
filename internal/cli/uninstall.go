@@ -14,7 +14,8 @@ var CmdUninstall = &cobra.Command{
 	RunE:  Uninstall,
 }
 
-// Uninstall command removes epinio from a configured cluster
+// Uninstall implement the command: epinio uninstall
+// It removes epinio from a configured cluster
 func Uninstall(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 

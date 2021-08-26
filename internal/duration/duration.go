@@ -40,19 +40,25 @@ func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 	argToEnv["timeout-multiplier"] = "EPINIO_TIMEOUT_MULTIPLIER"
 }
 
-// Multiplier returns the timeout-multiplier argument
+// Multiplier returns the currently active timeout multiplier value
 func Multiplier() time.Duration {
 	return time.Duration(viper.GetInt("timeout-multiplier"))
 }
 
+// ToCertManagerReady returns the duration to wait until giving up on
+// the cert manager deployment to become ready.
 func ToCertManagerReady() time.Duration {
 	return Multiplier() * certManagerReady
 }
 
+// ToKubedReady returns the duration to wait until giving up on the
+// kube demon deployment to become ready.
 func ToKubedReady() time.Duration {
 	return Multiplier() * kubedReady
 }
 
+// ToSecretCopied returns the duration to wait until giving up on a
+// secret getting copied to complete.
 func ToSecretCopied() time.Duration {
 	return Multiplier() * secretCopied
 }

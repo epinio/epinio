@@ -30,7 +30,7 @@ type CatalogService struct {
 
 var _ interfaces.Service = &CatalogService{}
 
-// ServiceClass is a service class managed by Service catalog
+// ServiceClass represents a service class managed by Service catalog
 type ServiceClass struct {
 	Hash        string
 	Name        string
@@ -41,39 +41,52 @@ type ServiceClass struct {
 
 type ServiceClassList []ServiceClass
 
-// ServicePlan is a service plan managed by Service catalog
+// ServicePlan represents a service plan managed by Service catalog
 type ServicePlan struct {
 	Name        string
 	Description string
 	Free        bool
 }
 
+// ServicePlanList represents a collection of service plans
 type ServicePlanList []ServicePlan
 
 // Implement the Sort interface for service class slices
 
+// Len (Sort interface) returns the length of the ServiceClassList
 func (scl ServiceClassList) Len() int {
 	return len(scl)
 }
 
+// Swap (Sort interface) exchanges the contents of specified indices
+// in the ServiceClassList
 func (scl ServiceClassList) Swap(i, j int) {
 	scl[i], scl[j] = scl[j], scl[i]
 }
 
+// Less (Sort interface) compares the contents of the specified
+// indices in the ServiceClassList and returns true if the condition
+// holds, and else false.
 func (scl ServiceClassList) Less(i, j int) bool {
 	return scl[i].Name < scl[j].Name
 }
 
 // Implement the Sort interface for service plan slices
 
+// Len (Sort interface) returns the length of the ServicePlanList
 func (spl ServicePlanList) Len() int {
 	return len(spl)
 }
 
+// Swap (Sort interface) exchanges the contents of specified indices
+// in the ServicePlanList
 func (spl ServicePlanList) Swap(i, j int) {
 	spl[i], spl[j] = spl[j], spl[i]
 }
 
+// Less (Sort interface) compares the contents of the specified
+// indices in the ServicePlanList and returns true if the condition
+// holds, and else false.
 func (spl ServicePlanList) Less(i, j int) bool {
 	return spl[i].Name < spl[j].Name
 }
@@ -199,6 +212,7 @@ func ListClasses(ctx context.Context, cluster *kubernetes.Cluster) (ServiceClass
 	return result, nil
 }
 
+// ClassLookup finds the named service class
 func ClassLookup(ctx context.Context, cluster *kubernetes.Cluster, serviceClassName string) (*ServiceClass, error) {
 	client, err := cluster.ClientServiceCatalog("clusterserviceclasses")
 	if err != nil {
@@ -290,6 +304,7 @@ func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org st
 	return result, nil
 }
 
+// CatalogServiceLookup finds the named service
 func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
 	instanceName := serviceResourceName(org, service)
 
@@ -321,6 +336,9 @@ func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org,
 	}, nil
 }
 
+// CreateCatalogService creates a new catalog-based service from org,
+// name, class, plan, and a string of parameter data (serialized json
+// map).
 func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name, org, class, plan string, parameters string) (interfaces.Service, error) {
 	resourceName := serviceResourceName(org, name)
 
@@ -373,38 +391,43 @@ func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name
 	}, nil
 }
 
+// Implement the Service interface
+
+// Name (Service interface) returns the service's name
 func (s *CatalogService) Name() string {
 	return s.Service
 }
 
+// Org (Service interface) returns the service's organization
 func (s *CatalogService) Org() string {
 	return s.OrgName
 }
 
-// GetBinding returns an application-specific secret for the service to be
-// bound to that application.
+// GetBinding (Service interface) returns an application-specific
+// secret for the service to be bound to that application.
 func (s *CatalogService) GetBinding(ctx context.Context, appName string) (*corev1.Secret, error) {
 	// TODO Label the secret
 
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
 
-	binding, err := s.LookupBinding(ctx, bindingName, s.OrgName)
+	binding, err := s.lookupBinding(ctx, bindingName, s.OrgName)
 	if err != nil {
 		return nil, err
 	}
 	if binding == nil {
-		_, err = s.CreateBinding(ctx, bindingName, s.OrgName, s.Service, appName)
+		_, err = s.createBinding(ctx, bindingName, s.OrgName, s.Service, appName)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return s.GetBindingSecret(ctx, bindingName, s.OrgName)
+	return s.getBindingSecret(ctx, bindingName, s.OrgName)
 }
 
-// LookupBinding finds a ServiceBinding object for the application with Name
-// appName if there is one.
-func (s *CatalogService) LookupBinding(ctx context.Context, bindingName, org string) (interface{}, error) {
+// lookupBinding is a helper for GetBinding which finds the
+// ServiceBinding object for the application with name appName, if
+// there is one.
+func (s *CatalogService) lookupBinding(ctx context.Context, bindingName, org string) (interface{}, error) {
 	client, err := s.cluster.ClientServiceCatalog("servicebindings")
 	if err != nil {
 		return nil, err
@@ -422,8 +445,9 @@ func (s *CatalogService) LookupBinding(ctx context.Context, bindingName, org str
 	return serviceBinding, nil
 }
 
-// CreateBinding creates a ServiceBinding for the application with name appName.
-func (s *CatalogService) CreateBinding(ctx context.Context, bindingName, org, serviceName, appName string) (interface{}, error) {
+// createBinding is a helper for GetBinding which creates a
+// ServiceBinding for the application with name appName.
+func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, serviceName, appName string) (interface{}, error) {
 	serviceInstanceName := serviceResourceName(org, serviceName)
 
 	data := fmt.Sprintf(`{
@@ -464,7 +488,7 @@ func (s *CatalogService) CreateBinding(ctx context.Context, bindingName, org, se
 	}
 
 	// Update the binding secret with kubernetes app labels
-	secret, err := s.GetBindingSecret(ctx, bindingName, org)
+	secret, err := s.getBindingSecret(ctx, bindingName, org)
 	if err != nil {
 		return nil, err
 	}
@@ -487,14 +511,14 @@ func (s *CatalogService) CreateBinding(ctx context.Context, bindingName, org, se
 	return serviceBinding, nil
 }
 
-// GetBindingSecret returns the Secret that represents the binding of a Service
-// to an Application.
-func (s *CatalogService) GetBindingSecret(ctx context.Context, bindingName, org string) (*corev1.Secret, error) {
+// getBindingSecret is helper which returns the Secret that represents
+// the binding of a Service to an Application.
+func (s *CatalogService) getBindingSecret(ctx context.Context, bindingName, org string) (*corev1.Secret, error) {
 	return s.cluster.WaitForSecret(ctx, org, bindingName, duration.ToServiceSecret())
 }
 
-// DeleteBinding deletes the ServiceBinding resource. The relevant secret will
-// also be deleted automatically.
+// DeleteBinding (Service interface) deletes the ServiceBinding
+// resource. The relevant secret will also be deleted automatically.
 func (s *CatalogService) DeleteBinding(ctx context.Context, appName, org string) error {
 	client, err := s.cluster.ClientServiceCatalog("servicebindings")
 	if err != nil {
@@ -506,6 +530,8 @@ func (s *CatalogService) DeleteBinding(ctx context.Context, appName, org string)
 	return client.Namespace(org).Delete(ctx, bindingName, metav1.DeleteOptions{})
 }
 
+// Delete (Service interface) destroys the service instance, i.e. the
+// underlying kube service instance resource
 func (s *CatalogService) Delete(ctx context.Context) error {
 	client, err := s.cluster.ClientServiceCatalog("serviceinstances")
 	if err != nil {
@@ -515,6 +541,8 @@ func (s *CatalogService) Delete(ctx context.Context) error {
 	return client.Namespace(s.OrgName).Delete(ctx, s.InstanceName, metav1.DeleteOptions{})
 }
 
+// Status (Service interface) returns the service provision status. It
+// queries the underlying service instance resource for this
 func (s *CatalogService) Status(ctx context.Context) (string, error) {
 	client, err := s.cluster.ClientServiceCatalog("serviceinstances")
 	if err != nil {
@@ -536,6 +564,8 @@ func (s *CatalogService) Status(ctx context.Context) (string, error) {
 	return provisioned, nil
 }
 
+// WaitForProvision (Service interface) waits for the service instance
+// to be provisioned.
 func (s *CatalogService) WaitForProvision(ctx context.Context) error {
 	client, err := s.cluster.ClientServiceCatalog("serviceinstances")
 	if err != nil {
@@ -567,6 +597,8 @@ func (s *CatalogService) WaitForProvision(ctx context.Context) error {
 	})
 }
 
+// Details (Service interface) returns the service configuration,
+// i.e. class and plan.
 func (s *CatalogService) Details(_ context.Context) (map[string]string, error) {
 	details := map[string]string{}
 

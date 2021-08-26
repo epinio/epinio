@@ -43,7 +43,7 @@ func init() {
 	viper.BindEnv("use-internal-registry-node-port", "USE_INTERNAL_REGISTRY_NODE_PORT")
 }
 
-// CmdServer implements the epinio server command
+// CmdServer implements the command: epinio server
 var CmdServer = &cobra.Command{
 	Use:   "server",
 	Short: "Starts the Epinio server.",
@@ -66,6 +66,7 @@ var CmdServer = &cobra.Command{
 	},
 }
 
+// startEpinioServer is a helper which initializes and start the API server
 func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.Logger) (*http.Server, string, error) {
 	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
 	if err != nil {
@@ -99,6 +100,8 @@ func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.
 	return srv, listeningPort, nil
 }
 
+// ReadyRouter constructs and returns the router for the endpoint
+// handling the kube probes (liveness, readiness)
 func ReadyRouter() *httprouter.Router {
 	router := httprouter.New()
 	router.HandlerFunc("GET", "/ready", func(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +111,7 @@ func ReadyRouter() *httprouter.Router {
 	return router
 }
 
-// logging middleware for requests
+// logRequestHandler is the logging middleware for requests
 func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		id := fmt.Sprintf("%d", rand.Intn(10000))
@@ -129,6 +132,7 @@ func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// logRequest is the logging backend for requests
 func logRequest(r *http.Request, log logr.Logger) {
 	uri := r.URL.String()
 	method := r.Method

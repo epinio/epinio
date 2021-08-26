@@ -7,6 +7,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// Router constructs and returns the router mapping methods and urls to the dashboard handlers.
 func Router() *httprouter.Router {
 	router := httprouter.New()
 	router.HandlerFunc("GET", "/", ApplicationsController{}.Index)

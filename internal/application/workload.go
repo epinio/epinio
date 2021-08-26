@@ -27,11 +27,15 @@ type Workload struct {
 	cluster *kubernetes.Cluster
 }
 
+// NewWorkload constructs and returns a workload representation from an application reference.
 func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
 	return &Workload{cluster: cluster, app: app}
 }
 
-// EnvironmentChange imports the current environment into the deployment
+// EnvironmentChange imports the current environment into the
+// deployment. This requires only the names of the currently existing
+// environment variables, not the values, as the import is internally
+// done as pod env specifications using secret key references.
 func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
@@ -112,8 +116,8 @@ func (a *Workload) Services(ctx context.Context) (interfaces.ServiceList, error)
 	return bound, nil
 }
 
-// Scale should be used to change the number of instances (replicas) on the
-// application Deployment.
+// Scale changes the number of instances (replicas) for the
+// application's Deployment.
 func (a *Workload) Scale(ctx context.Context, instances int32) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
@@ -132,7 +136,7 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 	})
 }
 
-// UnbindAll dissolves all bindings from the application.
+// UnbindAll dissolves all service instance bindings from the application.
 func (a *Workload) UnbindAll(ctx context.Context, cluster *kubernetes.Cluster, svcs []string) error {
 
 	// TODO: Optimize this action to perform a single restart for
@@ -152,7 +156,7 @@ func (a *Workload) UnbindAll(ctx context.Context, cluster *kubernetes.Cluster, s
 	return nil
 }
 
-// Unbind dissolves the binding of the service to the application.
+// Unbind dissolves the binding of the service instance to the application.
 func (a *Workload) Unbind(ctx context.Context, service interfaces.Service) error {
 	for {
 		deployment, err := a.deployment(ctx)
@@ -211,6 +215,7 @@ func (a *Workload) Unbind(ctx context.Context, service interfaces.Service) error
 	return service.DeleteBinding(ctx, a.app.Name, a.app.Org)
 }
 
+// deployment is a helper, it returns the kube deployment resource of the workload.
 func (a *Workload) deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	return a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Get(
 		ctx, a.app.Name, metav1.GetOptions{},
@@ -276,7 +281,7 @@ func (a *Workload) Bind(ctx context.Context, service interfaces.Service) error {
 	return nil
 }
 
-// Complete fills all fields of a workload with values from the cluster
+// Complete fills all the fields of the workload with values from the cluster
 func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 	var err error
 

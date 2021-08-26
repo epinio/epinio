@@ -9,9 +9,14 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// ServicePlansController represents all functionality of the API
+// related to catalog service plans
 type ServicePlansController struct {
 }
 
+// Index handles the API endpoint /serviceclasses/:serviceclass/serviceplans
+// It returns a list of all service plans known to the catalog for
+// the named service class.
 func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

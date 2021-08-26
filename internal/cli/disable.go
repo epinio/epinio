@@ -47,18 +47,21 @@ func init() {
 	CmdDisable.AddCommand(CmdDisableGoogle)
 }
 
+// DisableInCluster implements: epinio disable services-incluster
 func DisableInCluster(cmd *cobra.Command, args []string) error {
 	return UninstallDeployment(
 		cmd, &deployments.Minibroker{Timeout: duration.ToDeployment()},
 		"in-cluster services functionality has been disabled")
 }
 
+// DisableGoogle implements: epinio disable services-google
 func DisableGoogle(cmd *cobra.Command, args []string) error {
 	return UninstallDeployment(
 		cmd, &deployments.GoogleServices{Timeout: duration.ToDeployment()},
 		"Google Cloud services functionality has been disabled")
 }
 
+// UninstallDeployment is a helper which removes the single referenced deployment
 func UninstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, successMessage string) error {
 	cmd.SilenceUsage = true
 

@@ -25,7 +25,7 @@ func init() {
 	CmdService.AddCommand(CmdServiceList)
 }
 
-// CmdService implements the epinio service command
+// CmdService implements the command: epinio service
 var CmdService = &cobra.Command{
 	Use:           "service",
 	Aliases:       []string{"services"},
@@ -40,7 +40,7 @@ var CmdService = &cobra.Command{
 	},
 }
 
-// CmdServiceShow implements the epinio service show command
+// CmdServiceShow implements the command: epinio service show
 var CmdServiceShow = &cobra.Command{
 	Use:   "show NAME",
 	Short: "Service information",
@@ -63,7 +63,7 @@ var CmdServiceShow = &cobra.Command{
 	},
 }
 
-// CmdServiceCreate implements the epinio service create command
+// CmdServiceCreate implements the command: epinio service create
 var CmdServiceCreate = &cobra.Command{
 	Use:   "create NAME CLASS PLAN",
 	Short: "Create a service",
@@ -102,7 +102,7 @@ var CmdServiceCreate = &cobra.Command{
 	},
 }
 
-// CmdServiceCreateCustom implements the epinio service create-custom command
+// CmdServiceCreateCustom implements the command: epinio service create-custom
 var CmdServiceCreateCustom = &cobra.Command{
 	Use:   "create-custom NAME (KEY VALUE)...",
 	Short: "Create a custom service",
@@ -119,7 +119,7 @@ var CmdServiceCreateCustom = &cobra.Command{
 	RunE: ServiceCreateCustom,
 }
 
-// CmdServiceDelete implements the epinio service delete command
+// CmdServiceDelete implements the command: epinio service delete
 var CmdServiceDelete = &cobra.Command{
 	Use:   "delete NAME",
 	Short: "Delete a service",
@@ -142,7 +142,7 @@ var CmdServiceDelete = &cobra.Command{
 	},
 }
 
-// CmdServiceBind implements the epinio service bind command
+// CmdServiceBind implements the command: epinio service bind
 var CmdServiceBind = &cobra.Command{
 	Use:   "bind NAME APP",
 	Short: "Bind a service to an application",
@@ -173,7 +173,7 @@ var CmdServiceBind = &cobra.Command{
 	},
 }
 
-// CmdServiceUnbind implements the epinio service unbind command
+// CmdServiceUnbind implements the command: epinio service unbind
 var CmdServiceUnbind = &cobra.Command{
 	Use:   "unbind NAME APP",
 	Short: "Unbind service from an application",
@@ -203,14 +203,14 @@ var CmdServiceUnbind = &cobra.Command{
 	},
 }
 
-// CmdServiceListClasses implements the epinio service classes command
+// CmdServiceListClasses implements the command: epinio service classes
 var CmdServiceListClasses = &cobra.Command{
 	Use:   "list-classes",
 	Short: "Lists the available service classes",
 	RunE:  ServiceListClasses,
 }
 
-// CmdServiceListPlans implements the epinio service plans command
+// CmdServiceListPlans implements the command: epinio service plans
 var CmdServiceListPlans = &cobra.Command{
 	Use:   "list-plans CLASS",
 	Short: "Lists all plans provided by the named service class",
@@ -232,14 +232,14 @@ var CmdServiceListPlans = &cobra.Command{
 	},
 }
 
-// CmdServiceList implements the epinio service list command
+// CmdServiceList implements the command: epinio service list
 var CmdServiceList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all services",
 	RunE:  ServiceList,
 }
 
-// ServiceShow implements the epinio service show command
+// ServiceShow is the backend of command: epinio service show
 func ServiceShow(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -256,7 +256,7 @@ func ServiceShow(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceList implements the epinio service list command
+// ServiceList is the backend of command: epinio service list
 func ServiceList(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -273,7 +273,7 @@ func ServiceList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceCreate implements the epinio service create command
+// ServiceCreate is the backend of command: epinio service create
 func ServiceCreate(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -313,7 +313,7 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceCreateCustom implements the epinio service create-custom command
+// ServiceCreateCustom is the backend of command: epinio service create-custom
 func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -330,7 +330,7 @@ func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceDelete implements the epinio service delete command
+// ServiceDelete is the backend of command: epinio service delete
 func ServiceDelete(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -352,7 +352,7 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceBind implements the epinio service bind command
+// ServiceBind is the backend of command: epinio service bind
 func ServiceBind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -369,7 +369,7 @@ func ServiceBind(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceUnbind implements the epinio service unbind command
+// ServiceUnbind is the backend of command: epinio service unbind
 func ServiceUnbind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -386,7 +386,7 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceListClasses implements the epinio service list-classes command
+// ServiceListClasses is the backend of command: epinio service list-classes
 func ServiceListClasses(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -403,7 +403,7 @@ func ServiceListClasses(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// ServiceListPlans implements the epinio service list-plans command
+// ServiceListPlans is the backend of command: epinio service list-plans
 func ServiceListPlans(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 

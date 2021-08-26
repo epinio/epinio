@@ -12,7 +12,7 @@ import (
 
 var ()
 
-// CmdApp implements the `epinio app` command
+// CmdApp implements the  command: epinio app
 var CmdApp = &cobra.Command{
 	Use:           "app",
 	Aliases:       []string{"apps"},
@@ -49,7 +49,7 @@ func init() {
 	CmdApp.AddCommand(CmdPush) // See push.go for implementation
 }
 
-// CmdAppList implements the epinio `apps list` command
+// CmdAppList implements the command: epinio app list
 var CmdAppList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all applications",
@@ -71,7 +71,7 @@ var CmdAppList = &cobra.Command{
 	},
 }
 
-// CmdAppCreate implements the epinio `apps create` command
+// CmdAppCreate implements the command: epinio apps create
 var CmdAppCreate = &cobra.Command{
 	Use:   "create NAME",
 	Short: "Create just the app, without creating a workload",
@@ -108,7 +108,7 @@ var CmdAppCreate = &cobra.Command{
 	},
 }
 
-// CmdAppShow implements the epinio `apps show` command
+// CmdAppShow implements the command: epinio apps show
 var CmdAppShow = &cobra.Command{
 	Use:   "show NAME",
 	Short: "Describe the named application",
@@ -145,7 +145,7 @@ var CmdAppShow = &cobra.Command{
 	},
 }
 
-// CmdAppLogs implements the epinio `apps logs` command
+// CmdAppLogs implements the command: epinio apps logs
 var CmdAppLogs = &cobra.Command{
 	Use:   "logs NAME",
 	Short: "Streams the logs of the application",
@@ -187,8 +187,8 @@ var CmdAppLogs = &cobra.Command{
 	},
 }
 
-// CmdAppUpdate is used by the epinio `apps update` command to scale
-// a single app
+// CmdAppUpdate implements the command: epinio apps update
+// It scales the named app
 var CmdAppUpdate = &cobra.Command{
 	Use:   "update NAME",
 	Short: "Update the named application",

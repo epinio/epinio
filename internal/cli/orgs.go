@@ -15,7 +15,7 @@ var (
 	force bool
 )
 
-// CmdOrg implements the `epinio org` command
+// CmdOrg implements the command: epinio org
 var CmdOrg = &cobra.Command{
 	Use:           "org",
 	Aliases:       []string{"orgs"},
@@ -40,7 +40,7 @@ func init() {
 	CmdOrg.AddCommand(CmdOrgDelete)
 }
 
-// CmdOrgs implements the epinio `orgs list` command
+// CmdOrgs implements the command: epinio org list
 var CmdOrgList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all organizations",
@@ -61,7 +61,7 @@ var CmdOrgList = &cobra.Command{
 	},
 }
 
-// CmdOrgCreate implements the epinio `orgs create` command
+// CmdOrgCreate implements the command: epinio org create
 var CmdOrgCreate = &cobra.Command{
 	Use:   "create NAME",
 	Short: "Creates an organization",
@@ -83,7 +83,7 @@ var CmdOrgCreate = &cobra.Command{
 	},
 }
 
-// CmdOrgDelete implements the epinio `orgs delete` command
+// CmdOrgDelete implements the command: epinio org delete
 var CmdOrgDelete = &cobra.Command{
 	Use:   "delete NAME",
 	Short: "Deletes an organization",
@@ -119,6 +119,7 @@ var CmdOrgDelete = &cobra.Command{
 	},
 }
 
+// askConfirmation is a helper for CmdOrgDelete to confirm a deletion request
 func askConfirmation(cmd *cobra.Command) bool {
 	reader := bufio.NewReader(os.Stdin)
 	for {

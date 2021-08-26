@@ -23,11 +23,13 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+// ApplicationsController represents all functionality of the API related to applications
 type ApplicationsController struct {
 	conn *websocket.Conn
 }
 
-// Create creates a new and empty application. I.e. without a workload.
+// Create handles the API endpoint /orgs/:org/applications (POST)
+// It creates a new and empty application. I.e. without a workload.
 func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -75,7 +77,8 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// Index lists all the known applications, with and without workload.
+// Index handles the API endpoint /orgs/:org/applications
+// It lists all the known applications, with and without workload.
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -114,7 +117,8 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
-// Show returns the details of the specified application.
+// Show handles the API endpoint /orgs/:org/applications/:app
+// It returns the details of the specified application.
 func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -171,9 +175,10 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 	return nil
 }
 
-// ServiceApps returns a map from services to the apps they are bound to, in the specified org.
-// Internally it asks each app in the org for its bound services and then inverts that map to
-// get the desired result.
+// ServiceApps handles the API endpoint /orgs/:org/serviceapps
+// It returns a map from services to the apps they are bound to, in
+// the specified org.  Internally it asks each app in the org for its
+// bound services and then inverts that map to get the desired result.
 func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -230,8 +235,9 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-// Update modifies the specified application. currently this is only
-// the number of instances to run.
+// Update handles the API endpoint /orgs/:org/applications/:app (POST)
+// It modifies the specified application. Currently this is only the
+// number of instances to run.
 func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -299,11 +305,12 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// Running waits for the specified application to be running (i.e. its
+// Running handles the API endpoint /orgs/:org/applications/:app/running
+// It waits for the specified application to be running (i.e. its
 // deployment to be complete), before it returns. An exception is if
-// the application does not become running without `duration.ToAppBuilt()`
-// (default: 10 minutes). In that case it returns with an error after
-// that time.
+// the application does not become running without
+// `duration.ToAppBuilt()` (default: 10 minutes). In that case it
+// returns with an error after that time.
 func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -351,8 +358,11 @@ func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-// Logs arranges for the logs of the specified application to be
-// streamed over a websocket.
+// Logs handles the API endpoints /orgs/:org/applications/:app/logs
+// and                            /orgs/:org/staging/:stage_id/logs
+// It arranges for the logs of the specified application to be
+// streamed over a websocket. Dependent on the endpoint this may be
+// either regular logs, or the app's staging logs.
 func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -512,7 +522,8 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 	return hc.conn.Close()
 }
 
-// Delete removes the application
+// Delete handles the API endpoint /orgs/:org/applications/:app (DELETE)
+// It removes the named application
 func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

@@ -11,7 +11,7 @@ import (
 
 var ()
 
-// CmdAppEnv implements the `epinio app env` command ensemble
+// CmdAppEnv implements the command: epinio app env
 var CmdAppEnv = &cobra.Command{
 	Use:           "env",
 	Short:         "Epinio application configuration",
@@ -32,7 +32,7 @@ func init() {
 	CmdAppEnv.AddCommand(CmdEnvUnset)
 }
 
-// CmdEnvList implements the `epinio apps env list` command
+// CmdEnvList implements the command: epinio app env list
 var CmdEnvList = &cobra.Command{
 	Use:   "list APPNAME",
 	Short: "Lists application environment",
@@ -69,7 +69,7 @@ var CmdEnvList = &cobra.Command{
 	},
 }
 
-// CmdEnvSet implements the epinio `apps env set` command
+// CmdEnvSet implements the command: epinio app env set
 var CmdEnvSet = &cobra.Command{
 	Use:   "set APPNAME NAME VALUE",
 	Short: "Extend application environment",
@@ -110,7 +110,7 @@ var CmdEnvSet = &cobra.Command{
 	},
 }
 
-// CmdEnvShow implements the epinio `apps env show` command
+// CmdEnvShow implements the command: epinio app env show
 var CmdEnvShow = &cobra.Command{
 	Use:   "show APPNAME NAME",
 	Short: "Describe application's environment variable",
@@ -154,7 +154,7 @@ var CmdEnvShow = &cobra.Command{
 	},
 }
 
-// CmdEnvUnset implements the epinio `apps env unset` command
+// CmdEnvUnset implements the command: epinio app env unset
 var CmdEnvUnset = &cobra.Command{
 	Use:   "unset APPNAME NAME",
 	Short: "Shrink application environment",

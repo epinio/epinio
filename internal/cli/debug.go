@@ -14,7 +14,7 @@ func init() {
 	CmdDebug.AddCommand(CmdDebugTTY)
 }
 
-// CmdDebug implements the epinio debug command
+// CmdDebug implements the command: epinio debug
 var CmdDebug = &cobra.Command{
 	Hidden:        true,
 	Use:           "debug",
@@ -29,7 +29,7 @@ var CmdDebug = &cobra.Command{
 	},
 }
 
-// CmdDebug implements the epinio debug command
+// CmdDebug implements the command: epinio debug tty
 var CmdDebugTTY = &cobra.Command{
 	Use:   "tty",
 	Short: "Running In a Terminal?",

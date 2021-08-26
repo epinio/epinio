@@ -13,9 +13,11 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 )
 
+// ApplicationsController represents all general functionality of the dashboard
 type ApplicationsController struct {
 }
 
+// setCurrentOrgInCookie is a helper for creating cookies to persist system state in the browser
 func setCurrentOrgInCookie(org, cookieName string, w http.ResponseWriter) error {
 	cookie := http.Cookie{
 		Name:    cookieName,
@@ -90,6 +92,7 @@ func getOrgs(w http.ResponseWriter, r *http.Request) (string, []string, error) {
 	return cookie.Value, restOrgs, nil
 }
 
+// Index handles the dashboard's / (root) endpoint. It returns the dashboard itself.
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 	currentOrg, otherOrgs, err := getOrgs(w, r)
 	if handleError(w, err, http.StatusInternalServerError) {
@@ -110,8 +113,8 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 	Render([]string{"main_layout", "icons", "modals", "applications_index"}, w, r, data)
 }
 
-// Render renders the given templates using the provided data and writes the result
-// to the provided ResponseWriter.
+// Render renders the given templates into HTML using the provided
+// data and returns the result via the provided ResponseWriter.
 func Render(templates []string, w http.ResponseWriter, r *http.Request, data map[string]interface{}) {
 	var viewsDir http.FileSystem
 	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
@@ -159,7 +162,8 @@ func Render(templates []string, w http.ResponseWriter, r *http.Request, data map
 	}
 }
 
-// Write the error to the response writer and return  true if there was an error
+// handleError is a helper which writes the error (if any) to the
+// response writer and returns true if there was an error
 func handleError(w http.ResponseWriter, err error, code int) bool {
 	if err != nil {
 		http.Error(w, err.Error(), 500)

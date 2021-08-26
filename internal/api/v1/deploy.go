@@ -38,7 +38,8 @@ type deployParam struct {
 	Environment models.EnvVariableList
 }
 
-// Deploy will create the deployment, service and ingress for the app
+// Deploy handles the API endpoint /orgs/:org/applications/:app/deploy
+// It creates the deployment, service and ingress (kube) resources for the app
 func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
@@ -201,7 +202,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// newAppDeployment will create a deployment for the app
+// newAppDeployment is a helper that creates the kube deployment resource for the app
 func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deployment, error) {
 	automountServiceAccountToken := true
 	labels := map[string]string{
@@ -261,7 +262,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 	return deploymentData, nil
 }
 
-// newAppService will create a service for the app
+// newAppService is a helper that creates the kube service resource for the app
 func newAppService(app models.AppRef) (*v1.Service, error) {
 	serviceData := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -298,6 +299,7 @@ func newAppService(app models.AppRef) (*v1.Service, error) {
 	return &serviceData, nil
 }
 
+// newAppIngress is a helper that creates the kube ingress resource for the app
 func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, error) {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
 
@@ -354,6 +356,10 @@ func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, e
 	return &ingressData, nil
 }
 
+// existingReplica is a helper that determines the number of replicas
+// of the application. While it preferably takes this information from
+// the workload, it falls back to the configured data when the app is
+// not active
 func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppRef) (int32, error) {
 	// if a deployment exists, use that deployment's replica count
 	result, err := client.AppsV1().Deployments(app.Org).Get(ctx, app.Name, metav1.GetOptions{})

@@ -15,7 +15,7 @@ type ErrorResponse struct {
 	Errors []APIError `json:"errors"`
 }
 
-// APIErrors interface is used by all handlers to return one or more errors
+// APIErrors is the interface used by all handlers to return one or more errors
 type APIErrors interface {
 	Errors() []APIError
 	FirstStatus() int
@@ -41,10 +41,12 @@ func (a APIError) Errors() []APIError {
 	return []APIError{a}
 }
 
+// FirstStatus (APIErrors interface) returns the stored error's status
 func (a APIError) FirstStatus() int {
 	return a.Status
 }
 
+// NewAPIError constructs an APIerror from basics
 func NewAPIError(title string, details string, status int) APIError {
 	return APIError{
 		Title:   title,
@@ -71,30 +73,37 @@ func (m MultiError) Errors() []APIError {
 	return m.errors
 }
 
+// FirstStatus (APIErrors interface) returns the status of the first error stored
 func (m MultiError) FirstStatus() int {
 	return m.errors[0].Status
 }
 
+// InternalError constructs an API error for server internal issues, from a lower-level error
 func InternalError(err error, details ...string) APIError {
 	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusInternalServerError)
 }
 
+// InternalError constructs an API error for server internal issues, from a message
 func NewInternalError(msg string, details ...string) APIError {
 	return NewAPIError(msg, strings.Join(details, ", "), http.StatusInternalServerError)
 }
 
+// BadRequest constructs an API error for general issues with a request, from a lower-level error
 func BadRequest(err error, details ...string) APIError {
 	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusBadRequest)
 }
 
+// NewBadRequest constructs an API error for general issues with a request, from a message
 func NewBadRequest(msg string, details ...string) APIError {
 	return NewAPIError(msg, strings.Join(details, ", "), http.StatusBadRequest)
 }
 
+// NewNotFoundError constructs a general API error for when something desired does not exist
 func NewNotFoundError(msg string, details ...string) APIError {
 	return NewAPIError(msg, strings.Join(details, ", "), http.StatusNotFound)
 }
 
+// OrgIsNotKnown constructs an API error for when the desired org does not exist
 func OrgIsNotKnown(org string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Organization '%s' does not exist", org),
@@ -102,6 +111,7 @@ func OrgIsNotKnown(org string) APIError {
 		http.StatusNotFound)
 }
 
+// AppAlreadyKnown constructs an API error for when we have a conflict with an existing app
 func AppAlreadyKnown(app string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Application '%s' already exists", app),
@@ -109,6 +119,7 @@ func AppAlreadyKnown(app string) APIError {
 		http.StatusConflict)
 }
 
+// AppIsNotKnown constructs an API error for when the desired app does not exist
 func AppIsNotKnown(app string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Application '%s' does not exist", app),
@@ -116,6 +127,7 @@ func AppIsNotKnown(app string) APIError {
 		http.StatusNotFound)
 }
 
+// ServiceIsNotKnown constructs an API error for when the desired service instance does not exist
 func ServiceIsNotKnown(service string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Service '%s' does not exist", service),
@@ -123,6 +135,7 @@ func ServiceIsNotKnown(service string) APIError {
 		http.StatusNotFound)
 }
 
+// ServiceClassIsNotKnown constructs an API error for when the desired service class does not exist
 func ServiceClassIsNotKnown(serviceclass string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("ServiceClass '%s' does not exist", serviceclass),
@@ -130,6 +143,7 @@ func ServiceClassIsNotKnown(serviceclass string) APIError {
 		http.StatusNotFound)
 }
 
+// ServicePlanIsNotKnown constructs an API error for when the desired service plan does not exist
 func ServicePlanIsNotKnown(service string, c string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Service plan '%s' does not exist for class '%s'", service, c),
@@ -137,6 +151,7 @@ func ServicePlanIsNotKnown(service string, c string) APIError {
 		http.StatusNotFound)
 }
 
+// OrgAlreadyKnown constructs an API error for when we have a conflict with an existing org
 func OrgAlreadyKnown(org string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Organization '%s' already exists", org),
@@ -144,6 +159,7 @@ func OrgAlreadyKnown(org string) APIError {
 		http.StatusConflict)
 }
 
+// ServiceAlreadyKnown constructs an API error for when we have a conflict with an existing service instance
 func ServiceAlreadyKnown(service string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Service '%s' already exists", service),
@@ -151,6 +167,7 @@ func ServiceAlreadyKnown(service string) APIError {
 		http.StatusConflict)
 }
 
+// ServiceAlreadyBound constructs an API error for when the service to bind is already bound to the app
 func ServiceAlreadyBound(service string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Service '%s' already bound", service),
@@ -158,6 +175,7 @@ func ServiceAlreadyBound(service string) APIError {
 		http.StatusConflict)
 }
 
+// ServiceIsNotBound constructs an API error for when the service to unbind is actually not bound to the app
 func ServiceIsNotBound(service string) APIError {
 	return NewAPIError(
 		fmt.Sprintf("Service '%s' is not bound", service),
