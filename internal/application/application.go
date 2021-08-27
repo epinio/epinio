@@ -15,6 +15,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -273,10 +275,21 @@ func DeleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 }
 
 // Unstage deletes either all PipelineRuns of the named application, or all but the current.
+// It also deletes the relevant (old) objects from the S3 storage.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	cs, err := versioned.NewForConfig(cluster.RestConfig)
 	if err != nil {
 		return err
+	}
+
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
+		deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+	if err != nil {
+		return errors.Wrap(err, "fetching the S3 connection details from the Kubernetes secret")
+	}
+	s3m, err := s3manager.New(s3ConnectionDetails)
+	if err != nil {
+		return errors.Wrap(err, "creating an S3 manager")
 	}
 
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
@@ -296,6 +309,10 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 
 		err := client.Delete(ctx, pr.ObjectMeta.Name, metav1.DeleteOptions{})
 		if err != nil {
+			return err
+		}
+
+		if err = s3m.DeleteObject(ctx, pr.ObjectMeta.Name); err != nil {
 			return err
 		}
 	}

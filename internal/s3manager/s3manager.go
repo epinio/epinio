@@ -4,13 +4,13 @@ package s3manager
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/google/uuid"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"github.com/pkg/errors"
 	"gopkg.in/ini.v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +40,7 @@ func New(connectionDetails ConnectionDetails) (*Manager, error) {
 		&minio.Options{
 			Creds:  credentials.NewStaticV4(connectionDetails.AccessKeyID, connectionDetails.SecretAccessKey, ""),
 			Secure: useSSL,
+			Region: connectionDetails.Location,
 		})
 	if err != nil {
 		return nil, err
@@ -127,7 +128,10 @@ func (details *ConnectionDetails) Validate() error {
 // Upload uploads the given file to the S3 endpoint and returns a blobUID which
 // can later be used to fetch the same file.
 func (m *Manager) Upload(ctx context.Context, filepath string) (string, error) {
-	m.EnsureBucket(ctx) // TODO: Maybe we should only run this once and for all when we deploy Epinio?
+	// TODO: Maybe we should only run this once and for all when we deploy Epinio?
+	if err := m.EnsureBucket(ctx); err != nil {
+		return "", errors.Wrap(err, "ensuring bucket")
+	}
 
 	objectName := uuid.New().String()
 	contentType := "application/tar"
@@ -135,7 +139,7 @@ func (m *Manager) Upload(ctx context.Context, filepath string) (string, error) {
 	_, err := m.minioClient.FPutObject(ctx, m.connectionDetails.Bucket,
 		objectName, filepath, minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "writing the new object")
 	}
 
 	return objectName, nil
@@ -152,4 +156,10 @@ func (m *Manager) EnsureBucket(ctx context.Context) error {
 
 	return m.minioClient.MakeBucket(ctx, m.connectionDetails.Bucket,
 		minio.MakeBucketOptions{Region: m.connectionDetails.Location})
+}
+
+// DeleteObject deletes the specified object from the storage
+func (m *Manager) DeleteObject(ctx context.Context, objectID string) error {
+	return m.minioClient.RemoveObject(ctx, m.connectionDetails.Bucket, objectID,
+		minio.RemoveObjectOptions{})
 }
