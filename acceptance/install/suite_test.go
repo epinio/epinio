@@ -21,7 +21,6 @@ func TestAcceptance(t *testing.T) {
 
 var (
 	nodeSuffix, nodeTmpDir string
-	env                    testenv.EpinioEnv
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {

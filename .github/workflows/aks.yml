@@ -73,9 +73,9 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          REGEX: Scenario4
+          REGEX: Scenario3
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
-          AWS_DOMAIN: ${{ secrets.AKS_DOMAIN }}
+          AKS_DOMAIN: ${{ secrets.AKS_DOMAIN }}
         shell: bash
         run: |
           export KUBECONFIG=$PWD/kubeconfig
