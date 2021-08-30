@@ -211,7 +211,7 @@ postgresql:
 	defer os.Remove(configPath)
 
 	if out, err := helpers.RunProc(currentdir, k.Debug,
-		"helm", action, "gitea", "--values", configPath, "--namespace", GiteaDeploymentID, giteaChartURL); err != nil {
+		"helm", action, "gitea", "--values", configPath, "--set", "postgresql.volumePermissions.enabled=true", "--namespace", GiteaDeploymentID, giteaChartURL); err != nil {
 		return errors.New("Failed installing Gitea: " + out)
 	}
 
