@@ -6,4 +6,3 @@ Practical Guides to solving practical problems.
   - [How to make Python-based applications work](custom-python-builder.md)
   - [How to work with Epinio during Development](development.md)
   - [How to add a user for API access](new-api-user.md)
-  - [What happens inside when deploying a development binary](behind-the-curtains.md)
