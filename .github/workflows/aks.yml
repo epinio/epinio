@@ -27,9 +27,10 @@ on:
 env:
   SETUP_GO_VERSION: '^1.13.7'
   GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
 
 jobs:
-  acceptance-scenario4:
+  acceptance-scenario3:
     runs-on: windows-latest
 
     steps:
