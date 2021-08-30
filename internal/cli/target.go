@@ -10,7 +10,7 @@ import (
 
 var ()
 
-// CmdTarget implements the epinio target command
+// CmdTarget implements the command: epinio target
 var CmdTarget = &cobra.Command{
 	Use:   "target [org]",
 	Short: "Targets an organization in Epinio.",

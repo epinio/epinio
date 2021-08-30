@@ -48,6 +48,7 @@ func init() {
 	CmdEnable.AddCommand(CmdEnableGoogle)
 }
 
+// EnableInCluster implements: epinio enable services-incluster
 func EnableInCluster(cmd *cobra.Command, args []string) error {
 	err := InstallDeployment(
 		cmd, &deployments.Minibroker{Timeout: duration.ToDeployment()},
@@ -66,6 +67,7 @@ func EnableInCluster(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// EnableGoogle implements: epinio enable services-google
 func EnableGoogle(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -89,6 +91,7 @@ func EnableGoogle(cmd *cobra.Command, args []string) error {
 		"You can now use Google Cloud services")
 }
 
+// InstallDeployment is a helper which installs the single referenced deployment
 func InstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, opts kubernetes.InstallationOptions, successMessage string) error {
 	cmd.SilenceUsage = true
 

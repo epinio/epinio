@@ -1,5 +1,5 @@
-// Package application has actor functions that deal with application workloads
-// on k8s
+// Package application collects the structures and functions that deal
+// with application workloads on k8s
 package application
 
 import (
@@ -27,10 +27,20 @@ import (
 	appv1beta1 "sigs.k8s.io/application/api/v1beta1"
 )
 
+// GiteaInterface is the interface to whatever backend is used to
+// manage applications beyond them being kube apps and
+// deployments. The chosen name stronly implies gitea and a client for
+// it, unfortunately.
+// See also file `internal/cli/clients/gitea/gitea.go`
+// TODO: Seek a better name.
 type GiteaInterface interface {
+	// Delete the app sources
 	DeleteRepo(org, repo string) (int, error)
 }
 
+// Create generates a new kube app resource in the namespace of the
+// organization. Note that this is the passive resource holding the
+// app's configuration. It is not the active workload
 func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -71,6 +81,7 @@ func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*
 	return client.Namespace(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
 }
 
+// Exists checks if the named application exists or not, and returns an appropriate boolean flag
 func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (bool, error) {
 	_, err := Get(ctx, cluster, app)
 	if err != nil {
@@ -82,7 +93,7 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
-// ListAppRefs returns an app ref for every application resource in the org's namespace
+// ListAppRefs returns an app reference for every application resource in the org's namespace
 func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]models.AppRef, error) {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -102,7 +113,8 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, org string) (
 	return apps, nil
 }
 
-// Lookup locates a workload by org and name
+// Lookup locates the workload of the named application (and org). The
+// result is nil if the application exists and is not active.
 func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp string) (*models.App, error) {
 	apps, err := List(ctx, cluster, org)
 	if err != nil {
@@ -201,8 +213,10 @@ func ListApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (mod
 	return result, nil
 }
 
-// Delete an application, optionally its workload, bindings and git repo.
-// Finally unstage its pipelineruns and wait for the deployment's pods to disappear.
+// Delete removes the named application, its workload (if active), bindings (if any),
+// the stored application sources, and any pipelineruns from when the application was
+// staged (if active). Waits for the application's deployment's pods to disappear
+// (if active).
 func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, appRef models.AppRef) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -260,6 +274,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 	return nil
 }
 
+// DeleteStagePVC removes the kube PVC resource which was used to hold the application sources for Tekton, during staging.
 func DeleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	return cluster.Kubectl.CoreV1().
 		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.PVCName(), metav1.DeleteOptions{})

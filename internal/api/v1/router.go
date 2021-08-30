@@ -112,6 +112,7 @@ var Routes = routes.NamedRoutes{
 	"ServicePlans":   get("/serviceclasses/:serviceclass/serviceplans", errorHandler(ServicePlansController{}.Index)),
 }
 
+// Router constructs and returns the router mapping methods and urls to the API handlers.
 func Router() *httprouter.Router {
 	router := httprouter.New()
 

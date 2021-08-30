@@ -15,9 +15,12 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// ServicesController represents all functionality of the API related to services
 type ServicesController struct {
 }
 
+// Show handles the API end point /orgs/:org/services/:service
+// It returns the detail information of the named service instance
 func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -76,6 +79,8 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 	return nil
 }
 
+// Index handles the API end point /orgs/:org/services
+// It returns a list of all known service instances
 func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -131,6 +136,8 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 	return nil
 }
 
+// CreateCustom handles the API end point /orgs/:org/custom-services
+// It creates the named custom service from its parameters
 func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -196,6 +203,8 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	return nil
 }
 
+// Create handles the API end point /orgs/:org/services (POST)
+// It creates the named catalog service from class and plan
 func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -303,6 +312,8 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	return nil
 }
 
+// Delete handles the API end point /orgs/:org/services/:service (DELETE)
+// It deletes the named service, catalog or custom
 func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -390,6 +401,9 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 	return nil
 }
 
+// servicesToApps is a helper to Index and Delete. It produces a map
+// from service instances names to application names, the apps bound
+// to each service.
 func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (map[string]models.AppList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)

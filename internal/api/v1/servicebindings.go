@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ServicebindingsController represents all functionality of the API related to service bindings
 type ServicebindingsController struct {
 }
 
@@ -23,6 +24,8 @@ type ServicebindingsController struct {
 // however always after it. IOW an internal error is always
 // the first element when reporting more than one error.
 
+// Create handles the API endpoint /orgs/:org/applications/:app/servicebindings (POST)
+// It creates a binding between the specified service and application
 func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -126,6 +129,8 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	return nil
 }
 
+// Delete handles the API endpoint /orgs/:org/applications/:app/servicebindings/:service
+// It removes the binding between the specified service and application
 func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

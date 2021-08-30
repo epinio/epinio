@@ -13,6 +13,8 @@ type PasswordAuth struct {
 	Password string
 }
 
+// Htpasswd returns user+hash string suitable for use by Traefik's
+// BasicAuth module.
 func (auth *PasswordAuth) Htpassword() (string, error) {
 	hash, err := HashBcrypt(auth.Password)
 	if err != nil {
@@ -21,10 +23,9 @@ func (auth *PasswordAuth) Htpassword() (string, error) {
 	return auth.Username + ":" + hash, nil
 }
 
-// HashBcrypt generates an Apache MD5 hash for a password.
+// HashBcrypt generates an Bcrypt hash for a password.
 // See https://github.com/foomo/htpasswd for the origin of this code.
 // MIT licensed, as per `blob/master/LICENSE.txt`
-
 func HashBcrypt(password string) (hash string, err error) {
 	passwordBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
@@ -33,6 +34,8 @@ func HashBcrypt(password string) (hash string, err error) {
 	return string(passwordBytes), nil
 }
 
+// RandomPasswordAuth generates a random user+password
+// combination. Both elements are random 16-character hex strings.
 func RandomPasswordAuth() (*PasswordAuth, error) {
 	user, err := randstr.Hex16()
 	if err != nil {

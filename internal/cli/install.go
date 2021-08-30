@@ -132,6 +132,7 @@ func init() {
 	certManagerOptions.AsCobraFlagsFor(CmdInstallCertManager.Flags())
 }
 
+// CmdInstall implements the command: epinio install
 var CmdInstall = &cobra.Command{
 	Use:   "install",
 	Short: "install Epinio in your configured kubernetes cluster",
@@ -148,6 +149,7 @@ var CmdInstall = &cobra.Command{
 // the quick install more verbose. So, for now the new functionality
 // is exposed through a new toplevel command.
 
+// CmdInstallIngress implements the command: epinio install-ingress
 var CmdInstallIngress = &cobra.Command{
 	Use:   "install-ingress",
 	Short: "install Epinio's Ingress in your configured kubernetes cluster",
@@ -156,6 +158,7 @@ var CmdInstallIngress = &cobra.Command{
 	RunE:  installIngress,
 }
 
+// CmdInstallCertManager implements the command: epinio install-cert-manager
 var CmdInstallCertManager = &cobra.Command{
 	Use:   "install-cert-manager",
 	Short: "install Epinio's cert-manager in your configured kubernetes cluster",
@@ -164,7 +167,8 @@ var CmdInstallCertManager = &cobra.Command{
 	RunE:  installCertManager,
 }
 
-// install command installs epinio on a configured cluster
+// install is the backend for CmdInstall.
+// It adds epinio to the targeted cluster
 func install(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -243,7 +247,8 @@ func install(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// installIngress command installs epinio's ingress controller on a configured cluster
+// installIngress is the backend for CmdInstallIngress.
+// It adds epinio's ingress controller to the targeted cluster
 func installIngress(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
@@ -266,7 +271,8 @@ func installIngress(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// installCertManager command installs epinio's ingress controller on a configured cluster
+// installCertManager is the backend for CmdInstallCertManager.
+// It adds epinio's cert manager to the targeted cluster
 func installCertManager(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 

@@ -8,9 +8,12 @@ import (
 	"github.com/epinio/epinio/internal/version"
 )
 
+// InfoController represents all functionality of the API related to epinio inspection
 type InfoController struct {
 }
 
+// Info handles the API endpoint /info.  It returns version
+// information for various epinio components.
 func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 

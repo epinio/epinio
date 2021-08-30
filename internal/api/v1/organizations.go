@@ -18,12 +18,14 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+// InfoController represents all functionality of the API related to organizations
 type OrganizationsController struct {
 }
 
-// Index return a list of all Epinio orgs
-// An Epinio org is nothing but a kubernetes namespace which has a special
-// Label (Look at the code to see which).
+// Index handles the API endpoint /orgs
+// It returns a list of all Epinio orgs.
+// An Epinio org is nothing but a kubernetes namespace which has a
+// special Label (Look at the code to see which).
 func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -54,6 +56,8 @@ func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
+// Create handles the API endpoint /orgs (POST).
+// It creates the named organization.
 func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	gitea, err := gitea.New(ctx)
@@ -104,6 +108,8 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
+// Delete handles the API endpoint /orgs/:org.
+// It destroys the named organization and all the applications and services in it.
 func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(r.Context())

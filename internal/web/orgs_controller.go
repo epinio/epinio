@@ -8,9 +8,13 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
+// OrgsController represents all functionality of the dashboard related to organizations
 type OrgsController struct {
 }
 
+// Target handles the dashboard's /orgs/target endpoint. It verifies
+// that the specified org exists, and then delivers a cookie
+// persisting the targeted org in the browser state
 func (hc OrgsController) Target(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

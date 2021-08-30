@@ -15,8 +15,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// CustomService is a user defined service.
-// Implements the Service interface.
+// CustomService is a user defined service instance, also called a
+// custom service.  It implements the Service interface.
 type CustomService struct {
 	SecretName string
 	OrgName    string
@@ -26,7 +26,8 @@ type CustomService struct {
 
 var _ interfaces.Service = &CustomService{}
 
-// CustomServiceList returns a ServiceList of all available custom Services
+// CustomServiceList returns a ServiceList of all available custom
+// Services
 func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
 	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/organization=%s", org)
 
@@ -58,7 +59,8 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 	return result, nil
 }
 
-// CustomServiceLookup finds a Custom Service by looking for the relevant Secret.
+// CustomServiceLookup finds a Custom Service instance by looking for
+// the relevant Secret.
 func CustomServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
 	secretName := serviceResourceName(org, service)
 
@@ -79,8 +81,8 @@ func CustomServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, or
 	}, nil
 }
 
-// CreateCustomService creates a new custom service from org, name and the
-// binding data.
+// CreateCustomService creates a new custom service instance from org,
+// name, and a map of parameters.
 func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, name, org string,
 	data map[string]string) (interfaces.Service, error) {
 
@@ -120,14 +122,21 @@ func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, na
 	}, nil
 }
 
+// Implement the Service interface
+
+// Name (Service interface) returns the service instance's name
 func (s *CustomService) Name() string {
 	return s.Service
 }
 
+// Org (Service interface) returns the service instance's organization
 func (s *CustomService) Org() string {
 	return s.OrgName
 }
 
+// GetBinding (Service interface) returns the secret representing the
+// instance's binding to the application. This is actually the
+// instance's secret itself, independent of the application.
 func (s *CustomService) GetBinding(ctx context.Context, appName string) (*corev1.Secret, error) {
 	kubeClient := s.kubeClient
 	serviceSecret, err := kubeClient.GetSecret(ctx, s.OrgName, s.SecretName)
@@ -141,25 +150,36 @@ func (s *CustomService) GetBinding(ctx context.Context, appName string) (*corev1
 	return serviceSecret, nil
 }
 
-// DeleteBinding does nothing in the case of custom services because the custom
-// service is just a secret which may be re-used later.
+// DeleteBinding (Service interface) does nothing in the case of
+// custom service instances because they are represented by just a
+// secret which may be re-used later.
 func (s *CustomService) DeleteBinding(_ context.Context, appName, org string) error {
 	return nil
 }
 
+// Delete (Service interface) destroys the service instance, i.e. its
+// underlying secret holding the instance's parameters
 func (s *CustomService) Delete(ctx context.Context) error {
 	return s.kubeClient.DeleteSecret(ctx, s.OrgName, s.SecretName)
 }
 
+// Status (Service interface) returns the instance's provision
+// status. As no actual provisioning had to be done it is always fully
+// provisioned.
 func (s *CustomService) Status(_ context.Context) (string, error) {
 	return "Provisioned", nil
 }
 
+// WaitForProvision (Service interface) waits for the service instance
+// to be provisioned.  As no actual provisioning had to be done no
+// waiting is required either.
 func (s *CustomService) WaitForProvision(_ context.Context) error {
 	// Custom services provision instantly. No waiting
 	return nil
 }
 
+// Details (Service interface) returns the service instance's
+// configuration. I.e. the parameter data.
 func (s *CustomService) Details(ctx context.Context) (map[string]string, error) {
 	serviceSecret, err := s.kubeClient.GetSecret(ctx, s.OrgName, s.SecretName)
 	if err != nil {

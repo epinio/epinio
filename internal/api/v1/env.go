@@ -14,8 +14,9 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// EnvIndex receives the org, application name and returns the
-// environment associated with that application
+// EnvIndex handles the API endpoint /orgs/:org/applications/:app/environment
+// It receives the org, application name and returns the environment
+// associated with that application
 func (hc ApplicationsController) EnvIndex(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
@@ -70,9 +71,10 @@ func (hc ApplicationsController) EnvIndex(w http.ResponseWriter, r *http.Request
 	return nil
 }
 
-// EnvMatch receives the org, application name, plus a prefix and
-// returns the names of all the environment associated with that
-// application with prefix
+// EnvMatch handles the API endpoint /orgs/:org/applications/:app/environment/:env/match/:pattern
+// It receives the org, application name, plus a prefix and returns
+// the names of all the environment associated with that application
+// with prefix
 func (hc ApplicationsController) EnvMatch(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
@@ -139,7 +141,8 @@ func (hc ApplicationsController) EnvMatch(w http.ResponseWriter, r *http.Request
 	return nil
 }
 
-// EnvSet receives the org, application name, var name and value,
+// EnvSet handles the API endpoint /orgs/:org/applications/:app/environment (POST)
+// It receives the org, application name, var name and value,
 // and add/modifies the variable in the  application's environment.
 func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
@@ -197,7 +200,8 @@ func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// EnvShow receives the org, application name, var name, and returns
+// EnvShow handles the API endpoint /orgs/:org/applications/:app/environment/:env
+// It receives the org, application name, var name, and returns
 // the variable's value in the application's environment.
 func (hc ApplicationsController) EnvShow(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
@@ -267,8 +271,9 @@ func (hc ApplicationsController) EnvShow(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-// EnvUnset receives the org, application name, var name, and removes
-// the variable from the application's environment.
+// EnvUnset handles the API endpoint /orgs/:org/applications/:app/environment/:env (DELETE)
+// It receives the org, application name, var name, and removes the
+// variable from the application's environment.
 func (hc ApplicationsController) EnvUnset(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)

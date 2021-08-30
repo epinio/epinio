@@ -1,4 +1,5 @@
-// Package services incapsulates all the functionality around Epinio services
+// Package services encapsulates all the functionality around Epinio
+// services, catalog-based and custom
 package services
 
 import (
@@ -47,10 +48,14 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (inte
 	return append(customServices, catalogServices...), nil
 }
 
+// serviceResourceName returns a name for a kube service resource
+// representing the org and service
 func serviceResourceName(org, service string) string {
 	return fmt.Sprintf("service.org-%s.svc-%s", org, service)
 }
 
+// bindingResourceName returns a name for a kube service binding
+// resource representing the org, service, and application
 func bindingResourceName(org, service, app string) string {
 	return fmt.Sprintf("service.org-%s.svc-%s.app-%s", org, service, app)
 }

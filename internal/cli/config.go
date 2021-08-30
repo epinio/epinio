@@ -14,7 +14,7 @@ import (
 
 var ()
 
-// CmdConfig implements the `epinio config` command
+// CmdConfig implements the command: epinio config
 var CmdConfig = &cobra.Command{
 	Use:           "config",
 	Short:         "Epinio config management",
@@ -34,7 +34,7 @@ func init() {
 	CmdConfig.AddCommand(CmdConfigColors)
 }
 
-// CmdConfigColors implements the `epinio config colors` command
+// CmdConfigColors implements the command: epinio config colors
 var CmdConfigColors = &cobra.Command{
 	Use:   "colors BOOL",
 	Short: "Manage colored output",
@@ -78,7 +78,7 @@ var CmdConfigColors = &cobra.Command{
 	},
 }
 
-// CmdConfigShow implements the `epinio config show` command
+// CmdConfigShow implements the command: epinio config show
 var CmdConfigShow = &cobra.Command{
 	Use:   "show",
 	Short: "Show the current configuration",
@@ -115,7 +115,7 @@ var CmdConfigShow = &cobra.Command{
 	},
 }
 
-// CmdConfigUpdate implements the `epinio config update` command
+// CmdConfigUpdate implements the command: epinio config update
 var CmdConfigUpdate = &cobra.Command{
 	Use:   "update",
 	Short: "Update the api location & stored credentials",

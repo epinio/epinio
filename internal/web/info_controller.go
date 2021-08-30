@@ -8,9 +8,11 @@ import (
 	"github.com/epinio/epinio/internal/version"
 )
 
+// InfoController represents all functionality of the dashboard related to epinio inspection
 type InfoController struct {
 }
 
+// Index handles the dashboard's /info endpoint. It returns version information for various epinio components.
 func (hc InfoController) Index(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

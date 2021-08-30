@@ -1,5 +1,3 @@
-// Package auth collects structures and functions around the
-// generation and processing of credentials.
 package auth
 
 import (
@@ -21,6 +19,12 @@ import (
 	"github.com/epinio/epinio/internal/names"
 )
 
+// ExtendLocalTrust makes the certs found in specified PEM string
+// available as root CA certs, beyond the standard certs. It does this
+// by creating an in-memory pool of certs filled from both the system
+// pool and the argument, and setting this as the cert origin for
+// net/http's default transport. Ditto for the websocket's default
+// dialer.
 func ExtendLocalTrust(certs string) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	rootCAs, _ := x509.SystemCertPool()
@@ -83,6 +87,9 @@ func CreateCertificate(
 	return nil
 }
 
+// newCertificate creates a proper certificate resource from the
+// specified parameters. The result is suitable for upload to the
+// cluster.
 func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
 	// Notes:
 	// - spec.CommonName is length-limited.

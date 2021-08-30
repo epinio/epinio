@@ -1,3 +1,5 @@
+// Package cli contains all definitions pertaining to the user-visible
+// commands of the epinio client
 package cli
 
 import (
@@ -22,7 +24,7 @@ var (
 	kubeconfig     string
 )
 
-// NewEpinioCLI returns the `epinio` cli.
+// NewEpinioCLI returns the main `epinio` cli.
 func NewEpinioCLI() *cobra.Command {
 	return rootCmd
 }
@@ -102,6 +104,8 @@ var cmdVersion = &cobra.Command{
 	},
 }
 
+// checkDependencies is a helper which checks the client's environment
+// for the presence of a number of required supporting commands.
 func checkDependencies() error {
 	ok := true
 

@@ -79,7 +79,7 @@ func instances(cmd *cobra.Command) (*int32, error) {
 	return i, nil
 }
 
-// CmdPush implements the epinio push command
+// CmdPush implements the command: epinio app push
 var CmdPush = &cobra.Command{
 	Use:   "push NAME [URL|PATH_TO_APPLICATION_SOURCES]",
 	Short: "Push an application from the specified directory, or the current working directory",

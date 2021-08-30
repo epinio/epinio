@@ -30,18 +30,25 @@ func (a *App) AppRef() AppRef {
 	return NewAppRef(a.Name, a.Organization)
 }
 
+// AppList is a collection of app references
 type AppList []App
 
 // Implement the Sort interface for application slices
 
+// Len (Sort interface) returns the length of the AppList
 func (al AppList) Len() int {
 	return len(al)
 }
 
+// Swap (Sort interface) exchanges the contents of specified indices
+// in the AppList
 func (al AppList) Swap(i, j int) {
 	al[i], al[j] = al[j], al[i]
 }
 
+// Less (Sort interface) compares the contents of the specified
+// indices in the AppList and returns true if the condition holds, and
+// else false.
 func (al AppList) Less(i, j int) bool {
 	return al[i].Name < al[j].Name
 }
@@ -62,10 +69,14 @@ func (ar *AppRef) App() *App {
 	return NewApp(ar.Name, ar.Org)
 }
 
+// EnvSecret returns the name of the kube secret holding the
+// environment variables of the referenced application
 func (ar *AppRef) EnvSecret() string {
-	return ar.Name + "-env"
+	// TODO: This needs tests for env operations on an app with a long name
+	return names.GenerateResourceName(ar.Name + "-env")
 }
 
+// PVCName returns the name of the kube pvc to use with/for the referenced application.
 func (ar *AppRef) PVCName() string {
 	return names.GenerateResourceName(ar.Org, ar.Name)
 }
