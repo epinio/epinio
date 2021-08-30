@@ -369,13 +369,16 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	org := params.ByName("org")
 	appName := params.ByName("app")
 	stageID := params.ByName("stage_id")
+	log := tracelog.Logger(ctx)
 
+	log.Info("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		jsonErrorResponse(w, InternalError(err))
 		return
 	}
 
+	log.Info("validate organization", "name", org)
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
 		jsonErrorResponse(w, InternalError(err))
@@ -388,6 +391,8 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if appName != "" {
+		log.Info("validate application", "name", appName, "org", org)
+
 		exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
 		if err != nil {
 			jsonErrorResponse(w, InternalError(err))
@@ -399,6 +404,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		log.Info("retrieve application", "name", appName, "org", org)
 		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
 			jsonErrorResponse(w, InternalError(err))
@@ -416,8 +422,12 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("process query")
 	queryValues := r.URL.Query()
 	followStr := queryValues.Get("follow")
+
+	log.Info("processed query", "values", queryValues)
+	log.Info("upgrade to web socket")
 
 	var upgrader = websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -431,7 +441,8 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 		follow = true
 	}
 
-	log := tracelog.Logger(ctx)
+	log.Info("streaming mode", "follow", follow)
+	log.Info("streaming begin")
 
 	hc.conn = conn
 	err = hc.streamPodLogs(ctx, org, appName, stageID, cluster, follow)
@@ -439,6 +450,8 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 		log.V(1).Error(err, "error occured after upgrading the websockets connection")
 		return
 	}
+
+	log.Info("streaming completed")
 }
 
 // streamPodLogs sends the logs of any containers matching orgName, appName
@@ -457,13 +470,18 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
 func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
-	logger := tracelog.NewLogger().WithName("streaming-logs-to-websockets").V(1)
+	logger := tracelog.NewLogger().WithName("streamer-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
 	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func(outerWg *sync.WaitGroup) {
+		logger.Info("create backend")
+		defer func() {
+			logger.Info("backend ends")
+		}()
+
 		var tailWg sync.WaitGroup
 		err := application.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, orgName)
 		if err != nil {
@@ -478,6 +496,8 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 		logCancelFunc() // Just in case return some error, out of the normal flow.
 		wg.Wait()
 	}()
+
+	logger.Info("stream copying begin")
 
 	// Send logs received on logChan to the websockets connection until either
 	// logChan is closed or websocket connection is closed.
@@ -515,6 +535,9 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 		}
 	}
 
+	logger.Info("stream copying done")
+	logger.Info("websocket teardown")
+
 	if err := hc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{}); err != nil {
 		return err
 	}
@@ -522,7 +545,7 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 	return hc.conn.Close()
 }
 
-// Delete handles the API endpoint /orgs/:org/applications/:app (DELETE)
+// Delete handles the API endpoint DELETE /orgs/:org/applications/:app
 // It removes the named application
 func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
