@@ -1137,6 +1137,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 
 			retry := strings.Contains(emsg, " x509: ") ||
 				strings.Contains(emsg, "Gateway") ||
+				strings.Contains(emsg, "Service Unavailable") ||
 				(strings.Contains(emsg, "api/v1/orgs") &&
 					strings.Contains(emsg, "i/o timeout"))
 
