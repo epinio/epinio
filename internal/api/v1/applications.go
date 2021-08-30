@@ -28,7 +28,7 @@ type ApplicationsController struct {
 	conn *websocket.Conn
 }
 
-// Create handles the API endpoint /orgs/:org/applications (POST)
+// Create handles the API endpoint POST /orgs/:org/applications
 // It creates a new and empty application. I.e. without a workload.
 func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
@@ -77,7 +77,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// Index handles the API endpoint /orgs/:org/applications
+// Index handles the API endpoint GET /orgs/:org/applications
 // It lists all the known applications, with and without workload.
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
@@ -117,7 +117,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 	return nil
 }
 
-// Show handles the API endpoint /orgs/:org/applications/:app
+// Show handles the API endpoint GET /orgs/:org/applications/:app
 // It returns the details of the specified application.
 func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
@@ -175,7 +175,7 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 	return nil
 }
 
-// ServiceApps handles the API endpoint /orgs/:org/serviceapps
+// ServiceApps handles the API endpoint GET /orgs/:org/serviceapps
 // It returns a map from services to the apps they are bound to, in
 // the specified org.  Internally it asks each app in the org for its
 // bound services and then inverts that map to get the desired result.
@@ -235,7 +235,7 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-// Update handles the API endpoint /orgs/:org/applications/:app (PATCH)
+// Update handles the API endpoint PATCH /orgs/:org/applications/:app
 // It modifies the specified application. Currently this is only the
 // number of instances to run.
 func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
@@ -305,7 +305,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// Running handles the API endpoint /orgs/:org/applications/:app/running
+// Running handles the API endpoint GET /orgs/:org/applications/:app/running
 // It waits for the specified application to be running (i.e. its
 // deployment to be complete), before it returns. An exception is if
 // the application does not become running without
@@ -358,8 +358,8 @@ func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-// Logs handles the API endpoints /orgs/:org/applications/:app/logs
-// and                            /orgs/:org/staging/:stage_id/logs
+// Logs handles the API endpoints GET /orgs/:org/applications/:app/logs
+// and                            GET /orgs/:org/staging/:stage_id/logs
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
