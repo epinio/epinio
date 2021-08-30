@@ -235,7 +235,7 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 	return nil
 }
 
-// Update handles the API endpoint /orgs/:org/applications/:app (POST)
+// Update handles the API endpoint /orgs/:org/applications/:app (PATCH)
 // It modifies the specified application. Currently this is only the
 // number of instances to run.
 func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {

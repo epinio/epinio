@@ -30,7 +30,7 @@ func (a *App) AppRef() AppRef {
 	return NewAppRef(a.Name, a.Organization)
 }
 
-// AppList is just a collection of app references
+// AppList is a collection of app references
 type AppList []App
 
 // Implement the Sort interface for application slices
