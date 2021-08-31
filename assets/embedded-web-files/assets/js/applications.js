@@ -6,7 +6,7 @@ class Applications {
       fetchApplications() {
         var that = this
         var org = this.getOrg();
-        $.get("/api/v1/orgs/"+org+"/applications", function(data) {
+        $.get("/api/v1/namespaces/"+org+"/applications", function(data) {
           that.applications = data;
         }).fail(function() {
           console.log("failed to fetch applications");

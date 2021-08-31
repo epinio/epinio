@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Orgs API Application Endpoints", func() {
+var _ = Describe("Namespaces API Application Endpoints", func() {
 	var org string
 	dockerImageURL := "splatform/sample-app"
 
@@ -29,10 +29,10 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 			return err
 		}, "1m").ShouldNot(HaveOccurred())
 	})
-	Context("Orgs", func() {
-		Describe("GET api/v1/orgs", func() {
-			It("lists all organizations", func() {
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+	Context("Namespaces", func() {
+		Describe("GET api/v1/namespaces", func() {
+			It("lists all namespaces", func() {
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -50,7 +50,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 			})
 			When("basic auth credentials are not provided", func() {
 				It("returns a 401 response", func() {
-					request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/orgs", serverURL), strings.NewReader(""))
+					request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/namespaces", serverURL), strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
 					response, err := env.Client().Do(request)
 					Expect(err).ToNot(HaveOccurred())
@@ -59,9 +59,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 			})
 		})
 
-		Describe("POST api/v1/orgs", func() {
+		Describe("POST api/v1/namespaces", func() {
 			It("fails for non JSON body", func() {
-				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -77,7 +77,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 			})
 
 			It("fails for non-object JSON body", func() {
-				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(`[]`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -92,7 +92,7 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 			})
 
 			It("fails for JSON object without name key", func() {
-				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(`{}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -103,12 +103,12 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("name of organization to create not found"))
+					Equal("name of namespace to create not found"))
 			})
 
-			It("fails for a known organization", func() {
-				// Create the org
-				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+			It("fails for a known namespace", func() {
+				// Create the namespace
+				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(`{"name":"birdy"}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -119,9 +119,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				Expect(string(bodyBytes)).To(Equal(""))
 
 				// And the 2nd attempt should now fail
-				By("creating the same org a second time")
+				By("creating the same namespace a second time")
 
-				response, err = env.Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+				response, err = env.Curl("POST", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(`{"name":"birdy"}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -132,11 +132,11 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("Organization 'birdy' already exists"))
+					Equal("Namespace 'birdy' already exists"))
 			})
 
-			It("fails for a restricted organization", func() {
-				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+			It("fails for a restricted namespace", func() {
+				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(`{"name":"epinio"}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -147,11 +147,11 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				var responseBody map[string][]apiv1.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("Org 'epinio' name cannot be used. Please try another name"))
+					Equal("Namespace 'epinio' name cannot be used. Please try another name"))
 			})
 
-			It("creates a new organization", func() {
-				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/orgs", serverURL),
+			It("creates a new namespace", func() {
+				response, err := env.Curl("POST", fmt.Sprintf("%s/api/v1/namespaces", serverURL),
 					strings.NewReader(`{"name":"birdwatcher"}`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -163,9 +163,9 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 			})
 		})
 
-		Describe("DELETE api/v1/orgs/:org", func() {
-			It("deletes an organization", func() {
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s", serverURL, org),
+		Describe("DELETE api/v1/namespaces/:org", func() {
+			It("deletes an namespace", func() {
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/%s", serverURL, org),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -179,14 +179,14 @@ var _ = Describe("Orgs API Application Endpoints", func() {
 				Expect(err).To(HaveOccurred())
 			})
 
-			It("deletes an organization including apps and services", func() {
+			It("deletes an namespace including apps and services", func() {
 				app1 := catalog.NewAppName()
 				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				svc1 := catalog.NewServiceName()
 				env.MakeCustomService(svc1)
 				env.BindAppService(app1, svc1, org)
 
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s", serverURL, org),
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/%s", serverURL, org),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())

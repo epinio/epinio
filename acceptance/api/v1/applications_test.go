@@ -72,7 +72,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 	appStatus := func(org, app string) string {
 		response, err := env.Curl("GET",
-			fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
+			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
 			strings.NewReader(""))
 
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -96,7 +96,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 		response, err := env.Curl("PATCH",
-			fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app),
+			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
 			strings.NewReader(string(data)))
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		ExpectWithOffset(1, response).ToNot(BeNil())
@@ -213,7 +213,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		})
 
-		Describe("GET api/v1/orgs/:orgs/applications", func() {
+		Describe("GET api/v1/namespaces/:orgs/applications", func() {
 			It("lists all applications belonging to the org", func() {
 				app1 := catalog.NewAppName()
 				env.MakeDockerImageApp(app1, 1, dockerImageURL)
@@ -222,7 +222,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeDockerImageApp(app2, 1, dockerImageURL)
 				defer env.DeleteApp(app2)
 
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications",
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/applications",
 					serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -246,7 +246,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the org does not exist", func() {
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications", serverURL), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications", serverURL), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -257,7 +257,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("GET api/v1/orgs/:org/applications/:app", func() {
+		Describe("GET api/v1/namespaces/:org/applications/:app", func() {
 			It("lists the application data", func() {
 				app := catalog.NewAppName()
 				env.MakeDockerImageApp(app, 1, dockerImageURL)
@@ -271,7 +271,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeDockerImageApp(app, 1, dockerImageURL)
 				defer env.DeleteApp(app)
 
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -282,7 +282,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the app does not exist", func() {
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/applications/bogus", serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -293,7 +293,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("DELETE api/v1/orgs/:org/applications/:app", func() {
+		Describe("DELETE api/v1/namespaces/:org/applications/:app", func() {
 			It("removes the application, unbinds bound services", func() {
 				app1 := catalog.NewAppName()
 				env.MakeDockerImageApp(app1, 1, dockerImageURL)
@@ -302,7 +302,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.BindAppService(app1, service, org)
 				defer env.CleanupService(service)
 
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -323,7 +323,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				defer env.DeleteApp(app1)
 
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -334,7 +334,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the app does not exist", func() {
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/orgs/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/%s/applications/bogus", serverURL, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -644,7 +644,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	})
 
 	Context("Logs", func() {
-		Describe("GET api/v1/orgs/:orgs/applications/:app/logs", func() {
+		Describe("GET api/v1/namespaces/:orgs/applications/:app/logs", func() {
 			logLength := 0
 			var (
 				route string

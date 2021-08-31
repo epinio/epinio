@@ -57,8 +57,8 @@ var _ = Describe("Config", func() {
 		It("shows the configuration", func() {
 			config, err := env.Epinio("", "config", "show")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(config).To(MatchRegexp(`Colorized Output.*\|`))     // Exact state not relevant
-			Expect(config).To(MatchRegexp(`Current Organization.*\|`)) // Exact name of org is not relevant, and varies
+			Expect(config).To(MatchRegexp(`Colorized Output.*\|`))  // Exact state not relevant
+			Expect(config).To(MatchRegexp(`Current Namespace.*\|`)) // Exact name of org is not relevant, and varies
 			Expect(config).To(MatchRegexp(`Certificates.*\|.*Present`))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API User Name.*\|.*%s`, env.EpinioUser)))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Password.*\|.*%s`, env.EpinioPassword)))

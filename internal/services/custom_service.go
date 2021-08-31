@@ -29,7 +29,7 @@ var _ interfaces.Service = &CustomService{}
 // CustomServiceList returns a ServiceList of all available custom
 // Services
 func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/organization=%s", org)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/namespace=%s", org)
 
 	secrets, err := kubeClient.Kubectl.CoreV1().
 		Secrets(org).List(ctx,
@@ -45,7 +45,7 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 
 	for _, s := range secrets.Items {
 		service := s.ObjectMeta.Labels["epinio.suse.org/service"]
-		org := s.ObjectMeta.Labels["epinio.suse.org/organization"]
+		org := s.ObjectMeta.Labels["epinio.suse.org/namespace"]
 		secretName := s.ObjectMeta.Name
 
 		result = append(result, &CustomService{
@@ -104,7 +104,7 @@ func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, na
 		map[string]string{
 			"epinio.suse.org/service-type": "custom",
 			"epinio.suse.org/service":      name,
-			"epinio.suse.org/organization": org,
+			"epinio.suse.org/namespace":    org,
 			"app.kubernetes.io/name":       "epinio",
 			// "app.kubernetes.io/version":     cmd.Version
 			// FIXME: Importing cmd causes cycle

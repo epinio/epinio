@@ -15,12 +15,12 @@ var (
 	force bool
 )
 
-// CmdOrg implements the command: epinio org
+// CmdOrg implements the command: epinio namespace
 var CmdOrg = &cobra.Command{
-	Use:           "org",
-	Aliases:       []string{"orgs"},
-	Short:         "Epinio organizations",
-	Long:          `Manage epinio organizations`,
+	Use:           "namespace",
+	Aliases:       []string{"namespaces"},
+	Short:         "Epinio-controlled namespaces",
+	Long:          `Manage epinio-controlled namespaces`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	Args:          cobra.MinimumNArgs(1),
@@ -33,17 +33,17 @@ var CmdOrg = &cobra.Command{
 func init() {
 
 	flags := CmdOrgDelete.Flags()
-	flags.BoolVarP(&force, "force", "f", false, "force org deletion")
+	flags.BoolVarP(&force, "force", "f", false, "force namespace deletion")
 
 	CmdOrg.AddCommand(CmdOrgCreate)
 	CmdOrg.AddCommand(CmdOrgList)
 	CmdOrg.AddCommand(CmdOrgDelete)
 }
 
-// CmdOrgs implements the command: epinio org list
+// CmdOrgs implements the command: epinio namespace list
 var CmdOrgList = &cobra.Command{
 	Use:   "list",
-	Short: "Lists all organizations",
+	Short: "Lists all epinio-controlled namespaces",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -54,17 +54,17 @@ var CmdOrgList = &cobra.Command{
 
 		err = client.Orgs()
 		if err != nil {
-			return errors.Wrap(err, "error listing orgs")
+			return errors.Wrap(err, "error listing epinio-controlled namespaces")
 		}
 
 		return nil
 	},
 }
 
-// CmdOrgCreate implements the command: epinio org create
+// CmdOrgCreate implements the command: epinio namespace create
 var CmdOrgCreate = &cobra.Command{
 	Use:   "create NAME",
-	Short: "Creates an organization",
+	Short: "Creates an epinio-controlled namespace",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -76,17 +76,17 @@ var CmdOrgCreate = &cobra.Command{
 
 		err = client.CreateOrg(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error creating org")
+			return errors.Wrap(err, "error creating epinio-controlled namespace")
 		}
 
 		return nil
 	},
 }
 
-// CmdOrgDelete implements the command: epinio org delete
+// CmdOrgDelete implements the command: epinio namespace delete
 var CmdOrgDelete = &cobra.Command{
 	Use:   "delete NAME",
-	Short: "Deletes an organization",
+	Short: "Deletes an epinio-controlled namespace",
 	Args:  cobra.ExactArgs(1),
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		force, err := cmd.Flags().GetBool("force")
@@ -94,7 +94,7 @@ var CmdOrgDelete = &cobra.Command{
 			return err
 		}
 		if !force {
-			cmd.Printf("You are about to delete organization %s and everything included in it (applications, services etc). Are you sure? (y/n): ", args[0])
+			cmd.Printf("You are about to delete namespace %s and everything it includeds, i.e. applications, services, etc. Are you sure? (y/n): ", args[0])
 			if !askConfirmation(cmd) {
 				return errors.New("Cancelled by user")
 			}
@@ -112,7 +112,7 @@ var CmdOrgDelete = &cobra.Command{
 
 		err = client.DeleteOrg(args[0])
 		if err != nil {
-			return errors.Wrap(err, "error deleting org")
+			return errors.Wrap(err, "error deleting epinio-controlled namespace")
 		}
 
 		return nil

@@ -4,10 +4,9 @@ If you have not already installed `epinio` follow these links
 
 - [Install on K3d](./install_epinio_on_k3d.md)
 
-In this tutorial, you will learn how to create an organisation and how to push, list and delete an application. 
+In this tutorial, you will learn how to create a namespace and how to push, list and delete an application in it.
 
 ## Push an application
-
 
 ### Clone the sample app
 
@@ -26,7 +25,7 @@ cd epinio/assets/
 epinio push sample sample-app
 ```
 
-where `sample` is the name you want to give to your application. This name has to be unique within the targeted organization in Epinio. `sample-app` is path to the directory where your application's code resides.
+where `sample` is the name you want to give to your application. This name has to be unique within the targeted namespace in Epinio. `sample-app` is path to the directory where your application's code resides.
 
 Note that the path argument is __optional__. If not specified the __current working directory__ will be used. Always ensure that the chosen directory contains a supported application.
 
@@ -66,19 +65,19 @@ To delete the application you just deployed run the following command:
 epinio delete sample
 ```
 
-### Create a separate org
+### Create a separate namespace
 
-If you want to keep your various application separated, you can use the concept of orgs (aka organizations). Create a new organization with this command:
-
-```bash
-epinio orgs create neworg
-```
-
-To start deploying application to this new organization you need to "target" it:
-
+If you want to keep your various application separated, you can use the concept of namespaces. Create a new namespace with this command:
 
 ```bash
-epinio target neworg
+epinio namespace create newspace
 ```
 
-After this and until you target another organization, whenever you run `epinio push` you will be deploying to this new organization.
+To start deploying application to this new namespace you have to "target" it:
+
+
+```bash
+epinio target newspace
+```
+
+After this and until you target another namespace, whenever you run `epinio push` you will be deploying to this new namespace.

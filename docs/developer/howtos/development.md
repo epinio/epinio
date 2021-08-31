@@ -43,7 +43,7 @@ specific instructions, but generally this should be sufficient to get you runnin
 
 ```
 make install
-./dist/epinio-linux-amd64 org create workspace
+./dist/epinio-linux-amd64 namespace create workspace
 ./dist/epinio-linux-amd64 target workspace
 ```
 
@@ -57,10 +57,10 @@ patch-epinio-deployment` again will upload the changes into the
 running cluster.
 
 Another thing `epinio install` does after deploying all components is
-the creation and targeting of a standard organization, `workspace`.
+the creation and targeting of a standard namespace, `workspace`.
 
 With the failing server component these actions will fail, making the
-installation fail. Using the option `--skip-default-org` instructs the
+installation fail. Using the option `--skip-default-namespace` instructs the
 command to forego these actions. Which in turn makes it necessary to
 run them manually to reach the standard state of a cluster. These are
 the last two commands in the above script.

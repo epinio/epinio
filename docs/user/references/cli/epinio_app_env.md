@@ -11,6 +11,10 @@ Epinio application configuration
 
 Manage epinio application environment variables
 
+```
+epinio app env [flags]
+```
+
 ### Options
 
 ```

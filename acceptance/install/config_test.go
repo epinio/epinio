@@ -40,7 +40,7 @@ var _ = Describe("Install with <ConfigFile> and push a PHP app", func() {
 
 		flags = []string{
 			"--config-file", configFile,
-			"--skip-default-org",
+			"--skip-default-namespace",
 			"--user", epinioUser,
 			"--password", epinioPassword,
 		}

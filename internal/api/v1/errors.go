@@ -106,7 +106,7 @@ func NewNotFoundError(msg string, details ...string) APIError {
 // OrgIsNotKnown constructs an API error for when the desired org does not exist
 func OrgIsNotKnown(org string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Organization '%s' does not exist", org),
+		fmt.Sprintf("Namespace '%s' does not exist", org),
 		"",
 		http.StatusNotFound)
 }
@@ -154,7 +154,7 @@ func ServicePlanIsNotKnown(service string, c string) APIError {
 // OrgAlreadyKnown constructs an API error for when we have a conflict with an existing org
 func OrgAlreadyKnown(org string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Organization '%s' already exists", org),
+		fmt.Sprintf("Namespace '%s' already exists", org),
 		"",
 		http.StatusConflict)
 }

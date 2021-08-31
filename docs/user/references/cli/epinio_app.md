@@ -11,6 +11,10 @@ Epinio application features
 
 Manage epinio application
 
+```
+epinio app [flags]
+```
+
 ### Options
 
 ```

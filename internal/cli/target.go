@@ -12,8 +12,8 @@ var ()
 
 // CmdTarget implements the command: epinio target
 var CmdTarget = &cobra.Command{
-	Use:   "target [org]",
-	Short: "Targets an organization in Epinio.",
+	Use:   "target [namespace]",
+	Short: "Targets an epinio-controlled namespace.",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true

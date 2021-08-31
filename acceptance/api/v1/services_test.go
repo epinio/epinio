@@ -33,11 +33,11 @@ var _ = Describe("Services API Application Endpoints", func() {
 		env.DeleteService(svc2)
 	})
 
-	Describe("GET /api/v1/orgs/:org/services", func() {
+	Describe("GET /api/v1/namespaces/:org/services", func() {
 		var serviceNames []string
 
 		It("lists all services in the org", func() {
-			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services",
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/services",
 				serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -55,7 +55,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the org does not exist", func() {
-			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/services", serverURL), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/idontexist/services", serverURL), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -66,9 +66,9 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 	})
 
-	Describe("GET api/v1/orgs/:org/services/:service", func() {
+	Describe("GET api/v1/namespaces/:org/services/:service", func() {
 		It("lists the service data", func() {
-			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services/%s", serverURL, org, svc1), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/services/%s", serverURL, org, svc1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
@@ -85,7 +85,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the org does not exist", func() {
-			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/idontexist/services/%s", serverURL, svc1), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/idontexist/services/%s", serverURL, svc1), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -96,7 +96,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		})
 
 		It("returns a 404 when the service does not exist", func() {
-			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/orgs/%s/services/bogus", serverURL, org), strings.NewReader(""))
+			response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/services/bogus", serverURL, org), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 

@@ -24,7 +24,7 @@ epinio install [flags]
       --loadbalancer-ip string            IP address to be assigned to ingress loadbalancer service
       --password string                   The password for authenticating all API requests
       --skip-cert-manager                 Assert to epinio that cert-manager is already installed.
-  -s, --skip-default-org                  Set this to skip creating a default org
+  -s, --skip-default-namespace            Set this to skip the creation of a default namespace
       --skip-linkerd                      Assert to epinio that Linkerd is already installed.
       --skip-traefik                      Assert to epinio that there is a Traefik active, even if epinio cannot find it.
       --system-domain string              The domain you are planning to use for Epinio. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).

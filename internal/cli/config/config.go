@@ -21,7 +21,7 @@ var (
 
 // Config represents a epinio config
 type Config struct {
-	Org      string `mapstructure:"org"`
+	Org      string `mapstructure:"namespace"`
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"pass"`
 	API      string `mapstructure:"api"`
@@ -118,7 +118,7 @@ func LoadFrom(file string) (*Config, error) {
 
 // Save saves the Epinio config
 func (c *Config) Save() error {
-	c.v.Set("org", c.Org)
+	c.v.Set("namespace", c.Org)
 	c.v.Set("user", c.User)
 	c.v.Set("pass", c.Password)
 	c.v.Set("api", c.API)

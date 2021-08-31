@@ -14,7 +14,7 @@ type App struct {
 	Active        bool     `json:"active,omitempty"`
 	StageID       string   `json:"stage_id,omitempty"`
 	Name          string   `json:"name,omitempty"`
-	Organization  string   `json:"organization,omitempty"`
+	Organization  string   `json:"namespace,omitempty"`
 	Status        string   `json:"status,omitempty"`
 	Route         string   `json:"route,omitempty"`
 	BoundServices []string `json:"bound_services,omitempty"`
@@ -56,7 +56,7 @@ func (al AppList) Less(i, j int) bool {
 // AppRef references an App by name and org
 type AppRef struct {
 	Name string `json:"name"`
-	Org  string `json:"org"`
+	Org  string `json:"namespace"`
 }
 
 // NewAppRef returns a new reference to an app

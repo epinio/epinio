@@ -48,7 +48,7 @@ var (
 	EpinioDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
 	EpinioDeploymentLabelValue = "true"
 	EpinioOrgLabelKey          = "app.kubernetes.io/component"
-	EpinioOrgLabelValue        = "epinio-organization"
+	EpinioOrgLabelValue        = "epinio-namespace"
 )
 
 // Memoization of GetCluster

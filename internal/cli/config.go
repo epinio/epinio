@@ -103,7 +103,7 @@ var CmdConfigShow = &cobra.Command{
 		ui.Success().
 			WithTable("Key", "Value").
 			WithTableRow("Colorized Output", color.MagentaString("%t", theConfig.Colors)).
-			WithTableRow("Current Organization", color.CyanString(theConfig.Org)).
+			WithTableRow("Current Namespace", color.CyanString(theConfig.Org)).
 			WithTableRow("API User Name", color.BlueString(theConfig.User)).
 			WithTableRow("API Password", color.BlueString(theConfig.Password)).
 			WithTableRow("API Url", color.BlueString(theConfig.API)).

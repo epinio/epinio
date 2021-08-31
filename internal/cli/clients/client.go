@@ -90,7 +90,7 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		Msg("Show Application Environment")
 
@@ -123,7 +123,7 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		WithStringValue("Variable", envName).
 		WithStringValue("Value", envValue).
@@ -158,7 +158,7 @@ func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) err
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		WithStringValue("Variable", envName).
 		Msg("Show application environment variable")
@@ -188,7 +188,7 @@ func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) er
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		WithStringValue("Variable", envName).
 		Msg("Remove from application environment")
@@ -425,13 +425,13 @@ func (c *EpinioClient) ServiceClasses() error {
 
 // Services gets all Epinio services in the targeted org
 func (c *EpinioClient) Services() error {
-	log := c.Log.WithName("Services").WithValues("Organization", c.Config.Org)
+	log := c.Log.WithName("Services").WithValues("Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Listing services")
 
 	details.Info("list services")
@@ -497,14 +497,14 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 // both in the targeted organization.
 func (c *EpinioClient) BindService(serviceName, appName string) error {
 	log := c.Log.WithName("Bind Service To Application").
-		WithValues("Name", serviceName, "Application", appName, "Organization", c.Config.Org)
+		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Bind Service")
 
 	request := models.BindRequest{
@@ -530,7 +530,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		c.ui.Success().
 			WithStringValue("Service", serviceName).
 			WithStringValue("Application", appName).
-			WithStringValue("Organization", c.Config.Org).
+			WithStringValue("Namespace", c.Config.Org).
 			Msg("Service Already Bound to Application.")
 
 		return nil
@@ -539,7 +539,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 	c.ui.Success().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Service Bound to Application.")
 	return nil
 }
@@ -548,14 +548,14 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 // application, both in the targeted organization.
 func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 	log := c.Log.WithName("Unbind Service").
-		WithValues("Name", serviceName, "Application", appName, "Organization", c.Config.Org)
+		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Unbind Service from Application")
 
 	_, err := c.delete(api.Routes.Path("ServiceBindingDelete",
@@ -567,7 +567,7 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 	c.ui.Success().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Service Detached From Application.")
 	return nil
 }
@@ -575,13 +575,13 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 // DeleteService deletes a service specified by name
 func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	log := c.Log.WithName("Delete Service").
-		WithValues("Name", name, "Organization", c.Config.Org)
+		WithValues("Name", name, "Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Delete Service")
 
 	request := models.DeleteRequest{
@@ -652,7 +652,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 
 	c.ui.Success().
 		WithStringValue("Name", name).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Service Removed.")
 	return nil
 }
@@ -661,13 +661,13 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
 func (c *EpinioClient) CreateService(name, class, plan string, data string, waitForProvision bool) error {
 	log := c.Log.WithName("Create Service").
-		WithValues("Name", name, "Class", class, "Plan", plan, "Organization", c.Config.Org)
+		WithValues("Name", name, "Class", class, "Plan", plan, "Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Class", class).
 		WithStringValue("Plan", plan).
 		WithTable("Parameter", "Value")
@@ -699,7 +699,7 @@ func (c *EpinioClient) CreateService(name, class, plan string, data string, wait
 
 	c.ui.Success().
 		WithStringValue("Name", name).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Class", class).
 		WithStringValue("Plan", plan).
 		Msg("Service Saved.")
@@ -717,14 +717,14 @@ func (c *EpinioClient) CreateService(name, class, plan string, data string, wait
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
 func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 	log := c.Log.WithName("Create Custom Service").
-		WithValues("Name", name, "Organization", c.Config.Org)
+		WithValues("Name", name, "Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 
 	data := make(map[string]string)
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithTable("Parameter", "Value")
 	for i := 0; i < len(dict); i += 2 {
 		key := dict[i]
@@ -752,7 +752,7 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 
 	c.ui.Success().
 		WithStringValue("Name", name).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Service Saved.")
 	return nil
 }
@@ -760,13 +760,13 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 // ServiceDetails shows the information of a service specified by name
 func (c *EpinioClient) ServiceDetails(name string) error {
 	log := c.Log.WithName("Service Details").
-		WithValues("Name", name, "Organization", c.Config.Org)
+		WithValues("Name", name, "Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Service Details")
 
 	jsonResponse, err := c.get(api.Routes.Path("ServiceShow", c.Config.Org, name))
@@ -869,13 +869,13 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 
 // Apps gets all Epinio apps in the targeted org
 func (c *EpinioClient) Apps() error {
-	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Listing applications")
 
 	details.Info("list applications")
@@ -908,13 +908,13 @@ func (c *EpinioClient) Apps() error {
 
 // AppShow displays the information of the named app, in the targeted org
 func (c *EpinioClient) AppShow(appName string) error {
-	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		Msg("Show application details")
 
@@ -943,7 +943,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 
 // AppStageID returns the stage id of the named app, in the targeted org
 func (c *EpinioClient) AppStageID(appName string) (string, error) {
-	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 
@@ -965,13 +965,13 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 
 // AppUpdate updates the specified running application's attributes (e.g. instances)
 func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
-	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		Msg("Update application")
 
@@ -1020,13 +1020,13 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 // When the connection is closed (e.g. from the server side), the process is the
 // same but starts from #2 above.
 func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
-	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		Msg("Streaming application logs")
 
@@ -1111,14 +1111,14 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 
 // CreateOrg creates an Org in gitea
 func (c *EpinioClient) CreateOrg(org string) error {
-	log := c.Log.WithName("CreateOrg").WithValues("Organization", org)
+	log := c.Log.WithName("CreateNamespace").WithValues("Namespace", org)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Name", org).
-		Msg("Creating organization...")
+		Msg("Creating namespace...")
 
 	errorMsgs := validation.IsDNS1123Subdomain(org)
 	if len(errorMsgs) > 0 {
@@ -1138,7 +1138,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 			retry := strings.Contains(emsg, " x509: ") ||
 				strings.Contains(emsg, "Gateway") ||
 				strings.Contains(emsg, "Service Unavailable") ||
-				(strings.Contains(emsg, "api/v1/orgs") &&
+				(strings.Contains(emsg, "api/v1/namespaces") &&
 					strings.Contains(emsg, "i/o timeout"))
 
 			details.Info("create error", "retry", retry)
@@ -1156,27 +1156,27 @@ func (c *EpinioClient) CreateOrg(org string) error {
 		return err
 	}
 
-	c.ui.Success().Msg("Organization created.")
+	c.ui.Success().Msg("Namespace created.")
 
 	return nil
 }
 
 // DeleteOrg deletes an Org in gitea
 func (c *EpinioClient) DeleteOrg(org string) error {
-	log := c.Log.WithName("DeleteOrg").WithValues("Organization", org)
+	log := c.Log.WithName("DeleteNamespace").WithValues("Namespace", org)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Name", org).
-		Msg("Deleting organization...")
+		Msg("Deleting namespace...")
 
 	_, err := c.delete(api.Routes.Path("OrgDelete", org))
 	if err != nil {
 		return err
 	}
 
-	c.ui.Success().Msg("Organization deleted.")
+	c.ui.Success().Msg("Namespace deleted.")
 
 	return nil
 }
@@ -1189,7 +1189,7 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 
 	c.ui.Note().
 		WithStringValue("Name", appname).
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Org).
 		Msg("Deleting application...")
 
 	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
@@ -1224,7 +1224,7 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 
 // OrgsMatching returns all Epinio orgs having the specified prefix in their name
 func (c *EpinioClient) OrgsMatching(prefix string) []string {
-	log := c.Log.WithName("OrgsMatching").WithValues("PrefixToMatch", prefix)
+	log := c.Log.WithName("NamespaceMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
@@ -1258,14 +1258,14 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 }
 
 func (c *EpinioClient) Orgs() error {
-	log := c.Log.WithName("Orgs")
+	log := c.Log.WithName("Namespaces")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().Msg("Listing organizations")
+	c.ui.Note().Msg("Listing namespaces")
 
-	details.Info("list organizations")
+	details.Info("list namespaces")
 	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
 	if err != nil {
 		return err
@@ -1283,7 +1283,7 @@ func (c *EpinioClient) Orgs() error {
 		msg = msg.WithTableRow(org)
 	}
 
-	msg.Msg("Epinio Organizations:")
+	msg.Msg("Epinio Namespaces:")
 
 	return nil
 }
@@ -1304,7 +1304,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", appRef.Name,
-			"Organization", appRef.Org,
+			"Namespace", appRef.Org,
 			"Sources", source)
 	log.Info("start")
 	defer log.Info("return")
@@ -1318,7 +1318,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	msg := c.ui.Note().
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Sources", sourceToShow).
-		WithStringValue("Organization", appRef.Org)
+		WithStringValue("Namespace", appRef.Org)
 
 	services := uniqueStrings(params.Services)
 
@@ -1327,7 +1327,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		msg = msg.WithStringValue("Services:", strings.Join(services, ", "))
 	}
 
-	msg.Msg("About to push an application with given name and sources into the specified organization")
+	msg.Msg("About to push an application with given name and sources into the specified namespace")
 
 	c.ui.Exclamation().
 		Timeout(duration.UserAbort()).
@@ -1486,7 +1486,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 	c.ui.Success().
 		WithStringValue("Name", appRef.Name).
-		WithStringValue("Organization", appRef.Org).
+		WithStringValue("Namespace", appRef.Org).
 		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
 		WithStringValue("Builder Image", params.BuilderImage).
 		Msg("App is online.")
@@ -1496,7 +1496,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 // Target targets an org in gitea
 func (c *EpinioClient) Target(org string) error {
-	log := c.Log.WithName("Target").WithValues("Organization", org)
+	log := c.Log.WithName("Target").WithValues("Namespace", org)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
@@ -1504,14 +1504,14 @@ func (c *EpinioClient) Target(org string) error {
 	if org == "" {
 		details.Info("query config")
 		c.ui.Success().
-			WithStringValue("Currently targeted organization", c.Config.Org).
+			WithStringValue("Currently targeted namespace", c.Config.Org).
 			Msg("")
 		return nil
 	}
 
 	c.ui.Note().
 		WithStringValue("Name", org).
-		Msg("Targeting organization...")
+		Msg("Targeting namespace...")
 
 	// TODO: Validation of the org name removed. Proper validation
 	// of the targeted org is done by all the other commands using
@@ -1526,7 +1526,7 @@ func (c *EpinioClient) Target(org string) error {
 		return errors.Wrap(err, "failed to save configuration")
 	}
 
-	c.ui.Success().Msg("Organization targeted.")
+	c.ui.Success().Msg("Namespace targeted.")
 
 	return nil
 }
