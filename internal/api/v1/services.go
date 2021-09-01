@@ -60,7 +60,8 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 	}
 
 	responseData := map[string]string{
-		"Status": status,
+		"Status":   status,
+		"Username": service.User(),
 	}
 	for key, value := range serviceDetails {
 		responseData[key] = value

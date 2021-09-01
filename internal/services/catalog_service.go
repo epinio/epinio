@@ -25,6 +25,7 @@ type CatalogService struct {
 	Service      string
 	Class        string
 	Plan         string
+	Username     string
 	cluster      *kubernetes.Cluster
 }
 
@@ -290,6 +291,7 @@ func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org st
 		labels := metadata["labels"].(map[string]interface{})
 		org := labels["epinio.suse.org/namespace"].(string)
 		service := labels["epinio.suse.org/service"].(string)
+		username := labels["app.kubernetes.io/username"].(string)
 
 		result = append(result, &CatalogService{
 			InstanceName: instanceName,
@@ -298,6 +300,7 @@ func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org st
 			Class:        className,
 			Plan:         planName,
 			cluster:      cluster,
+			Username:     username,
 		})
 	}
 
@@ -323,8 +326,11 @@ func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org,
 	}
 
 	spec := serviceInstance.Object["spec"].(map[string]interface{})
+	metadata := serviceInstance.Object["metadata"].(map[string]interface{})
+	labels := metadata["labels"].(map[string]interface{})
 	className := spec["clusterServiceClassExternalName"].(string)
 	planName := spec["clusterServicePlanExternalName"].(string)
+	username := labels["app.kubernetes.io/username"].(string)
 
 	return &CatalogService{
 		InstanceName: instanceName,
@@ -333,6 +339,7 @@ func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org,
 		Class:        className,
 		Plan:         planName,
 		cluster:      cluster,
+		Username:     username,
 	}, nil
 }
 
@@ -397,6 +404,11 @@ func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name
 // Name (Service interface) returns the service's name
 func (s *CatalogService) Name() string {
 	return s.Service
+}
+
+// User (Service interface) returns the service's username
+func (s *CatalogService) User() string {
+	return s.Username
 }
 
 // Org (Service interface) returns the service's organization

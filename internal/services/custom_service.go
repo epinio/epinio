@@ -21,6 +21,7 @@ type CustomService struct {
 	SecretName string
 	OrgName    string
 	Service    string
+	Username   string
 	kubeClient *kubernetes.Cluster
 }
 
@@ -46,6 +47,8 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 	for _, s := range secrets.Items {
 		service := s.ObjectMeta.Labels["epinio.suse.org/service"]
 		org := s.ObjectMeta.Labels["epinio.suse.org/namespace"]
+		username := s.ObjectMeta.Labels["app.kubernetes.io/username"]
+
 		secretName := s.ObjectMeta.Name
 
 		result = append(result, &CustomService{
@@ -53,6 +56,7 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 			OrgName:    org,
 			Service:    service,
 			kubeClient: kubeClient,
+			Username:   username,
 		})
 	}
 
@@ -64,7 +68,7 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 func CustomServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
 	secretName := serviceResourceName(org, service)
 
-	_, err := kubeClient.GetSecret(ctx, org, secretName)
+	s, err := kubeClient.GetSecret(ctx, org, secretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -130,6 +134,11 @@ func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, na
 // Name (Service interface) returns the service instance's name
 func (s *CustomService) Name() string {
 	return s.Service
+}
+
+// User (Service interface) returns the service's username
+func (s *CustomService) User() string {
+	return s.Username
 }
 
 // Org (Service interface) returns the service instance's organization

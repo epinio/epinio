@@ -13,6 +13,8 @@ import (
 type Service interface {
 	// Name returns the name of the service instance
 	Name() string
+	// Username returns the name of the service user
+	User() string
 	// Org returns the name of the organization the service
 	// instance was created in
 	Org() string
