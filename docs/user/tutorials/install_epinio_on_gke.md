@@ -1,48 +1,14 @@
-# Creating a K3d kubernetes cluster
+# Google GKE Configuration
 
 ## Create a GKE cluster
 
 Follow the [quickstart](https://cloud.google.com/kubernetes-engine/docs/quickstart) to create a GKE cluster.
 
-#### Install Dependencies
+#### Install
 
-Follow these [steps](./install_dependencies.md) to install dependencies.
+Installing Epinio in an GKE cluster is done in three steps.
 
-#### Install Epinio CLI
-
-* Download the binary
-
-```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.18/epinio-linux-amd64
-```
-
-* Make the binary executable
-
-```bash
-chmod +x epinio
-```
-
-* Move the binary to your PATH
-
-```bash
-sudo mv ./epinio /usr/local/bin/epinio
-```
-
-#### Install Ingress In Cluster
-
-In GKE, we install ingress first and wait for the `loadbalancer-ip` to be provisioned by GKE for the `traefik` ingress. Then, you can map the `loadbalancer-ip` to your `Domain Name` e.x `example.com` and wait for it to be mapped.
-
-```bash
-epinio install-ingress
-```
-
-The output of the command will print the `loadbalancer-ip`.
-
-#### Install Epinio In Cluster
-
-```bash
-epinio install --system-domain example.com --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
-```
+Follow [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md) for test and production environments.
 
 ### Troubleshooting
 

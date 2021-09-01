@@ -30,53 +30,9 @@ NAME                  STATUS   ROLES                  AGE   VERSION
 k3d-epinio-server-0   Ready    control-plane,master   38s   v1.20.0+k3s2
 ```
 
-## Install Dependencies
-
-Follow these [steps](./install_dependencies.md) to install dependencies.
-
-## Install Epinio CLI
-
-### Download the Binary
-
-Change the version (v0.0.21) to the current release.
-
-##### Linux
-
-```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.21/epinio-linux-amd64
-```
-
-##### MacOS
-
-```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.21/epinio-darwin-amd64
-```
-
-##### Windows
-
-```bash
- curl -LO https://github.com/epinio/epinio/releases/download/v0.0.21/epinio-windows-amd64.exe
-```
-
-### Make the binary executable
-
-For example on Linux and Mac:
-
-```bash
-chmod +x epinio
-```
-
-Move the binary to your PATH
-
-```bash
-sudo mv ./epinio /usr/local/bin/epinio
-```
-
 ### Install Epinio on the Cluster
 
-```bash
-epinio install
-```
+Follow [Installation using a MagicDNS Service](./docs/user/tutorials/install_epinio_magicDNS.md) to install Epinio in your test environment.
 
 If k3d is inside a VM, in addition to the special k3d setup, explained above, use this system domain instead:
 
