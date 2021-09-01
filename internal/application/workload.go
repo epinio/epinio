@@ -223,8 +223,8 @@ func (a *Workload) deployment(ctx context.Context) (*appsv1.Deployment, error) {
 }
 
 // Bind creates a binding of the service to the application.
-func (a *Workload) Bind(ctx context.Context, service interfaces.Service) error {
-	bindSecret, err := service.GetBinding(ctx, a.app.Name)
+func (a *Workload) Bind(ctx context.Context, service interfaces.Service, username string) error {
+	bindSecret, err := service.GetBinding(ctx, a.app.Name, username)
 	if err != nil {
 		return err
 	}

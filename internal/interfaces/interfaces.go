@@ -19,7 +19,7 @@ type Service interface {
 	// GetBinding returns a kube secret resource representing the
 	// binding between the service instance and the specified
 	// application.
-	GetBinding(ctx context.Context, appName string) (*corev1.Secret, error)
+	GetBinding(ctx context.Context, appName string, username string) (*corev1.Secret, error)
 	// DeleteBinding removes the binding between the service
 	// instance and the specified application.
 	DeleteBinding(ctx context.Context, appName, org string) error
