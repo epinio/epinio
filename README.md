@@ -59,6 +59,27 @@ to use Kubernetes as a PaaS (Platform as a Service).
 
 ## Installation
 
+### System Requirements
+
+#### Kubernetes Cluster Requirements
+
+For the Epinio server, and related deployments we recommend to consider the following resources:
+
+- 2-4 VCPUs
+- 8GB RAM (system memory + 4GB)
+- 10GB Disk space (system disk + 5GB)
+
+In addition, extensive requirements for your workload (apps) would add to that.
+
+#### Epinio CLI
+
+The Epinio CLI will typically run on a host, which will need network access to your kubernetes cluster.
+Usually you will use the same host to run tooling, like e.g. "kubectl" and "helm".
+
+The compiled binary will use about 40-50MB disk space, incl. local configuration files.
+
+### Installation on Specific Kubernetes Offerings
+
 - [Install on K3d](./docs/user/tutorials/install_epinio_on_k3d.md) - Install K3d and then install epinio.
 - [Install on GKE](./docs/user/tutorials/install_epinio_on_gke.md) - Install Epinio in GKE.
 - [Install on EKS](./docs/user/tutorials/install_epinio_on_eks.md) - Install Epinio in Amazon EKS clusters.
