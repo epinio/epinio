@@ -36,7 +36,25 @@ func CNAME(record string, value string) ChangeResourceRecordSet {
 				ResourceRecordSet: ResourceRecordSet{
 					Name: record,
 					Type: "CNAME",
-					TTL:  300,
+					TTL:  120,
+					ResourceRecords: []ResourceRecord{
+						{Value: value},
+					},
+				},
+			},
+		},
+	}
+}
+
+func A(record string, value string) ChangeResourceRecordSet {
+	return ChangeResourceRecordSet{
+		Changes: []Change{
+			{
+				Action: "UPSERT",
+				ResourceRecordSet: ResourceRecordSet{
+					Name: record,
+					Type: "A",
+					TTL:  60,
 					ResourceRecords: []ResourceRecord{
 						{Value: value},
 					},

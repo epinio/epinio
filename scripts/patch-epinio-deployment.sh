@@ -1,5 +1,7 @@
 #!/bin/bash
 
+timeout=240s
+
 # This script should be used while doing development on Epinio.
 # When running `epinio install`, the Epinio Deployment will try to apply
 # this file: assets/embedded-files/epinio/server.yaml . This file assumes an image
@@ -24,6 +26,17 @@ echo Configuration
 echo "  - Binary: ${EPINIO_BINARY_PATH}"
 echo "  - Tag:    ${EPINIO_BINARY_TAG}"
 echo
+
+if [ ! -f "$EPINIO_BINARY_PATH" ]; then
+  echo "epinio binary path is not a file"
+  exit 1
+fi
+
+if [ -z "$EPINIO_BINARY_TAG" ]; then
+  echo "epinio binary tag is empty"
+  exit 1
+fi
+
 echo "Creating the PVC"
 cat <<EOF | kubectl apply -f -
 ---
@@ -48,6 +61,8 @@ kind: Pod
 metadata:
   name: epinio-copier
   namespace: epinio
+  annotations:
+    linkerd.io/inject: disabled
 spec:
   volumes:
     - name: epinio-binary
@@ -63,7 +78,7 @@ spec:
 EOF
 
 echo "Waiting for dummy pod to be ready"
-kubectl wait --for=condition=ready pod -n epinio epinio-copier
+kubectl wait --for=condition=ready --timeout=$timeout pod -n epinio epinio-copier
 
 echo "Copying the binary on the PVC"
 # Notes
@@ -120,4 +135,4 @@ kubectl rollout restart deployment -n epinio epinio-server
 
 # https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-status-em-
 echo "Waiting for the rollout of the deployment to complete"
-kubectl rollout status deployment -n epinio epinio-server  --timeout=120s
+kubectl rollout status deployment -n epinio epinio-server  --timeout=$timeout

@@ -2,6 +2,7 @@ package install_test
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"os"
 
 	. "github.com/onsi/ginkgo"
@@ -14,21 +15,25 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-// This test uses AWS route53 to update the system domain's records
-var _ = Describe("<Scenario4>", func() {
+var _ = Describe("<Scenario3>", func() {
 	var (
-		flags        []string
-		epinioHelper epinio.Epinio
+		appDir       string
 		appName      = catalog.NewAppName()
-		loadbalancer string
 		domain       string
+		epinioHelper epinio.Epinio
+		flags        []string
+		loadbalancer string
+		serviceName  = catalog.NewServiceName()
 		zoneID       string
+		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
+		env testenv.EpinioEnv
 	)
 
 	BeforeEach(func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
-		domain = os.Getenv("AWS_DOMAIN")
+		// use Route53
+		domain = os.Getenv("AKS_DOMAIN")
 		Expect(domain).ToNot(BeEmpty())
 
 		zoneID = os.Getenv("AWS_ZONE_ID")
@@ -36,23 +41,31 @@ var _ = Describe("<Scenario4>", func() {
 
 		flags = []string{
 			"--skip-default-org",
+			"--skip-cert-manager",
+			"--tls-issuer=private-ca",
 			"--system-domain=" + domain,
 		}
+
+		var err error
+		appDir, err = ioutil.TempDir("", "epinio-app")
+		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
+		os.RemoveAll(appDir)
+
 		out, err := epinioHelper.Uninstall()
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with loadbalancer IP, custom domain and pushes an app with env vars", func() {
+	It("installs and passes scenario", func() {
 		By("Installing Traefik", func() {
 			out, err := epinioHelper.Run("install-ingress")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Or(ContainSubstring("Traefik deployed"), ContainSubstring("Traefik Ingress info")))
 		})
 
-		By("Extracting Loadbalancer Name", func() {
+		By("Extracting AKS Loadbalancer Name", func() {
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
 
@@ -60,17 +73,27 @@ var _ = Describe("<Scenario4>", func() {
 			err = json.Unmarshal([]byte(out), status)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
-			loadbalancer = status.Status.LoadBalancer.Ingress[0].Hostname
-			Expect(loadbalancer).ToNot(BeEmpty())
+			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
+			Expect(loadbalancer).ToNot(BeEmpty(), out)
 		})
 
 		By("Updating DNS Entries", func() {
-			change := route53.CNAME(domain, loadbalancer)
+			change := route53.A(domain, loadbalancer)
 			out, err := route53.Upsert(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			change = route53.CNAME("*."+domain, loadbalancer)
+			change = route53.A("*."+domain, loadbalancer)
 			out, err = route53.Upsert(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
+		})
+
+		By("Installing CertManager", func() {
+			out, err := epinioHelper.Run("install-cert-manager")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("CertManager deployed"))
+
+			// create certificate secret and cluster_issuer
+			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
@@ -87,21 +110,20 @@ var _ = Describe("<Scenario4>", func() {
 		// it would fail before patching.
 		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
 
-		By("Pushing an app with Env vars", func() {
-			out, err := epinioHelper.Run("apps", "create", appName)
+		By("Creating a custom service and pushing an app", func() {
+			out, err := epinioHelper.Run("service", "create-custom", serviceName, "mariadb", "10-3-22")
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			out, err = epinioHelper.Run("apps", "env", "set", appName, "MYVAR", "myvalue")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"), "--bind", serviceName)
+			Expect(err).NotTo(HaveOccurred(), out)
 
-			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"))
-			Expect(err).ToNot(HaveOccurred(), out)
+			env.VerifyAppServiceBound(appName, serviceName, testenv.DefaultWorkspace, 1)
 
-			Eventually(func() string {
-				out, err := proc.RunW("kubectl", "get", "deployment", "--namespace", testenv.DefaultWorkspace, appName, "-o", "jsonpath={.spec.template.spec.containers[0].env}")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}).Should(MatchRegexp("MYVAR"))
+			// verify cluster_issuer is used
+			out, err = proc.RunW("kubectl", "get", "certificate",
+				"-n", testenv.DefaultWorkspace, appName, "-o", "jsonpath='{.spec.issuerRef.name}'")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal("'private-ca'"))
 		})
 	})
 })

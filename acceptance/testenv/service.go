@@ -5,6 +5,7 @@ type LoadBalancerHostname struct {
 		LoadBalancer struct {
 			Ingress []struct {
 				Hostname string `json:"hostname"`
+				IP       string `json:"ip"`
 			} `json:"ingress"`
 		} `json:"loadBalancer"`
 	} `json:"status"`

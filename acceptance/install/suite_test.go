@@ -21,7 +21,6 @@ func TestAcceptance(t *testing.T) {
 
 var (
 	nodeSuffix, nodeTmpDir string
-	env                    testenv.EpinioEnv
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {
@@ -29,10 +28,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	testenv.SetRoot("../..")
 	testenv.SetupEnv()
-
-	if err := testenv.CheckDependencies(); err != nil {
-		panic("Missing dependencies: " + err.Error())
-	}
 
 	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
 	testenv.BuildEpinio()
@@ -42,7 +37,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
 }, func(randomSuffix []byte) {
 	testenv.SetRoot("../..")
-	os.Setenv("EPINIO_CONFIG", testenv.EpinioYAML())
+	testenv.SetupEnv()
 
 	Expect(os.Getenv("KUBECONFIG")).ToNot(BeEmpty(), "KUBECONFIG environment variable should not be empty")
 })
