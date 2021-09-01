@@ -2,9 +2,13 @@
 
 Opinionated platform that runs on Kubernetes, that takes you from App to URL in one step.
 
-![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg)
+[![godoc](https://pkg.go.dev/badge/epinio/epinio)](https://pkg.go.dev/github.com/epinio/epinio/internal/api/v1)
+[![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=event%3Aschedule)
+[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks.yml)
+[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/eks.yml)
+[![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml)
 
-<img src="./docs/epinio.png" width="50%" height="50%">
+<img src="./docs/epinio.png" align="right" width="200" height="50%">
 
 ## Contents
 
@@ -70,11 +74,11 @@ Epinio documentation is organised into these four quadrants in the `./docs/` fol
 
 [Tutorials](./docs/user/tutorials/) take you by the hand through a series of steps that are useful for a beginner like how to install epinio in various kubernetes distros, how to push an application and an org.
 
-[How-to-guides](./docs/user/howtos/) explain steps to solve specific problems like how to create a redis database using epinio etc. 
+[How-to-guides](./docs/user/howtos/) explain steps to solve specific problems like how to create a redis database using epinio etc.
 
-[Explanations](./docs/user/explanations/) discuss components of Epinio at a very high level like about linkerd, traefik etc. 
+[Explanations](./docs/user/explanations/) discuss components of Epinio at a very high level like about linkerd, traefik etc.
 
-[References](./docs/user/references/) provides references about Epinio CLI docs and Epinio API docs. 
+[References](./docs/user/references/) provides references about Epinio CLI docs and Epinio API docs.
 
 ## Reach Us
 
@@ -83,7 +87,7 @@ Epinio documentation is organised into these four quadrants in the `./docs/` fol
 
 ## Contributing
 
-`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currenlty being worked on in the `BackLog` section. 
+`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currenlty being worked on in the `BackLog` section.
 
 If you would like to start contributing to `Epinio`, then you can pick up any of the cards with label `good first issue`.
 

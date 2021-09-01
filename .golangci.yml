@@ -26,7 +26,6 @@ linters:
   enable:
   - misspell
   - structcheck
-  - golint
   - govet
   - staticcheck
   - deadcode
@@ -38,7 +37,7 @@ linters:
   - gocyclo
   - dupl
   - goimports
-  - golint
+  - revive
   - gosimple
   - typecheck
   - unused
