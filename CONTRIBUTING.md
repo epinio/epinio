@@ -65,7 +65,7 @@ Then you add a line to every git commit message:
 
 Use your real name (sorry, no pseudonyms or anonymous contributions).
 
-If you set your `user.name` and `user.email` git configs, you can sign your
+If you set your `user.name` and `user.email` in your local git configuration, you can sign your
 commit automatically with `git commit -s`.
 
 Note: If your git config information is set properly then viewing the `git log`
