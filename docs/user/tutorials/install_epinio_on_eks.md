@@ -11,85 +11,8 @@ If you don't have an existing cluster, follow the [quickstart](https://docs.aws.
 * To do more extensive testing we recommend a 2 node cluster with "t3.xlarge" instances
 * To just try out Epinio, e.g. 2 "t3a.large" are sufficient
 
-#### Install Dependencies
-
-Follow these [steps](./install_dependencies.md) to install dependencies.
-
-#### Install Epinio CLI
-
-* Download the binary
-
-Find the latest version at [Releases](https://github.com/epinio/epinio/releases) and run e.g.
-
-```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/<epinio-version>/epinio-linux-amd64
-```
-where `<epinio-version>` is a placeholder for the chosen version.
-* Make the binary executable
-
-```bash
-chmod +x epinio
-```
-
-* Move the binary to your PATH
-
-```bash
-sudo mv ./epinio /usr/local/bin/epinio
-```
-
 #### Install
 
-Installing Epinio in an EKS cluster is done in two steps.
+Installing Epinio in an EKS cluster is done in three steps.
 
-#### Install Ingress In Cluster (for a custom DOMAIN)
-
-First install ingress and wait for the `loadbalancer-ip` to be provisioned for the `traefik` ingress. Then map the `loadbalancer-ip` to your `Domain Name` e.g. `example.net` and wait for it to be mapped.
-
-```bash
-epinio install-ingress
-```
-
-The command prints the `loadbalancer-ip` needed. Note however that for EKS it prints a loadbalanced FQDN instead, which may resolve to multiple IPs. Therefore we recommend to create a wildcard domain using CNAME records.
-
-#### Example wildcard DOMAIN with AWS "route53" service
-
-As an example we will use the [AWS Service Route53](https://console.aws.amazon.com/route53/v2/home#Dashboard) to create a wildcard domain within one of your existing "Hosted zones", e.g. **example.net**.
-
-Given Epinio ingress installation provided you with the following hostname:
-
-```bash
-Traefik Ingress info: [{"hostname":"abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com"}]
-```
-
-you will have to add two CNAME records, for the subdomain, e.g. "test" to have "test.example.net", resp. "\*.test.example.net".
-
-##### test.example.net
-
-```bash
-Record name: test
-Record type: CNAME - Routes traffic to another domain name and some AWS resources
-Value: abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com
-```
-
-##### \*.test.example.net
-
-```bash
-Record name: *.test
-Record type: CNAME - Routes traffic to another domain name and some AWS resources
-Value: abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com
-```
-
-Finally, running 
-
-`> host test.example.net`, or even
-
-`> host epinio.test.example.net`
-
-should resolve to e.g. "abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com".
-
-#### Install Epinio In Cluster
-With DNS now available the second step actually installs the cluster:
-
-```bash
-epinio install --system-domain test.example.net --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
-```
+Follow [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md) for test and production environments.

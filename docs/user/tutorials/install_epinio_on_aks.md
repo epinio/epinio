@@ -6,59 +6,18 @@ If you don't have an existing cluster, follow the [quickstart](https://docs.micr
 
 ## AKS Prerequisites
 
-* Epinio v0.0.19 has been tested with Azure AKS incl. kubernetes versions v1.19.11 and v1.20.7
+* Epinio v0.0.19 has been tested with Azure AKS incl. kubernetes version v1.20.7
 * Epinio Acceptance Tests passed on a 2 node cluster with Standard_D3_v2 instances
 * To just try out Epinio, e.g. 2 Standard_D2_v2 are sufficient
 
-#### Install Dependencies
+## Install
 
-Follow these [steps](./install_dependencies.md) to install dependencies.
+Beside advanced installation options, there are two ways of installing Epinio:
 
-#### Install Epinio CLI
+1. [Installation using a MagicDNS Service](./docs/user/tutorials/install_epinio_magicDNS.md)
 
-* Download the binary
+- For test environments. This should work on nearly any kubernetes distribution. Epinio will try to automatically create a magic DNS domain, e.g. **10.0.0.1.omg.howdio.website**.
 
-Find the latest version from [Releases](https://github.com/epinio/epinio/releases) and run e.g.
+2. [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md)
 
-```bash
-curl -o epinio -L https://github.com/epinio/epinio/releases/download/v0.0.19/epinio-linux-amd64
-```
-
-* Make the binary executable
-
-```bash
-chmod +x epinio
-```
-
-* Move the binary to your PATH
-
-```bash
-sudo mv ./epinio /usr/local/bin/epinio
-```
-
-#### Install
-
-Installing Epinio in an Azure AKS cluster doesn't differ from the general installation documentation.
-If you would just run `epinio install` it will automatically use a magic DNS system domain like e.g. `10.0.0.1.omg.howdoi.website`.
-
-#### Install Ingress In Cluster (for a custom DOMAIN)
-
-Install ingress first and wait for the `loadbalancer-ip` to be provisioned for the `traefik` ingress. Then, you can map the `loadbalancer-ip` to your `Domain Name` e.g. `example.com` and wait for it to be mapped.
-
-```bash
-epinio install-ingress
-```
-
-The output of the command will print the `loadbalancer-ip`.
-
-#### Install Epinio In Cluster
-
-```bash
-epinio install --system-domain example.com --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
-```
-
-### Troubleshooting
-
-With Epinio v0.0.19 `epinio install` can run into a timeout during linkerd deployment.
-If that happened, you'll need to run `epinio uninstall`, and then install again.
-The second installation should finish as expected.
+- For test and production environments. You will define a system domain, e.g. **test.example.com**.
