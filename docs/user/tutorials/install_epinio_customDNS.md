@@ -46,7 +46,7 @@ epinio install --system-domain test.example.com --tls-issuer=letsencrypt-product
 
 ## DNS Configuration Examples
 
-### AWS EKS and Rout53
+### AWS EKS and Route53
 
 As an example we will use the [AWS Service Route53](https://console.aws.amazon.com/route53/v2/home#Dashboard) to create a wildcard domain within one of your existing "Hosted zones", e.g. **example.com**.
 
@@ -92,7 +92,7 @@ As an example we will use the Azure resource group "example-domain", with the zo
 Given Epinio ingress installation provided you with the following hostname:
 
 ```bash
-Traefik Ingress info: [{"hostname":"10.0.0.1"}]
+Traefik Ingress info: [{"ip":"10.0.0.1"}]
 ```
 
 *Note* you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
@@ -129,7 +129,7 @@ should resolve to e.g. "10.0.0.1".
 Given Epinio ingress installation provided you with the following hostname:
 
 ```bash
-Traefik Ingress info: [{"hostname":"10.0.0.1"}]
+Traefik Ingress info: [{"ip":"10.0.0.1"}]
 ```
 
 *Note* you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
