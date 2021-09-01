@@ -1,3 +1,5 @@
+// tailer manages objects which tail the logs of a collection of pods specified by a label selector.
+// This is similar to what the cli tool `stern` does.
 package tailer
 
 import (
@@ -44,7 +46,7 @@ type ContainerLogLine struct {
 // FetchLogs writes all the logs of the matching containers to the logChan.
 // If ctx is Done() the method stops even if not all logs are fetched.
 func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
-	logger := tracelog.NewLogger().WithName("fetching-logs")
+	logger := tracelog.NewLogger().WithName("fetching-logs").V(3)
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -61,7 +63,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 	tails := []*Tail{}
 	newTail := func(pod corev1.Pod, c corev1.Container) *Tail {
 		return NewTail(pod.Namespace, pod.Name, c.Name,
-			tracelog.NewLogger().WithName("log-tracing"),
+			tracelog.NewLogger().WithName("log-tracing").V(4),
 			cluster.Kubectl,
 			&TailOptions{
 				Timestamps:   config.Timestamps,
@@ -113,8 +115,12 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 	return nil
 }
 
+// StreamLogs writes the logs of all matching containers to the
+// logChan.  The containers are determined by an internal watcher
+// polling the cluster for pod __changes__.
 func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.WaitGroup, config *Config, cluster *kubernetes.Cluster) error {
-	logger := tracelog.NewLogger().WithName("streaming-logs")
+	logger := tracelog.NewLogger().WithName("tail-handling").V(3)
+
 	var namespace string
 	if config.AllNamespaces {
 		namespace = ""
@@ -122,13 +128,26 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		return errors.New("no namespace set for tailing logs")
 	}
 
+	logger.Info("start watcher",
+		"pods", config.PodQuery.String(),
+		"containers", config.ContainerQuery.String(),
+		"excluded", config.ExcludeContainerQuery.String(),
+		"state", config.ContainerState,
+		"selector", config.LabelSelector.String())
 	added, removed, err := Watch(ctx, cluster.Kubectl.CoreV1().Pods(namespace),
 		config.PodQuery, config.ContainerQuery, config.ExcludeContainerQuery, config.ContainerState, config.LabelSelector)
 	if err != nil {
 		return errors.Wrap(err, "failed to set up watch")
 	}
 
+	// Process watch reports (added/removed tailer targets)
+
 	tails := make(map[string]*Tail)
+
+	logger.Info("await reports")
+	defer func() {
+		logger.Info("report processing ends")
+	}()
 	for {
 		select {
 		case p := <-added:
@@ -136,6 +155,8 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 			if tails[id] != nil {
 				break
 			}
+
+			logger.Info("tailer add", "id", id)
 
 			tail := NewTail(p.Namespace, p.Pod, p.Container,
 				tracelog.NewLogger().WithName("log-tracing"),
@@ -151,20 +172,26 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 			tails[id] = tail
 
 			wg.Add(1)
-			go func() {
+			go func(id string) {
+				logger.Info("tailer start", "id", id)
 				err := tail.Start(ctx, logChan, true)
 				if err != nil {
 					logger.Error(err, "failed to start a Tail")
 				}
+				logger.Info("tailer done", "id", id)
 				wg.Done()
-			}()
+			}(id)
 		case p := <-removed:
 			id := p.GetID()
 			if tails[id] == nil {
 				break
 			}
+
+			logger.Info("tailer remove", "id", id)
+
 			delete(tails, id)
 		case <-ctx.Done():
+			logger.Info("received stop request")
 			return nil
 		}
 	}
