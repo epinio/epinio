@@ -32,6 +32,7 @@ type deployParam struct {
 	models.AppRef
 	Git         *models.GitRef
 	ImageURL    string
+	Username    string
 	Instances   int32
 	Stage       models.StageRef
 	Owner       metav1.OwnerReference
@@ -47,6 +48,10 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 	p := httprouter.ParamsFromContext(ctx)
 	org := p.ByName("org")
 	name := p.ByName("app")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -119,6 +124,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		Environment: environment,
 		Instances:   instances,
 		ImageURL:    req.ImageURL,
+		Username:    username,
 	}
 
 	log.Info("deploying app", "org", org, "app", req.App)
@@ -139,7 +145,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 
 	log.Info("deploying app service", "org", org, "app", req.App)
 
-	svc, err := newAppService(req.App)
+	svc, err := newAppService(req.App, username)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -166,7 +172,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 
 	log.Info("deploying app ingress", "org", org, "app", req.App, "", route)
 
-	ing, err := newAppIngress(req.App, route)
+	ing, err := newAppIngress(req.App, route, username)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -210,6 +216,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 		"app.kubernetes.io/part-of":    deployParams.Org,
 		"app.kubernetes.io/component":  "application",
 		"app.kubernetes.io/managed-by": "epinio",
+		"app.kubernetes.io/username":   deployParams.Username,
 	}
 	if stageID != "" {
 		labels["epinio.suse.org/stage-id"] = stageID
@@ -223,6 +230,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 				"app.kubernetes.io/part-of":    deployParams.Org,
 				"app.kubernetes.io/component":  "application",
 				"app.kubernetes.io/managed-by": "epinio",
+				"app.kubernetes.io/username":   deployParams.Username,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -263,7 +271,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 }
 
 // newAppService is a helper that creates the kube service resource for the app
-func newAppService(app models.AppRef) (*v1.Service, error) {
+func newAppService(app models.AppRef, username string) (*v1.Service, error) {
 	serviceData := v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.ServiceName(app.Name),
@@ -278,6 +286,7 @@ func newAppService(app models.AppRef) (*v1.Service, error) {
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,
+				"app.kubernetes.io/username":   username,
 			},
 		},
 		Spec: v1.ServiceSpec{
@@ -300,7 +309,7 @@ func newAppService(app models.AppRef) (*v1.Service, error) {
 }
 
 // newAppIngress is a helper that creates the kube ingress resource for the app
-func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, error) {
+func newAppIngress(appRef models.AppRef, route, username string) (*networkingv1.Ingress, error) {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
 
 	ingressData := networkingv1.Ingress{
@@ -315,6 +324,7 @@ func newAppIngress(appRef models.AppRef, route string) (*networkingv1.Ingress, e
 				"app.kubernetes.io/component":  "application",
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/name":       appRef.Name,
+				"app.kubernetes.io/username":   username,
 				"app.kubernetes.io/part-of":    appRef.Org,
 			},
 		},
