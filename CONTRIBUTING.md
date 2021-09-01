@@ -15,7 +15,7 @@ creating the pull request. This can reduce rework.
 ## Sign Your Commits
 
 A sign-off is a line at the end of the explanation for a commit.
-All commits must to be signed. Your signature certifies that you wrote the patch
+All commits have to be signed. Your signature certifies that you wrote the patch
 or otherwise have the right to contribute the material. When you sign-off you
 agree to the following rules
 (from [developercertificate.org](https://developercertificate.org/)):
