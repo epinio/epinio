@@ -1,6 +1,6 @@
 # Contributing to Epinio
 
-Rancher Desktop accepts contributions via GitHub issues and pull requests.
+Epinio accepts contributions via GitHub issues and pull requests.
 This document outlines the process to get your pull request accepted.
 
 ## Start With An Issue
