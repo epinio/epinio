@@ -92,7 +92,7 @@ Beside advanced installation options, there are two ways of installing Epinio:
 
 2. [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md)
 
-- For test and production environments. You will define a system domain, e.g. **test.example.com**.
+- For test and production environments. You will have to define a system domain, e.g. **test.example.com**.
 
 ### Installation on Specific Kubernetes Offerings
 
