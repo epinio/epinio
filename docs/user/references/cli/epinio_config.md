@@ -11,6 +11,10 @@ Epinio config management
 
 Manage the epinio cli configuration
 
+```
+epinio config [flags]
+```
+
 ### Options
 
 ```

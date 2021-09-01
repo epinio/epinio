@@ -1,20 +1,20 @@
 ---
-title: "epinio org list"
-linkTitle: "epinio org list"
+title: "epinio namespace create"
+linkTitle: "epinio namespace create"
 weight: 1
 ---
-## epinio org list
+## epinio namespace create
 
-Lists all organizations
+Creates an epinio-controlled namespace
 
 ```
-epinio org list [flags]
+epinio namespace create NAME [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for list
+  -h, --help   help for create
 ```
 
 ### Options inherited from parent commands
@@ -31,5 +31,5 @@ epinio org list [flags]
 
 ### SEE ALSO
 
-* [epinio org](../epinio_org)	 - Epinio organizations
+* [epinio namespace](../epinio_namespace)	 - Epinio-controlled namespaces
 

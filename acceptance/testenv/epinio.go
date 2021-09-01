@@ -108,7 +108,7 @@ func EnsureEpinio(epinioBinary string) error {
 	// the default org before we patch.
 	installArgs := []string{
 		"install",
-		"--skip-default-org",
+		"--skip-default-namespace",
 		"--user", epinioUser,
 		"--password", epinioPassword,
 	}
@@ -177,9 +177,9 @@ const DefaultWorkspace = "workspace"
 
 func EnsureDefaultWorkspace(epinioBinary string) {
 	gomega.Eventually(func() string {
-		out, err := proc.Run("", false, epinioBinary, "org", "create", DefaultWorkspace)
+		out, err := proc.Run("", false, epinioBinary, "namespace", "create", DefaultWorkspace)
 		if err != nil {
-			if exists, err := regexp.Match(`Organization 'workspace' already exists`, []byte(out)); err == nil && exists {
+			if exists, err := regexp.Match(`Namespace 'workspace' already exists`, []byte(out)); err == nil && exists {
 				return ""
 			}
 			return errors.Wrap(err, out).Error()

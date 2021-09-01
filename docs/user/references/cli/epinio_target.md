@@ -5,10 +5,10 @@ weight: 1
 ---
 ## epinio target
 
-Targets an organization in Epinio.
+Targets an epinio-controlled namespace.
 
 ```
-epinio target [org] [flags]
+epinio target [namespace] [flags]
 ```
 
 ### Options

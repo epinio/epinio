@@ -1,20 +1,24 @@
 ---
-title: "epinio org"
-linkTitle: "epinio org"
+title: "epinio namespace"
+linkTitle: "epinio namespace"
 weight: 1
 ---
-## epinio org
+## epinio namespace
 
-Epinio organizations
+Epinio-controlled namespaces
 
 ### Synopsis
 
-Manage epinio organizations
+Manage epinio-controlled namespaces
+
+```
+epinio namespace [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for org
+  -h, --help   help for namespace
 ```
 
 ### Options inherited from parent commands
@@ -32,7 +36,7 @@ Manage epinio organizations
 ### SEE ALSO
 
 * [epinio](../epinio)	 - Epinio cli
-* [epinio org create](../epinio_org_create)	 - Creates an organization
-* [epinio org delete](../epinio_org_delete)	 - Deletes an organization
-* [epinio org list](../epinio_org_list)	 - Lists all organizations
+* [epinio namespace create](../epinio_namespace_create)	 - Creates an epinio-controlled namespace
+* [epinio namespace delete](../epinio_namespace_delete)	 - Deletes an epinio-controlled namespace
+* [epinio namespace list](../epinio_namespace_list)	 - Lists all epinio-controlled namespaces
 

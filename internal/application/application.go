@@ -144,7 +144,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 		return result, err
 	}
 	if !exists {
-		return result, fmt.Errorf("organization %s does not exist", org)
+		return result, fmt.Errorf("namespace %s does not exist", org)
 	}
 
 	deployments, err := cluster.Kubectl.AppsV1().Deployments(org).List(ctx, listOptions)
@@ -174,7 +174,7 @@ func ListApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (mod
 		return result, err
 	}
 	if !exists {
-		return result, fmt.Errorf("organization %s does not exist", org)
+		return result, fmt.Errorf("namespace %s does not exist", org)
 	}
 
 	// Get references for all apps, deployed or not

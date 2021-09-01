@@ -85,7 +85,7 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 
 	org, ok := parts["name"]
 	if !ok {
-		err := errors.New("name of organization to create not found")
+		err := errors.New("name of namespace to create not found")
 		return BadRequest(err)
 	}
 

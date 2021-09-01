@@ -12,7 +12,7 @@ func NewTmpName(base string) string {
 }
 
 func NewOrgName() string {
-	return "orgs-" + strconv.Itoa(int(time.Now().Nanosecond()))
+	return "namespace-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
 func NewAppName() string {

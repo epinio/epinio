@@ -24,7 +24,7 @@ var _ = XDescribe("Install with custom domain and push Node app with zero instan
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
 		flags = []string{
-			"--skip-default-org",
+			"--skip-default-namespace",
 			"--skip-traefik",
 			"--system-domain=test.epinio.io",
 		}

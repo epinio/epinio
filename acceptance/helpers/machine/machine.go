@@ -40,27 +40,27 @@ func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
 }
 
 func (m *Machine) SetupAndTargetOrg(org string) {
-	By("creating an org")
+	By("creating a namespace")
 
-	out, err := m.Epinio("", "org", "create", org)
+	out, err := m.Epinio("", "namespace", "create", org)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	orgs, err := m.Epinio("", "org", "list")
+	orgs, err := m.Epinio("", "namespace", "list")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
 	ExpectWithOffset(1, orgs).To(MatchRegexp(org))
 
-	By("targeting an org")
+	By("targeting a namespace")
 
 	out, err = m.Epinio(m.nodeTmpDir, "target", org)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = m.Epinio(m.nodeTmpDir, "target")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted organization: " + org))
+	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: " + org))
 }
 
 func (m *Machine) VerifyOrgNotExist(org string) {
-	out, err := m.Epinio("", "org", "list")
+	out, err := m.Epinio("", "namespace", "list")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).ToNot(MatchRegexp(org))
 }

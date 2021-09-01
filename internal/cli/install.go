@@ -121,7 +121,7 @@ const (
 
 func init() {
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
-	CmdInstall.Flags().BoolP("skip-default-org", "s", false, "Set this to skip creating a default org")
+	CmdInstall.Flags().BoolP("skip-default-namespace", "s", false, "Set this to skip the creation of a default namespace")
 
 	CmdInstallIngress.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 
@@ -226,16 +226,16 @@ func install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error updating config")
 	}
 
-	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-org")
+	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-namespace")
 	if err != nil {
-		return errors.Wrap(err, "error reading option --skip-default-org")
+		return errors.Wrap(err, "error reading option --skip-default-namespace")
 	}
 
 	if !skipDefaultOrg {
 		err := epinioClient.CreateOrg(DefaultOrganization)
 
 		if err != nil {
-			return errors.Wrap(err, "error creating org")
+			return errors.Wrap(err, "error creating namespace")
 		}
 
 		err = epinioClient.Target(DefaultOrganization)

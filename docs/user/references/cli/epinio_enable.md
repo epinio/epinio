@@ -11,6 +11,10 @@ enable Epinio features
 
 enable Epinio features that are not enabled by default
 
+```
+epinio enable [flags]
+```
+
 ### Options
 
 ```

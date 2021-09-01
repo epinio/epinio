@@ -10,14 +10,14 @@ import (
 )
 
 var _ = Describe("Orgs", func() {
-	It("has a default org", func() {
-		orgs, err := env.Epinio("", "org", "list")
+	It("has a default namespace", func() {
+		orgs, err := env.Epinio("", "namespace", "list")
 		Expect(err).ToNot(HaveOccurred())
 		Expect(orgs).To(MatchRegexp("workspace"))
 	})
 
-	Describe("org create", func() {
-		It("creates and targets an org", func() {
+	Describe("namespace create", func() {
+		It("creates and targets an namespace", func() {
 			org := catalog.NewOrgName()
 			env.SetupAndTargetOrg(org)
 
@@ -26,24 +26,24 @@ var _ = Describe("Orgs", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		It("rejects creating an existing org", func() {
+		It("rejects creating an existing namespace", func() {
 			org := catalog.NewOrgName()
 			env.SetupAndTargetOrg(org)
 
-			out, err := env.Epinio("", "org", "create", org)
+			out, err := env.Epinio("", "namespace", "create", org)
 			Expect(err).To(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp(fmt.Sprintf("Organization '%s' already exists", org)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf("Namespace '%s' already exists", org)))
 		})
 	})
 
-	Describe("org delete", func() {
-		It("deletes an org", func() {
+	Describe("namespace delete", func() {
+		It("deletes an namespace", func() {
 			org := catalog.NewOrgName()
 			env.SetupAndTargetOrg(org)
 
-			By("deleting organization")
-			out, err := env.Epinio("", "org", "delete", "-f", org)
+			By("deleting namespace")
+			out, err := env.Epinio("", "namespace", "delete", "-f", org)
 
 			Expect(err).ToNot(HaveOccurred(), out)
 		})

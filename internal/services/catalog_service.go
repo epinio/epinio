@@ -265,7 +265,7 @@ func ClassLookup(ctx context.Context, cluster *kubernetes.Cluster, serviceClassN
 
 // CatalogServiceList returns a ServiceList of all available catalog Services
 func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
-	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/organization=%s", org)
+	labelSelector := fmt.Sprintf("app.kubernetes.io/name=epinio, epinio.suse.org/namespace=%s", org)
 
 	client, err := cluster.ClientServiceCatalog("serviceinstances")
 	if err != nil {
@@ -288,7 +288,7 @@ func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org st
 		metadata := serviceInstance.Object["metadata"].(map[string]interface{})
 		instanceName := metadata["name"].(string)
 		labels := metadata["labels"].(map[string]interface{})
-		org := labels["epinio.suse.org/organization"].(string)
+		org := labels["epinio.suse.org/namespace"].(string)
 		service := labels["epinio.suse.org/service"].(string)
 
 		result = append(result, &CatalogService{
@@ -351,8 +351,8 @@ func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name
 			"labels": {
 				"epinio.suse.org/service-type": "catalog",
 				"epinio.suse.org/service":      "%s",
-				"epinio.suse.org/organization": "%s",
-				"app.kubernetes.io/name":        "epinio"
+				"epinio.suse.org/namespace":    "%s",
+				"app.kubernetes.io/name":       "epinio"
 			}
 		},
 		"spec": {

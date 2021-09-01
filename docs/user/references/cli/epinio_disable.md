@@ -11,6 +11,10 @@ disable Epinio features
 
 disable Epinio features which where enabled with "epinio enable"
 
+```
+epinio disable [flags]
+```
+
 ### Options
 
 ```

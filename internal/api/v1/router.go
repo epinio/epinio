@@ -67,45 +67,45 @@ func patch(path string, h http.HandlerFunc) routes.Route {
 var Routes = routes.NamedRoutes{
 	"Info": get("/info", errorHandler(InfoController{}.Info)),
 
-	"Apps":            get("/orgs/:org/applications", errorHandler(ApplicationsController{}.Index)),
-	"AppCreate":       post("/orgs/:org/applications", errorHandler(ApplicationsController{}.Create)),
-	"AppShow":         get("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
-	"AppLogs":         get("/orgs/:org/applications/:app/logs", ApplicationsController{}.Logs),
-	"StagingLogs":     get("/orgs/:org/staging/:stage_id/logs", ApplicationsController{}.Logs),
-	"StagingComplete": get("/orgs/:org/staging/:stage_id/complete", errorHandler(ApplicationsController{}.Staged)), // See stage.go
-	"AppDelete":       delete("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
-	"AppUpload":       post("/orgs/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)), // See upload.go
-	"AppStage":        post("/orgs/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),  // See stage.go
-	"AppDeploy":       post("/orgs/:org/applications/:app/deploy", errorHandler(ApplicationsController{}.Deploy)),
-	"AppUpdate":       patch("/orgs/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
-	"AppRunning":      get("/orgs/:org/applications/:app/running", errorHandler(ApplicationsController{}.Running)),
+	"Apps":            get("/namespaces/:org/applications", errorHandler(ApplicationsController{}.Index)),
+	"AppCreate":       post("/namespaces/:org/applications", errorHandler(ApplicationsController{}.Create)),
+	"AppShow":         get("/namespaces/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
+	"AppLogs":         get("/namespaces/:org/applications/:app/logs", ApplicationsController{}.Logs),
+	"StagingLogs":     get("/namespaces/:org/staging/:stage_id/logs", ApplicationsController{}.Logs),
+	"StagingComplete": get("/namespaces/:org/staging/:stage_id/complete", errorHandler(ApplicationsController{}.Staged)), // See stage.go
+	"AppDelete":       delete("/namespaces/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
+	"AppUpload":       post("/namespaces/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)), // See upload.go
+	"AppStage":        post("/namespaces/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),  // See stage.go
+	"AppDeploy":       post("/namespaces/:org/applications/:app/deploy", errorHandler(ApplicationsController{}.Deploy)),
+	"AppUpdate":       patch("/namespaces/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
+	"AppRunning":      get("/namespaces/:org/applications/:app/running", errorHandler(ApplicationsController{}.Running)),
 
 	// See env.go
-	"EnvList":  get("/orgs/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvIndex)),
-	"EnvMatch": get("/orgs/:org/applications/:app/environment/:env/match/:pattern", errorHandler(ApplicationsController{}.EnvMatch)),
-	"EnvSet":   post("/orgs/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvSet)),
-	"EnvShow":  get("/orgs/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvShow)),
-	"EnvUnset": delete("/orgs/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvUnset)),
+	"EnvList":  get("/namespaces/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvIndex)),
+	"EnvMatch": get("/namespaces/:org/applications/:app/environment/:env/match/:pattern", errorHandler(ApplicationsController{}.EnvMatch)),
+	"EnvSet":   post("/namespaces/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvSet)),
+	"EnvShow":  get("/namespaces/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvShow)),
+	"EnvUnset": delete("/namespaces/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvUnset)),
 
 	// Bind and unbind services to/from applications, by means of servicebindings in applications
-	"ServiceBindingCreate": post("/orgs/:org/applications/:app/servicebindings",
+	"ServiceBindingCreate": post("/namespaces/:org/applications/:app/servicebindings",
 		errorHandler(ServicebindingsController{}.Create)),
-	"ServiceBindingDelete": delete("/orgs/:org/applications/:app/servicebindings/:service",
+	"ServiceBindingDelete": delete("/namespaces/:org/applications/:app/servicebindings/:service",
 		errorHandler(ServicebindingsController{}.Delete)),
 
 	// List, create, show and delete organizations
-	"Orgs":      get("/orgs", errorHandler(OrganizationsController{}.Index)),
-	"OrgCreate": post("/orgs", errorHandler(OrganizationsController{}.Create)),
-	"OrgDelete": delete("/orgs/:org", errorHandler(OrganizationsController{}.Delete)),
+	"Orgs":      get("/namespaces", errorHandler(OrganizationsController{}.Index)),
+	"OrgCreate": post("/namespaces", errorHandler(OrganizationsController{}.Create)),
+	"OrgDelete": delete("/namespaces/:org", errorHandler(OrganizationsController{}.Delete)),
 
 	// List, show, create and delete services, catalog and custom
-	"ServiceApps": get("/orgs/:org/serviceapps", errorHandler(ApplicationsController{}.ServiceApps)),
+	"ServiceApps": get("/namespaces/:org/serviceapps", errorHandler(ApplicationsController{}.ServiceApps)),
 	//
-	"Services":            get("/orgs/:org/services", errorHandler(ServicesController{}.Index)),
-	"ServiceShow":         get("/orgs/:org/services/:service", errorHandler(ServicesController{}.Show)),
-	"ServiceCreate":       post("/orgs/:org/services", errorHandler(ServicesController{}.Create)),
-	"ServiceCreateCustom": post("/orgs/:org/custom-services", errorHandler(ServicesController{}.CreateCustom)),
-	"ServiceDelete":       delete("/orgs/:org/services/:service", errorHandler(ServicesController{}.Delete)),
+	"Services":            get("/namespaces/:org/services", errorHandler(ServicesController{}.Index)),
+	"ServiceShow":         get("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Show)),
+	"ServiceCreate":       post("/namespaces/:org/services", errorHandler(ServicesController{}.Create)),
+	"ServiceCreateCustom": post("/namespaces/:org/custom-services", errorHandler(ServicesController{}.CreateCustom)),
+	"ServiceDelete":       delete("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Delete)),
 
 	// list service classes and plans (of catalog services)
 	"ServiceClasses": get("/serviceclasses", errorHandler(ServiceClassesController{}.Index)),

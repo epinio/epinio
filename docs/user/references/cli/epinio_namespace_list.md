@@ -1,21 +1,20 @@
 ---
-title: "epinio org delete"
-linkTitle: "epinio org delete"
+title: "epinio namespace list"
+linkTitle: "epinio namespace list"
 weight: 1
 ---
-## epinio org delete
+## epinio namespace list
 
-Deletes an organization
+Lists all epinio-controlled namespaces
 
 ```
-epinio org delete NAME [flags]
+epinio namespace list [flags]
 ```
 
 ### Options
 
 ```
-  -f, --force   force org deletion
-  -h, --help    help for delete
+  -h, --help   help for list
 ```
 
 ### Options inherited from parent commands
@@ -32,5 +31,5 @@ epinio org delete NAME [flags]
 
 ### SEE ALSO
 
-* [epinio org](../epinio_org)	 - Epinio organizations
+* [epinio namespace](../epinio_namespace)	 - Epinio-controlled namespaces
 

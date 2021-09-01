@@ -24,14 +24,14 @@ variable `EPINIO_CONFIG` to the desired path.
 
 Epinio's configuration contains
 
-  - The name of the organization currently targeted.
+  - The name of the namespace currently targeted.
   - Epinio API user name
   - Epinio API password
   - Epinio API urls (regular and websocket)
   - Epinio API certificate
 
-The organization can be changed by running `epinio target` with the
-name of the desired org as its single argument.
+The namespace can be changed by running `epinio target` with the
+name of the desired namespace as its single argument.
 
 User name and password are used by the client to authenticate itself
 when talking to Epinio's API server. The `epinio install` command
@@ -53,7 +53,7 @@ explicitly targeting the configuration. These are:
   1. `epinio target`
 
      As noted in the previous section, this command changes
-     organization to target with all other commands.
+     the namespace to use with all other commands.
 
   2. `epinio config show`
 

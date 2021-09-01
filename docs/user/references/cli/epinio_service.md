@@ -11,6 +11,10 @@ Epinio service features
 
 Handle service features with Epinio
 
+```
+epinio service [flags]
+```
+
 ### Options
 
 ```

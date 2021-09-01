@@ -1,20 +1,21 @@
 ---
-title: "epinio org create"
-linkTitle: "epinio org create"
+title: "epinio namespace delete"
+linkTitle: "epinio namespace delete"
 weight: 1
 ---
-## epinio org create
+## epinio namespace delete
 
-Creates an organization
+Deletes an epinio-controlled namespace
 
 ```
-epinio org create NAME [flags]
+epinio namespace delete NAME [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for create
+  -f, --force   force namespace deletion
+  -h, --help    help for delete
 ```
 
 ### Options inherited from parent commands
@@ -31,5 +32,5 @@ epinio org create NAME [flags]
 
 ### SEE ALSO
 
-* [epinio org](../epinio_org)	 - Epinio organizations
+* [epinio namespace](../epinio_namespace)	 - Epinio-controlled namespaces
 

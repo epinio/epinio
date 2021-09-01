@@ -101,7 +101,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) {
 
 	if currentOrg == "" {
 		// TODO: Redirect to create org page. No orgs exist.
-		panic("no current org")
+		panic("no current namespace")
 	}
 
 	// TODO: Move org specific links to a left navigation bar and keep only
