@@ -817,7 +817,11 @@ func (c *EpinioClient) Info() error {
 			epinioVersion = v.Version
 			platform = v.Platform
 			kubeVersion = v.KubeVersion
+		} else {
+			return err
 		}
+	} else {
+		return err
 	}
 
 	c.ui.Success().
