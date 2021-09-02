@@ -40,7 +40,7 @@ var _ = Describe("<Scenario3>", func() {
 		Expect(zoneID).ToNot(BeEmpty())
 
 		flags = []string{
-			"--skip-default-org",
+			"--skip-default-namespace",
 			"--skip-cert-manager",
 			"--tls-issuer=private-ca",
 			"--system-domain=" + domain,
