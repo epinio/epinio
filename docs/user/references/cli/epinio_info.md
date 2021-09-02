@@ -9,7 +9,7 @@ Shows information about the Epinio environment
 
 ### Synopsis
 
-Shows status and version for Kubernetes, Gitea, Tekton and Eirini.
+Shows status and version for Kubernetes and Epinio server components.
 
 ```
 epinio info [flags]
