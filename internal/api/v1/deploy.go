@@ -216,7 +216,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 		"app.kubernetes.io/part-of":    deployParams.Org,
 		"app.kubernetes.io/component":  "application",
 		"app.kubernetes.io/managed-by": "epinio",
-		"app.kubernetes.io/username":   deployParams.Username,
+		"app.kubernetes.io/created-by": deployParams.Username,
 	}
 	if stageID != "" {
 		labels["epinio.suse.org/stage-id"] = stageID
@@ -230,7 +230,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 				"app.kubernetes.io/part-of":    deployParams.Org,
 				"app.kubernetes.io/component":  "application",
 				"app.kubernetes.io/managed-by": "epinio",
-				"app.kubernetes.io/username":   deployParams.Username,
+				"app.kubernetes.io/created-by": deployParams.Username,
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
@@ -286,7 +286,7 @@ func newAppService(app models.AppRef, username string) (*v1.Service, error) {
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,
-				"app.kubernetes.io/username":   username,
+				"app.kubernetes.io/created-by": username,
 			},
 		},
 		Spec: v1.ServiceSpec{
@@ -324,7 +324,7 @@ func newAppIngress(appRef models.AppRef, route, username string) (*networkingv1.
 				"app.kubernetes.io/component":  "application",
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/name":       appRef.Name,
-				"app.kubernetes.io/username":   username,
+				"app.kubernetes.io/created-by": username,
 				"app.kubernetes.io/part-of":    appRef.Org,
 			},
 		},

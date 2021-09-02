@@ -312,7 +312,7 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,
-				"app.kubernetes.io/username":   app.Username,
+				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      uid,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",

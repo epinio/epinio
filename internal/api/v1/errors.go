@@ -108,7 +108,7 @@ func UserNotFound() APIError {
 	return NewAPIError(
 		"User not found in the request header",
 		"",
-		http.StatusNotFound)
+		http.StatusBadRequest)
 }
 
 // OrgIsNotKnown constructs an API error for when the desired org does not exist

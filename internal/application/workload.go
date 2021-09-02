@@ -308,7 +308,7 @@ func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 
 		app.StageID = deployments.Items[0].
 			Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
-		app.Username = deployments.Items[0].Spec.Template.ObjectMeta.Labels["app.kubernetes.io/username"]
+		app.Username = deployments.Items[0].Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 		app.Active = true
 	}

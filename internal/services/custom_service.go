@@ -47,7 +47,7 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 	for _, s := range secrets.Items {
 		service := s.ObjectMeta.Labels["epinio.suse.org/service"]
 		org := s.ObjectMeta.Labels["epinio.suse.org/namespace"]
-		username := s.ObjectMeta.Labels["app.kubernetes.io/username"]
+		username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 		secretName := s.ObjectMeta.Name
 
@@ -76,7 +76,7 @@ func CustomServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, or
 			return nil, err
 		}
 	}
-	username := s.ObjectMeta.Labels["app.kubernetes.io/username"]
+	username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 	return &CustomService{
 		SecretName: secretName,
@@ -112,7 +112,7 @@ func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, na
 			"epinio.suse.org/service":      name,
 			"epinio.suse.org/namespace":    org,
 			"app.kubernetes.io/name":       "epinio",
-			"app.kubernetes.io/username":   username,
+			"app.kubernetes.io/created-by": username,
 			// "app.kubernetes.io/version":     cmd.Version
 			// FIXME: Importing cmd causes cycle
 			// FIXME: Move version info to separate package!

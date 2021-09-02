@@ -291,7 +291,7 @@ func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org st
 		labels := metadata["labels"].(map[string]interface{})
 		org := labels["epinio.suse.org/namespace"].(string)
 		service := labels["epinio.suse.org/service"].(string)
-		username := labels["app.kubernetes.io/username"].(string)
+		username := labels["app.kubernetes.io/created-by"].(string)
 
 		result = append(result, &CatalogService{
 			InstanceName: instanceName,
@@ -330,7 +330,7 @@ func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org,
 	labels := metadata["labels"].(map[string]interface{})
 	className := spec["clusterServiceClassExternalName"].(string)
 	planName := spec["clusterServicePlanExternalName"].(string)
-	username := labels["app.kubernetes.io/username"].(string)
+	username := labels["app.kubernetes.io/created-by"].(string)
 
 	return &CatalogService{
 		InstanceName: instanceName,
@@ -359,8 +359,8 @@ func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name
 				"epinio.suse.org/service-type": "catalog",
 				"epinio.suse.org/service":      "%s",
 				"epinio.suse.org/namespace":    "%s",
-				"app.kubernetes.io/name":       "epinio"
-				"app.kubernetes.io/username":        "%s"
+				"app.kubernetes.io/name":       "epinio",
+				"app.kubernetes.io/created-by":   "%s"
 			}
 		},
 		"spec": {
@@ -474,7 +474,7 @@ func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, us
 				"app.kubernetes.io/part-of": "%s",
 				"app.kubernetes.io/component": "servicebinding",
 				"app.kubernetes.io/managed-by": "epinio",
-				"app.kubernetes.io/username": "%s"
+				"app.kubernetes.io/created-by": "%s"
 			}
 		},
 		"spec": {
@@ -515,7 +515,7 @@ func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, us
 	labels["app.kubernetes.io/part-of"] = org
 	labels["app.kubernetes.io/component"] = "servicebindingsecret"
 	labels["app.kubernetes.io/managed-by"] = "epinio"
-	labels["app.kubernetes.io/username"] = username
+	labels["app.kubernetes.io/created-by"] = username
 	secret.SetLabels(labels)
 
 	_, err = s.cluster.Kubectl.CoreV1().Secrets(org).Update(ctx, secret, metav1.UpdateOptions{})
