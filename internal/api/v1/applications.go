@@ -34,6 +34,10 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -70,7 +74,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return AppAlreadyKnown(createRequest.Name)
 	}
 
-	err = application.Create(ctx, cluster, appRef)
+	err = application.Create(ctx, cluster, appRef, username)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -607,4 +611,14 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	}
 
 	return nil
+}
+
+// GetUsername returns the username from the header
+func GetUsername(r *http.Request) (string, error) {
+	username := r.Header.Get("X-Webauth-User")
+	if len(username) <= 0 {
+		return "", errors.New("username not found in the header")
+	}
+
+	return username, nil
 }

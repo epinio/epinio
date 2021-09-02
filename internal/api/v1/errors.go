@@ -103,6 +103,14 @@ func NewNotFoundError(msg string, details ...string) APIError {
 	return NewAPIError(msg, strings.Join(details, ", "), http.StatusNotFound)
 }
 
+// UserNotFound constructs an API error for when the user name is not found in the header
+func UserNotFound() APIError {
+	return NewAPIError(
+		"User not found in the request header",
+		"",
+		http.StatusBadRequest)
+}
+
 // OrgIsNotKnown constructs an API error for when the desired org does not exist
 func OrgIsNotKnown(org string) APIError {
 	return NewAPIError(

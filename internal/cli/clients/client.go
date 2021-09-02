@@ -932,6 +932,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 	c.ui.Success().
 		WithTable("Key", "Value").
 		WithTableRow("Status", app.Status).
+		WithTableRow("Username", app.Username).
 		WithTableRow("StageId", app.StageID).
 		WithTableRow("Routes", app.Route).
 		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).

@@ -25,6 +25,7 @@ type CatalogService struct {
 	Service      string
 	Class        string
 	Plan         string
+	Username     string
 	cluster      *kubernetes.Cluster
 }
 
@@ -290,6 +291,7 @@ func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org st
 		labels := metadata["labels"].(map[string]interface{})
 		org := labels["epinio.suse.org/namespace"].(string)
 		service := labels["epinio.suse.org/service"].(string)
+		username := labels["app.kubernetes.io/created-by"].(string)
 
 		result = append(result, &CatalogService{
 			InstanceName: instanceName,
@@ -298,6 +300,7 @@ func CatalogServiceList(ctx context.Context, cluster *kubernetes.Cluster, org st
 			Class:        className,
 			Plan:         planName,
 			cluster:      cluster,
+			Username:     username,
 		})
 	}
 
@@ -323,8 +326,11 @@ func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org,
 	}
 
 	spec := serviceInstance.Object["spec"].(map[string]interface{})
+	metadata := serviceInstance.Object["metadata"].(map[string]interface{})
+	labels := metadata["labels"].(map[string]interface{})
 	className := spec["clusterServiceClassExternalName"].(string)
 	planName := spec["clusterServicePlanExternalName"].(string)
+	username := labels["app.kubernetes.io/created-by"].(string)
 
 	return &CatalogService{
 		InstanceName: instanceName,
@@ -333,13 +339,14 @@ func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org,
 		Class:        className,
 		Plan:         planName,
 		cluster:      cluster,
+		Username:     username,
 	}, nil
 }
 
 // CreateCatalogService creates a new catalog-based service from org,
 // name, class, plan, and a string of parameter data (serialized json
 // map).
-func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name, org, class, plan string, parameters string) (interfaces.Service, error) {
+func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name, org, username, class, plan string, parameters string) (interfaces.Service, error) {
 	resourceName := serviceResourceName(org, name)
 
 	data := fmt.Sprintf(`{
@@ -352,7 +359,8 @@ func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name
 				"epinio.suse.org/service-type": "catalog",
 				"epinio.suse.org/service":      "%s",
 				"epinio.suse.org/namespace":    "%s",
-				"app.kubernetes.io/name":       "epinio"
+				"app.kubernetes.io/name":       "epinio",
+				"app.kubernetes.io/created-by":   "%s"
 			}
 		},
 		"spec": {
@@ -360,7 +368,7 @@ func CreateCatalogService(ctx context.Context, cluster *kubernetes.Cluster, name
 			"clusterServicePlanExternalName": "%s",
 			"parameters": %s
 	  }
-	}`, resourceName, org, name, org, class, plan, parameters)
+	}`, resourceName, org, name, org, username, class, plan, parameters)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -398,6 +406,11 @@ func (s *CatalogService) Name() string {
 	return s.Service
 }
 
+// User (Service interface) returns the service's username
+func (s *CatalogService) User() string {
+	return s.Username
+}
+
 // Org (Service interface) returns the service's organization
 func (s *CatalogService) Org() string {
 	return s.OrgName
@@ -405,7 +418,7 @@ func (s *CatalogService) Org() string {
 
 // GetBinding (Service interface) returns an application-specific
 // secret for the service to be bound to that application.
-func (s *CatalogService) GetBinding(ctx context.Context, appName string) (*corev1.Secret, error) {
+func (s *CatalogService) GetBinding(ctx context.Context, appName, username string) (*corev1.Secret, error) {
 	// TODO Label the secret
 
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
@@ -415,7 +428,7 @@ func (s *CatalogService) GetBinding(ctx context.Context, appName string) (*corev
 		return nil, err
 	}
 	if binding == nil {
-		_, err = s.createBinding(ctx, bindingName, s.OrgName, s.Service, appName)
+		_, err = s.createBinding(ctx, bindingName, s.OrgName, username, s.Service, appName)
 		if err != nil {
 			return nil, err
 		}
@@ -447,7 +460,7 @@ func (s *CatalogService) lookupBinding(ctx context.Context, bindingName, org str
 
 // createBinding is a helper for GetBinding which creates a
 // ServiceBinding for the application with name appName.
-func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, serviceName, appName string) (interface{}, error) {
+func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, username, serviceName, appName string) (interface{}, error) {
 	serviceInstanceName := serviceResourceName(org, serviceName)
 
 	data := fmt.Sprintf(`{
@@ -460,14 +473,15 @@ func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, se
 				"app.kubernetes.io/name": "%s",
 				"app.kubernetes.io/part-of": "%s",
 				"app.kubernetes.io/component": "servicebinding",
-				"app.kubernetes.io/managed-by": "epinio"
+				"app.kubernetes.io/managed-by": "epinio",
+				"app.kubernetes.io/created-by": "%s"
 			}
 		},
 		"spec": {
 			"instanceRef": { "name": "%s" },
 			"secretName": "%s" 
 		}
-	}`, bindingName, org, appName, org, serviceInstanceName, bindingName)
+	}`, bindingName, org, appName, org, username, serviceInstanceName, bindingName)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}
@@ -501,6 +515,7 @@ func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, se
 	labels["app.kubernetes.io/part-of"] = org
 	labels["app.kubernetes.io/component"] = "servicebindingsecret"
 	labels["app.kubernetes.io/managed-by"] = "epinio"
+	labels["app.kubernetes.io/created-by"] = username
 	secret.SetLabels(labels)
 
 	_, err = s.cluster.Kubectl.CoreV1().Secrets(org).Update(ctx, secret, metav1.UpdateOptions{})

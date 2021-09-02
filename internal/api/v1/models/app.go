@@ -15,6 +15,7 @@ type App struct {
 	StageID       string   `json:"stage_id,omitempty"`
 	Name          string   `json:"name,omitempty"`
 	Organization  string   `json:"namespace,omitempty"`
+	Username      string   `json:"username,omitempty"`
 	Status        string   `json:"status,omitempty"`
 	Route         string   `json:"route,omitempty"`
 	BoundServices []string `json:"bound_services,omitempty"`

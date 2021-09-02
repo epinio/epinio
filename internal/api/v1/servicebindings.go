@@ -31,6 +31,10 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -105,7 +109,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 	resp := models.BindResponse{}
 
 	for _, service := range theServices {
-		err = wl.Bind(ctx, service)
+		err = wl.Bind(ctx, service, username)
 		if err != nil {
 			if err.Error() == "service already bound" {
 				resp.WasBound = append(resp.WasBound, service.Name())

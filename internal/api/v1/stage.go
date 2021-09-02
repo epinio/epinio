@@ -45,6 +45,7 @@ type stageParam struct {
 	Environment  models.EnvVariableList
 	RegistryURL  string
 	BuilderImage string
+	Username     string
 }
 
 // GitURL returns the gitea repository URL by combining the server
@@ -100,6 +101,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	p := httprouter.ParamsFromContext(ctx)
 	org := p.ByName("org")
 	name := p.ByName("app")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -181,6 +186,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err)
 	}
 	params := stageParam{
+		Username:     username,
 		AppRef:       req.App,
 		Git:          req.Git,
 		Owner:        owner,
@@ -306,6 +312,7 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,
+				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      uid,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",

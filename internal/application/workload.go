@@ -223,8 +223,8 @@ func (a *Workload) deployment(ctx context.Context) (*appsv1.Deployment, error) {
 }
 
 // Bind creates a binding of the service to the application.
-func (a *Workload) Bind(ctx context.Context, service interfaces.Service) error {
-	bindSecret, err := service.GetBinding(ctx, a.app.Name)
+func (a *Workload) Bind(ctx context.Context, service interfaces.Service, username string) error {
+	bindSecret, err := service.GetBinding(ctx, a.app.Name, username)
 	if err != nil {
 		return err
 	}
@@ -308,6 +308,7 @@ func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 
 		app.StageID = deployments.Items[0].
 			Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
+		app.Username = deployments.Items[0].Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 		app.Active = true
 	}

@@ -42,7 +42,7 @@ type GiteaInterface interface {
 // Create generates a new kube app resource in the namespace of the
 // organization. Note that this is the passive resource holding the
 // app's configuration. It is not the active workload
-func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) error {
+func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -53,6 +53,16 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 		Spec: appv1beta1.ApplicationSpec{
 			Descriptor: appv1beta1.Descriptor{
 				Type: "epinio-workload",
+				Maintainers: []appv1beta1.ContactData{
+					{
+						Name: username,
+					},
+				},
+				Owners: []appv1beta1.ContactData{
+					{
+						Name: username,
+					},
+				},
 			},
 		},
 	}

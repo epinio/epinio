@@ -21,6 +21,7 @@ type CustomService struct {
 	SecretName string
 	OrgName    string
 	Service    string
+	Username   string
 	kubeClient *kubernetes.Cluster
 }
 
@@ -46,6 +47,8 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 	for _, s := range secrets.Items {
 		service := s.ObjectMeta.Labels["epinio.suse.org/service"]
 		org := s.ObjectMeta.Labels["epinio.suse.org/namespace"]
+		username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+
 		secretName := s.ObjectMeta.Name
 
 		result = append(result, &CustomService{
@@ -53,6 +56,7 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 			OrgName:    org,
 			Service:    service,
 			kubeClient: kubeClient,
+			Username:   username,
 		})
 	}
 
@@ -64,7 +68,7 @@ func CustomServiceList(ctx context.Context, kubeClient *kubernetes.Cluster, org 
 func CustomServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service string) (interfaces.Service, error) {
 	secretName := serviceResourceName(org, service)
 
-	_, err := kubeClient.GetSecret(ctx, org, secretName)
+	s, err := kubeClient.GetSecret(ctx, org, secretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
@@ -72,18 +76,20 @@ func CustomServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, or
 			return nil, err
 		}
 	}
+	username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 	return &CustomService{
 		SecretName: secretName,
 		OrgName:    org,
 		Service:    service,
 		kubeClient: kubeClient,
+		Username:   username,
 	}, nil
 }
 
 // CreateCustomService creates a new custom service instance from org,
 // name, and a map of parameters.
-func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, name, org string,
+func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, name, org, username string,
 	data map[string]string) (interfaces.Service, error) {
 
 	secretName := serviceResourceName(org, name)
@@ -106,6 +112,7 @@ func CreateCustomService(ctx context.Context, kubeClient *kubernetes.Cluster, na
 			"epinio.suse.org/service":      name,
 			"epinio.suse.org/namespace":    org,
 			"app.kubernetes.io/name":       "epinio",
+			"app.kubernetes.io/created-by": username,
 			// "app.kubernetes.io/version":     cmd.Version
 			// FIXME: Importing cmd causes cycle
 			// FIXME: Move version info to separate package!
@@ -129,6 +136,11 @@ func (s *CustomService) Name() string {
 	return s.Service
 }
 
+// User (Service interface) returns the service's username
+func (s *CustomService) User() string {
+	return s.Username
+}
+
 // Org (Service interface) returns the service instance's organization
 func (s *CustomService) Org() string {
 	return s.OrgName
@@ -137,7 +149,7 @@ func (s *CustomService) Org() string {
 // GetBinding (Service interface) returns the secret representing the
 // instance's binding to the application. This is actually the
 // instance's secret itself, independent of the application.
-func (s *CustomService) GetBinding(ctx context.Context, appName string) (*corev1.Secret, error) {
+func (s *CustomService) GetBinding(ctx context.Context, appName string, _ string) (*corev1.Secret, error) {
 	kubeClient := s.kubeClient
 	serviceSecret, err := kubeClient.GetSecret(ctx, s.OrgName, s.SecretName)
 	if err != nil {

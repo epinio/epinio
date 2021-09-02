@@ -13,13 +13,15 @@ import (
 type Service interface {
 	// Name returns the name of the service instance
 	Name() string
+	// Username returns the name of the service user
+	User() string
 	// Org returns the name of the organization the service
 	// instance was created in
 	Org() string
 	// GetBinding returns a kube secret resource representing the
 	// binding between the service instance and the specified
 	// application.
-	GetBinding(ctx context.Context, appName string) (*corev1.Secret, error)
+	GetBinding(ctx context.Context, appName string, username string) (*corev1.Secret, error)
 	// DeleteBinding removes the binding between the service
 	// instance and the specified application.
 	DeleteBinding(ctx context.Context, appName, org string) error

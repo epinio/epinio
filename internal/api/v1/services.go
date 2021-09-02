@@ -60,7 +60,8 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 	}
 
 	responseData := map[string]string{
-		"Status": status,
+		"Status":   status,
+		"Username": service.User(),
 	}
 	for key, value := range serviceDetails {
 		responseData[key] = value
@@ -142,6 +143,10 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -189,7 +194,7 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	// any error here is `service not found`, and we can continue
 
 	// Create the new service. At last.
-	_, err = services.CreateCustomService(ctx, cluster, createRequest.Name, org, createRequest.Data)
+	_, err = services.CreateCustomService(ctx, cluster, createRequest.Name, org, username, createRequest.Data)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -209,6 +214,10 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -289,7 +298,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	}
 
 	// Create the new service. At last.
-	service, err := services.CreateCatalogService(ctx, cluster, createRequest.Name, org,
+	service, err := services.CreateCatalogService(ctx, cluster, createRequest.Name, org, username,
 		createRequest.Class, createRequest.Plan, data)
 	if err != nil {
 		return InternalError(err)
