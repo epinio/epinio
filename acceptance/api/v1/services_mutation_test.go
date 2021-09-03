@@ -145,7 +145,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Namespace 'bogus' does not exist"))
+				Equal("Targeted namespace 'bogus' does not exist"))
 		})
 
 		Context("with conflicting service", func() {
@@ -383,7 +383,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Namespace 'bogus' does not exist"))
+				Equal("Targeted namespace 'bogus' does not exist"))
 		})
 
 		Context("with conflicting service", func() {
@@ -509,7 +509,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Namespace 'idontexist' does not exist"))
+				Equal("Targeted namespace 'idontexist' does not exist"))
 		})
 
 		It("returns a 'not found' when the service does not exist", func() {
@@ -679,7 +679,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Namespace 'bogus' does not exist"))
+				Equal("Targeted namespace 'bogus' does not exist"))
 		})
 
 		It("returns a 'not found' when the application does not exist", func() {
@@ -798,7 +798,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Namespace 'idontexist' does not exist"))
+				Equal("Targeted namespace 'idontexist' does not exist"))
 		})
 
 		It("returns a 'not found' when the application does not exist", func() {
