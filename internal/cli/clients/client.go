@@ -1627,6 +1627,21 @@ func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
 	return bodyBytes, nil
 }
 
+func formatError(bodyBytes []byte, response *http.Response) error {
+	var eResponse api.ErrorResponse
+	if err := json.Unmarshal(bodyBytes, &eResponse); err != nil {
+		return err
+	}
+
+	if response.StatusCode == http.StatusInternalServerError {
+		return errors.New(fmt.Sprintf("%s: %s",
+			http.StatusText(response.StatusCode),
+			eResponse.Errors[0].Title))
+	} else {
+		return errors.New(eResponse.Errors[0].Title)
+	}
+}
+
 func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {
 	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
 	c.Log.Info(fmt.Sprintf("%s %s", method, uri))
@@ -1654,7 +1669,7 @@ func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return []byte{}, errors.New(fmt.Sprintf("%s: %s", http.StatusText(response.StatusCode), string(bodyBytes)))
+		return []byte{}, formatError(bodyBytes, response)
 	}
 
 	return bodyBytes, nil
@@ -1687,8 +1702,7 @@ func (c *EpinioClient) curlWithCustomErrorHandling(endpoint, method, requestBody
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return []byte{}, f(response, bodyBytes,
-			errors.New(fmt.Sprintf("%s: %s", http.StatusText(response.StatusCode), string(bodyBytes))))
+		return []byte{}, f(response, bodyBytes, formatError(bodyBytes, response))
 	}
 
 	return bodyBytes, nil

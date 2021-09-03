@@ -114,7 +114,7 @@ func UserNotFound() APIError {
 // OrgIsNotKnown constructs an API error for when the desired org does not exist
 func OrgIsNotKnown(org string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Namespace '%s' does not exist", org),
+		fmt.Sprintf("Targeted namespace '%s' does not exist", org),
 		"",
 		http.StatusNotFound)
 }
