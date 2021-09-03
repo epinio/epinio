@@ -44,8 +44,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: "true"
-          issueLineLabels:
-          - "ALL"
+          issueLineLabels: "ALL"
           excludeLabels:
             - "apparently external cause"
             - "chore"
