@@ -21,6 +21,7 @@ import (
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
@@ -37,6 +38,7 @@ const (
 
 type stageParam struct {
 	models.AppRef
+	BlobUID             string
 	BuilderImage        string
 	Environment         models.EnvVariableList
 	Owner               metav1.OwnerReference
@@ -142,7 +144,10 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	}
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
 
-	uid := req.BlobUID
+	uid, err := randstr.Hex16()
+	if err != nil {
+		return InternalError(err, "failed to generate a uid")
+	}
 
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", req.App.Name, req.App.Org),
@@ -183,6 +188,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        req.BuilderImage,
+		BlobUID:             req.BlobUID,
 		Environment:         environment,
 		Owner:               owner,
 		RegistryURL:         fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
@@ -302,12 +308,15 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
 
-	// TODO: http? https?
-	awsScript := "aws --endpoint-url http://$1 s3 cp s3://$2/$3 $(workspaces.source.path)/$3"
+	protocol := "http"
+	if app.S3ConnectionDetails.UseSSL {
+		protocol = "https"
+	}
+	awsScript := fmt.Sprintf("aws --endpoint-url %s://$1 s3 cp s3://$2/$3 $(workspaces.source.path)/$3", protocol)
 	awsArgs := []string{
 		app.S3ConnectionDetails.Endpoint,
 		app.S3ConnectionDetails.Bucket,
-		app.Stage.ID,
+		app.BlobUID,
 	}
 
 	return &v1beta1.PipelineRun{

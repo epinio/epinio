@@ -145,6 +145,13 @@ var neededOptions = kubernetes.InstallationOptions{
 		Default:     "",
 		Value:       "",
 	},
+	{
+		Name:        "s3-use-ssl",
+		Description: "If you are using your own S3 compatible object storage for blobs, toggle SSL on or off.",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       true,
+	},
 }
 
 var traefikOptions = kubernetes.InstallationOptions{skipLinkerdOption, ingressServiceIPOption}

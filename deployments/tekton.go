@@ -65,7 +65,7 @@ func (k Tekton) Describe() string {
 // PreDeployCheck checks if the user set any of the s3 settings without
 // setting the rest of them. E.g. setting s3-access-key-id without setting
 // the s3-secret-access-key and s3-bucket is invalid because there is not enough
-// infromation provided in order to store objects.
+// information provided in order to store objects.
 func (k Tekton) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	details, err := k.collectS3Settings(options)
 	if err != nil {
@@ -631,6 +631,9 @@ func (k Tekton) collectS3Settings(options kubernetes.InstallationOptions) (s3man
 	var err error
 
 	if details.Endpoint, err = options.GetString("s3-endpoint", ""); err != nil {
+		return details, err
+	}
+	if details.UseSSL, err = options.GetBool("s3-use-ssl", ""); err != nil {
 		return details, err
 	}
 	if details.AccessKeyID, err = options.GetString("s3-access-key-id", ""); err != nil {

@@ -73,7 +73,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err, "uploading the application sources blob")
 	}
 
-	log.Info("uploaded app", "org", org, "app", name)
+	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
 	resp := models.UploadResponse{BlobUID: blobUID}
 	err = jsonResponse(w, resp)
