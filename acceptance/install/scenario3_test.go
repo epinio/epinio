@@ -2,7 +2,6 @@ package install_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 
 	. "github.com/onsi/ginkgo"
@@ -17,7 +16,6 @@ import (
 
 var _ = Describe("<Scenario3>", func() {
 	var (
-		appDir       string
 		appName      = catalog.NewAppName()
 		domain       string
 		epinioHelper epinio.Epinio
@@ -45,15 +43,9 @@ var _ = Describe("<Scenario3>", func() {
 			"--tls-issuer=private-ca",
 			"--system-domain=" + domain,
 		}
-
-		var err error
-		appDir, err = ioutil.TempDir("", "epinio-app")
-		Expect(err).NotTo(HaveOccurred())
 	})
 
 	AfterEach(func() {
-		os.RemoveAll(appDir)
-
 		out, err := epinioHelper.Uninstall()
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
