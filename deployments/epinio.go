@@ -114,14 +114,8 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	}
 
 	apiUser, err := options.GetString("user", "")
-	if err != nil {
-		return err
-	}
 
 	apiPassword, err := options.GetString("password", "")
-	if err != nil {
-		return err
-	}
 
 	authAPI := auth.PasswordAuth{
 		Username: apiUser,
