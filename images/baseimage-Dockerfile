@@ -1,6 +1,6 @@
 FROM opensuse/leap:15.2
 LABEL org.opencontainers.image.source https://github.com/epinio/epinio
-RUN zypper ref && zypper install -y git curl tar gzip
+RUN zypper ref && zypper install --no-recommends -y git curl tar gzip && rm -fr /var/cache/*
 
 # Get kubectl
 RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
