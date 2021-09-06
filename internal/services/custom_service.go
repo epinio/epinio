@@ -72,9 +72,8 @@ func CustomServiceLookup(ctx context.Context, kubeClient *kubernetes.Cluster, or
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 	username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 

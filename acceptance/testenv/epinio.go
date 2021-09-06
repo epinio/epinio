@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	networkName         = "epinio-acceptance"
-	registryMirrorEnv   = "EPINIO_REGISTRY_CONFIG"
 	registryUsernameEnv = "REGISTRY_USERNAME"
 	registryPasswordEnv = "REGISTRY_PASSWORD"
 

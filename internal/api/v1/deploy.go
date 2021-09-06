@@ -128,10 +128,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 	}
 
 	log.Info("deploying app", "org", org, "app", req.App)
-	deployment, err := newAppDeployment(req.Stage.ID, deployParams)
-	if err != nil {
-		return InternalError(err)
-	}
+	deployment := newAppDeployment(req.Stage.ID, deployParams)
 	deployment.SetOwnerReferences([]metav1.OwnerReference{owner})
 	if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Org).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
@@ -145,10 +142,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 
 	log.Info("deploying app service", "org", org, "app", req.App)
 
-	svc, err := newAppService(req.App, username)
-	if err != nil {
-		return InternalError(err)
-	}
+	svc := newAppService(req.App, username)
 
 	log.Info("app service", "name", svc.ObjectMeta.Name)
 
@@ -172,10 +166,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 
 	log.Info("deploying app ingress", "org", org, "app", req.App, "", route)
 
-	ing, err := newAppIngress(req.App, route, username)
-	if err != nil {
-		return InternalError(err)
-	}
+	ing := newAppIngress(req.App, route, username)
 
 	log.Info("app ingress", "name", ing.ObjectMeta.Name)
 
@@ -209,7 +200,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 }
 
 // newAppDeployment is a helper that creates the kube deployment resource for the app
-func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deployment, error) {
+func newAppDeployment(stageID string, deployParams deployParam) *appsv1.Deployment {
 	automountServiceAccountToken := true
 	labels := map[string]string{
 		"app.kubernetes.io/name":       deployParams.Name,
@@ -222,7 +213,7 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 		labels["epinio.suse.org/stage-id"] = stageID
 	}
 
-	deploymentData := &appsv1.Deployment{
+	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: deployParams.AppRef.Name,
 			Labels: map[string]string{
@@ -266,13 +257,11 @@ func newAppDeployment(stageID string, deployParams deployParam) (*appsv1.Deploym
 			},
 		},
 	}
-
-	return deploymentData, nil
 }
 
 // newAppService is a helper that creates the kube service resource for the app
-func newAppService(app models.AppRef, username string) (*v1.Service, error) {
-	serviceData := v1.Service{
+func newAppService(app models.AppRef, username string) *v1.Service {
+	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.ServiceName(app.Name),
 			Namespace: app.Org,
@@ -304,15 +293,13 @@ func newAppService(app models.AppRef, username string) (*v1.Service, error) {
 			Type: v1.ServiceTypeClusterIP,
 		},
 	}
-
-	return &serviceData, nil
 }
 
 // newAppIngress is a helper that creates the kube ingress resource for the app
-func newAppIngress(appRef models.AppRef, route, username string) (*networkingv1.Ingress, error) {
+func newAppIngress(appRef models.AppRef, route, username string) *networkingv1.Ingress {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
 
-	ingressData := networkingv1.Ingress{
+	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: names.IngressName(appRef.Name),
 			Annotations: map[string]string{
@@ -362,8 +349,6 @@ func newAppIngress(appRef models.AppRef, route, username string) (*networkingv1.
 			},
 		},
 	}
-
-	return &ingressData, nil
 }
 
 // existingReplica is a helper that determines the number of replicas

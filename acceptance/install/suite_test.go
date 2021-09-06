@@ -20,7 +20,7 @@ func TestAcceptance(t *testing.T) {
 }
 
 var (
-	nodeSuffix, nodeTmpDir string
+	nodeTmpDir string
 )
 
 var _ = SynchronizedBeforeSuite(func() []byte {

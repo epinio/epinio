@@ -117,7 +117,7 @@ func ExecToSuccessWithTimeout(funk ExternalFuncWithString, timeout, interval tim
 	for {
 		select {
 		case <-timeoutChan:
-			return "", errors.New(fmt.Sprintf("Timed out after %s", timeout.String()))
+			return "", errors.Errorf("Timed out after %s", timeout.String())
 		default:
 			if out, err := funk(); err != nil {
 				time.Sleep(interval)

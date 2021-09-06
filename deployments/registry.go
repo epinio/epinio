@@ -164,7 +164,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 	log.Info("system domain", "domain", domain)
 
-	if k.createCertificate(ctx, c, options, ui, log); err != nil {
+	if err := k.createCertificate(ctx, c, options, ui, log); err != nil {
 		return errors.Wrap(err, "creating Registry TLS certificate")
 	}
 

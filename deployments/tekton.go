@@ -132,7 +132,7 @@ func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	return nil
 }
 
-func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, _ bool) error {
 	if err := c.CreateNamespace(ctx, tektonNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
@@ -153,7 +153,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
 	}
 
-	kTimeout := strconv.Itoa(int(k.Timeout.Seconds()))
+	timeout := strconv.Itoa(int(k.Timeout.Seconds()))
 
 	err := c.WaitUntilPodBySelectorExist(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
 	if err != nil {
@@ -179,7 +179,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 			func() (string, error) {
 				return helpers.Kubectl("wait",
 					"--for", "condition=established",
-					"--timeout", kTimeout+"s",
+					"--timeout", timeout+"s",
 					"crd/"+crd)
 			},
 		)
@@ -255,7 +255,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	out, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
-			return "", applyTektonStaging(ctx, c, ui, domain)
+			return "", applyTektonStaging(ctx, c, ui)
 		},
 	)
 	if err != nil {
@@ -331,7 +331,7 @@ func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster) (string, erro
 	return hash, nil
 }
 
-func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, domain string) error {
+func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	var caHash string
 
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
@@ -514,10 +514,11 @@ func decodeOneCert(raw []byte) (*x509.Certificate, error) {
 	if block == nil {
 		return nil, errors.New("failed find PEM data")
 	}
-	extra, rest := pem.Decode(rest)
+	extra, _ := pem.Decode(rest)
 	if extra != nil {
 		return nil, errors.New("found multiple PEM blocks, expected exactly one")
 	}
+
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse certficate\n%w", err)
@@ -599,8 +600,8 @@ func CanonicalName(name []byte) ([]byte, error) {
 //
 // This is a reimplementation of the asn1_string_canon in openssl
 func CanonicalString(s string) string {
-	s = strings.TrimLeft(s, " \f\t\n\n\v")
-	s = strings.TrimRight(s, " \f\t\n\n\v")
+	s = strings.TrimLeft(s, " \f\t\n\v")
+	s = strings.TrimRight(s, " \f\t\n\v")
 	s = strings.ToLower(s)
 	return string(regexp.MustCompile(`[[:space:]]+`).ReplaceAll([]byte(s), []byte(" ")))
 }

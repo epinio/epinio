@@ -30,7 +30,6 @@ const (
 	LinkerdDeploymentID     = "linkerd"
 	linkerdVersion          = "2.10.2"
 	linkerdRolesYAML        = "linkerd/rbac.yaml"
-	linkerdInstallJobYAML   = "linkerd/install-job.yaml"
 	linkerdUninstallJobYAML = "linkerd/uninstall-job.yaml"
 	linkerdImage            = "splatform/epinio-linkerd"
 )
@@ -87,7 +86,7 @@ func (k Linkerd) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	return nil
 }
 
-func (k Linkerd) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Linkerd) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, _ kubernetes.InstallationOptions, _ bool) error {
 	linkerdJobName := "linkerd-install"
 	if err := c.CreateNamespace(ctx, LinkerdDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,

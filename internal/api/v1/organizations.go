@@ -18,7 +18,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// InfoController represents all functionality of the API related to organizations
+// OrganizationsController represents all functionality of the API related to namespaces
 type OrganizationsController struct {
 }
 
@@ -103,7 +103,10 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte{})
+	_, err = w.Write([]byte{})
+	if err != nil {
+		return InternalError(err)
+	}
 
 	return nil
 }
@@ -208,7 +211,7 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.C
 	//
 	//        i. The command waiting for all runners to complete
 	//           (z) ensures that an empty channel means that no
-	//           errors occured, there can be no stragglers to
+	//           errors occurred, there can be no stragglers to
 	//           wait for at (3b1).
 	//
 	//        ii. The error channel has capacity according to the

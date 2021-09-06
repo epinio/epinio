@@ -47,7 +47,7 @@ var _ = Describe("Install with <ConfigFile> and push a PHP app", func() {
 	})
 
 	AfterEach(func() {
-		epinioHelper.Uninstall()
+		_, _ = epinioHelper.Uninstall()
 
 		err := os.Remove(configFile)
 		Expect(err).NotTo(HaveOccurred())

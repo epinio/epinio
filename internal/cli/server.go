@@ -67,7 +67,7 @@ var CmdServer = &cobra.Command{
 }
 
 // startEpinioServer is a helper which initializes and start the API server
-func startEpinioServer(wg *sync.WaitGroup, port int, ui *termui.UI, logger logr.Logger) (*http.Server, string, error) {
+func startEpinioServer(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*http.Server, string, error) {
 	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
 	if err != nil {
 		return nil, "", err

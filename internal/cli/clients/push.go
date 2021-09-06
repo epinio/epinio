@@ -1,7 +1,6 @@
 package clients
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -87,7 +86,7 @@ func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse
 	return stage, nil
 }
 
-func (c *EpinioClient) stageLogs(ctx context.Context, details logr.Logger, appRef models.AppRef, stageID string) error {
+func (c *EpinioClient) stageLogs(details logr.Logger, appRef models.AppRef, stageID string) error {
 	// Buffered because the go routine may no longer be listening when we try
 	// to stop it. Stopping it should be a fire and forget. We have wg to wait
 	// for the routine to be gone.
@@ -104,7 +103,7 @@ func (c *EpinioClient) stageLogs(ctx context.Context, details logr.Logger, appRe
 	}()
 
 	details.Info("wait for pipelinerun", "StageID", stageID)
-	err := c.waitForPipelineRun(ctx, appRef, stageID)
+	err := c.waitForPipelineRun(appRef, stageID)
 	if err != nil {
 		stopChan <- true // Stop the printing go routine
 		return errors.Wrap(err, "waiting for staging failed")
@@ -134,14 +133,14 @@ func (c *EpinioClient) deployCode(req models.DeployRequest) (*models.DeployRespo
 	return deploy, nil
 }
 
-func (c *EpinioClient) waitForPipelineRun(ctx context.Context, app models.AppRef, id string) error {
+func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
 	_, err := c.get(api.Routes.Path("StagingComplete", app.Org, id))
 	return err
 }
 
-func (c *EpinioClient) waitForApp(ctx context.Context, app models.AppRef) error {
+func (c *EpinioClient) waitForApp(app models.AppRef) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
 	_, err := c.get(api.Routes.Path("AppRunning", app.Org, app.Name))
