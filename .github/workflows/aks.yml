@@ -7,12 +7,16 @@ on:
     - cron:  '0 5 * * *'
   workflow_dispatch:
     inputs:
-      aks_domain:
-        description: "AKS_DOMAIN"
-        required: false
-        default: ""
       azure_credentials:
         description: "AZURE_CREDENTIALS"
+        required: false
+        default: ""
+      aks_domain:
+        description: "AKS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+      aws_zone_id:
+        description: "AWS_ZONE_ID"
         required: false
         default: ""
       keep_cluster:
@@ -65,15 +69,17 @@ jobs:
         run: |
           id=$RANDOM
           echo '::set-output name=ID::'$id
-          az aks create --resource-group epinioCI --name epinioCI$id --node-count 1 --generate-ssh-keys
+          az aks create --resource-group epinioCI --name epinioCI$id --node-count 2 --generate-ssh-keys
           az aks get-credentials --resource-group epinioCI --name epinioCI$id --file kubeconfig
+          # list existing clusters
+          az aks list | jq '.[] | .name + " " + (.powerState|tostring)'
 
       - name: Installation Acceptance Tests
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           REGEX: Scenario3
-          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
           AKS_DOMAIN: ${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
         shell: bash
         run: |
@@ -83,8 +89,10 @@ jobs:
       - name: Delete AKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
         # manually and keep_cluster was set to a non-empty string, like "yes"
-        if: ${{ !github.event.inputs.keep_cluster }}
+        # TODO this was not called, when scheduled and tests failed
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
         shell: bash
         run: |
+          echo "debug keep_cluster: ${{ github.event.inputs.keep_cluster }}"
           id="${{ steps.create-cluster.outputs.ID }}"
           az aks delete --resource-group epinioCI --name epinioCI$id --yes
