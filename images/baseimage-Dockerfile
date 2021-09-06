@@ -1,4 +1,4 @@
-FROM opensuse/leap:15.2
+FROM opensuse/leap:15.3
 LABEL org.opencontainers.image.source https://github.com/epinio/epinio
 RUN zypper ref && zypper install --no-recommends -y git curl tar gzip && rm -fr /var/cache/*
 
