@@ -101,6 +101,8 @@ var _ = Describe("<Scenario3>", func() {
 		// Now create the default org which we skipped because
 		// it would fail before patching.
 		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
+		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
+		Expect(err).ToNot(HaveOccurred(), out)
 
 		By("Creating a custom service and pushing an app", func() {
 			out, err := epinioHelper.Run("service", "create-custom", serviceName, "mariadb", "10-3-22")

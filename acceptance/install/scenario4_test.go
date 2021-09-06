@@ -86,6 +86,8 @@ var _ = Describe("<Scenario4>", func() {
 		// Now create the default org which we skipped because
 		// it would fail before patching.
 		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
+		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
+		Expect(err).ToNot(HaveOccurred(), out)
 
 		By("Pushing an app with Env vars", func() {
 			out, err := epinioHelper.Run("apps", "create", appName)
