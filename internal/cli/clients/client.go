@@ -1630,15 +1630,19 @@ func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
 func formatError(bodyBytes []byte, response *http.Response) error {
 	var eResponse api.ErrorResponse
 	if err := json.Unmarshal(bodyBytes, &eResponse); err != nil {
-		return err
+		return errors.Wrapf(err, "cannot parse JSON response: '%s'", bodyBytes)
 	}
 
+	titles := make([]string, 0, len(eResponse.Errors))
+	for _, e := range eResponse.Errors {
+		titles = append(titles, e.Title)
+	}
+	t := strings.Join(titles, ", ")
+
 	if response.StatusCode == http.StatusInternalServerError {
-		return errors.New(fmt.Sprintf("%s: %s",
-			http.StatusText(response.StatusCode),
-			eResponse.Errors[0].Title))
+		return errors.Errorf("%s: %s", http.StatusText(response.StatusCode), t)
 	} else {
-		return errors.New(eResponse.Errors[0].Title)
+		return errors.New(t)
 	}
 }
 
