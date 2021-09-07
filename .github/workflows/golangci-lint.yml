@@ -14,12 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
 
       - name: Generate Golang
         run: |
-          echo "$HOME/go/bin" >> $GITHUB_PATH
           export PATH=$PATH:/home/runner/go/bin/
           make embed_files
 
