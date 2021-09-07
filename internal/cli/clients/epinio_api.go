@@ -25,7 +25,7 @@ type EpinioAPIClient struct {
 
 var epinioClientMemo *EpinioAPIClient
 
-func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
+func getEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
 	defer func() {
 		if epinioClientMemo != nil {
@@ -98,7 +98,13 @@ func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 	return epinioClient, nil
 }
 
-// getEpinioURL finds the URL's for epinio
+// ClearMemoization clears the memo, so a new call to getEpinioAPIClient does
+// not return a cached value
+func ClearMemoization() {
+	epinioClientMemo = nil
+}
+
+// getEpinioURL finds the URL's for epinio from the cluster
 func getEpinioURL(ctx context.Context, cluster *kubernetes.Cluster) (string, string, error) {
 	// Get the ingress
 	ingresses, err := cluster.ListIngress(ctx, deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
