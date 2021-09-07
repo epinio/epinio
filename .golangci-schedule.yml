@@ -17,6 +17,8 @@ linters-settings:
     threshold: 400
   revive:
     rules:
+    - name: indent-error-flow
+      severity: warning
     - name: blank-imports
       severity: warning
     - name: unexported-return
@@ -24,15 +26,10 @@ linters-settings:
 
 issues:
   exclude-rules:
-  # TODO convert the regex to errcheck's new ignore file
-  - linters: [errcheck]
-    text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv|viper.BindPFlag|viper.BindEnv). is not checked"
   # Exclude some linters from running on tests files.
   - linters:
     - gocyclo
     - dupl
-    - errcheck
-    - gosec
     path: _test\.go
   # Exclude unparam warning for handleError()
   - linters:
@@ -47,7 +44,6 @@ linters:
   - govet
   - staticcheck
   - deadcode
-  - errcheck
   - varcheck
   - unparam
   - ineffassign
@@ -56,7 +52,6 @@ linters:
   - dupl
   - goimports
   - revive
-  - gosec
   - gosimple
   - typecheck
   - unused
