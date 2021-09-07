@@ -53,7 +53,7 @@ func LoadFrom(file string) (*Config, error) {
 	v.SetEnvPrefix("EPINIO")
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
-	v.SetDefault("org", "workspace")
+	v.SetDefault("namespace", "workspace")
 
 	// Use empty defaults in viper to allow NeededOptions defaults to apply
 	v.SetDefault("user", "")
