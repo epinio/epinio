@@ -2,16 +2,19 @@ package config
 
 import (
 	"crypto/tls"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/auth"
 )
 
@@ -31,7 +34,8 @@ type Config struct {
 
 	Location string // Origin of data, file which was loaded
 
-	v *viper.Viper
+	v   *viper.Viper
+	log logr.Logger
 }
 
 // DefaultLocation returns the standard location for the configuration file
@@ -46,6 +50,11 @@ func Load() (*Config, error) {
 
 // LoadFrom loads the Epinio config from a specific file
 func LoadFrom(file string) (*Config, error) {
+	cfg := new(Config)
+
+	log := tracelog.NewLogger().WithName(fmt.Sprintf("Config-%p", cfg)).V(3)
+	log.Info("Loading", "from", file)
+
 	v := viper.New()
 
 	v.SetConfigType("yaml")
@@ -74,8 +83,6 @@ func LoadFrom(file string) (*Config, error) {
 		}
 	}
 	v.AutomaticEnv()
-
-	cfg := new(Config)
 
 	err = v.Unmarshal(cfg)
 	if err != nil {
@@ -113,7 +120,16 @@ func LoadFrom(file string) (*Config, error) {
 		color.NoColor = true
 	}
 
+	cfg.log = log
+	log.Info("Loaded", "value", cfg.String())
 	return cfg, nil
+}
+
+// Generates a string representation of the configuration (for debugging)
+func (c *Config) String() string {
+	return fmt.Sprintf(
+		"namespace=(%s), user=(%s), pass=(%s), api=(%s), wss=(%s), color=(%v), @(%s)",
+		c.Org, c.User, c.Password, c.API, c.WSS, c.Colors, c.Location)
 }
 
 // Save saves the Epinio config
@@ -126,6 +142,8 @@ func (c *Config) Save() error {
 	c.v.Set("certs", c.Certs)
 	c.v.Set("colors", c.Colors)
 
+	c.log.Info("Saving", "to", c.v.ConfigFileUsed())
+
 	err := os.MkdirAll(filepath.Dir(c.v.ConfigFileUsed()), 0700)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create config dir '%s'", filepath.Dir(c.v.ConfigFileUsed()))
@@ -135,6 +153,8 @@ func (c *Config) Save() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to write config file '%s'", c.v.ConfigFileUsed())
 	}
+
+	c.log.Info("Saved", "value", c.String())
 
 	// Note: Install saves the config via ConfigUpdate. The newly
 	// retrieved cert(s) have to be made available now, so that

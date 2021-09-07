@@ -71,7 +71,12 @@ func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
 	serverURL := epClient.URL
 	wsServerURL := epClient.WsURL
 
-	logger := tracelog.NewClientLogger()
+	logger := tracelog.NewClientLogger().V(3)
+
+	log := logger.WithName("New")
+	log.Info("Ingress API", "url", serverURL)
+	log.Info("Config API", "url", configConfig.API)
+
 	epinioClient := &EpinioClient{
 		ui:          uiUI,
 		Config:      configConfig,
