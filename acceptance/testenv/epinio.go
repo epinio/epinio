@@ -143,7 +143,6 @@ func ExpectGoodInstallation(epinioBinary string) {
 		gomega.MatchRegexp("Kubernetes Version: v1.21"),
 		gomega.MatchRegexp("Kubernetes Version: v1.20"),
 		gomega.MatchRegexp("Kubernetes Version: v1.19")))
-	gomega.Expect(info).To(gomega.MatchRegexp("Gitea Version: unavailable"))
 }
 
 func CheckDependencies() error {
