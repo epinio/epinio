@@ -18,7 +18,9 @@ jobs:
           fetch-depth: 0
 
       - name: Generate Golang
-        run: make embed_files
+        run: |
+          echo "`pwd`/go/bin" >> $GITHUB_PATH
+          make embed_files
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v2
