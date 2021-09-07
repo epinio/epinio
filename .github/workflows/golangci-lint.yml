@@ -19,10 +19,8 @@ jobs:
 
       - name: Generate Golang
         run: |
-          echo "`pwd`/go/bin" >> $GITHUB_PATH
-          go get github.com/rakyll/statik@v0.1.7
-          find / -name statik -type f
-          export PATH=$PATH:`pwd`/go/bin
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+          export PATH=$PATH:/home/runner/go/bin/
           make embed_files
 
       - name: golangci-lint
