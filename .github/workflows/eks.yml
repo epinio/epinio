@@ -13,6 +13,14 @@ on:
         description: "AWS_SECRET_ACCESS_KEY"
         required: false
         default: ""
+      aws_domain:
+        description: "AWS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+      aws_zone_id:
+        description: "AWS_ZONE_ID"
+        required: false
+        default: ""
 
 env:
   SETUP_GO_VERSION: '^1.13.7'
@@ -56,8 +64,8 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           REGEX: Scenario4
-          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
-          AWS_DOMAIN: ${{ secrets.AWS_DOMAIN }}
+          AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
+          AWS_DOMAIN: ${{ github.events.inputs.aks_domain || secrets.AWS_DOMAIN }}
         run: |
           export KUBECONFIG=$PWD/kubeconfig-epinio-ci
           make test-acceptance-install
