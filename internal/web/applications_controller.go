@@ -18,7 +18,7 @@ type ApplicationsController struct {
 }
 
 // setCurrentOrgInCookie is a helper for creating cookies to persist system state in the browser
-func setCurrentOrgInCookie(org, cookieName string, w http.ResponseWriter) error {
+func setCurrentOrgInCookie(org, cookieName string, w http.ResponseWriter) {
 	cookie := http.Cookie{
 		Name:    cookieName,
 		Value:   org,
@@ -26,8 +26,6 @@ func setCurrentOrgInCookie(org, cookieName string, w http.ResponseWriter) error 
 		Expires: time.Now().Add(365 * 24 * time.Hour),
 	}
 	http.SetCookie(w, &cookie)
-
-	return nil
 }
 
 // getOrgs tries to decide what the current organization is.
@@ -70,9 +68,8 @@ func getOrgs(w http.ResponseWriter, r *http.Request) (string, []string, error) {
 			restOrgs := otherOrgs(currentOrg, orgs)
 			setCurrentOrgInCookie(currentOrg, "currentOrg", w)
 			return currentOrg, restOrgs, nil
-		} else {
-			return "", []string{}, err
 		}
+		return "", []string{}, err
 	}
 	orgExists := func(cookieOrg string, orgs []organizations.Organization) bool {
 		for _, org := range orgs {

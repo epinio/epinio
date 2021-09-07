@@ -96,7 +96,7 @@ func (k ServiceCatalog) Delete(ctx context.Context, c *kubernetes.Cluster, ui *t
 	return nil
 }
 
-func (k ServiceCatalog) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k ServiceCatalog) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, _ kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"

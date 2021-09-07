@@ -83,7 +83,7 @@ func InternalError(err error, details ...string) APIError {
 	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusInternalServerError)
 }
 
-// InternalError constructs an API error for server internal issues, from a message
+// NewInternalError constructs an API error for server internal issues, from a message
 func NewInternalError(msg string, details ...string) APIError {
 	return NewAPIError(msg, strings.Join(details, ", "), http.StatusInternalServerError)
 }

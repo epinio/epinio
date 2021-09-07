@@ -62,7 +62,7 @@ type Platform interface {
 	ExternalIPs() []string
 }
 
-var SupportedPlatforms []Platform = []Platform{
+var SupportedPlatforms = []Platform{
 	kind.NewPlatform(),
 	k3s.NewPlatform(),
 	ibm.NewPlatform(),
@@ -292,9 +292,8 @@ func (c *Cluster) WaitForCRD(ctx context.Context, ui *termui.UI, CRDName string,
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return false, nil
-			} else {
-				return false, err
 			}
+			return false, err
 		}
 
 		return true, nil
@@ -313,9 +312,8 @@ func (c *Cluster) WaitForSecret(ctx context.Context, namespace, secretName strin
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				return false, nil
-			} else {
-				return false, err
 			}
+			return false, err
 		}
 		return true, nil
 	})
@@ -470,9 +468,8 @@ func (c *Cluster) WaitForPodBySelectorRunning(ctx context.Context, ui *termui.UI
 			events, err2 := c.GetPodEvents(ctx, namespace, pod.Name)
 			if err2 != nil {
 				return errors.Wrap(err, err2.Error())
-			} else {
-				return errors.New(fmt.Sprintf("Failed waiting for %s: %s\nPod Events: \n%s", pod.Name, err.Error(), events))
 			}
+			return fmt.Errorf("Failed waiting for %s: %s\nPod Events: \n%s", pod.Name, err.Error(), events)
 		}
 	}
 	return nil
@@ -493,7 +490,7 @@ func (c *Cluster) GetPodEventsWithSelector(ctx context.Context, namespace, selec
 		return "", err
 	}
 	if len(podList.Items) < 1 {
-		return "", errors.New(fmt.Sprintf("Couldn't find Pod with selector '%s' in namespace %s", selector, namespace))
+		return "", errors.Errorf("Couldn't find Pod with selector '%s' in namespace %s", selector, namespace)
 	}
 	podName := podList.Items[0].Name
 

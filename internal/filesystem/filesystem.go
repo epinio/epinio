@@ -1,4 +1,4 @@
-// Package filesystem allows enables the use of either embeded assets
+// Package filesystem allows enables the use of either embedded assets
 // (with statik) or files from the real filesystem. This is useful to
 // be able to develop the app using files on the disk before we ship
 // it as a single binary.

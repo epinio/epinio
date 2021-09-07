@@ -320,9 +320,8 @@ func CatalogServiceLookup(ctx context.Context, cluster *kubernetes.Cluster, org,
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 
 	spec := serviceInstance.Object["spec"].(map[string]interface{})
@@ -450,9 +449,8 @@ func (s *CatalogService) lookupBinding(ctx context.Context, bindingName, org str
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, nil
-		} else {
-			return nil, err
 		}
+		return nil, err
 	}
 
 	return serviceBinding, nil
@@ -568,9 +566,8 @@ func (s *CatalogService) Status(ctx context.Context) (string, error) {
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return "Not Found", nil
-		} else {
-			return "", err
 		}
+		return "", err
 	}
 
 	status := serviceInstance.Object["status"].(map[string]interface{})

@@ -115,7 +115,7 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 	return nil
 }
 
-// EnvUnset adds or modifies the specified environment variable in the
+// EnvSet adds or modifies the specified environment variable in the
 // named application, with the given value. A workload is restarted.
 func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue string) error {
 	log := c.Log.WithName("Env")
@@ -150,7 +150,7 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 	return nil
 }
 
-// EnvUnset shows the value of the specified environment variable in
+// EnvShow shows the value of the specified environment variable in
 // the named application.
 func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) error {
 	log := c.Log.WithName("Env")
@@ -798,14 +798,11 @@ func (c *EpinioClient) Info() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	// TODO: Extend the epinio API to get the gitea version
-	// information again. Or remove it entirely.
-	// Note: See also Spike #699 for possible full removal of Gitea
-
-	giteaVersion := "unavailable"
-	epinioVersion := "unavailable"
-	platform := "unknown"
-	kubeVersion := "unknown"
+	var (
+		epinioVersion string
+		platform      string
+		kubeVersion   string
+	)
 
 	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {
 		v := struct {
@@ -827,7 +824,6 @@ func (c *EpinioClient) Info() error {
 	c.ui.Success().
 		WithStringValue("Platform", platform).
 		WithStringValue("Kubernetes Version", kubeVersion).
-		WithStringValue("Gitea Version", giteaVersion).
 		WithStringValue("Epinio Version", epinioVersion).
 		Msg("Epinio Environment")
 
@@ -1414,7 +1410,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		log.V(3).Info("stage response", "response", stageResponse)
 
 		details.Info("start tailing logs", "StageID", stageResponse.Stage.ID)
-		err = c.stageLogs(ctx, details, appRef, stageResponse.Stage.ID)
+		err = c.stageLogs(details, appRef, stageResponse.Stage.ID)
 		if err != nil {
 			return err
 		}
@@ -1441,7 +1437,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	}
 
 	details.Info("wait for application resources")
-	err = c.waitForApp(ctx, appRef)
+	err = c.waitForApp(appRef)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -1641,9 +1637,8 @@ func formatError(bodyBytes []byte, response *http.Response) error {
 
 	if response.StatusCode == http.StatusInternalServerError {
 		return errors.Errorf("%s: %s", http.StatusText(response.StatusCode), t)
-	} else {
-		return errors.New(t)
 	}
+	return errors.New(t)
 }
 
 func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {

@@ -13,7 +13,6 @@ import (
 	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
-	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -63,7 +62,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 
 // ensurePVC is a helper creating the kube PVC associated with an
 // application, if needed, i.e. not already present.
-func (c ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
+func (hc ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
 	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).Get(ctx, pvcName, metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
@@ -144,7 +143,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	log.Info("staging app", "org", org, "app", req)
 
-	cs, err := versioned.NewForConfig(cluster.RestConfig)
+	cs, err := tekton.NewForConfig(cluster.RestConfig)
 	if err != nil {
 		return InternalError(err, "failed to get access to a tekton client")
 	}

@@ -100,7 +100,7 @@ func (k Kubed) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI)
 	return nil
 }
 
-func (k Kubed) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Kubed) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, _ kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"

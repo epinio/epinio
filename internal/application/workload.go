@@ -55,7 +55,7 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 		//       EVs not in varNames, and add only entries for varNames
 		//       not in Env, this is way more complex for what is likely
 		//       just 10 entries. I expect any gain in perf to be
-		//       neglibible, and completely offset by the complexity of
+		//       negligible, and completely offset by the complexity of
 		//       understanding and maintaining it later. Full removal
 		//       and re-adding is much simpler to understand, and should
 		//       be fast enough.

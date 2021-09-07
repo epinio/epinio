@@ -96,7 +96,7 @@ func (k Minibroker) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termu
 	return nil
 }
 
-func (k Minibroker) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Minibroker) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, _ kubernetes.InstallationOptions, upgrade bool) error {
 	action := "install"
 	if upgrade {
 		action = "upgrade"

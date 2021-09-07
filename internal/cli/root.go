@@ -21,7 +21,6 @@ import (
 
 var (
 	flagConfigFile string
-	kubeconfig     string
 )
 
 // NewEpinioCLI returns the main `epinio` cli.
@@ -33,7 +32,7 @@ var rootCmd = &cobra.Command{
 	Use:           "epinio",
 	Short:         "Epinio cli",
 	Long:          `epinio cli is the official command line interface for Epinio PaaS `,
-	Version:       fmt.Sprintf("%s", version.Version),
+	Version:       version.Version,
 	SilenceErrors: true,
 }
 

@@ -451,7 +451,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	hc.conn = conn
 	err = hc.streamPodLogs(ctx, org, appName, stageID, cluster, follow)
 	if err != nil {
-		log.V(1).Error(err, "error occured after upgrading the websockets connection")
+		log.V(1).Error(err, "error occurred after upgrading the websockets connection")
 		return
 	}
 

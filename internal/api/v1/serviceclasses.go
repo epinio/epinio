@@ -32,7 +32,10 @@ func (scc ServiceClassesController) Index(w http.ResponseWriter, r *http.Request
 		return InternalError(err)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+	_, err = w.Write(js)
+	if err != nil {
+		return InternalError(err)
+	}
 
 	return nil
 }

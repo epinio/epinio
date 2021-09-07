@@ -106,7 +106,7 @@ func (k Epinio) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *
 	return nil
 }
 
-func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, upgrade bool) error {
+func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, _ bool) error {
 	if err := c.CreateNamespace(ctx, EpinioDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
@@ -185,7 +185,6 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, fmt.Sprintf("%s failed", message))
 	}
 
-	message = "Installing Application CRD"
 	if out, err := helpers.KubectlApplyEmbeddedYaml(applicationCRDYaml); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", applicationCRDYaml, out))
 	}
