@@ -6,6 +6,7 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/cli/clients"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -202,12 +203,19 @@ func install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error installing Epinio")
 	}
 
-	// Installation complete. Run `org create`, and `target`.
+	ui := termui.NewUI()
+	ui.Success().Msg("Installation Complete.")
+
+	// Installation complete.
+	// Run `namespace create`, and `namespace target`.
+	// After `config update`.
 
 	epinioClient, err := clients.NewEpinioClient(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
+
+	epinioClient.Log.Info("Initial config", "value", epinioClient.Config.String())
 
 	// Post Installation Tasks:
 	// - Retrieve API certs and credentials, save to configuration
@@ -226,12 +234,16 @@ func install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error updating config")
 	}
 
+	epinioClient.Log.Info("Post update config", "value", epinioClient.Config.String())
+
 	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-namespace")
 	if err != nil {
 		return errors.Wrap(err, "error reading option --skip-default-namespace")
 	}
 
 	if !skipDefaultOrg {
+		ui.Note().Msg("Now checking ability to use the API server. And setting up useful things at the same time")
+
 		err := epinioClient.CreateOrg(DefaultOrganization)
 
 		if err != nil {
