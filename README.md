@@ -120,7 +120,7 @@ Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through tekton pipeline
 
 [Tekton Buildpack Pipeline](https://github.com/tektoncd/catalog/blob/main/task/buildpacks/0.3/buildpacks.yaml) - Epinio uses this tekton pipeline with the Paketo's full [Builder Image](https://paketo.io/docs/concepts/builders/).
 
-[Using Custom Buildpack](./docs/developer/howtos/custom-python-builder.md) - Steps to create and use custom python buildpack as Paketo full [Builder Image](https://paketo.io/docs/concepts/builders/) doesn't support python apps.
+[Using Custom Buildpack](./docs/developer/howtos/custom-python-builder.md) - Steps to create and use a custom builder image that includes a buildpack for Python (The paketo  full [Builder Image](https://paketo.io/docs/concepts/builders/) doesn't support python apps yet).
 
 
 ## How the documentation is organized
