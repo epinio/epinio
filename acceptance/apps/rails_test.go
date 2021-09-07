@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 	"time"
@@ -98,8 +97,6 @@ var _ = Describe("RubyOnRails", func() {
 		// Change Rails database configuration to match the service name
 		out, err = proc.Run(rails.Dir, false, "sed", "-i", fmt.Sprintf("s/mydb/%s/", serviceName), "config/database.yml")
 		Expect(err).ToNot(HaveOccurred(), out)
-
-		os.Setenv("EPINIO_TIMEOUT_MULTIPLIER", "2")
 	})
 
 	AfterEach(func() {

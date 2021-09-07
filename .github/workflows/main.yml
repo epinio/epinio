@@ -80,6 +80,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           make acceptance-cluster-delete
           make acceptance-cluster-setup
@@ -123,6 +124,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           make acceptance-cluster-delete
           make acceptance-cluster-setup
@@ -166,7 +168,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 2
+          EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
           make acceptance-cluster-delete
           make acceptance-cluster-setup

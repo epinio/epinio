@@ -76,11 +76,12 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
+          REGEX: Scenario3
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          REGEX: Scenario3
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
           AKS_DOMAIN: ${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         shell: bash
         run: |
           export KUBECONFIG=$PWD/kubeconfig
