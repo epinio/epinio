@@ -14,10 +14,17 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 
 - [Epinio](#epinio)
   - [Contents](#contents)
-  - [Features](#features)
   - [What problem does Epinio solve](#what-problem-does-epinio-solve)
+  - [Features](#features)
   - [Installation](#installation)
+    - [System Requirements](#system-requirements)
+      - [Kubernetes Cluster Requirements](#kubernetes-cluster-requirements)
+      - [Epinio CLI](#epinio-cli)
+    - [Install the Epinio CLI](#install-the-epinio-cli)
+    - [Installation Methods (in Cluster)](#installation-methods-in-cluster)
+    - [Installation on Specific Kubernetes Offerings](#installation-on-specific-kubernetes-offerings)
   - [Usage](#usage)
+  - [Buildpacks](#buildpacks)
   - [How the documentation is organized](#how-the-documentation-is-organized)
   - [Reach Us](#reach-us)
   - [Contributing](#contributing)
@@ -104,6 +111,17 @@ Beside advanced installation options, there are two ways of installing Epinio:
 ## Usage
 
 - [QuickStart](./docs/user/tutorials/quickstart.md) - tutorial on how to create an org and push an application.
+
+## Buildpacks
+
+Buildpacks convert your application source code into container images in which the buildpack provides the framework, dependencies and runtime support for your app based on it's programming language.
+
+Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through tekton pipelines to convert your source code into container images. 
+
+[Tekton Buildpack Pipeline](https://github.com/tektoncd/catalog/blob/main/task/buildpacks/0.3/buildpacks.yaml) - Epinio uses this tekton pipeline with the Paketo's full [Builder Image](https://paketo.io/docs/concepts/builders/).
+
+[Using Custom Buildpack](./docs/developer/howtos/custom-python-builder.md) - Steps to create and use custom python buildpack as Paketo full [Builder Image](https://paketo.io/docs/concepts/builders/) doesn't support python apps.
+
 
 ## How the documentation is organized
 
