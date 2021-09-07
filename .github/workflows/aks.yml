@@ -81,7 +81,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
           AKS_DOMAIN: ${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 2
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         shell: bash
         run: |
           export KUBECONFIG=$PWD/kubeconfig

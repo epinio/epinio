@@ -66,7 +66,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
           AWS_DOMAIN: ${{ github.events.inputs.aks_domain || secrets.AWS_DOMAIN }}
-          EPINIO_TIMEOUT_MULTIPLIER: 2
+          EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           export KUBECONFIG=$PWD/kubeconfig-epinio-ci
           make test-acceptance-install
