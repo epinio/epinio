@@ -122,7 +122,8 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		Password: apiPassword,
 	}
 
-	issuer := options.GetStringNG("tls-issuer")
+	issuer := "test"
+	issuer = options.GetStringNG("tls-issuer")
 	nodePort := options.GetBoolNG("use-internal-registry-node-port")
 	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, authAPI, issuer, nodePort); err != nil {
 		return errors.Wrap(err, out)
