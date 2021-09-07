@@ -15,11 +15,28 @@ linters-settings:
   dupl:
     # duplication warning after 400 tokens, increased from 150
     threshold: 400
+  revive:
+    rules:
+    - name: blank-imports
+      severity: warning
+    - name: unexported-return
+      severity: warning
 
 issues:
   exclude-rules:
   - linters: [errcheck]
     text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv|viper.BindPFlag|viper.BindEnv). is not checked"
+  # Exclude some linters from running on tests files.
+  - linters:
+    - gocyclo
+    - errcheck
+    - dupl
+    - gosec
+    path: _test\.go
+  # Exclude unparam warning for handleError()
+  - linters:
+    - unparam
+    text: "handleError"
 
 linters:
   disable-all: true
@@ -38,6 +55,7 @@ linters:
   - dupl
   - goimports
   - revive
+  - gosec
   - gosimple
   - typecheck
   - unused
