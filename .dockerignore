@@ -1,0 +1,9 @@
+acceptance/
+dist/
+docs/
+images/
+output/
+
+contrib/
+tmp/
+.envrc
