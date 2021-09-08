@@ -18,6 +18,7 @@ var CmdUninstall = &cobra.Command{
 // It removes epinio from a configured cluster
 func Uninstall(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
+	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	installClient, _, err := clients.NewInstallClient(cmd.Context(), nil)
 	if err != nil {

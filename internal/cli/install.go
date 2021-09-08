@@ -172,6 +172,7 @@ var CmdInstallCertManager = &cobra.Command{
 // It adds epinio to the targeted cluster
 func install(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
+	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	skipTraefik, err := cmd.Flags().GetBool("skip-traefik")
 	if err != nil {
@@ -263,6 +264,7 @@ func install(cmd *cobra.Command, args []string) error {
 // It adds epinio's ingress controller to the targeted cluster
 func installIngress(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
+	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &traefikOptions)
 	defer func() {
@@ -287,6 +289,7 @@ func installIngress(cmd *cobra.Command, args []string) error {
 // It adds epinio's cert manager to the targeted cluster
 func installCertManager(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
+	ExitfIfError(checkDependencies(), "Cannot operate")
 
 	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &certManagerOptions)
 	defer func() {
