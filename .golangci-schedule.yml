@@ -18,11 +18,11 @@ linters-settings:
   revive:
     rules:
     - name: indent-error-flow
-      severity: warning
+      disabled: "true"
     - name: blank-imports
-      severity: warning
+      disabled: "true"
     - name: unexported-return
-      severity: warning
+      disabled: "true"
 
 issues:
   exclude-rules:
