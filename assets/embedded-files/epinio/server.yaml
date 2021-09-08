@@ -212,6 +212,8 @@ spec:
           env:
             - name: TRACE_LEVEL
               value: "##trace_level##"
+            - name: EPINIO_TIMEOUT_MULTIPLIER
+              value: "##epinio_timeout_multiplier##"
             - name: TLS_ISSUER
               value: ##tls_issuer##
             - name: USE_INTERNAL_REGISTRY_NODE_PORT
