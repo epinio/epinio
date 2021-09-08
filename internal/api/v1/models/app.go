@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	EpinioStageIDLabel = "epinio.suse.org/stage-id"
+	EpinioStageIDLabel      = "epinio.suse.org/stage-id"
+	EpinioStageBlodUIDLabel = "epinio.suse.org/blob-uid"
 )
 
 // App has all the app properties, like the routes and stage ID.

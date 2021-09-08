@@ -312,7 +312,7 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 			return err
 		}
 
-		if err = s3m.DeleteObject(ctx, pr.ObjectMeta.Name); err != nil {
+		if err = s3m.DeleteObject(ctx, pr.ObjectMeta.Labels[models.EpinioStageBlodUIDLabel]); err != nil {
 			return err
 		}
 	}
