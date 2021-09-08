@@ -122,6 +122,12 @@ Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through tekton pipeline
 
 [Using Custom Buildpack](./docs/developer/howtos/custom-python-builder.md) - Steps to create and use a custom builder image that includes a buildpack for Python (The paketo  full [Builder Image](https://paketo.io/docs/concepts/builders/) doesn't support python apps yet).
 
+### Example apps
+
+- Rails: https://github.com/epinio/example-rails
+- Java: https://github.com/spring-projects/spring-petclinic/
+- Paketo Buildpack example apps: https://github.com/paketo-buildpacks/samples
+
 
 ## How the documentation is organized
 
@@ -142,7 +148,7 @@ Epinio documentation is organised into these four quadrants in the `./docs/` fol
 
 ## Contributing
 
-`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currenlty being worked on in the `BackLog` section.
+`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currently being worked on in the `BackLog` section.
 
 If you would like to start contributing to `Epinio`, then you can pick up any of the cards with label `good first issue`.
 
