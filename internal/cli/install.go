@@ -234,6 +234,15 @@ func install(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error updating config")
 	}
 
+	// Clear memorized API client
+	clients.ClearMemoization()
+
+	// Re-load config so we can talk to the API server
+	epinioClient, err = clients.NewEpinioClient(cmd.Context())
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
 	epinioClient.Log.Info("Post update config", "value", epinioClient.Config.String())
 
 	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-namespace")
