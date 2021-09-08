@@ -97,6 +97,10 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 		WithStringValue("Application", appName).
 		Msg("Show Application Environment")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	jsonResponse, err := c.get(api.Routes.Path("EnvList", c.Config.Org, appName))
 	if err != nil {
 		return err
@@ -132,6 +136,10 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 		WithStringValue("Value", envValue).
 		Msg("Extend or modify application environment")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	request := models.EnvVariableList{
 		models.EnvVariable{
 			Name:  envName,
@@ -166,6 +174,10 @@ func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) err
 		WithStringValue("Variable", envName).
 		Msg("Show application environment variable")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	jsonResponse, err := c.get(api.Routes.Path("EnvShow", c.Config.Org, appName, envName))
 	if err != nil {
 		return err
@@ -195,6 +207,10 @@ func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) er
 		WithStringValue("Application", appName).
 		WithStringValue("Variable", envName).
 		Msg("Remove from application environment")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
 	_, err := c.delete(api.Routes.Path("EnvUnset", c.Config.Org, appName, envName))
 	if err != nil {
@@ -372,6 +388,10 @@ func (c *EpinioClient) Services() error {
 		WithStringValue("Namespace", c.Config.Org).
 		Msg("Listing services")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	details.Info("list services")
 
 	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
@@ -445,6 +465,10 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		WithStringValue("Namespace", c.Config.Org).
 		Msg("Bind Service")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	request := models.BindRequest{
 		Names: []string{serviceName},
 	}
@@ -496,6 +520,10 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 		WithStringValue("Namespace", c.Config.Org).
 		Msg("Unbind Service from Application")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	_, err := c.delete(api.Routes.Path("ServiceBindingDelete",
 		c.Config.Org, appName, serviceName))
 	if err != nil {
@@ -521,6 +549,10 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Config.Org).
 		Msg("Delete Service")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
 	request := models.DeleteRequest{
 		Unbind: unbind,
@@ -603,13 +635,17 @@ func (c *EpinioClient) CreateService(name, class, plan string, data string, wait
 	log.Info("start")
 	defer log.Info("return")
 
-	msg := c.ui.Note().
+	c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Class", class).
 		WithStringValue("Plan", plan).
-		WithTable("Parameter", "Value")
-	msg.Msg("Create Service")
+		WithTable("Parameter", "Value").
+		Msg("Create Service")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
 	request := models.CatalogCreateRequest{
 		Name:             name,
@@ -672,6 +708,10 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 	}
 	msg.Msg("Create Custom Service")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	request := models.CustomCreateRequest{
 		Name: name,
 		Data: data,
@@ -706,6 +746,10 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Config.Org).
 		Msg("Service Details")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
 	jsonResponse, err := c.get(api.Routes.Path("ServiceShow", c.Config.Org, name))
 	if err != nil {
@@ -816,6 +860,10 @@ func (c *EpinioClient) Apps() error {
 		WithStringValue("Namespace", c.Config.Org).
 		Msg("Listing applications")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	details.Info("list applications")
 
 	jsonResponse, err := c.get(api.Routes.Path("Apps", c.Config.Org))
@@ -855,6 +903,10 @@ func (c *EpinioClient) AppShow(appName string) error {
 		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		Msg("Show application details")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
 	details.Info("show application")
 
@@ -914,6 +966,10 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 		WithStringValue("Application", appName).
 		Msg("Update application")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	details.Info("update application")
 
 	data, err := json.Marshal(models.UpdateAppRequest{
@@ -968,6 +1024,10 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 		WithStringValue("Namespace", c.Config.Org).
 		WithStringValue("Application", appName).
 		Msg("Streaming application logs")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
 	details.Info("application logs")
 
@@ -1131,6 +1191,10 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 		WithStringValue("Namespace", c.Config.Org).
 		Msg("Deleting application...")
 
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
 	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
 	defer s.Stop()
 
@@ -1258,6 +1322,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Sources", sourceToShow).
 		WithStringValue("Namespace", appRef.Org)
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
 	services := uniqueStrings(params.Services)
 
@@ -1455,7 +1523,7 @@ func (c *EpinioClient) Target(org string) error {
 	// TODO: Validation of the org name removed. Proper validation
 	// of the targeted org is done by all the other commands using
 	// it anyway. If we really want it here and now, implement an
-	// `org show` command and API, and then use that API for the
+	// `namespace show` command and API, and then use that API for the
 	// validation.
 
 	details.Info("set config")
@@ -1643,6 +1711,13 @@ func (c *EpinioClient) curlWithCustomErrorHandling(endpoint, method, requestBody
 	}
 
 	return bodyBytes, nil
+}
+
+func (c *EpinioClient) TargetOk() error {
+	if c.Config.Org == "" {
+		return errors.New("Internal Error: No namespace targeted")
+	}
+	return nil
 }
 
 func uniqueStrings(stringSlice []string) []string {
