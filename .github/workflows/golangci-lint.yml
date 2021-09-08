@@ -20,7 +20,8 @@ jobs:
           export PATH=$PATH:/home/runner/go/bin/
           make embed_files
 
-      - id: configfile
+      - name: Configfile
+        id: configfile
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "::set-output name=file::.golangci.yml"
@@ -39,3 +40,6 @@ jobs:
           # Optional: show only new issues if it's a pull request. The default value is `false`.
           # The condition sets this to true for PR events.
           only-new-issues: "${{ github.event_name == 'pull_request'}}"
+
+          # TODO pkg cache collides with 'statik' installation
+          skip-pkg-cache: true
