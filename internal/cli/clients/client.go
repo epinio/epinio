@@ -1782,7 +1782,7 @@ func (c *EpinioClient) curlWithCustomErrorHandling(endpoint, method, requestBody
 
 func (c *EpinioClient) TargetOk() error {
 	if c.Config.Org == "" {
-		return errors.New("Internal Error: No targeted")
+		return errors.New("Internal Error: No namespace targeted")
 	}
 	return nil
 }
