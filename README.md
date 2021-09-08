@@ -142,7 +142,7 @@ Epinio documentation is organised into these four quadrants in the `./docs/` fol
 
 ## Contributing
 
-`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currenlty being worked on in the `BackLog` section.
+`Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currently being worked on in the `BackLog` section.
 
 If you would like to start contributing to `Epinio`, then you can pick up any of the cards with label `good first issue`.
 
