@@ -38,7 +38,7 @@ func NewInstallClient(ctx context.Context, options *kubernetes.InstallationOptio
 	// We do this for the side effect: colorized output vs not.
 	// May also extend the internal CA cert pool.
 	// This and everything else done by loading does not matter.
-	// The later phases of the installer will write a new config.
+	// The later phases of the install command will write a new config.
 	_, err := config.Load()
 	if err != nil {
 		return nil, nil, err

@@ -6,6 +6,7 @@ import (
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/pkg/errors"
 )
@@ -25,19 +26,33 @@ type EpinioAPIClient struct {
 var epinioClientMemo *EpinioAPIClient
 
 func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
+	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
+	defer func() {
+		if epinioClientMemo != nil {
+			log.Info("return", "api", epinioClientMemo.URL, "wss", epinioClientMemo.WsURL)
+			return
+		}
+		log.Info("return")
+	}()
+
 	// Check for information cached in memory, and return if such is found
 	if epinioClientMemo != nil {
+		log.Info("cached in memory")
 		return epinioClientMemo, nil
 	}
 
 	// Check for information cached in the Epinio configuration,
 	// and return if such is found. Cache into memory as well.
+	log.Info("query configuration")
+
 	cfg, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
 
 	if cfg.API != "" && cfg.WSS != "" {
+		log.Info("cached in config")
+
 		epinioClient := &EpinioAPIClient{
 			URL:   cfg.API,
 			WsURL: cfg.WSS,
@@ -47,6 +62,8 @@ func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 
 		return epinioClient, nil
 	}
+
+	log.Info("query cluster")
 
 	// Not cached at all. Query and return the cluster
 	// ingress. Cache to configuration, and memory.
@@ -60,6 +77,8 @@ func GetEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve epinio api host")
 	}
+
+	log.Info("retrieved from ingress", "api", epinioURL, "wss", epinioWsURL)
 
 	cfg.API = epinioURL
 	cfg.WSS = epinioWsURL
