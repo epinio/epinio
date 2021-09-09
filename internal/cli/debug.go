@@ -24,7 +24,9 @@ var CmdDebug = &cobra.Command{
 	SilenceUsage:  true,
 	Args:          cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.Usage()
+		if err := cmd.Usage(); err != nil {
+			return err
+		}
 		return fmt.Errorf(`Unknown method "%s"`, args[0])
 	},
 }
