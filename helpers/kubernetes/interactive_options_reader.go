@@ -59,7 +59,11 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 	}
 
 	prompt := fmt.Sprintf("[%s] %s %s%s [%v]: ", deployment, option.Name, option.Description, possibleOptions, option.Value)
-	reader.out.Write([]byte(prompt))
+
+	if _, err := reader.out.Write([]byte(prompt)); err != nil {
+		return err
+	}
+
 	bufReader := bufio.NewReader(reader.in)
 	userValue, err := bufReader.ReadString('\n')
 	if err != nil {
@@ -95,8 +99,9 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 				option.UserSpecified = true
 				return nil
 			}
-
-			reader.out.Write([]byte("It's either 'y' or 'n', please try again"))
+			if _, err := reader.out.Write([]byte("It's either 'y' or 'n', please try again")); err != nil {
+				return err
+			}
 			userValue, err = bufReader.ReadString('\n')
 			if err != nil {
 				return err
@@ -115,8 +120,9 @@ func (reader InteractiveOptionsReader) Read(option *InstallationOption) error {
 				option.UserSpecified = true
 				return nil
 			}
-
-			reader.out.Write([]byte("Please provide an integer value"))
+			if _, err := reader.out.Write([]byte("Please provide an integer value")); err != nil {
+				return err
+			}
 			userValue, err = bufReader.ReadString('\n')
 			if err != nil {
 				return err

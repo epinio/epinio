@@ -70,7 +70,9 @@ var CmdConfigColors = &cobra.Command{
 		}
 
 		theConfig.Colors = colors
-		theConfig.Save()
+		if err := theConfig.Save(); err != nil {
+			return err
+		}
 
 		ui.Success().WithBoolValue("Colors", theConfig.Colors).Msg("Ok")
 		return nil
