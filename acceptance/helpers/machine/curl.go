@@ -20,7 +20,7 @@ func (m *Machine) Client() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: true, // self signed certs
+				InsecureSkipVerify: true, // nolint:gosec // tests using self signed certs
 			},
 		},
 	}

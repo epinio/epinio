@@ -104,12 +104,13 @@ func LoadFrom(file string) (*Config, error) {
 
 		if http.DefaultTransport.(*http.Transport).TLSClientConfig == nil {
 			tlsInsecure := &tls.Config{
-				InsecureSkipVerify: true,
+				InsecureSkipVerify: true, // nolint:gosec // Controlled by user option
 			}
 
 			http.DefaultTransport.(*http.Transport).TLSClientConfig = tlsInsecure
 			websocket.DefaultDialer.TLSClientConfig = tlsInsecure
 		} else {
+			// nolint:gosec // Controlled by user option
 			http.DefaultTransport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
 			// websocket.DefaultDialer.TLSClientConfig refers to the same structure,
 			// and the assignment has modified it also.
