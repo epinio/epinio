@@ -143,7 +143,7 @@ func (k GoogleServices) apply(ctx context.Context, c *kubernetes.Cluster, ui *te
 	valuesYaml := fmt.Sprintf(`
 broker:
   service_account_json: '%s'`, strings.Replace(string(jsonContent), "\n", "", -1))
-	err = ioutil.WriteFile(valuesYamlPath, []byte(valuesYaml), 0644)
+	err = ioutil.WriteFile(valuesYamlPath, []byte(valuesYaml), 0600)
 	if err != nil {
 		return err
 	}
