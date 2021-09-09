@@ -11,17 +11,17 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type k3s struct {
+type K3s struct {
 	generic.Generic
 }
 
-func (k *k3s) Describe() string {
+func (k *K3s) Describe() string {
 	return emoji.Sprintf(":anchor:Detected kubernetes platform: %s\n:earth_americas:ExternalIPs: %s\n:curly_loop:InternalIPs: %s", k.String(), k.ExternalIPs(), k.InternalIPs)
 }
 
-func (k *k3s) String() string { return "k3s" }
+func (k *K3s) String() string { return "k3s" }
 
-func (k *k3s) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+func (k *K3s) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
 	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false
@@ -34,10 +34,10 @@ func (k *k3s) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
 	return false
 }
 
-func (k *k3s) ExternalIPs() []string {
+func (k *K3s) ExternalIPs() []string {
 	return k.InternalIPs
 }
 
-func NewPlatform() *k3s {
-	return &k3s{}
+func NewPlatform() *K3s {
+	return &K3s{}
 }
