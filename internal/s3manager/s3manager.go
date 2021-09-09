@@ -35,6 +35,45 @@ type ConnectionDetails struct {
 	Location        string
 }
 
+func NewConnectionDetails(endpoint, key, secret, bucket, location string, useSSL bool) *ConnectionDetails {
+	return &ConnectionDetails{
+		Endpoint:        endpoint,
+		UseSSL:          useSSL,
+		AccessKeyID:     key,
+		SecretAccessKey: secret,
+		Bucket:          bucket,
+		Location:        location,
+	}
+}
+
+// Validate makes sure the S3 settings provided are valid
+// The user should provide all the mandatory settings or no settings at all.
+func (details *ConnectionDetails) Validate() error {
+	allMandatorySet := details.Endpoint != "" &&
+		details.AccessKeyID != "" &&
+		details.SecretAccessKey != "" &&
+		details.Bucket != ""
+	allMandatoryEmpty := details.Endpoint == "" &&
+		details.AccessKeyID == "" &&
+		details.SecretAccessKey == "" &&
+		details.Bucket == ""
+	optionalSet := details.Location != ""
+
+	// If mandatory fields are partly set
+	partlyMandatory := !(allMandatorySet || allMandatoryEmpty)
+	if partlyMandatory {
+		return errors.New("when specifying an external s3 server, you  must set all  mandatory S3 options")
+	}
+
+	// If only optional fields are set
+	if allMandatoryEmpty && optionalSet {
+		return errors.New("do not specify options if using the internal S3 storage")
+	}
+
+	// Either all empty or at least the mandatory fields set - valid.
+	return nil
+}
+
 // New returns an instance of an s3 manager
 func New(connectionDetails ConnectionDetails) (*Manager, error) {
 	useSSL := connectionDetails.UseSSL
@@ -117,24 +156,6 @@ region = %s
 		}, metav1.CreateOptions{})
 
 	return secret, err
-}
-
-// Validate makes sure all fields are set or none are set.
-// TODO what happens for none, shouldn't there be defaults???
-func (details *ConnectionDetails) Validate() error {
-	if (details.Endpoint != "" &&
-		details.AccessKeyID != "" &&
-		details.SecretAccessKey != "" &&
-		details.Bucket != "" &&
-		details.Location != "") || (details.Endpoint == "" &&
-		details.AccessKeyID == "" &&
-		details.SecretAccessKey == "" &&
-		details.Bucket == "" &&
-		details.Location == "") {
-		return nil
-	}
-
-	return errors.New("you must set all the s3 options or none")
 }
 
 // Upload uploads the given file to the S3 endpoint and returns a blobUID which

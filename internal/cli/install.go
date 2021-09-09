@@ -150,7 +150,7 @@ var neededOptions = kubernetes.InstallationOptions{
 		Description: "If you are using your own S3 compatible object storage for blobs, toggle SSL on or off.",
 		Type:        kubernetes.BooleanType,
 		Default:     false,
-		Value:       true,
+		Value:       false,
 	},
 }
 
