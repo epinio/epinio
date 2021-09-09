@@ -247,17 +247,17 @@ func (hc ApplicationsController) EnvShow(w http.ResponseWriter, r *http.Request)
 		return InternalError(err)
 	}
 
-	var match *models.EnvVariable
+	var match models.EnvVariable
 	for _, ev := range environment {
 		if ev.Name == varName {
-			match = &ev
+			match = ev
 			break
 		}
 	}
 
 	// Not found => Returns a nil object
 
-	js, err := json.Marshal(match)
+	js, err := json.Marshal(&match)
 	if err != nil {
 		return InternalError(err)
 	}
