@@ -20,6 +20,7 @@ func init() {
 	CmdPush.Flags().String("git", "", "git revision of sources. PATH becomes repository location")
 	CmdPush.Flags().String("docker-image-url", "", "docker image url for the app workload image")
 	CmdPush.Flags().StringSliceP("bind", "b", []string{}, "services to bind immediately")
+	// nolint:errcheck // Unable to handle error in init block
 	CmdPush.RegisterFlagCompletionFunc("bind",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			// `cmd`, `args` are ignored.

@@ -45,7 +45,7 @@ var CmdEnableGoogle = &cobra.Command{
 
 func init() {
 	CmdEnableGoogle.Flags().String("service-account-json", "", "the path to the service_account_json for Google Cloud authentication [required]")
-	CmdEnableGoogle.MarkFlagRequired("service-account-json")
+	CmdEnableGoogle.MarkFlagRequired("service-account-json") // nolint:errcheck // Unable to handle error in init block
 	CmdEnable.AddCommand(CmdEnableInCluster)
 	CmdEnable.AddCommand(CmdEnableGoogle)
 }
