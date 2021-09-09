@@ -3,7 +3,7 @@
 package names
 
 import (
-	"crypto/md5"
+	"crypto/md5" // nolint:gosec // Non-crypto use
 	"encoding/hex"
 	"strings"
 
@@ -49,7 +49,7 @@ func TruncateMD5(s string, maxLen int) string {
 		return s
 	}
 
-	sumHex := md5.Sum([]byte(s))
+	sumHex := md5.Sum([]byte(s)) // nolint:gosec // Non-crypto use
 	sum := hex.EncodeToString(sumHex[:])
 	suffix := "-" + sum
 	suffixLen := len(suffix)

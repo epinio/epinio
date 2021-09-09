@@ -73,6 +73,7 @@ func (c *Client) createRepo(org string, name string) error {
 
 // gitPush the app data
 func (c *Client) gitPush(remote string, tmpDir string) (string, error) {
+	// nolint:gosec // controlled arguments
 	cmd := exec.Command("/bin/sh", "-c", fmt.Sprintf(`
 cd "%s" 
 git init
@@ -91,7 +92,7 @@ git push epinio %s:main
 		return "", errors.Wrap(err, "push script failed")
 	}
 
-	// extract commit sha
+	// nolint:gosec // controlled arguments	// extract commit sha
 	cmd = exec.Command("/bin/sh", "-c", fmt.Sprintf(`
 cd "%s"
 git rev-parse HEAD

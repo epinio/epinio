@@ -114,7 +114,7 @@ func ReadyRouter() *httprouter.Router {
 // logRequestHandler is the logging middleware for requests
 func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		id := fmt.Sprintf("%d", rand.Intn(10000))
+		id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
 		log := logger.WithName(id)
 
 		// add our logger
