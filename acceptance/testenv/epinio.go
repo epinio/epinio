@@ -75,11 +75,10 @@ func EpinioBinaryPath() string {
 
 // EpinioYAML returns the absolute path to the epinio config YAML
 func EpinioYAML() string {
-	p, _ := filepath.Abs(filepath.Join(Root(), "/tmp/epinio.yaml"))
-	return p
+	return os.ExpandEnv("${HOME}/.config/epinio/config.yaml")
 }
 
-func EnsureEpinio(epinioBinary string) error {
+func CheckEpinio() error {
 	out, err := helpers.Kubectl("get", "pods",
 		"--namespace", "epinio",
 		"--selector", "app.kubernetes.io/name=epinio-server")
@@ -92,34 +91,8 @@ func EnsureEpinio(epinioBinary string) error {
 			return nil
 		}
 	}
-	fmt.Println("Installing Epinio")
 
-	// Installing linkerd and ingress separate from the main
-	// pieces.  Ensures that the main install command invokes and
-	// passes the presence checks for linkerd and traefik.
-	out, err = proc.Run("", false, epinioBinary, "install-ingress")
-	if err != nil {
-		return errors.Wrap(err, out)
-	}
-
-	// Allow the installation to continue by not trying to create
-	// the default org before we patch.
-	installArgs := []string{
-		"install",
-		"--skip-default-namespace",
-		"--user", epinioUser,
-		"--password", epinioPassword,
-	}
-
-	if domain := os.Getenv("EPINIO_SYSTEM_DOMAIN"); domain != "" {
-		installArgs = append(installArgs, "--system-domain", domain)
-	}
-
-	out, err = proc.Run("", false, epinioBinary, installArgs...)
-	if err != nil {
-		return errors.Wrap(err, out)
-	}
-	return nil
+	return errors.New("epinio installation not found")
 }
 
 // BuildEpinio builds the epinio binaries for the server and if platforms are different also for the CLI

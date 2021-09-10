@@ -16,6 +16,5 @@ func SetupEnv() {
 		os.Setenv("EPINIO_BINARY_PATH", fmt.Sprintf("./dist/%s", ServerBinaryName()))
 	}
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
-	os.Setenv("EPINIO_CONFIG", EpinioYAML())
 	os.Setenv("SKIP_SSL_VERIFICATION", "true")
 }

@@ -49,12 +49,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	testenv.CreateRegistrySecret()
 
-	epinioBinary := testenv.EpinioBinaryPath()
-	err := testenv.EnsureEpinio(epinioBinary)
-	Expect(err).ToNot(HaveOccurred(), "installing epinio")
-
-	out, err := testenv.PatchEpinio()
-	Expect(err).ToNot(HaveOccurred(), out)
+	err := testenv.CheckEpinio()
+	Expect(err).ToNot(HaveOccurred(), "checking epinio")
 
 	// Now create the default org which we skipped because it would fail before
 	// patching.

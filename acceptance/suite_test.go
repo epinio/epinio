@@ -49,8 +49,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	testenv.CreateRegistrySecret()
 
-	epinioBinary := testenv.EpinioBinaryPath()
-	err := testenv.EnsureEpinio(epinioBinary)
+	err := testenv.CheckEpinio()
 	Expect(err).ToNot(HaveOccurred(), "installing epinio")
 
 	out, err := testenv.PatchEpinio()
