@@ -33,11 +33,6 @@ const (
 	// when the cluster of a previous run still exists
 	// (s.a. skipCleanupPath).
 	skipEpinioPatch = "EPINIO_SKIP_PATCH"
-
-	// epinioUser and epinioPassword specify the API credentials
-	// used during testing.
-	epinioUser     = "test-user"
-	epinioPassword = "secure-testing"
 )
 
 type EpinioEnv struct {
@@ -47,12 +42,12 @@ type EpinioEnv struct {
 	EpinioPassword string
 }
 
-func New(nodeDir string, rootDir string) EpinioEnv {
+func New(nodeDir string, rootDir, username, password string) EpinioEnv {
 	return EpinioEnv{
 		nodeTmpDir:     nodeDir,
-		EpinioUser:     epinioUser,
-		EpinioPassword: epinioPassword,
-		Machine:        machine.New(nodeDir, epinioUser, epinioPassword, root, EpinioBinaryPath()),
+		EpinioUser:     username,
+		EpinioPassword: password,
+		Machine:        machine.New(nodeDir, username, password, root, EpinioBinaryPath()),
 	}
 }
 
