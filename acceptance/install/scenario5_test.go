@@ -14,17 +14,14 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario3> Azure, Private CA, CustomService", func() {
+var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 	var (
 		appName      = catalog.NewAppName()
 		domain       string
 		epinioHelper epinio.Epinio
 		flags        []string
 		loadbalancer string
-		serviceName  = catalog.NewServiceName()
 		zoneID       string
-		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
-		env testenv.EpinioEnv
 	)
 
 	BeforeEach(func() {
@@ -39,8 +36,8 @@ var _ = Describe("<Scenario3> Azure, Private CA, CustomService", func() {
 
 		flags = []string{
 			"--skip-default-namespace",
-			"--skip-cert-manager",
-			"--tls-issuer=private-ca",
+			"--tls-issuer=letsencrypt-production",
+			"--use-internal-registry-node-port=false",
 			"--system-domain=" + domain,
 		}
 	})
@@ -79,16 +76,6 @@ var _ = Describe("<Scenario3> Azure, Private CA, CustomService", func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
-		By("Installing CertManager", func() {
-			out, err := epinioHelper.Run("install-cert-manager")
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("CertManager deployed"))
-
-			// create certificate secret and cluster_issuer
-			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
-			Expect(err).NotTo(HaveOccurred(), out)
-		})
-
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -104,20 +91,15 @@ var _ = Describe("<Scenario3> Azure, Private CA, CustomService", func() {
 		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		By("Creating a custom service and pushing an app", func() {
-			out, err := epinioHelper.Run("service", "create-custom", serviceName, "mariadb", "10-3-22")
+		By("Pushing an app", func() {
+			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"))
 			Expect(err).NotTo(HaveOccurred(), out)
-
-			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"), "--bind", serviceName)
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			env.VerifyAppServiceBound(appName, serviceName, testenv.DefaultWorkspace, 1)
 
 			// verify cluster_issuer is used
 			out, err = proc.RunW("kubectl", "get", "certificate",
 				"-n", testenv.DefaultWorkspace, appName, "-o", "jsonpath='{.spec.issuerRef.name}'")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Equal("'private-ca'"))
+			Expect(out).To(Equal("'letsencrypt-production'"))
 		})
 	})
 })

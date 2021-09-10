@@ -387,7 +387,16 @@ const clusterIssuerLetsencrypt = `{
 			{
 				"http01" : {
 					"ingress" : {
-						"class" : "traefik"
+						"class" : "traefik",
+						"podTemplate": {
+							"metadata": {
+								"annotations": {
+									"linkerd.io/inject": "disabled",
+									"traefik.ingress.kubernetes.io/router.tls": "true",
+									"traefik.ingress.kubernetes.io/frontend-entry-points": "https"
+								}
+							}
+						}
 					}
 				}
 			}

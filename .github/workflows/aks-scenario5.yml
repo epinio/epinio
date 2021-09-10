@@ -1,8 +1,8 @@
-name: AKS-CI
+name: AKS-CI-Scenario5
 
 on:
   schedule:
-    - cron:  '0 5 * * *'
+    - cron:  '25 5 * * *'
   workflow_dispatch:
     inputs:
       azure_credentials:
@@ -74,14 +74,16 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
-          REGEX: Scenario3
+          REGEX: Scenario5
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
-          AKS_DOMAIN: ${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
+          # use a random host name, so we don't collide with our workflows on AKS
+          AKS_DOMAIN: id${{ steps.create-cluster.oututs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         shell: bash
         run: |
+          echo "System Domain: $AKS_DOMAIN"
           export KUBECONFIG=$PWD/kubeconfig
           make test-acceptance-install
 
