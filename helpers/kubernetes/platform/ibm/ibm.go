@@ -10,17 +10,20 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-type ibm struct {
+// IBM represents the ibm kubernetes platform.
+type IBM struct {
 	generic.Generic
 }
 
-func (k *ibm) Describe() string {
+// Describe returns information about the platform.
+func (k *IBM) Describe() string {
 	return emoji.Sprintf(":anchor:Detected kubernetes platform: %s\n:earth_americas:ExternalIPs: %s\n:curly_loop:InternalIPs: %s", k.String(), k.ExternalIPs(), k.InternalIPs)
 }
 
-func (k *ibm) String() string { return "ibm" }
+func (k *IBM) String() string { return "ibm" }
 
-func (k *ibm) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
+// Detect detects if it is a ibm platform.
+func (k *IBM) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
 	nodes, err := kube.CoreV1().Nodes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return false
@@ -33,10 +36,12 @@ func (k *ibm) Detect(ctx context.Context, kube *kubernetes.Clientset) bool {
 	return false
 }
 
-func (k *ibm) ExternalIPs() []string {
+// ExternalIPs fetches the ibm IP.
+func (k *IBM) ExternalIPs() []string {
 	return k.Generic.ExternalIP
 }
 
-func NewPlatform() *ibm {
-	return &ibm{}
+// NewPlatform returns an instance of ibm struct.
+func NewPlatform() *IBM {
+	return &IBM{}
 }

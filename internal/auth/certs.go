@@ -36,7 +36,8 @@ func ExtendLocalTrust(certs string) {
 
 	// Trust the augmented cert pool in our client
 	config := &tls.Config{
-		RootCAs: rootCAs,
+		MinVersion: tls.VersionTLS13,
+		RootCAs:    rootCAs,
 	}
 
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = config

@@ -2,7 +2,7 @@ package deployments
 
 import (
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" // nolint:gosec // Required by subject hash specification
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -536,7 +536,7 @@ func SubjectNameHash(cert *x509.Certificate) (uint32, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to compute canonical subject name\n%w", err)
 	}
-	hasher := sha1.New()
+	hasher := sha1.New() // nolint:gosec // Required by subject hash specification
 	_, err = hasher.Write(name)
 	if err != nil {
 		return 0, fmt.Errorf("failed to compute sha1sum of canonical subject name\n%w", err)

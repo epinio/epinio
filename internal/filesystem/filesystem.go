@@ -7,6 +7,10 @@ package filesystem
 import (
 	"net/http"
 
+	// We need the imports for the side effects, i.e. the `init()`
+	// functions they run to register their filesystems. As none
+	// of the public symbols are directly used an non-blank import
+	// would be elided by go format.
 	_ "github.com/epinio/epinio/assets/statikWebAssets"
 	_ "github.com/epinio/epinio/assets/statikWebViews"
 	"github.com/rakyll/statik/fs"

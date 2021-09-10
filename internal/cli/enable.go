@@ -20,7 +20,9 @@ var CmdEnable = &cobra.Command{
 	SilenceUsage:  true,
 	Args:          cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.Usage()
+		if err := cmd.Usage(); err != nil {
+			return err
+		}
 		return fmt.Errorf(`Unknown method "%s"`, args[0])
 	},
 }
@@ -43,7 +45,7 @@ var CmdEnableGoogle = &cobra.Command{
 
 func init() {
 	CmdEnableGoogle.Flags().String("service-account-json", "", "the path to the service_account_json for Google Cloud authentication [required]")
-	CmdEnableGoogle.MarkFlagRequired("service-account-json")
+	CmdEnableGoogle.MarkFlagRequired("service-account-json") // nolint:errcheck // Unable to handle error in init block
 	CmdEnable.AddCommand(CmdEnableInCluster)
 	CmdEnable.AddCommand(CmdEnableGoogle)
 }

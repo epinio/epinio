@@ -1069,6 +1069,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 				// Used by the caller of this method to stop everything. We simply close
 				// the connection here. This will make the loop below to stop and send us
 				// a signal on "done" above. That will stop this go routine too.
+				// nolint:errcheck // no place to pass any error to.
 				webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
 				connectionClosedByUs = true
 				webSocketConn.Close()

@@ -72,7 +72,7 @@ func (m *Machine) MakeWebSocketConnection(url string) *websocket.Conn {
 
 	// disable tls cert verification for web socket connections - See also `Curl` above
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
-		InsecureSkipVerify: true, // self signed certs
+		InsecureSkipVerify: true, // nolint:gosec // tests using self signed certs
 	}
 	ws, response, err := websocket.DefaultDialer.Dial(url, headers)
 	Expect(err).NotTo(HaveOccurred())

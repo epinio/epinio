@@ -269,11 +269,11 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	// We do that, because we want to put the "kubed.appscode.com/sync" annotation
 	// as per the docs:
 	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
-	secretName := "epinio-ca-root"
+	rootCAName := "epinio-ca-root"
 
 	emptySecret := v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
+			Name:      rootCAName,
 			Namespace: CertManagerDeploymentID,
 			Annotations: map[string]string{
 				"kubed.appscode.com/sync": fmt.Sprintf("kubed-source-namespace=%s", CertManagerDeploymentID),
@@ -310,7 +310,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 				"kind" : "ClusterIssuer"
 			}
 		}
-	}`, secretName, SelfSignedIssuer)
+	}`, rootCAName, SelfSignedIssuer)
 
 	cc, err := c.ClientCertificate()
 	if err != nil {

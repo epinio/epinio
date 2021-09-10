@@ -71,7 +71,7 @@ func Upsert(zoneID string, change ChangeResourceRecordSet, dir string) (string, 
 	}
 
 	f := path.Join(dir, "zone.json")
-	err = ioutil.WriteFile(f, b, 0644)
+	err = ioutil.WriteFile(f, b, 0600)
 	if err != nil {
 		return "", err
 	}

@@ -23,7 +23,9 @@ var CmdConfig = &cobra.Command{
 	SilenceUsage:  true,
 	Args:          cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cmd.Usage()
+		if err := cmd.Usage(); err != nil {
+			return err
+		}
 		return fmt.Errorf(`Unknown method "%s"`, args[0])
 	},
 }
@@ -68,7 +70,9 @@ var CmdConfigColors = &cobra.Command{
 		}
 
 		theConfig.Colors = colors
-		theConfig.Save()
+		if err := theConfig.Save(); err != nil {
+			return err
+		}
 
 		ui.Success().WithBoolValue("Colors", theConfig.Colors).Msg("Ok")
 		return nil

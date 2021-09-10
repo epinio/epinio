@@ -218,11 +218,12 @@ func (opts InstallationOptions) ForDeployment(deploymentID string) InstallationO
 func (opts *InstallationOptions) Populate(reader OptionsReader) (*InstallationOptions, error) {
 	newOpts := InstallationOptions{}
 	for _, opt := range *opts {
-		err := reader.Read(&opt)
+		newopt := opt
+		err := reader.Read(&newopt)
 		if err != nil {
 			return opts, err
 		}
-		newOpts = append(newOpts, opt)
+		newOpts = append(newOpts, newopt)
 	}
 
 	return &newOpts, nil
