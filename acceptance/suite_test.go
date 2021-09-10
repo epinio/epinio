@@ -11,6 +11,8 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/helpers"
+	epinioConfig "github.com/epinio/epinio/internal/cli/config"
+
 	"github.com/onsi/ginkgo/config"
 
 	. "github.com/onsi/ginkgo"
@@ -62,6 +64,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// install to do it's thing without needing the patch script to run first.
 	// Eventually is used to retry in case the rollout of the patched deployment
 	// is not completely done yet.
+	epinioBinary := testenv.EpinioBinaryPath()
 	fmt.Println("Ensure default workspace exists")
 	testenv.EnsureDefaultWorkspace(epinioBinary)
 
@@ -98,7 +101,9 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Expect(err).ToNot(HaveOccurred(), out)
 	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
 
-	env = testenv.New(nodeTmpDir, testenv.Root())
+	config, err := epinioConfig.LoadFrom(nodeTmpDir + "/epinio.yaml")
+	Expect(err).NotTo(HaveOccurred())
+	env = testenv.New(nodeTmpDir, testenv.Root(), config.User, config.Password)
 
 	out, err = env.Epinio(nodeTmpDir, "target", "workspace")
 	Expect(err).ToNot(HaveOccurred(), out)
