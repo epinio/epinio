@@ -160,7 +160,7 @@ region = %s
 
 // Upload uploads the given file to the S3 endpoint and returns a blobUID which
 // can later be used to fetch the same file.
-func (m *Manager) Upload(ctx context.Context, filepath string) (string, error) {
+func (m *Manager) Upload(ctx context.Context, filepath string, metadata map[string]string) (string, error) {
 	if err := m.EnsureBucket(ctx); err != nil {
 		return "", errors.Wrap(err, "ensuring bucket")
 	}
@@ -169,7 +169,7 @@ func (m *Manager) Upload(ctx context.Context, filepath string) (string, error) {
 	contentType := "application/tar"
 
 	_, err := m.minioClient.FPutObject(ctx, m.connectionDetails.Bucket,
-		objectName, filepath, minio.PutObjectOptions{ContentType: contentType})
+		objectName, filepath, minio.PutObjectOptions{ContentType: contentType, UserMetadata: metadata})
 	if err != nil {
 		return "", errors.Wrap(err, "writing the new object")
 	}

@@ -1361,7 +1361,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	if params.GitRev == "" && params.Docker == "" {
 		c.ui.Normal().Msg("Collecting the application sources ...")
 
-		tmpDir, tarball, err := collectSources(log, source)
+		tmpDir, tarball, err := helpers.Tar(source)
 		defer func() {
 			if tmpDir != "" {
 				_ = os.RemoveAll(tmpDir)

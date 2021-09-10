@@ -68,7 +68,13 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err, "creating an S3 manager")
 	}
 
-	blobUID, err := manager.Upload(ctx, blob)
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
+	blobUID, err := manager.Upload(ctx, blob, map[string]string{
+		"app": name, "org": org, "username": username,
+	})
 	if err != nil {
 		return InternalError(err, "uploading the application sources blob")
 	}

@@ -8,8 +8,10 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -172,7 +174,39 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	})
 
 	Context("Apps", func() {
-		Describe("PATCH /orgs/:org/applications/:app", func() {
+		Describe("POST /namespaces/:org/applications/:app/import-git", func() {
+			It("imports the git repo in the blob store", func() {
+				app := catalog.NewAppName()
+				gitURL := "https://github.com/epinio/example-wordpress"
+				data := url.Values{}
+				data.Set("giturl", gitURL)
+				data.Set("gitrev", "main")
+
+				url := serverURL + "/" + v1.Routes.Path("AppImportGit", org, app)
+				request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
+				Expect(err).ToNot(HaveOccurred())
+				request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
+				request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+				request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+				response, err := env.Client().Do(request)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var importResponse models.ImportGitResponse
+				err = json.Unmarshal(bodyBytes, &importResponse)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(importResponse.BlobUID).ToNot(BeEmpty())
+				Expect(importResponse.BlobUID).To(MatchRegexp(".+-.+-.+-.+-.+"))
+			})
+		})
+
+		Describe("PATCH /namespaces/:org/applications/:app", func() {
 			When("instances is valid integer", func() {
 				It("updates an application with the desired number of instances", func() {
 					app := catalog.NewAppName()

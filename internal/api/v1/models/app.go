@@ -9,6 +9,11 @@ const (
 	EpinioStageBlodUIDLabel = "epinio.suse.org/blob-uid"
 )
 
+type GitRef struct {
+	Revision string `json:"revision"`
+	URL      string `json:"url"`
+}
+
 // App has all the app properties, like the routes and stage ID.
 // It is used in the CLI and  API responses.
 type App struct {
