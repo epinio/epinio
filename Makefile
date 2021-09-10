@@ -156,6 +156,6 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
-install: build
+install: embed_files build-linux-amd64
 	EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 ./dist/epinio-linux-amd64 install --skip-default-namespace
 	@./scripts/patch-epinio-deployment.sh

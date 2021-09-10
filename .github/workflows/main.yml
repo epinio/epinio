@@ -85,6 +85,7 @@ jobs:
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install
           make test-acceptance-cli
 
   acceptance-api:
@@ -129,6 +130,7 @@ jobs:
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install
           make test-acceptance-api
 
   acceptance-apps:
@@ -173,6 +175,7 @@ jobs:
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install
           make test-acceptance-apps
 
   acceptance-install:
