@@ -358,30 +358,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		When("uploading a broken tarball", func() {
-			BeforeEach(func() {
-				path = testenv.TestAssetPath("untar.tgz")
-			})
-
-			It("returns an error response", func() {
-				resp, err := env.Client().Do(request)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp).ToNot(BeNil())
-				defer resp.Body.Close()
-
-				bodyBytes, err := ioutil.ReadAll(resp.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
-
-				r := &v1.ErrorResponse{}
-				err = json.Unmarshal(bodyBytes, &r)
-				Expect(err).ToNot(HaveOccurred())
-
-				Expect(r.Errors).To(HaveLen(1))
-				Expect(r.Errors[0].Details).To(ContainSubstring("failed to unpack"))
-			})
-		})
-
 		When("uploading a new dir", func() {
 			BeforeEach(func() {
 				path = testenv.TestAssetPath("sample-app.tar")

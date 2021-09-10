@@ -3,6 +3,7 @@ package deployments
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/epinio/epinio/helpers"
@@ -13,7 +14,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -102,7 +102,7 @@ func (k Minio) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI)
 	return nil
 }
 
-func (k Minio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions, _ bool) error {
+func (k Minio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, _ kubernetes.InstallationOptions, _ bool) error {
 	if err := c.CreateNamespace(ctx, MinioDeploymentID, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
 	}, map[string]string{}); err != nil {
@@ -116,7 +116,7 @@ func (k Minio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 	}
 
 	if out, err := helpers.KubectlApplyEmbeddedYaml(minioOperatorYAML); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", minioOperatorYAML, out))
+		return errors.Wrapf(err, "Installing %s failed:\n%s", minioOperatorYAML, out)
 	}
 
 	// Create the tenant secret with random values
@@ -125,8 +125,23 @@ func (k Minio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 		return errors.Wrap(err, "creating the minio tenant secret")
 	}
 
+	// wait for crd to exist
+	crd := "tenants.minio.min.io"
+	message := fmt.Sprintf("Establish CRD %s", crd)
+	out, err := helpers.WaitForCommandCompletion(ui, message,
+		func() (string, error) {
+			return helpers.Kubectl("wait",
+				"--for", "condition=established",
+				"--timeout", strconv.Itoa(int(k.Timeout.Seconds()))+"s",
+				"crd/"+crd)
+		},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "Waiting for CRD failed:\n%s", out)
+	}
+
 	if out, err := helpers.KubectlApplyEmbeddedYaml(minioTenantYAML); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", minioTenantYAML, out))
+		return errors.Wrapf(err, "Installing %s failed:\n%s", minioTenantYAML, out)
 	}
 
 	ui.Success().Msg("Minio deployed")
@@ -199,52 +214,6 @@ func (k Minio) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	ui.Note().Msg("Upgrading Minio...")
 
 	return k.apply(ctx, c, ui, options, true)
-}
-
-func (k Minio) createMinioJob(ctx context.Context,
-	c *kubernetes.Cluster,
-	jobName,
-	serviceAccountName,
-	imageName,
-	jobCommand string) error {
-
-	backoffLimit := int32(1)
-
-	job := batchv1.Job{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: jobName,
-		},
-		Spec: batchv1.JobSpec{
-			Template: corev1.PodTemplateSpec{
-				Spec: corev1.PodSpec{
-					ServiceAccountName: serviceAccountName,
-					Containers: []corev1.Container{
-						{
-							Name:            jobName,
-							Image:           imageName,
-							ImagePullPolicy: "IfNotPresent",
-							Command: []string{
-								"/bin/sh",
-								"-c",
-							},
-							Args: []string{
-								jobCommand,
-							},
-						},
-					},
-					RestartPolicy: "Never",
-				},
-			},
-			BackoffLimit: &backoffLimit,
-		},
-	}
-
-	_, err := c.Kubectl.BatchV1().Jobs(MinioDeploymentID).Create(ctx, &job, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (k Minio) createTenantSecret(ctx context.Context, c *kubernetes.Cluster) error {

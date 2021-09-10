@@ -55,10 +55,14 @@ func (app *stageParam) ImageURL(registryURL string) string {
 	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Stage.ID)
 }
 
-// ensurePVC is a helper creating the kube PVC associated with an
-// application, if needed, i.e. not already present.
-func (hc ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
-	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+// ensurePVC creates a PVC for the application if one doesn't already exist.
+// This PVC is used to store the application source blobs (as they are uploaded
+// on the "upload" endpoint). It's also mounted in the staging task pod as the
+// "source" tekton workspace.
+// The same PVC stores the application's build cache (on a separate directory).
+func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
+	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
+		Get(ctx, ar.PVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
 	}
@@ -70,7 +74,7 @@ func (hc ApplicationsController) ensurePVC(ctx context.Context, cluster *kuberne
 	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
 		Create(ctx, &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      pvcName,
+				Name:      ar.PVCName(),
 				Namespace: deployments.TektonStagingNamespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -197,7 +201,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Username:            username,
 	}
 
-	err = req.App.EnsurePVC(ctx, cluster)
+	err = ensurePVC(ctx, cluster, req.App)
 	if err != nil {
 		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}

@@ -1,15 +1,7 @@
 package models
 
 import (
-	"context"
-
-	"github.com/epinio/epinio/deployments"
-	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/names"
-	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
@@ -89,41 +81,6 @@ func (ar *AppRef) EnvSecret() string {
 // PVCName returns the name of the kube pvc to use with/for the referenced application.
 func (ar *AppRef) PVCName() string {
 	return names.GenerateResourceName(ar.Org, ar.Name)
-}
-
-// EnsurePVC creates a PVC for the application if one doesn't already exist.
-// This PVC is used to store the application source blobs (as they are uploaded
-// on the "upload" endpoint). It's also mounted in the staging task pod as the
-// "source" tekton workspace.
-// The same PVC stores the application's build cache (on a separate directory).
-func (ar *AppRef) EnsurePVC(ctx context.Context, cluster *kubernetes.Cluster) error {
-	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
-		Get(ctx, ar.PVCName(), metav1.GetOptions{})
-	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
-		return err
-	}
-	if err == nil { // pvc already exists
-		return nil
-	}
-
-	// From here on, only if the PVC is missing
-	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
-		Create(ctx, &corev1.PersistentVolumeClaim{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      ar.PVCName(),
-				Namespace: deployments.TektonStagingNamespace,
-			},
-			Spec: corev1.PersistentVolumeClaimSpec{
-				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-				Resources: corev1.ResourceRequirements{
-					Requests: map[corev1.ResourceName]resource.Quantity{
-						corev1.ResourceStorage: resource.MustParse("1Gi"),
-					},
-				},
-			},
-		}, metav1.CreateOptions{})
-
-	return err
 }
 
 // StageRef references a tekton staging run by ID, currently randomly generated

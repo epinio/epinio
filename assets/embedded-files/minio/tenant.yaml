@@ -31,7 +31,10 @@ spec:
               - tenant1
           topologyKey: kubernetes.io/hostname
     resources: {}
+    # https://docs.min.io/minio/baremetal/installation/deploy-minio-distributed.html
     servers: 1
+    # minimum is 4 volumes
+    volumesPerServer: 4
     volumeClaimTemplate:
       apiVersion: v1
       kind: persistentvolumeclaims
@@ -42,28 +45,6 @@ spec:
         - ReadWriteOnce
         resources:
           requests:
-            storage: 1280Mi
+            storage: 10Gi
       status: {}
-    volumesPerServer: 4
   requestAutoCert: false
-  # users:
-  # - name: tenant1-user-1
-status:
-  availableReplicas: 0
-  certificates: {}
-  currentState: ""
-  pools: null
-  revision: 0
-  syncVersion: ""
-
-# # TODO: Generate this secret in code
-# ---
-# apiVersion: v1
-# data:
-#   CONSOLE_ACCESS_KEY: YWRtaW4=
-#   CONSOLE_SECRET_KEY: NWU5MTA1NmItMjAxZi00ZTY1LTlhMjUtOTMyNmEwMjkzNDQ1
-# kind: Secret
-# metadata:
-#   creationTimestamp: null
-#   name: tenant1-user-1
-#   namespace: minio-epinio

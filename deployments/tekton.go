@@ -161,8 +161,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
 	}
 
-	timeout := strconv.Itoa(int(k.Timeout.Seconds()))
-
 	err := c.WaitUntilPodBySelectorExist(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed waiting tekton pipelines webhook pod to exist")
@@ -187,7 +185,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 			func() (string, error) {
 				return helpers.Kubectl("wait",
 					"--for", "condition=established",
-					"--timeout", timeout+"s",
+					"--timeout", strconv.Itoa(int(k.Timeout.Seconds()))+"s",
 					"crd/"+crd)
 			},
 		)
@@ -276,7 +274,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	message = "Applying tekton staging resources"
@@ -607,7 +605,7 @@ func CanonicalString(s string) string {
 }
 
 // storeS3Settings stores the provides S3 settings in a Secret.
-func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster, _ kubernetes.InstallationOptions) error {
 	_, err := s3manager.StoreConnectionDetails(ctx, cluster, TektonStagingNamespace, S3ConnectionDetailsSecret, *k.S3ConnectionDetails)
 
 	return err
