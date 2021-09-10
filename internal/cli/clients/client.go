@@ -1382,12 +1382,15 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 		blobUID = upload.BlobUID
 	} else if params.GitRev != "" {
-		// TODO: When pushing with a git remote, Epinio has to pull the code
-		// and create a blob out of it.
-		// Maybe the "uploaded" endpoint should accept a git remote too?
-		// Or maybe we need a new endpoint? e.g. the "pull" endpoint that
-		// pull the code from a git remote and puts it in the S3 storage?
-		blobUID = ""
+		gitRef := models.GitRef{
+			URL:      source,
+			Revision: params.GitRev,
+		}
+		response, err := c.importGit(appRef, gitRef)
+		if err != nil {
+			return errors.Wrap(err, "importing git remote")
+		}
+		blobUID = response.BlobUID
 	}
 
 	stageID := ""

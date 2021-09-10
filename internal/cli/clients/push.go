@@ -3,6 +3,11 @@ package clients
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -28,6 +33,44 @@ func (c *EpinioClient) uploadCode(app models.AppRef, tarball string) (*models.Up
 	}
 
 	return upload, nil
+}
+
+// importGit asks the server to import a git repo and put in into the blob store
+func (c *EpinioClient) importGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error) {
+	data := url.Values{}
+	data.Set("giturl", gitRef.URL)
+	data.Set("gitrev", gitRef.Revision)
+
+	url := fmt.Sprintf("%s/%s", c.serverURL, api.Routes.Path("AppImportGit", app.Org, app.Name))
+	request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing the request")
+	}
+	request.SetBasicAuth(c.Config.User, c.Config.Password)
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return nil, errors.Wrap(err, "making the request to import git")
+	}
+
+	defer response.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading the response body")
+	}
+	if response.StatusCode != http.StatusCreated && response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected server status code: %s\n%s", http.StatusText(response.StatusCode),
+			string(bodyBytes))
+	}
+
+	importResponse := &models.ImportGitResponse{}
+	if err := json.Unmarshal(bodyBytes, importResponse); err != nil {
+		return nil, err
+	}
+
+	return importResponse, nil
 }
 
 func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse, error) {
