@@ -203,8 +203,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 			return nil
 		},
 		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), "connection refused") ||
-				strings.Contains(err.Error(), "EOF")
+			return helpers.Retryable(err.Error())
 		}),
 		retry.OnRetry(func(n uint, err error) {
 			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
