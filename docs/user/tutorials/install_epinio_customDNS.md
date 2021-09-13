@@ -145,3 +145,18 @@ $ORIGIN test.example.com.
 ```
 
 Restart bind and verify that e.g. `> host test.example.com` or `> host epinio.test.example.com` will resolve to "10.0.0.1".
+
+## Troubleshooting
+
+### Storage Class
+
+When pushing an app in a kubernetes cluster with multiple nodes, tekton-staging might fail for "FailedAttachVolume".
+In this case ensure, your default storage class is set to "volumeBindingMode: WaitForFirstConsumer".
+
+E.g.:
+
+```
+> kubectl get sc
+NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+longhorn (default)   driver.longhorn.io   Delete          WaitForFirstConsumer   true                   3d4h
+```
