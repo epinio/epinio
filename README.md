@@ -78,6 +78,9 @@ For the Epinio server, and related deployments we recommend to consider the foll
 
 In addition, extensive requirements for your workload (apps) would add to that.
 
+A default storage class with annotation (storageclass.kubernetes.io/is-default-class: "true") is needed.
+
+
 #### Epinio CLI
 
 The Epinio CLI will typically run on a host, which will need network access to your kubernetes cluster.
