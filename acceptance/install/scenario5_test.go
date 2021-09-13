@@ -91,6 +91,11 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
 		Expect(err).ToNot(HaveOccurred(), out)
 
+		Eventually(func() string {
+			out, _ := epinioHelper.Run("info")
+			return out
+		}).Should(ContainSubstring("Epinio version: "))
+
 		By("Pushing an app", func() {
 			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"))
 			Expect(err).NotTo(HaveOccurred(), out)
