@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -1135,11 +1136,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 			emsg := err.Error()
 			details.Info("create error", "error", emsg)
 
-			retry := strings.Contains(emsg, " x509: ") ||
-				strings.Contains(emsg, "Gateway") ||
-				strings.Contains(emsg, "Service Unavailable") ||
-				(strings.Contains(emsg, "api/v1/namespaces") &&
-					strings.Contains(emsg, "i/o timeout"))
+			retry := helpers.Retryable(err.Error())
 
 			details.Info("create error", "retry", retry)
 			return retry
