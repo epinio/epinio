@@ -6,9 +6,13 @@ import (
 	"io/ioutil"
 	"path"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go"
+	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
 	"github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
@@ -136,13 +140,37 @@ func (c *EpinioClient) deployCode(req models.DeployRequest) (*models.DeployRespo
 func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
-	_, err := c.get(api.Routes.Path("StagingComplete", app.Org, id))
-	return err
+	return retry.Do(
+		func() error {
+			_, err := c.get(api.Routes.Path("StagingComplete", app.Org, id))
+			return err
+		},
+		retry.RetryIf(func(err error) bool {
+			return helpers.Retryable(err.Error())
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
+		}),
+		retry.Delay(time.Second),
+		retry.Attempts(duration.RetryMax),
+	)
 }
 
 func (c *EpinioClient) waitForApp(app models.AppRef) error {
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
-	_, err := c.get(api.Routes.Path("AppRunning", app.Org, app.Name))
-	return err
+	return retry.Do(
+		func() error {
+			_, err := c.get(api.Routes.Path("AppRunning", app.Org, app.Name))
+			return err
+		},
+		retry.RetryIf(func(err error) bool {
+			return helpers.Retryable(err.Error())
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
+		}),
+		retry.Delay(time.Second),
+		retry.Attempts(duration.RetryMax),
+	)
 }
