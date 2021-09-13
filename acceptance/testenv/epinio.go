@@ -138,7 +138,7 @@ func BuildEpinio() {
 
 func ExpectGoodInstallation(epinioBinary string) {
 	info, err := proc.Run("", false, epinioBinary, "info")
-	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	gomega.Expect(err).ToNot(gomega.HaveOccurred(), info)
 	gomega.Expect(info).To(gomega.Or(
 		gomega.MatchRegexp("Kubernetes Version: v1.21"),
 		gomega.MatchRegexp("Kubernetes Version: v1.20"),

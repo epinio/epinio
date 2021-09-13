@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/gorilla/websocket"
@@ -86,7 +88,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		var responseApp models.App
 		err = json.Unmarshal(bodyBytes, &responseApp)
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		ExpectWithOffset(1, err).ToNot(HaveOccurred(), string(bodyBytes))
 		ExpectWithOffset(1, responseApp.Name).To(Equal(app))
 		ExpectWithOffset(1, responseApp.Organization).To(Equal(org))
 
@@ -131,6 +133,53 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			Expect(err).NotTo(HaveOccurred())
 			return out
 		}, "5m").Should(Equal("True"))
+	}
+
+	uploadApplication := func(appName string) *models.UploadResponse {
+		uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
+		uploadPath := testenv.TestAssetPath("sample-app.tar")
+		uploadRequest, err := uploadRequest(uploadURL, uploadPath)
+		Expect(err).ToNot(HaveOccurred())
+		resp, err := env.Client().Do(uploadRequest)
+		Expect(err).ToNot(HaveOccurred())
+		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		Expect(err).ToNot(HaveOccurred())
+
+		respObj := &models.UploadResponse{}
+		err = json.Unmarshal(bodyBytes, &respObj)
+		Expect(err).ToNot(HaveOccurred())
+
+		return respObj
+	}
+
+	// returns all the objects currently stored on the S3 storage
+	listS3Blobs := func() []string {
+		out, err := helpers.Kubectl("get", "secret",
+			"-n", "minio-epinio",
+			"tenant-creds", "-o", "jsonpath={.data.accesskey}")
+		Expect(err).ToNot(HaveOccurred(), out)
+		accessKey, err := base64.StdEncoding.DecodeString(string(out))
+		Expect(err).ToNot(HaveOccurred(), string(out))
+
+		out, err = helpers.Kubectl("get", "secret",
+			"-n", "minio-epinio",
+			"tenant-creds", "-o", "jsonpath={.data.secretkey}")
+		Expect(err).ToNot(HaveOccurred(), out)
+		secretKey, err := base64.StdEncoding.DecodeString(string(out))
+		Expect(err).ToNot(HaveOccurred(), string(out))
+
+		rand, err := randstr.Hex16()
+		Expect(err).ToNot(HaveOccurred(), out)
+		// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
+		// and list all objects in the bucket (the "mc --quiet ls" command)
+		out, err = helpers.Kubectl("run", "-it",
+			"--restart=Never", "miniocli"+rand, "--rm",
+			"--image=minio/mc", "--command", "--",
+			"/bin/bash", "-c",
+			fmt.Sprintf("mc alias set minio http://minio.minio-epinio.svc.cluster.local %s %s 2>&1 > /dev/null && mc --quiet ls minio/epinio", string(accessKey), string(secretKey)))
+		Expect(err).ToNot(HaveOccurred(), out)
+
+		return strings.Split(string(out), "\n")
 	}
 
 	stageApplication := func(appName, org string, uploadResponse *models.UploadResponse) *models.StageResponse {
@@ -414,7 +463,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(r.BlobUID).ToNot(BeEmpty())
 			})
 		})
-
 	})
 
 	Context("Deploying", func() {
@@ -440,23 +488,33 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		Context("with staging", func() {
+			When("staging the same app with a new blob", func() {
+				It("cleans up old S3 objects", func() {
+					By("uploading the code")
+					uploadResponse := uploadApplication(appName)
+					oldBlob := uploadResponse.BlobUID
+					By("staging the application")
+					_ = stageApplication(appName, org, uploadResponse)
+					Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
+
+					By("uploading the code again")
+					uploadResponse = uploadApplication(appName)
+					newBlob := uploadResponse.BlobUID
+					By("staging the application again")
+					_ = stageApplication(appName, org, uploadResponse)
+
+					Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(newBlob)))
+					Eventually(listS3Blobs, "1m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
+				})
+			})
+
 			When("deploying a new app", func() {
 				It("returns a success", func() {
-					// First upload to allow staging to succeed
-					uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
-					uploadPath := testenv.TestAssetPath("sample-app.tar")
-					uploadRequest, err := uploadRequest(uploadURL, uploadPath)
-					Expect(err).ToNot(HaveOccurred())
-					resp, err := env.Client().Do(uploadRequest)
-					Expect(err).ToNot(HaveOccurred())
-					bodyBytes, err := ioutil.ReadAll(resp.Body)
-					Expect(err).ToNot(HaveOccurred())
-					respObj := &models.UploadResponse{}
-					err = json.Unmarshal(bodyBytes, &respObj)
-					Expect(err).ToNot(HaveOccurred())
+					By("uploading the code")
+					uploadResponse := uploadApplication(appName)
 
-					By("staging first")
-					stageResponse := stageApplication(appName, org, respObj)
+					By("staging the application")
+					stageResponse := stageApplication(appName, org, uploadResponse)
 
 					By("deploying the staged resource")
 					request = models.DeployRequest{
@@ -471,7 +529,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						ImageURL: stageResponse.ImageURL,
 					}
 
-					bodyBytes, err = json.Marshal(request)
+					bodyBytes, err := json.Marshal(request)
 					Expect(err).ToNot(HaveOccurred())
 					body = string(bodyBytes)
 
