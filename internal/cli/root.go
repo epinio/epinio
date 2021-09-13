@@ -79,7 +79,7 @@ func init() {
 	rootCmd.AddCommand(CmdInstallCertManager)
 	rootCmd.AddCommand(CmdUninstall)
 	rootCmd.AddCommand(CmdInfo)
-	rootCmd.AddCommand(CmdOrg)
+	rootCmd.AddCommand(CmdNamespace)
 	rootCmd.AddCommand(CmdPush)
 	rootCmd.AddCommand(CmdApp)
 	rootCmd.AddCommand(CmdTarget)

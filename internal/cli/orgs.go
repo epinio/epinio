@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -15,8 +16,8 @@ var (
 	force bool
 )
 
-// CmdOrg implements the command: epinio namespace
-var CmdOrg = &cobra.Command{
+// CmdNamespace implements the command: epinio namespace
+var CmdNamespace = &cobra.Command{
 	Use:           "namespace",
 	Aliases:       []string{"namespaces"},
 	Short:         "Epinio-controlled namespaces",
@@ -34,16 +35,16 @@ var CmdOrg = &cobra.Command{
 
 func init() {
 
-	flags := CmdOrgDelete.Flags()
+	flags := CmdNamespaceDelete.Flags()
 	flags.BoolVarP(&force, "force", "f", false, "force namespace deletion")
 
-	CmdOrg.AddCommand(CmdOrgCreate)
-	CmdOrg.AddCommand(CmdOrgList)
-	CmdOrg.AddCommand(CmdOrgDelete)
+	CmdNamespace.AddCommand(CmdNamespaceCreate)
+	CmdNamespace.AddCommand(CmdNamespaceList)
+	CmdNamespace.AddCommand(CmdNamespaceDelete)
 }
 
-// CmdOrgs implements the command: epinio namespace list
-var CmdOrgList = &cobra.Command{
+// CmdNamespaces implements the command: epinio namespace list
+var CmdNamespaceList = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all epinio-controlled namespaces",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -63,8 +64,8 @@ var CmdOrgList = &cobra.Command{
 	},
 }
 
-// CmdOrgCreate implements the command: epinio namespace create
-var CmdOrgCreate = &cobra.Command{
+// CmdNamespaceCreate implements the command: epinio namespace create
+var CmdNamespaceCreate = &cobra.Command{
 	Use:   "create NAME",
 	Short: "Creates an epinio-controlled namespace",
 	Args:  cobra.ExactArgs(1),
@@ -85,8 +86,8 @@ var CmdOrgCreate = &cobra.Command{
 	},
 }
 
-// CmdOrgDelete implements the command: epinio namespace delete
-var CmdOrgDelete = &cobra.Command{
+// CmdNamespaceDelete implements the command: epinio namespace delete
+var CmdNamespaceDelete = &cobra.Command{
 	Use:   "delete NAME",
 	Short: "Deletes an epinio-controlled namespace",
 	Args:  cobra.ExactArgs(1),
@@ -119,9 +120,23 @@ var CmdOrgDelete = &cobra.Command{
 
 		return nil
 	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app, err := clients.NewEpinioClient(context.Background())
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matches := app.OrgsMatching(toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	},
 }
 
-// askConfirmation is a helper for CmdOrgDelete to confirm a deletion request
+// askConfirmation is a helper for CmdNamespaceDelete to confirm a deletion request
 func askConfirmation(cmd *cobra.Command) bool {
 	reader := bufio.NewReader(os.Stdin)
 	for {

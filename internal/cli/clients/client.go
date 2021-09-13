@@ -1128,7 +1128,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 	err := retry.Do(
 		func() error {
 			details.Info("create org", "org", org)
-			_, err := c.post(api.Routes.Path("Orgs"), fmt.Sprintf(`{ "name": "%s" }`, org))
+			_, err := c.post(api.Routes.Path("Namespaces"), fmt.Sprintf(`{ "name": "%s" }`, org))
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
@@ -1171,7 +1171,7 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 		WithStringValue("Name", org).
 		Msg("Deleting namespace...")
 
-	_, err := c.delete(api.Routes.Path("OrgDelete", org))
+	_, err := c.delete(api.Routes.Path("NamespaceDelete", org))
 	if err != nil {
 		return err
 	}
@@ -1231,33 +1231,19 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 	log := c.Log.WithName("NamespaceMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
-
-	// TODO Create and use server endpoints. Maybe use existing
-	// `Index`/Listing endpoint, either with parameter for
-	// matching, or local matching.
 
 	result := []string{}
 
-	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
+	jsonResponse, err := c.get(api.Routes.Path("NamespacesMatch", prefix))
 	if err != nil {
+		log.Info("failed", "error", err)
 		return result
 	}
 
-	var orgs []string
-	if err := json.Unmarshal(jsonResponse, &orgs); err != nil {
-		return result
-	}
+	log.Info("response", "raw", jsonResponse)
+	_ = json.Unmarshal(jsonResponse, &result)
 
-	for _, org := range orgs {
-		details.Info("Found", "Name", org)
-
-		if strings.HasPrefix(org, prefix) {
-			details.Info("Matched", "Name", org)
-			result = append(result, org)
-		}
-	}
-
+	log.Info("matches", "found", result)
 	return result
 }
 
@@ -1270,21 +1256,26 @@ func (c *EpinioClient) Orgs() error {
 	c.ui.Note().Msg("Listing namespaces")
 
 	details.Info("list namespaces")
-	jsonResponse, err := c.get(api.Routes.Path("Orgs"))
+	jsonResponse, err := c.get(api.Routes.Path("Namespaces"))
 	if err != nil {
 		return err
 	}
 
-	var orgs []string
-	if err := json.Unmarshal(jsonResponse, &orgs); err != nil {
+	var namespaces models.NamespaceList
+	if err := json.Unmarshal(jsonResponse, &namespaces); err != nil {
 		return err
 	}
 
-	sort.Strings(orgs)
-	msg := c.ui.Success().WithTable("Name")
+	sort.Sort(namespaces)
+	msg := c.ui.Success().WithTable("Name", "Applications", "Services")
 
-	for _, org := range orgs {
-		msg = msg.WithTableRow(org)
+	for _, namespace := range namespaces {
+		sort.Strings(namespace.Apps)
+		sort.Strings(namespace.Services)
+		msg = msg.WithTableRow(
+			namespace.Name,
+			strings.Join(namespace.Apps, ", "),
+			strings.Join(namespace.Services, ", "))
 	}
 
 	msg.Msg("Epinio Namespaces:")

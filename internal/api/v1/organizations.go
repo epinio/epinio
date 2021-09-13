@@ -6,9 +6,11 @@ import (
 	"errors"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/clients/gitea"
@@ -18,32 +20,45 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// OrganizationsController represents all functionality of the API related to namespaces
-type OrganizationsController struct {
+// NamespacesController represents all functionality of the API related to namespaces
+type NamespacesController struct {
 }
 
-// Index handles the API endpoint /orgs
-// It returns a list of all Epinio orgs.
-// An Epinio org is nothing but a kubernetes namespace which has a
-// special Label (Look at the code to see which).
-func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
+// Match handles the API endpoint /namespaces/:pattern (GET)
+// It returns a list of all Epinio-controlled namespaces matching the prefix pattern.
+func (oc NamespacesController) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
+	log := tracelog.Logger(ctx)
+
+	log.Info("match namespaces")
+	defer log.Info("return")
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	orgList, err := organizations.List(ctx, cluster)
+	log.Info("list namespaces")
+	namespaces, err := organizations.List(ctx, cluster)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	orgNames := []string{}
-	for _, org := range orgList {
-		orgNames = append(orgNames, org.Name)
+	log.Info("get namespace prefix")
+	params := httprouter.ParamsFromContext(ctx)
+	prefix := params.ByName("pattern")
+
+	log.Info("match prefix", "pattern", prefix)
+	matches := []string{}
+	for _, namespace := range namespaces {
+		if strings.HasPrefix(namespace.Name, prefix) {
+			matches = append(matches, namespace.Name)
+		}
 	}
 
-	js, err := json.Marshal(orgNames)
+	log.Info("deliver matches", "found", matches)
+
+	js, err := json.Marshal(matches)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -56,9 +71,67 @@ func (oc OrganizationsController) Index(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// Create handles the API endpoint /orgs (POST).
-// It creates the named organization.
-func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+// Index handles the API endpoint /namespaces (GET)
+// It returns a list of all Epinio-controlled namespaces
+// An Epinio namespace is nothing but a kubernetes namespace which has a
+// special Label (Look at the code to see which).
+func (oc NamespacesController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	orgList, err := organizations.List(ctx, cluster)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	namespaces := make(models.NamespaceList, 0, len(orgList))
+	for _, org := range orgList {
+		// Retrieve app references for namespace, and reduce to their names.
+		appRefs, err := application.ListAppRefs(ctx, cluster, org.Name)
+		if err != nil {
+			return InternalError(err)
+		}
+		appNames := make([]string, 0, len(appRefs))
+		for _, app := range appRefs {
+			appNames = append(appNames, app.Name)
+		}
+
+		// Retrieve services for namespace, and reduce to their names.
+		services, err := services.List(ctx, cluster, org.Name)
+		if err != nil {
+			return InternalError(err)
+		}
+		serviceNames := make([]string, 0, len(services))
+		for _, service := range services {
+			serviceNames = append(serviceNames, service.Name())
+		}
+
+		namespaces = append(namespaces, models.Namespace{
+			Name:     org.Name,
+			Apps:     appNames,
+			Services: serviceNames,
+		})
+	}
+
+	js, err := json.Marshal(namespaces)
+	if err != nil {
+		return InternalError(err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(js)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
+// Create handles the API endpoint /namespaces (POST).
+// It creates a namespace with the specified name.
+func (oc NamespacesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	gitea, err := gitea.New(ctx)
 	if err != nil {
@@ -111,9 +184,10 @@ func (oc OrganizationsController) Create(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-// Delete handles the API endpoint /orgs/:org.
-// It destroys the named organization and all the applications and services in it.
-func (oc OrganizationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+// Delete handles the API endpoint /namespaces/:org (DELETE).
+// It destroys the namespace specified by its name.
+// This includes all the applications and services in it.
+func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
