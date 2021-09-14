@@ -67,6 +67,7 @@ func patch(path string, h http.HandlerFunc) routes.Route {
 var Routes = routes.NamedRoutes{
 	"Info": get("/info", errorHandler(InfoController{}.Info)),
 
+	"AllApps":         get("/applications", errorHandler(ApplicationsController{}.FullIndex)),
 	"Apps":            get("/namespaces/:org/applications", errorHandler(ApplicationsController{}.Index)),
 	"AppCreate":       post("/namespaces/:org/applications", errorHandler(ApplicationsController{}.Create)),
 	"AppShow":         get("/namespaces/:org/applications/:app", errorHandler(ApplicationsController{}.Show)),
