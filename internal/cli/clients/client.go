@@ -851,24 +851,36 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 	return result
 }
 
-// Apps gets all Epinio apps in the targeted org
-func (c *EpinioClient) Apps() error {
+// Apps gets all Epinio apps in the targeted org, or all apps in all namespaces
+func (c *EpinioClient) Apps(all bool) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
-		Msg("Listing applications")
+	msg := c.ui.Note()
+	if all {
+		msg.Msg("Listing all applications")
+	} else {
+		msg.
+			WithStringValue("Namespace", c.Config.Org).
+			Msg("Listing applications")
 
-	if err := c.TargetOk(); err != nil {
-		return err
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
 	}
 
 	details.Info("list applications")
 
-	jsonResponse, err := c.get(api.Routes.Path("Apps", c.Config.Org))
+	var jsonResponse []byte
+	var err error
+
+	if all {
+		jsonResponse, err = c.get(api.Routes.Path("AllApps"))
+	} else {
+		jsonResponse, err = c.get(api.Routes.Path("Apps", c.Config.Org))
+	}
 	if err != nil {
 		return err
 	}
@@ -879,14 +891,28 @@ func (c *EpinioClient) Apps() error {
 	}
 
 	sort.Sort(apps)
-	msg := c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
 
-	for _, app := range apps {
-		msg = msg.WithTableRow(
-			app.Name,
-			app.Status,
-			app.Route,
-			strings.Join(app.BoundServices, ", "))
+	if all {
+		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Services")
+
+		for _, app := range apps {
+			msg = msg.WithTableRow(
+				app.Organization,
+				app.Name,
+				app.Status,
+				app.Route,
+				strings.Join(app.BoundServices, ", "))
+		}
+	} else {
+		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
+
+		for _, app := range apps {
+			msg = msg.WithTableRow(
+				app.Name,
+				app.Status,
+				app.Route,
+				strings.Join(app.BoundServices, ", "))
+		}
 	}
 
 	msg.Msg("Epinio Applications:")
