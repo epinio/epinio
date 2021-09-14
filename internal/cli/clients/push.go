@@ -142,8 +142,8 @@ func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
 
 	return retry.Do(
 		func() error {
-			_, err := c.get(api.Routes.Path("StagingComplete", app.Org, id))
-			return err
+			out, err := c.get(api.Routes.Path("StagingComplete", app.Org, id))
+			return errors.Wrap(err, string(out))
 		},
 		retry.RetryIf(func(err error) bool {
 			return helpers.Retryable(err.Error())

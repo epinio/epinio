@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1646,16 +1647,23 @@ func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error
 	}
 
 	request.SetBasicAuth(c.Config.User, c.Config.Password)
-
 	response, err := (&http.Client{}).Do(request)
 	if err != nil {
-		return []byte{}, err
+		castedErr, ok := err.(*url.Error)
+		if !ok {
+			return []byte{}, errors.New("couldn't cast request Error!")
+		}
+		if castedErr.Timeout() {
+			return []byte{}, errors.New("request cancelled or timed out")
+		}
+
+		return []byte{}, errors.Wrap(err, "making the request")
 	}
 	defer response.Body.Close()
 
 	bodyBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, errors.Wrap(err, "reading response body")
 	}
 
 	if response.StatusCode == http.StatusCreated {
