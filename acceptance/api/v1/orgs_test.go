@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/models"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -41,12 +42,14 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				var orgs []string
-				err = json.Unmarshal(bodyBytes, &orgs)
+				var namespaces models.NamespaceList
+				err = json.Unmarshal(bodyBytes, &namespaces)
 				Expect(err).ToNot(HaveOccurred())
 
-				// See global BeforeEach for where this org is set up.
-				Expect(orgs).Should(ContainElements(org))
+				// See global BeforeEach for where this namespace is set up.
+				Expect(namespaces).Should(ContainElements(models.Namespace{
+					Name: org,
+				}))
 			})
 			When("basic auth credentials are not provided", func() {
 				It("returns a 401 response", func() {
@@ -196,6 +199,69 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(string(bodyBytes)).To(Equal(""))
 
 				env.VerifyOrgNotExist(org)
+			})
+		})
+
+		Describe("GET api/v1/namespacematches", func() {
+			It("lists all namespaces for empty prefix", func() {
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespacematches", serverURL),
+					strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var namespaces []string
+				err = json.Unmarshal(bodyBytes, &namespaces)
+				Expect(err).ToNot(HaveOccurred())
+
+				// See global BeforeEach for where this namespace is set up.
+				Expect(namespaces).Should(ContainElements(org))
+			})
+			It("lists no namespaces matching the prefix", func() {
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespacematches/bogus", serverURL),
+					strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var namespaces []string
+				err = json.Unmarshal(bodyBytes, &namespaces)
+				Expect(err).ToNot(HaveOccurred())
+
+				// See global BeforeEach for where this namespace is set up.
+				Expect(namespaces).Should(BeEmpty())
+			})
+			It("lists all namespaces matching the prefix", func() {
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespacematches/na", serverURL),
+					strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var namespaces []string
+				err = json.Unmarshal(bodyBytes, &namespaces)
+				Expect(err).ToNot(HaveOccurred())
+
+				// See global BeforeEach for where this namespace is set up.
+				Expect(namespaces).ShouldNot(BeEmpty())
+			})
+			When("basic auth credentials are not provided", func() {
+				It("returns a 401 response", func() {
+					request, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/namespacematches", serverURL), strings.NewReader(""))
+					Expect(err).ToNot(HaveOccurred())
+					response, err := env.Client().Do(request)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
+				})
 			})
 		})
 	})

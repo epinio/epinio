@@ -81,8 +81,12 @@ var Routes = routes.NamedRoutes{
 	"AppRunning":      get("/namespaces/:org/applications/:app/running", errorHandler(ApplicationsController{}.Running)),
 
 	// See env.go
-	"EnvList":  get("/namespaces/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvIndex)),
-	"EnvMatch": get("/namespaces/:org/applications/:app/environment/:env/match/:pattern", errorHandler(ApplicationsController{}.EnvMatch)),
+	"EnvList": get("/namespaces/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvIndex)),
+
+	// Note, the second registration catches calls with an empty pattern!
+	"EnvMatch":  get("/namespaces/:org/applications/:app/environment/:env/match/:pattern", errorHandler(ApplicationsController{}.EnvMatch)),
+	"EnvMatch0": get("/namespaces/:org/applications/:app/environment/:env/match", errorHandler(ApplicationsController{}.EnvMatch)),
+
 	"EnvSet":   post("/namespaces/:org/applications/:app/environment", errorHandler(ApplicationsController{}.EnvSet)),
 	"EnvShow":  get("/namespaces/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvShow)),
 	"EnvUnset": delete("/namespaces/:org/applications/:app/environment/:env", errorHandler(ApplicationsController{}.EnvUnset)),
@@ -93,10 +97,14 @@ var Routes = routes.NamedRoutes{
 	"ServiceBindingDelete": delete("/namespaces/:org/applications/:app/servicebindings/:service",
 		errorHandler(ServicebindingsController{}.Delete)),
 
-	// List, create, show and delete organizations
-	"Orgs":      get("/namespaces", errorHandler(OrganizationsController{}.Index)),
-	"OrgCreate": post("/namespaces", errorHandler(OrganizationsController{}.Create)),
-	"OrgDelete": delete("/namespaces/:org", errorHandler(OrganizationsController{}.Delete)),
+	// List, create, show and delete namespaces
+	"Namespaces":      get("/namespaces", errorHandler(NamespacesController{}.Index)),
+	"NamespaceCreate": post("/namespaces", errorHandler(NamespacesController{}.Create)),
+	"NamespaceDelete": delete("/namespaces/:org", errorHandler(NamespacesController{}.Delete)),
+
+	// Note, the second registration catches calls with an empty pattern!
+	"NamespacesMatch":  get("/namespacematches/:pattern", errorHandler(NamespacesController{}.Match)),
+	"NamespacesMatch0": get("/namespacematches", errorHandler(NamespacesController{}.Match)),
 
 	// List, show, create and delete services, catalog and custom
 	"ServiceApps": get("/namespaces/:org/serviceapps", errorHandler(ApplicationsController{}.ServiceApps)),
