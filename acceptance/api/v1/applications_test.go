@@ -214,7 +214,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		Describe("GET api/v1/namespaces/:orgs/applications", func() {
-			It("lists all applications belonging to the org", func() {
+			It("lists all applications belonging to the namespace", func() {
 				app1 := catalog.NewAppName()
 				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				defer env.DeleteApp(app1)
@@ -342,6 +342,65 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+			})
+		})
+
+		Describe("GET api/v1/applications", func() {
+			var org1 string
+			var org2 string
+			var app1 string
+			var app2 string
+
+			BeforeEach(func() {
+				org1 = catalog.NewOrgName()
+				env.SetupAndTargetOrg(org1)
+
+				app1 = catalog.NewAppName()
+				env.MakeDockerImageApp(app1, 1, dockerImageURL)
+
+				org2 = catalog.NewOrgName()
+				env.SetupAndTargetOrg(org2)
+
+				app2 = catalog.NewAppName()
+				env.MakeDockerImageApp(app2, 1, dockerImageURL)
+			})
+			AfterEach(func() {
+				env.TargetOrg(org2)
+				env.DeleteApp(app2)
+
+				env.TargetOrg(org1)
+				env.DeleteApp(app1)
+			})
+			It("lists all applications belonging to all namespaces", func() {
+				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/applications",
+					serverURL), strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+
+				defer response.Body.Close()
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+				var apps models.AppList
+				err = json.Unmarshal(bodyBytes, &apps)
+				Expect(err).ToNot(HaveOccurred())
+
+				// `apps` contains all apps. Not just the two we are looking for, from
+				// the setup of this test. Everything which still exists from other
+				// tests executing concurrently, or not cleaned by previous tests, or
+				// the setup, or ... So, we cannot be sure that the two apps are in the
+				// two first elements of the slice.
+
+				var appNames []string
+				var orgNames []string
+				for _, a := range apps {
+					appNames = append(appNames, a.Name)
+					orgNames = append(orgNames, a.Organization)
+				}
+
+				Expect(appNames).To(ContainElements(app1, app2))
+				Expect(orgNames).To(ContainElements(org1, org2))
 			})
 		})
 	})
