@@ -36,7 +36,7 @@ func ExtendLocalTrust(certs string) {
 
 	// Trust the augmented cert pool in our client
 	config := &tls.Config{
-		MinVersion: tls.VersionTLS13,
+		MinVersion: tls.VersionTLS12,
 		RootCAs:    rootCAs,
 	}
 
