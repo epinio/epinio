@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
-// Environment returns the environment variables and their values which set on the named application by users
+// Environment returns the environment variables and their values which are set on the named application by users
 func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableList, error) {
 	evSecret, err := envLoad(ctx, cluster, appRef)
 	if err != nil {
@@ -90,7 +90,7 @@ func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 			ctx, evSecret, metav1.UpdateOptions{})
 
 		// Pass current set of environment variables out for
-		// use by the worload restart
+		// use by the workload restart
 		varNames = envNames(evSecret)
 
 		return err
@@ -100,7 +100,7 @@ func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 		return err
 	}
 
-	// Restart the app workload, if it exists We ignore a missing deployment
+	// Restart the app workload, if it exists. We ignore a missing deployment
 	// as this just means that the EV changes will simply stand ready for
 	// when the workload is actually launched.
 
