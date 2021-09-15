@@ -12,7 +12,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
-	"github.com/tektoncd/pipeline/pkg/apis/resource/v1alpha1"
 	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,6 +29,7 @@ import (
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/s3manager"
 )
 
 const (
@@ -38,32 +38,31 @@ const (
 
 type stageParam struct {
 	models.AppRef
-	Git          *models.GitRef
-	Stage        models.StageRef
-	Owner        metav1.OwnerReference
-	Environment  models.EnvVariableList
-	RegistryURL  string
-	BuilderImage string
-	Username     string
-}
-
-// GitURL returns the gitea repository URL by combining the server
-// with the org and name
-func (app *stageParam) GitURL(server string) string {
-	return fmt.Sprintf("%s/%s/%s", server, app.Org, app.Name)
+	BlobUID             string
+	BuilderImage        string
+	Environment         models.EnvVariableList
+	Owner               metav1.OwnerReference
+	RegistryURL         string
+	S3ConnectionDetails s3manager.ConnectionDetails
+	Stage               models.StageRef
+	Username            string
 }
 
 // ImageURL returns the URL of the docker image to be, using the
 // ImageID. The ImageURL is later used in app.yml and to send in the
 // stage response.
 func (app *stageParam) ImageURL(registryURL string) string {
-	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Git.Revision)
+	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Stage.ID)
 }
 
-// ensurePVC is a helper creating the kube PVC associated with an
-// application, if needed, i.e. not already present.
-func (hc ApplicationsController) ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, pvcName string) error {
-	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).Get(ctx, pvcName, metav1.GetOptions{})
+// ensurePVC creates a PVC for the application if one doesn't already exist.
+// This PVC is used to store the application source blobs (as they are uploaded
+// on the "upload" endpoint). It's also mounted in the staging task pod as the
+// "source" tekton workspace.
+// The same PVC stores the application's build cache (on a separate directory).
+func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
+	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
+		Get(ctx, ar.PVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
 	}
@@ -75,7 +74,7 @@ func (hc ApplicationsController) ensurePVC(ctx context.Context, cluster *kuberne
 	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
 		Create(ctx, &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      pvcName,
+				Name:      ar.PVCName(),
 				Namespace: deployments.TektonStagingNamespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -184,22 +183,30 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 	if err != nil {
 		return InternalError(err)
 	}
-	params := stageParam{
-		Username:     username,
-		AppRef:       req.App,
-		Git:          req.Git,
-		Owner:        owner,
-		Environment:  environment,
-		RegistryURL:  fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
-		BuilderImage: req.BuilderImage,
+
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+	if err != nil {
+		return InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	err = hc.ensurePVC(ctx, cluster, req.App.PVCName())
+	params := stageParam{
+		AppRef:              req.App,
+		BuilderImage:        req.BuilderImage,
+		BlobUID:             req.BlobUID,
+		Environment:         environment,
+		Owner:               owner,
+		RegistryURL:         fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
+		S3ConnectionDetails: s3ConnectionDetails,
+		Stage:               models.NewStage(uid),
+		Username:            username,
+	}
+
+	err = ensurePVC(ctx, cluster, req.App)
 	if err != nil {
 		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}
 
-	pr := newPipelineRun(uid, params)
+	pr := newPipelineRun(params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
@@ -301,18 +308,30 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 }
 
 // newPipelineRun is a helper which creates a Tekton pipeline run
-// resource from the given staging id and app name
-func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
+// resource from the given staging params
+func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
+
+	protocol := "http"
+	if app.S3ConnectionDetails.UseSSL {
+		protocol = "https"
+	}
+	awsScript := fmt.Sprintf("aws --endpoint-url %s://$1 s3 cp s3://$2/$3 $(workspaces.source.path)/$3", protocol)
+	awsArgs := []string{
+		app.S3ConnectionDetails.Endpoint,
+		app.S3ConnectionDetails.Bucket,
+		app.BlobUID,
+	}
 
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: uid,
+			Name: app.Stage.ID,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,
 				"app.kubernetes.io/created-by": app.Username,
-				models.EpinioStageIDLabel:      uid,
+				models.EpinioStageIDLabel:      app.Stage.ID,
+				models.EpinioStageBlodUIDLabel: app.BlobUID,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
 			},
@@ -324,11 +343,16 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 				{Name: "APP_NAME", Value: *str(app.Name)},
 				{Name: "ORG", Value: *str(app.Org)},
 				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
-				{Name: "STAGE_ID", Value: *str(uid)},
+				{Name: "STAGE_ID", Value: *str(app.Stage.ID)},
 				{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
 				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
 					Type:     v1beta1.ParamTypeArray,
 					ArrayVal: app.Environment.StagingEnvArray()},
+				},
+				{Name: "AWS_SCRIPT", Value: *str(awsScript)},
+				{Name: "AWS_ARGS", Value: v1beta1.ArrayOrString{
+					Type:     v1beta1.ParamTypeArray,
+					ArrayVal: awsArgs},
 				},
 			},
 			Workspaces: []v1beta1.WorkspaceBinding{
@@ -348,15 +372,13 @@ func newPipelineRun(uid string, app stageParam) *v1beta1.PipelineRun {
 						ReadOnly:  false,
 					},
 				},
-			},
-			Resources: []v1beta1.PipelineResourceBinding{
 				{
-					Name: "source-repo",
-					ResourceSpec: &v1alpha1.PipelineResourceSpec{
-						Type: v1alpha1.PipelineResourceTypeGit,
-						Params: []v1alpha1.ResourceParam{
-							{Name: "revision", Value: app.Git.Revision},
-							{Name: "url", Value: app.Git.URL},
+					Name: "s3secret",
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: deployments.S3ConnectionDetailsSecret,
+						Items: []corev1.KeyToPath{
+							{Key: "config", Path: "config"},
+							{Key: "credentials", Path: "credentials"},
 						},
 					},
 				},

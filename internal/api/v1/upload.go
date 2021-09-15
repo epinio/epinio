@@ -1,23 +1,23 @@
 package v1
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 
+	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
+	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/julienschmidt/httprouter"
-	"github.com/mholt/archiver/v3"
 )
 
 // Upload handles the API endpoint /orgs/:org/applications/:app/store.
-// It receives the application data as a tarball, and creates the
-// gitea as well as k8s resources needed for staging
+// It receives the application data as a tarball and stores it. Then
+// it creates the k8s resources needed for staging
 func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
@@ -27,11 +27,6 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	name := params.ByName("app")
 
 	log.Info("processing upload", "org", org, "app", name)
-
-	client, err := gitea.New(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
 
 	log.V(2).Info("parsing multipart form")
 
@@ -59,26 +54,34 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err, "failed to copy app sources to temp location")
 	}
 
-	log.V(2).Info("unpacking temp dir")
-	appDir := path.Join(tmpDir, "app")
-	err = archiver.Unarchive(blob, appDir)
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err, "failed to unpack app sources to temp location")
+		return InternalError(err, "failed to get access to a kube client")
 	}
 
-	log.V(2).Info("create gitea app repo")
-	app := models.NewAppRef(name, org)
-	g, err := client.Upload(app, appDir)
+	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
 	if err != nil {
-		return InternalError(err)
+		return InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
+	}
+	manager, err := s3manager.New(connectionDetails)
+	if err != nil {
+		return InternalError(err, "creating an S3 manager")
 	}
 
-	log.Info("uploaded app", "org", org, "app", name)
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
+	blobUID, err := manager.Upload(ctx, blob, map[string]string{
+		"app": name, "org": org, "username": username,
+	})
+	if err != nil {
+		return InternalError(err, "uploading the application sources blob")
+	}
 
-	// Extend url to contain the full repo path
-	g.URL = fmt.Sprintf("%s/%s/%s", g.URL, org, name)
+	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
-	resp := models.UploadResponse{Git: &g}
+	resp := models.UploadResponse{BlobUID: blobUID}
 	err = jsonResponse(w, resp)
 	if err != nil {
 		return InternalError(err)

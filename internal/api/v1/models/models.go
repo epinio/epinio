@@ -64,20 +64,24 @@ type UpdateAppRequest struct {
 	Instances int32 `json:"instances"`
 }
 
+type ImportGitResponse struct {
+	BlobUID string `json:"blobuid,omitempty"`
+}
+
 // TODO: CreateOrgRequest
 
 // UploadRequest is a multipart form
 
 // UploadResponse represents the server's response to a successful app sources upload
 type UploadResponse struct {
-	Git *GitRef `json:"git,omitempty"`
+	BlobUID string `json:"blobuid,omitempty"`
 }
 
 // StageRequest represents and contains the data needed to stage an application
 type StageRequest struct {
-	App          AppRef  `json:"app,omitempty"`
-	Git          *GitRef `json:"git,omitempty"`
-	BuilderImage string  `json:"builderimage,omitempty"`
+	App          AppRef `json:"app,omitempty"`
+	BlobUID      string `json:"blobuid,omitempty"`
+	BuilderImage string `json:"builderimage,omitempty"`
 }
 
 // StageResponse represents the server's response to a successful app staging
@@ -91,7 +95,6 @@ type DeployRequest struct {
 	App       AppRef   `json:"app,omitempty"`
 	Instances *int32   `json:"instances,omitempty"`
 	Stage     StageRef `json:"stage,omitempty"`
-	Git       *GitRef  `json:"git,omitempty"`
 	ImageURL  string   `json:"image,omitempty"`
 }
 

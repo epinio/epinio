@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
@@ -33,10 +34,11 @@ import (
 )
 
 type Tekton struct {
-	Debug      bool
-	Secrets    []string
-	ConfigMaps []string
-	Timeout    time.Duration
+	Debug               bool
+	Secrets             []string
+	ConfigMaps          []string
+	Timeout             time.Duration
+	S3ConnectionDetails *s3manager.ConnectionDetails
 }
 
 var _ kubernetes.Deployment = &Tekton{}
@@ -48,7 +50,9 @@ const (
 	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.23.0.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
 	tektonStagingYamlPath         = "tekton/buildpacks-task.yaml"
+	tektonAWSYamlPath             = "tekton/aws-cli-0.2.yaml"
 	tektonPipelineYamlPath        = "tekton/stage-pipeline.yaml"
+	S3ConnectionDetailsSecret     = "epinio-s3-connection-details" // nolint:gosec
 )
 
 func (k Tekton) ID() string {
@@ -119,6 +123,10 @@ func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
 	}
 
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAWSYamlPath, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAWSYamlPath, out))
+	}
+
 	message = "Deleting Tekton namespace " + tektonNamespace
 	_, err = helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
@@ -153,8 +161,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
 	}
 
-	timeout := strconv.Itoa(int(k.Timeout.Seconds()))
-
 	err := c.WaitUntilPodBySelectorExist(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed waiting tekton pipelines webhook pod to exist")
@@ -179,7 +185,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 			func() (string, error) {
 				return helpers.Kubectl("wait",
 					"--for", "condition=established",
-					"--timeout", timeout+"s",
+					"--timeout", strconv.Itoa(int(k.Timeout.Seconds()))+"s",
 					"crd/"+crd)
 			},
 		)
@@ -213,15 +219,36 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	if err != nil {
 		return err
 	}
+	err = retry.Do(
+		func() error {
+			out, err := helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.KubectlApplyEmbeddedYaml(tektonAWSYamlPath)
+				},
+			)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			}
+			return nil
+		},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "connection refused") ||
+				strings.Contains(err.Error(), "EOF")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
+		}),
+		retry.Delay(5*time.Second),
+	)
+	if err != nil {
+		return err
+	}
 
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
 	if err != nil {
 		return errors.Wrap(err, "Couldn't get system_domain option")
 	}
 
-	if err := k.createGiteaCredsSecret(ctx, c); err != nil {
-		return err
-	}
 	if err := k.createClusterRegistryCredsSecret(ctx, c, domain); err != nil {
 		return err
 	}
@@ -247,7 +274,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		},
 	)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		return errors.Wrapf(err, "%s failed:\n%s", message, out)
 	}
 
 	message = "Applying tekton staging resources"
@@ -259,6 +286,12 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+	}
+
+	// Create the secret that will be used to store and retrieve application
+	// sources from the S3 compatible storage.
+	if err := k.storeS3Settings(ctx, c, options); err != nil {
+		return errors.Wrap(err, "storing the S3 options")
 	}
 
 	ui.Success().Msg("Tekton deployed")
@@ -412,40 +445,6 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.Wrapf(err, "failed creating tekton Task")
 	}
 
-	return nil
-}
-
-func (k Tekton) createGiteaCredsSecret(ctx context.Context, c *kubernetes.Cluster) error {
-	// See internal/cli/clients/gitea/gitea.go, func
-	// `getGiteaCredentials` for where the cli retrieves the
-	// information for its own gitea client.
-	//
-	// See deployments/gitea.go func `apply` where `install`
-	// configures gitea for the same credentials.
-
-	giteaAuth, err := GiteaInstallAuth()
-	if err != nil {
-		return err
-	}
-
-	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(ctx,
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "gitea-creds",
-				Annotations: map[string]string{
-					"tekton.dev/git-0": GiteaURL,
-				},
-			},
-			StringData: map[string]string{
-				"username": giteaAuth.Username,
-				"password": giteaAuth.Password,
-			},
-			Type: "kubernetes.io/basic-auth",
-		}, metav1.CreateOptions{})
-
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
@@ -603,4 +602,11 @@ func CanonicalString(s string) string {
 	s = strings.TrimRight(s, " \f\t\n\v")
 	s = strings.ToLower(s)
 	return string(regexp.MustCompile(`[[:space:]]+`).ReplaceAll([]byte(s), []byte(" ")))
+}
+
+// storeS3Settings stores the provides S3 settings in a Secret.
+func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster, _ kubernetes.InstallationOptions) error {
+	_, err := s3manager.StoreConnectionDetails(ctx, cluster, TektonStagingNamespace, S3ConnectionDetailsSecret, *k.S3ConnectionDetails)
+
+	return err
 }

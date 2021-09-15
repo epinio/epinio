@@ -5,8 +5,14 @@ import (
 )
 
 const (
-	EpinioStageIDLabel = "epinio.suse.org/stage-id"
+	EpinioStageIDLabel      = "epinio.suse.org/stage-id"
+	EpinioStageBlodUIDLabel = "epinio.suse.org/blob-uid"
 )
+
+type GitRef struct {
+	Revision string `json:"revision"`
+	URL      string `json:"url"`
+}
 
 // App has all the app properties, like the routes and stage ID.
 // It is used in the CLI and  API responses.
@@ -101,10 +107,4 @@ type ImageRef struct {
 // NewImage returns a new image ref for the given ID
 func NewImage(id string) ImageRef {
 	return ImageRef{id}
-}
-
-// GitRef describes a git commit in a repo
-type GitRef struct {
-	Revision string `json:"revision"`
-	URL      string `json:"url"`
 }

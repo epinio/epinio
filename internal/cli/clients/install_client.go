@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -152,13 +153,30 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		}
 	}
 
+	endpoint := c.options.GetStringNG("s3-endpoint")
+	key := c.options.GetStringNG("s3-access-key-id")
+	secret := c.options.GetStringNG("s3-secret-access-key")
+	bucket := c.options.GetStringNG("s3-bucket")
+	location := c.options.GetStringNG("s3-location")
+	useSSL := c.options.GetBoolNG("s3-use-ssl")
+	cd := s3manager.NewConnectionDetails(endpoint, key, secret, bucket, location, useSSL)
+	if err := cd.Validate(); err != nil {
+		return err
+	}
+	if endpoint == "" { // All options empty
+		cd, err = deployments.MinioInternalConnectionSettings()
+		if err != nil {
+			return err
+		}
+	}
+
 	steps := []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
-		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)},
-		&deployments.Tekton{Timeout: duration.ToDeployment()},
+		&deployments.Tekton{Timeout: duration.ToDeployment(), S3ConnectionDetails: cd},
+		&deployments.Minio{Timeout: duration.ToDeployment(), Log: details.V(1), S3ConnectionDetails: cd},
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
 	}
 
@@ -242,11 +260,11 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 		&deployments.ServiceCatalog{Timeout: duration.ToDeployment()},
 		&deployments.Tekton{Timeout: duration.ToDeployment()},
 		&deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)},
-		&deployments.Gitea{Timeout: duration.ToDeployment()},
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.Traefik{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
+		&deployments.Minio{Timeout: duration.ToDeployment()},
 	} {
 		wg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {

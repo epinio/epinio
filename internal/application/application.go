@@ -5,7 +5,6 @@ package application
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"regexp"
 	"sync"
 
@@ -16,7 +15,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
-	pkgerrors "github.com/pkg/errors"
+	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -27,17 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 	appv1beta1 "sigs.k8s.io/application/api/v1beta1"
 )
-
-// GiteaInterface is the interface to whatever backend is used to
-// manage applications beyond them being kube apps and
-// deployments. The chosen name stronly implies gitea and a client for
-// it, unfortunately.
-// See also file `internal/cli/clients/gitea/gitea.go`
-// TODO: Seek a better name.
-type GiteaInterface interface {
-	// Delete the app sources
-	DeleteRepo(org, repo string) (int, error)
-}
 
 // Create generates a new kube app resource in the namespace of the
 // organization. Note that this is the passive resource holding the
@@ -228,7 +217,7 @@ func ListApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (mod
 // the stored application sources, and any pipelineruns from when the application was
 // staged (if active). Waits for the application's deployment's pods to disappear
 // (if active).
-func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterface, appRef models.AppRef) error {
+func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -254,12 +243,6 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, gitea GiteaInterfa
 	err = client.Namespace(appRef.Org).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
-	}
-
-	// there could be a gitea repo
-	code, err := gitea.DeleteRepo(appRef.Org, appRef.Name)
-	if err != nil && code != http.StatusNotFound {
-		return pkgerrors.Wrap(err, "failed to delete repository")
 	}
 
 	// delete pipelineruns in tekton-staging namespace
@@ -292,10 +275,21 @@ func DeleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 }
 
 // Unstage deletes either all PipelineRuns of the named application, or all but the current.
+// It also deletes the relevant (old) objects from the S3 storage.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	cs, err := versioned.NewForConfig(cluster.RestConfig)
 	if err != nil {
 		return err
+	}
+
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
+		deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+	if err != nil {
+		return errors.Wrap(err, "fetching the S3 connection details from the Kubernetes secret")
+	}
+	s3m, err := s3manager.New(s3ConnectionDetails)
+	if err != nil {
+		return errors.Wrap(err, "creating an S3 manager")
 	}
 
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
@@ -315,6 +309,10 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 
 		err := client.Delete(ctx, pr.ObjectMeta.Name, metav1.DeleteOptions{})
 		if err != nil {
+			return err
+		}
+
+		if err = s3m.DeleteObject(ctx, pr.ObjectMeta.Labels[models.EpinioStageBlodUIDLabel]); err != nil {
 			return err
 		}
 	}

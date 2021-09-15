@@ -110,6 +110,48 @@ var neededOptions = kubernetes.InstallationOptions{
 		Value:       true,
 	},
 	ingressServiceIPOption,
+	{
+		Name:        "s3-access-key-id",
+		Description: "If you are using your own S3 compatible object storage for blobs, set the access key id with this setting.",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
+	{
+		Name:        "s3-secret-access-key",
+		Description: "If you are using your own S3 compatible object storage for blobs, set the secret access key with this setting.",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
+	{
+		Name:        "s3-bucket",
+		Description: "If you are using your own S3 compatible object storage for blobs, set the bucket with this setting.",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
+	{
+		Name:        "s3-location",
+		Description: "If you are using your own S3 compatible object storage for blobs, set the S3 bucket location with this setting.",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
+	{
+		Name:        "s3-endpoint",
+		Description: "If you are using your own S3 compatible object storage for blobs, set the S3 endpoint with this setting.",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
+	{
+		Name:        "s3-use-ssl",
+		Description: "If you are using your own S3 compatible object storage for blobs, toggle SSL on or off.",
+		Type:        kubernetes.BooleanType,
+		Default:     false,
+		Value:       false,
+	},
 }
 
 var traefikOptions = kubernetes.InstallationOptions{skipLinkerdOption, ingressServiceIPOption}

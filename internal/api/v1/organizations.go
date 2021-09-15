@@ -13,7 +13,6 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/julienschmidt/httprouter"
@@ -133,10 +132,6 @@ func (oc NamespacesController) Index(w http.ResponseWriter, r *http.Request) API
 // It creates a namespace with the specified name.
 func (oc NamespacesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
-	gitea, err := gitea.New(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -170,7 +165,7 @@ func (oc NamespacesController) Create(w http.ResponseWriter, r *http.Request) AP
 		return OrgAlreadyKnown(org)
 	}
 
-	err = organizations.Create(r.Context(), cluster, gitea, org)
+	err = organizations.Create(r.Context(), cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -192,11 +187,6 @@ func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) AP
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
-	gitea, err := gitea.New(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
-
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
@@ -210,7 +200,7 @@ func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) AP
 		return OrgIsNotKnown(org)
 	}
 
-	err = deleteApps(ctx, cluster, gitea, org)
+	err = deleteApps(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -228,7 +218,7 @@ func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) AP
 	}
 
 	// Deleting the namespace here. That will automatically delete the application resources.
-	err = organizations.Delete(ctx, cluster, gitea, org)
+	err = organizations.Delete(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -244,7 +234,7 @@ func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) AP
 }
 
 // deleteApps removes the application and its resources
-func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, gitea *gitea.Client, org string) error {
+func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, org string) error {
 	appRefs, err := application.ListAppRefs(ctx, cluster, org)
 	if err != nil {
 		return err
@@ -310,7 +300,7 @@ loop:
 			defer func() {
 				<-buffer // 2b
 			}()
-			err := application.Delete(ctx, cluster, gitea, appRef)
+			err := application.Delete(ctx, cluster, appRef)
 			if err != nil {
 				errChan <- err // x
 			}

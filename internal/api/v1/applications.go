@@ -13,7 +13,6 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/clients/gitea"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/gorilla/websocket"
@@ -557,11 +556,6 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 	org := params.ByName("org")
 	appName := params.ByName("app")
 
-	gitea, err := gitea.New(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
-
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)
@@ -595,7 +589,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		response.UnboundServices = app.BoundServices
 	}
 
-	err = application.Delete(ctx, cluster, gitea, appRef)
+	err = application.Delete(ctx, cluster, appRef)
 	if err != nil {
 		return InternalError(err)
 	}

@@ -75,7 +75,8 @@ var Routes = routes.NamedRoutes{
 	"StagingComplete": get("/namespaces/:org/staging/:stage_id/complete", errorHandler(ApplicationsController{}.Staged)), // See stage.go
 	"AppDelete":       delete("/namespaces/:org/applications/:app", errorHandler(ApplicationsController{}.Delete)),
 	"AppUpload":       post("/namespaces/:org/applications/:app/store", errorHandler(ApplicationsController{}.Upload)), // See upload.go
-	"AppStage":        post("/namespaces/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)),  // See stage.go
+	"AppImportGit":    post("/namespaces/:org/applications/:app/import-git", errorHandler(ApplicationsController{}.ImportGit)),
+	"AppStage":        post("/namespaces/:org/applications/:app/stage", errorHandler(ApplicationsController{}.Stage)), // See stage.go
 	"AppDeploy":       post("/namespaces/:org/applications/:app/deploy", errorHandler(ApplicationsController{}.Deploy)),
 	"AppUpdate":       patch("/namespaces/:org/applications/:app", errorHandler(ApplicationsController{}.Update)),
 	"AppRunning":      get("/namespaces/:org/applications/:app/running", errorHandler(ApplicationsController{}.Running)),

@@ -9,9 +9,7 @@ spec:
   - name: source
   - name: cache
     optional: true
-  resources:
-  - name: source-repo
-    type: git
+  - name: s3secret
   params:
     - name: APP_NAME
       type: string
@@ -27,6 +25,14 @@ spec:
     - name: STAGE_ID
       type: string
       description: "The identifier of the unique staging process"
+    - name: AWS_SCRIPT
+      type: string
+      # https://hub.tekton.dev/tekton/task/aws-cli
+      description: "The aws script that copies the application code object"
+    - name: AWS_ARGS
+      type: array
+      # https://hub.tekton.dev/tekton/task/aws-cli
+      description: "The aws cli task args"
     - name: ENV_VARS
       type: array
       description: "Build time environment variables"
@@ -38,23 +44,34 @@ spec:
     workspaces:
     - name: source
       workspace: source
-  - name: clone
+  - name: fetch-sources
     taskRef:
-      name: clone
-    resources:
-      inputs:
-      - name: source-repo
-        resource: source-repo
+      name: aws-cli
+    workspaces:
+    - name: source
+      workspace: source
+    - name: secrets
+      workspace: s3secret
+    runAfter:
+    - cleanup
+    params:
+    - name: ARGS
+      value: ["$(params.AWS_ARGS[*])"]
+    - name: SCRIPT
+      value: "$(params.AWS_SCRIPT)"
+  - name: extract
+    taskRef:
+      name: extract
     workspaces:
     - name: source
       workspace: source
     runAfter:
-    - cleanup
+    - fetch-sources
   - name: stage
     taskRef:
       name: buildpacks
     runAfter:
-    - clone
+    - extract
     params:
     - name: BUILDER_IMAGE
       value: "$(params.BUILDER_IMAGE)"
@@ -88,30 +105,25 @@ spec:
     args:
       - -c
       - |
-        rm -rf app
+        rm -rf *
 
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: clone
+  name: extract
   namespace: tekton-staging
 spec:
   workspaces:
   - name: source
-  resources:
-    inputs:
-    - name: source-repo
-      type: git
-      targetPath: source/app
   steps:
-  - name: stage
+  - name: extract
     image: lachlanevenson/k8s-kubectl
-    workingDir: "/workspace/source/app"
+    workingDir: "/workspace/source"
     command:
       - sh
     args:
       - -c
       - |
-        pwd
-        ls -la
+        tarball=$(ls | head -n 1) && mkdir app && tar xf $tarball -C app
+        ls -la app

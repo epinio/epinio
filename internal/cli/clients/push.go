@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"path"
+	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,46 +17,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/go-logr/logr"
-	"github.com/mholt/archiver/v3"
 	"github.com/pkg/errors"
 )
-
-func collectSources(log logr.Logger, source string) (string, string, error) {
-	files, err := ioutil.ReadDir(source)
-	if err != nil {
-		return "", "", errors.Wrap(err, "cannot read the apps source files")
-	}
-	sources := []string{}
-	for _, f := range files {
-		// The FileInfo entries returned by ReadDir provide
-		// only the base name of the file or directory they
-		// are for. We have to add back the path of the
-		// application directory to get the proper paths to
-		// the files and directories to assemble in the
-		// tarball.
-		// Ignore git config files in the app sources to prevent conflicts with the gitea git repo
-		if f.Name() == ".git" || f.Name() == ".gitignore" || f.Name() == ".gitmodules" || f.Name() == ".gitconfig" || f.Name() == ".git-credentials" {
-			log.V(3).Info(fmt.Sprintf("Skipping upload of file/dir '%s'.", f.Name()))
-			continue
-		}
-		sources = append(sources, path.Join(source, f.Name()))
-	}
-	log.V(3).Info("found app data files", "files", sources)
-
-	// create a tmpDir - tarball dir and POST
-	tmpDir, err := ioutil.TempDir("", "epinio-app")
-	if err != nil {
-		return "", "", errors.Wrap(err, "can't create temp directory")
-	}
-
-	tarball := path.Join(tmpDir, "blob.tar")
-	err = archiver.Archive(sources, tarball)
-	if err != nil {
-		return tmpDir, "", errors.Wrap(err, "can't create archive")
-	}
-
-	return tmpDir, tarball, nil
-}
 
 func (c *EpinioClient) uploadCode(app models.AppRef, tarball string) (*models.UploadResponse, error) {
 	b, err := c.upload(api.Routes.Path("AppUpload", app.Org, app.Name), tarball)
@@ -61,13 +26,51 @@ func (c *EpinioClient) uploadCode(app models.AppRef, tarball string) (*models.Up
 		return nil, errors.Wrap(err, "can't upload archive")
 	}
 
-	// returns git commit and app route
+	// returns the source blob's UUID
 	upload := &models.UploadResponse{}
 	if err := json.Unmarshal(b, upload); err != nil {
 		return nil, err
 	}
 
 	return upload, nil
+}
+
+// importGit asks the server to import a git repo and put in into the blob store
+func (c *EpinioClient) importGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error) {
+	data := url.Values{}
+	data.Set("giturl", gitRef.URL)
+	data.Set("gitrev", gitRef.Revision)
+
+	url := fmt.Sprintf("%s/%s", c.serverURL, api.Routes.Path("AppImportGit", app.Org, app.Name))
+	request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing the request")
+	}
+	request.SetBasicAuth(c.Config.User, c.Config.Password)
+	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
+
+	response, err := (&http.Client{}).Do(request)
+	if err != nil {
+		return nil, errors.Wrap(err, "making the request to import git")
+	}
+
+	defer response.Body.Close()
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "reading the response body")
+	}
+	if response.StatusCode != http.StatusCreated && response.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected server status code: %s\n%s", http.StatusText(response.StatusCode),
+			string(bodyBytes))
+	}
+
+	importResponse := &models.ImportGitResponse{}
+	if err := json.Unmarshal(bodyBytes, importResponse); err != nil {
+		return nil, err
+	}
+
+	return importResponse, nil
 }
 
 func (c *EpinioClient) stageCode(req models.StageRequest) (*models.StageResponse, error) {

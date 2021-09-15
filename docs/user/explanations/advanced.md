@@ -19,6 +19,9 @@ The quick way of pushing an application, as explained at
 [Quickstart: Push an application](../tutorials/quickstart.md#push-an-application), uses a local
 directory containing a checkout of the application's sources.
 
+
+TODO: Update this (no gitea)
+
 Internally this is actually [quite complex](detailed-push-process.md). It
 involves the creation and upload of a tarball from these sources by the client
 to the Epinio server, storage into Epinio's Gitea component, and then checkout
