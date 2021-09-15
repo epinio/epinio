@@ -50,7 +50,7 @@ epinio install --system-domain test.example.com --tls-issuer=letsencrypt-product
 
 ***
 
-###### Note The issuer `letsencrypt-production` will work only, if your custom domain, e.g. "test.example.com", is reachable from the internet. For test, or internal environments, where your custom domain isn't reachable from the internet, you need to choose a differen issuer. E.g. if you would use the custom domain "test.internal.com", `epinio install --system-domain test.internal.com` would default to the `epinio-ca` issuer.
+###### Note: The issuer `letsencrypt-production` will work only, if your custom domain, e.g. "test.example.com", is reachable from the internet. For test, or internal environments, where your custom domain isn't reachable from the internet, you need to choose a different issuer. E.g. if you would use the custom domain "test.internal.com", `epinio install --system-domain test.internal.com` will default to the `epinio-ca` issuer.
 
 ***
 
