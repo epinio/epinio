@@ -1,63 +1,31 @@
 # Epinio, Advanced Topics
 
-Opinionated platform that runs on Kubernetes, that takes you from App to URL in one step.
-
-![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg)
-
-<img src="../../epinio.png" width="50%" height="50%">
-
 ## Contents
 
-- [Git Pushing](#git-pushing)
-- [Traefik](#traefik)
-- [Linkerd](#linkerd)
-- [Traefik and Linkerd](#traefik-and-linkerd)
+TODO: Do the same for Minio and list storage class requirements (WaitForFirstConsumer). Add links to upstream docs.
+TODO: Explain how to configure external S3 storage.
+TODO: Consider doing this in a separate document about the components. Or even, one document per components and links here.
 
-## Git Pushing
+- [Epinio installed components](#epinio-installed-components)
+  - [Traefik](#traefik)
+  - [Linkerd](#linkerd)
+  - [Epinio](#epinio)
+  - [Cert Manager](#cert-manager)
+  - [Kubed](#kubed)
+  - [Google Service Broker](#google-service-broker)
+  - [Minibroker](#minibroker)
+  - [Minio](#minio)
+  - [Container Registry](#container-registry)
+  - [Service Catalog](#service-catalog)
+  - [Tekton](#tekton)
 
-The quick way of pushing an application, as explained at
-[Quickstart: Push an application](../tutorials/quickstart.md#push-an-application), uses a local
-directory containing a checkout of the application's sources.
+- [Other advanced topics](#other-advanced-topics)
+  - [Git Pushing](#git-pushing)
+  - [Traefik and Linkerd](#traefik-and-linkerd)
 
+## Epinio installed components
 
-TODO: Update this (no gitea)
-
-Internally this is actually [quite complex](detailed-push-process.md). It
-involves the creation and upload of a tarball from these sources by the client
-to the Epinio server, storage into Epinio's Gitea component, and then checkout
-from that git repository by the tekton pipeline for staging, i.e. compilation
-and creation of the docker image to be used by the underlying kubernetes
-cluster.
-
-This process can be shortend however by using the Epinio client's "git mode". In
-this mode `epinio push` does not take a local directory of sources, but the
-location of a git repository holding the sources, and the id of the revision to
-use. The client then simply arranges for the tekton pipeline to pull directly
-from that git repository instead of from the internal gitea. No tarball, no
-upload, no saving to gitea.
-
-The syntax is
-
-```
-epinio push NAME GIT-REPOSITORY-URL --git REVISION
-```
-
-For comparison all the relevant syntax:
-
-```
-epinio push NAME 
-epinio push NAME DIRECTORY
-epinio push NAME GIT-REPOSITORY-URL --git REVISION
-```
-
-__Attention__: While it is possible to use a branch name for the `REVISION` id,
-this is not recommened at this point. We recommend to use an exact git hash
-instead.  While a second push of an application with the same branch will
-apparently pick up and deploy any commits done on that branch since the previous
-push this may be a (fortunate) accident of the current implementation and we are
-not guaranteeing this yet.
-
-## Traefik
+### Traefik
 
 When you installed Epinio, it looked at your cluster to see if you had
 [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/)
@@ -91,7 +59,7 @@ installation in any way. Here are the relevant upstream docs for the redirection
 
 https://doc.traefik.io/traefik/routing/entrypoints/#redirection
 
-## Linkerd
+### Linkerd
 
 By default, Epinio installs [Linkerd](https://linkerd.io/) on your cluster. The
 various namespaces created by Epinio become part of the Linkerd Service Mesh and
@@ -104,6 +72,78 @@ installing any of the Linkerd control plane components:
 
 ```bash
 $ epinio install --skip-linkerd
+```
+
+### Epinio
+
+Epinio is a binary that is used:
+
+- as a cli tool, used to push applications, create services etc.
+- as the API server component which runs inside the cluster (invoked with the `epinio server` command)
+- as the installer that installs the various needed components on the cluster. The
+  API server from the previous point is one of them.
+
+Epinio cli functionality is implemented using the endpoints provided by the Epinio API server
+component. For example, when the user asks Epinio to "push" and application, the
+cli will contact the "Upload", "Stage" and "Deploy" endpoints of the Epinio API to upload the application code,
+create a container image for the application using this code and run the application on the cluster.
+
+The Epinio API server is running on the cluster and made accessible using Kubernetes resources like
+Deployments, Services,  Ingresses and Secrets.
+
+### Cert Manager
+
+[Upstream documentation](https://cert-manager.io/docs/)
+
+The Cert manager component is deployed by Epinio and use to generate and renew the various Certificates needed in order to
+serve the various accessible endpoints over TLS (e.g. the Epinio API server).
+
+Epinio supports various options when it comes to certificate issuers (let's encrypt, private CA, brings your own CA, self signed certs).
+Cert Manager simplifies the way we handle the various different certificate issuers within Epinio.
+
+You can read more about certificate issuers here: [certificate issuers documentation](../howtos/certificate_issuers.md)
+
+### Kubed
+### Google Service Broker
+### Minibroker
+### Minio
+### Container Registry
+### Service Catalog
+### Tekton
+
+
+## Other Advanced Topics
+
+### Git Pushing
+
+The quick way of pushing an application, as explained at
+[Quickstart: Push an application](../tutorials/quickstart.md#push-an-application), uses a local
+directory containing a checkout of the application's sources.
+
+Internally this is actually [quite complex](detailed-push-process.md). It
+involves the creation and upload of a tarball from these sources by the client
+to the Epinio server, copying into Epinio's internal (or external) S3 storage,
+copying from that storage to a PersistentVolumeClaim to be used in the tekton pipeline for staging,
+i.e. compilation and creation of the docker image to be used by the underlying kubernetes cluster.
+
+The process is a bit different when using the Epinio client's "git mode". In
+this mode `epinio push` does not take a local directory of sources, but the
+location of a git repository holding the sources, and the id of the revision to
+use. The client then asks the Epinio server to pull those sources and store them to the
+S3 storage. The rest of the process is the same.
+
+The syntax is
+
+```
+epinio push NAME GIT-REPOSITORY-URL --git REVISION
+```
+
+For comparison all the relevant syntax:
+
+```
+epinio push NAME
+epinio push NAME DIRECTORY
+epinio push NAME GIT-REPOSITORY-URL --git REVISION
 ```
 
 ## Traefik and Linkerd
