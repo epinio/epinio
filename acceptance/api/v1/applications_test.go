@@ -392,15 +392,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				// the setup, or ... So, we cannot be sure that the two apps are in the
 				// two first elements of the slice.
 
-				var appNames []string
-				var orgNames []string
+				var appRefs [][]string
 				for _, a := range apps {
-					appNames = append(appNames, a.Name)
-					orgNames = append(orgNames, a.Organization)
+					appRefs = append(appRefs, []string{a.Name, a.Organization})
 				}
-
-				Expect(appNames).To(ContainElements(app1, app2))
-				Expect(orgNames).To(ContainElements(org1, org2))
+				Expect(appRefs).To(ContainElements(
+					[]string{app1, org1},
+					[]string{app2, org2}))
 			})
 		})
 	})
