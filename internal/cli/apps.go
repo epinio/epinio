@@ -41,6 +41,9 @@ func init() {
 		panic(err)
 	}
 
+	flags = CmdAppList.Flags()
+	flags.Bool("all", false, "list all applications")
+
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
@@ -53,8 +56,9 @@ func init() {
 
 // CmdAppList implements the command: epinio app list
 var CmdAppList = &cobra.Command{
-	Use:   "list",
-	Short: "Lists all applications",
+	Use:   "list [--all]",
+	Short: "Lists applications",
+	Long:  "Lists applications in the targeted namespace, or all",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -64,7 +68,12 @@ var CmdAppList = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.Apps()
+		all, err := cmd.Flags().GetBool("all")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --all")
+		}
+
+		err = client.Apps(all)
 		if err != nil {
 			return errors.Wrap(err, "error listing apps")
 		}

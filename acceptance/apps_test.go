@@ -456,7 +456,7 @@ var _ = Describe("Apps", func() {
 			env.CleanupService(serviceCustomName)
 		})
 
-		It("lists all apps", func() {
+		It("lists all apps in the namespace", func() {
 			out, err := env.Epinio("", "app", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing applications"))
@@ -500,6 +500,44 @@ var _ = Describe("Apps", func() {
 					return out
 				}, "1m").Should(MatchRegexp(`Status\s*\|\s*0\/0\s*\|`))
 			})
+		})
+	})
+
+	Describe("list across namespaces", func() {
+		var org1 string
+		var org2 string
+		var app1 string
+		var app2 string
+
+		BeforeEach(func() {
+			org1 = catalog.NewOrgName()
+			env.SetupAndTargetOrg(org1)
+
+			app1 = catalog.NewAppName()
+			env.MakeDockerImageApp(app1, 1, dockerImageURL)
+
+			org2 = catalog.NewOrgName()
+			env.SetupAndTargetOrg(org2)
+
+			app2 = catalog.NewAppName()
+			env.MakeDockerImageApp(app2, 1, dockerImageURL)
+		})
+		AfterEach(func() {
+			env.TargetOrg(org2)
+			env.DeleteApp(app2)
+
+			env.TargetOrg(org1)
+			env.DeleteApp(app1)
+		})
+		It("lists all applications belonging to all namespaces", func() {
+			// But we care only about the two we know about from the setup.
+
+			out, err := env.Epinio("", "app", "list", "--all")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Listing all applications"))
+
+			Expect(out).To(MatchRegexp(" " + app1 + " "))
+			Expect(out).To(MatchRegexp(" " + app2 + " "))
 		})
 	})
 
