@@ -27,15 +27,22 @@ epinio push sample sample-app
 
 where `sample` is the name you want to give to your application. This name has to be unique within the targeted namespace in Epinio. `sample-app` is path to the directory where your application's code resides.
 
-Note that the path argument is __optional__. If not specified the __current working directory__ will be used. Always ensure that the chosen directory contains a supported application.
+***
+
+###### Note that the path argument is optional. If not specified the current working directory will be used. Always ensure that the chosen directory contains a supported application.
+
+***
 
 If you want to know what applications are supported in Epinio, please read the
 [notes about supported applications](../references/supported-apps.md).
 
 We also provide information about the more advanced [git model](../explanations/advanced.md#git-pushing).
 
-__Note__: If you want to know the details of the `epinio push` process, please read the [detailed push docs](../explanations/detailed-push-process.md)
+***
 
+###### Note: If you want to know the details of the `epinio push` process, please read the [detailed push docs](../explanations/detailed-push-process.md)
+
+***
 
 #### Check that your application is working
 
