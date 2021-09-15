@@ -24,8 +24,8 @@ type Manager struct {
 
 type ConnectionDetails struct {
 	Endpoint string
-	// UseSSL Toggles the use of SSL for the s3 connection. If we deploy
-	// our own thing, linkderd will take care of this and we set useSSL to
+	// UseSSL toggles the use of SSL for the s3 connection. If we deploy
+	// our own thing, linkerd will take care of this and we set UseSSL to
 	// false.
 	// External S3 implementations should use SSL.
 	UseSSL          bool
@@ -46,7 +46,7 @@ func NewConnectionDetails(endpoint, key, secret, bucket, location string, useSSL
 	}
 }
 
-// Validate makes sure the S3 settings provided are valid
+// Validate makes sure the provided S3 settings are valid
 // The user should provide all the mandatory settings or no settings at all.
 func (details *ConnectionDetails) Validate() error {
 	allMandatorySet := details.Endpoint != "" &&
@@ -62,7 +62,7 @@ func (details *ConnectionDetails) Validate() error {
 	// If mandatory fields are partly set
 	partlyMandatory := !(allMandatorySet || allMandatoryEmpty)
 	if partlyMandatory {
-		return errors.New("when specifying an external s3 server, you  must set all  mandatory S3 options")
+		return errors.New("when specifying an external s3 server, you must set all mandatory S3 options")
 	}
 
 	// If only optional fields are set
