@@ -2,7 +2,7 @@
 
 If you have not already installed `epinio` follow these links
 
-- [Install on K3d](./install_epinio_on_k3d.md)
+- [Installation Section](https://github.com/epinio/epinio#installation)
 
 In this tutorial, you will learn how to create a namespace and how to push, list and delete an application in it.
 
