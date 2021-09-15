@@ -11,7 +11,7 @@ Follow these [steps](./install_dependencies.md) to install dependencies.
 ### Download the Binary
 
 Find the latest version at [Releases](https://github.com/epinio/epinio/releases).
-Run one of the commands below, and replace \<epinio-version\> with the version of your choice, e.g. "v0.0.21".
+Run one of the commands below, and replace \<epinio-version\> with the version of your choice, e.g. "v0.1.0".
 
 ##### Linux
 
@@ -51,6 +51,6 @@ Run e.g. `epinio version` to test the successful installation.
 
 ```bash
 > epinio version
-Epinio Version: v0.0.21
-Go Version: go1.16.7
+Epinio Version: v0.1.0
+Go Version: go1.17
 ```
