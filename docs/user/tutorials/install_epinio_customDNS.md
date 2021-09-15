@@ -10,7 +10,7 @@ If not done already, refer to [System Requirements](https://github.com/epinio/ep
 
 ## Install the Epinio CLI
 
-If not done already, refer to [Install the Epinio CLI](./docs/user/tutorials/install_epinio_cli.md).
+If not done already, refer to [Install the Epinio CLI](./install_epinio_cli.md).
 
 ## Install Ingress In Cluster
 

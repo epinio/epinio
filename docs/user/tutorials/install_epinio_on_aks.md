@@ -14,10 +14,10 @@ If you don't have an existing cluster, follow the [quickstart](https://docs.micr
 
 Beside advanced installation options, there are two ways of installing Epinio:
 
-1. [Installation using a MagicDNS Service](./docs/user/tutorials/install_epinio_magicDNS.md)
+1. [Installation using a MagicDNS Service](./install_epinio_magicDNS.md)
 
 - For test environments. This should work on nearly any kubernetes distribution. Epinio will try to automatically create a magic DNS domain, e.g. **10.0.0.1.omg.howdoi.website**.
 
-2. [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md)
+2. [Installation using a Custom Domain](./install_epinio_customDNS.md)
 
 - For test and production environments. You will define a system domain, e.g. **test.example.com**.

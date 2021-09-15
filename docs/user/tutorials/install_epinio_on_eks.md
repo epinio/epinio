@@ -15,4 +15,4 @@ If you don't have an existing cluster, follow the [quickstart](https://docs.aws.
 
 Installing Epinio in an EKS cluster is done in three steps.
 
-Follow [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md) for test and production environments.
+Follow [Installation using a Custom Domain](./install_epinio_customDNS.md) for test and production environments.

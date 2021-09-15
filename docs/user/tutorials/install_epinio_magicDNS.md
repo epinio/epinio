@@ -5,7 +5,7 @@ You will automatically get a magic wildcard domain like "10.0.0.1.omg.howdoi.web
 
 ## Install the Epinio CLI
 
-If not done already, refer to [Install the Epinio CLI](./docs/user/tutorials/install_epinio_cli.md).
+If not done already, refer to [Install the Epinio CLI](./install_epinio_cli.md).
 
 ### Install Epinio on the Cluster
 
