@@ -19,7 +19,7 @@ var _ = Describe("ConnectionDetails", func() {
 				}
 			})
 			It("returns an error", func() {
-				Expect(details.Validate()).To(MatchError("when specifying an external s3 server, you  must set all  mandatory S3 options"))
+				Expect(details.Validate()).To(MatchError("when specifying an external s3 server, you must set all mandatory S3 options"))
 			})
 		})
 		When("mandatory settings are empty but there are optional set", func() {
