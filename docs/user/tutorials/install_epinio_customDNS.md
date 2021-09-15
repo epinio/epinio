@@ -44,6 +44,10 @@ With DNS now available the second step actually installs the cluster:
 epinio install --system-domain test.example.com --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
 ```
 
+*Note* The issuer `letsencrypt-production` will work only, if your custom domain, e.g. "test.example.com", is reachable from the internet.
+For test, or internal environments, where your custom domain isn't reachable from the internet, you need to choose a differen issuer.
+E.g. if you would use the custom domain "test.internal.com", `epinio install --system-domain test.internal.com` would default to the `epinio-ca` issuer.
+
 ## DNS Configuration Examples
 
 ### AWS EKS and Route53
