@@ -181,8 +181,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return InternalError(err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write([]byte{})
+	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}

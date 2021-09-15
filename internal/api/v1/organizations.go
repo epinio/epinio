@@ -57,12 +57,7 @@ func (oc NamespacesController) Match(w http.ResponseWriter, r *http.Request) API
 
 	log.Info("deliver matches", "found", matches)
 
-	js, err := json.Marshal(matches)
-	if err != nil {
-		return InternalError(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, models.NamespacesMatchResponse{Names: matches})
 	if err != nil {
 		return InternalError(err)
 	}
@@ -115,12 +110,7 @@ func (oc NamespacesController) Index(w http.ResponseWriter, r *http.Request) API
 		})
 	}
 
-	js, err := json.Marshal(namespaces)
-	if err != nil {
-		return InternalError(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, namespaces)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -170,8 +160,10 @@ func (oc NamespacesController) Create(w http.ResponseWriter, r *http.Request) AP
 		return InternalError(err)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write([]byte{})
+
+	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -225,7 +217,8 @@ func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) AP
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte{})
+
+	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}

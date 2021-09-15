@@ -15,6 +15,7 @@ import (
 
 var _ = Describe("Services API Application Endpoints, Mutations", func() {
 	var org string
+	const jsOK = `{"status":"ok"}`
 	dockerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
@@ -252,7 +253,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
 
 				out, err := env.Epinio("", "service", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
@@ -276,7 +277,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
 
 				// Explicit wait in the test itself for the service to be provisioned/appear.
 				// This takes the place of the `service list` command in the previous test,
@@ -446,7 +447,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
 			})
 		})
 	})
@@ -878,7 +879,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 						bodyBytes, err := ioutil.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
 						Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-						Expect(string(bodyBytes)).To(Equal(""))
+						Expect(string(bodyBytes)).To(Equal(jsOK))
 					})
 				})
 

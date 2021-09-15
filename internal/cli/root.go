@@ -1,5 +1,5 @@
 // Package cli contains all definitions pertaining to the user-visible
-// commands of the epinio client
+// commands of the epinio client. It provides the viper/cobra setup.
 package cli
 
 import (

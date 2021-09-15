@@ -1,10 +1,10 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/version"
 )
 
@@ -29,22 +29,13 @@ func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) APIErrors 
 
 	platform := cluster.GetPlatform()
 
-	info := struct {
-		Version     string
-		KubeVersion string
-		Platform    string
-	}{
+	info := models.InfoResponse{
 		Version:     version.Version,
 		Platform:    platform.String(),
 		KubeVersion: kubeVersion,
 	}
 
-	js, err := json.Marshal(info)
-	if err != nil {
-		return InternalError(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, info)
 	if err != nil {
 		return InternalError(err)
 	}

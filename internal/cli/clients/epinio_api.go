@@ -7,6 +7,7 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/cli/clients/epinioapi"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/pkg/errors"
 )
@@ -16,16 +17,9 @@ const (
 	epinioWSProtocol  = "wss"
 )
 
-// EpinioAPIClient provides functionality for talking to an Epinio API
-// server on Kubernetes
-type EpinioAPIClient struct {
-	URL   string
-	WsURL string
-}
+var epinioClientMemo *epinioapi.Client
 
-var epinioClientMemo *EpinioAPIClient
-
-func getEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
+func getEpinioAPIClient(ctx context.Context) (*epinioapi.Client, error) {
 	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
 	defer func() {
 		if epinioClientMemo != nil {
@@ -53,11 +47,7 @@ func getEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 	if cfg.API != "" && cfg.WSS != "" {
 		log.Info("cached in config")
 
-		epinioClient := &EpinioAPIClient{
-			URL:   cfg.API,
-			WsURL: cfg.WSS,
-		}
-
+		epinioClient := epinioapi.New(log, cfg.API, cfg.WSS, cfg.User, cfg.Password)
 		epinioClientMemo = epinioClient
 
 		return epinioClient, nil
@@ -88,11 +78,7 @@ func getEpinioAPIClient(ctx context.Context) (*EpinioAPIClient, error) {
 		return nil, errors.Wrap(err, "failed to save configuration")
 	}
 
-	epinioClient := &EpinioAPIClient{
-		URL:   epinioURL,
-		WsURL: epinioWsURL,
-	}
-
+	epinioClient := epinioapi.New(log, cfg.API, cfg.WSS, cfg.User, cfg.Password)
 	epinioClientMemo = epinioClient
 
 	return epinioClient, nil
