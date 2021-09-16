@@ -78,8 +78,7 @@ For the Epinio server, and related deployments we recommend to consider the foll
 
 In addition, extensive requirements for your workload (apps) would add to that.
 
-A default storage class with annotation (storageclass.kubernetes.io/is-default-class: "true") is needed.
-
+A default storage class (with annotation `storageclass.kubernetes.io/is-default-class: "true"`) is needed.
 
 #### Epinio CLI
 
@@ -109,7 +108,8 @@ Beside advanced installation options, there are two ways of installing Epinio:
 - [Install on K3d](./docs/user/tutorials/install_epinio_on_k3d.md) - Install K3d and then install Epinio
 - [Install on EKS](./docs/user/tutorials/install_epinio_on_eks.md) - Install Epinio in Amazon EKS clusters
 - [Install on AKS](./docs/user/tutorials/install_epinio_on_aks.md) - Install Epinio in Azure AKS clusters
-- [Install on GKE](./docs/user/tutorials/install_epinio_on_gke.md) - Install Epinio in Google GKE
+- [Install on GKE](./docs/user/tutorials/install_epinio_on_gke.md) - Install Epinio in Google GKE clusters
+- [Install on RKE2](./docs/user/tutorials/install_epinio_on_rke.md) - Install Epinio in Rancher RKE2 clusters
 
 ## Usage
 

@@ -5,7 +5,7 @@ You will automatically get a magic wildcard domain like "10.0.0.1.omg.howdoi.web
 
 ## Install the Epinio CLI
 
-If not done already, refer to [Install the Epinio CLI](./docs/user/tutorials/install_epinio_cli.md).
+If not done already, refer to [Install the Epinio CLI](./install_epinio_cli.md).
 
 ### Install Epinio on the Cluster
 
@@ -29,16 +29,3 @@ This stops a malicous website from probing the local network for hosts.
 Amongst those routers is the AVM FRITZBox and everything that uses [dnsmasq](https://thekelleys.org.uk/dnsmasq/docs/dnsmasq-man.html) with `stop-dns-rebind`, like [pfSense](https://docs.netgate.com/pfsense/en/latest/services/dns/rebinding.html) or NetworkManager.
 
 If you still want to use the default magic DNS, you'll have to whitelist `omg.howdoi.website` in your local DNS server.
-
-#### Storage Class
-
-When pushing an app in a kubernetes cluster with multiple nodes, tekton-staging might fail for "FailedAttachVolume".
-In this case ensure, your default storage class is set to "volumeBindingMode: WaitForFirstConsumer".
-
-E.g.:
-
-```
-> kubectl get sc
-NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-longhorn (default)   driver.longhorn.io   Delete          WaitForFirstConsumer   true                   3d4h
-```

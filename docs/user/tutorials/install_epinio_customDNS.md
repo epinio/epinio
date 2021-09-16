@@ -10,7 +10,7 @@ If not done already, refer to [System Requirements](https://github.com/epinio/ep
 
 ## Install the Epinio CLI
 
-If not done already, refer to [Install the Epinio CLI](./docs/user/tutorials/install_epinio_cli.md).
+If not done already, refer to [Install the Epinio CLI](./install_epinio_cli.md).
 
 ## Install Ingress In Cluster
 
@@ -33,7 +33,11 @@ and Ingress will route the traffic accordingly.
 - test.example.com => "EXTERNAL-IP"
 - \*.test.example.com => "EXTERNAL-IP"
 
-*Note* you can also check the "EXTERNAL-IP" by running the command `kubectl get svc -n traefik`.
+***
+
+###### Note you can also check the "EXTERNAL-IP" by running the command `kubectl get svc -n traefik`.
+
+***
 
 Find [DNS Configuration Examples](#dns-configuration-examples) below.
 
@@ -43,6 +47,12 @@ With DNS now available the second step actually installs the cluster:
 ```bash
 epinio install --system-domain test.example.com --tls-issuer=letsencrypt-production --use-internal-registry-node-port=false
 ```
+
+***
+
+###### Note: The issuer `letsencrypt-production` will work only, if your custom domain, e.g. "test.example.com", is reachable from the internet. For test, or internal environments, where your custom domain isn't reachable from the internet, you need to choose a different issuer. E.g. if you would use the custom domain "test.internal.com", `epinio install --system-domain test.internal.com` will default to the `epinio-ca` issuer.
+
+***
 
 ## DNS Configuration Examples
 
@@ -56,7 +66,11 @@ Given Epinio ingress installation provided you with the following hostname:
 Traefik Ingress info: [{"hostname":"abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com"}]
 ```
 
-*Note* you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
+***
+
+###### Note you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
+
+***
 
 Now you will have to add two CNAME records, for the subdomain, e.g. "test" to have "test.example.com", resp. "\*.test.example.com".
 Replace "abcdefg12345671234567abcdefg1234-1234567890.eu-west-1.elb.amazonaws.com" with the your EKS FQDN, and "test.example.com" with your custom domain.
@@ -95,7 +109,11 @@ Given Epinio ingress installation provided you with the following hostname:
 Traefik Ingress info: [{"ip":"10.0.0.1"}]
 ```
 
-*Note* you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
+***
+
+###### Note you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
+
+***
 
 Now you will have to add two A records, for the subdomain, e.g. "test" to have "test.example.com", resp. "\*.test.example.com" to the DNS zone "example.com".
 Replace "10.0.0.1" with the IP from "Traefik Ingress info", and "test.example.com" with your custom domain.
@@ -132,7 +150,11 @@ Given Epinio ingress installation provided you with the following hostname:
 Traefik Ingress info: [{"ip":"10.0.0.1"}]
 ```
 
-*Note* you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
+***
+
+###### Note you can also check the "EXTERNAL-IP"/FQDN by running the command `kubectl get svc -n traefik`.
+
+***
 
 Now you will have to add two A records, for the subdomain, e.g. "test" to have "test.example.com", resp. "\*.test.example.com" to e.g. "/var/lib/named/master/forward/example.com".
 Replace "10.0.0.1" with the IP from "Traefik Ingress info", and "test.example.com" with your custom domain.
@@ -145,18 +167,3 @@ $ORIGIN test.example.com.
 ```
 
 Restart bind and verify that e.g. `> host test.example.com` or `> host epinio.test.example.com` will resolve to "10.0.0.1".
-
-## Troubleshooting
-
-### Storage Class
-
-When pushing an app in a kubernetes cluster with multiple nodes, tekton-staging might fail for "FailedAttachVolume".
-In this case ensure, your default storage class is set to "volumeBindingMode: WaitForFirstConsumer".
-
-E.g.:
-
-```
-> kubectl get sc
-NAME                 PROVISIONER          RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
-longhorn (default)   driver.longhorn.io   Delete          WaitForFirstConsumer   true                   3d4h
-```

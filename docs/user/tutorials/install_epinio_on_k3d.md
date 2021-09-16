@@ -32,7 +32,7 @@ k3d-epinio-server-0   Ready    control-plane,master   38s   v1.20.0+k3s2
 
 ### Install Epinio on the Cluster
 
-Follow [Installation using a MagicDNS Service](./docs/user/tutorials/install_epinio_magicDNS.md) to install Epinio in your test environment.
+Follow [Installation using a MagicDNS Service](./install_epinio_magicDNS.md) to install Epinio in your test environment.
 
 If k3d is inside a VM, in addition to the special k3d setup, explained above, use this system domain instead:
 

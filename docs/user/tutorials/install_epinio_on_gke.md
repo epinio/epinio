@@ -8,7 +8,7 @@ Follow the [quickstart](https://cloud.google.com/kubernetes-engine/docs/quicksta
 
 Installing Epinio in an GKE cluster is done in three steps.
 
-Follow [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md) for test and production environments.
+Follow [Installation using a Custom Domain](./install_epinio_customDNS.md) for test and production environments.
 
 ### Troubleshooting
 

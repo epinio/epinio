@@ -1,14 +1,13 @@
-# MS Azure AKS configuration
+# Rancher RKE2 configuration
 
-## Create an AKS cluster
+## Create an RKE2 cluster
 
-If you don't have an existing cluster, follow the [quickstart](https://docs.microsoft.com/en-us/azure/aks/kubernetes-walkthrough) to create an AKS cluster.
+If you don't have an existing cluster, follow the [quickstart](https://docs.rke2.io/install/quickstart/) to create an RKE2 cluster.
 
-## AKS Prerequisites
+## RKE2 Prerequisites
 
-* Epinio v0.1.0 has been tested with Azure AKS incl. kubernetes version v1.20.9
-* Epinio installation passed on a 2 node cluster with Standard_D3_v2 instances
-* To just try out Epinio, e.g. 2 Standard_D2_v2 are sufficient
+* Epinio v0.1.0 has been tested with Rancher RKE2 incl. kubernetes version v1.21.4+rke2r3
+* Epinio installation passed on a 3 node cluster (1 server, 2 agents) with Longhorn v1.1.1 storage class
 
 ## Install
 
