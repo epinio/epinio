@@ -46,8 +46,8 @@ spec:
   syncInterval: 15
   git:
     # The git repo and branch to track. 
-    repo: https://github.com/scf-samples/12factor
-    branch: scf
+    repo: https://github.com/epinio/example-12factor
+    branch: main
   jobSpec:
     template:
       spec:
