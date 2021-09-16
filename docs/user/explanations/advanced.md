@@ -14,9 +14,9 @@ TODO: Consider doing this in a separate document about the components. Or even, 
   - [Kubed](#kubed)
   - [Google Service Broker](#google-service-broker)
   - [Minibroker](#minibroker)
+  - [Service Catalog](#service-catalog)
   - [Minio](#minio)
   - [Container Registry](#container-registry)
-  - [Service Catalog](#service-catalog)
   - [Tekton](#tekton)
 
 - [Other advanced topics](#other-advanced-topics)
@@ -104,13 +104,69 @@ Cert Manager simplifies the way we handle the various different certificate issu
 You can read more about certificate issuers here: [certificate issuers documentation](../howtos/certificate_issuers.md)
 
 ### Kubed
+
+[Upstream documentation](https://github.com/kubeops/kubed)
+
+Kubed is installed used by Epinio, in order to keep secrets that are needed in more than
+one namespace, synced. For example, the TLS certificate of the [Container Registry](#container-registry) is also needed
+in the Tekton staging namespace, in order to trust the certificate when pushing the application images.
+
+Kubed makes sure that if the source secret changes, the copy will change too.
+
+Warning: this doesn't mean things will still work if you re-generate a secret manually. Secret rotation will be handled by Epinio in the future.
+
 ### Google Service Broker
+
+[Upstream project link](https://github.com/GoogleCloudPlatform/gcp-service-broker)
+
+Many applications need additional services in order to work. Those services could be databases, cache servers, email gateways, log collecting applications or other.
+The various cloud providers already offer such services and being able to use them in the various Platforms as a Service (PaaS) in a unified way,
+gave birth to the concept of the (Open Service Broker API - aka osbapi)[https://www.openservicebrokerapi.org/]. This concept is adopted by various
+providers among which, Google. There seems to be a shift towards the "Operator" pattern, e.g. Google seems to have moved its focus to the [Config Connector](https://cloud.google.com/config-connector/docs/overview) as described at the top of the README [here](https://github.com/googlearchive/k8s-service-catalog).
+
+Since Google service broker still works and since the common interface provided the the [Service Catalog](#service-catalog) makes it easy to integrate, Epinio
+lets the user optionally install the Google service broker with the command [`epinio enable services-google`](../references/cli/epinio_enable_services-google.md).
+
+Warning: This service broker is not actively supported by Google anymore and may be removed from a future Epinio version.
+
 ### Minibroker
-### Minio
-### Container Registry
+
+[Upstream project link](https://github.com/kubernetes-sigs/minibroker)
+
+This is another implementation of the Open Service Broker API which can also be optionally be installed by epinio with the command [`epinio enable services-incluster`](../references/cli/epinio_enable_services-incluster.md).
+
+Minibroker provisions services on the kubernetes cluster where Epinio is also running, using upstream helm charts. This can be useful for local development with Epinio, because it's fast and doesn't cost anything (services run locally).
+
 ### Service Catalog
+
+[Upstream project link](https://github.com/kubernetes-sigs/service-catalog)
+
+The service catalog is the component that collects the various services provided by the various installed service brokers and presents them in a unified way to the user.
+The service catalog is the component behind the [`epinio service list-classes`](../references/cli/epinio_service_list-classes.md) and [`epinio service list-plans`](../references/cli/epinio_service_list-plans.md) commands.
+
+### Minio
+
+[Upstream project link](https://github.com/minio/minio)
+
+Minio is a storage solution that implements the same API as [Amazon S3](https://aws.amazon.com/s3/).
+
+When the user pushes an application using a source code directory (with the [`epinio push`](../references/cli/epinio_push.md) command), the first step taken the by cli is to put the source code in a tarball and upload that to the Epinio API server. The server copies that to the configured S3 storage to be used later during the staging of the application.
+
+When installing Epinio, the user can choose to use an external S3 compatible storage or let Epinio install Minio on the cluster ([See here how](TODO)).
+
+### Container Registry
+
+The result of application staging in Epinio, is a container image. This image is used to create a Kubernetes deployment to run the application code.
+The [Tekton](#tekton) pipeline requires that image to be written on some container registry. Epinio installs a registry on the cluster itself to make the process easy an fast.
+
+Note: In the future, Epinio may offer the option to use an external registry and not install one on the cluster ([GitHub Issue](https://github.com/epinio/epinio/issues/784)).
+
 ### Tekton
 
+- [Upstream project link](https://github.com/tektoncd/pipeline)
+- [Buildpacks pipeline](https://github.com/tektoncd/catalog/tree/main/task/buildpacks/0.3)
+
+Pushing an application to Kubernetes with Epinio, involves various steps. One of them is the staging process, which is the process that creates a container image out of the application source code using [buildpacks](https://buildpacks.io/). Epinio runs the staging process using a [Tekton Pipeline](https://github.com/tektoncd/catalog/tree/main/task/buildpacks/0.3).
 
 ## Other Advanced Topics
 

@@ -41,6 +41,7 @@ Documentation about more practical and solve specific, sometimes advanced, probl
 
 - [Certificate Issuers](user/howtos/certificate_issuers.md)
 - [Provision external IP address for local Kubernetes](user/howtos/provision_external_ip_for_local_kubernetes.md)
+- [Push with gitjob](user/howtos/gitjob_push.md)
 
 ### [References](user/references/)
 
