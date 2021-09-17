@@ -53,7 +53,7 @@ func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
 	}
 	serverURL := apiClient.URL
 
-	logger := tracelog.NewClientLogger().V(3)
+	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
 
 	log := logger.WithName("New")
 	log.Info("Ingress API", "url", serverURL)

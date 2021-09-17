@@ -127,6 +127,8 @@ func (c *Client) ServiceDelete(req models.DeleteRequest, org string, name string
 func (c *Client) ServiceCreate(req models.CatalogCreateRequest, org string) (models.Response, error) {
 	resp := models.Response{}
 
+	c.log.V(5).WithValues("request", req, "org", org).Info("requesting ServiceCreate")
+
 	b, err := json.Marshal(req)
 	if err != nil {
 		return resp, nil
@@ -136,6 +138,8 @@ func (c *Client) ServiceCreate(req models.CatalogCreateRequest, org string) (mod
 	if err != nil {
 		return resp, err
 	}
+
+	c.log.V(5).WithValues("response", req, "org", org).Info("received ServiceCreate")
 
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, errors.Wrap(err, "response body is not JSON")
@@ -148,6 +152,8 @@ func (c *Client) ServiceCreate(req models.CatalogCreateRequest, org string) (mod
 func (c *Client) ServiceCreateCustom(req models.CustomCreateRequest, org string) (models.Response, error) {
 	resp := models.Response{}
 
+	c.log.V(5).WithValues("request", req, "org", org).Info("requesting ServiceCreateCustom")
+
 	b, err := json.Marshal(req)
 	if err != nil {
 		return resp, nil
@@ -157,6 +163,8 @@ func (c *Client) ServiceCreateCustom(req models.CustomCreateRequest, org string)
 	if err != nil {
 		return resp, err
 	}
+
+	c.log.V(5).WithValues("response", req, "org", org).Info("received ServiceCreateCustom")
 
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, errors.Wrap(err, "response body is not JSON")

@@ -51,7 +51,7 @@ func NewInstallClient(ctx context.Context, options *kubernetes.InstallationOptio
 	}
 	uiUI := termui.NewUI()
 
-	logger := tracelog.NewInstallClientLogger()
+	logger := tracelog.NewLogger().WithName("EpinioInstaller")
 	installClient := &InstallClient{
 		kubeClient: cluster,
 		ui:         uiUI,

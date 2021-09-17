@@ -326,7 +326,7 @@ func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
 
 	err = client.CreateCustomService(args[0], args[1:])
 	if err != nil {
-		return errors.Wrap(err, "error creating service")
+		return errors.Wrap(err, "error creating custom service")
 	}
 
 	return nil

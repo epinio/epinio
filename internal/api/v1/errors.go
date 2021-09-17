@@ -80,7 +80,11 @@ func (m MultiError) FirstStatus() int {
 
 // InternalError constructs an API error for server internal issues, from a lower-level error
 func InternalError(err error, details ...string) APIError {
-	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusInternalServerError)
+	return NewAPIError(
+		err.Error(),
+		strings.Join(details, ", ")+fmt.Sprintf("\nServer Backtrace: %+v", err),
+		http.StatusInternalServerError,
+	)
 }
 
 // NewInternalError constructs an API error for server internal issues, from a message

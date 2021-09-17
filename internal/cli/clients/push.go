@@ -94,6 +94,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		appRef.Org,
 		func(response *http.Response, _ []byte, err error) error {
 			if response.StatusCode == http.StatusConflict {
+				details.WithValues("response", response).Info("app exists conflict")
 				c.ui.Normal().Msg("Application exists, updating ...")
 				return nil
 			}
@@ -128,7 +129,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		log.V(3).Info("upload response", "response", upload)
 
 		blobUID = upload.BlobUID
+
 	} else if params.GitRev != "" {
+		c.ui.Normal().Msg("Importing the application sources from Git ...")
+
 		gitRef := models.GitRef{
 			URL:      source,
 			Revision: params.GitRev,
@@ -143,7 +147,8 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	stageID := ""
 	var stageResponse *models.StageResponse
 	if params.Docker == "" {
-		c.ui.Normal().Msg("Staging application ...")
+		c.ui.Normal().Msg("Staging application via docker image ...")
+
 		req := models.StageRequest{
 			App:          appRef,
 			BlobUID:      blobUID,
