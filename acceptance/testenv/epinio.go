@@ -10,7 +10,6 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/machine"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/helpers"
 	"github.com/onsi/gomega"
 	"github.com/pkg/errors"
 )
@@ -73,23 +72,6 @@ func EpinioYAML() string {
 	return os.ExpandEnv("${HOME}/.config/epinio/config.yaml")
 }
 
-func CheckEpinio() error {
-	out, err := helpers.Kubectl("get", "pods",
-		"--namespace", "epinio",
-		"--selector", "app.kubernetes.io/name=epinio-server")
-	if err == nil {
-		running, err := regexp.Match(`epinio-server.*Running`, []byte(out))
-		if err != nil {
-			return err
-		}
-		if running {
-			return nil
-		}
-	}
-
-	return errors.New("epinio installation not found")
-}
-
 // BuildEpinio builds the epinio binaries for the server and if platforms are different also for the CLI
 func BuildEpinio() {
 	targets := []string{"embed_files", "build-linux-amd64"}
@@ -102,15 +84,6 @@ func BuildEpinio() {
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
 	}
-}
-
-func ExpectGoodInstallation(epinioBinary string) {
-	info, err := proc.Run("", false, epinioBinary, "info")
-	gomega.Expect(err).ToNot(gomega.HaveOccurred(), info)
-	gomega.Expect(info).To(gomega.Or(
-		gomega.MatchRegexp("Kubernetes Version: v1.21"),
-		gomega.MatchRegexp("Kubernetes Version: v1.20"),
-		gomega.MatchRegexp("Kubernetes Version: v1.19")))
 }
 
 func CheckDependencies() error {

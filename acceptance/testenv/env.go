@@ -17,7 +17,4 @@ func SetupEnv() {
 	}
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	os.Setenv("SKIP_SSL_VERIFICATION", "true")
-	if os.Getenv("KUBECONFIG") == "" {
-		os.Setenv("KUBECONFIG", "~/.kube/config")
-	}
 }
