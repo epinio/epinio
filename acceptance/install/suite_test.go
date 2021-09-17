@@ -35,7 +35,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	testenv.CreateRegistrySecret()
 
 	return []byte(strconv.Itoa(int(time.Now().Unix())))
-}, func(randomSuffix []byte) {
+}, func(_ []byte) {
 	testenv.SetRoot("../..")
 	testenv.SetupEnv()
 

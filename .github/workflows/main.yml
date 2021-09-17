@@ -85,7 +85,7 @@ jobs:
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-          make install
+          make prepare_ci_environment_k3d
           make test-acceptance-cli
 
   acceptance-api:
@@ -130,7 +130,7 @@ jobs:
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-          make install
+          make prepare_ci_environment_k3d
           make test-acceptance-api
 
   acceptance-apps:
@@ -175,7 +175,7 @@ jobs:
           make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
-          make install
+          make prepare_ci_environment_k3d
           make test-acceptance-apps
 
   acceptance-install:

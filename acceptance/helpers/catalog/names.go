@@ -3,6 +3,7 @@ package catalog
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"time"
 )
@@ -20,7 +21,7 @@ func NewAppName() string {
 }
 
 func NewServiceName() string {
-	return "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
+	return "service-" + strconv.Itoa(int(time.Now().Nanosecond())) + strconv.Itoa(rand.Int()) // nolint:gosec // Non-crypto use
 }
 
 func GetServiceBindingName(orgName, serviceName, appName string) string {
