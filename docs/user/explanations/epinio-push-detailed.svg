@@ -1,12 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    version="1.1"
    viewBox="0 0 2504.4252 1380"
    fill="none"
@@ -15,9 +8,16 @@
    stroke-miterlimit="10"
    id="svg240"
    sodipodi:docname="epinio-push-detailed.svg"
-   inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
+   inkscape:version="1.1 (c68e22c387, 2021-05-23)"
    width="2504.4253"
-   height="1380">
+   height="1380"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
   <metadata
      id="metadata246">
     <rdf:RDF>
@@ -41,22 +41,23 @@
      guidetolerance="10"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:window-width="1920"
-     inkscape:window-height="755"
+     inkscape:window-width="1916"
+     inkscape:window-height="1019"
      id="namedview242"
      showgrid="false"
      inkscape:zoom="0.37979691"
-     inkscape:cx="1016.9599"
-     inkscape:cy="466.62478"
+     inkscape:cx="1320.4425"
+     inkscape:cy="466.03855"
      inkscape:window-x="0"
-     inkscape:window-y="36"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg240"
      inkscape:document-rotation="0"
      fit-margin-top="0"
      fit-margin-left="0"
      fit-margin-right="0"
-     fit-margin-bottom="0" />
+     fit-margin-bottom="0"
+     inkscape:pagecheckerboard="0" />
   <clipPath
      id="p.0">
     <path
@@ -227,63 +228,63 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="411.96643"
+       x="367.26917"
        y="325.30356"
        id="text1308"><tspan
          sodipodi:role="line"
          id="tspan1306"
-         x="411.96643"
-         y="325.30356">Gitea</tspan></text>
+         x="367.26917"
+         y="325.30356">S3 (Minio)</tspan></text>
     <rect
        style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.724883;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
        id="rect1310"
        width="219.06796"
        height="57.236774"
-       x="350.98938"
+       x="349.04379"
        y="358.3562" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="412.65225"
+       x="410.01331"
        y="397.20895"
        id="text1314"><tspan
          sodipodi:role="line"
          id="tspan1312"
-         x="412.65225"
+         x="410.01331"
          y="397.20895">App 1</tspan></text>
     <rect
        style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.724883;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
        id="rect1310-3"
        width="219.06796"
        height="57.236774"
-       x="350.98938"
+       x="349.04379"
        y="430.76248" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="409.27335"
+       x="407.39612"
        y="469.61523"
        id="text1314-6"><tspan
          sodipodi:role="line"
          id="tspan1312-0"
-         x="409.27335"
+         x="407.39612"
          y="469.61523">App 2</tspan></text>
     <rect
        style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.724883;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
        id="rect1310-3-6"
        width="219.06796"
        height="57.236774"
-       x="350.98938"
+       x="349.04379"
        y="501.02982" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       x="444.91788"
+       x="441.82971"
        y="531.58179"
        id="text1314-6-2"><tspan
          sodipodi:role="line"
          id="tspan1312-0-6"
-         x="444.91788"
+         x="441.82971"
          y="531.58179">...</tspan></text>
   </g>
   <g
@@ -294,7 +295,7 @@
        id="rect1388"
        width="348.50516"
        height="342.71991"
-       x="312.62839"
+       x="323.85339"
        y="604.65027" />
     <text
        xml:space="preserve"
@@ -308,14 +309,14 @@
          y="654.07959">Tekton pipeline</tspan></text>
     <g
        id="g1456"
-       transform="translate(34.203027,1.4755104)">
+       transform="translate(-0.00428564,1.4755104)">
       <rect
-         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.692456;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+         style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.85424;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
          id="rect1394"
-         width="199.14536"
-         height="75.082108"
-         x="346.16602"
-         y="675.01526" />
+         width="303.72665"
+         height="74.920326"
+         x="346.24692"
+         y="675.09613" />
       <text
          xml:space="preserve"
          style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
@@ -325,11 +326,11 @@
            sodipodi:role="line"
            id="tspan1396"
            x="397.17426"
-           y="727.36102">clone</tspan></text>
+           y="727.36102">fetch sources</tspan></text>
     </g>
     <g
        id="g1446"
-       transform="translate(-5.7470381,127.98243)">
+       transform="translate(13.636492,127.98243)">
       <rect
          style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.692456;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
          id="rect1394-1"
@@ -350,7 +351,7 @@
     </g>
     <g
        id="g1451"
-       transform="translate(-13.172843,-70.213387)">
+       transform="translate(5.0064871,-70.213387)">
       <rect
          style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.692456;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
          id="rect1394-9"
@@ -380,8 +381,8 @@
      d="m 1014.9852,468.96073 81.2968,121.00545"
      id="path1477" />
   <path
-     style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.96544px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-     d="M 1375.3394,523.29916 1697.2959,315.76297"
+     style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.797107px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     d="M 1429.5986,485.91189 1697.2959,315.76297"
      id="path1479"
      sodipodi:nodetypes="cc" />
   <g
@@ -715,8 +716,80 @@
      sodipodi:nodetypes="ccc" />
   <path
      style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.96544px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-     d="m 1691.8443,298.49316 6.0255,4.5141 -5.0784,4.82495"
+     d="m 1811.5798,298.49316 6.0255,4.5141 -5.0784,4.82495"
      id="path1834" />
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.89999998;stroke-miterlimit:10;stroke-dasharray:2.69999993,2.69999993;stroke-opacity:1;stroke-dashoffset:0"
+     id="rect1304-36"
+     width="258.25885"
+     height="295.11771"
+     x="2231.9702"
+     y="30.67168" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     x="2287.2031"
+     y="80.870354"
+     id="text1308-75"><tspan
+       sodipodi:role="line"
+       id="tspan1306-3"
+       x="2287.2031"
+       y="80.870354">AWS S3</tspan></text>
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.724883;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+     id="rect1310-5"
+     width="219.06796"
+     height="57.236774"
+     x="2251.5657"
+     y="113.923" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     x="2312.5352"
+     y="152.77574"
+     id="text1314-62"><tspan
+       sodipodi:role="line"
+       id="tspan1312-9"
+       x="2312.5352"
+       y="152.77574">App 1</tspan></text>
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.724883;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+     id="rect1310-3-1"
+     width="219.06796"
+     height="57.236774"
+     x="2251.5657"
+     y="186.32927" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     x="2309.918"
+     y="225.18202"
+     id="text1314-6-27"><tspan
+       sodipodi:role="line"
+       id="tspan1312-0-0"
+       x="2309.918"
+       y="225.18202">App 2</tspan></text>
+  <rect
+     style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:0.724883;stroke-miterlimit:10;stroke-dasharray:none;stroke-opacity:1"
+     id="rect1310-3-6-9"
+     width="219.06796"
+     height="57.236774"
+     x="2251.5657"
+     y="256.59662" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-weight:normal;font-size:40px;line-height:125%;font-family:sans-serif;letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     x="2344.3516"
+     y="287.14859"
+     id="text1314-6-2-3"><tspan
+       sodipodi:role="line"
+       id="tspan1312-0-6-6"
+       x="2344.3516"
+       y="287.14859">...</tspan></text>
+  <path
+     style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+     d="m 2357.7422,138.88986 6.2412,4.67569 -5.2602,4.99767"
+     id="path1834-0" />
   <path
      style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:0.96544px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
      d="m 1377.3135,516.66005 -1.9741,6.63911 6.5155,1.1321"
@@ -819,4 +892,23 @@
      d="m 511.60475,671.43748 -0.19449,5.69216 -5.82279,-1.37094"
      id="path1832-2-6"
      sodipodi:nodetypes="ccc" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:10;stroke-dasharray:3,3;stroke-dashoffset:0"
+     d="M 1939.4878,194.01504 2231.9702,30.67168"
+     id="path2953" />
+  <path
+     style="fill:none;stroke:#000000;stroke-width:1;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:10;stroke-dasharray:3,3;stroke-dashoffset:0"
+     d="m 1939.4878,478.9334 292.4824,-153.144"
+     id="path2955" />
+  <text
+     xml:space="preserve"
+     style="font-size:40px;line-height:1.25;font-family:Roboto;-inkscape-font-specification:Roboto;letter-spacing:0px;word-spacing:0px;fill:#000000"
+     x="1649.5103"
+     y="1207.2832"
+     id="text6986"
+     transform="rotate(-27.386015)"><tspan
+       sodipodi:role="line"
+       id="tspan6984"
+       x="1649.5103"
+       y="1207.2832">alternatively</tspan></text>
 </svg>

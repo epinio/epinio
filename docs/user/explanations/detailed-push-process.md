@@ -2,7 +2,7 @@
 
 Epinio strives to make use of well supported, well known, and loved projects instead of re-inventing the wheel ([link](principles.md#guidelines-soft-principles)).
 But while doing so, it makes sure those components are deployed correctly and work together seamlessly. Let's go through the `epinio push` process in detail,
-so you can understand what each components does.
+so you can understand what each components does. You may also want to read the description of every component outside the push process here: [Epinio components](advanced.md#epinio-installed-components).
 
 You can see an image that visualises the process later in this page. Refer to it while reading the text to help you understand the process more.
 The numbers on the various arrows on the image indicate the order of the various steps.
@@ -11,12 +11,12 @@ The numbers on the various arrows on the image indicate the order of the various
 
 Epinio exposes an API server running inside the kubernetes cluster for all clients including cli to talk to it. When you run the `epinio push` command, the first thing the cli is going to do, is to hit the relevant api endpoint for pushing apps. (1a) There is a Traefik ingress which sits in front of the Epinio API server which does BasicAuth for all the requests. (1b) After successful authentication, it routes the request to the Epinio API server. The cli puts your code inside a tarball and sends it to the `upload` endpoint of the Epinio API server which is running inside the Kubernetes cluster.
 
-## 2. Pushing the Code to gitea
+## 2. Copying the code to S3
 
-One of the components Epinio installs on your cluster is [Gitea](https://gitea.io/en-us/). Gitea is an Open Source code hosting solution. Among other things it allows
-us to create repositories using API calls. Those repositories are used to store your application's code.
+One of the components Epinio installs on your cluster is [Minio](https://min.io/) (unless you [configured external S3](../howtos/setup-external-s3.md)).
+Minio is an S3 compatible storage solution. Epinio uses it to store the application's source code. It will later be used by the staging pipeline.
 
-So the first thing the Epinio API server does when it receives the upload request (the previous step), is to create a new project on Gitea. Then it uses `git` to push your code there.
+So the first thing the Epinio API server does when it receives the upload request (the previous step), is to store the source code tarball on S3.
 
 ## 3. Staging the App
 
@@ -26,9 +26,9 @@ When the upload request is complete, the cli will send a request to the `stage` 
 
 When the Epinio API server receives the stage request, it will create a [`PipelineRun`](https://github.com/tektoncd/pipeline/blob/main/docs/pipelineruns.md) that will run the staging Tekton pipeline using the version of the code referenced in the request. This pipeline has 3 steps. Their role is described in the following 3 sections.
 
-## 5. Clone
+## 5. Fetch the code
 
-The first step of the staging Tekton pipeline clones the code from Gitea to a [workspace](https://github.com/tektoncd/pipeline/blob/main/docs/workspaces.md). This makes the code available to the following steps.
+The first step of the staging Tekton pipeline, downloads the code from the S3 storage to a [workspace](https://github.com/tektoncd/pipeline/blob/main/docs/workspaces.md). This makes the code available to the following steps.
 
 ## 6. Stage
 
@@ -48,7 +48,6 @@ The last step of the staging Tekton pipeline creates the runtime Kubernetes reso
 ## 8. Pull Image
 
 The Deployment uses the image that was pushed as part of the staging step (see arrow 6). Now, the kubelet will pull the image from the registry for the deployment resource to use it.
-
 
 You can read how these resources work in Kubernetes following the provided links but if you have to know one thing is that Ingress is the thing that describes how a request that uses the Application's url is routed to the application container. In Kubernetes, the thing that reads that description and implements the routing is called an Ingress Controller. Such an Ingress Controller is provided by [Traefik](https://doc.traefik.io/traefik/providers/kubernetes-ingress/).
 
