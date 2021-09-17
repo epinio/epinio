@@ -90,7 +90,7 @@ func (c *Client) AppShow(org string, appName string) (models.App, error) {
 }
 
 // AppUpdate updates an app
-func (c *Client) AppUpdate(req models.UpdateAppRequest, org string, appName string) (models.Response, error) {
+func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, org string, appName string) (models.Response, error) {
 	var resp models.Response
 
 	b, err := json.Marshal(req)

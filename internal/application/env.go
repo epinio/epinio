@@ -11,6 +11,22 @@ import (
 	"k8s.io/client-go/util/retry"
 )
 
+// EnvironmentNames returns the names of all environment variables which are set on the named application by users.
+// It does not return values.
+func EnvironmentNames(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
+	evSecret, err := envLoad(ctx, cluster, appRef)
+	if err != nil {
+		return nil, err
+	}
+
+	result := []string{}
+	for name := range evSecret.Data {
+		result = append(result, name)
+	}
+
+	return result, nil
+}
+
 // Environment returns the environment variables and their values which are set on the named application by users
 func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableList, error) {
 	evSecret, err := envLoad(ctx, cluster, appRef)
@@ -34,8 +50,12 @@ func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models
 // will have the specified value. If the application is active the
 // workload is restarted to update it to the new settings. The
 // function will __not__ wait on this to complete.
-func EnvironmentSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, assignments models.EnvVariableList) error {
+func EnvironmentSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, assignments models.EnvVariableList, replace bool) error {
 	return envUpdate(ctx, cluster, appRef, func(evSecret *v1.Secret) {
+		// Replacement is adding to a clear structure
+		if replace {
+			evSecret.Data = make(map[string][]byte)
+		}
 		for _, ev := range assignments {
 			evSecret.Data[ev.Name] = []byte(ev.Value)
 		}
@@ -53,18 +73,6 @@ func EnvironmentUnset(ctx context.Context, cluster *kubernetes.Cluster, appRef m
 	})
 }
 
-// envNames is a helper for envUpdate, it returns the names of all
-// environment variable held by the given kube secret.
-func envNames(ev *v1.Secret) []string {
-	names := make([]string, len(ev.Data))
-	i := 0
-	for k := range ev.Data {
-		names[i] = k
-		i++
-	}
-	return names
-}
-
 // envUpdate is the helper for the public function encapsulating the
 // read/modify/write cycle necessary to update the application's kube
 // resource holding the application's environment, and the logic to
@@ -72,9 +80,7 @@ func envNames(ev *v1.Secret) []string {
 func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 	appRef models.AppRef, modifyEnvironment func(*v1.Secret)) error {
 
-	varNames := []string{}
-
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		evSecret, err := envLoad(ctx, cluster, appRef)
 		if err != nil {
 			return err
@@ -89,43 +95,14 @@ func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Org).Update(
 			ctx, evSecret, metav1.UpdateOptions{})
 
-		// Pass current set of environment variables out for
-		// use by the workload restart
-		varNames = envNames(evSecret)
-
 		return err
 	})
-
-	if err != nil {
-		return err
-	}
-
-	// Restart the app workload, if it exists. We ignore a missing deployment
-	// as this just means that the EV changes will simply stand ready for
-	// when the workload is actually launched.
-
-	app, err := Lookup(ctx, cluster, appRef.Org, appRef.Name)
-	if err != nil {
-		return err
-	}
-	if app != nil {
-		workload := NewWorkload(cluster, appRef)
-		err = workload.EnvironmentChange(ctx, varNames)
-		if err != nil {
-			if !apierrors.IsNotFound(err) {
-				return nil
-			}
-			return err
-		}
-	}
-
-	return nil
 }
 
 // envLoad locates and returns the kube secret storing the referenced
 // application's environment. If necessary it creates that secret.
 func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
-	secretName := appRef.EnvSecret()
+	secretName := appRef.MakeEnvSecretName()
 
 	evSecret, err := cluster.GetSecret(ctx, appRef.Org, secretName)
 	if err != nil {

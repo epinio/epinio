@@ -406,10 +406,11 @@ var _ = Describe("Apps", func() {
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 
 			By("checking if the servicebinding is deleted")
-			serviceBindings, err := helpers.Kubectl("get", "servicebindings",
-				"--namespace", org)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(serviceBindings).NotTo(ContainSubstring(catalog.GetServiceBindingName(org, serviceName, appName)))
+			Eventually(func() string {
+				out, _ := helpers.Kubectl("get", "servicebindings",
+					"--namespace", org)
+				return out
+			}, "1m").ShouldNot(ContainSubstring(catalog.GetServiceBindingName(org, serviceName, appName)))
 
 			env.DeleteService(serviceName)
 		})

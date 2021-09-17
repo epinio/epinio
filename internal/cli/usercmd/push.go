@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -21,13 +20,12 @@ import (
 )
 
 type PushParams struct {
-	Instances    *int32
-	Services     []string
-	Docker       string
-	GitRev       string
-	BuilderImage string
-	Name         string
-	Path         string
+	Configuration models.ApplicationUpdateRequest // instances, services, EVs
+	Docker        string
+	GitRev        string
+	BuilderImage  string
+	Name          string
+	Path          string
 }
 
 // Push pushes an app
@@ -66,11 +64,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return err
 	}
 
-	services := uniqueStrings(params.Services)
-
-	if len(services) > 0 {
-		sort.Strings(services)
-		msg = msg.WithStringValue("Services:", strings.Join(services, ", "))
+	if len(params.Configuration.Services) > 0 {
+		msg = msg.WithStringValue("Services:",
+			strings.Join(params.Configuration.Services, ", "))
 	}
 
 	msg.Msg("About to push an application with given name and sources into the specified namespace")
@@ -87,7 +83,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 	c.ui.Normal().Msg("Create the application resource ...")
 
-	request := models.ApplicationCreateRequest{Name: appRef.Name}
+	request := models.ApplicationCreateRequest{
+		Name:          appRef.Name,
+		Configuration: params.Configuration,
+	}
 
 	_, err := c.API.AppCreate(
 		request,
@@ -96,6 +95,11 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 			if response.StatusCode == http.StatusConflict {
 				details.WithValues("response", response).Info("app exists conflict")
 				c.ui.Normal().Msg("Application exists, updating ...")
+
+				_, err := c.API.AppUpdate(params.Configuration, appRef.Org, appRef.Name)
+				if err != nil {
+					return err
+				}
 				return nil
 			}
 			return err
@@ -171,8 +175,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 	c.ui.Normal().Msg("Deploying application ...")
 	deployRequest := models.DeployRequest{
-		App:       appRef,
-		Instances: params.Instances,
+		App: appRef,
 	}
 	// If docker param is specified, then we just take it into ImageURL
 	// If not, we take the one from the staging response
@@ -192,39 +195,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	err = c.waitForApp(appRef)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
-	}
-
-	// TODO : This services work should be moved into the stage
-	// request, and server side.
-
-	if len(services) > 0 {
-		c.ui.Note().Msg("Binding Services")
-
-		// Application is up, bind the services.
-		// This will restart the application.
-		// TODO: See #347 for future work
-
-		request := models.BindRequest{
-			Names: services,
-		}
-
-		br, err := c.API.ServiceBindingCreate(request, appRef.Org, appRef.Name)
-		if err != nil {
-			return err
-		}
-
-		msg := c.ui.Note()
-		text := "Done"
-		if len(br.WasBound) > 0 {
-			text = text + ", With Already Bound Services"
-			msg = msg.WithTable("Name")
-
-			for _, wasbound := range br.WasBound {
-				msg = msg.WithTableRow(wasbound)
-			}
-		}
-
-		msg.Msg(text)
 	}
 
 	c.ui.Success().

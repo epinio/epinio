@@ -883,7 +883,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 					})
 				})
 
-				It("returns a 'bad request' when the service is not bound", func() {
+				It("returns a 'ok' even when the service is not bound (idempotency)", func() {
 					response, err := env.Curl("DELETE",
 						fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s/servicebindings/%s",
 							serverURL, org, app, service),
@@ -893,12 +893,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 					defer response.Body.Close()
 					bodyBytes, err := ioutil.ReadAll(response.Body)
-					Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+					Expect(string(bodyBytes)).To(Equal(jsOK))
 					Expect(err).ToNot(HaveOccurred())
-					var responseBody map[string][]apiv1.APIError
-					json.Unmarshal(bodyBytes, &responseBody)
-					Expect(responseBody["errors"][0].Title).To(
-						Equal("Service '" + service + "' is not bound"))
 				})
 			})
 		})

@@ -60,17 +60,26 @@ type BindResponse struct {
 	WasBound []string `json:"wasbound"`
 }
 
-// ApplicationCreateRequest  represents and contains the data needed to
-// create an application
+// ApplicationCreateRequest represents and contains the data needed to
+// create an application (at rest), possibly with presets (services)
 type ApplicationCreateRequest struct {
-	Name string `json:"name"`
+	Name          string                   `json:"name"`
+	Configuration ApplicationUpdateRequest `json:"configuration"`
 }
 
-// UpdateAppRequest represents and contains the data needed to update
+// ApplicationUpdateRequest represents and contains the data needed to update
 // an application. Specifically to modify the number of replicas to
-// run.
-type UpdateAppRequest struct {
-	Instances int32 `json:"instances"`
+// run, and the services bound to it.
+//
+// [INSTANCES CODING]
+// ATTENTION: Note on semantics for `Instances`
+// `Instances == 0` => Create default instances, update is no op
+// `Instances > 0`  => Value is desired number of instances __+ 1__.
+//                     IOW `Instances == 1` means that app should be scaled to 0 instances.
+type ApplicationUpdateRequest struct {
+	Instances   int32           `json:"instances"`
+	Services    []string        `json:"services"`
+	Environment EnvVariableList `json:"environment"`
 }
 
 type ImportGitResponse struct {
@@ -100,11 +109,12 @@ type StageResponse struct {
 }
 
 // DeployRequest represents and contains the data needed to deploy an application
+// Note that the overall application configuration (instances, services, EVs) is
+// already known server side, through AppCreate/AppUpdate requests.
 type DeployRequest struct {
-	App       AppRef   `json:"app,omitempty"`
-	Instances *int32   `json:"instances,omitempty"`
-	Stage     StageRef `json:"stage,omitempty"`
-	ImageURL  string   `json:"image,omitempty"`
+	App      AppRef   `json:"app,omitempty"`
+	Stage    StageRef `json:"stage,omitempty"`
+	ImageURL string   `json:"image,omitempty"`
 }
 
 // DeployResponse represents the server's response to a successful app deployment

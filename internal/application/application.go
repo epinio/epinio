@@ -93,6 +93,28 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
+// Lookup locates the named application (and org).
+func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, appName string) (*models.App, error) {
+	meta := models.NewAppRef(appName, org)
+
+	ok, err := Exists(ctx, cluster, meta)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, nil
+	}
+
+	app := meta.App()
+
+	err = fetch(ctx, cluster, app)
+	if err != nil {
+		return nil, err
+	}
+
+	return app, nil
+}
+
 // ListAppRefs returns an app reference for every application resource in the org's namespace
 func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]models.AppRef, error) {
 	client, err := cluster.ClientApp()
@@ -113,101 +135,35 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, org string) (
 	return apps, nil
 }
 
-// Lookup locates the workload of the named application (and org). The
-// result is nil if the application exists and is not active.
-func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, lookupApp string) (*models.App, error) {
-	apps, err := List(ctx, cluster, org)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, app := range apps {
-		if app.Name == lookupApp {
-			return &app, nil // It's already "Complete()" by the List call above
-		}
-	}
-
-	return nil, nil
-}
-
-// List returns a list of all available workloads (in the org)
+// List returns a list of all available apps (in the org)
 func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
-	listOptions := metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/component=application,app.kubernetes.io/managed-by=epinio",
-	}
-
-	result := models.AppList{}
 
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return result, err
+		return models.AppList{}, err
 	}
 	if !exists {
-		return result, fmt.Errorf("namespace %s does not exist", org)
-	}
-
-	deployments, err := cluster.Kubectl.AppsV1().Deployments(org).List(ctx, listOptions)
-	if err != nil {
-		return result, err
-	}
-
-	for _, deployment := range deployments.Items {
-		w := NewWorkload(cluster, models.NewAppRef(deployment.ObjectMeta.Name, org))
-		appEpinio, err := w.Complete(ctx)
-		if err != nil {
-			return result, err
-		}
-
-		result = append(result, *appEpinio)
-	}
-
-	return result, nil
-}
-
-// ListApps returns a list of all available apps (in the org)
-func ListApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
-	result := models.AppList{}
-
-	exists, err := organizations.Exists(ctx, cluster, org)
-	if err != nil {
-		return result, err
-	}
-	if !exists {
-		return result, fmt.Errorf("namespace %s does not exist", org)
+		return models.AppList{}, fmt.Errorf("namespace %s does not exist", org)
 	}
 
 	// Get references for all apps, deployed or not
 
 	appRefs, err := ListAppRefs(ctx, cluster, org)
 	if err != nil {
-		return result, err
+		return models.AppList{}, err
 	}
 
-	// Get apps with workloads
-
-	apps, err := List(ctx, cluster, org)
-	if err != nil {
-		return result, err
-	}
-
-	// Fuse the two, to get a list of all apps. The undeployed apps have partially filled
-	// structure. The fields related to deployment are left unfilled.  To fuse the deployed apps
-	// are mapped for quick access by name, and then an iteration over the refs assembles the
-	// final output, taking either a deployed app, or creating a partial filled.
-
-	appMap := make(map[string]models.App)
-	for _, app := range apps {
-		appMap[app.Name] = app
-	}
+	result := models.AppList{}
 
 	for _, ref := range appRefs {
-		app, ok := appMap[ref.Name]
-		if !ok {
-			app = *models.NewApp(ref.Name, ref.Org)
-			app.Status = `Inactive, without workload. Launch via "epinio app push"`
+		app := ref.App()
+
+		err = fetch(ctx, cluster, app)
+		if err != nil {
+			return models.AppList{}, err
 		}
 
-		result = append(result, app)
+		result = append(result, *app)
 	}
 
 	return result, nil
@@ -223,23 +179,8 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 		return err
 	}
 
-	// get application workload, if any, and its bounded services, if any
-	app, err := Lookup(ctx, cluster, appRef.Org, appRef.Name)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return err
-	}
-
-	// delete all service bindings
-	if app != nil {
-		workload := NewWorkload(cluster, appRef)
-		err = workload.UnbindAll(ctx, cluster, app.BoundServices)
-		if err != nil {
-			return err
-		}
-	}
-
 	// delete application resource, will cascade and delete deployment,
-	// ingress, service and certificate
+	// ingress, service and certificate, environment variables, bindings
 	err = client.Namespace(appRef.Org).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
@@ -271,7 +212,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 // DeleteStagePVC removes the kube PVC resource which was used to hold the application sources for Tekton, during staging.
 func DeleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	return cluster.Kubectl.CoreV1().
-		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.PVCName(), metav1.DeleteOptions{})
+		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
 // Unstage deletes either all PipelineRuns of the named application, or all but the current.
@@ -376,4 +317,51 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 
 	logger.Info("fetch")
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
+}
+
+// fetch is a common helper for Lookup and List. It fetches all
+// information about an application from the cluster.
+func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
+	// Consider delayed loading, i.e. on first access, or for transfer (API response).
+	// Consider objects for the information which hide the defered loading.
+	// These could also have the necessary modifier methods.
+	// See sibling files scale.go, env.go, services.go.
+	// Defered at the moment, the PR is big enough already.
+
+	environment, err := Environment(ctx, cluster, app.Meta)
+	if err != nil {
+		return err
+	}
+
+	instances, err := Scaling(ctx, cluster, app.Meta)
+	if err != nil {
+		return err
+	}
+
+	services, err := BoundServiceNames(ctx, cluster, app.Meta)
+	if err != nil {
+		return err
+	}
+
+	app.Configuration.Instances = instances
+	app.Configuration.Services = services
+	app.Configuration.Environment = environment
+
+	// Check if app is active, and if yes, fill the associated parts.
+	// May have to straighten the workload structure a bit further.
+
+	wl := NewWorkload(cluster, app.Meta)
+
+	deployment, err := wl.Deployment(ctx)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return err
+		}
+		// App is inactive, no deployment, no workload
+		return nil
+	}
+
+	app.Workload = wl.Get(ctx, deployment)
+
+	return nil
 }

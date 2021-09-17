@@ -6,6 +6,7 @@ import (
 	"context"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Service is the interface for access to any service, whether
@@ -21,7 +22,7 @@ type Service interface {
 	// GetBinding returns a kube secret resource representing the
 	// binding between the service instance and the specified
 	// application.
-	GetBinding(ctx context.Context, appName string, username string) (*corev1.Secret, error)
+	GetBinding(ctx context.Context, appName string, owner metav1.OwnerReference, username string) (*corev1.Secret, error)
 	// DeleteBinding removes the binding between the service
 	// instance and the specified application.
 	DeleteBinding(ctx context.Context, appName, org string) error

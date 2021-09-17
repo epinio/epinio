@@ -74,9 +74,6 @@ var _ = Describe("Catalog Services", func() {
 			out, err = env.Epinio("", "service", "delete", "--unbind", serviceName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("PREVIOUSLY BOUND TO"))
-			Expect(out).To(MatchRegexp(appName))
-
 			Expect(out).To(MatchRegexp("Service Removed"))
 
 			env.VerifyAppServiceNotbound(appName, serviceName, org, 1)

@@ -111,7 +111,7 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 		var appNames []string
 
 		for _, app := range appsOf[service.Name()] {
-			appNames = append(appNames, app.Name)
+			appNames = append(appNames, app.Meta.Name)
 		}
 		responseData = append(responseData, models.ServiceResponse{
 			Name:      service.Name(),
@@ -322,6 +322,10 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	serviceName := params.ByName("service")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -367,7 +371,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 	}
 	if boundApps, found := appsOf[service.Name()]; found {
 		for _, app := range boundApps {
-			boundAppNames = append(boundAppNames, app.Name)
+			boundAppNames = append(boundAppNames, app.Meta.Name)
 		}
 
 		if !deleteRequest.Unbind {
@@ -375,10 +379,9 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		}
 
 		for _, app := range boundApps {
-			wl := application.NewWorkload(cluster, app.AppRef())
-			err = wl.Unbind(ctx, service)
-			if err != nil {
-				return InternalError(err)
+			apiErr := DeleteBinding(ctx, cluster, org, app.Meta.Name, serviceName, username)
+			if apiErr != nil {
+				return apiErr
 			}
 		}
 	}
@@ -414,17 +417,11 @@ func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string
 	}
 
 	for _, app := range apps {
-		w := application.NewWorkload(cluster, app.AppRef())
-		bound, err := w.Services(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, bonded := range bound {
-			bname := bonded.Name()
-			if theapps, found := appsOf[bname]; found {
-				appsOf[bname] = append(theapps, app)
+		for _, bound := range app.Configuration.Services {
+			if theapps, found := appsOf[bound]; found {
+				appsOf[bound] = append(theapps, app)
 			} else {
-				appsOf[bname] = models.AppList{app}
+				appsOf[bound] = models.AppList{app}
 			}
 		}
 	}

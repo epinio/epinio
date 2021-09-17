@@ -7,7 +7,7 @@ import (
 )
 
 // AppCreate creates an app without a workload
-func (c *EpinioClient) AppCreate(appName string) error {
+func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -20,7 +20,10 @@ func (c *EpinioClient) AppCreate(appName string) error {
 
 	details.Info("create application")
 
-	request := models.ApplicationCreateRequest{Name: appName}
+	request := models.ApplicationCreateRequest{
+		Name:          appName,
+		Configuration: appConfig,
+	}
 
 	_, err := c.API.AppCreate(
 		request,
