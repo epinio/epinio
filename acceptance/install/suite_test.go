@@ -3,9 +3,7 @@ package install_test
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"testing"
-	"time"
 
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/onsi/ginkgo/config"
