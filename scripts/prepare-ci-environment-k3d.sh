@@ -39,7 +39,6 @@ EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 "${EPINIO_BINARY}" install --skip-default-name
 
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh
-sleep 10
 
 # Create Org
 "${EPINIO_BINARY}" namespace create workspace
