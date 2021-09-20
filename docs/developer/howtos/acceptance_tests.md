@@ -18,27 +18,25 @@ focus a run on specific tests, as per ginkgo's documentation.
 
 ### Environment variables
 
+#### Required
+
+   1. `KUBCONFIG`: This will give access the kubernetes cluster.
+   
+   2. `EPINIO_CONFIG`: This will provide credentials to be used by tests
+      to access the epinio server
+   
+   3. `EPINIO_BINARY`: This will provide the path of epinio binary to be
+      used in the tests.
+
+#### Optional
+
   1. `GINKGO_NODES`: The number of ginkgo nodes to distribute the
      tests across. The default is `2`. The CI flows use `8`.
 
-  1. `FLAKE_ATTEMPTS`: The number of tries to perform when a test
+  2. `FLAKE_ATTEMPTS`: The number of tries to perform when a test
      fails, to ensure that the failure is real, and not a flake,
      i.e. caused by a transient environmental condition. The default
      is `2`.
-
-  1. `EPINIO_SKIP_PATCH`: When present and not empty the test startup
-     will skip over patching the epinio server pod of the test
-     cluster. This should be used when the test cluster still has a
-     epinio installation from a previous run. See `tmp/skip_cleanup`
-     as well.
-
-  1. `EPINIO_K3D_INSTALL_ARGS`: When present and not empty the content
-     is passed to the `k3d` command used to create a new test
-     cluster. This can be used to adapt the cluster to nonstandard
-     environments.
-
-     For example `-p '80:80@server[0]' -p '443:443@server[0]'` would
-     set up specific port mappings.
 
 ### Files
 
