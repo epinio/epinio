@@ -77,6 +77,12 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return InternalError(err)
 	}
+
+	err = jsonResponse(w, models.ResponseOK)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	return nil
 }
 
@@ -151,13 +157,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err)
 	}
 
-	js, err := json.Marshal(apps)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, apps)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -209,13 +209,7 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 		app.Status = `Inactive, without workload. Launch via "epinio app push"`
 	}
 
-	js, err := json.Marshal(app)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, app)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -269,13 +263,7 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
-	js, err := json.Marshal(appsOf)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, appsOf)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -350,6 +338,11 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
+	err = jsonResponse(w, models.ResponseOK)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	return nil
 }
 
@@ -403,6 +396,10 @@ func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request)
 		return InternalError(err)
 	}
 
+	err = jsonResponse(w, models.ResponseOK)
+	if err != nil {
+		return InternalError(err)
+	}
 	return nil
 }
 
@@ -639,12 +636,7 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	js, err := json.Marshal(response)
-	if err != nil {
-		return InternalError(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, response)
 	if err != nil {
 		return InternalError(err)
 	}

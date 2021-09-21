@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -40,12 +39,7 @@ func (spc ServicePlansController) Index(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	js, err := json.Marshal(servicePlans)
-	if err != nil {
-		return InternalError(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, servicePlans)
 	if err != nil {
 		return InternalError(err)
 	}

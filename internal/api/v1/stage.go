@@ -304,6 +304,11 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
+	err = jsonResponse(w, models.ResponseOK)
+	if err != nil {
+		return InternalError(err)
+	}
+
 	return nil
 }
 

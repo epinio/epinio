@@ -67,12 +67,7 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 		responseData[key] = value
 	}
 
-	js, err := json.Marshal(responseData)
-	if err != nil {
-		return InternalError(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, models.ServiceShowResponse{Details: responseData})
 	if err != nil {
 		return InternalError(err)
 	}
@@ -124,12 +119,7 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 		})
 	}
 
-	js, err := json.Marshal(responseData)
-	if err != nil {
-		return InternalError(err)
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, responseData)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -199,8 +189,10 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 		return InternalError(err)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write([]byte{})
+
+	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -312,8 +304,10 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write([]byte{})
+
+	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -396,13 +390,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		return InternalError(err)
 	}
 
-	js, err := json.Marshal(models.DeleteResponse{BoundApps: boundAppNames})
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, models.DeleteResponse{BoundApps: boundAppNames})
 	if err != nil {
 		return InternalError(err)
 	}

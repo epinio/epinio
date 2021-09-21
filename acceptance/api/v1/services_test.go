@@ -76,8 +76,9 @@ var _ = Describe("Services API Application Endpoints", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 
-			var service map[string]string
-			err = json.Unmarshal(bodyBytes, &service)
+			var data models.ServiceShowResponse
+			err = json.Unmarshal(bodyBytes, &data)
+			service := data.Details
 			Expect(err).ToNot(HaveOccurred())
 			Expect(service["Class"]).To(Equal("mariadb"))
 			Expect(service["Status"]).To(Equal("Provisioned"))

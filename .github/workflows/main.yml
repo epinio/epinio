@@ -210,6 +210,7 @@ jobs:
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          FLAKE_ATTEMPTS: 1
           GINKGO_NODES: 1
           REGEX: "<ConfigFile>"
         run: |

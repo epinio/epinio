@@ -1,9 +1,8 @@
 package clients
 
 import (
-	"encoding/json"
+	"net/http"
 
-	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
 )
 
@@ -22,11 +21,12 @@ func (c *EpinioClient) AppCreate(appName string) error {
 	details.Info("create application")
 
 	request := models.ApplicationCreateRequest{Name: appName}
-	b, err := json.Marshal(request)
-	if err != nil {
-		return nil
-	}
-	_, err = c.post(api.Routes.Path("AppCreate", c.Config.Org), string(b))
+
+	_, err := c.API.AppCreate(
+		request,
+		c.Config.Org,
+		func(response *http.Response, _ []byte, err error) error { return err },
+	)
 	if err != nil {
 		return err
 	}

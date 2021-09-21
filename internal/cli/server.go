@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -54,7 +53,7 @@ var CmdServer = &cobra.Command{
 		httpServerWg.Add(1)
 		port := viper.GetInt("port")
 		ui := termui.NewUI()
-		logger := tracelog.NewServerLogger()
+		logger := tracelog.NewLogger().WithName("EpinioServer")
 		_, listeningPort, err := startEpinioServer(httpServerWg, port, ui, logger)
 		if err != nil {
 			return errors.Wrap(err, "failed to start server")
@@ -76,9 +75,9 @@ func startEpinioServer(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.L
 	elements := strings.Split(listener.Addr().String(), ":")
 	listeningPort := elements[len(elements)-1]
 
-	http.Handle("/api/v1/", logRequestHandler(apiv1.Router(), logger))
+	http.Handle("/api/v1/", loggingHandler(apiv1.Router(), logger))
 	http.Handle("/ready", ReadyRouter())
-	http.Handle("/", logRequestHandler(web.Router(), logger))
+	http.Handle("/", loggingHandler(web.Router(), logger))
 	// Static files
 	var assetsDir http.FileSystem
 	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
@@ -111,15 +110,19 @@ func ReadyRouter() *httprouter.Router {
 	return router
 }
 
-// logRequestHandler is the logging middleware for requests
-func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
+// loggingHandler is the logging middleware for requests
+func loggingHandler(h http.Handler, logger logr.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
-		log := logger.WithName(id)
+		log := logger.WithName(id).WithValues(
+			"method", r.Method,
+			"uri", r.URL.String(),
+			"user", r.Header.Get("X-Webauth-User"),
+		)
 
 		// add our logger
 		ctx := r.Context()
-		ctx = context.WithValue(ctx, tracelog.CtxLoggerKey{}, log)
+		ctx = tracelog.WithLogger(ctx, log)
 		r = r.WithContext(ctx)
 
 		// log the request first, then ...
@@ -127,22 +130,27 @@ func logRequestHandler(h http.Handler, logger logr.Logger) http.Handler {
 
 		// ... call the original http.Handler
 		h.ServeHTTP(w, r)
-	}
 
-	return http.HandlerFunc(fn)
+		if log.V(15).Enabled() {
+			log = log.WithValues("header", w.Header())
+		}
+		log.V(5).Info("response written")
+	})
 }
 
 // logRequest is the logging backend for requests
 func logRequest(r *http.Request, log logr.Logger) {
-	uri := r.URL.String()
-	method := r.Method
-	log.Info("received request",
-		"method", method, "uri", uri, "user", r.Header.Get("X-Webauth-User"))
+	if log.V(15).Enabled() {
+		log = log.WithValues(
+			"header", r.Header,
+			"params", r.Form,
+		)
+	}
 
 	// Read request body for logging
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		log.Error(err, "request", "body", "error")
+		log.Error(err, "request failed", "body", "error")
 		return
 	}
 	r.Body.Close()
@@ -151,10 +159,13 @@ func logRequest(r *http.Request, log logr.Logger) {
 	r.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	// log body only at higher trace levels
-	if len(bodyBytes) == 0 {
-		log.V(1).Info("request", "body", "n/a")
-		return
+	b := "n/a"
+	if len(bodyBytes) != 0 {
+		b = string(bodyBytes)
+	}
+	if log.V(15).Enabled() {
+		log = log.WithValues("body", b)
 	}
 
-	log.V(1).Info("request", "body", string(bodyBytes))
+	log.V(1).Info("request received", "bodylen", len(bodyBytes))
 }

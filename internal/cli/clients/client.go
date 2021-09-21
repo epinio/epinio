@@ -1,35 +1,29 @@
-// Package clients contains all the CLI commands for the client
+// Package clients provides Epinio CLI's main functions:
+// Functionality can be split into at least:
+// * the "admin client", which installs Epinio and updates configs
+// * the "user client", which talks to the API server
+// * the Epinio API server, which also includes the web UI server
 package clients
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"mime/multipart"
 	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/avast/retry-go"
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/internal/cli/clients/epinioapi"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
-	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/internal/services"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
@@ -40,21 +34,10 @@ import (
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	Config      *config.Config
-	Log         logr.Logger
-	ui          *termui.UI
-	serverURL   string
-	wsServerURL string
-}
-
-type PushParams struct {
-	Instances    *int32
-	Services     []string
-	Docker       string
-	GitRev       string
-	BuilderImage string
-	Name         string
-	Path         string
+	Config *config.Config
+	Log    logr.Logger
+	ui     *termui.UI
+	API    *epinioapi.Client
 }
 
 func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
@@ -64,25 +47,23 @@ func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
 	}
 
 	uiUI := termui.NewUI()
-	epClient, err := getEpinioAPIClient(ctx)
+	apiClient, err := getEpinioAPIClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	serverURL := epClient.URL
-	wsServerURL := epClient.WsURL
+	serverURL := apiClient.URL
 
-	logger := tracelog.NewClientLogger().V(3)
+	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
 
 	log := logger.WithName("New")
 	log.Info("Ingress API", "url", serverURL)
 	log.Info("Config API", "url", configConfig.API)
 
 	epinioClient := &EpinioClient{
-		ui:          uiUI,
-		Config:      configConfig,
-		Log:         logger,
-		serverURL:   serverURL,
-		wsServerURL: wsServerURL,
+		API:    apiClient,
+		ui:     uiUI,
+		Config: configConfig,
+		Log:    logger,
 	}
 	return epinioClient, nil
 }
@@ -103,13 +84,8 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 		return err
 	}
 
-	jsonResponse, err := c.get(api.Routes.Path("EnvList", c.Config.Org, appName))
+	eVariables, err := c.API.EnvList(c.Config.Org, appName)
 	if err != nil {
-		return err
-	}
-
-	var eVariables models.EnvVariableList
-	if err := json.Unmarshal(jsonResponse, &eVariables); err != nil {
 		return err
 	}
 
@@ -149,12 +125,7 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 		},
 	}
 
-	js, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.post(api.Routes.Path("EnvSet", c.Config.Org, appName), string(js))
+	_, err := c.API.EnvSet(request, c.Config.Org, appName)
 	if err != nil {
 		return err
 	}
@@ -180,13 +151,8 @@ func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) err
 		return err
 	}
 
-	jsonResponse, err := c.get(api.Routes.Path("EnvShow", c.Config.Org, appName, envName))
+	eVariable, err := c.API.EnvShow(c.Config.Org, appName, envName)
 	if err != nil {
-		return err
-	}
-
-	var eVariable models.EnvVariable
-	if err := json.Unmarshal(jsonResponse, &eVariable); err != nil {
 		return err
 	}
 
@@ -214,7 +180,7 @@ func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) er
 		return err
 	}
 
-	_, err := c.delete(api.Routes.Path("EnvUnset", c.Config.Org, appName, envName))
+	_, err := c.API.EnvUnset(c.Config.Org, appName, envName)
 	if err != nil {
 		return err
 	}
@@ -231,17 +197,13 @@ func (c *EpinioClient) EnvMatching(ctx context.Context, appName, prefix string) 
 	log.Info("start")
 	defer log.Info("return")
 
-	jsonResponse, err := c.get(api.Routes.Path("EnvMatch", c.Config.Org, appName, prefix))
+	resp, err := c.API.EnvMatch(c.Config.Org, appName, prefix)
 	if err != nil {
+		// TODO log that we dropped an error
 		return []string{}
 	}
 
-	var evNames []string
-	if err := json.Unmarshal(jsonResponse, &evNames); err != nil {
-		return []string{}
-	}
-
-	return evNames
+	return resp.Names
 }
 
 // ServicePlans gets all service classes in the cluster, for the
@@ -252,15 +214,10 @@ func (c *EpinioClient) ServicePlans(serviceClassName string) error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
-		Msg("Listing service plans")
+	c.ui.Note().Msg("Listing service plans")
 
-	jsonResponse, err := c.get(api.Routes.Path("ServicePlans", serviceClassName))
+	servicePlans, err := c.API.ServicePlans(serviceClassName)
 	if err != nil {
-		return err
-	}
-	var servicePlans services.ServicePlanList
-	if err := json.Unmarshal(jsonResponse, &servicePlans); err != nil {
 		return err
 	}
 
@@ -295,12 +252,8 @@ func (c *EpinioClient) ServicePlanMatching(ctx context.Context, serviceClassName
 	// Ask for all service plans of a service class. Filtering is local.
 	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	jsonResponse, err := c.get(api.Routes.Path("ServicePlans", serviceClassName))
+	servicePlans, err := c.API.ServicePlans(serviceClassName)
 	if err != nil {
-		return result
-	}
-	var servicePlans services.ServicePlanList
-	if err := json.Unmarshal(jsonResponse, &servicePlans); err != nil {
 		return result
 	}
 
@@ -327,12 +280,8 @@ func (c *EpinioClient) ServiceClassMatching(ctx context.Context, prefix string) 
 	// Ask for all service classes. Filtering is local.
 	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	jsonResponse, err := c.get(api.Routes.Path("ServiceClasses"))
+	serviceClasses, err := c.API.ServiceClasses()
 	if err != nil {
-		return result
-	}
-	var serviceClasses services.ServiceClassList
-	if err := json.Unmarshal(jsonResponse, &serviceClasses); err != nil {
 		return result
 	}
 
@@ -358,12 +307,8 @@ func (c *EpinioClient) ServiceClasses() error {
 	c.ui.Note().
 		Msg("Listing service classes")
 
-	jsonResponse, err := c.get(api.Routes.Path("ServiceClasses"))
+	serviceClasses, err := c.API.ServiceClasses()
 	if err != nil {
-		return err
-	}
-	var serviceClasses services.ServiceClassList
-	if err := json.Unmarshal(jsonResponse, &serviceClasses); err != nil {
 		return err
 	}
 
@@ -396,12 +341,8 @@ func (c *EpinioClient) Services() error {
 
 	details.Info("list services")
 
-	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
+	response, err := c.API.Services(c.Config.Org)
 	if err != nil {
-		return err
-	}
-	var response models.ServiceResponseList
-	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return err
 	}
 
@@ -432,12 +373,8 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 	// Ask for all services. Filtering is local.
 	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	jsonResponse, err := c.get(api.Routes.Path("Services", c.Config.Org))
+	response, err := c.API.Services(c.Config.Org)
 	if err != nil {
-		return result
-	}
-	var response models.ServiceResponseList
-	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return result
 	}
 
@@ -475,18 +412,8 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		Names: []string{serviceName},
 	}
 
-	js, err := json.Marshal(request)
+	br, err := c.API.ServiceBindingCreate(request, c.Config.Org, appName)
 	if err != nil {
-		return err
-	}
-
-	b, err := c.post(api.Routes.Path("ServiceBindingCreate", c.Config.Org, appName), string(js))
-	if err != nil {
-		return err
-	}
-
-	br := &models.BindResponse{}
-	if err := json.Unmarshal(b, br); err != nil {
 		return err
 	}
 
@@ -526,8 +453,7 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 		return err
 	}
 
-	_, err := c.delete(api.Routes.Path("ServiceBindingDelete",
-		c.Config.Org, appName, serviceName))
+	_, err := c.API.ServiceBindingDelete(c.Config.Org, appName, serviceName)
 	if err != nil {
 		return err
 	}
@@ -560,14 +486,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		Unbind: unbind,
 	}
 
-	js, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-
-	jsonResponse, err := c.curlWithCustomErrorHandling(
-		api.Routes.Path("ServiceDelete", c.Config.Org, name),
-		"DELETE", string(js),
+	deleteResponse, err := c.API.ServiceDelete(request, c.Config.Org, name,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
 			if response.StatusCode != http.StatusBadRequest {
@@ -599,27 +518,18 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			return errors.New(http.StatusText(response.StatusCode))
 		})
 	if err != nil {
-		if err.Error() != "Bad Request" {
-			return err
-		}
-		return nil
+		return err
 	}
 
-	if len(jsonResponse) > 0 {
-		var deleteResponse models.DeleteResponse
-		if err := json.Unmarshal(jsonResponse, &deleteResponse); err != nil {
-			return err
-		}
-		if len(deleteResponse.BoundApps) > 0 {
-			sort.Strings(deleteResponse.BoundApps)
-			msg := c.ui.Note().WithTable("Previously Bound To")
+	if len(deleteResponse.BoundApps) > 0 {
+		sort.Strings(deleteResponse.BoundApps)
+		msg := c.ui.Note().WithTable("Previously Bound To")
 
-			for _, app := range deleteResponse.BoundApps {
-				msg = msg.WithTableRow(app)
-			}
-
-			msg.Msg("")
+		for _, app := range deleteResponse.BoundApps {
+			msg = msg.WithTableRow(app)
 		}
+
+		msg.Msg("")
 	}
 
 	c.ui.Success().
@@ -657,18 +567,13 @@ func (c *EpinioClient) CreateService(name, class, plan string, data string, wait
 		WaitForProvision: waitForProvision,
 	}
 
-	js, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-
 	if waitForProvision {
 		c.ui.Note().KeeplineUnder(1).Msg("Provisioning...")
 		s := c.ui.Progressf("Provisioning")
 		defer s.Stop()
 	}
 
-	_, err = c.post(api.Routes.Path("ServiceCreate", c.Config.Org), string(js))
+	_, err := c.API.ServiceCreate(request, c.Config.Org)
 	if err != nil {
 		return err
 	}
@@ -719,13 +624,7 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 		Data: data,
 	}
 
-	js, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-
-	_, err = c.post(api.Routes.Path("ServiceCreateCustom", c.Config.Org),
-		string(js))
+	_, err := c.API.ServiceCreateCustom(request, c.Config.Org)
 	if err != nil {
 		return err
 	}
@@ -753,14 +652,11 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 		return err
 	}
 
-	jsonResponse, err := c.get(api.Routes.Path("ServiceShow", c.Config.Org, name))
+	resp, err := c.API.ServiceShow(c.Config.Org, name)
 	if err != nil {
 		return err
 	}
-	var serviceDetails map[string]string
-	if err := json.Unmarshal(jsonResponse, &serviceDetails); err != nil {
-		return err
-	}
+	serviceDetails := resp.Details
 
 	msg := c.ui.Success().WithTable("", "")
 	keys := make([]string, 0, len(serviceDetails))
@@ -782,33 +678,15 @@ func (c *EpinioClient) Info() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	var (
-		epinioVersion string
-		platform      string
-		kubeVersion   string
-	)
-
-	if jsonResponse, err := c.get(api.Routes.Path("Info")); err == nil {
-		v := struct {
-			Version     string
-			KubeVersion string
-			Platform    string
-		}{}
-		if err := json.Unmarshal(jsonResponse, &v); err == nil {
-			epinioVersion = v.Version
-			platform = v.Platform
-			kubeVersion = v.KubeVersion
-		} else {
-			return err
-		}
-	} else {
+	v, err := c.API.Info()
+	if err != nil {
 		return err
 	}
 
 	c.ui.Success().
-		WithStringValue("Platform", platform).
-		WithStringValue("Kubernetes Version", kubeVersion).
-		WithStringValue("Epinio Version", epinioVersion).
+		WithStringValue("Platform", v.Platform).
+		WithStringValue("Kubernetes Version", v.KubeVersion).
+		WithStringValue("Epinio Version", v.Version).
 		Msg("Epinio Environment")
 
 	return nil
@@ -827,13 +705,8 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 	// Ask for all apps. Filtering is local.
 	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	jsonResponse, err := c.get(api.Routes.Path("Apps", c.Config.Org))
+	apps, err := c.API.Apps(c.Config.Org)
 	if err != nil {
-		return result
-	}
-
-	var apps models.AppList
-	if err := json.Unmarshal(jsonResponse, &apps); err != nil {
 		return result
 	}
 
@@ -873,20 +746,15 @@ func (c *EpinioClient) Apps(all bool) error {
 
 	details.Info("list applications")
 
-	var jsonResponse []byte
+	var apps models.AppList
 	var err error
 
 	if all {
-		jsonResponse, err = c.get(api.Routes.Path("AllApps"))
+		apps, err = c.API.AllApps()
 	} else {
-		jsonResponse, err = c.get(api.Routes.Path("Apps", c.Config.Org))
+		apps, err = c.API.Apps(c.Config.Org)
 	}
 	if err != nil {
-		return err
-	}
-
-	var apps models.AppList
-	if err := json.Unmarshal(jsonResponse, &apps); err != nil {
 		return err
 	}
 
@@ -938,12 +806,8 @@ func (c *EpinioClient) AppShow(appName string) error {
 
 	details.Info("show application")
 
-	jsonResponse, err := c.get(api.Routes.Path("AppShow", c.Config.Org, appName))
+	app, err := c.API.AppShow(c.Config.Org, appName)
 	if err != nil {
-		return err
-	}
-	var app models.App
-	if err := json.Unmarshal(jsonResponse, &app); err != nil {
 		return err
 	}
 
@@ -966,12 +830,8 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	log.Info("start")
 	defer log.Info("return")
 
-	jsonResponse, err := c.get(api.Routes.Path("AppShow", c.Config.Org, appName))
+	app, err := c.API.AppShow(c.Config.Org, appName)
 	if err != nil {
-		return "", err
-	}
-	var app models.App
-	if err := json.Unmarshal(jsonResponse, &app); err != nil {
 		return "", err
 	}
 
@@ -1000,14 +860,8 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 
 	details.Info("update application")
 
-	data, err := json.Marshal(models.UpdateAppRequest{
-		Instances: instances,
-	})
-	if err != nil {
-		return err
-	}
-	_, err = c.patch(
-		api.Routes.Path("AppUpdate", c.Config.Org, appName), string(data))
+	req := models.UpdateAppRequest{Instances: instances}
+	_, err := c.API.AppUpdate(req, c.Config.Org, appName)
 	if err != nil {
 		return err
 	}
@@ -1042,6 +896,7 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 // 5. The main thread returns
 // When the connection is closed (e.g. from the server side), the process is the
 // same but starts from #2 above.
+// TODO move into transport package
 func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
 	log.Info("start")
@@ -1074,7 +929,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 		endpoint = api.Routes.Path("StagingLogs", c.Config.Org, stageID)
 	}
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(
-		fmt.Sprintf("%s/%s?%s", c.wsServerURL, endpoint, strings.Join(urlArgs, "&")), headers)
+		fmt.Sprintf("%s/%s?%s", c.API.WsURL, endpoint, strings.Join(urlArgs, "&")), headers)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}
@@ -1142,7 +997,6 @@ func (c *EpinioClient) CreateOrg(org string) error {
 	log := c.Log.WithName("CreateNamespace").WithValues("Namespace", org)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
 		WithStringValue("Name", org).
@@ -1153,29 +1007,7 @@ func (c *EpinioClient) CreateOrg(org string) error {
 		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	err := retry.Do(
-		func() error {
-			details.Info("create org", "org", org)
-			_, err := c.post(api.Routes.Path("Namespaces"), fmt.Sprintf(`{ "name": "%s" }`, org))
-			return err
-		},
-		retry.RetryIf(func(err error) bool {
-			emsg := err.Error()
-			details.Info("create error", "error", emsg)
-
-			retry := helpers.Retryable(err.Error())
-
-			details.Info("create error", "retry", retry)
-			return retry
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			details.Info("create org retry", "n", n)
-			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
-		}),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-
+	_, err := c.API.NamespaceCreate(models.NamespaceCreateRequest{Name: org})
 	if err != nil {
 		return err
 	}
@@ -1195,7 +1027,7 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 		WithStringValue("Name", org).
 		Msg("Deleting namespace...")
 
-	_, err := c.delete(api.Routes.Path("NamespaceDelete", org))
+	_, err := c.API.NamespaceDelete(org)
 	if err != nil {
 		return err
 	}
@@ -1223,12 +1055,8 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
 	defer s.Stop()
 
-	jsonResponse, err := c.delete(api.Routes.Path("AppDelete", c.Config.Org, appname))
+	response, err := c.API.AppDelete(c.Config.Org, appname)
 	if err != nil {
-		return err
-	}
-	var response *models.ApplicationDeleteResponse
-	if err := json.Unmarshal(jsonResponse, &response); err != nil {
 		return err
 	}
 
@@ -1258,14 +1086,12 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 
 	result := []string{}
 
-	jsonResponse, err := c.get(api.Routes.Path("NamespacesMatch", prefix))
+	resp, err := c.API.NamespacesMatch(prefix)
 	if err != nil {
-		log.Info("failed", "error", err)
 		return result
 	}
 
-	log.Info("response", "raw", jsonResponse)
-	_ = json.Unmarshal(jsonResponse, &result)
+	result = resp.Names
 
 	log.Info("matches", "found", result)
 	return result
@@ -1280,13 +1106,9 @@ func (c *EpinioClient) Orgs() error {
 	c.ui.Note().Msg("Listing namespaces")
 
 	details.Info("list namespaces")
-	jsonResponse, err := c.get(api.Routes.Path("Namespaces"))
-	if err != nil {
-		return err
-	}
 
-	var namespaces models.NamespaceList
-	if err := json.Unmarshal(jsonResponse, &namespaces); err != nil {
+	namespaces, err := c.API.Namespaces()
+	if err != nil {
 		return err
 	}
 
@@ -1303,220 +1125,6 @@ func (c *EpinioClient) Orgs() error {
 	}
 
 	msg.Msg("Epinio Namespaces:")
-
-	return nil
-}
-
-// Push pushes an app
-// * validate
-// * upload
-// * stage
-// * (tail logs)
-// * wait for pipelinerun
-// * deploy
-// * wait for app
-func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
-	name := params.Name
-	source := params.Path
-
-	appRef := models.AppRef{Name: name, Org: c.Config.Org}
-	log := c.Log.
-		WithName("Push").
-		WithValues("Name", appRef.Name,
-			"Namespace", appRef.Org,
-			"Sources", source)
-	log.Info("start")
-	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
-
-	sourceToShow := source
-	if params.GitRev != "" {
-		sourceToShow = fmt.Sprintf("%s @ %s", sourceToShow, params.GitRev)
-	}
-
-	msg := c.ui.Note().
-		WithStringValue("Name", appRef.Name).
-		WithStringValue("Sources", sourceToShow).
-		WithStringValue("Namespace", appRef.Org)
-
-	if err := c.TargetOk(); err != nil {
-		return err
-	}
-
-	services := uniqueStrings(params.Services)
-
-	if len(services) > 0 {
-		sort.Strings(services)
-		msg = msg.WithStringValue("Services:", strings.Join(services, ", "))
-	}
-
-	msg.Msg("About to push an application with given name and sources into the specified namespace")
-
-	c.ui.Exclamation().
-		Timeout(duration.UserAbort()).
-		Msg("Hit Enter to continue or Ctrl+C to abort (deployment will continue automatically in 5 seconds)")
-
-	details.Info("validate app name")
-	errorMsgs := validation.IsDNS1123Subdomain(appRef.Name)
-	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
-	}
-
-	c.ui.Normal().Msg("Create the application resource ...")
-
-	request := models.ApplicationCreateRequest{Name: appRef.Name}
-	js, err := json.Marshal(request)
-	if err != nil {
-		return err
-	}
-	_, err = c.curlWithCustomErrorHandling(
-		api.Routes.Path("AppCreate", appRef.Org), "POST", string(js), func(
-			response *http.Response, _ []byte, err error) error {
-			if response.StatusCode == http.StatusConflict {
-				c.ui.Normal().Msg("Application exists, updating ...")
-				return nil
-			}
-			return err
-		},
-	)
-	if err != nil {
-		return err
-	}
-
-	var blobUID string
-	if params.GitRev == "" && params.Docker == "" {
-		c.ui.Normal().Msg("Collecting the application sources ...")
-
-		tmpDir, tarball, err := helpers.Tar(source)
-		defer func() {
-			if tmpDir != "" {
-				_ = os.RemoveAll(tmpDir)
-			}
-		}()
-		if err != nil {
-			return err
-		}
-
-		c.ui.Normal().Msg("Uploading application code ...")
-
-		details.Info("upload code")
-		upload, err := c.uploadCode(appRef, tarball)
-		if err != nil {
-			return err
-		}
-		log.V(3).Info("upload response", "response", upload)
-
-		blobUID = upload.BlobUID
-	} else if params.GitRev != "" {
-		gitRef := models.GitRef{
-			URL:      source,
-			Revision: params.GitRev,
-		}
-		response, err := c.importGit(appRef, gitRef)
-		if err != nil {
-			return errors.Wrap(err, "importing git remote")
-		}
-		blobUID = response.BlobUID
-	}
-
-	stageID := ""
-	var stageResponse *models.StageResponse
-	if params.Docker == "" {
-		c.ui.Normal().Msg("Staging application ...")
-		req := models.StageRequest{
-			App:          appRef,
-			BlobUID:      blobUID,
-			BuilderImage: params.BuilderImage,
-		}
-		details.Info("staging code", "Blob", blobUID)
-		stageResponse, err = c.stageCode(req)
-		if err != nil {
-			return err
-		}
-		stageID = stageResponse.Stage.ID
-		log.V(3).Info("stage response", "response", stageResponse)
-
-		details.Info("start tailing logs", "StageID", stageResponse.Stage.ID)
-		err = c.stageLogs(details, appRef, stageResponse.Stage.ID)
-		if err != nil {
-			return err
-		}
-	}
-
-	c.ui.Normal().Msg("Deploying application ...")
-	deployRequest := models.DeployRequest{
-		App:       appRef,
-		Instances: params.Instances,
-	}
-	// If docker param is specified, then we just take it into ImageURL
-	// If not, we take the one from the staging response
-	if params.Docker != "" {
-		deployRequest.ImageURL = params.Docker
-	} else {
-		deployRequest.ImageURL = stageResponse.ImageURL
-		deployRequest.Stage = models.StageRef{ID: stageID}
-	}
-
-	deployResponse, err := c.deployCode(deployRequest)
-	if err != nil {
-		return err
-	}
-
-	details.Info("wait for application resources")
-	err = c.waitForApp(appRef)
-	if err != nil {
-		return errors.Wrap(err, "waiting for app failed")
-	}
-
-	// TODO : This services work should be moved into the stage
-	// request, and server side.
-
-	if len(services) > 0 {
-		c.ui.Note().Msg("Binding Services")
-
-		// Application is up, bind the services.
-		// This will restart the application.
-		// TODO: See #347 for future work
-
-		request := models.BindRequest{
-			Names: services,
-		}
-
-		js, err := json.Marshal(request)
-		if err != nil {
-			return err
-		}
-
-		b, err := c.post(api.Routes.Path("ServiceBindingCreate", appRef.Org, appRef.Name), string(js))
-		if err != nil {
-			return err
-		}
-
-		br := &models.BindResponse{}
-		if err := json.Unmarshal(b, br); err != nil {
-			return err
-		}
-
-		msg := c.ui.Note()
-		text := "Done"
-		if len(br.WasBound) > 0 {
-			text = text + ", With Already Bound Services"
-			msg = msg.WithTable("Name")
-
-			for _, wasbound := range br.WasBound {
-				msg = msg.WithTableRow(wasbound)
-			}
-		}
-
-		msg.Msg(text)
-	}
-
-	c.ui.Success().
-		WithStringValue("Name", appRef.Name).
-		WithStringValue("Namespace", appRef.Org).
-		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
-		WithStringValue("Builder Image", params.BuilderImage).
-		Msg("App is online.")
 
 	return nil
 }
@@ -1556,188 +1164,6 @@ func (c *EpinioClient) Target(org string) error {
 	c.ui.Success().Msg("Namespace targeted.")
 
 	return nil
-}
-
-func (c *EpinioClient) ServicesToApps(ctx context.Context, org string) (map[string]models.AppList, error) {
-	// Determine apps bound to services
-	// (inversion of services bound to apps)
-	// Literally query apps in the org for their services and invert.
-
-	jsonResponse, err := c.get(api.Routes.Path("ServiceApps", c.Config.Org))
-	if err != nil {
-		return nil, err
-	}
-
-	var appsOf map[string]models.AppList
-	if err := json.Unmarshal(jsonResponse, &appsOf); err != nil {
-		return nil, err
-	}
-
-	return appsOf, nil
-}
-
-func (c *EpinioClient) get(endpoint string) ([]byte, error) {
-	return c.curl(endpoint, "GET", "")
-}
-
-func (c *EpinioClient) post(endpoint string, data string) ([]byte, error) {
-	return c.curl(endpoint, "POST", data)
-}
-
-func (c *EpinioClient) patch(endpoint string, data string) ([]byte, error) {
-	return c.curl(endpoint, "PATCH", data)
-}
-
-func (c *EpinioClient) delete(endpoint string) ([]byte, error) {
-	return c.curl(endpoint, "DELETE", "")
-}
-
-// upload the given path as param "file" in a multipart form
-func (c *EpinioClient) upload(endpoint string, path string) ([]byte, error) {
-	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
-
-	// open the tarball
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to open tarball")
-	}
-	defer file.Close()
-
-	// create multipart form
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create multiform part")
-	}
-
-	_, err = io.Copy(part, file)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to write to multiform part")
-	}
-
-	err = writer.Close()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to close multiform")
-	}
-
-	// make the request
-	request, err := http.NewRequest("POST", uri, body)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build request")
-	}
-
-	request.SetBasicAuth(c.Config.User, c.Config.Password)
-	request.Header.Add("Content-Type", writer.FormDataContentType())
-
-	response, err := (&http.Client{}).Do(request)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to POST to upload")
-	}
-	defer response.Body.Close()
-
-	bodyBytes, _ := ioutil.ReadAll(response.Body)
-	if response.StatusCode == http.StatusCreated {
-		return bodyBytes, nil
-	}
-
-	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server status code: %s\n%s", http.StatusText(response.StatusCode), string(bodyBytes))
-	}
-
-	// object was not created, but status was ok?
-	return bodyBytes, nil
-}
-
-func formatError(bodyBytes []byte, response *http.Response) error {
-	var eResponse api.ErrorResponse
-	if err := json.Unmarshal(bodyBytes, &eResponse); err != nil {
-		return errors.Wrapf(err, "cannot parse JSON response: '%s'", bodyBytes)
-	}
-
-	titles := make([]string, 0, len(eResponse.Errors))
-	for _, e := range eResponse.Errors {
-		titles = append(titles, e.Title)
-	}
-	t := strings.Join(titles, ", ")
-
-	if response.StatusCode == http.StatusInternalServerError {
-		return errors.Errorf("%s: %s", http.StatusText(response.StatusCode), t)
-	}
-	return errors.New(t)
-}
-
-func (c *EpinioClient) curl(endpoint, method, requestBody string) ([]byte, error) {
-	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
-	c.Log.Info(fmt.Sprintf("%s %s", method, uri))
-	c.Log.V(1).Info(requestBody)
-	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
-	if err != nil {
-		return []byte{}, err
-	}
-
-	request.SetBasicAuth(c.Config.User, c.Config.Password)
-	response, err := (&http.Client{}).Do(request)
-	if err != nil {
-		castedErr, ok := err.(*url.Error)
-		if !ok {
-			return []byte{}, errors.New("couldn't cast request Error!")
-		}
-		if castedErr.Timeout() {
-			return []byte{}, errors.New("request cancelled or timed out")
-		}
-
-		return []byte{}, errors.Wrap(err, "making the request")
-	}
-	defer response.Body.Close()
-
-	bodyBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return []byte{}, errors.Wrap(err, "reading response body")
-	}
-
-	if response.StatusCode == http.StatusCreated {
-		return bodyBytes, nil
-	}
-
-	if response.StatusCode != http.StatusOK {
-		return []byte{}, formatError(bodyBytes, response)
-	}
-
-	return bodyBytes, nil
-}
-
-func (c *EpinioClient) curlWithCustomErrorHandling(endpoint, method, requestBody string,
-	f func(response *http.Response, bodyBytes []byte, err error) error) ([]byte, error) {
-
-	uri := fmt.Sprintf("%s/%s", c.serverURL, endpoint)
-	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
-	if err != nil {
-		return []byte{}, err
-	}
-
-	request.SetBasicAuth(c.Config.User, c.Config.Password)
-
-	response, err := (&http.Client{}).Do(request)
-	if err != nil {
-		return []byte{}, err
-	}
-	defer response.Body.Close()
-
-	bodyBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return []byte{}, err
-	}
-
-	if response.StatusCode == http.StatusCreated {
-		return bodyBytes, nil
-	}
-
-	if response.StatusCode != http.StatusOK {
-		return []byte{}, f(response, bodyBytes, formatError(bodyBytes, response))
-	}
-
-	return bodyBytes, nil
 }
 
 func (c *EpinioClient) TargetOk() error {

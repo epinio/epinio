@@ -18,6 +18,7 @@ import (
 
 var _ = Describe("Namespaces API Application Endpoints", func() {
 	var org string
+	const jsOK = `{"status":"ok"}`
 	dockerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
@@ -119,7 +120,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
 
 				// And the 2nd attempt should now fail
 				By("creating the same namespace a second time")
@@ -162,7 +163,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
 			})
 		})
 
@@ -176,7 +177,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
 
 				_, err = helpers.Kubectl("get", "namespace", org)
 				Expect(err).To(HaveOccurred())
@@ -196,7 +197,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				defer response.Body.Close()
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(bodyBytes)).To(Equal(""))
+				Expect(string(bodyBytes)).To(Equal(jsOK))
 
 				env.VerifyOrgNotExist(org)
 			})
@@ -213,12 +214,12 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				var namespaces []string
-				err = json.Unmarshal(bodyBytes, &namespaces)
+				resp := models.NamespacesMatchResponse{}
+				err = json.Unmarshal(bodyBytes, &resp)
 				Expect(err).ToNot(HaveOccurred())
 
 				// See global BeforeEach for where this namespace is set up.
-				Expect(namespaces).Should(ContainElements(org))
+				Expect(resp.Names).Should(ContainElements(org))
 			})
 			It("lists no namespaces matching the prefix", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespacematches/bogus", serverURL),
@@ -230,12 +231,12 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				var namespaces []string
-				err = json.Unmarshal(bodyBytes, &namespaces)
+				resp := models.NamespacesMatchResponse{}
+				err = json.Unmarshal(bodyBytes, &resp)
 				Expect(err).ToNot(HaveOccurred())
 
 				// See global BeforeEach for where this namespace is set up.
-				Expect(namespaces).Should(BeEmpty())
+				Expect(resp.Names).Should(BeEmpty())
 			})
 			It("lists all namespaces matching the prefix", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespacematches/na", serverURL),
@@ -247,12 +248,12 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				var namespaces []string
-				err = json.Unmarshal(bodyBytes, &namespaces)
+				resp := models.NamespacesMatchResponse{}
+				err = json.Unmarshal(bodyBytes, &resp)
 				Expect(err).ToNot(HaveOccurred())
 
 				// See global BeforeEach for where this namespace is set up.
-				Expect(namespaces).ShouldNot(BeEmpty())
+				Expect(resp.Names).ShouldNot(BeEmpty())
 			})
 			When("basic auth credentials are not provided", func() {
 				It("returns a 401 response", func() {

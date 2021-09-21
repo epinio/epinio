@@ -57,13 +57,7 @@ func (hc ApplicationsController) EnvIndex(w http.ResponseWriter, r *http.Request
 		return InternalError(err)
 	}
 
-	js, err := json.Marshal(environment)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, environment)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -127,13 +121,7 @@ func (hc ApplicationsController) EnvMatch(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	js, err := json.Marshal(matches)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, models.EnvMatchResponse{Names: matches})
 	if err != nil {
 		return InternalError(err)
 	}
@@ -193,6 +181,11 @@ func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) 
 	}
 
 	err = application.EnvironmentSet(ctx, cluster, app, setRequest)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -257,13 +250,7 @@ func (hc ApplicationsController) EnvShow(w http.ResponseWriter, r *http.Request)
 
 	// Not found => Returns a nil object
 
-	js, err := json.Marshal(&match)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(js)
+	err = jsonResponse(w, match)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -312,6 +299,11 @@ func (hc ApplicationsController) EnvUnset(w http.ResponseWriter, r *http.Request
 	}
 
 	err = application.EnvironmentUnset(ctx, cluster, app, varName)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}

@@ -5,6 +5,15 @@
 // TODO: Give even the most simple requests and responses properly named types.
 package models
 
+type Response struct {
+	Status string `json:"status"`
+}
+
+var ResponseOK = Response{"ok"}
+
+type Request struct {
+}
+
 // ServiceResponse represents the data of a single service instance
 type ServiceResponse struct {
 	Name      string   `json:"name"`
@@ -106,4 +115,36 @@ type DeployResponse struct {
 // ApplicationDeleteResponse represents the server's response to a successful app deletion
 type ApplicationDeleteResponse struct {
 	UnboundServices []string `json:"unboundservices"`
+}
+
+// EnvMatchResponse contains the list of names for matching envs
+type EnvMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
+// ServiceShowResponse contains details about a service
+type ServiceShowResponse struct {
+	Details map[string]string `json:"details,omitempty"`
+}
+
+// InfoResponse contains information about Epinio and its components
+type InfoResponse struct {
+	Version     string `json:"version,omitempty"`
+	KubeVersion string `json:"kube_version,omitempty"`
+	Platform    string `json:"platform,omitempty"`
+}
+
+// NamespaceCreateRequest contains the name of the namespace that should be created
+type NamespaceCreateRequest struct {
+	Name string `json:"name,omitempty"`
+}
+
+// NamespacesMatchResponse contains the list of names for matching namespaces
+type NamespacesMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
+// ServiceAppsResponse returns a list of apps per service
+type ServiceAppsResponse struct {
+	AppsOf map[string]AppList `json:"apps_of,omitempty"`
 }

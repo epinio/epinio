@@ -44,9 +44,9 @@ type ServiceClassList []ServiceClass
 
 // ServicePlan represents a service plan managed by Service catalog
 type ServicePlan struct {
-	Name        string
-	Description string
-	Free        bool
+	Name        string `json:"name,omitempty"`
+	Description string `json:"description,omitempty"`
+	Free        bool   `json:"free,omitempty"`
 }
 
 // ServicePlanList represents a collection of service plans
