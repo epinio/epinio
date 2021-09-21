@@ -6,7 +6,7 @@ import (
 
 const (
 	EpinioStageIDLabel      = "epinio.suse.org/stage-id"
-	EpinioStageBlodUIDLabel = "epinio.suse.org/blob-uid"
+	EpinioStageBlobUIDLabel = "epinio.suse.org/blob-uid"
 )
 
 type GitRef struct {
