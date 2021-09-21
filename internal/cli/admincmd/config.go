@@ -1,4 +1,4 @@
-// Package admincmd provides the ommands of the admin CLI, which deals with
+// Package admincmd provides the commands of the admin CLI, which deals with
 // installing and configurations
 package admincmd
 
