@@ -20,10 +20,10 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
-	"github.com/epinio/epinio/internal/cli/clients/epinioapi"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
+	epinioapi "github.com/epinio/epinio/pkg/epinioapi/v1/client"
+	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"

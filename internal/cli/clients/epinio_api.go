@@ -7,8 +7,8 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
-	"github.com/epinio/epinio/internal/cli/clients/epinioapi"
 	"github.com/epinio/epinio/internal/cli/config"
+	epinioapi "github.com/epinio/epinio/pkg/epinioapi/v1/client"
 	"github.com/pkg/errors"
 )
 
