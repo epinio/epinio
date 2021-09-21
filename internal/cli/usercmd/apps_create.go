@@ -1,4 +1,4 @@
-package clients
+package usercmd
 
 import (
 	"net/http"

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -54,7 +54,7 @@ var CmdServiceShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -87,7 +87,7 @@ var CmdServiceCreate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -133,7 +133,7 @@ var CmdServiceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		epinioClient, err := clients.NewEpinioClient(context.Background())
+		epinioClient, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -156,7 +156,7 @@ var CmdServiceBind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -187,7 +187,7 @@ var CmdServiceUnbind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -223,7 +223,7 @@ var CmdServiceListPlans = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -245,7 +245,7 @@ var CmdServiceList = &cobra.Command{
 func ServiceShow(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -262,7 +262,7 @@ func ServiceShow(cmd *cobra.Command, args []string) error {
 func ServiceList(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -279,7 +279,7 @@ func ServiceList(cmd *cobra.Command, args []string) error {
 func ServiceCreate(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -319,7 +319,7 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -341,7 +341,7 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error reading option --unbind")
 	}
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -358,7 +358,7 @@ func ServiceDelete(cmd *cobra.Command, args []string) error {
 func ServiceBind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -375,7 +375,7 @@ func ServiceBind(cmd *cobra.Command, args []string) error {
 func ServiceUnbind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -392,7 +392,7 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 func ServiceListClasses(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -409,7 +409,7 @@ func ServiceListClasses(cmd *cobra.Command, args []string) error {
 func ServiceListPlans(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := clients.NewEpinioClient(cmd.Context())
+	client, err := usercmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}

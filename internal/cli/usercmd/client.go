@@ -1,9 +1,5 @@
-// Package clients provides Epinio CLI's main functions:
-// Functionality can be split into at least:
-// * the "admin client", which installs Epinio and updates configs
-// * the "user client", which talks to the API server
-// * the Epinio API server, which also includes the web UI server
-package clients
+// Package usercmd provides Epinio CLI commands for users
+package usercmd
 
 import (
 	"context"
@@ -40,14 +36,14 @@ type EpinioClient struct {
 	API    *epinioapi.Client
 }
 
-func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
+func New() (*EpinioClient, error) {
 	configConfig, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
 
 	uiUI := termui.NewUI()
-	apiClient, err := getEpinioAPIClient(ctx)
+	apiClient, err := getEpinioAPIClient()
 	if err != nil {
 		return nil, err
 	}

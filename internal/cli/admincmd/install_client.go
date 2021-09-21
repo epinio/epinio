@@ -1,4 +1,4 @@
-package clients
+package admincmd
 
 import (
 	"context"
@@ -18,6 +18,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/internal/version"
+
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
