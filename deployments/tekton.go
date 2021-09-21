@@ -14,7 +14,6 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -180,17 +179,8 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		"taskruns.tekton.dev",
 		"tasks.tekton.dev",
 	} {
-		message := fmt.Sprintf("Establish CRD %s", crd)
-		out, err := helpers.WaitForCommandCompletion(ui, message,
-			func() (string, error) {
-				return helpers.Kubectl("wait",
-					"--for", "condition=established",
-					"--timeout", strconv.Itoa(int(k.Timeout.Seconds()))+"s",
-					"crd/"+crd)
-			},
-		)
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+		if err := c.WaitForCRD(ctx, ui, crd, k.Timeout); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("failed waiting for CRD %s to become available", crd))
 		}
 	}
 
