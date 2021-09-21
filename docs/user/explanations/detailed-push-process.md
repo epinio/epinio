@@ -28,7 +28,7 @@ When the Epinio API server receives the stage request, it will create a [`Pipeli
 
 ## 5. Fetch the code
 
-The first step of the staging Tekton pipeline, downloads the code from the S3 storage to a [workspace](https://github.com/tektoncd/pipeline/blob/main/docs/workspaces.md). This makes the code available to the following steps.
+The first step of the staging Tekton pipeline downloads the code from the S3 storage to a [workspace](https://github.com/tektoncd/pipeline/blob/main/docs/workspaces.md). This makes the code available to the following steps.
 
 ## 6. Stage
 
