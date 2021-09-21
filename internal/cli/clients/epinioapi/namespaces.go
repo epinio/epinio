@@ -9,7 +9,7 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 )
 

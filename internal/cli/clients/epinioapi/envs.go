@@ -6,7 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
 )
 
 // EnvList returns a list of all env vars for an app

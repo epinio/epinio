@@ -12,10 +12,10 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/tracelog"
-	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
 	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 

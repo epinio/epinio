@@ -16,7 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
 	"github.com/epinio/epinio/internal/duration"
 )
 
