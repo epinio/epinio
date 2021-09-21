@@ -3,7 +3,6 @@ package deployments
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/epinio/epinio/helpers"
@@ -125,19 +124,9 @@ func (k Minio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 		return errors.Wrap(err, "creating the minio tenant secret")
 	}
 
-	// wait for crd to exist
 	crd := "tenants.minio.min.io"
-	message := fmt.Sprintf("Establish CRD %s", crd)
-	out, err := helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return helpers.Kubectl("wait",
-				"--for", "condition=established",
-				"--timeout", strconv.Itoa(int(k.Timeout.Seconds()))+"s",
-				"crd/"+crd)
-		},
-	)
-	if err != nil {
-		return errors.Wrapf(err, "Waiting for CRD failed:\n%s", out)
+	if err = c.WaitForCRD(ctx, ui, crd, k.Timeout); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("failed waiting for CRD %s to become available", crd))
 	}
 
 	if out, err := helpers.KubectlApplyEmbeddedYaml(minioTenantYAML); err != nil {
