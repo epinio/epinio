@@ -18,8 +18,8 @@ import (
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
-	epinioapi "github.com/epinio/epinio/pkg/epinioapi/v1/client"
-	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
+	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"

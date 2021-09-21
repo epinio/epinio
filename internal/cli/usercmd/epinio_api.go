@@ -3,7 +3,7 @@ package usercmd
 import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/config"
-	epinioapi "github.com/epinio/epinio/pkg/epinioapi/v1/client"
+	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
 )
 

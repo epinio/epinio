@@ -9,7 +9,7 @@ import (
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
-	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	pkgerrors "github.com/pkg/errors"
 

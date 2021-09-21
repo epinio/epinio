@@ -10,7 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

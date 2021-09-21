@@ -29,7 +29,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/s3manager"
-	"github.com/epinio/epinio/pkg/epinioapi/v1/models"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 const (
