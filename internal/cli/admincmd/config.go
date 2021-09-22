@@ -1,33 +1,69 @@
-package clients
+// Package admincmd provides the commands of the admin CLI, which deals with
+// installing and configurations
+package admincmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 )
 
+const (
+	epinioAPIProtocol = "https"
+	epinioWSProtocol  = "wss"
+)
+
+// Admin provides functionality for administering Epinio installations on
+// Kubernetes
+type Admin struct {
+	Config *config.Config
+	Log    logr.Logger
+	ui     *termui.UI
+}
+
+func New() (*Admin, error) {
+	configConfig, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	uiUI := termui.NewUI()
+
+	logger := tracelog.NewLogger().WithName("EpinioConfig").V(3)
+
+	return &Admin{
+		ui:     uiUI,
+		Config: configConfig,
+		Log:    logger,
+	}, nil
+}
+
 // ConfigUpdate updates the credentials stored in the config from the
 // currently targeted kube cluster. It does not use the API server.
-func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
-	log := c.Log.WithName("ConfigUpdate")
+func (a *Admin) ConfigUpdate(ctx context.Context) error {
+	log := a.Log.WithName("ConfigUpdate")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
-		WithStringValue("Config", c.Config.Location).
+	a.ui.Note().
+		WithStringValue("Config", a.Config.Location).
 		Msg("Updating the stored credentials from the current cluster")
 
 	details.Info("retrieving credentials")
 
 	user, password, err := getCredentials(ctx, details)
 	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
+		a.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
 
@@ -36,7 +72,7 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 
 	api, wss, err := getAPI(ctx, details)
 	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
+		a.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
 
@@ -45,34 +81,34 @@ func (c *EpinioClient) ConfigUpdate(ctx context.Context) error {
 
 	certs, err := getCerts(ctx, details)
 	if err != nil {
-		c.ui.Exclamation().Msg(err.Error())
+		a.ui.Exclamation().Msg(err.Error())
 		return nil
 	}
 
 	details.Info("retrieved certs", "certs", certs)
 
-	c.Config.User = user
-	c.Config.Password = password
-	c.Config.API = api
-	c.Config.WSS = wss
-	c.Config.Certs = certs
+	a.Config.User = user
+	a.Config.Password = password
+	a.Config.API = api
+	a.Config.WSS = wss
+	a.Config.Certs = certs
 
 	details.Info("saving",
-		"user", c.Config.User,
-		"pass", c.Config.Password,
-		"api", c.Config.API,
-		"wss", c.Config.WSS,
-		"cert", c.Config.Certs)
+		"user", a.Config.User,
+		"pass", a.Config.Password,
+		"api", a.Config.API,
+		"wss", a.Config.WSS,
+		"cert", a.Config.Certs)
 
-	err = c.Config.Save()
+	err = a.Config.Save()
 	if err != nil {
-		c.ui.Exclamation().Msg(errors.Wrap(err, "failed to save configuration").Error())
+		a.ui.Exclamation().Msg(errors.Wrap(err, "failed to save configuration").Error())
 		return nil
 	}
 
 	details.Info("saved")
 
-	c.ui.Success().Msg("Ok")
+	a.ui.Success().Msg("Ok")
 	return nil
 }
 
@@ -177,4 +213,33 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 	log.Info("got secret", "secret", deployments.EpinioDeploymentID+"-tls")
 
 	return string(secret.Data["ca.crt"]), nil
+}
+
+// getEpinioURL finds the URL's for epinio from the cluster
+func getEpinioURL(ctx context.Context, cluster *kubernetes.Cluster) (string, string, error) {
+	// Get the ingress
+	ingresses, err := cluster.ListIngress(ctx, deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
+	if err != nil {
+		return "", "", errors.Wrap(err, "failed to list ingresses for epinio api server")
+	}
+
+	if len(ingresses.Items) < 1 {
+		return "", "", errors.New("epinio api ingress not found")
+	}
+
+	if len(ingresses.Items) > 1 {
+		return "", "", errors.New("more than one epinio api ingress found")
+	}
+
+	if len(ingresses.Items[0].Spec.Rules) < 1 {
+		return "", "", errors.New("epinio api ingress has no rules")
+	}
+
+	if len(ingresses.Items[0].Spec.Rules) > 1 {
+		return "", "", errors.New("epinio api ingress has more than on rule")
+	}
+
+	host := ingresses.Items[0].Spec.Rules[0].Host
+
+	return fmt.Sprintf("%s://%s", epinioAPIProtocol, host), fmt.Sprintf("%s://%s", epinioWSProtocol, host), nil
 }

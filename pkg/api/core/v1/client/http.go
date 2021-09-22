@@ -1,4 +1,4 @@
-package epinioapi
+package client
 
 import (
 	"bytes"

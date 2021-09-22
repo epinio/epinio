@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/admincmd"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
@@ -125,7 +125,7 @@ var CmdConfigUpdate = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := admincmd.New()
 
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")

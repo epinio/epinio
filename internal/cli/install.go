@@ -7,7 +7,8 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/admincmd"
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -230,7 +231,7 @@ func install(cmd *cobra.Command, args []string) error {
 		return errors.New("cannot have --skip-traefik and --loadbalancer-ip together")
 	}
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &neededOptions)
+	installClient, installCleanup, err := admincmd.NewInstallClient(cmd.Context(), &neededOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -253,12 +254,12 @@ func install(cmd *cobra.Command, args []string) error {
 	// Run `namespace create`, and `namespace target`.
 	// After `config update`.
 
-	epinioClient, err := clients.NewEpinioClient(cmd.Context())
+	cfgCmd, err := admincmd.New()
 	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
+		return errors.Wrap(err, "error initializing config cli")
 	}
 
-	epinioClient.Log.Info("Initial config", "value", epinioClient.Config.String())
+	cfgCmd.Log.Info("Initial config", "value", cfgCmd.Config.String())
 
 	// Post Installation Tasks:
 	// - Retrieve API certs and credentials, save to configuration
@@ -272,21 +273,21 @@ func install(cmd *cobra.Command, args []string) error {
 	// now invalid organization from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
-	err = epinioClient.ConfigUpdate(cmd.Context())
+	err = cfgCmd.ConfigUpdate(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error updating config")
 	}
 
 	// Clear memorized API client
-	clients.ClearMemoization()
+	usercmd.ClearMemoization()
 
 	// Re-load config so we can talk to the API server
-	epinioClient, err = clients.NewEpinioClient(cmd.Context())
+	userCmd, err := usercmd.New()
 	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
+		return errors.Wrap(err, "error initializing user cli")
 	}
 
-	epinioClient.Log.Info("Post update config", "value", epinioClient.Config.String())
+	userCmd.Log.Info("Post update config", "value", userCmd.Config.String())
 
 	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-namespace")
 	if err != nil {
@@ -296,13 +297,13 @@ func install(cmd *cobra.Command, args []string) error {
 	if !skipDefaultOrg {
 		ui.Note().Msg("Now checking ability to use the API server. And setting up useful things at the same time")
 
-		err := epinioClient.CreateOrg(DefaultOrganization)
+		err := userCmd.CreateOrg(DefaultOrganization)
 
 		if err != nil {
 			return errors.Wrap(err, "error creating namespace")
 		}
 
-		err = epinioClient.Target(DefaultOrganization)
+		err = userCmd.Target(DefaultOrganization)
 		if err != nil {
 			return errors.Wrap(err, "failed to set target")
 		}
@@ -317,7 +318,7 @@ func installIngress(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 	ExitfIfError(checkDependencies(), "Cannot operate")
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &traefikOptions)
+	installClient, installCleanup, err := admincmd.NewInstallClient(cmd.Context(), &traefikOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()
@@ -342,7 +343,7 @@ func installCertManager(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 	ExitfIfError(checkDependencies(), "Cannot operate")
 
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &certManagerOptions)
+	installClient, installCleanup, err := admincmd.NewInstallClient(cmd.Context(), &certManagerOptions)
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()

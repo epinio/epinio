@@ -1,5 +1,5 @@
-// Package epinioapi connects to the Epinio API's endpoints
-package epinioapi
+// Package client connects to the Epinio API's endpoints
+package client
 
 import (
 	"github.com/go-logr/logr"

@@ -6,7 +6,7 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/admincmd"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -68,7 +68,7 @@ func UninstallDeployment(cmd *cobra.Command, deployment kubernetes.Deployment, s
 	cmd.SilenceUsage = true
 
 	uiUI := termui.NewUI()
-	installClient, installCleanup, err := clients.NewInstallClient(cmd.Context(), &kubernetes.InstallationOptions{})
+	installClient, installCleanup, err := admincmd.NewInstallClient(cmd.Context(), &kubernetes.InstallationOptions{})
 	defer func() {
 		if installCleanup != nil {
 			installCleanup()

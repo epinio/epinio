@@ -3,7 +3,7 @@ package cli
 import (
 	"context"
 
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -18,7 +18,7 @@ var CmdDeleteApp = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -34,7 +34,7 @@ var CmdDeleteApp = &cobra.Command{
 		if len(args) != 0 {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}

@@ -1,9 +1,5 @@
-// Package clients provides Epinio CLI's main functions:
-// Functionality can be split into at least:
-// * the "admin client", which installs Epinio and updates configs
-// * the "user client", which talks to the API server
-// * the Epinio API server, which also includes the web UI server
-package clients
+// Package usercmd provides Epinio CLI commands for users
+package usercmd
 
 import (
 	"context"
@@ -20,10 +16,10 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/api/v1/models"
-	"github.com/epinio/epinio/internal/cli/clients/epinioapi"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
+	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
@@ -40,14 +36,14 @@ type EpinioClient struct {
 	API    *epinioapi.Client
 }
 
-func NewEpinioClient(ctx context.Context) (*EpinioClient, error) {
+func New() (*EpinioClient, error) {
 	configConfig, err := config.Load()
 	if err != nil {
 		return nil, err
 	}
 
 	uiUI := termui.NewUI()
-	apiClient, err := getEpinioAPIClient(ctx)
+	apiClient, err := getEpinioAPIClient()
 	if err != nil {
 		return nil, err
 	}

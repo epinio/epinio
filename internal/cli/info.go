@@ -1,7 +1,7 @@
 package cli
 
 import (
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +16,7 @@ var CmdInfo = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

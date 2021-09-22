@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -36,7 +36,7 @@ func init() {
 
 			ctx := cmd.Context()
 
-			app, err := clients.NewEpinioClient(ctx)
+			app, err := usercmd.New()
 			if err != nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}
@@ -88,7 +88,7 @@ var CmdPush = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -150,7 +150,7 @@ var CmdPush = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "trouble with instances")
 		}
-		params := clients.PushParams{
+		params := usercmd.PushParams{
 			Name:         args[0],
 			Instances:    i,
 			GitRev:       gitRevision,

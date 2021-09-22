@@ -1,9 +1,9 @@
-package clients
+package usercmd
 
 import (
 	"net/http"
 
-	"github.com/epinio/epinio/internal/api/v1/models"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // AppCreate creates an app without a workload

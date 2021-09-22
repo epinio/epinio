@@ -1,4 +1,4 @@
-package clients
+package usercmd
 
 import (
 	"context"
@@ -16,8 +16,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/internal/api/v1/models"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 type PushParams struct {

@@ -2,12 +2,11 @@ package cli
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"os"
 	"strings"
 
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -50,7 +49,7 @@ var CmdNamespaceList = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -72,7 +71,7 @@ var CmdNamespaceCreate = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -108,7 +107,7 @@ var CmdNamespaceDelete = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -125,7 +124,7 @@ var CmdNamespaceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}

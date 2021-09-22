@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/cli/clients"
+	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -63,7 +63,7 @@ var CmdAppList = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -90,7 +90,7 @@ var CmdAppCreate = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -108,7 +108,7 @@ var CmdAppCreate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -127,7 +127,7 @@ var CmdAppShow = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -145,7 +145,7 @@ var CmdAppShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -164,7 +164,7 @@ var CmdAppLogs = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -208,7 +208,7 @@ var CmdAppUpdate = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := clients.NewEpinioClient(cmd.Context())
+		client, err := usercmd.New()
 
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -234,7 +234,7 @@ var CmdAppUpdate = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := clients.NewEpinioClient(context.Background())
+		app, err := usercmd.New()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
