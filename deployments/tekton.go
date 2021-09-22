@@ -44,9 +44,9 @@ var _ kubernetes.Deployment = &Tekton{}
 
 const (
 	TektonDeploymentID            = "tekton"
-	tektonNamespace               = "tekton"
+	tektonNamespace               = "tekton-pipelines"
 	TektonStagingNamespace        = "tekton-staging"
-	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.23.0.yaml"
+	tektonPipelineReleaseYamlPath = "tekton/pipeline-v0.28.0.yaml"
 	tektonAdminRoleYamlPath       = "tekton/admin-role.yaml"
 	tektonStagingYamlPath         = "tekton/buildpacks-task.yaml"
 	tektonAWSYamlPath             = "tekton/aws-cli-0.2.yaml"
@@ -297,11 +297,11 @@ func (k Tekton) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
-		TektonDeploymentID,
+		tektonNamespace,
 		metav1.GetOptions{},
 	)
 	if err == nil {
-		return errors.New("Namespace " + TektonDeploymentID + " present already")
+		return errors.New("Namespace " + tektonNamespace + " present already")
 	}
 
 	ui.Note().KeeplineUnder(1).Msg("Deploying Tekton...")
@@ -317,11 +317,11 @@ func (k Tekton) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 func (k Tekton) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
 	_, err := c.Kubectl.CoreV1().Namespaces().Get(
 		ctx,
-		TektonDeploymentID,
+		tektonNamespace,
 		metav1.GetOptions{},
 	)
 	if err != nil {
-		return errors.New("Namespace " + TektonDeploymentID + " not present")
+		return errors.New("Namespace " + tektonNamespace + " not present")
 	}
 
 	ui.Note().Msg("Upgrading Tekton...")
