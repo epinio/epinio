@@ -6,41 +6,8 @@ import (
 	"github.com/pkg/errors"
 
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
-
-// ServicePlans returns a list of service plans for a given serviceclass name
-func (c *Client) ServicePlans(name string) (services.ServicePlanList, error) {
-	resp := services.ServicePlanList{}
-
-	data, err := c.get(api.Routes.Path("ServicePlans", name))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
-}
-
-// ServiceClasses reutrns a list of service classes
-func (c *Client) ServiceClasses() (services.ServiceClassList, error) {
-	resp := services.ServiceClassList{}
-
-	data, err := c.get(api.Routes.Path("ServiceClasses"))
-	if err != nil {
-		return resp, err
-	}
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, err
-	}
-
-	return resp, nil
-}
 
 // Services returns a list of services
 func (c *Client) Services(org string) (models.ServiceResponseList, error) {

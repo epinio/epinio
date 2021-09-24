@@ -147,22 +147,6 @@ func ServiceIsNotKnown(service string) APIError {
 		http.StatusNotFound)
 }
 
-// ServiceClassIsNotKnown constructs an API error for when the desired service class does not exist
-func ServiceClassIsNotKnown(serviceclass string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("ServiceClass '%s' does not exist", serviceclass),
-		"",
-		http.StatusNotFound)
-}
-
-// ServicePlanIsNotKnown constructs an API error for when the desired service plan does not exist
-func ServicePlanIsNotKnown(service string, c string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Service plan '%s' does not exist for class '%s'", service, c),
-		"",
-		http.StatusNotFound)
-}
-
 // OrgAlreadyKnown constructs an API error for when we have a conflict with an existing org
 func OrgAlreadyKnown(org string) APIError {
 	return NewAPIError(

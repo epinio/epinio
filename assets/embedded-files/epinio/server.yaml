@@ -122,14 +122,6 @@ rules:
   - get
   - list
 - apiGroups:
-  - servicecatalog.k8s.io
-  resources:
-  - clusterserviceclasses
-  - clusterserviceplans
-  verbs:
-  - get
-  - list
-- apiGroups:
   - ""
   resources:
   - namespaces

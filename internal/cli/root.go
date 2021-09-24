@@ -83,8 +83,6 @@ func init() {
 	rootCmd.AddCommand(CmdPush)
 	rootCmd.AddCommand(CmdApp)
 	rootCmd.AddCommand(CmdTarget)
-	rootCmd.AddCommand(CmdEnable)
-	rootCmd.AddCommand(CmdDisable)
 	rootCmd.AddCommand(CmdService)
 	rootCmd.AddCommand(CmdServer)
 	rootCmd.AddCommand(cmdVersion)

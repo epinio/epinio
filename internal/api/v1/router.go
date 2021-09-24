@@ -113,13 +113,8 @@ var Routes = routes.NamedRoutes{
 	//
 	"Services":            get("/namespaces/:org/services", errorHandler(ServicesController{}.Index)),
 	"ServiceShow":         get("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Show)),
-	"ServiceCreate":       post("/namespaces/:org/services", errorHandler(ServicesController{}.Create)),
 	"ServiceCreateCustom": post("/namespaces/:org/custom-services", errorHandler(ServicesController{}.CreateCustom)),
 	"ServiceDelete":       delete("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Delete)),
-
-	// list service classes and plans (of catalog services)
-	"ServiceClasses": get("/serviceclasses", errorHandler(ServiceClassesController{}.Index)),
-	"ServicePlans":   get("/serviceclasses/:serviceclass/serviceplans", errorHandler(ServicePlansController{}.Index)),
 }
 
 // Router constructs and returns the router mapping methods and urls to the API handlers.
