@@ -94,7 +94,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		Eventually(func() string {
 			out, _ := epinioHelper.Run("info")
 			return out
-		}).Should(ContainSubstring("Epinio version: "))
+		}).Should(ContainSubstring("Epinio Version: "))
 
 		By("Pushing an app", func() {
 			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"))

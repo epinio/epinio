@@ -34,7 +34,7 @@ func (k Kubed) ID() string {
 }
 
 func (k Kubed) Describe() string {
-	return emoji.Sprintf(":cloud:Epinio version: %s\n", KubedVersion)
+	return emoji.Sprintf(":cloud:Kubed version: %s\n", KubedVersion)
 
 }
 

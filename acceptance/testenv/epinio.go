@@ -25,13 +25,6 @@ const (
 	//
 	// (*) A number, i.e. just digits. __No trailing newline__
 	afterEachSleepPath = "/tmp/after_each_sleep"
-
-	// skipEpinioPatch contains the name of the environment
-	// variable which, when present and not empty causes system
-	// startup to skip patching the epinio server pod. Best used
-	// when the cluster of a previous run still exists
-	// (s.a. skipCleanupPath).
-	skipEpinioPatch = "EPINIO_SKIP_PATCH"
 )
 
 type EpinioEnv struct {
