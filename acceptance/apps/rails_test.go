@@ -90,8 +90,24 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Create a database for Rails
+		out, err = proc.Run("", false, "helm", "repo", "add", "bitnami", "https://charts.bitnami.com/bitnami")
+		Expect(err).ToNot(HaveOccurred(), out)
+
 		serviceName = catalog.NewServiceName()
-		out, err = env.Epinio("", "service", "create", serviceName, "mariadb", "10-3-22")
+		out, err = proc.Run("", false,
+			"helm", "install", serviceName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Org,
+			"--set", "postgresqlDatabase=production",
+			"--set", "postgresqlUsername=myuser",
+			"--set", "postgresqlPassword=mypassword",
+			"--set", "volumePermissions.enabled=true")
+		Expect(err).ToNot(HaveOccurred(), out)
+
+		out, err = env.Epinio("", "service", "create-custom", serviceName,
+			"username", "myuser",
+			"password", "mypassword",
+			"host", fmt.Sprintf("%s-postgresql.%s.svc.cluster.local", serviceName, rails.Org),
+			"port", "5432",
+		)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Change Rails database configuration to match the service name
@@ -101,6 +117,9 @@ var _ = Describe("RubyOnRails", func() {
 
 	AfterEach(func() {
 		env.DeleteServiceUnbind(serviceName)
+		out, err := proc.Run("", false, "helm", "delete", serviceName, "-n", rails.Org)
+		Expect(err).ToNot(HaveOccurred(), out)
+
 		env.DeleteApp(rails.Name)
 	})
 
