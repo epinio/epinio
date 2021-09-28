@@ -98,7 +98,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	updateAppInstances := func(org string, app string, instances int32) (int, []byte) {
-		data, err := json.Marshal(models.ApplicationUpdateRequest{Instances: instances})
+		// [INSTANCES CODING]
+		data, err := json.Marshal(models.ApplicationUpdateRequest{
+			Instances: instances + 1,
+		})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 		response, err := env.Curl("PATCH",
