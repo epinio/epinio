@@ -48,6 +48,31 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp("Ok"))
 		})
 
+		Context("with service", func() {
+			var serviceName string
+
+			BeforeEach(func() {
+				serviceName = catalog.NewServiceName()
+				env.MakeCustomService(serviceName)
+			})
+
+			AfterEach(func() {
+				env.DeleteServiceUnbind(serviceName)
+				// env.DeleteApp see outer context
+			})
+
+			It("creates the app with instance count and services", func() {
+				out, err := env.Epinio("", "app", "create", appName, "--bind", serviceName, "--instances", "2")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp("Ok"))
+
+				out, err = env.Epinio("", "app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
+				Expect(out).To(MatchRegexp(`Services\s*\|\s*` + serviceName + `\s*\|`))
+			})
+		})
+
 		When("pushing a workload", func() {
 			BeforeEach(func() {
 				out, err := env.Epinio("", "app", "create", appName)
@@ -417,6 +442,10 @@ var _ = Describe("Apps", func() {
 	})
 
 	Describe("update", func() {
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
 		It("respects the desired number of instances", func() {
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
 
@@ -438,8 +467,41 @@ var _ = Describe("Apps", func() {
 			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
 		})
 
-		AfterEach(func() {
-			env.DeleteApp(appName)
+		Context("with service", func() {
+			var serviceName string
+
+			BeforeEach(func() {
+				serviceName = catalog.NewServiceName()
+				env.MakeCustomService(serviceName)
+			})
+
+			AfterEach(func() {
+				env.UnbindAppService(appName, serviceName, org)
+				env.DeleteService(serviceName)
+				// DeleteApp see outer context
+			})
+
+			It("respects the bound services", func() {
+				env.MakeDockerImageApp(appName, 1, dockerImageURL)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					return out
+				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+
+				out, err := env.Epinio("", "app", "update", appName, "--bind", serviceName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp("Successfully updated application"))
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+					return out
+				}, "1m").Should(MatchRegexp(`Services\s*\|\s*` + serviceName + `\s*\|`))
+			})
 		})
 	})
 
