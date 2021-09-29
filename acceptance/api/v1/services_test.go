@@ -24,7 +24,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 		svc1 = catalog.NewServiceName()
 		svc2 = catalog.NewServiceName()
 
-		env.MakeCatalogService(svc1)
+		env.MakeCustomService(svc1)
 		env.MakeCustomService(svc2)
 	})
 
@@ -80,9 +80,8 @@ var _ = Describe("Services API Application Endpoints", func() {
 			err = json.Unmarshal(bodyBytes, &data)
 			service := data.Details
 			Expect(err).ToNot(HaveOccurred())
-			Expect(service["Class"]).To(Equal("mariadb"))
 			Expect(service["Status"]).To(Equal("Provisioned"))
-			Expect(service["Plan"]).To(Equal("10-3-22"))
+			Expect(service["username"]).To(Equal("epinio-user"))
 		})
 
 		It("returns a 404 when the org does not exist", func() {
