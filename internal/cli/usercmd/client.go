@@ -831,7 +831,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 	}
 
 	msg.
-		WithTableRow("Desired Instances", fmt.Sprintf("%d", app.Configuration.Instances)).
+		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
 		WithTableRow("Bound Services", strings.Join(app.Configuration.Services, ", ")).
 		WithTableRow("Environment", `See it by running the command "epinio app env list `+appName+`"`).
 		Msg("Details:")
