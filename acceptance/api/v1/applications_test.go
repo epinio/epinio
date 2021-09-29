@@ -98,9 +98,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	updateAppInstances := func(org string, app string, instances int32) (int, []byte) {
-		// [INSTANCES CODING]
+		desired := instances
 		data, err := json.Marshal(models.ApplicationUpdateRequest{
-			Instances: instances + 1,
+			Instances: &desired,
 		})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
@@ -118,7 +118,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	updateAppInstancesNAN := func(org string, app string) (int, []byte) {
-		data, err := json.Marshal(models.ApplicationUpdateRequest{Instances: 314})
+		desired := int32(314)
+		data, err := json.Marshal(models.ApplicationUpdateRequest{
+			Instances: &desired,
+		})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 		// Hack to make the Instances value non-number

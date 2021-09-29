@@ -70,14 +70,11 @@ type ApplicationCreateRequest struct {
 // ApplicationUpdateRequest represents and contains the data needed to update
 // an application. Specifically to modify the number of replicas to
 // run, and the services bound to it.
-//
-// [INSTANCES CODING]
-// ATTENTION: Note on semantics for `Instances`
-// `Instances == 0` => Create default instances, update is no op
-// `Instances > 0`  => Value is desired number of instances __+ 1__.
-//                     IOW `Instances == 1` means that app should be scaled to 0 instances.
+// Note: Instances is a pointer to give us a nil value separate from
+// actual integers, as means of communicating `default`/`no change`.
+
 type ApplicationUpdateRequest struct {
-	Instances   int32           `json:"instances"`
+	Instances   *int32          `json:"instances"`
 	Services    []string        `json:"services"`
 	Environment EnvVariableList `json:"environment"`
 }

@@ -343,7 +343,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
-	app.Configuration.Instances = instances
+	app.Configuration.Instances = &instances
 	app.Configuration.Services = services
 	app.Configuration.Environment = environment
 

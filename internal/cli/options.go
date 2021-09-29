@@ -80,15 +80,10 @@ func appConfiguration(cmd *cobra.Command) (models.ApplicationUpdateRequest, erro
 
 	// From here on out errors cannot happen anymore. Just filling
 	// the structure with the extracted information.
-
-	// [INSTANCES CODING]
 	if instances != nil {
-		result.Instances = *instances + 1
-		// Desired instances + 1, as means of encoding
-		// `desired 0 instances` without conflict to the
-		// treatmeant of 0 below.
+		result.Instances = instances
 	}
-	// nil --> Leave `instances` at `0`
+	// nil --> Default / No change
 	// - AppCreate API will replace it with `v1.DefaultInstances`
 	// - AppUpdate API will treat it as no op, i.e. keep current instances.
 

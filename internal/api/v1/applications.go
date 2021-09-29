@@ -109,14 +109,9 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	// [INSTANCES CODING]
-	// Save instance information - Force default if not specified
-	// ATTENTION: == 0 -- Use default number of instances
-	//          :  > 0 -- Desired + 1, reduce by one to get actual value.
-
 	desired := DefaultInstances
-	if createRequest.Configuration.Instances > 0 {
-		desired = createRequest.Configuration.Instances - 1
+	if createRequest.Configuration.Instances != nil {
+		desired = *createRequest.Configuration.Instances
 	}
 
 	err = application.ScalingSet(ctx, cluster, appRef, desired)
@@ -344,7 +339,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return BadRequest(err)
 	}
 
-	if updateRequest.Instances < 0 {
+	if updateRequest.Instances != nil && *updateRequest.Instances < 0 {
 		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
@@ -356,10 +351,8 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 	// TODO: Can we optimize to perform a single restart regardless of what changed ?!
 	// TODO: Should we ?
 
-	// [INSTANCES CODING]: == 0 -- Do nothing
-	//                   :  > 0 -- Desired + 1, reduce by one to get actual value.
-	if updateRequest.Instances > 0 {
-		desired := updateRequest.Instances - 1
+	if updateRequest.Instances != nil {
+		desired := *updateRequest.Instances
 
 		// Save to configuration
 		err := application.ScalingSet(ctx, cluster, app.Meta, desired)
