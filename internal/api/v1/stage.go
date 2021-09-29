@@ -62,7 +62,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // The same PVC stores the application's build cache (on a separate directory).
 func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
 	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
-		Get(ctx, ar.PVCName(), metav1.GetOptions{})
+		Get(ctx, ar.MakePVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
 	}
@@ -74,7 +74,7 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
 		Create(ctx, &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      ar.PVCName(),
+				Name:      ar.MakePVCName(),
 				Namespace: deployments.TektonStagingNamespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
@@ -365,7 +365,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 					Name:    "cache",
 					SubPath: "cache",
 					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: app.PVCName(),
+						ClaimName: app.MakePVCName(),
 						ReadOnly:  false,
 					},
 				},
@@ -373,7 +373,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 					Name:    "source",
 					SubPath: "source",
 					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: app.PVCName(),
+						ClaimName: app.MakePVCName(),
 						ReadOnly:  false,
 					},
 				},

@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,7 +15,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -36,6 +34,7 @@ type deployParam struct {
 	Stage       models.StageRef
 	Owner       metav1.OwnerReference
 	Environment models.EnvVariableList
+	Services    application.AppServiceBindList
 }
 
 // Deploy handles the API endpoint /orgs/:org/applications/:app/deploy
@@ -70,10 +69,6 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		return NewBadRequest("org parameter from URL does not match org param in body")
 	}
 
-	if req.Instances != nil && *req.Instances < 0 {
-		return NewBadRequest("instances param should be integer equal or greater than zero")
-	}
-
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err, "failed to get access to a kube client")
@@ -94,15 +89,27 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		UID:        applicationCR.GetUID(),
 	}
 
-	// find out the number of instances
-	var instances int32
-	if req.Instances != nil {
-		instances = int32(*req.Instances)
-	} else {
-		instances, err = existingReplica(ctx, cluster.Kubectl, req.App)
-		if err != nil {
-			return InternalError(err)
-		}
+	// determine number of desired instances
+	instances, err := application.Scaling(ctx, cluster, req.App)
+	if err != nil {
+		return InternalError(err, "failed to access application's desired instances")
+	}
+
+	// determine runtime environment, if any
+	environment, err := application.Environment(ctx, cluster, req.App)
+	if err != nil {
+		return InternalError(err, "failed to access application's runtime environment")
+	}
+
+	// determine bound services, if any
+	services, err := application.BoundServices(ctx, cluster, req.App)
+	if err != nil {
+		return InternalError(err, "failed to access application's bound services")
+	}
+
+	bindings, err := application.ToBinds(ctx, services, req.App.Name, owner, username)
+	if err != nil {
+		return InternalError(err, "failed to process application's bound services")
 	}
 
 	route, err := domain.AppDefaultRoute(ctx, req.App.Name)
@@ -110,16 +117,11 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	// determine runtime environment, if any
-	environment, err := application.Environment(ctx, cluster, req.App)
-	if err != nil {
-		return InternalError(err, "failed to access application runtime environment")
-	}
-
 	deployParams := deployParam{
 		AppRef:      req.App,
 		Owner:       owner,
 		Environment: environment,
+		Services:    bindings,
 		Instances:   instances,
 		ImageURL:    req.ImageURL,
 		Username:    username,
@@ -239,6 +241,7 @@ func newAppDeployment(stageID string, deployParams deployParam) *appsv1.Deployme
 				Spec: v1.PodSpec{
 					ServiceAccountName:           deployParams.Org,
 					AutomountServiceAccountToken: &automountServiceAccountToken,
+					Volumes:                      deployParams.Services.ToVolumesArray(),
 					Containers: []v1.Container{
 						{
 							Name:  deployParams.Name,
@@ -248,7 +251,8 @@ func newAppDeployment(stageID string, deployParams deployParam) *appsv1.Deployme
 									ContainerPort: 8080,
 								},
 							},
-							Env: deployParams.Environment.ToEnvVarArray(deployParams.AppRef),
+							Env:          deployParams.Environment.ToEnvVarArray(deployParams.AppRef),
+							VolumeMounts: deployParams.Services.ToMountsArray(),
 						},
 					},
 				},
@@ -347,20 +351,4 @@ func newAppIngress(appRef models.AppRef, route, username string) *networkingv1.I
 			},
 		},
 	}
-}
-
-// existingReplica is a helper that determines the number of replicas
-// of the application. While it preferably takes this information from
-// the workload, it falls back to the configured data when the app is
-// not active
-func existingReplica(ctx context.Context, client *k8s.Clientset, app models.AppRef) (int32, error) {
-	// if a deployment exists, use that deployment's replica count
-	result, err := client.AppsV1().Deployments(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return DefaultInstances, nil
-		}
-		return 0, err
-	}
-	return *result.Spec.Replicas, nil
 }

@@ -112,6 +112,9 @@ tidy:
 fmt:
 	go fmt ./...
 
+check:
+	golangci-lint run
+
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
 

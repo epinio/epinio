@@ -1,13 +1,13 @@
 package v1
 
 import (
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -81,18 +81,31 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		return AppIsNotKnown(appName)
 	}
 
-	wl := application.NewWorkload(cluster, app.AppRef())
+	// Collect errors and warnings per service, to report as much
+	// as possible while also applying as much as possible. IOW
+	// even when errors are reported it is possible for some of
+	// the services to be properly bound.
 
-	// From here on out we collect errors and warnings per
-	// service, to report as much as possible while also applying
-	// as much as possible. IOW even when errors are reported it
-	// is possible for some of the services to be properly bound.
+	// Take old state
+	oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
+	if err != nil {
+		return InternalError(err)
+	}
 
-	var theServices interfaces.ServiceList
+	resp := models.BindResponse{}
+
 	var theIssues []APIError
+	var okToBind []string
 
+	// Validate existence of new services. Report invalid services as errors, later.
+	// Filter out the services already bound, to be reported as regular response.
 	for _, serviceName := range bindRequest.Names {
-		service, err := services.Lookup(ctx, cluster, org, serviceName)
+		if _, ok := oldBound[serviceName]; ok {
+			resp.WasBound = append(resp.WasBound, serviceName)
+			continue
+		}
+
+		_, err := services.Lookup(ctx, cluster, org, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
 				theIssues = append(theIssues, ServiceIsNotKnown(serviceName))
@@ -103,21 +116,35 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 			return MultiError{theIssues}
 		}
 
-		theServices = append(theServices, service)
+		okToBind = append(okToBind, serviceName)
 	}
 
-	resp := models.BindResponse{}
+	if len(okToBind) > 0 {
+		// Save those that were valid and not yet bound to the
+		// application. Extends the set.
 
-	for _, service := range theServices {
-		err = wl.Bind(ctx, service, username)
+		err := application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
-			if err.Error() == "service already bound" {
-				resp.WasBound = append(resp.WasBound, service.Name())
-				continue
-			}
-
 			theIssues = append([]APIError{InternalError(err)}, theIssues...)
 			return MultiError{theIssues}
+		}
+
+		// Update the workload, if there is any.
+		if app.Workload != nil {
+			// For this read the new set of bound services back,
+			// as full service structures
+			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
+			if err != nil {
+				theIssues = append([]APIError{InternalError(err)}, theIssues...)
+				return MultiError{theIssues}
+			}
+
+			err = application.NewWorkload(cluster, app.Meta).
+				BoundServicesChange(ctx, username, oldBound, newBound)
+			if err != nil {
+				theIssues = append([]APIError{InternalError(err)}, theIssues...)
+				return MultiError{theIssues}
+			}
 		}
 	}
 
@@ -141,6 +168,10 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 	org := params.ByName("org")
 	appName := params.ByName("app")
 	serviceName := params.ByName("service")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -155,6 +186,21 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return OrgIsNotKnown(org)
 	}
 
+	apiErr := DeleteBinding(ctx, cluster, org, appName, serviceName, username)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	err = jsonResponse(w, models.ResponseOK)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
+func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, org, appName, serviceName, username string) APIErrors {
+
 	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
@@ -162,8 +208,6 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 	if app == nil {
 		return AppIsNotKnown(appName)
 	}
-
-	wl := application.NewWorkload(cluster, app.AppRef())
 
 	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
@@ -173,17 +217,34 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return InternalError(err)
 	}
 
-	err = wl.Unbind(ctx, service)
-	if err != nil && err.Error() == "service is not bound to the application" {
-		return ServiceIsNotBound(serviceName)
-	}
+	// Take old state
+	oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = application.BoundServicesUnset(ctx, cluster, app.Meta, serviceName)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	err = service.DeleteBinding(ctx, app.Meta.Name, app.Meta.Org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if app.Workload != nil {
+		// For this read the new set of bound services back,
+		// as full service structures
+		newBound, err := application.BoundServices(ctx, cluster, app.Meta)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		err = application.NewWorkload(cluster, app.Meta).BoundServicesChange(ctx, username, oldBound, newBound)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	return nil

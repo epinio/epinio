@@ -14,12 +14,11 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // ApplicationsController represents all functionality of the API related to applications
@@ -73,16 +72,66 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return AppAlreadyKnown(createRequest.Name)
 	}
 
+	// Sanity check the services, if any. IOW anything to be bound
+	// has to exist now.  We will check again when the application
+	// is deployed, to guard against bound services being removed
+	// from now till then. While it should not be possible through
+	// epinio itself (*), external editing of the relevant
+	// resources cannot be excluded from consideration.
+	//
+	// (*) `epinio service delete S` on a bound service S will
+	//      either reject the operation, or, when forced, unbind S
+	//      from the app.
+
+	var theIssues []APIError
+
+	for _, serviceName := range createRequest.Configuration.Services {
+		_, err := services.Lookup(ctx, cluster, org, serviceName)
+		if err != nil {
+			if err.Error() == "service not found" {
+				theIssues = append(theIssues, ServiceIsNotKnown(serviceName))
+				continue
+			}
+
+			theIssues = append([]APIError{InternalError(err)}, theIssues...)
+			return MultiError{theIssues}
+		}
+	}
+
+	if len(theIssues) > 0 {
+		return MultiError{theIssues}
+	}
+
+	// Arguments found OK, now we can modify the system state
+
 	err = application.Create(ctx, cluster, appRef, username)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	desired := DefaultInstances
+	if createRequest.Configuration.Instances != nil {
+		desired = *createRequest.Configuration.Instances
+	}
+
+	err = application.ScalingSet(ctx, cluster, appRef, desired)
 	if err != nil {
 		return InternalError(err)
 	}
 
+	// Save service information.
+	err = application.BoundServicesSet(ctx, cluster, appRef,
+		createRequest.Configuration.Services, true)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	// TODO: 643 Save EV variables
+
+	err = jsonResponse(w, models.ResponseOK)
+	if err != nil {
+		return InternalError(err)
+	}
 	return nil
 }
 
@@ -109,7 +158,7 @@ func (hc ApplicationsController) FullIndex(w http.ResponseWriter, r *http.Reques
 	var allApps models.AppList
 
 	for _, org := range orgList {
-		apps, err := application.ListApps(ctx, cluster, org.Name)
+		apps, err := application.List(ctx, cluster, org.Name)
 		if err != nil {
 			return InternalError(err)
 		}
@@ -152,7 +201,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 		return OrgIsNotKnown(org)
 	}
 
-	apps, err := application.ListApps(ctx, cluster, org)
+	apps, err := application.List(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -187,26 +236,13 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 		return OrgIsNotKnown(org)
 	}
 
-	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if !exists {
-		return AppIsNotKnown(appName)
-	}
-
-	// Application exists. It may not have a workload however.
-
 	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
+
 	if app == nil {
-		// While the app exists, it has no workload.
-		// Return something barebones.
-		app = models.NewApp(appName, org)
-		app.Status = `Inactive, without workload. Launch via "epinio app push"`
+		return AppIsNotKnown(appName)
 	}
 
 	err = jsonResponse(w, app)
@@ -240,27 +276,9 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 		return OrgIsNotKnown(org)
 	}
 
-	var appsOf = map[string]models.AppList{}
-
-	apps, err := application.List(ctx, cluster, org)
+	appsOf, err := servicesToApps(ctx, cluster, org)
 	if err != nil {
 		return InternalError(err)
-	}
-
-	for _, app := range apps {
-		w := application.NewWorkload(cluster, app.AppRef())
-		bound, err := w.Services(ctx)
-		if err != nil {
-			return InternalError(err)
-		}
-		for _, bonded := range bound {
-			bname := bonded.Name()
-			if theapps, found := appsOf[bname]; found {
-				appsOf[bname] = append(theapps, app)
-			} else {
-				appsOf[bname] = models.AppList{app}
-			}
-		}
 	}
 
 	err = jsonResponse(w, appsOf)
@@ -274,11 +292,15 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 // Update handles the API endpoint PATCH /namespaces/:org/applications/:app
 // It modifies the specified application. Currently this is only the
 // number of instances to run.
-func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors { // nolint:gocyclo // simplification defered
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
+	username, err := GetUsername(r)
+	if err != nil {
+		return UserNotFound()
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -303,18 +325,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return AppIsNotKnown(appName)
 	}
 
-	// Application exists. It may not have a workload however.
-
-	app, err := application.Lookup(ctx, cluster, org, appName)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if app == nil {
-		// App without workload cannot be scaled at the moment.
-		// TODO: Extend to stash the request in the app or attached resource
-		return NewAPIError("Unable to scale application without workload", "", http.StatusBadRequest)
-	}
+	// Retrieve and validate update request ...
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -322,20 +333,116 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	var updateRequest models.UpdateAppRequest
+	var updateRequest models.ApplicationUpdateRequest
 	err = json.Unmarshal(bodyBytes, &updateRequest)
 	if err != nil {
 		return BadRequest(err)
 	}
 
-	if updateRequest.Instances < 0 {
+	if updateRequest.Instances != nil && *updateRequest.Instances < 0 {
 		return NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
-	workload := application.NewWorkload(cluster, app.AppRef())
-	err = workload.Scale(r.Context(), updateRequest.Instances)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	// TODO: Can we optimize to perform a single restart regardless of what changed ?!
+	// TODO: Should we ?
+
+	if updateRequest.Instances != nil {
+		desired := *updateRequest.Instances
+
+		// Save to configuration
+		err := application.ScalingSet(ctx, cluster, app.Meta, desired)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		// Restart workload, if any
+		if app.Workload != nil {
+			err = application.NewWorkload(cluster, app.Meta).Scale(ctx, desired)
+			if err != nil {
+				return InternalError(err)
+			}
+		}
+	}
+
+	if len(updateRequest.Environment) > 0 {
+		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, true)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		// Restart workload, if any
+		if app.Workload != nil {
+			// For this read the new set of variables back
+			varNames, err := application.EnvironmentNames(ctx, cluster, app.Meta)
+			if err != nil {
+				return InternalError(err)
+			}
+
+			err = application.NewWorkload(cluster, app.Meta).
+				EnvironmentChange(ctx, varNames)
+			if err != nil {
+				return InternalError(err)
+			}
+		}
+	}
+
+	if len(updateRequest.Services) > 0 {
+		// Take old state
+		oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		var theIssues []APIError
+		var okToBind []string
+
+		for _, serviceName := range updateRequest.Services {
+			_, err := services.Lookup(ctx, cluster, org, serviceName)
+			if err != nil {
+				if err.Error() == "service not found" {
+					theIssues = append(theIssues, ServiceIsNotKnown(serviceName))
+					continue
+				}
+
+				theIssues = append([]APIError{InternalError(err)}, theIssues...)
+				return MultiError{theIssues}
+			}
+
+			okToBind = append(okToBind, serviceName)
+		}
+
+		err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, true)
+		if err != nil {
+			theIssues = append([]APIError{InternalError(err)}, theIssues...)
+			return MultiError{theIssues}
+		}
+
+		// Restart workload, if any
+		if app.Workload != nil {
+			// For this read the new set of bound services back,
+			// as full service structures
+			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
+			if err != nil {
+				theIssues = append([]APIError{InternalError(err)}, theIssues...)
+				return MultiError{theIssues}
+			}
+
+			err = application.NewWorkload(cluster, app.Meta).
+				BoundServicesChange(ctx, username, oldBound, newBound)
+			if err != nil {
+				theIssues = append([]APIError{InternalError(err)}, theIssues...)
+				return MultiError{theIssues}
+			}
+		}
+
+		if len(theIssues) > 0 {
+			return MultiError{theIssues}
+		}
 	}
 
 	err = jsonResponse(w, models.ResponseOK)
@@ -372,22 +479,19 @@ func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request)
 		return OrgIsNotKnown(org)
 	}
 
-	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if !exists {
-		return AppIsNotKnown(appName)
-	}
-
 	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
+
 	if app == nil {
-		// While app exists it has no workload
-		return NewAPIError("No status available for application without workload", "", http.StatusBadRequest)
+		return AppIsNotKnown(appName)
+	}
+
+	if app.Workload == nil {
+		// While the app exists it has no workload, and therefore no status
+		return NewAPIError("No status available for application without workload",
+			"", http.StatusBadRequest)
 	}
 
 	err = cluster.WaitForDeploymentCompleted(
@@ -436,27 +540,21 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if appName != "" {
-		log.Info("validate application", "name", appName, "org", org)
-
-		exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
-		if err != nil {
-			jsonErrorResponse(w, InternalError(err))
-			return
-		}
-
-		if !exists {
-			jsonErrorResponse(w, AppIsNotKnown(appName))
-			return
-		}
-
 		log.Info("retrieve application", "name", appName, "org", org)
+
 		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
 			jsonErrorResponse(w, InternalError(err))
 			return
 		}
+
 		if app == nil {
-			// While app exists it has no workload
+			jsonErrorResponse(w, AppIsNotKnown(appName))
+			return
+		}
+
+		if app.Workload == nil {
+			// While the app exists it has no workload, therefore no logs
 			jsonErrorResponse(w, NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
 			return
 		}
@@ -612,26 +710,20 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(org)
 	}
 
-	appRef := models.NewAppRef(appName, org)
-	found, err := application.Exists(ctx, cluster, appRef)
+	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
 		return InternalError(err)
 	}
-	if !found {
+	if app == nil {
 		return AppIsNotKnown(appName)
-	}
-
-	app, err := application.Lookup(ctx, cluster, appRef.Org, appRef.Name)
-	if err != nil && !apierrors.IsNotFound(err) {
-		return InternalError(err)
 	}
 
 	response := models.ApplicationDeleteResponse{}
 	if app != nil {
-		response.UnboundServices = app.BoundServices
+		response.UnboundServices = app.Configuration.Services
 	}
 
-	err = application.Delete(ctx, cluster, appRef)
+	err = application.Delete(ctx, cluster, app.Meta)
 	if err != nil {
 		return InternalError(err)
 	}

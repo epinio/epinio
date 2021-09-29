@@ -148,7 +148,7 @@ func (s *CustomService) Org() string {
 // GetBinding (Service interface) returns the secret representing the
 // instance's binding to the application. This is actually the
 // instance's secret itself, independent of the application.
-func (s *CustomService) GetBinding(ctx context.Context, appName string, _ string) (*corev1.Secret, error) {
+func (s *CustomService) GetBinding(ctx context.Context, appName string, _ metav1.OwnerReference, _ string) (*corev1.Secret, error) {
 	kubeClient := s.kubeClient
 	serviceSecret, err := kubeClient.GetSecret(ctx, s.OrgName, s.SecretName)
 	if err != nil {

@@ -2,23 +2,27 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/names"
-	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	pkgerrors "github.com/pkg/errors"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
+
+type AppServiceBind struct {
+	service  string // name of the service getting bound
+	resource string // name of the kube secret to mount as volume to make the service params available in the app
+}
+
+type AppServiceBindList []AppServiceBind
 
 // Workload manages applications that are deployed. It provides workload
 // (deployments) specific actions for the application model.
@@ -32,6 +36,166 @@ func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
 	return &Workload{cluster: cluster, app: app}
 }
 
+func ToBinds(ctx context.Context, services interfaces.ServiceList, appName string, owner metav1.OwnerReference, userName string) (AppServiceBindList, error) {
+	bindings := AppServiceBindList{}
+
+	for _, service := range services {
+		bindResource, err := service.GetBinding(ctx, appName, owner, userName)
+		if err != nil {
+			return AppServiceBindList{}, err
+		}
+		bindings = append(bindings, AppServiceBind{
+			resource: bindResource.Name,
+			service:  service.Name(),
+		})
+	}
+
+	return bindings, nil
+}
+
+func (b AppServiceBindList) ToVolumesArray() []corev1.Volume {
+	volumes := []corev1.Volume{}
+
+	for _, binding := range b {
+		volumes = append(volumes, corev1.Volume{
+			Name: binding.service,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: binding.resource,
+				},
+			},
+		})
+	}
+
+	return volumes
+}
+
+func (b AppServiceBindList) ToMountsArray() []corev1.VolumeMount {
+	mounts := []corev1.VolumeMount{}
+
+	for _, binding := range b {
+		mounts = append(mounts, corev1.VolumeMount{
+			Name:      binding.service,
+			ReadOnly:  true,
+			MountPath: fmt.Sprintf("/services/%s", binding.service),
+		})
+	}
+
+	return mounts
+}
+
+// BoundServicesChange imports the currently bound services into the deployment. It takes a ServiceList, not just
+// names, as it has to create/retrieve the associated service binding secrets. It further takes a set of the old
+// services. This enables incremental modification of the deployment (add, remove affected, instead of wholsesale
+// replacement).
+func (a *Workload) BoundServicesChange(ctx context.Context, userName string, oldServices NameSet, newServices interfaces.ServiceList) error {
+	app, err := Get(ctx, a.cluster, a.app)
+	if err != nil {
+		// Should not happen. Application was validated to exist
+		// already somewhere by callers.
+		return err
+	}
+
+	owner := metav1.OwnerReference{
+		APIVersion: app.GetAPIVersion(),
+		Kind:       app.GetKind(),
+		Name:       app.GetName(),
+		UID:        app.GetUID(),
+	}
+
+	bindings, err := ToBinds(ctx, newServices, a.app.Name, owner, userName)
+	if err != nil {
+		return err
+	}
+
+	// Create name-keyed maps from old/new slices for quick lookup and decision. No linear searches.
+
+	new := map[string]struct{}{}
+
+	for _, s := range newServices {
+		new[s.Name()] = struct{}{}
+	}
+
+	// Read, modify and write the deployment
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		deployment, err := a.Deployment(ctx)
+		if err != nil {
+			return err
+		}
+
+		// The action is done in multiple iterations over the deployment's volumes and volumemounts.
+		// The first iteration over each determines removed services (in old, not in new). The second
+		// iteration, over the new services now, adds all which are not in old, i.e. actually new.
+
+		newVolumes := []corev1.Volume{}
+		newMounts := []corev1.VolumeMount{}
+
+		for _, volume := range deployment.Spec.Template.Spec.Volumes {
+			_, hasold := oldServices[volume.Name]
+			_, hasnew := new[volume.Name]
+
+			// Note that volumes which are not in old are passed and kept. These are the volumes
+			// not related to services.
+
+			if hasold && !hasnew {
+				continue
+			}
+
+			newVolumes = append(newVolumes, volume)
+		}
+
+		// TODO: Iterate over containers and find the one matching the app name
+		for _, mount := range deployment.Spec.Template.Spec.Containers[0].VolumeMounts {
+
+			_, hasold := oldServices[mount.Name]
+			_, hasnew := new[mount.Name]
+
+			// Note that volumes which are in not in old are passed and kept. These are the volumes
+			// not related to services.
+
+			if hasold && !hasnew {
+				continue
+			}
+
+			newMounts = append(newMounts, mount)
+		}
+
+		for _, binding := range bindings {
+			// Skip services which already exist
+			if _, hasold := oldServices[binding.service]; hasold {
+				continue
+			}
+
+			newVolumes = append(newVolumes, corev1.Volume{
+				Name: binding.service,
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: binding.resource,
+					},
+				},
+			})
+
+			newMounts = append(newMounts, corev1.VolumeMount{
+				Name:      binding.service,
+				ReadOnly:  true,
+				MountPath: fmt.Sprintf("/services/%s", binding.service),
+			})
+		}
+
+		// Write the changed set of mounts and volumes back to the deployment ...
+		deployment.Spec.Template.Spec.Volumes = newVolumes
+		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newMounts
+
+		// ... and then the cluster.
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
+			ctx, deployment, metav1.UpdateOptions{})
+
+		return err
+	})
+}
+
 // EnvironmentChange imports the current environment into the
 // deployment. This requires only the names of the currently existing
 // environment variables, not the values, as the import is internally
@@ -40,12 +204,12 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-		deployment, err := a.deployment(ctx)
+		deployment, err := a.Deployment(ctx)
 		if err != nil {
 			return err
 		}
 
-		evSecretName := a.app.EnvSecret()
+		evSecretName := a.app.MakeEnvSecretName()
 
 		// 1. Remove all the old EVs referencing the app's EV secret.
 		// 2. Add entries for the new set of EV's (S.a varNames).
@@ -96,33 +260,13 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 	})
 }
 
-// Services returns the set of services bound to the application.
-func (a *Workload) Services(ctx context.Context) (interfaces.ServiceList, error) {
-	deployment, err := a.deployment(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var bound = interfaces.ServiceList{}
-
-	for _, volume := range deployment.Spec.Template.Spec.Volumes {
-		service, err := services.Lookup(ctx, a.cluster, a.app.Org, volume.Name)
-		if err != nil {
-			return nil, err
-		}
-		bound = append(bound, service)
-	}
-
-	return bound, nil
-}
-
 // Scale changes the number of instances (replicas) for the
 // application's Deployment.
 func (a *Workload) Scale(ctx context.Context, instances int32) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-		deployment, err := a.deployment(ctx)
+		deployment, err := a.Deployment(ctx)
 		if err != nil {
 			return err
 		}
@@ -136,156 +280,20 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 	})
 }
 
-// UnbindAll dissolves all service instance bindings from the application.
-func (a *Workload) UnbindAll(ctx context.Context, cluster *kubernetes.Cluster, svcs []string) error {
-
-	// TODO: Optimize this action to perform a single restart for
-	// the entire change, instead of one per service.
-
-	for _, bonded := range svcs {
-		bound, err := services.Lookup(ctx, cluster, a.app.Org, bonded)
-		if err != nil {
-			return err
-		}
-
-		err = a.Unbind(ctx, bound)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// Unbind dissolves the binding of the service instance to the application.
-func (a *Workload) Unbind(ctx context.Context, service interfaces.Service) error {
-	for {
-		deployment, err := a.deployment(ctx)
-		if err != nil {
-			return err
-		}
-
-		volumes := deployment.Spec.Template.Spec.Volumes
-		newVolumes := []corev1.Volume{}
-		found := false
-		for _, volume := range volumes {
-			if volume.Name == service.Name() {
-				found = true
-			} else {
-				newVolumes = append(newVolumes, volume)
-			}
-		}
-		if !found {
-			return errors.New("service is not bound to the application")
-		}
-
-		// TODO: Iterate over containers and find the one matching the app name
-		volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
-		newVolumeMounts := []corev1.VolumeMount{}
-		found = false
-		for _, mount := range volumeMounts {
-			if mount.Name == service.Name() {
-				found = true
-			} else {
-				newVolumeMounts = append(newVolumeMounts, mount)
-			}
-		}
-		if !found {
-			return errors.New("service is not bound to the application")
-		}
-
-		deployment.Spec.Template.Spec.Volumes = newVolumes
-		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newVolumeMounts
-
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
-			ctx,
-			deployment,
-			metav1.UpdateOptions{},
-		)
-		if err == nil {
-			break
-		}
-		if !apierrors.IsConflict(err) {
-			return err
-		}
-
-		// Found a conflict. Try again from the beginning.
-	}
-
-	// delete binding - DeleteBinding(a.Name)
-	return service.DeleteBinding(ctx, a.app.Name, a.app.Org)
-}
-
 // deployment is a helper, it returns the kube deployment resource of the workload.
-func (a *Workload) deployment(ctx context.Context) (*appsv1.Deployment, error) {
+func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	return a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Get(
 		ctx, a.app.Name, metav1.GetOptions{},
 	)
 }
 
-// Bind creates a binding of the service to the application.
-func (a *Workload) Bind(ctx context.Context, service interfaces.Service, username string) error {
-	bindSecret, err := service.GetBinding(ctx, a.app.Name, username)
-	if err != nil {
-		return err
-	}
-
-	for {
-		deployment, err := a.deployment(ctx)
-		if err != nil {
-			return err
-		}
-
-		volumes := deployment.Spec.Template.Spec.Volumes
-
-		for _, volume := range volumes {
-			if volume.Name == service.Name() {
-				return errors.New("service already bound")
-			}
-		}
-
-		volumes = append(volumes, corev1.Volume{
-			Name: service.Name(),
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: bindSecret.Name,
-				},
-			},
-		})
-		// TODO: Iterate over containers and find the one matching the app name
-		volumeMounts := deployment.Spec.Template.Spec.Containers[0].VolumeMounts
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      service.Name(),
-			ReadOnly:  true,
-			MountPath: fmt.Sprintf("/services/%s", service.Name()),
-		})
-
-		deployment.Spec.Template.Spec.Volumes = volumes
-		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = volumeMounts
-
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
-			ctx,
-			deployment,
-			metav1.UpdateOptions{},
-		)
-
-		if err == nil {
-			break
-		}
-		if !apierrors.IsConflict(err) {
-			return err
-		}
-
-		// Found a conflict. Try again from the beginning.
-	}
-
-	return nil
-}
-
-// Complete fills all the fields of the workload with values from the cluster
-func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
-	var err error
-
-	app := a.app.App()
+// Get returns the state of the app deployment encoded in the workload.
+func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
+	active := false
+	route := ""
+	stageID := ""
+	status := ""
+	username := ""
 
 	// Query application deployment for stageID and status (ready vs desired replicas)
 
@@ -298,37 +306,33 @@ func (a *Workload) Complete(ctx context.Context) (*models.App, error) {
 	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).List(ctx, deploymentListOptions)
 
 	if err != nil {
-		app.Status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
+		status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
 	} else if len(deployments.Items) < 1 {
-		app.Status = "0/0"
+		status = "0/0"
 	} else {
-		app.Status = fmt.Sprintf("%d/%d",
+		status = fmt.Sprintf("%d/%d",
 			deployments.Items[0].Status.ReadyReplicas,
 			deployments.Items[0].Status.Replicas)
 
-		app.StageID = deployments.Items[0].
+		stageID = deployments.Items[0].
 			Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
-		app.Username = deployments.Items[0].Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		username = deployments.Items[0].Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
-		app.Active = true
+		active = true
 	}
 
-	routes, err := a.cluster.ListIngressRoutes(ctx, app.Organization, names.IngressName(app.Name))
+	routes, err := a.cluster.ListIngressRoutes(ctx, a.app.Org, names.IngressName(a.app.Name))
 	if err != nil {
-		app.Route = err.Error()
+		route = err.Error()
 	} else {
-		app.Route = routes[0]
+		route = routes[0]
 	}
 
-	app.BoundServices = []string{}
-	bound, err := a.Services(ctx)
-	if err != nil {
-		app.BoundServices = append(app.BoundServices, err.Error())
-	} else {
-		for _, service := range bound {
-			app.BoundServices = append(app.BoundServices, service.Name())
-		}
+	return &models.AppDeployment{
+		Active:   active,
+		Username: username,
+		StageID:  stageID,
+		Status:   status,
+		Route:    route,
 	}
-
-	return app, nil
 }

@@ -482,7 +482,9 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		Unbind: unbind,
 	}
 
-	deleteResponse, err := c.API.ServiceDelete(request, c.Config.Org, name,
+	var bound []string
+
+	_, err := c.API.ServiceDelete(request, c.Config.Org, name,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
 			if response.StatusCode != http.StatusBadRequest {
@@ -499,33 +501,26 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 				return err
 			}
 
-			bound := strings.Split(apiError.Errors[0].Details, ",")
-
-			sort.Strings(bound)
-			msg := c.ui.Exclamation().WithTable("Bound Applications")
-
-			for _, app := range bound {
-				msg = msg.WithTableRow(app)
-			}
-
-			msg.Msg("Unable to delete service. It is still used by")
-			c.ui.Exclamation().Compact().Msg("Use --unbind to force the issue")
-
-			return errors.New(http.StatusText(response.StatusCode))
+			bound = strings.Split(apiError.Errors[0].Details, ",")
+			return nil
 		})
 	if err != nil {
 		return err
 	}
 
-	if len(deleteResponse.BoundApps) > 0 {
-		sort.Strings(deleteResponse.BoundApps)
-		msg := c.ui.Note().WithTable("Previously Bound To")
+	if len(bound) > 0 {
+		sort.Strings(bound)
+		sort.Strings(bound)
+		msg := c.ui.Exclamation().WithTable("Bound Applications")
 
-		for _, app := range deleteResponse.BoundApps {
+		for _, app := range bound {
 			msg = msg.WithTableRow(app)
 		}
 
-		msg.Msg("")
+		msg.Msg("Unable to delete service. It is still used by")
+		c.ui.Exclamation().Compact().Msg("Use --unbind to force the issue")
+
+		return nil
 	}
 
 	c.ui.Success().
@@ -707,11 +702,11 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 	}
 
 	for _, app := range apps {
-		details.Info("Found", "Name", app.Name)
+		details.Info("Found", "Name", app.Meta.Name)
 
-		if strings.HasPrefix(app.Name, prefix) {
-			details.Info("Matched", "Name", app.Name)
-			result = append(result, app.Name)
+		if strings.HasPrefix(app.Meta.Name, prefix) {
+			details.Info("Matched", "Name", app.Meta.Name)
+			result = append(result, app.Meta.Name)
 		}
 	}
 
@@ -760,22 +755,39 @@ func (c *EpinioClient) Apps(all bool) error {
 		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Services")
 
 		for _, app := range apps {
-			msg = msg.WithTableRow(
-				app.Organization,
-				app.Name,
-				app.Status,
-				app.Route,
-				strings.Join(app.BoundServices, ", "))
+			if app.Workload == nil {
+				msg = msg.WithTableRow(
+					app.Meta.Org,
+					app.Meta.Name,
+					"n/a",
+					"n/a",
+					strings.Join(app.Configuration.Services, ", "))
+			} else {
+				msg = msg.WithTableRow(
+					app.Meta.Org,
+					app.Meta.Name,
+					app.Workload.Status,
+					app.Workload.Route,
+					strings.Join(app.Configuration.Services, ", "))
+			}
 		}
 	} else {
 		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
 
 		for _, app := range apps {
-			msg = msg.WithTableRow(
-				app.Name,
-				app.Status,
-				app.Route,
-				strings.Join(app.BoundServices, ", "))
+			if app.Workload == nil {
+				msg = msg.WithTableRow(
+					app.Meta.Name,
+					"n/a",
+					"n/a",
+					strings.Join(app.Configuration.Services, ", "))
+			} else {
+				msg = msg.WithTableRow(
+					app.Meta.Name,
+					app.Workload.Status,
+					app.Workload.Route,
+					strings.Join(app.Configuration.Services, ", "))
+			}
 		}
 	}
 
@@ -807,13 +819,20 @@ func (c *EpinioClient) AppShow(appName string) error {
 		return err
 	}
 
-	c.ui.Success().
-		WithTable("Key", "Value").
-		WithTableRow("Status", app.Status).
-		WithTableRow("Username", app.Username).
-		WithTableRow("StageId", app.StageID).
-		WithTableRow("Routes", app.Route).
-		WithTableRow("Services", strings.Join(app.BoundServices, ", ")).
+	msg := c.ui.Success().WithTable("Key", "Value")
+
+	if app.Workload != nil {
+		msg = msg.WithTableRow("Status", app.Workload.Status).
+			WithTableRow("Username", app.Workload.Username).
+			WithTableRow("StageId", app.Workload.StageID).
+			WithTableRow("Routes", app.Workload.Route)
+	} else {
+		msg = msg.WithTableRow("Status", "not deployed")
+	}
+
+	msg.
+		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
+		WithTableRow("Bound Services", strings.Join(app.Configuration.Services, ", ")).
 		WithTableRow("Environment", `See it by running the command "epinio app env list `+appName+`"`).
 		Msg("Details:")
 
@@ -831,15 +850,15 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 		return "", err
 	}
 
-	if !app.Active {
+	if app.Workload == nil {
 		return "", errors.New("Application has no workload")
 	}
 
-	return app.StageID, nil
+	return app.Workload.StageID, nil
 }
 
 // AppUpdate updates the specified running application's attributes (e.g. instances)
-func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
+func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpdateRequest) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -856,8 +875,7 @@ func (c *EpinioClient) AppUpdate(appName string, instances int32) error {
 
 	details.Info("update application")
 
-	req := models.UpdateAppRequest{Instances: instances}
-	_, err := c.API.AppUpdate(req, c.Config.Org, appName)
+	_, err := c.API.AppUpdate(appConfig, c.Config.Org, appName)
 	if err != nil {
 		return err
 	}
@@ -1167,16 +1185,4 @@ func (c *EpinioClient) TargetOk() error {
 		return errors.New("Internal Error: No namespace targeted")
 	}
 	return nil
-}
-
-func uniqueStrings(stringSlice []string) []string {
-	keys := make(map[string]bool)
-	list := []string{}
-	for _, entry := range stringSlice {
-		if _, value := keys[entry]; !value {
-			keys[entry] = true
-			list = append(list, entry)
-		}
-	}
-	return list
 }

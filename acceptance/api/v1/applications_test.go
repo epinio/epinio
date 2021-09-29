@@ -33,8 +33,6 @@ import (
 var _ = Describe("Apps API Application Endpoints", func() {
 	var (
 		org string
-		one int32 = 1
-		two int32 = 2
 	)
 	dockerImageURL := "splatform/sample-app"
 
@@ -89,15 +87,45 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		var responseApp models.App
 		err = json.Unmarshal(bodyBytes, &responseApp)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred(), string(bodyBytes))
-		ExpectWithOffset(1, responseApp.Name).To(Equal(app))
-		ExpectWithOffset(1, responseApp.Organization).To(Equal(org))
+		ExpectWithOffset(1, responseApp.Meta.Name).To(Equal(app))
+		ExpectWithOffset(1, responseApp.Meta.Org).To(Equal(org))
 
-		return responseApp.Status
+		if responseApp.Workload == nil {
+			return ""
+		}
+
+		return responseApp.Workload.Status
 	}
 
 	updateAppInstances := func(org string, app string, instances int32) (int, []byte) {
-		data, err := json.Marshal(models.UpdateAppRequest{Instances: instances})
+		desired := instances
+		data, err := json.Marshal(models.ApplicationUpdateRequest{
+			Instances: &desired,
+		})
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+		response, err := env.Curl("PATCH",
+			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
+			strings.NewReader(string(data)))
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+		ExpectWithOffset(1, response).ToNot(BeNil())
+
+		defer response.Body.Close()
+		bodyBytes, err := ioutil.ReadAll(response.Body)
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+		return response.StatusCode, bodyBytes
+	}
+
+	updateAppInstancesNAN := func(org string, app string) (int, []byte) {
+		desired := int32(314)
+		data, err := json.Marshal(models.ApplicationUpdateRequest{
+			Instances: &desired,
+		})
+		ExpectWithOffset(1, err).ToNot(HaveOccurred())
+
+		// Hack to make the Instances value non-number
+		data = []byte(strings.Replace(string(data), "314", `"thisisnotanumber"`, 1))
 
 		response, err := env.Curl("PATCH",
 			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
@@ -274,7 +302,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			When("instances is invalid", func() {
-				It("returns BadRequest", func() {
+				It("returns BadRequest when instances is a negative number", func() {
 					app := catalog.NewAppName()
 					env.MakeDockerImageApp(app, 1, dockerImageURL)
 					defer env.DeleteApp(app)
@@ -288,6 +316,25 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusBadRequest))
 					Expect(errorResponse.Errors[0].Title).To(Equal("instances param should be integer equal or greater than zero"))
+				})
+
+				It("returns BadRequest when instances is not a number", func() {
+					// The bad request does not even reach deeper validation, as it fails to
+					// convert into the expected structure.
+
+					app := catalog.NewAppName()
+					env.MakeDockerImageApp(app, 1, dockerImageURL)
+					defer env.DeleteApp(app)
+					Expect(appStatus(org, app)).To(Equal("1/1"))
+
+					status, updateResponseBody := updateAppInstancesNAN(org, app)
+					Expect(status).To(Equal(http.StatusBadRequest))
+
+					var errorResponse v1.ErrorResponse
+					err := json.Unmarshal(updateResponseBody, &errorResponse)
+					Expect(err).ToNot(HaveOccurred())
+					Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusBadRequest))
+					Expect(errorResponse.Errors[0].Title).To(Equal("json: cannot unmarshal string into Go struct field ApplicationUpdateRequest.instances of type int32"))
 				})
 			})
 
@@ -315,13 +362,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				err = json.Unmarshal(bodyBytes, &apps)
 				Expect(err).ToNot(HaveOccurred())
 
-				appNames := []string{apps[0].Name, apps[1].Name}
+				appNames := []string{apps[0].Meta.Name, apps[1].Meta.Name}
 				Expect(appNames).To(ContainElements(app1, app2))
 
-				orgNames := []string{apps[0].Organization, apps[1].Organization}
+				orgNames := []string{apps[0].Meta.Org, apps[1].Meta.Org}
 				Expect(orgNames).To(ContainElements(org, org))
 
-				statuses := []string{apps[0].Status, apps[1].Status}
+				// Applications are deployed. Must have workload.
+				statuses := []string{apps[0].Workload.Status, apps[1].Workload.Status}
 				Expect(statuses).To(ContainElements("1/1", "1/1"))
 			})
 
@@ -474,7 +522,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				var appRefs [][]string
 				for _, a := range apps {
-					appRefs = append(appRefs, []string{a.Name, a.Organization})
+					appRefs = append(appRefs, []string{a.Meta.Name, a.Meta.Org})
 				}
 				Expect(appRefs).To(ContainElements(
 					[]string{app1, org1},
@@ -579,7 +627,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 							Name: appName,
 							Org:  org,
 						},
-						Instances: &one,
 						Stage: models.StageRef{
 							ID: stageResponse.Stage.ID,
 						},
@@ -631,8 +678,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						Name: appName,
 						Org:  org,
 					},
-					Instances: &one,
-					ImageURL:  "splatform/sample-app",
+					ImageURL: "splatform/sample-app",
 				}
 
 				url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)
@@ -672,89 +718,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						"-o", "jsonpath={.items[*].spec.automountServiceAccountToken}")
 					Expect(err).NotTo(HaveOccurred())
 					Expect(out).To(ContainSubstring("true"))
-				})
-			})
-
-			When("deloying with more instances", func() {
-				BeforeEach(func() {
-					request.Instances = &two
-					bodyBytes, err := json.Marshal(request)
-					Expect(err).ToNot(HaveOccurred())
-					body = string(bodyBytes)
-				})
-
-				It("creates an app with the specified number of instances", func() {
-					response, err := env.Curl("POST", url, strings.NewReader(body))
-					Expect(err).ToNot(HaveOccurred())
-					Expect(response).ToNot(BeNil())
-					defer response.Body.Close()
-
-					Eventually(func() string {
-						return appStatus(org, appName)
-					}, "5m").Should(Equal("2/2"))
-				})
-			})
-
-			When("deploying with invalid instances", func() {
-				When("instances is a negative integer", func() {
-					BeforeEach(func() {
-						n := int32(-3)
-						request.Instances = &n
-						bodyBytes, err := json.Marshal(request)
-						Expect(err).ToNot(HaveOccurred())
-						body = string(bodyBytes)
-					})
-
-					It("returns BadRequest", func() {
-						resp, err := env.Curl("POST", url, strings.NewReader(body))
-						Expect(err).ToNot(HaveOccurred())
-						Expect(resp).ToNot(BeNil())
-						defer resp.Body.Close()
-
-						bodyBytes, err := ioutil.ReadAll(resp.Body)
-						Expect(err).ToNot(HaveOccurred())
-						Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-
-						r := &v1.ErrorResponse{}
-						err = json.Unmarshal(bodyBytes, &r)
-						Expect(err).ToNot(HaveOccurred())
-
-						responseErr := r.Errors[0]
-						Expect(responseErr.Status).To(Equal(400))
-						Expect(responseErr.Title).To(Equal("instances param should be integer equal or greater than zero"))
-					})
-				})
-
-				When("instances is not a number", func() {
-					BeforeEach(func() {
-						n := int32(314)
-						request.Instances = &n // Hack: see below too
-						bodyBytes, err := json.Marshal(request)
-						Expect(err).ToNot(HaveOccurred())
-						body = string(bodyBytes)
-					})
-
-					It("returns BadRequest", func() {
-						// Hack to make the Instances value non-number
-						body = strings.Replace(body, "314", "thisisnotanumber", 1)
-
-						resp, err := env.Curl("POST", url, strings.NewReader(body))
-						Expect(err).ToNot(HaveOccurred())
-						Expect(resp).ToNot(BeNil())
-						defer resp.Body.Close()
-
-						bodyBytes, err := ioutil.ReadAll(resp.Body)
-						Expect(err).ToNot(HaveOccurred())
-						Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-
-						r := &v1.ErrorResponse{}
-						err = json.Unmarshal(bodyBytes, &r)
-						Expect(err).ToNot(HaveOccurred())
-
-						responseErr := r.Errors[0]
-						Expect(responseErr.Status).To(Equal(400))
-						Expect(responseErr.Title).To(ContainSubstring("Failed to unmarshal deploy request"))
-					})
 				})
 			})
 		})

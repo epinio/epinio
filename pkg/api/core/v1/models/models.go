@@ -60,17 +60,23 @@ type BindResponse struct {
 	WasBound []string `json:"wasbound"`
 }
 
-// ApplicationCreateRequest  represents and contains the data needed to
-// create an application
+// ApplicationCreateRequest represents and contains the data needed to
+// create an application (at rest), possibly with presets (services)
 type ApplicationCreateRequest struct {
-	Name string `json:"name"`
+	Name          string                   `json:"name"`
+	Configuration ApplicationUpdateRequest `json:"configuration"`
 }
 
-// UpdateAppRequest represents and contains the data needed to update
+// ApplicationUpdateRequest represents and contains the data needed to update
 // an application. Specifically to modify the number of replicas to
-// run.
-type UpdateAppRequest struct {
-	Instances int32 `json:"instances"`
+// run, and the services bound to it.
+// Note: Instances is a pointer to give us a nil value separate from
+// actual integers, as means of communicating `default`/`no change`.
+
+type ApplicationUpdateRequest struct {
+	Instances   *int32          `json:"instances"`
+	Services    []string        `json:"services"`
+	Environment EnvVariableList `json:"environment"`
 }
 
 type ImportGitResponse struct {
@@ -100,11 +106,12 @@ type StageResponse struct {
 }
 
 // DeployRequest represents and contains the data needed to deploy an application
+// Note that the overall application configuration (instances, services, EVs) is
+// already known server side, through AppCreate/AppUpdate requests.
 type DeployRequest struct {
-	App       AppRef   `json:"app,omitempty"`
-	Instances *int32   `json:"instances,omitempty"`
-	Stage     StageRef `json:"stage,omitempty"`
-	ImageURL  string   `json:"image,omitempty"`
+	App      AppRef   `json:"app,omitempty"`
+	Stage    StageRef `json:"stage,omitempty"`
+	ImageURL string   `json:"image,omitempty"`
 }
 
 // DeployResponse represents the server's response to a successful app deployment

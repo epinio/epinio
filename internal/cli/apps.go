@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -34,12 +33,11 @@ func init() {
 	flags.Bool("follow", false, "follow the logs of the application")
 	flags.Bool("staging", false, "show the staging logs of the application")
 
-	updateFlags := CmdAppUpdate.Flags()
-	updateFlags.Int32P("instances", "i", 1, "The number of instances the application should have")
-	err := cobra.MarkFlagRequired(updateFlags, "instances")
-	if err != nil {
-		panic(err)
-	}
+	bindOption(CmdAppCreate)
+	bindOption(CmdAppUpdate)
+
+	instancesOption(CmdAppCreate)
+	instancesOption(CmdAppUpdate)
 
 	flags = CmdAppList.Flags()
 	flags.Bool("all", false, "list all applications")
@@ -96,7 +94,12 @@ var CmdAppCreate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.AppCreate(args[0])
+		ac, err := appConfiguration(cmd)
+		if err != nil {
+			return errors.Wrap(err, "unable to get app configuration")
+		}
+
+		err = client.AppCreate(args[0], ac)
 		if err != nil {
 			return errors.Wrap(err, "error creating app")
 		}
@@ -214,15 +217,12 @@ var CmdAppUpdate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		i, err := instances(cmd)
+		ac, err := appConfiguration(cmd)
 		if err != nil {
-			return errors.Wrap(err, "trouble with instances")
+			return errors.Wrap(err, "unable to get app configuration")
 		}
-		if i == nil {
-			d := v1.DefaultInstances
-			i = &d
-		}
-		err = client.AppUpdate(args[0], *i)
+
+		err = client.AppUpdate(args[0], ac)
 		if err != nil {
 			return errors.Wrap(err, "error updating the app")
 		}

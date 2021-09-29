@@ -60,7 +60,7 @@ func (evl EnvVariableList) ToEnvVarArray(appRef AppRef) []v1.EnvVar {
 				SecretKeyRef: &v1.SecretKeySelector{
 					Key: ev.Name,
 					LocalObjectReference: v1.LocalObjectReference{
-						Name: appRef.EnvSecret(),
+						Name: appRef.MakeEnvSecretName(),
 					},
 				},
 			},

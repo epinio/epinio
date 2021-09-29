@@ -157,14 +157,11 @@ func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(orgName)
 	}
 
-	app := models.NewAppRef(appName, orgName)
-
-	exists, err = application.Exists(ctx, cluster, app)
+	app, err := application.Lookup(ctx, cluster, orgName, appName)
 	if err != nil {
 		return InternalError(err)
 	}
-
-	if !exists {
+	if app == nil {
 		return AppIsNotKnown(appName)
 	}
 
@@ -180,16 +177,27 @@ func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) 
 		return BadRequest(err)
 	}
 
-	err = application.EnvironmentSet(ctx, cluster, app, setRequest)
+	err = application.EnvironmentSet(ctx, cluster, app.Meta, setRequest, false)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	if app.Workload != nil {
+		varNames, err := application.EnvironmentNames(ctx, cluster, app.Meta)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		err = application.NewWorkload(cluster, app.Meta).EnvironmentChange(ctx, varNames)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
-
 	return nil
 }
 
@@ -287,20 +295,29 @@ func (hc ApplicationsController) EnvUnset(w http.ResponseWriter, r *http.Request
 		return OrgIsNotKnown(orgName)
 	}
 
-	app := models.NewAppRef(appName, orgName)
-
-	exists, err = application.Exists(ctx, cluster, app)
+	app, err := application.Lookup(ctx, cluster, orgName, appName)
 	if err != nil {
 		return InternalError(err)
 	}
-
-	if !exists {
+	if app == nil {
 		return AppIsNotKnown(appName)
 	}
 
-	err = application.EnvironmentUnset(ctx, cluster, app, varName)
+	err = application.EnvironmentUnset(ctx, cluster, app.Meta, varName)
 	if err != nil {
 		return InternalError(err)
+	}
+
+	if app.Workload != nil {
+		varNames, err := application.EnvironmentNames(ctx, cluster, app.Meta)
+		if err != nil {
+			return InternalError(err)
+		}
+
+		err = application.NewWorkload(cluster, app.Meta).EnvironmentChange(ctx, varNames)
+		if err != nil {
+			return InternalError(err)
+		}
 	}
 
 	err = jsonResponse(w, models.ResponseOK)

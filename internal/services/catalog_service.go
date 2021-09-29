@@ -417,7 +417,7 @@ func (s *CatalogService) Org() string {
 
 // GetBinding (Service interface) returns an application-specific
 // secret for the service to be bound to that application.
-func (s *CatalogService) GetBinding(ctx context.Context, appName, username string) (*corev1.Secret, error) {
+func (s *CatalogService) GetBinding(ctx context.Context, appName string, owner metav1.OwnerReference, username string) (*corev1.Secret, error) {
 	// TODO Label the secret
 
 	bindingName := bindingResourceName(s.OrgName, s.Service, appName)
@@ -427,7 +427,7 @@ func (s *CatalogService) GetBinding(ctx context.Context, appName, username strin
 		return nil, err
 	}
 	if binding == nil {
-		_, err = s.createBinding(ctx, bindingName, s.OrgName, username, s.Service, appName)
+		_, err = s.createBinding(ctx, bindingName, s.OrgName, username, s.Service, appName, owner)
 		if err != nil {
 			return nil, err
 		}
@@ -458,7 +458,7 @@ func (s *CatalogService) lookupBinding(ctx context.Context, bindingName, org str
 
 // createBinding is a helper for GetBinding which creates a
 // ServiceBinding for the application with name appName.
-func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, username, serviceName, appName string) (interface{}, error) {
+func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, username, serviceName, appName string, owner metav1.OwnerReference) (interface{}, error) {
 	serviceInstanceName := serviceResourceName(org, serviceName)
 
 	data := fmt.Sprintf(`{
@@ -467,19 +467,30 @@ func (s *CatalogService) createBinding(ctx context.Context, bindingName, org, us
 		"metadata": { 
 			"name": "%s", 
 			"namespace": "%s",
-		    "labels": { 
+			"labels": {
 				"app.kubernetes.io/name": "%s",
 				"app.kubernetes.io/part-of": "%s",
 				"app.kubernetes.io/component": "servicebinding",
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/created-by": "%s"
-			}
+			},
+			"ownerReferences": [{
+				"apiVersion": "%s",
+				"kind": "%s",
+				"name": "%s",
+				"uid": "%s"
+			}]
 		},
 		"spec": {
 			"instanceRef": { "name": "%s" },
 			"secretName": "%s" 
 		}
-	}`, bindingName, org, appName, org, username, serviceInstanceName, bindingName)
+	}`, bindingName, org, appName, org, username,
+		owner.APIVersion,
+		owner.Kind,
+		owner.Name,
+		owner.UID,
+		serviceInstanceName, bindingName)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}

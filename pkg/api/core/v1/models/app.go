@@ -14,27 +14,38 @@ type GitRef struct {
 	URL      string `json:"url"`
 }
 
-// App has all the app properties, like the routes and stage ID.
-// It is used in the CLI and  API responses.
+// App has all the application's properties, for at rest (Configuration), and active (Workload).
+// The main structure has identifying information.
+// It is used in the CLI and API responses.
 type App struct {
-	Active        bool     `json:"active,omitempty"`
-	StageID       string   `json:"stage_id,omitempty"`
-	Name          string   `json:"name,omitempty"`
-	Organization  string   `json:"namespace,omitempty"`
-	Username      string   `json:"username,omitempty"`
-	Status        string   `json:"status,omitempty"`
-	Route         string   `json:"route,omitempty"`
-	BoundServices []string `json:"bound_services,omitempty"`
+	Meta          AppRef                   `json:"meta"`
+	Configuration ApplicationUpdateRequest `json:"configuration"`
+	Workload      *AppDeployment           `json:"deployment,omitempty"`
+}
+
+// AppDeployment contains all the information specific to an active
+// application, i.e. one with a deployment in the cluster.
+type AppDeployment struct {
+	Active   bool   `json:"active,omitempty"`   // app is > 0 replicas
+	Username string `json:"username,omitempty"` // app creator
+	StageID  string `json:"stage_id,omitempty"` // tekton staging id
+	Status   string `json:"status,omitempty"`   // app replica status
+	Route    string `json:"route,omitempty"`    // app route
 }
 
 // NewApp returns a new app for name and org
 func NewApp(name string, org string) *App {
-	return &App{Name: name, Organization: org}
+	return &App{
+		Meta: AppRef{
+			Name: name,
+			Org:  org,
+		},
+	}
 }
 
 // AppRef returns a reference to the app (name, org)
 func (a *App) AppRef() AppRef {
-	return NewAppRef(a.Name, a.Organization)
+	return a.Meta
 }
 
 // AppList is a collection of app references
@@ -57,7 +68,7 @@ func (al AppList) Swap(i, j int) {
 // indices in the AppList and returns true if the condition holds, and
 // else false.
 func (al AppList) Less(i, j int) bool {
-	return al[i].Name < al[j].Name
+	return al[i].Meta.Name < al[j].Meta.Name
 }
 
 // AppRef references an App by name and org
@@ -71,20 +82,34 @@ func NewAppRef(name string, org string) AppRef {
 	return AppRef{Name: name, Org: org}
 }
 
-// App returns an fresh app model for the reference
+// App returns a fresh app model for the reference
 func (ar *AppRef) App() *App {
 	return NewApp(ar.Name, ar.Org)
 }
 
-// EnvSecret returns the name of the kube secret holding the
+// MakeEnvSecretName returns the name of the kube secret holding the
 // environment variables of the referenced application
-func (ar *AppRef) EnvSecret() string {
+func (ar *AppRef) MakeEnvSecretName() string {
 	// TODO: This needs tests for env operations on an app with a long name
 	return names.GenerateResourceName(ar.Name + "-env")
 }
 
-// PVCName returns the name of the kube pvc to use with/for the referenced application.
-func (ar *AppRef) PVCName() string {
+// MakeServiceSecretName returns the name of the kube secret holding the
+// bound services of the referenced application
+func (ar *AppRef) MakeServiceSecretName() string {
+	// TODO: This needs tests for service operations on an app with a long name
+	return names.GenerateResourceName(ar.Name + "-svc")
+}
+
+// MakeScaleSecretName returns the name of the kube secret holding the number
+// of desired instances for referenced application
+func (ar *AppRef) MakeScaleSecretName() string {
+	// TODO: This needs tests for service operations on an app with a long name
+	return names.GenerateResourceName(ar.Name + "-scale")
+}
+
+// MakePVCName returns the name of the kube pvc to use with/for the referenced application.
+func (ar *AppRef) MakePVCName() string {
 	return names.GenerateResourceName(ar.Org, ar.Name)
 }
 
