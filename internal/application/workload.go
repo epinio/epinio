@@ -136,7 +136,7 @@ func (a *Workload) BoundServicesChange(ctx context.Context, userName string, old
 			_, hasold := oldServices[volume.Name]
 			_, hasnew := new[volume.Name]
 
-			// Note that volumes which are in not in old are passed and kept. These are the volumes
+			// Note that volumes which are not in old are passed and kept. These are the volumes
 			// not related to services.
 
 			if hasold && !hasnew {
