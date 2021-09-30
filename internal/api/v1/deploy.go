@@ -215,7 +215,7 @@ func newAppDeployment(stageID string, deployParams deployParam) *appsv1.Deployme
 
 	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: deployParams.AppRef.Name,
+			Name: deployParams.Name,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       deployParams.Name,
 				"app.kubernetes.io/part-of":    deployParams.Org,
