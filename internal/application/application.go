@@ -16,7 +16,9 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/pkg/errors"
+	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -197,6 +199,8 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 	return result, nil
 }
 
+// TODO BEGIN move into separate file
+
 // Delete removes the named application, its workload (if active), bindings (if any),
 // the stored application sources, and any pipelineruns from when the application was
 // staged (if active). Waits for the application's deployment's pods to disappear
@@ -210,6 +214,12 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	// delete application resource, will cascade and delete deployment,
 	// ingress, service and certificate, environment variables, bindings
 	err = client.Namespace(appRef.Org).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	// TODO run helm uninstall pipeline
+	err = helmUninstall(ctx, cluster, appRef)
 	if err != nil {
 		return err
 	}
@@ -237,6 +247,44 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	return nil
 }
 
+func helmUninstall(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) error {
+	client, err := cluster.ClientTekton()
+	if err != nil {
+		return err
+	}
+
+	pr := newUninstallPR(app)
+	_, err = client.PipelineRuns(deployments.TektonStagingNamespace).Create(ctx, pr, metav1.CreateOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func newUninstallPR(app models.AppRef) *v1beta1.PipelineRun {
+	str := v1beta1.NewArrayOrString
+
+	return &v1beta1.PipelineRun{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "uninstall-" + app.Org + "-" + app.Name,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       app.Name,
+				"app.kubernetes.io/part-of":    app.Org,
+				"app.kubernetes.io/managed-by": "epinio",
+				"app.kubernetes.io/component":  "deploy",
+			},
+		},
+		Spec: v1beta1.PipelineRunSpec{
+			ServiceAccountName: "staging-triggers-admin",
+			PipelineRef:        &v1beta1.PipelineRef{Name: "uninstall-pipeline"},
+			Params: []v1beta1.Param{
+				{Name: "APP_NAME", Value: *str(app.Name)},
+				{Name: "NAMESPACE", Value: *str(app.Org)},
+			},
+		},
+	}
+}
+
 // deleteStagePVC removes the kube PVC resource which was used to hold the application sources for Tekton, during staging.
 func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	return cluster.Kubectl.CoreV1().
@@ -246,6 +294,9 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 // Unstage removes staging resources. It deletes either all PipelineRuns of the
 // named application, or all but stageIDCurrent. It also deletes the staged
 // objects from the S3 storage.
+//
+// Note: this will delete *all* PipelineRuns of the app. Not just the ones
+// related to staging.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
@@ -263,7 +314,6 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	}
 
 	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
-
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
 			appRef.Name, appRef.Org),
@@ -291,6 +341,8 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 
 	return nil
 }
+
+// TODO END move into separate file
 
 // Logs method writes log lines to the specified logChan. The caller can stop
 // the logging with the ctx cancelFunc. It's also the callers responsibility

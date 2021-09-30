@@ -1,0 +1,46 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: uninstall-pipeline
+  namespace: tekton-staging
+spec:
+  params:
+    - name: APP_NAME
+      type: string
+    - name: NAMESPACE
+      type: string
+
+  tasks:
+  - name: uninstall
+    taskRef:
+      name: uninstall
+    params:
+    - name: APP_NAME
+      value: "$(params.APP_NAME)"
+    - name: NAMESPACE
+      value: "$(params.NAMESPACE)"
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: uninstall
+  namespace: tekton-staging
+spec:
+  params:
+    - name: APP_NAME
+      type: string
+    - name: NAMESPACE
+      type: string
+      default: "workspace"
+  steps:
+  - name: helm-uninstall
+    image: lachlanevenson/k8s-helm:v3.7.0
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        helm uninstall "$(params.APP_NAME)" \
+          -n "$(params.NAMESPACE)"

@@ -199,7 +199,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err, "failed to get access to a tekton client")
 	}
 	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
-	pr := newPipelineRun(params)
+	pr := newStagePR(params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
@@ -305,9 +305,9 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 	return nil
 }
 
-// newPipelineRun is a helper which creates a Tekton pipeline run
+// newStagePR is a helper which creates a Tekton pipeline run
 // resource from the given staging params
-func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
+func newStagePR(app stageParam) *v1beta1.PipelineRun {
 	str := v1beta1.NewArrayOrString
 
 	protocol := "http"
@@ -323,7 +323,8 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Stage.ID,
+			// TODO is it safe to rename this? application.Unstage
+			Name: "stage-" + app.Stage.ID,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Org,

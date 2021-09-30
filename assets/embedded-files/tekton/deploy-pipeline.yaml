@@ -1,0 +1,105 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: deploy-pipeline
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: helm
+  params:
+    - name: HELM_CHART_URL
+      type: string
+      description: "URL of the helm chart"
+    - name: APP_NAME
+      type: string
+      description: ""
+    - name: NAMESPACE
+      type: string
+      description: ""
+    - name: REPLICA_COUNT
+      type: string
+      description: ""
+    - name: STAGE_ID
+      type: string
+      description: ""
+    - name: IMAGE_URL
+      type: string
+      description: ""
+    - name: USERNAME
+      type: string
+      description: ""
+    - name: ROUTE
+      type: string
+      description: ""
+
+  tasks:
+  # not using https://hub.tekton.dev/tekton/task/helm-upgrade-from-source
+  - name: deploy
+    taskRef:
+      name: deploy
+    workspaces:
+    - name: helm
+      workspace: helm
+    params:
+    - name: HELM_CHART_URL
+      value: "$(params.HELM_CHART_URL)"
+    - name: APP_NAME
+      value: "$(params.APP_NAME)"
+    - name: NAMESPACE
+      value: "$(params.NAMESPACE)"
+    - name: REPLICA_COUNT
+      value: "$(params.REPLICA_COUNT)"
+    - name: STAGE_ID
+      value: "$(params.STAGE_ID)"
+    - name: IMAGE_URL
+      value: "$(params.IMAGE_URL)"
+    - name: USERNAME
+      value: "$(params.USERNAME)"
+    - name: ROUTE
+      value: "$(params.ROUTE)"
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: helm
+  params:
+    - name: HELM_CHART_URL
+      type: string
+    - name: APP_NAME
+      type: string
+    - name: NAMESPACE
+      type: string
+      default: "workspace"
+    - name: REPLICA_COUNT
+      type: string
+    - name: STAGE_ID
+      type: string
+    - name: IMAGE_URL
+      type: string
+    - name: USERNAME
+      type: string
+    - name: ROUTE
+      type: string
+  steps:
+  - name: helm-upgrade
+    image: lachlanevenson/k8s-helm:v3.7.0
+    workingDir: "/workspace/helm"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        helm install "$(params.APP_NAME)" "$(params.HELM_CHART_URL)" \
+          -n "$(params.NAMESPACE)" \
+          --set "epinio.replicaCount=$(params.REPLICA_COUNT)" \
+          --set "epinio.stageID=$(params.STAGE_ID)" \
+          --set "epinio.imageURL=$(params.IMAGE_URL)" \
+          --set "epinio.username=$(params.USERNAME)" \
+          --set "epinio.route=$(params.ROUTE)" \
+          --wait
