@@ -448,6 +448,9 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 		return err
 	}
 
+	c.ui.Exclamation().
+		Msg("Beware, the shown access paths are only available in the application's container")
+
 	c.ui.Success().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Config.Org).
@@ -495,6 +498,9 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 	}
 
 	msg.Msg("")
+
+	c.ui.Exclamation().
+		Msg("Beware, the shown access paths are only available in the application's container")
 	return nil
 }
 
