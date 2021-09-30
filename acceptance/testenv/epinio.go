@@ -62,7 +62,11 @@ func EpinioBinaryPath() string {
 
 // EpinioYAML returns the absolute path to the epinio config YAML
 func EpinioYAML() string {
-	return os.ExpandEnv("${HOME}/.config/epinio/config.yaml")
+	if os.Getenv("EPINIO_CONFIG") == "" {
+		return os.ExpandEnv("${HOME}/.config/epinio/config.yaml")
+	}
+
+	return os.Getenv("EPINIO_CONFIG")
 }
 
 // BuildEpinio builds the epinio binaries for the server and if platforms are different also for the CLI
