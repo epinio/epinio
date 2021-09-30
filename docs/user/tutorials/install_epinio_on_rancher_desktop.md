@@ -16,7 +16,8 @@ When running Rancher Desktop for the first time wait until the initialization is
 
 Make sure Rancher Desktop is running.
 
-Since there might be cases where Rancher Desktop reports Kubernetes as running but some pods are not yet ready the state can be manually verified by executing in a terminal `kubectl get pods -A` and veryfing that all pods report the status `Running` or `Completed`.
+Rancher Desktop can report Kubernetes as running while some pods are actually not yet ready.
+Manual verification is possible by executing the command `kubectl get pods -A` in a terminal and checking that all pods report either `Running` or `Completed` as their status.
 
 ### Windows
 
@@ -24,7 +25,7 @@ Since there might be cases where Rancher Desktop reports Kubernetes as running b
 
 2. Run `epinion-windows-amd64 install`
 
-3. To allow Epinio being executed directly from any terminal copy the binary to a directory of your choice and add it to the `PATH` variable as described [here](https://medium.com/@kevinmarkvi/how-to-add-executables-to-your-path-in-windows-5ffa4ce61a53)
+3. Copy the binary to a directory of your choice and add it to the `PATH` variable as described by [Kevin Berg's article](https://medium.com/@kevinmarkvi/how-to-add-executables-to-your-path-in-windows-5ffa4ce61a53). This allows execution of Epinio directly from any terminal.
 
 ### Mac
 
