@@ -15,7 +15,9 @@ When running Rancher Desktop for the first time wait until the initialization is
 
 ## Install epinio
 
-Make sure Rancher Desktop is running
+Make sure Rancher Desktop is running.
+
+Since there might be cases where Rancher Desktop reports Kubernetes as running but some pods are not yet ready the state can be manually verified by executing in a terminal `kubectl get pods -A` and veryfing that all pods report the status `Running` or `Completed`.
 
 ### Windows
 
