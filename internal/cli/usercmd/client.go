@@ -424,11 +424,12 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Config.Org).
-		WithTable("Parameter", "Value")
+		WithTable("Parameter", "Value", "Access Path")
 	for i := 0; i < len(dict); i += 2 {
 		key := dict[i]
 		value := dict[i+1]
-		msg = msg.WithTableRow(key, value)
+		path := fmt.Sprintf("/services/%s/%s", name, key)
+		msg = msg.WithTableRow(key, value, path)
 		data[key] = value
 	}
 	msg.Msg("Create Service")
@@ -476,14 +477,21 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 	}
 	serviceDetails := resp.Details
 
-	msg := c.ui.Success().WithTable("", "")
+	msg := c.ui.Success().WithTable("", "", "Access Path")
 	keys := make([]string, 0, len(serviceDetails))
 	for k := range serviceDetails {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		msg = msg.WithTableRow(k, serviceDetails[k])
+		path := ""
+		switch k {
+		case "Status":
+		case "Username":
+		default:
+			path = fmt.Sprintf("/services/%s/%s", name, k)
+		}
+		msg = msg.WithTableRow(k, serviceDetails[k], path)
 	}
 
 	msg.Msg("")
