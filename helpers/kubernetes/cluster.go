@@ -561,6 +561,8 @@ func (c *Cluster) DeleteSecret(ctx context.Context, namespace, name string) erro
 	return nil
 }
 
+// CreateSecret posts the specified secret to the cluster. All
+// configuration of the secret is done by the caller.
 func (c *Cluster) CreateSecret(ctx context.Context, namespace string, secret v1.Secret) error {
 	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(ctx,
 		&secret,
@@ -571,7 +573,8 @@ func (c *Cluster) CreateSecret(ctx context.Context, namespace string, secret v1.
 	return nil
 }
 
-// CreateLabeledSecret posts a new secret with key/value dictionary.
+// CreateLabeledSecret posts a new secret to the cluster. The secret
+// is constructed from name and a key/value dictionary for labels.
 func (c *Cluster) CreateLabeledSecret(ctx context.Context, namespace, name string,
 	data map[string][]byte,
 	label map[string]string) error {
@@ -579,7 +582,8 @@ func (c *Cluster) CreateLabeledSecret(ctx context.Context, namespace, name strin
 	secret := &v1.Secret{
 		Data: data,
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name:   name,
+			Labels: label,
 		},
 	}
 	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(ctx,
@@ -587,31 +591,6 @@ func (c *Cluster) CreateLabeledSecret(ctx context.Context, namespace, name strin
 		metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret")
-	}
-
-	// FIXME ... We patch the labels in ... Easier than trying to
-	// find all the necessary types for the Secret structure.
-
-	return c.LabelSecret(ctx, namespace, name, label)
-}
-
-// LabelSecret patches a secret with labels. Analogous to
-// LabelNamespace later in this file.
-func (c *Cluster) LabelSecret(ctx context.Context, namespace, name string, label map[string]string) error {
-
-	labels := []string{}
-	for key, value := range label {
-		labels = append(labels, fmt.Sprintf(`"%s":"%s"`, key, value))
-	}
-
-	patchContents := fmt.Sprintf(`{ "metadata": { "labels": { %s } } }`,
-		strings.Join(labels, ","))
-
-	_, err := c.Kubectl.CoreV1().Secrets(namespace).Patch(ctx, name,
-		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
-
-	if err != nil {
-		return err
 	}
 
 	return nil
