@@ -27,7 +27,6 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -671,20 +670,6 @@ func (c *Cluster) execPod(namespace, podName, containerName string,
 		Stdout: stdout,
 		Stderr: stderr,
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// LabelNamespace adds a label to the namespace
-func (c *Cluster) LabelNamespace(ctx context.Context, namespace, labelKey, labelValue string) error {
-	patchContents := fmt.Sprintf(`{ "metadata": { "labels": { "%s": "%s" } } }`, labelKey, labelValue)
-
-	_, err := c.Kubectl.CoreV1().Namespaces().Patch(ctx, namespace,
-		types.StrategicMergePatchType, []byte(patchContents), metav1.PatchOptions{})
-
 	if err != nil {
 		return err
 	}
