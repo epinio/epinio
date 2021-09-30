@@ -23,6 +23,8 @@ Make sure Rancher Desktop is running
 
 2. Run `epinion-windows-amd64 install`
 
+3. To allow Epinio being executed directly from any terminal copy the binary to a directory of your choice and add it to the `PATH` variable as described [here](https://medium.com/@kevinmarkvi/how-to-add-executables-to-your-path-in-windows-5ffa4ce61a53)
+
 ### Mac
 
 1. Start a terminal and change to the directory where `epinio-darwin-amd64` is located, e.g. `cd Downloads`
