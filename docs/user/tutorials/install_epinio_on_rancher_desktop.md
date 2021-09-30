@@ -3,7 +3,6 @@
 ## Rancher Desktop Prerequisites
 
 * Running on Windows requires Windows Subsystem for Linux (WSL) which is automatically installed by Rancher Desktop
-* Epinio v0.1.1 has been tested with Rancher Desktop incl. kubernetes version v1.21.5
 
 ### Install Rancher Desktop
 
