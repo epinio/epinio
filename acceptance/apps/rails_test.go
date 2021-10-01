@@ -93,6 +93,10 @@ var _ = Describe("RubyOnRails", func() {
 		out, err = proc.Run("", false, "helm", "repo", "add", "bitnami", "https://charts.bitnami.com/bitnami")
 		Expect(err).ToNot(HaveOccurred(), out)
 
+		// Update helm repos
+		out, err = proc.Run("", false, "helm", "repo", "update")
+		Expect(err).ToNot(HaveOccurred(), out)
+
 		serviceName = catalog.NewServiceName()
 		out, err = proc.Run("", false,
 			"helm", "install", serviceName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Org,
