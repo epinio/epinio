@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
@@ -13,7 +12,7 @@ import (
 func init() {
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
 	CmdService.AddCommand(CmdServiceShow)
-	CmdService.AddCommand(CmdServiceCreateCustom)
+	CmdService.AddCommand(CmdServiceCreate)
 	CmdService.AddCommand(CmdServiceDelete)
 	CmdService.AddCommand(CmdServiceBind)
 	CmdService.AddCommand(CmdServiceUnbind)
@@ -60,11 +59,11 @@ var CmdServiceShow = &cobra.Command{
 	},
 }
 
-// CmdServiceCreateCustom implements the command: epinio service create-custom
-var CmdServiceCreateCustom = &cobra.Command{
-	Use:   "create-custom NAME (KEY VALUE)...",
-	Short: "Create a custom service",
-	Long:  `Create custom service by name and key/value dictionary.`,
+// CmdServiceCreate implements the command: epinio service create
+var CmdServiceCreate = &cobra.Command{
+	Use:   "create NAME (KEY VALUE)...",
+	Short: "Create a service",
+	Long:  `Create service by name and key/value dictionary.`,
 	Args: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 3 {
 			return errors.New("Not enough arguments, expected name, key, and value")
@@ -74,7 +73,7 @@ var CmdServiceCreateCustom = &cobra.Command{
 		}
 		return nil
 	},
-	RunE: ServiceCreateCustom,
+	RunE: ServiceCreate,
 }
 
 // CmdServiceDelete implements the command: epinio service delete
@@ -211,49 +210,9 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	dw, err := cmd.Flags().GetBool("dont-wait")
-	if err != nil {
-		return errors.Wrap(err, "error reading option --dont-wait")
-	}
-	waitforProvision := !dw
-
-	data, err := cmd.Flags().GetString("data")
-	if err != nil {
-		return errors.Wrap(err, "error reading option --data")
-	}
-
-	if data == "" {
-		data = "{}"
-	}
-
-	var dataObj map[string]interface{}
-	err = json.Unmarshal([]byte(data), &dataObj)
-	if err != nil {
-		// User error. Show usage for this one.
-		cmd.SilenceUsage = false
-		return errors.Wrap(err, "Invalid json format for data")
-	}
-
-	err = client.CreateService(args[0], args[1], args[2], data, waitforProvision)
+	err = client.CreateService(args[0], args[1:])
 	if err != nil {
 		return errors.Wrap(err, "error creating service")
-	}
-
-	return nil
-}
-
-// ServiceCreateCustom is the backend of command: epinio service create-custom
-func ServiceCreateCustom(cmd *cobra.Command, args []string) error {
-	cmd.SilenceUsage = true
-
-	client, err := usercmd.New()
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	err = client.CreateCustomService(args[0], args[1:])
-	if err != nil {
-		return errors.Wrap(err, "error creating custom service")
 	}
 
 	return nil

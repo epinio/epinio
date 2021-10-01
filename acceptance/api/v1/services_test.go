@@ -24,8 +24,8 @@ var _ = Describe("Services API Application Endpoints", func() {
 		svc1 = catalog.NewServiceName()
 		svc2 = catalog.NewServiceName()
 
-		env.MakeCustomService(svc1)
-		env.MakeCustomService(svc2)
+		env.MakeService(svc1)
+		env.MakeService(svc2)
 	})
 
 	AfterEach(func() {

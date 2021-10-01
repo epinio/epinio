@@ -108,13 +108,13 @@ var Routes = routes.NamedRoutes{
 	"NamespacesMatch":  get("/namespacematches/:pattern", errorHandler(NamespacesController{}.Match)),
 	"NamespacesMatch0": get("/namespacematches", errorHandler(NamespacesController{}.Match)),
 
-	// List, show, create and delete services, catalog and custom
+	// List, show, create and delete services
 	"ServiceApps": get("/namespaces/:org/serviceapps", errorHandler(ApplicationsController{}.ServiceApps)),
 	//
-	"Services":            get("/namespaces/:org/services", errorHandler(ServicesController{}.Index)),
-	"ServiceShow":         get("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Show)),
-	"ServiceCreateCustom": post("/namespaces/:org/custom-services", errorHandler(ServicesController{}.CreateCustom)),
-	"ServiceDelete":       delete("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Delete)),
+	"Services":      get("/namespaces/:org/services", errorHandler(ServicesController{}.Index)),
+	"ServiceShow":   get("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Show)),
+	"ServiceCreate": post("/namespaces/:org/services", errorHandler(ServicesController{}.Create)),
+	"ServiceDelete": delete("/namespaces/:org/services/:service", errorHandler(ServicesController{}.Delete)),
 }
 
 // Router constructs and returns the router mapping methods and urls to the API handlers.

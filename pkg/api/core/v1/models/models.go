@@ -23,30 +23,20 @@ type ServiceResponse struct {
 // ServiceResponseList represents a collection of service instance
 type ServiceResponseList []ServiceResponse
 
-// CatalogCreateRequest represents and contains the data needed to
-// create a catalog-based service instance
-type CatalogCreateRequest struct {
-	Name             string `json:"name"`
-	Class            string `json:"class"`
-	Plan             string `json:"plan"`
-	Data             string `json:"data"`
-	WaitForProvision bool   `json:"waitforprovision"`
-}
-
-// CustomCreateRequest represents and contains the data needed to
-// create a custom service instance
-type CustomCreateRequest struct {
+// ServiceCreateRequest represents and contains the data needed to
+// create a service instance
+type ServiceCreateRequest struct {
 	Name string            `json:"name"`
 	Data map[string]string `json:"data"`
 }
 
-// DeleteRequest represents and contains the data needed to delete a service
-type DeleteRequest struct {
+// ServiceDeleteRequest represents and contains the data needed to delete a service
+type ServiceDeleteRequest struct {
 	Unbind bool `json:"unbind"`
 }
 
-// DeleteResponse represents the server's response to a successful service deletion
-type DeleteResponse struct {
+// ServiceDeleteResponse represents the server's response to a successful service deletion
+type ServiceDeleteResponse struct {
 	BoundApps []string `json:"boundapps"`
 }
 

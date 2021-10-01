@@ -209,7 +209,7 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, org, appNam
 		return AppIsNotKnown(appName)
 	}
 
-	service, err := services.Lookup(ctx, cluster, org, serviceName)
+	_, err = services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
 		return ServiceIsNotKnown(serviceName)
 	}
@@ -224,11 +224,6 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, org, appNam
 	}
 
 	err = application.BoundServicesUnset(ctx, cluster, app.Meta, serviceName)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	err = service.DeleteBinding(ctx, app.Meta.Name, app.Meta.Org)
 	if err != nil {
 		return InternalError(err)
 	}

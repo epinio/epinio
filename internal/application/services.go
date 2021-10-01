@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
@@ -17,14 +16,14 @@ import (
 type NameSet map[string]struct{}
 
 // BoundServices returns the set of services bound to the application. Ordered by name.
-func BoundServices(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (interfaces.ServiceList, error) {
+func BoundServices(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (services.ServiceList, error) {
 
 	names, err := BoundServiceNames(ctx, cluster, appRef)
 	if err != nil {
 		return nil, err
 	}
 
-	var bound = interfaces.ServiceList{}
+	var bound = services.ServiceList{}
 
 	for _, name := range names {
 		service, err := services.Lookup(ctx, cluster, appRef.Org, name)
