@@ -18,6 +18,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
+	epinioerrors "github.com/epinio/epinio/internal/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -142,7 +143,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 		return models.AppList{}, err
 	}
 	if !exists {
-		return models.AppList{}, fmt.Errorf("namespace %s does not exist", org)
+		return models.AppList{}, epinioerrors.NamespaceMissingError{Namespace: org}
 	}
 
 	// Get references for all apps, deployed or not
