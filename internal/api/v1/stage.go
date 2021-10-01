@@ -142,11 +142,11 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	log.Info("staging app", "org", org, "app", req)
 
-	cs, err := tekton.NewForConfig(cluster.RestConfig)
+	tc, err := cluster.ClientTekton()
 	if err != nil {
 		return InternalError(err, "failed to get access to a tekton client")
 	}
-	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
 
 	uid, err := randstr.Hex16()
 	if err != nil {
