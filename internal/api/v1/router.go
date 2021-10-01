@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/routes"
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/julienschmidt/httprouter"
 )
 
@@ -43,6 +44,8 @@ func jsonErrorResponse(w http.ResponseWriter, responseErrors APIErrors) {
 func errorHandler(action APIActionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if errors := action(w, r); errors != nil {
+			log := tracelog.Logger(r.Context())
+			log.V(1).Info("responding with json error response", "action", action, "errors", errors)
 			jsonErrorResponse(w, errors)
 		}
 	}
