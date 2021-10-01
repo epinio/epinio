@@ -11,17 +11,12 @@ import (
 )
 
 func init() {
-	CmdServiceCreate.Flags().String("data", "", "json data to be passed to the underlying service as parameters")
-	CmdServiceCreate.Flags().Bool("dont-wait", false, "Return immediately, without waiting for the service to be provisioned")
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
 	CmdService.AddCommand(CmdServiceShow)
-	CmdService.AddCommand(CmdServiceCreate)
 	CmdService.AddCommand(CmdServiceCreateCustom)
 	CmdService.AddCommand(CmdServiceDelete)
 	CmdService.AddCommand(CmdServiceBind)
 	CmdService.AddCommand(CmdServiceUnbind)
-	CmdService.AddCommand(CmdServiceListClasses)
-	CmdService.AddCommand(CmdServiceListPlans)
 	CmdService.AddCommand(CmdServiceList)
 }
 
@@ -61,45 +56,6 @@ var CmdServiceShow = &cobra.Command{
 
 		matches := app.ServiceMatching(context.Background(), toComplete)
 
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	},
-}
-
-// CmdServiceCreate implements the command: epinio service create
-var CmdServiceCreate = &cobra.Command{
-	Use:   "create NAME CLASS PLAN",
-	Short: "Create a service",
-	Long:  `Create service by name, class, plan, and optional json data.`,
-	Args: func(cmd *cobra.Command, args []string) error {
-		if len(args) < 3 {
-			return errors.New("Not enough arguments, expected name, class, plan")
-		}
-		return nil
-	},
-	RunE: ServiceCreate,
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) > 2 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		if len(args) == 0 {
-			// #args == 0: service name. new. nothing to match
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		if len(args) == 2 {
-			// #args == 2: service plan name.
-			matches := app.ServicePlanMatching(context.Background(), args[1], toComplete)
-			return matches, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		// #args == 1: service class name.
-		matches := app.ServiceClassMatching(context.Background(), toComplete)
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }
@@ -200,35 +156,6 @@ var CmdServiceUnbind = &cobra.Command{
 
 		// #args == 0: service name.
 		matches := app.ServiceMatching(context.Background(), toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	},
-}
-
-// CmdServiceListClasses implements the command: epinio service classes
-var CmdServiceListClasses = &cobra.Command{
-	Use:   "list-classes",
-	Short: "Lists the available service classes",
-	RunE:  ServiceListClasses,
-}
-
-// CmdServiceListPlans implements the command: epinio service plans
-var CmdServiceListPlans = &cobra.Command{
-	Use:   "list-plans CLASS",
-	Short: "Lists all plans provided by the named service class",
-	Args:  cobra.ExactArgs(1),
-	RunE:  ServiceListPlans,
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.ServiceClassMatching(context.Background(), toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -383,40 +310,6 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 	err = client.UnbindService(args[0], args[1])
 	if err != nil {
 		return errors.Wrap(err, "error unbinding service")
-	}
-
-	return nil
-}
-
-// ServiceListClasses is the backend of command: epinio service list-classes
-func ServiceListClasses(cmd *cobra.Command, args []string) error {
-	cmd.SilenceUsage = true
-
-	client, err := usercmd.New()
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	err = client.ServiceClasses()
-	if err != nil {
-		return errors.Wrap(err, "error listing service classes")
-	}
-
-	return nil
-}
-
-// ServiceListPlans is the backend of command: epinio service list-plans
-func ServiceListPlans(cmd *cobra.Command, args []string) error {
-	cmd.SilenceUsage = true
-
-	client, err := usercmd.New()
-	if err != nil {
-		return errors.Wrap(err, "error initializing cli")
-	}
-
-	err = client.ServicePlans(args[0])
-	if err != nil {
-		return errors.Wrap(err, "error listing plan")
 	}
 
 	return nil

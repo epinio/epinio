@@ -21,31 +21,12 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service st
 		return serviceInstance, nil
 	}
 
-	serviceInstance, err = CatalogServiceLookup(ctx, kubeClient, org, service)
-	if err != nil {
-		return nil, err
-	}
-	if serviceInstance != nil {
-		return serviceInstance, nil
-	}
-
 	return nil, errors.New("service not found")
 }
 
 // List returns a ServiceList of all available Services
 func List(ctx context.Context, kubeClient *kubernetes.Cluster, org string) (interfaces.ServiceList, error) {
-
-	customServices, err := CustomServiceList(ctx, kubeClient, org)
-	if err != nil {
-		return nil, err
-	}
-
-	catalogServices, err := CatalogServiceList(ctx, kubeClient, org)
-	if err != nil {
-		return nil, err
-	}
-
-	return append(customServices, catalogServices...), nil
+	return CustomServiceList(ctx, kubeClient, org)
 }
 
 // serviceResourceName returns a name for a kube service resource

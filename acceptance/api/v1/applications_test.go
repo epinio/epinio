@@ -608,8 +608,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					By("staging the application again")
 					_ = stageApplication(appName, org, uploadResponse)
 
-					Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(newBlob)))
-					Eventually(listS3Blobs, "1m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
+					Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
+					Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
 				})
 			})
 
