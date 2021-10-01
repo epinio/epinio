@@ -80,7 +80,6 @@ var _ = Describe("Services API Application Endpoints", func() {
 			err = json.Unmarshal(bodyBytes, &data)
 			service := data.Details
 			Expect(err).ToNot(HaveOccurred())
-			Expect(service["Status"]).To(Equal("Provisioned"))
 			Expect(service["username"]).To(Equal("epinio-user"))
 		})
 

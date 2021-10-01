@@ -141,7 +141,6 @@ var _ = Describe("Services", func() {
 			out, err := env.Epinio("", "service", "show", serviceName1)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Service Details"))
-			Expect(out).To(MatchRegexp(`Status .*\|.* Provisioned`))
 			Expect(out).To(MatchRegexp(`username .*\|.* epinio-user`))
 		})
 
