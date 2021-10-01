@@ -51,6 +51,8 @@ const (
 	tektonStagingYamlPath         = "tekton/buildpacks-task.yaml"
 	tektonAWSYamlPath             = "tekton/aws-cli-0.2.yaml"
 	tektonPipelineYamlPath        = "tekton/stage-pipeline.yaml"
+	tektonPipelineUninstallPath   = "tekton/uninstall-pipeline.yaml"
+	tektonPipelineDeployPath      = "tekton/deploy-pipeline.yaml"
 	S3ConnectionDetailsSecret     = "epinio-s3-connection-details" // nolint:gosec
 )
 
@@ -184,54 +186,16 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		}
 	}
 
-	message := "Installing staging pipelines"
-	// Workaround for tekton webhook service not working, despite pod and deployment being ready
-	err = retry.Do(
-		func() error {
-			out, err := helpers.WaitForCommandCompletion(ui, message,
-				func() (string, error) {
-					return helpers.KubectlApplyEmbeddedYaml(tektonPipelineYamlPath)
-				},
-			)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-			}
-			return nil
-		},
-		retry.RetryIf(func(err error) bool {
-			return helpers.Retryable(err.Error())
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
-		}),
-		retry.Delay(5*time.Second),
-	)
-	if err != nil {
-		return err
-	}
-	err = retry.Do(
-		func() error {
-			out, err := helpers.WaitForCommandCompletion(ui, message,
-				func() (string, error) {
-					return helpers.KubectlApplyEmbeddedYaml(tektonAWSYamlPath)
-				},
-			)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-			}
-			return nil
-		},
-		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), "connection refused") ||
-				strings.Contains(err.Error(), "EOF")
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
-		}),
-		retry.Delay(5*time.Second),
-	)
-	if err != nil {
-		return err
+	for _, path := range []string{
+		tektonAWSYamlPath,
+		tektonStagingYamlPath,
+		tektonPipelineDeployPath,
+		tektonPipelineUninstallPath,
+	} {
+		err := applyTektonCustomResources(ui, path)
+		if err != nil {
+			return err
+		}
 	}
 
 	domain, err := options.GetString("system_domain", TektonDeploymentID)
@@ -243,7 +207,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	message = fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace)
+	message := fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace)
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
 			out, err := helpers.ExecToSuccessWithTimeout(
@@ -287,6 +251,32 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	ui.Success().Msg("Tekton deployed")
 
 	return nil
+}
+
+func applyTektonCustomResources(ui *termui.UI, path string) error {
+	message := "Installing pipelines: " + path
+	// Workaround for tekton webhook service not working, despite pod and deployment being ready
+	return retry.Do(
+		func() error {
+			out, err := helpers.WaitForCommandCompletion(ui, message,
+				func() (string, error) {
+					return helpers.KubectlApplyEmbeddedYaml(path)
+				},
+			)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
+			}
+			return nil
+		},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "connection refused") ||
+				strings.Contains(err.Error(), "EOF")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			ui.Note().Msgf("retrying to apply %s", path)
+		}),
+		retry.Delay(5*time.Second),
+	)
 }
 
 func (k Tekton) GetVersion() string {
