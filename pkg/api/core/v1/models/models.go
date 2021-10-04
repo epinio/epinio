@@ -121,7 +121,8 @@ type EnvMatchResponse struct {
 
 // ServiceShowResponse contains details about a service
 type ServiceShowResponse struct {
-	Details map[string]string `json:"details,omitempty"`
+	Username string            `json:"user"`
+	Details  map[string]string `json:"details,omitempty"`
 }
 
 // InfoResponse contains information about Epinio and its components

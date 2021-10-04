@@ -480,21 +480,22 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 	}
 	serviceDetails := resp.Details
 
-	msg := c.ui.Success().WithTable("", "", "Access Path")
-	keys := make([]string, 0, len(serviceDetails))
-	for k := range serviceDetails {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		path := ""
-		switch k {
-		case "Status":
-		case "Username":
-		default:
-			path = fmt.Sprintf("/services/%s/%s", name, k)
+	msg := c.ui.Success().
+		WithTable("Parameter", "Value", "Access Path").
+		WithTableRow("Epinio User", resp.Username, "")
+
+	if len(serviceDetails) > 0 {
+		msg = msg.WithTableRow("", "", "")
+
+		keys := make([]string, 0, len(serviceDetails))
+		for k := range serviceDetails {
+			keys = append(keys, k)
 		}
-		msg = msg.WithTableRow(k, serviceDetails[k], path)
+		sort.Strings(keys)
+		for _, k := range keys {
+			msg = msg.WithTableRow(k, serviceDetails[k],
+				fmt.Sprintf("/services/%s/%s", name, k))
+		}
 	}
 
 	msg.Msg("")
