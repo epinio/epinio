@@ -8,8 +8,8 @@ import (
 	"github.com/epinio/epinio/helpers"
 )
 
-func (m *Machine) MakeCustomService(serviceName string) {
-	out, err := m.Epinio("", "service", "create-custom", serviceName, "username", "epinio-user")
+func (m *Machine) MakeService(serviceName string) {
+	out, err := m.Epinio("", "service", "create", serviceName, "username", "epinio-user")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check presence

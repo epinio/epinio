@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/interfaces"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	pkgerrors "github.com/pkg/errors"
@@ -36,11 +36,11 @@ func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
 	return &Workload{cluster: cluster, app: app}
 }
 
-func ToBinds(ctx context.Context, services interfaces.ServiceList, appName string, owner metav1.OwnerReference, userName string) (AppServiceBindList, error) {
+func ToBinds(ctx context.Context, services services.ServiceList, appName string, userName string) (AppServiceBindList, error) {
 	bindings := AppServiceBindList{}
 
 	for _, service := range services {
-		bindResource, err := service.GetBinding(ctx, appName, owner, userName)
+		bindResource, err := service.GetBinding(ctx, appName, userName)
 		if err != nil {
 			return AppServiceBindList{}, err
 		}
@@ -88,22 +88,15 @@ func (b AppServiceBindList) ToMountsArray() []corev1.VolumeMount {
 // names, as it has to create/retrieve the associated service binding secrets. It further takes a set of the old
 // services. This enables incremental modification of the deployment (add, remove affected, instead of wholsesale
 // replacement).
-func (a *Workload) BoundServicesChange(ctx context.Context, userName string, oldServices NameSet, newServices interfaces.ServiceList) error {
-	app, err := Get(ctx, a.cluster, a.app)
+func (a *Workload) BoundServicesChange(ctx context.Context, userName string, oldServices NameSet, newServices services.ServiceList) error {
+	_, err := Get(ctx, a.cluster, a.app)
 	if err != nil {
 		// Should not happen. Application was validated to exist
 		// already somewhere by callers.
 		return err
 	}
 
-	owner := metav1.OwnerReference{
-		APIVersion: app.GetAPIVersion(),
-		Kind:       app.GetKind(),
-		Name:       app.GetName(),
-		UID:        app.GetUID(),
-	}
-
-	bindings, err := ToBinds(ctx, newServices, a.app.Name, owner, userName)
+	bindings, err := ToBinds(ctx, newServices, a.app.Name, userName)
 	if err != nil {
 		return err
 	}

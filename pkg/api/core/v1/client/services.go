@@ -63,8 +63,8 @@ func (c *Client) ServiceBindingDelete(org string, appName string, serviceName st
 }
 
 // ServiceDelete deletes a service
-func (c *Client) ServiceDelete(req models.DeleteRequest, org string, name string, f errorFunc) (models.DeleteResponse, error) {
-	resp := models.DeleteResponse{}
+func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, org string, name string, f errorFunc) (models.ServiceDeleteResponse, error) {
+	resp := models.ServiceDeleteResponse{}
 
 	b, err := json.Marshal(req)
 	if err != nil {
@@ -90,8 +90,8 @@ func (c *Client) ServiceDelete(req models.DeleteRequest, org string, name string
 	return resp, nil
 }
 
-// ServiceCreate creates a service from the catalog
-func (c *Client) ServiceCreate(req models.CatalogCreateRequest, org string) (models.Response, error) {
+// ServiceCreate creates a service by invoking the associated API endpoint
+func (c *Client) ServiceCreate(req models.ServiceCreateRequest, org string) (models.Response, error) {
 	resp := models.Response{}
 
 	c.log.V(5).WithValues("request", req, "org", org).Info("requesting ServiceCreate")
@@ -107,31 +107,6 @@ func (c *Client) ServiceCreate(req models.CatalogCreateRequest, org string) (mod
 	}
 
 	c.log.V(5).WithValues("response", req, "org", org).Info("received ServiceCreate")
-
-	if err := json.Unmarshal(data, &resp); err != nil {
-		return resp, errors.Wrap(err, "response body is not JSON")
-	}
-
-	return resp, nil
-}
-
-// ServiceCreateCustom creates a custom service
-func (c *Client) ServiceCreateCustom(req models.CustomCreateRequest, org string) (models.Response, error) {
-	resp := models.Response{}
-
-	c.log.V(5).WithValues("request", req, "org", org).Info("requesting ServiceCreateCustom")
-
-	b, err := json.Marshal(req)
-	if err != nil {
-		return resp, nil
-	}
-
-	data, err := c.post(api.Routes.Path("ServiceCreateCustom", org), string(b))
-	if err != nil {
-		return resp, err
-	}
-
-	c.log.V(5).WithValues("response", req, "org", org).Info("received ServiceCreateCustom")
 
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, errors.Wrap(err, "response body is not JSON")

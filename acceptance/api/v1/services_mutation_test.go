@@ -23,10 +23,10 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		env.SetupAndTargetOrg(org)
 	})
 
-	Describe("POST api/v1/namespaces/:org/custom-services/", func() {
+	Describe("POST api/v1/namespaces/:org/services/", func() {
 		It("returns a 'bad request' for a non JSON body", func() {
 			response, err := env.Curl("POST",
-				fmt.Sprintf("%s/api/v1/namespaces/%s/custom-services",
+				fmt.Sprintf("%s/api/v1/namespaces/%s/services",
 					serverURL, org),
 				strings.NewReader(``))
 			Expect(err).ToNot(HaveOccurred())
@@ -44,7 +44,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 		It("returns a 'bad request' for a non-object JSON body", func() {
 			response, err := env.Curl("POST",
-				fmt.Sprintf("%s/api/v1/namespaces/%s/custom-services",
+				fmt.Sprintf("%s/api/v1/namespaces/%s/services",
 					serverURL, org),
 				strings.NewReader(`[]`))
 			Expect(err).ToNot(HaveOccurred())
@@ -57,12 +57,12 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("json: cannot unmarshal array into Go value of type models.CustomCreateRequest"))
+				Equal("json: cannot unmarshal array into Go value of type models.ServiceCreateRequest"))
 		})
 
 		It("returns a 'bad request' for JSON object without `name` key", func() {
 			response, err := env.Curl("POST",
-				fmt.Sprintf("%s/api/v1/namespaces/%s/custom-services",
+				fmt.Sprintf("%s/api/v1/namespaces/%s/services",
 					serverURL, org),
 				strings.NewReader(`{}`))
 			Expect(err).ToNot(HaveOccurred())
@@ -75,12 +75,12 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Cannot create custom service without a name"))
+				Equal("Cannot create service without a name"))
 		})
 
 		It("returns a 'bad request' for JSON object empty `data` key", func() {
 			response, err := env.Curl("POST",
-				fmt.Sprintf("%s/api/v1/namespaces/%s/custom-services",
+				fmt.Sprintf("%s/api/v1/namespaces/%s/services",
 					serverURL, org),
 				strings.NewReader(`{
 				    "name": "meh"
@@ -95,12 +95,12 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Cannot create custom service without data"))
+				Equal("Cannot create service without data"))
 		})
 
 		It("returns a 'not found' when the org does not exist", func() {
 			response, err := env.Curl("POST",
-				fmt.Sprintf("%s/api/v1/namespaces/bogus/custom-services",
+				fmt.Sprintf("%s/api/v1/namespaces/bogus/services",
 					serverURL),
 				strings.NewReader(`{
 				    "name": "meh",
@@ -124,7 +124,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 			BeforeEach(func() {
 				service = catalog.NewServiceName()
-				env.MakeCustomService(service)
+				env.MakeService(service)
 			})
 
 			AfterEach(func() {
@@ -133,7 +133,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 			It("returns a 'conflict'", func() {
 				response, err := env.Curl("POST",
-					fmt.Sprintf("%s/api/v1/namespaces/%s/custom-services",
+					fmt.Sprintf("%s/api/v1/namespaces/%s/services",
 						serverURL, org),
 					strings.NewReader(fmt.Sprintf(`{
 					    "name": "%s",
@@ -164,9 +164,9 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				env.CleanupService(service)
 			})
 
-			It("creates the custom service", func() {
+			It("creates the service", func() {
 				response, err := env.Curl("POST",
-					fmt.Sprintf("%s/api/v1/namespaces/%s/custom-services",
+					fmt.Sprintf("%s/api/v1/namespaces/%s/services",
 						serverURL, org),
 					strings.NewReader(fmt.Sprintf(`{
 					    "name": "%s",
@@ -224,7 +224,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]apiv1.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("json: cannot unmarshal array into Go value of type models.DeleteRequest"))
+				Equal("json: cannot unmarshal array into Go value of type models.ServiceDeleteRequest"))
 		})
 
 		It("returns a 'not found' when the org does not exist", func() {
@@ -270,7 +270,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			BeforeEach(func() {
 				service = catalog.NewServiceName()
 				app = catalog.NewAppName()
-				env.MakeCustomService(service)
+				env.MakeService(service)
 				env.MakeDockerImageApp(app, 1, dockerImageURL)
 				env.BindAppService(app, service, org)
 			})
@@ -319,7 +319,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 			BeforeEach(func() {
 				service = catalog.NewServiceName()
-				env.MakeCustomService(service)
+				env.MakeService(service)
 			})
 
 			It("removes the service", func() {
@@ -440,7 +440,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				app = catalog.NewAppName()
 				service = catalog.NewServiceName()
 				env.MakeDockerImageApp(app, 1, dockerImageURL)
-				env.MakeCustomService(service)
+				env.MakeService(service)
 			})
 
 			AfterEach(func() {
@@ -587,7 +587,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 				BeforeEach(func() {
 					service = catalog.NewServiceName()
-					env.MakeCustomService(service)
+					env.MakeService(service)
 				})
 
 				AfterEach(func() {

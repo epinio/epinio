@@ -360,7 +360,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 		return err
 	}
 
-	request := models.DeleteRequest{
+	request := models.ServiceDeleteRequest{
 		Unbind: unbind,
 	}
 
@@ -412,65 +412,10 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	return nil
 }
 
-// CreateService creates a service specified by name, class, plan, and optional key/value dictionary
+// CreateService creates a service specified by name and key/value dictionary
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *EpinioClient) CreateService(name, class, plan string, data string, waitForProvision bool) error {
+func (c *EpinioClient) CreateService(name string, dict []string) error {
 	log := c.Log.WithName("Create Service").
-		WithValues("Name", name, "Class", class, "Plan", plan, "Namespace", c.Config.Org)
-	log.Info("start")
-	defer log.Info("return")
-
-	c.ui.Note().
-		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Config.Org).
-		WithStringValue("Class", class).
-		WithStringValue("Plan", plan).
-		WithTable("Parameter", "Value").
-		Msg("Create Service")
-
-	if err := c.TargetOk(); err != nil {
-		return err
-	}
-
-	request := models.CatalogCreateRequest{
-		Name:             name,
-		Class:            class,
-		Plan:             plan,
-		Data:             data,
-		WaitForProvision: waitForProvision,
-	}
-
-	if waitForProvision {
-		c.ui.Note().KeeplineUnder(1).Msg("Provisioning...")
-		s := c.ui.Progressf("Provisioning")
-		defer s.Stop()
-	}
-
-	_, err := c.API.ServiceCreate(request, c.Config.Org)
-	if err != nil {
-		return err
-	}
-
-	c.ui.Success().
-		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Config.Org).
-		WithStringValue("Class", class).
-		WithStringValue("Plan", plan).
-		Msg("Service Saved.")
-
-	if waitForProvision {
-		c.ui.Success().Msg("Service Provisioned.")
-	} else {
-		c.ui.Note().Msg(fmt.Sprintf("Use `epinio service %s` to watch when it is provisioned", name))
-	}
-
-	return nil
-}
-
-// CreateCustomService creates a service specified by name and key/value dictionary
-// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
-	log := c.Log.WithName("Create Custom Service").
 		WithValues("Name", name, "Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
@@ -486,18 +431,18 @@ func (c *EpinioClient) CreateCustomService(name string, dict []string) error {
 		msg = msg.WithTableRow(key, value)
 		data[key] = value
 	}
-	msg.Msg("Create Custom Service")
+	msg.Msg("Create Service")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	request := models.CustomCreateRequest{
+	request := models.ServiceCreateRequest{
 		Name: name,
 		Data: data,
 	}
 
-	_, err := c.API.ServiceCreateCustom(request, c.Config.Org)
+	_, err := c.API.ServiceCreate(request, c.Config.Org)
 	if err != nil {
 		return err
 	}

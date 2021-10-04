@@ -23,7 +23,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			serviceName = catalog.NewServiceName()
 
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
-			env.MakeCustomService(serviceName)
+			env.MakeService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 		})
 		It("shows the bound app for services list, and vice versa", func() {

@@ -426,7 +426,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				app1 := catalog.NewAppName()
 				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				service := catalog.NewServiceName()
-				env.MakeCustomService(service)
+				env.MakeService(service)
 				env.BindAppService(app1, service, org)
 				defer env.CleanupService(service)
 

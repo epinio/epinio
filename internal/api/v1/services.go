@@ -50,17 +50,12 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 		}
 	}
 
-	status, err := service.Status(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
 	serviceDetails, err := service.Details(ctx)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	responseData := map[string]string{
-		"Status":   status,
 		"Username": service.User(),
 	}
 	for key, value := range serviceDetails {
@@ -127,9 +122,9 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 	return nil
 }
 
-// CreateCustom handles the API end point /orgs/:org/custom-services
-// It creates the named custom service from its parameters
-func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request) APIErrors {
+// Create handles the API end point /orgs/:org/services
+// It creates the named service from its parameters
+func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -144,18 +139,18 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 		return InternalError(err)
 	}
 
-	var createRequest models.CustomCreateRequest
+	var createRequest models.ServiceCreateRequest
 	err = json.Unmarshal(bodyBytes, &createRequest)
 	if err != nil {
 		return BadRequest(err)
 	}
 
 	if createRequest.Name == "" {
-		return NewBadRequest("Cannot create custom service without a name")
+		return NewBadRequest("Cannot create service without a name")
 	}
 
 	if len(createRequest.Data) < 1 {
-		return NewBadRequest("Cannot create custom service without data")
+		return NewBadRequest("Cannot create service without data")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -184,7 +179,7 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 	// any error here is `service not found`, and we can continue
 
 	// Create the new service. At last.
-	_, err = services.CreateCustomService(ctx, cluster, createRequest.Name, org, username, createRequest.Data)
+	_, err = services.CreateService(ctx, cluster, createRequest.Name, org, username, createRequest.Data)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -201,7 +196,7 @@ func (sc ServicesController) CreateCustom(w http.ResponseWriter, r *http.Request
 }
 
 // Delete handles the API end point /orgs/:org/services/:service (DELETE)
-// It deletes the named service, catalog or custom
+// It deletes the named service
 func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
@@ -218,7 +213,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		return InternalError(err)
 	}
 
-	var deleteRequest models.DeleteRequest
+	var deleteRequest models.ServiceDeleteRequest
 	err = json.Unmarshal(bodyBytes, &deleteRequest)
 	if err != nil {
 		return BadRequest(err)
@@ -278,7 +273,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, models.DeleteResponse{BoundApps: boundAppNames})
+	err = jsonResponse(w, models.ServiceDeleteResponse{BoundApps: boundAppNames})
 	if err != nil {
 		return InternalError(err)
 	}

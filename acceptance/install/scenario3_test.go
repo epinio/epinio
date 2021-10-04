@@ -14,7 +14,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario3> Azure, Private CA, CustomService", func() {
+var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
 	var (
 		appName      = catalog.NewAppName()
 		domain       string
@@ -104,8 +104,8 @@ var _ = Describe("<Scenario3> Azure, Private CA, CustomService", func() {
 		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		By("Creating a custom service and pushing an app", func() {
-			out, err := epinioHelper.Run("service", "create-custom", serviceName, "mariadb", "10-3-22")
+		By("Creating a service and pushing an app", func() {
+			out, err := epinioHelper.Run("service", "create", serviceName, "mariadb", "10-3-22")
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"), "--bind", serviceName)

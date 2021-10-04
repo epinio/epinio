@@ -106,7 +106,7 @@ var _ = Describe("RubyOnRails", func() {
 			"--set", "volumePermissions.enabled=true")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		out, err = env.Epinio("", "service", "create-custom", serviceName,
+		out, err = env.Epinio("", "service", "create", serviceName,
 			"username", "myuser",
 			"password", "mypassword",
 			"host", fmt.Sprintf("%s-postgresql.%s.svc.cluster.local", serviceName, rails.Org),

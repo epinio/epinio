@@ -107,7 +107,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err, "failed to access application's bound services")
 	}
 
-	bindings, err := application.ToBinds(ctx, services, req.App.Name, owner, username)
+	bindings, err := application.ToBinds(ctx, services, req.App.Name, username)
 	if err != nil {
 		return InternalError(err, "failed to process application's bound services")
 	}

@@ -53,7 +53,7 @@ var _ = Describe("Apps", func() {
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
-				env.MakeCustomService(serviceName)
+				env.MakeService(serviceName)
 			})
 
 			AfterEach(func() {
@@ -384,7 +384,7 @@ var _ = Describe("Apps", func() {
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
-				env.MakeCustomService(serviceName)
+				env.MakeService(serviceName)
 			})
 
 			AfterEach(func() {
@@ -413,7 +413,7 @@ var _ = Describe("Apps", func() {
 			serviceName := catalog.NewServiceName()
 
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
-			env.MakeCustomService(serviceName)
+			env.MakeService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 
 			By("deleting the app")
@@ -465,7 +465,7 @@ var _ = Describe("Apps", func() {
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
-				env.MakeCustomService(serviceName)
+				env.MakeService(serviceName)
 			})
 
 			AfterEach(func() {
@@ -499,17 +499,17 @@ var _ = Describe("Apps", func() {
 	})
 
 	Describe("list and show", func() {
-		var serviceCustomName string
+		var serviceName string
 		BeforeEach(func() {
-			serviceCustomName = catalog.NewServiceName()
+			serviceName = catalog.NewServiceName()
 			env.MakeDockerImageApp(appName, 1, dockerImageURL)
-			env.MakeCustomService(serviceCustomName)
-			env.BindAppService(appName, serviceCustomName, org)
+			env.MakeService(serviceName)
+			env.BindAppService(appName, serviceName, org)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
-			env.CleanupService(serviceCustomName)
+			env.CleanupService(serviceName)
 		})
 
 		It("lists all apps in the namespace", func() {
@@ -517,7 +517,7 @@ var _ = Describe("Apps", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing applications"))
 			Expect(out).To(MatchRegexp(" " + appName + " "))
-			Expect(out).To(MatchRegexp(" " + serviceCustomName + " "))
+			Expect(out).To(MatchRegexp(" " + serviceName + " "))
 		})
 
 		It("shows the details of an app", func() {
@@ -526,7 +526,7 @@ var _ = Describe("Apps", func() {
 
 			Expect(out).To(MatchRegexp("Show application details"))
 			Expect(out).To(MatchRegexp("Application: " + appName))
-			Expect(out).To(MatchRegexp(`Services .*\|.* ` + serviceCustomName))
+			Expect(out).To(MatchRegexp(`Services .*\|.* ` + serviceName))
 			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
 
 			Eventually(func() string {

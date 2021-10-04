@@ -187,7 +187,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				app1 := catalog.NewAppName()
 				env.MakeDockerImageApp(app1, 1, dockerImageURL)
 				svc1 := catalog.NewServiceName()
-				env.MakeCustomService(svc1)
+				env.MakeService(svc1)
 				env.BindAppService(app1, svc1, org)
 
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/%s", serverURL, org),
