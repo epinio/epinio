@@ -89,7 +89,7 @@ spec:
   - name: source
   steps:
   - name: cleanup
-    image: lachlanevenson/k8s-kubectl
+    image: lachlanevenson/k8s-kubectl:v1.22.2
     workingDir: "/workspace/source"
     command:
       - sh
@@ -109,7 +109,7 @@ spec:
   - name: source
   steps:
   - name: extract
-    image: lachlanevenson/k8s-kubectl
+    image: lachlanevenson/k8s-kubectl:v1.22.2
     workingDir: "/workspace/source"
     command:
       - sh
