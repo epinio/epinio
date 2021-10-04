@@ -480,12 +480,14 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 	}
 	serviceDetails := resp.Details
 
-	msg := c.ui.Success().
-		WithTable("Parameter", "Value", "Access Path").
-		WithTableRow("Epinio User", resp.Username, "")
+	c.ui.Note().
+		WithStringValue("User", resp.Username).
+		Msg("")
+
+	msg := c.ui.Success()
 
 	if len(serviceDetails) > 0 {
-		msg = msg.WithTableRow("", "", "")
+		msg = msg.WithTable("Parameter", "Value", "Access Path")
 
 		keys := make([]string, 0, len(serviceDetails))
 		for k := range serviceDetails {
@@ -496,9 +498,11 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 			msg = msg.WithTableRow(k, serviceDetails[k],
 				fmt.Sprintf("/services/%s/%s", name, k))
 		}
-	}
 
-	msg.Msg("")
+		msg.Msg("")
+	} else {
+		msg.Msg("No parameters")
+	}
 
 	c.ui.Exclamation().
 		Msg("Beware, the shown access paths are only available in the application's container")
