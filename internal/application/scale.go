@@ -106,20 +106,15 @@ func scaleLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.A
 				OwnerReferences: []metav1.OwnerReference{
 					owner,
 				},
+				Labels: map[string]string{
+					"app.kubernetes.io/name":       appRef.Name,
+					"app.kubernetes.io/part-of":    appRef.Org,
+					"app.kubernetes.io/managed-by": "epinio",
+					"app.kubernetes.io/component":  "application",
+				},
 			},
 		}
 		err = cluster.CreateSecret(ctx, appRef.Org, *scaleSecret)
-
-		if err != nil {
-			return nil, err
-		}
-
-		err = cluster.LabelSecret(ctx, appRef.Org, secretName, map[string]string{
-			"app.kubernetes.io/name":       appRef.Name,
-			"app.kubernetes.io/part-of":    appRef.Org,
-			"app.kubernetes.io/managed-by": "epinio",
-			"app.kubernetes.io/component":  "application",
-		})
 
 		if err != nil {
 			return nil, err
