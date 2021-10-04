@@ -16,6 +16,7 @@ func init() {
 	CmdPush.Flags().String("docker-image-url", "", "docker image url for the app workload image")
 
 	bindOption(CmdPush)
+	envOption(CmdPush)
 	instancesOption(CmdPush)
 }
 
