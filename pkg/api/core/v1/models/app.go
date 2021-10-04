@@ -17,10 +17,13 @@ type GitRef struct {
 // App has all the application's properties, for at rest (Configuration), and active (Workload).
 // The main structure has identifying information.
 // It is used in the CLI and API responses.
+// If an error is hit while constructing the app object, the Error attribute
+// will be set to that.
 type App struct {
 	Meta          AppRef                   `json:"meta"`
 	Configuration ApplicationUpdateRequest `json:"configuration"`
 	Workload      *AppDeployment           `json:"deployment,omitempty"`
+	Error         string                   `json:"error"`
 }
 
 // AppDeployment contains all the information specific to an active

@@ -158,11 +158,9 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 	for _, ref := range appRefs {
 		app := ref.App()
 
-		err = fetch(ctx, cluster, app)
-		if err != nil {
-			return models.AppList{}, err
-		}
-
+		// Don't fail on error. "fetch" writes the error on the app attribute too.
+		// Let the caller handle this.
+		_ = fetch(ctx, cluster, app)
 		result = append(result, *app)
 	}
 
@@ -333,16 +331,19 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
+		app.Error = err.Error()
 		return err
 	}
 
 	instances, err := Scaling(ctx, cluster, app.Meta)
 	if err != nil {
+		app.Error = err.Error()
 		return err
 	}
 
 	services, err := BoundServiceNames(ctx, cluster, app.Meta)
 	if err != nil {
+		app.Error = err.Error()
 		return err
 	}
 
@@ -358,6 +359,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	deployment, err := wl.Deployment(ctx)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
+			app.Error = err.Error()
 			return err
 		}
 		// App is inactive, no deployment, no workload

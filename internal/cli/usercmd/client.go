@@ -598,7 +598,7 @@ func (c *EpinioClient) Apps(all bool) error {
 	sort.Sort(apps)
 
 	if all {
-		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Services")
+		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Services", "Errors")
 
 		for _, app := range apps {
 			if app.Workload == nil {
@@ -607,18 +607,22 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Meta.Name,
 					"n/a",
 					"n/a",
-					strings.Join(app.Configuration.Services, ", "))
+					strings.Join(app.Configuration.Services, ", "),
+					app.Error,
+				)
 			} else {
 				msg = msg.WithTableRow(
 					app.Meta.Org,
 					app.Meta.Name,
 					app.Workload.Status,
 					app.Workload.Route,
-					strings.Join(app.Configuration.Services, ", "))
+					strings.Join(app.Configuration.Services, ", "),
+					app.Error,
+				)
 			}
 		}
 	} else {
-		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Services")
+		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Services", "Errors")
 
 		for _, app := range apps {
 			if app.Workload == nil {
@@ -626,13 +630,17 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Meta.Name,
 					"n/a",
 					"n/a",
-					strings.Join(app.Configuration.Services, ", "))
+					strings.Join(app.Configuration.Services, ", "),
+					app.Error,
+				)
 			} else {
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Workload.Status,
 					app.Workload.Route,
-					strings.Join(app.Configuration.Services, ", "))
+					strings.Join(app.Configuration.Services, ", "),
+					app.Error,
+				)
 			}
 		}
 	}
