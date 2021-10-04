@@ -424,11 +424,12 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Config.Org).
-		WithTable("Parameter", "Value")
+		WithTable("Parameter", "Value", "Access Path")
 	for i := 0; i < len(dict); i += 2 {
 		key := dict[i]
 		value := dict[i+1]
-		msg = msg.WithTableRow(key, value)
+		path := fmt.Sprintf("/services/%s/%s", name, key)
+		msg = msg.WithTableRow(key, value, path)
 		data[key] = value
 	}
 	msg.Msg("Create Service")
@@ -446,6 +447,9 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 	if err != nil {
 		return err
 	}
+
+	c.ui.Exclamation().
+		Msg("Beware, the shown access paths are only available in the application's container")
 
 	c.ui.Success().
 		WithStringValue("Name", name).
@@ -476,17 +480,32 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 	}
 	serviceDetails := resp.Details
 
-	msg := c.ui.Success().WithTable("", "")
-	keys := make([]string, 0, len(serviceDetails))
-	for k := range serviceDetails {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		msg = msg.WithTableRow(k, serviceDetails[k])
+	c.ui.Note().
+		WithStringValue("User", resp.Username).
+		Msg("")
+
+	msg := c.ui.Success()
+
+	if len(serviceDetails) > 0 {
+		msg = msg.WithTable("Parameter", "Value", "Access Path")
+
+		keys := make([]string, 0, len(serviceDetails))
+		for k := range serviceDetails {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			msg = msg.WithTableRow(k, serviceDetails[k],
+				fmt.Sprintf("/services/%s/%s", name, k))
+		}
+
+		msg.Msg("")
+	} else {
+		msg.Msg("No parameters")
 	}
 
-	msg.Msg("")
+	c.ui.Exclamation().
+		Msg("Beware, the shown access paths are only available in the application's container")
 	return nil
 }
 

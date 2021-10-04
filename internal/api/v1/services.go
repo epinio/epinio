@@ -55,14 +55,15 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 		return InternalError(err)
 	}
 
-	responseData := map[string]string{
-		"Username": service.User(),
-	}
+	responseData := map[string]string{}
 	for key, value := range serviceDetails {
 		responseData[key] = value
 	}
 
-	err = jsonResponse(w, models.ServiceShowResponse{Details: responseData})
+	err = jsonResponse(w, models.ServiceShowResponse{
+		Username: service.User(),
+		Details:  responseData,
+	})
 	if err != nil {
 		return InternalError(err)
 	}
