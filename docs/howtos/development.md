@@ -38,8 +38,8 @@ Look at the Makefile at the root of the project to see what is available.
 
 ### Installing Epinio
 
-You can have a look at [the dedicated document](/docs/user/howtos/install.md) for cluster
-specific instructions, but generally this should be sufficient to get you running:
+While we have a [dedicated document](https://docs.epinio.io/installation/installation.html) for cluster
+specific instructions, the following should generally be sufficient to get you running:
 
 ```
 make install

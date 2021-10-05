@@ -15,17 +15,10 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 - [Epinio](#epinio)
   - [Contents](#contents)
   - [What problem does Epinio solve](#what-problem-does-epinio-solve)
+  - [Documentation](#documentation)
   - [Features](#features)
-  - [Installation](#installation)
-    - [System Requirements](#system-requirements)
-      - [Kubernetes Cluster Requirements](#kubernetes-cluster-requirements)
-      - [Epinio CLI](#epinio-cli)
-    - [Install the Epinio CLI](#install-the-epinio-cli)
-    - [Installation Methods (in Cluster)](#installation-methods-in-cluster)
-    - [Installation on Specific Kubernetes Offerings](#installation-on-specific-kubernetes-offerings)
   - [Usage](#usage)
   - [Buildpacks](#buildpacks)
-  - [How the documentation is organized](#how-the-documentation-is-organized)
   - [Reach Us](#reach-us)
   - [Contributing](#contributing)
   - [License](#license)
@@ -49,6 +42,12 @@ not doing operations.
 Epinio is adding the needed abstractions and intelligence to allow Developers
 to use Kubernetes as a PaaS (Platform as a Service).
 
+## Documentation
+
+Installation and user documentation is available at our main [docs.epinio.io](https://docs.epinio.io/) site.
+
+Find Epinio developer documentation here in [docs](./docs).
+
 ## Features
 
 - **Security**
@@ -64,56 +63,9 @@ to use Kubernetes as a PaaS (Platform as a Service).
   - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
   - Bind services to apps.
 
-## Installation
-
-### System Requirements
-
-#### Kubernetes Cluster Requirements
-
-For the Epinio server, and related deployments we recommend to consider the following resources:
-
-- 2-4 VCPUs
-- 8GB RAM (system memory + 4GB)
-- 10GB Disk space (system disk + 5GB)
-
-In addition, extensive requirements for your workload (apps) would add to that.
-
-A default storage class (with annotation `storageclass.kubernetes.io/is-default-class: "true"`) is needed.
-
-#### Epinio CLI
-
-The Epinio CLI will typically run on a host, which will need network access to your kubernetes cluster.
-Usually you will use the same host to run tooling, like e.g. "kubectl" and "helm".
-
-The compiled binary will use about 40-50MB disk space, incl. local configuration files.
-
-### Install the Epinio CLI
-
-Refer to [Install the Epinio CLI](./docs/user/tutorials/install_epinio_cli.md).
-
-### Installation Methods (in Cluster)
-
-Beside advanced installation options, there are two ways of installing Epinio:
-
-1. [Installation using a MagicDNS Service](./docs/user/tutorials/install_epinio_magicDNS.md)
-
-- For test environments. This should work on nearly any kubernetes distribution. Epinio will try to automatically create a magic DNS domain, e.g. **10.0.0.1.omg.howdoi.website**.
-
-2. [Installation using a Custom Domain](./docs/user/tutorials/install_epinio_customDNS.md)
-
-- For test and production environments. You will have to define a system domain, e.g. **test.example.com**.
-
-### Installation on Specific Kubernetes Offerings
-
-- [Install on K3d](./docs/user/tutorials/install_epinio_on_k3d.md) - Install K3d and then install Epinio
-- [Install on EKS](./docs/user/tutorials/install_epinio_on_eks.md) - Install Epinio in Amazon EKS clusters
-- [Install on AKS](./docs/user/tutorials/install_epinio_on_aks.md) - Install Epinio in Azure AKS clusters
-- [Install on GKE](./docs/user/tutorials/install_epinio_on_gke.md) - Install Epinio in Google GKE clusters
-- [Install on RKE2](./docs/user/tutorials/install_epinio_on_rke.md) - Install Epinio in Rancher RKE2 clusters
-
 ## Usage
 
-- [QuickStart](./docs/user/tutorials/quickstart.md) - tutorial on how to create an org and push an application.
+- [QuickStart](https://docs.epinio.io/tutorials/quickstart.html) - Tutorial on how to create a namespace and push an application.
 
 ## Buildpacks
 
@@ -131,19 +83,6 @@ Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through tekton pipeline
 - Java: https://github.com/spring-projects/spring-petclinic/
 - Paketo Buildpack example apps: https://github.com/paketo-buildpacks/samples
 
-
-## How the documentation is organized
-
-Epinio documentation is organised into these four quadrants in the `./docs/` folder.
-
-[Tutorials](./docs/user/tutorials/) take you by the hand through a series of steps that are useful for a beginner like how to install epinio in various kubernetes distros, how to push an application and an org.
-
-[How-to-guides](./docs/user/howtos/) explain steps to solve specific problems like how to create a redis database using epinio etc.
-
-[Explanations](./docs/user/explanations/) discuss components of Epinio at a very high level like about linkerd, traefik etc.
-
-[References](./docs/user/references/) provides references about Epinio CLI docs and Epinio API docs.
-
 ## Reach Us
 
 - Slack: #epinio on [Rancher Users](https://rancher-users.slack.com/)
@@ -153,7 +92,7 @@ Epinio documentation is organised into these four quadrants in the `./docs/` fol
 
 `Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currently being worked on in the `BackLog` section.
 
-If you would like to start contributing to `Epinio`, then you can pick up any of the cards with label `good first issue`.
+Find more information in the [Contribution Guide](./CONTRIBUTING.md).
 
 ## License
 
