@@ -44,7 +44,7 @@ to use Kubernetes as a PaaS (Platform as a Service).
 
 ## Documentation
 
-Find installation and user documentation at [docs.epinio.io](https://docs.epinio.io/).
+Installation and user documentation is available at our main [docs.epinio.io](https://docs.epinio.io/) site.
 
 Find Epinio developer documentation here in [docs](./docs).
 
