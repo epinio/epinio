@@ -39,7 +39,7 @@ Look at the Makefile at the root of the project to see what is available.
 ### Installing Epinio
 
 While we have a [dedicated document](https://docs.epinio.io/installation/installation.html) for cluster
-specific instructions, but generally this should be sufficient to get you running:
+specific instructions, the following should generally be sufficient to get you running:
 
 ```
 make install
