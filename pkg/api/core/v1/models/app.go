@@ -38,8 +38,8 @@ type App struct {
 // application, i.e. one with a deployment in the cluster.
 type AppDeployment struct {
 	Active          bool   `json:"active,omitempty"` // app is > 0 replicas
-	DesiredReplicas int    `json:"desiredreplicas"`
-	CurrentReplicas int    `json:"currentreplicas"`
+	DesiredReplicas int32  `json:"desiredreplicas"`
+	CurrentReplicas int32  `json:"currentreplicas"`
 	Username        string `json:"username,omitempty"` // app creator
 	StageID         string `json:"stage_id,omitempty"` // tekton staging id
 	Status          string `json:"status,omitempty"`   // app replica status

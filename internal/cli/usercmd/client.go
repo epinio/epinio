@@ -598,7 +598,7 @@ func (c *EpinioClient) Apps(all bool) error {
 	sort.Sort(apps)
 
 	if all {
-		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Services", "Errors")
+		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Services", "Status Details")
 
 		for _, app := range apps {
 			if app.Workload == nil {
@@ -622,7 +622,7 @@ func (c *EpinioClient) Apps(all bool) error {
 			}
 		}
 	} else {
-		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Services", "Errors")
+		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Services", "Status Details")
 
 		for _, app := range apps {
 			if app.Workload == nil {
