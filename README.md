@@ -92,7 +92,7 @@ Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through tekton pipeline
 
 `Epinio` uses [Github Project](https://github.com/epinio/epinio/projects/1) for tracking issues. You can also find the issues currently being worked on in the `BackLog` section.
 
-Find more information at [Contributing](./CONTRIBUTING.md).
+Find more information in the [Contribution Guide](./CONTRIBUTING.md).
 
 ## License
 
