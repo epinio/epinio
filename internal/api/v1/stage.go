@@ -142,11 +142,11 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	log.Info("staging app", "org", org, "app", req)
 
-	cs, err := tekton.NewForConfig(cluster.RestConfig)
+	tc, err := cluster.ClientTekton()
 	if err != nil {
 		return InternalError(err, "failed to get access to a tekton client")
 	}
-	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
 
 	uid, err := randstr.Hex16()
 	if err != nil {
@@ -345,10 +345,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 			ServiceAccountName: "staging-triggers-admin",
 			PipelineRef:        &v1beta1.PipelineRef{Name: "staging-pipeline"},
 			Params: []v1beta1.Param{
-				{Name: "APP_NAME", Value: *str(app.Name)},
-				{Name: "ORG", Value: *str(app.Org)},
 				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
-				{Name: "STAGE_ID", Value: *str(app.Stage.ID)},
 				{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
 				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
 					Type:     v1beta1.ParamTypeArray,

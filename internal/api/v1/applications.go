@@ -710,20 +710,24 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return OrgIsNotKnown(org)
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	app := models.NewAppRef(appName, org)
+
+	found, err := application.Exists(ctx, cluster, app)
 	if err != nil {
 		return InternalError(err)
 	}
-	if app == nil {
+	if !found {
 		return AppIsNotKnown(appName)
 	}
 
-	response := models.ApplicationDeleteResponse{}
-	if app != nil {
-		response.UnboundServices = app.Configuration.Services
+	services, err := application.BoundServiceNames(ctx, cluster, app)
+	if err != nil {
+		return InternalError(err)
 	}
 
-	err = application.Delete(ctx, cluster, app.Meta)
+	response := models.ApplicationDeleteResponse{UnboundServices: services}
+
+	err = application.Delete(ctx, cluster, app)
 	if err != nil {
 		return InternalError(err)
 	}

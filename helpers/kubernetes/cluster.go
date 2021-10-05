@@ -18,6 +18,8 @@ import (
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
 	"github.com/epinio/epinio/helpers/termui"
 
+	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	tektonv1beta1 "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -190,6 +192,15 @@ func (c *Cluster) ClientServiceCatalog(res string) (dynamic.NamespaceableResourc
 		return nil, err
 	}
 	return dynamicClient.Resource(gvr), nil
+}
+
+// ClientTekton returns a dynamic namespaced client for the tekton resources
+func (c *Cluster) ClientTekton() (tektonv1beta1.TektonV1beta1Interface, error) {
+	cs, err := tekton.NewForConfig(c.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+	return cs.TektonV1beta1(), nil
 }
 
 // IsPodRunning returns a condition function that indicates whether the given pod is

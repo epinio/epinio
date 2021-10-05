@@ -66,7 +66,7 @@ run them manually to reach the standard state of a cluster. These are
 the last two commands in the above script.
 
 The one post-deployment action performed by `install` not affected by
-all of the above is the automatic `config update-credentials` saving
+all of the above is the automatic `config update` saving
 API credentials and certs into the client configuration file. As that
 command talks directly to the cluster and not the epinio API the
 failing server component does not matter.

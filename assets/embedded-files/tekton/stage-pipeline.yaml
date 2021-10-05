@@ -11,20 +11,11 @@ spec:
     optional: true
   - name: s3secret
   params:
-    - name: APP_NAME
-      type: string
-      description: "The application name (used as label or name in various resources)"
     - name: BUILDER_IMAGE
       description: The image on which builds will run (must include lifecycle and compatible buildpacks).
-    - name: ORG
-      type: string
-      description: "The application organization (used as the namespace where the app runs)"
     - name: APP_IMAGE
       type: string
       description: "The image as built and pushed by Tekton (uses Kube internal service DNS)"
-    - name: STAGE_ID
-      type: string
-      description: "The identifier of the unique staging process"
     - name: AWS_SCRIPT
       type: string
       # https://hub.tekton.dev/tekton/task/aws-cli
@@ -36,7 +27,7 @@ spec:
     - name: ENV_VARS
       type: array
       description: "Build time environment variables"
-    
+
   tasks:
   - name: cleanup
     taskRef:
@@ -98,7 +89,7 @@ spec:
   - name: source
   steps:
   - name: cleanup
-    image: lachlanevenson/k8s-kubectl
+    image: lachlanevenson/k8s-kubectl:v1.22.2
     workingDir: "/workspace/source"
     command:
       - sh
@@ -118,7 +109,7 @@ spec:
   - name: source
   steps:
   - name: extract
-    image: lachlanevenson/k8s-kubectl
+    image: lachlanevenson/k8s-kubectl:v1.22.2
     workingDir: "/workspace/source"
     command:
       - sh
