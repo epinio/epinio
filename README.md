@@ -65,7 +65,7 @@ Find Epinio developer documentation here in [docs](./docs).
 
 ## Usage
 
-- [QuickStart](https://docs.epinio.io/tutorials/quickstart.html) - tutorial on how to create an org and push an application.
+- [QuickStart](https://docs.epinio.io/tutorials/quickstart.html) - Tutorial on how to create a namespace and push an application.
 
 ## Buildpacks
 
