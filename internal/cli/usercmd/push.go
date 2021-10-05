@@ -7,9 +7,7 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -81,6 +79,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return fmt.Errorf("%s: %s", "app name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
+	// AppCreate
 	c.ui.Normal().Msg("Create the application resource ...")
 
 	request := models.ApplicationCreateRequest{
@@ -109,6 +108,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return err
 	}
 
+	// AppUpload / AppImportGit
 	var blobUID string
 	if params.GitRev == "" && params.Docker == "" {
 		c.ui.Normal().Msg("Collecting the application sources ...")
@@ -148,6 +148,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		blobUID = response.BlobUID
 	}
 
+	// AppStage
 	stageID := ""
 	var stageResponse *models.StageResponse
 	if params.Docker == "" {
@@ -173,6 +174,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		}
 	}
 
+	// AppDeploy
 	c.ui.Normal().Msg("Deploying application ...")
 	deployRequest := models.DeployRequest{
 		App: appRef,
@@ -192,7 +194,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	}
 
 	details.Info("wait for application resources")
-	err = c.waitForApp(appRef)
+	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
+
+	_, err = c.API.AppRunning(appRef)
 	if err != nil {
 		return errors.Wrap(err, "waiting for app failed")
 	}
@@ -224,7 +228,9 @@ func (c *EpinioClient) stageLogs(details logr.Logger, appRef models.AppRef, stag
 	}()
 
 	details.Info("wait for pipelinerun", "StageID", stageID)
-	err := c.waitForPipelineRun(appRef, stageID)
+	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
+
+	_, err := c.API.StagingComplete(appRef.Org, stageID)
 	if err != nil {
 		stopChan <- true // Stop the printing go routine
 		return errors.Wrap(err, "waiting for staging failed")
@@ -232,42 +238,4 @@ func (c *EpinioClient) stageLogs(details logr.Logger, appRef models.AppRef, stag
 	stopChan <- true // Stop the printing go routine
 
 	return err
-}
-
-func (c *EpinioClient) waitForPipelineRun(app models.AppRef, id string) error {
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
-
-	return retry.Do(
-		func() error {
-			_, err := c.API.StagingComplete(app.Org, id)
-			return err
-		},
-		retry.RetryIf(func(err error) bool {
-			return helpers.Retryable(err.Error())
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
-		}),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-}
-
-func (c *EpinioClient) waitForApp(app models.AppRef) error {
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
-
-	return retry.Do(
-		func() error {
-			_, err := c.API.AppRunning(app)
-			return err
-		},
-		retry.RetryIf(func(err error) bool {
-			return helpers.Retryable(err.Error())
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			c.ui.Note().Msgf("Retrying (%d/%d) after %s", n, duration.RetryMax, err.Error())
-		}),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
 }

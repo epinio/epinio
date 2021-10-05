@@ -19,6 +19,18 @@ import (
 	"github.com/pkg/errors"
 )
 
+type responseError struct {
+	error
+	statusCode int
+}
+
+func (re *responseError) Unwrap() error   { return re.error }
+func (re *responseError) StatusCode() int { return re.statusCode }
+
+func wrapResponseError(err error, code int) *responseError {
+	return &responseError{error: err, statusCode: code}
+}
+
 func (c *Client) get(endpoint string) ([]byte, error) {
 	return c.do(endpoint, "GET", "")
 }
@@ -85,7 +97,9 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 	}
 
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server status code: %s\n%s", http.StatusText(response.StatusCode), string(bodyBytes))
+		return nil, wrapResponseError(fmt.Errorf("server status code: %s\n%s",
+			http.StatusText(response.StatusCode), string(bodyBytes)),
+			response.StatusCode)
 	}
 
 	// object was not created, but status was ok?
@@ -127,7 +141,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	bodyBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")
-		return []byte{}, errors.Wrap(err, "reading response body")
+		return []byte{}, wrapResponseError(err, response.StatusCode)
 	}
 
 	respLog.V(1).Info("response received")
@@ -136,10 +150,11 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		return bodyBytes, nil
 	}
 
+	// TODO why is != 200 an error? there are valid codes in the 2xx, 3xx range
 	if response.StatusCode != http.StatusOK {
 		err := formatError(bodyBytes, response)
 		respLog.V(1).Error(err, "response is not StatusOK")
-		return bodyBytes, err
+		return bodyBytes, wrapResponseError(err, response.StatusCode)
 	}
 
 	return bodyBytes, nil
@@ -175,7 +190,7 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	bodyBytes, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")
-		return []byte{}, err
+		return []byte{}, wrapResponseError(err, response.StatusCode)
 	}
 
 	respLog.V(1).Info("response received")
@@ -184,15 +199,14 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 		return bodyBytes, nil
 	}
 
-	// TODO why is != 200 an error?
-	// TODO instead of custom error handling,
-	// let the caller handle the error and return response
+	// TODO why is != 200 an error? there are valid codes in the 2xx, 3xx range
+	// TODO we can remove doWithCustomErrorHandling, if we let the caller handle the response code?
 	if response.StatusCode != http.StatusOK {
 		err := f(response, bodyBytes, formatError(bodyBytes, response))
 		if err != nil {
 			respLog.V(1).Error(err, "response is not StatusOK after custom error handling")
 		}
-		return bodyBytes, err
+		return bodyBytes, wrapResponseError(err, response.StatusCode)
 	}
 
 	return bodyBytes, nil
