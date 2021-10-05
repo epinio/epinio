@@ -8,14 +8,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
 
-	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
@@ -230,34 +226,7 @@ func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, er
 func (c *Client) StagingComplete(org string, id string) (models.Response, error) {
 	resp := models.Response{}
 
-	details := c.log.V(1)
-	var (
-		data []byte
-		err  error
-	)
-	err = retry.Do(
-		func() error {
-			data, err = c.get(api.Routes.Path("StagingComplete", org, id))
-			return err
-		},
-		retry.RetryIf(func(err error) bool {
-			if r, ok := err.(interface{ StatusCode() int }); ok {
-				return helpers.RetryableCode(r.StatusCode())
-			}
-			retry := helpers.Retryable(err.Error())
-
-			details.Info("create error", "error", err.Error(), "retry", retry)
-			return retry
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			details.WithValues(
-				"tries", fmt.Sprintf("%d/%d", n, duration.RetryMax),
-				"error", err.Error(),
-			).Info("Retrying StagingComplete")
-		}),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
+	data, err := c.get(api.Routes.Path("StagingComplete", org, id))
 	if err != nil {
 		return resp, err
 	}
@@ -273,34 +242,7 @@ func (c *Client) StagingComplete(org string, id string) (models.Response, error)
 func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	resp := models.Response{}
 
-	details := c.log.V(1)
-	var (
-		data []byte
-		err  error
-	)
-	err = retry.Do(
-		func() error {
-			data, err = c.get(api.Routes.Path("AppRunning", app.Org, app.Name))
-			return err
-		},
-		retry.RetryIf(func(err error) bool {
-			if r, ok := err.(interface{ StatusCode() int }); ok {
-				return helpers.RetryableCode(r.StatusCode())
-			}
-			retry := helpers.Retryable(err.Error())
-
-			details.Info("create error", "error", err.Error(), "retry", retry)
-			return retry
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			details.WithValues(
-				"tries", fmt.Sprintf("%d/%d", n, duration.RetryMax),
-				"error", err.Error(),
-			).Info("Retrying AppRunning")
-		}),
-		retry.Delay(time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
+	data, err := c.get(api.Routes.Path("AppRunning", app.Org, app.Name))
 	if err != nil {
 		return resp, err
 	}
