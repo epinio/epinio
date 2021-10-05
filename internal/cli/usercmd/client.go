@@ -608,7 +608,7 @@ func (c *EpinioClient) Apps(all bool) error {
 					"n/a",
 					"n/a",
 					strings.Join(app.Configuration.Services, ", "),
-					app.Error,
+					app.StatusMessage,
 				)
 			} else {
 				msg = msg.WithTableRow(
@@ -617,7 +617,7 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Workload.Status,
 					app.Workload.Route,
 					strings.Join(app.Configuration.Services, ", "),
-					app.Error,
+					app.StatusMessage,
 				)
 			}
 		}
@@ -631,7 +631,7 @@ func (c *EpinioClient) Apps(all bool) error {
 					"n/a",
 					"n/a",
 					strings.Join(app.Configuration.Services, ", "),
-					app.Error,
+					app.StatusMessage,
 				)
 			} else {
 				msg = msg.WithTableRow(
@@ -639,7 +639,7 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Workload.Status,
 					app.Workload.Route,
 					strings.Join(app.Configuration.Services, ", "),
-					app.Error,
+					app.StatusMessage,
 				)
 			}
 		}
