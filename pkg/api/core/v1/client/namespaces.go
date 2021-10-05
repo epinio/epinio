@@ -32,6 +32,9 @@ func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Resp
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
+			if r, ok := err.(interface{ StatusCode() int }); ok {
+				return helpers.RetryableCode(r.StatusCode())
+			}
 			retry := helpers.Retryable(err.Error())
 
 			details.Info("create error", "error", err.Error(), "retry", retry)

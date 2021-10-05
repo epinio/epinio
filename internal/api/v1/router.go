@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"reflect"
+	"runtime"
 
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -41,11 +43,15 @@ func jsonErrorResponse(w http.ResponseWriter, responseErrors APIErrors) {
 	fmt.Fprintln(w, string(js))
 }
 
+func funcName(i interface{}) string {
+	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
+}
+
 func errorHandler(action APIActionFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if errors := action(w, r); errors != nil {
-			log := tracelog.Logger(r.Context())
-			log.V(1).Info("responding with json error response", "action", action, "errors", errors)
+			tracelog.Logger(r.Context()).V(1).
+				Info("responding with json error response", "action", funcName(action), "errors", errors)
 			jsonErrorResponse(w, errors)
 		}
 	}
