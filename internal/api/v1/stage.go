@@ -142,29 +142,17 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	log.Info("staging app", "org", org, "app", req)
 
-	tc, err := cluster.ClientTekton()
+	staging, err := application.CurrentlyStaging(ctx, cluster, req.App.Org, req.App.Name)
 	if err != nil {
-		return InternalError(err, "failed to get access to a tekton client")
+		return InternalError(err)
 	}
-	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
+	if staging {
+		return NewBadRequest("pipelinerun for image ID still running")
+	}
 
 	uid, err := randstr.Hex16()
 	if err != nil {
 		return InternalError(err, "failed to generate a uid")
-	}
-
-	l, err := client.List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", req.App.Name, req.App.Org),
-	})
-	if err != nil {
-		return InternalError(err)
-	}
-
-	// assume that completed pipelineruns are from the past and have a CompletionTime
-	for _, pr := range l.Items {
-		if pr.Status.CompletionTime == nil {
-			return NewBadRequest("pipelinerun for image ID still running")
-		}
 	}
 
 	environment, err := application.Environment(ctx, cluster, req.App)
@@ -206,6 +194,11 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}
 
+	tc, err := cluster.ClientTekton()
+	if err != nil {
+		return InternalError(err, "failed to get access to a tekton client")
+	}
+	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
 	pr := newPipelineRun(params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {

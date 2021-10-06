@@ -298,11 +298,17 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 
 	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).List(ctx, deploymentListOptions)
 
+	desiredReplicas := int32(0)
+	currentReplicas := int32(0)
+
 	if err != nil {
 		status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
 	} else if len(deployments.Items) < 1 {
 		status = "0/0"
 	} else {
+		desiredReplicas = deployments.Items[0].Status.Replicas
+		currentReplicas = deployments.Items[0].Status.ReadyReplicas
+
 		status = fmt.Sprintf("%d/%d",
 			deployments.Items[0].Status.ReadyReplicas,
 			deployments.Items[0].Status.Replicas)
@@ -322,10 +328,12 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	}
 
 	return &models.AppDeployment{
-		Active:   active,
-		Username: username,
-		StageID:  stageID,
-		Status:   status,
-		Route:    route,
+		Active:          active,
+		Username:        username,
+		StageID:         stageID,
+		Status:          status,
+		Route:           route,
+		DesiredReplicas: desiredReplicas,
+		CurrentReplicas: currentReplicas,
 	}
 }

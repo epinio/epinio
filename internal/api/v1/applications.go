@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/duration"
+	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -165,6 +166,9 @@ func (hc ApplicationsController) FullIndex(w http.ResponseWriter, r *http.Reques
 	for _, org := range orgList {
 		apps, err := application.List(ctx, cluster, org.Name)
 		if err != nil {
+			if _, ok := err.(epinioerrors.NamespaceMissingError); ok {
+				continue
+			}
 			return InternalError(err)
 		}
 

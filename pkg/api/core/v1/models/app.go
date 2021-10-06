@@ -7,7 +7,14 @@ import (
 const (
 	EpinioStageIDLabel      = "epinio.suse.org/stage-id"
 	EpinioStageBlobUIDLabel = "epinio.suse.org/blob-uid"
+
+	ApplicationCreated = "created"
+	ApplicationStaging = "staging"
+	ApplicationRunning = "running"
+	ApplicationError   = "error"
 )
+
+type ApplicationStatus string
 
 type GitRef struct {
 	Revision string `json:"revision"`
@@ -17,20 +24,26 @@ type GitRef struct {
 // App has all the application's properties, for at rest (Configuration), and active (Workload).
 // The main structure has identifying information.
 // It is used in the CLI and API responses.
+// If an error is hit while constructing the app object, the Error attribute
+// will be set to that.
 type App struct {
 	Meta          AppRef                   `json:"meta"`
 	Configuration ApplicationUpdateRequest `json:"configuration"`
 	Workload      *AppDeployment           `json:"deployment,omitempty"`
+	Status        ApplicationStatus        `json:"status"`
+	StatusMessage string                   `json:"statusmessage"`
 }
 
 // AppDeployment contains all the information specific to an active
 // application, i.e. one with a deployment in the cluster.
 type AppDeployment struct {
-	Active   bool   `json:"active,omitempty"`   // app is > 0 replicas
-	Username string `json:"username,omitempty"` // app creator
-	StageID  string `json:"stage_id,omitempty"` // tekton staging id
-	Status   string `json:"status,omitempty"`   // app replica status
-	Route    string `json:"route,omitempty"`    // app route
+	Active          bool   `json:"active,omitempty"` // app is > 0 replicas
+	DesiredReplicas int32  `json:"desiredreplicas"`
+	CurrentReplicas int32  `json:"currentreplicas"`
+	Username        string `json:"username,omitempty"` // app creator
+	StageID         string `json:"stage_id,omitempty"` // tekton staging id
+	Status          string `json:"status,omitempty"`   // app replica status
+	Route           string `json:"route,omitempty"`    // app route
 }
 
 // NewApp returns a new app for name and org
@@ -74,7 +87,7 @@ func (al AppList) Less(i, j int) bool {
 // AppRef references an App by name and org
 type AppRef struct {
 	Name string `json:"name"`
-	Org  string `json:"namespace"`
+	Org  string `json:"namespace"` // TODO: Rename to Namespace
 }
 
 // NewAppRef returns a new reference to an app

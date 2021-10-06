@@ -18,6 +18,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
+	epinioerrors "github.com/epinio/epinio/internal/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -92,6 +93,31 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
+// CurrentlyStaging returns true if there is an active (not completed) PipelineRun
+// for this application.
+func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (bool, error) {
+	tc, err := cluster.ClientTekton()
+	if err != nil {
+		return false, err
+	}
+	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
+	l, err := client.List(ctx, metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+	})
+	if err != nil {
+		return false, err
+	}
+
+	// assume that completed pipelineruns are from the past and have a CompletionTime
+	for _, pr := range l.Items {
+		if pr.Status.CompletionTime == nil {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 // Lookup locates the named application (and org).
 func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, appName string) (*models.App, error) {
 	meta := models.NewAppRef(appName, org)
@@ -108,7 +134,13 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, appName strin
 
 	err = fetch(ctx, cluster, app)
 	if err != nil {
-		return nil, err
+		app.StatusMessage = err.Error()
+		app.Status = models.ApplicationError
+	} else {
+		err = calculateStatus(ctx, cluster, app)
+		if err != nil {
+			return app, err
+		}
 	}
 
 	return app, nil
@@ -142,7 +174,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 		return models.AppList{}, err
 	}
 	if !exists {
-		return models.AppList{}, fmt.Errorf("namespace %s does not exist", org)
+		return models.AppList{}, epinioerrors.NamespaceMissingError{Namespace: org}
 	}
 
 	// Get references for all apps, deployed or not
@@ -155,13 +187,10 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.
 	result := models.AppList{}
 
 	for _, ref := range appRefs {
-		app := ref.App()
-
-		err = fetch(ctx, cluster, app)
+		app, err := Lookup(ctx, cluster, ref.Org, ref.Name)
 		if err != nil {
-			return models.AppList{}, err
+			return result, err
 		}
-
 		result = append(result, *app)
 	}
 
@@ -364,6 +393,34 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	}
 
 	app.Workload = wl.Get(ctx, deployment)
+
+	return nil
+}
+
+// calculateStatus sets the Status field of the App object.
+// To decide what the status value should be, it combines various pieces of information.
+//- If Status is ApplicationError, leave it as it (it was set by "Lookup")
+//- If there is a pipelinerun, app is: ApplicationStaging
+//- If there is no workload and no pipeline run, app is: ApplicationCreated
+//- If there is no pipelinerun and there is a workload, app is: ApplicationRunning
+func calculateStatus(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
+	if app.Status == models.ApplicationError {
+		return nil
+	}
+	staging, err := CurrentlyStaging(ctx, cluster, app.Meta.Org, app.Meta.Name)
+	if err != nil {
+		return err
+	}
+	if staging {
+		app.Status = models.ApplicationStaging
+		return nil
+	}
+	if app.Workload == nil {
+		app.Status = models.ApplicationCreated
+		return nil
+	}
+
+	app.Status = models.ApplicationRunning
 
 	return nil
 }
