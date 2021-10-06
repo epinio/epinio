@@ -10,8 +10,8 @@ import (
 
 var ()
 
-// CmdDeleteApp implements the command: epinio app delete
-var CmdDeleteApp = &cobra.Command{
+// CmdAppDelete implements the command: epinio app delete
+var CmdAppDelete = &cobra.Command{
 	Use:   "delete NAME",
 	Short: "Deletes an application",
 	Args:  cobra.ExactArgs(1),

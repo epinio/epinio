@@ -1,8 +1,13 @@
 package cli
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+
+	"gopkg.in/yaml.v2"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/usercmd"
@@ -65,17 +70,63 @@ func bindOption(cmd *cobra.Command) {
 // envOption initializes the --env/-e option for the provided command
 func envOption(cmd *cobra.Command) {
 	cmd.Flags().StringSliceP("env", "e", []string{}, "environment variables to be used")
-	// nolint:errcheck // Unable to handle error in init block this will be called from
 }
 
-// appConfiguration processes the `--bind` and `--instances` options of
-// the command into a proper application configuration.
-func appConfiguration(cmd *cobra.Command) (models.ApplicationUpdateRequest, error) {
+func fileExists(path string) (bool, error) {
+	if _, err := os.Stat(path); err == nil {
+		return true, nil
+	} else if os.IsNotExist(err) {
+		return false, nil
+	} else {
+		return false, errors.Wrapf(err, "failed to stat file '%s'", path)
+	}
+}
+
+// appConfiguration processes the `--bind`, `--env`, and `--instances`
+// options of the command into a proper application configuration.
+func appConfiguration(cmd *cobra.Command, manifestDir string) (models.ApplicationUpdateRequest, error) {
 	result := models.ApplicationUpdateRequest{}
 
-	// nil --> Default / No change
-	// - AppCreate API will replace it with `v1.DefaultInstances`
-	// - AppUpdate API will treat it as no op, i.e. keep current instances.
+	// Read requested configuration from a manifest file, if present.
+
+	if manifestDir != "" {
+		manifestPath := filepath.Join(manifestDir, "epinio.yml")
+		manifestExists, err := fileExists(manifestPath)
+		if err != nil {
+			return result, errors.Wrapf(err, "filesystem error")
+		}
+		if manifestExists {
+			var manifest models.ApplicationManifest
+
+			yamlFile, err := ioutil.ReadFile(manifestPath)
+			if err != nil {
+				return result, errors.Wrapf(err, "filesystem error")
+			}
+			err = yaml.Unmarshal(yamlFile, &manifest)
+			if err != nil {
+				return result, errors.Wrapf(err, "bad yaml")
+			}
+
+			if manifest.Instances != nil {
+				result.Instances = manifest.Instances
+			}
+			if len(manifest.Services) > 0 {
+				sort.Strings(manifest.Services)
+				result.Services = manifest.Services
+			}
+			if manifest.Environment != nil {
+				for name, value := range manifest.Environment {
+					result.Environment = append(result.Environment, models.EnvVariable{
+						Name:  name,
+						Value: value,
+					})
+				}
+			}
+		}
+	}
+
+	// Use option information to override/extend (parts) of the manifest.
+
 	instances, err := instances(cmd)
 	if err != nil {
 		return result, err
@@ -86,29 +137,40 @@ func appConfiguration(cmd *cobra.Command) (models.ApplicationUpdateRequest, erro
 		return result, errors.Wrap(err, "failed to read option --bind")
 	}
 
-	// From here on out errors cannot happen anymore. Just filling
-	// the structure with the extracted information.
-	if instances != nil {
-		result.Instances = instances
-	}
-
-	result.Services = uniqueStrings(services)
-	sort.Strings(result.Services)
-
 	assignments, err := cmd.Flags().GetStringSlice("env")
 	if err != nil {
 		return result, errors.Wrap(err, "failed to read option --env")
 	}
 
+	ev := models.EnvVariableList{}
 	for _, assignment := range assignments {
 		pieces := strings.Split(assignment, "=")
 		if len(pieces) != 2 {
 			return result, errors.New("Bad --env assignment `" + assignment + "`, expected `name=value` as value")
 		}
-		result.Environment = append(result.Environment, models.EnvVariable{
+		ev = append(ev, models.EnvVariable{
 			Name:  pieces[0],
 			Value: pieces[1],
 		})
+	}
+
+	// From here on out errors cannot happen anymore. Just filling
+	// the structure with the extracted information.
+	if instances != nil {
+		result.Instances = instances
+	}
+	// nil --> Default / No change
+	// - AppCreate API will replace it with `v1.DefaultInstances`
+	// - AppUpdate API will treat it as no op, i.e. keep current instances.
+
+	services = uniqueStrings(services)
+	if len(services) > 0 {
+		sort.Strings(services)
+		result.Services = services
+	}
+
+	if len(ev) > 0 {
+		result.Environment = ev
 	}
 
 	return result, nil

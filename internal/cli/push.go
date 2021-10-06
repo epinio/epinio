@@ -11,17 +11,17 @@ import (
 var ()
 
 func init() {
-	CmdPush.Flags().String("builder-image", "paketobuildpacks/builder:full", "paketo builder image to use for staging")
-	CmdPush.Flags().String("git", "", "git revision of sources. PATH becomes repository location")
-	CmdPush.Flags().String("docker-image-url", "", "docker image url for the app workload image")
+	CmdAppPush.Flags().String("builder-image", "paketobuildpacks/builder:full", "paketo builder image to use for staging")
+	CmdAppPush.Flags().String("git", "", "git revision of sources. PATH becomes repository location")
+	CmdAppPush.Flags().String("docker-image-url", "", "docker image url for the app workload image")
 
-	bindOption(CmdPush)
-	envOption(CmdPush)
-	instancesOption(CmdPush)
+	bindOption(CmdAppPush)
+	envOption(CmdAppPush)
+	instancesOption(CmdAppPush)
 }
 
-// CmdPush implements the command: epinio app push
-var CmdPush = &cobra.Command{
+// CmdAppPush implements the command: epinio app push
+var CmdAppPush = &cobra.Command{
 	Use:   "push NAME [URL|PATH_TO_APPLICATION_SOURCES]",
 	Short: "Push an application from the specified directory, or the current working directory",
 	Args:  cobra.RangeArgs(1, 2),
@@ -58,7 +58,7 @@ var CmdPush = &cobra.Command{
 		// 3. push NAME URL --git REV
 		// 4. push NAME --docker-image-url URL
 
-		var path string
+		var pathOrUrl string
 		if len(args) == 1 {
 			if gitRevision != "" {
 				// Missing argument is user error. Show usage
@@ -66,27 +66,34 @@ var CmdPush = &cobra.Command{
 				return errors.New("app name or git repository url missing")
 			}
 
-			path, err = os.Getwd()
+			pathOrUrl, err = os.Getwd()
 			if err != nil {
 				return errors.Wrap(err, "working directory not accessible")
 			}
 		} else {
-			path = args[1]
+			pathOrUrl = args[1]
 		}
 
 		if dockerImageURL != "" {
-			path = ""
+			pathOrUrl = ""
 		}
 
+		// Local path is used to look for a manifest file. This is of course
+		// nonsense for the push modes taking an url instead of a filesystem path.
+		localPath := pathOrUrl
+
 		if gitRevision == "" && dockerImageURL == "" {
-			if _, err := os.Stat(path); err != nil {
+			if _, err := os.Stat(pathOrUrl); err != nil {
 				// Path issue is user error. Show usage
 				cmd.SilenceUsage = false
 				return errors.Wrap(err, "path not accessible")
 			}
+		} else {
+			// url mode, no path to look into for a manifest file
+			localPath = ""
 		}
 
-		ac, err := appConfiguration(cmd)
+		ac, err := appConfiguration(cmd, localPath)
 		if err != nil {
 			return errors.Wrap(err, "unable to get app configuration")
 		}
@@ -95,7 +102,7 @@ var CmdPush = &cobra.Command{
 			Name:          args[0],
 			GitRev:        gitRevision,
 			Docker:        dockerImageURL,
-			Path:          path,
+			Path:          pathOrUrl,
 			BuilderImage:  builderImage,
 			Configuration: ac,
 		}
