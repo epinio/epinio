@@ -1,4 +1,5 @@
 # https://github.com/tektoncd/catalog/blob/main/task/aws-cli/0.2/aws-cli.yaml
+# Also look at [1]
 ---
 apiVersion: tekton.dev/v1beta1
 kind: Task
@@ -21,7 +22,8 @@ spec:
       optional: true
     - name: secrets
       optional: true
-      mountPath: /tekton/home/.aws
+      #  [1] https://github.com/tektoncd/pipeline/issues/2013
+      mountPath: /root/.aws
   params:
     - name: SCRIPT
       description: The AWS script to run
