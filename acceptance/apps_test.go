@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bufio"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -61,8 +62,12 @@ var _ = Describe("Apps", func() {
 				// env.DeleteApp see outer context
 			})
 
-			It("creates the app with instance count and services", func() {
-				out, err := env.Epinio("", "app", "create", appName, "--bind", serviceName, "--instances", "2")
+			It("creates the app with instance count, services, and environment", func() {
+				out, err := env.Epinio("", "app", "create", appName,
+					"--bind", serviceName,
+					"--instances", "2",
+					"--env", "CREDO=up",
+					"--env", "DOGMA=no")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp("Ok"))
 
@@ -70,6 +75,42 @@ var _ = Describe("Apps", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
 				Expect(out).To(MatchRegexp(`Services\s*\|\s*` + serviceName + `\s*\|`))
+				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
+				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
+			})
+
+			Context("manifest", func() {
+				destinationPath := catalog.NewTmpName("tmpManifest") + `.yaml`
+
+				AfterEach(func() {
+					// Remove transient manifest
+					out, err := proc.Run("", false, "rm", "-f", destinationPath)
+					Expect(err).ToNot(HaveOccurred(), out)
+				})
+
+				It("is possible to get a manifest", func() {
+					out, err := env.Epinio("", "app", "create", appName,
+						"--bind", serviceName,
+						"--instances", "2",
+						"--env", "CREDO=up",
+						"--env", "DOGMA=no")
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(out).To(MatchRegexp("Ok"))
+
+					out, err = env.Epinio("", "app", "manifest", appName, destinationPath)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					manifest, err := ioutil.ReadFile(destinationPath)
+					Expect(err).ToNot(HaveOccurred(), destinationPath)
+
+					Expect(string(manifest)).To(Equal(`instances: 2
+services:
+- ` + serviceName + `
+environment:
+  CREDO: up
+  DOGMA: "no"
+`))
+				})
 			})
 		})
 
@@ -328,6 +369,50 @@ var _ = Describe("Apps", func() {
 
 			By("deleting the app")
 			env.DeleteApp(appName)
+		})
+
+		Context("manifest", func() {
+			var destinationPath string
+			var manifestPath string
+
+			origin := testenv.AssetPath("sample-app")
+
+			BeforeEach(func() {
+				destinationPath = catalog.NewTmpName("tmpApp")
+				manifestPath = path.Join(destinationPath, "epinio.yml")
+			})
+
+			AfterEach(func() {
+				// Remove transient copy of the application
+				out, err := proc.Run("", false, "rm", "-rf", destinationPath)
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("deploys an app with the desired options", func() {
+				By("Copying the app, and providing a manifest")
+				out, err := proc.Run("", false, "cp", "-rf", origin, destinationPath)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				err = ioutil.WriteFile(manifestPath, []byte(`instances: 2
+environment:
+  CREDO: up
+  DOGMA: "no"
+`), 0600)
+				Expect(err).ToNot(HaveOccurred())
+
+				By("pushing the app in the specified app directory")
+				env.MakeAppWithDir(appName, -1, false, destinationPath)
+
+				By("verifying the stored settings")
+				out, err = env.Epinio("", "app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
+				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
+				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
+
+				By("deleting the app")
+				env.DeleteApp(appName)
+			})
 		})
 
 		It("removes the app's ingress when deleting an app", func() {
