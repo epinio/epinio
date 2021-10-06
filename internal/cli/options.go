@@ -62,12 +62,20 @@ func bindOption(cmd *cobra.Command) {
 		})
 }
 
+// envOption initializes the --env/-e option for the provided command
+func envOption(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("env", "e", []string{}, "environment variables to be used")
+	// nolint:errcheck // Unable to handle error in init block this will be called from
+}
+
 // appConfiguration processes the `--bind` and `--instances` options of
 // the command into a proper application configuration.
-// TODO 803/643 EV option
 func appConfiguration(cmd *cobra.Command) (models.ApplicationUpdateRequest, error) {
 	result := models.ApplicationUpdateRequest{}
 
+	// nil --> Default / No change
+	// - AppCreate API will replace it with `v1.DefaultInstances`
+	// - AppUpdate API will treat it as no op, i.e. keep current instances.
 	instances, err := instances(cmd)
 	if err != nil {
 		return result, err
@@ -83,12 +91,25 @@ func appConfiguration(cmd *cobra.Command) (models.ApplicationUpdateRequest, erro
 	if instances != nil {
 		result.Instances = instances
 	}
-	// nil --> Default / No change
-	// - AppCreate API will replace it with `v1.DefaultInstances`
-	// - AppUpdate API will treat it as no op, i.e. keep current instances.
 
 	result.Services = uniqueStrings(services)
 	sort.Strings(result.Services)
+
+	assignments, err := cmd.Flags().GetStringSlice("env")
+	if err != nil {
+		return result, errors.Wrap(err, "failed to read option --env")
+	}
+
+	for _, assignment := range assignments {
+		pieces := strings.Split(assignment, "=")
+		if len(pieces) != 2 {
+			return result, errors.New("Bad --env assignment `" + assignment + "`, expected `name=value` as value")
+		}
+		result.Environment = append(result.Environment, models.EnvVariable{
+			Name:  pieces[0],
+			Value: pieces[1],
+		})
+	}
 
 	return result, nil
 }

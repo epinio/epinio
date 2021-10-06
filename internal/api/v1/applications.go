@@ -126,7 +126,12 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	// TODO: 643 Save EV variables
+	// Save environment assignments
+	err = application.EnvironmentSet(ctx, cluster, appRef,
+		createRequest.Configuration.Environment, true)
+	if err != nil {
+		return InternalError(err)
+	}
 
 	err = jsonResponse(w, models.ResponseOK)
 	if err != nil {

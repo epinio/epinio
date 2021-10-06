@@ -35,7 +35,8 @@ func init() {
 
 	bindOption(CmdAppCreate)
 	bindOption(CmdAppUpdate)
-
+	envOption(CmdAppCreate)
+	envOption(CmdAppUpdate)
 	instancesOption(CmdAppCreate)
 	instancesOption(CmdAppUpdate)
 
