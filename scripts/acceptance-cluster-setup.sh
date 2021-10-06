@@ -7,6 +7,7 @@ NETWORK_NAME=epinio-acceptance
 MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
+K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.22.2-k3s2}
 
 check_deps() {
   if ! command -v k3d &> /dev/null
@@ -60,10 +61,10 @@ EOF
 echo "Creating a new one named $CLUSTER_NAME"
 if [ -z ${EXPOSE_ACCEPTANCE_CLUSTER_PORTS+x} ]; then
   # Without exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --k3s-server-arg '--disable=traefik' $EPINIO_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG --k3s-server-arg '--disable=traefik' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 else
   # Exposing ports on the host:
-  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server[0]' -p '443:443@server[0]' --k3s-server-arg '--disable=traefik' $EPINIO_K3D_INSTALL_ARGS
+  k3d cluster create $CLUSTER_NAME --network $NETWORK_NAME --registry-config $TMP_CONFIG -p '80:80@server[0]' -p '443:443@server[0]' --k3s-server-arg '--disable=traefik' --image "$K3S_IMAGE" $EPINIO_K3D_INSTALL_ARGS
 fi
 k3d kubeconfig get $CLUSTER_NAME > $KUBECONFIG
 
