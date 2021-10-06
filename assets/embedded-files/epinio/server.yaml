@@ -144,9 +144,9 @@ rules:
   verbs:
   - create
 - apiGroups:
-  - app.k8s.io
+  - application.epinio.io
   resources:
-  - applications
+  - apps
   verbs:
   - get
   - list

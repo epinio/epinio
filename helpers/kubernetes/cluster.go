@@ -141,9 +141,9 @@ func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
 	}
 
 	gvr := schema.GroupVersionResource{
-		Group:    "app.k8s.io",
-		Version:  "v1beta1",
-		Resource: "applications",
+		Group:    "application.epinio.io",
+		Version:  "v1",
+		Resource: "apps",
 	}
 	return cs.Resource(gvr), nil
 }
