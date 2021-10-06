@@ -31,8 +31,8 @@ var _ kubernetes.Deployment = &CertManager{}
 
 const (
 	CertManagerDeploymentID = "cert-manager"
-	certManagerVersion      = "1.2.0"
-	certManagerChartFile    = "cert-manager-v1.2.0.tgz"
+	certManagerVersion      = "1.5.4"
+	certManagerChartFile    = "cert-manager-v1.5.4.tgz"
 	SelfSignedIssuer        = "selfsigned-issuer"
 	LetsencryptIssuer       = "letsencrypt-production"
 	EpinioCAIssuer          = "epinio-ca"
