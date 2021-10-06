@@ -45,6 +45,10 @@ export TRACE_LEVEL=255
 export DEBUG=true
 ```
 
+To follow the server logs you can use:
+
+`kubectl logs -n epinio -l app.kubernetes.io/name=epinio-server -c epinio-server -f`
+
 **Cluster (please complete the following information):**
  - Provider: [e.g. K3D, minikube, KinD, AKS, EKS, GKE, RKE, ...]
  - Options: [e.g. number of nodes, storageclasses, loadbalancer if customised]

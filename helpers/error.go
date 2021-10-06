@@ -13,3 +13,7 @@ func Retryable(msg string) bool {
 		strings.Contains(msg, "x509: certificate signed by unknown authority") ||
 		(strings.Contains(msg, "api/v1/namespaces") && strings.Contains(msg, "i/o timeout"))
 }
+
+func RetryableCode(code int) bool {
+	return code >= 400
+}

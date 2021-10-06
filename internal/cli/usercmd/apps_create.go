@@ -1,8 +1,6 @@
 package usercmd
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
@@ -25,11 +23,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 		Configuration: appConfig,
 	}
 
-	_, err := c.API.AppCreate(
-		request,
-		c.Config.Org,
-		func(response *http.Response, _ []byte, err error) error { return err },
-	)
+	_, err := c.API.AppCreate(request, c.Config.Org)
 	if err != nil {
 		return err
 	}
