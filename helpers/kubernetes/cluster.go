@@ -179,21 +179,6 @@ func (c *Cluster) ClientCertificate() (dynamic.NamespaceableResourceInterface, e
 	return dynamicClient.Resource(gvr), nil
 }
 
-// ClientServiceCatalog returns a dynamic namespaced client for the specified service catalog resource
-func (c *Cluster) ClientServiceCatalog(res string) (dynamic.NamespaceableResourceInterface, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    "servicecatalog.k8s.io",
-		Version:  "v1beta1",
-		Resource: res,
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
-	if err != nil {
-		return nil, err
-	}
-	return dynamicClient.Resource(gvr), nil
-}
-
 // ClientTekton returns a dynamic namespaced client for the tekton resources
 func (c *Cluster) ClientTekton() (tektonv1beta1.TektonV1beta1Interface, error) {
 	cs, err := tekton.NewForConfig(c.RestConfig)
