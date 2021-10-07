@@ -247,7 +247,7 @@ var CmdAppUpdate = &cobra.Command{
 	},
 }
 
-// CmdAppManifest implements the command: epinio apps show
+// CmdAppManifest implements the command: epinio apps manifest
 var CmdAppManifest = &cobra.Command{
 	Use:   "manifest NAME MANIFESTPATH",
 	Short: "Save state of the named application as a manifest",
@@ -263,7 +263,7 @@ var CmdAppManifest = &cobra.Command{
 
 		err = client.AppManifest(args[0], args[1])
 		if err != nil {
-			return errors.Wrap(err, "error showing app")
+			return errors.Wrap(err, "error getting app manifest")
 		}
 
 		return nil

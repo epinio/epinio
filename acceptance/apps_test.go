@@ -401,7 +401,7 @@ environment:
 				Expect(err).ToNot(HaveOccurred())
 
 				By("pushing the app in the specified app directory")
-				env.MakeAppWithDir(appName, -1, false, destinationPath)
+				env.MakeAppWithDirSimple(appName, false, destinationPath)
 
 				By("verifying the stored settings")
 				out, err = env.Epinio("", "app", "show", appName)
