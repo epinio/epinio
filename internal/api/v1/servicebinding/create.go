@@ -1,7 +1,6 @@
 package servicebinding
 
 import (
-	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -156,88 +155,6 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	err = response.JSON(w, resp)
 	if err != nil {
 		return InternalError(err)
-	}
-
-	return nil
-}
-
-// Delete handles the API endpoint /orgs/:org/applications/:app/servicebindings/:service
-// It removes the binding between the specified service and application
-func (hc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	appName := params.ByName("app")
-	serviceName := params.ByName("service")
-	username := requestctx.User(ctx)
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	exists, err := organizations.Exists(ctx, cluster, org)
-	if err != nil {
-		return InternalError(err)
-	}
-	if !exists {
-		return OrgIsNotKnown(org)
-	}
-
-	apiErr := DeleteBinding(ctx, cluster, org, appName, serviceName, username)
-	if apiErr != nil {
-		return apiErr
-	}
-
-	err = response.JSON(w, models.ResponseOK)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return nil
-}
-
-func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, org, appName, serviceName, username string) APIErrors {
-
-	app, err := application.Lookup(ctx, cluster, org, appName)
-	if err != nil {
-		return InternalError(err)
-	}
-	if app == nil {
-		return AppIsNotKnown(appName)
-	}
-
-	_, err = services.Lookup(ctx, cluster, org, serviceName)
-	if err != nil && err.Error() == "service not found" {
-		return ServiceIsNotKnown(serviceName)
-	}
-	if err != nil {
-		return InternalError(err)
-	}
-
-	// Take old state
-	oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	err = application.BoundServicesUnset(ctx, cluster, app.Meta, serviceName)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if app.Workload != nil {
-		// For this read the new set of bound services back,
-		// as full service structures
-		newBound, err := application.BoundServices(ctx, cluster, app.Meta)
-		if err != nil {
-			return InternalError(err)
-		}
-
-		err = application.NewWorkload(cluster, app.Meta).BoundServicesChange(ctx, username, oldBound, newBound)
-		if err != nil {
-			return InternalError(err)
-		}
 	}
 
 	return nil

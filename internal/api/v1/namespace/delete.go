@@ -2,15 +2,10 @@ package namespace
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
@@ -21,158 +16,6 @@ import (
 
 	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
-
-// Controller represents all functionality of the API related to namespaces
-type Controller struct {
-}
-
-// Match handles the API endpoint /namespaces/:pattern (GET)
-// It returns a list of all Epinio-controlled namespaces matching the prefix pattern.
-func (oc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
-	ctx := r.Context()
-	log := tracelog.Logger(ctx)
-
-	log.Info("match namespaces")
-	defer log.Info("return")
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	log.Info("list namespaces")
-	namespaces, err := organizations.List(ctx, cluster)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	log.Info("get namespace prefix")
-	params := httprouter.ParamsFromContext(ctx)
-	prefix := params.ByName("pattern")
-
-	log.Info("match prefix", "pattern", prefix)
-	matches := []string{}
-	for _, namespace := range namespaces {
-		if strings.HasPrefix(namespace.Name, prefix) {
-			matches = append(matches, namespace.Name)
-		}
-	}
-
-	log.Info("deliver matches", "found", matches)
-
-	err = response.JSON(w, models.NamespacesMatchResponse{Names: matches})
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return nil
-}
-
-// Index handles the API endpoint /namespaces (GET)
-// It returns a list of all Epinio-controlled namespaces
-// An Epinio namespace is nothing but a kubernetes namespace which has a
-// special Label (Look at the code to see which).
-func (oc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
-	ctx := r.Context()
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	orgList, err := organizations.List(ctx, cluster)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	namespaces := make(models.NamespaceList, 0, len(orgList))
-	for _, org := range orgList {
-		// Retrieve app references for namespace, and reduce to their names.
-		appRefs, err := application.ListAppRefs(ctx, cluster, org.Name)
-		if err != nil {
-			return InternalError(err)
-		}
-		appNames := make([]string, 0, len(appRefs))
-		for _, app := range appRefs {
-			appNames = append(appNames, app.Name)
-		}
-
-		// Retrieve services for namespace, and reduce to their names.
-		services, err := services.List(ctx, cluster, org.Name)
-		if err != nil {
-			return InternalError(err)
-		}
-		serviceNames := make([]string, 0, len(services))
-		for _, service := range services {
-			serviceNames = append(serviceNames, service.Name())
-		}
-
-		namespaces = append(namespaces, models.Namespace{
-			Name:     org.Name,
-			Apps:     appNames,
-			Services: serviceNames,
-		})
-	}
-
-	err = response.JSON(w, namespaces)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return nil
-}
-
-// Create handles the API endpoint /namespaces (POST).
-// It creates a namespace with the specified name.
-func (oc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
-	ctx := r.Context()
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	// map ~ json oject / Required key: name
-	var parts map[string]string
-	err = json.Unmarshal(bodyBytes, &parts)
-	if err != nil {
-		return BadRequest(err)
-	}
-
-	org, ok := parts["name"]
-	if !ok {
-		err := errors.New("name of namespace to create not found")
-		return BadRequest(err)
-	}
-
-	exists, err := organizations.Exists(ctx, cluster, org)
-	if err != nil {
-		return InternalError(err)
-	}
-	if exists {
-		return OrgAlreadyKnown(org)
-	}
-
-	err = organizations.Create(r.Context(), cluster, org)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	err = response.JSON(w, models.ResponseOK)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return nil
-}
 
 // Delete handles the API endpoint /namespaces/:org (DELETE).
 // It destroys the namespace specified by its name.

@@ -1,0 +1,79 @@
+package service
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/julienschmidt/httprouter"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+)
+
+// ServiceApps handles the API endpoint GET /namespaces/:org/serviceapps
+// It returns a map from services to the apps they are bound to, in
+// the specified org.  Internally it asks each app in the org for its
+// bound services and then inverts that map to get the desired result.
+func (hc Controller) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
+	org := params.ByName("org")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return OrgIsNotKnown(org)
+	}
+
+	appsOf, err := servicesToApps(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	err = response.JSON(w, appsOf)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
+}
+
+// servicesToApps is a helper to Index and Delete. It produces a map
+// from service instances names to application names, the apps bound
+// to each service.
+func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (map[string]models.AppList, error) {
+	// Determine apps bound to services
+	// (inversion of services bound to apps)
+	// Literally query apps in the org for their services and invert.
+
+	var appsOf = map[string]models.AppList{}
+
+	apps, err := application.List(ctx, cluster, org)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, app := range apps {
+		for _, bound := range app.Configuration.Services {
+			if theapps, found := appsOf[bound]; found {
+				appsOf[bound] = append(theapps, app)
+			} else {
+				appsOf[bound] = models.AppList{app}
+			}
+		}
+	}
+
+	return appsOf, nil
+}
