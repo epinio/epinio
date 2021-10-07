@@ -73,17 +73,15 @@ var _ = Describe("Apps", func() {
 			})
 		})
 
-		Context("with environment variable", func() {
-			It("creates the app with instance count", func() {
-				out, err := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue", "--instances", "2")
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp("Ok"))
+		It("creates the app with environment variables", func() {
+			out, err := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue", "--instances", "2")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Ok"))
 
-				out, err = env.Epinio("", "apps", "env", "list", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(`MYVAR`))
-				Expect(out).To(ContainSubstring(`myvalue`))
-			})
+			out, err = env.Epinio("", "apps", "env", "list", appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring(`MYVAR`))
+			Expect(out).To(ContainSubstring(`myvalue`))
 		})
 
 		When("pushing a workload", func() {
