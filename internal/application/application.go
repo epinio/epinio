@@ -146,43 +146,52 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, appName strin
 	return app, nil
 }
 
-// ListAppRefs returns an app reference for every application resource in the org's namespace
-func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]models.AppRef, error) {
+// ListAppRefs returns an app reference for every application resource in the specified
+// namespace. If no namespace is specified (empty string) then apps across all namespaces are
+// returned.
+func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]models.AppRef, error) {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return nil, err
 	}
 
-	list, err := client.Namespace(org).List(ctx, metav1.ListOptions{})
+	list, err := client.Namespace(namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
 
 	apps := make([]models.AppRef, 0, len(list.Items))
 	for _, app := range list.Items {
-		apps = append(apps, models.NewAppRef(app.GetName(), org))
+		apps = append(apps, models.NewAppRef(app.GetName(), app.GetNamespace()))
 	}
 
 	return apps, nil
 }
 
-// List returns a list of all available apps (in the org)
-func List(ctx context.Context, cluster *kubernetes.Cluster, org string) (models.AppList, error) {
+// List returns a list of all available apps in the specified namespace. If no namespace is
+// specified (empty string) then apps across all namespaces are returned.
+func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (models.AppList, error) {
 
-	exists, err := organizations.Exists(ctx, cluster, org)
-	if err != nil {
-		return models.AppList{}, err
-	}
-	if !exists {
-		return models.AppList{}, epinioerrors.NamespaceMissingError{Namespace: org}
+	// Verify namespace, if specified
+
+	if namespace != "" {
+		exists, err := organizations.Exists(ctx, cluster, namespace)
+		if err != nil {
+			return models.AppList{}, err
+		}
+		if !exists {
+			return models.AppList{}, epinioerrors.NamespaceMissingError{Namespace: namespace}
+		}
 	}
 
 	// Get references for all apps, deployed or not
 
-	appRefs, err := ListAppRefs(ctx, cluster, org)
+	appRefs, err := ListAppRefs(ctx, cluster, namespace)
 	if err != nil {
 		return models.AppList{}, err
 	}
+
+	// Convert references to full application structures
 
 	result := models.AppList{}
 

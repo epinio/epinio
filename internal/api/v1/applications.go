@@ -13,7 +13,6 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/duration"
-	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -142,7 +141,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 }
 
 // Index handles the API endpoint GET /applications
-// It lists all the known applications, with and without workload.
+// It lists all the known applications in all namespaces, with and without workload.
 func (hc ApplicationsController) FullIndex(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 
@@ -151,28 +150,9 @@ func (hc ApplicationsController) FullIndex(w http.ResponseWriter, r *http.Reques
 		return InternalError(err)
 	}
 
-	// naive: list namespaces, then all apps in each namespace ...
-	// can we query kube for all apps directly, across namespaces ...
-	// needs label selector, pods, and app CRD resources (workloads, and undeployed apps).
-	// the naive way seems to be much easier to implement right now.
-
-	orgList, err := organizations.List(ctx, cluster)
+	allApps, err := application.List(ctx, cluster, "")
 	if err != nil {
 		return InternalError(err)
-	}
-
-	var allApps models.AppList
-
-	for _, org := range orgList {
-		apps, err := application.List(ctx, cluster, org.Name)
-		if err != nil {
-			if _, ok := err.(epinioerrors.NamespaceMissingError); ok {
-				continue
-			}
-			return InternalError(err)
-		}
-
-		allApps = append(allApps, apps...)
 	}
 
 	js, err := json.Marshal(allApps)
@@ -190,7 +170,7 @@ func (hc ApplicationsController) FullIndex(w http.ResponseWriter, r *http.Reques
 }
 
 // Index handles the API endpoint GET /namespaces/:org/applications
-// It lists all the known applications, with and without workload.
+// It lists all the known applications in the specified namespace, with and without workload.
 func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)

@@ -709,6 +709,7 @@ environment:
 			app2 = catalog.NewAppName()
 			env.MakeDockerImageApp(app2, 1, dockerImageURL)
 		})
+
 		AfterEach(func() {
 			env.TargetOrg(org2)
 			env.DeleteApp(app2)
@@ -716,6 +717,7 @@ environment:
 			env.TargetOrg(org1)
 			env.DeleteApp(app1)
 		})
+
 		It("lists all applications belonging to all namespaces", func() {
 			// But we care only about the two we know about from the setup.
 
