@@ -19,7 +19,7 @@ import (
 
 type PushParams struct {
 	Configuration models.ApplicationUpdateRequest // instances, services, EVs
-	Docker        string
+	Container     string
 	GitRev        string
 	BuilderImage  string
 	Name          string
@@ -111,7 +111,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 	// AppUpload / AppImportGit
 	var blobUID string
-	if params.GitRev == "" && params.Docker == "" {
+	if params.GitRev == "" && params.Container == "" {
 		c.ui.Normal().Msg("Collecting the application sources ...")
 
 		tmpDir, tarball, err := helpers.Tar(source)
@@ -152,8 +152,8 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	// AppStage
 	stageID := ""
 	var stageResponse *models.StageResponse
-	if params.Docker == "" {
-		c.ui.Normal().Msg("Staging application via docker image ...")
+	if params.Container == "" {
+		c.ui.Normal().Msg("Staging application with code...")
 
 		req := models.StageRequest{
 			App:          appRef,
@@ -180,10 +180,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	deployRequest := models.DeployRequest{
 		App: appRef,
 	}
-	// If docker param is specified, then we just take it into ImageURL
+	// If container param is specified, then we just take it into ImageURL
 	// If not, we take the one from the staging response
-	if params.Docker != "" {
-		deployRequest.ImageURL = params.Docker
+	if params.Container != "" {
+		deployRequest.ImageURL = params.Container
 	} else {
 		deployRequest.ImageURL = stageResponse.ImageURL
 		deployRequest.Stage = models.StageRef{ID: stageID}

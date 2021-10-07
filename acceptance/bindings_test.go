@@ -9,7 +9,7 @@ import (
 
 var _ = Describe("Bounds between Apps & Services", func() {
 	var org string
-	dockerImageURL := "splatform/sample-app"
+	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -22,7 +22,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 			appName = catalog.NewAppName()
 			serviceName = catalog.NewServiceName()
 
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 		})

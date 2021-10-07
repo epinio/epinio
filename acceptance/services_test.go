@@ -11,7 +11,7 @@ var _ = Describe("Services", func() {
 	var org string
 	var serviceName1 string
 	var serviceName2 string
-	dockerImageURL := "splatform/sample-app"
+	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -63,7 +63,7 @@ var _ = Describe("Services", func() {
 
 		It("doesn't delete a bound service", func() {
 			appName := catalog.NewAppName()
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.BindAppService(appName, serviceName1, org)
 
 			out, err := env.Epinio("", "service", "delete", serviceName1)
@@ -99,7 +99,7 @@ var _ = Describe("Services", func() {
 			appName = catalog.NewAppName()
 
 			env.MakeService(serviceName1)
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 		})
 
 		AfterEach(func() {
@@ -118,7 +118,7 @@ var _ = Describe("Services", func() {
 			appName = catalog.NewAppName()
 
 			env.MakeService(serviceName1)
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.BindAppService(appName, serviceName1, org)
 		})
 
