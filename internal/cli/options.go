@@ -83,7 +83,7 @@ func fileExists(path string) (bool, error) {
 }
 
 // appConfiguration processes the `--bind`, `--env`, and `--instances`
-// options of the command into a proper application configuration.
+// options and returns config for installing and updating applications. 
 func appConfiguration(cmd *cobra.Command, manifestDir string) (models.ApplicationUpdateRequest, error) {
 	result := models.ApplicationUpdateRequest{}
 
