@@ -43,6 +43,7 @@ func (m *Machine) MakeGolangApp(appName string, instances int, deployFromCurrent
 func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurrentDir bool, appDir string) string {
 	var pushOutput string
 	var err error
+
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
@@ -54,15 +55,41 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 		pushOutput, err = m.Epinio("", "apps", "push", appName, appDir,
 			"--instances", strconv.Itoa(instances))
 	}
+
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
-
 	EventuallyWithOffset(1, func() string {
 		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+
+	return pushOutput
+}
+
+func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool, appDir string) string {
+	var pushOutput string
+	var err error
+
+	if deployFromCurrentDir {
+		// Note: appDir is handed to the working dir argument of Epinio().
+		// This means that the command runs with it as the CWD.
+		pushOutput, err = m.Epinio(appDir, "apps", "push", appName)
+	} else {
+		// Note: appDir is handed as second argument to the epinio cli.
+		// This means that the command gets the sources from that directory instead of CWD.
+		pushOutput, err = m.Epinio("", "apps", "push", appName, appDir)
+	}
+
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
+
+	// And check presence
+	EventuallyWithOffset(1, func() string {
+		out, err := m.Epinio("", "app", "list")
+		Expect(err).ToNot(HaveOccurred(), out)
+		return out
+	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*\/.*\|.*`, appName)))
 
 	return pushOutput
 }

@@ -47,10 +47,11 @@ func init() {
 	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdAppLogs)
+	CmdApp.AddCommand(CmdAppManifest)
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppUpdate)
-	CmdApp.AddCommand(CmdDeleteApp)
-	CmdApp.AddCommand(CmdPush) // See push.go for implementation
+	CmdApp.AddCommand(CmdAppDelete)
+	CmdApp.AddCommand(CmdAppPush) // See push.go for implementation
 }
 
 // CmdAppList implements the command: epinio app list
@@ -95,7 +96,7 @@ var CmdAppCreate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		ac, err := appConfiguration(cmd)
+		ac, err := appConfiguration(cmd, "")
 		if err != nil {
 			return errors.Wrap(err, "unable to get app configuration")
 		}
@@ -218,7 +219,7 @@ var CmdAppUpdate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		ac, err := appConfiguration(cmd)
+		ac, err := appConfiguration(cmd, "")
 		if err != nil {
 			return errors.Wrap(err, "unable to get app configuration")
 		}
@@ -226,6 +227,43 @@ var CmdAppUpdate = &cobra.Command{
 		err = client.AppUpdate(args[0], ac)
 		if err != nil {
 			return errors.Wrap(err, "error updating the app")
+		}
+
+		return nil
+	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app, err := usercmd.New()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matches := app.AppsMatching(context.Background(), toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	},
+}
+
+// CmdAppManifest implements the command: epinio apps manifest
+var CmdAppManifest = &cobra.Command{
+	Use:   "manifest NAME MANIFESTPATH",
+	Short: "Save state of the named application as a manifest",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		err = client.AppManifest(args[0], args[1])
+		if err != nil {
+			return errors.Wrap(err, "error getting app manifest")
 		}
 
 		return nil

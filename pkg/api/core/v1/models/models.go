@@ -62,11 +62,20 @@ type ApplicationCreateRequest struct {
 // run, and the services bound to it.
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
-
 type ApplicationUpdateRequest struct {
 	Instances   *int32          `json:"instances"`
 	Services    []string        `json:"services"`
 	Environment EnvVariableList `json:"environment"`
+}
+
+// ApplicationManifest represents and contains the data of an application's
+// manifest file.  It differs from ApplicationUpdateRequest in the coding of
+// environment variables. The manifest uses a map, which inherently prevents
+// duplicate EV assignments.
+type ApplicationManifest struct {
+	Instances   *int32            `yaml:"instances"`
+	Services    []string          `yaml:"services"`
+	Environment map[string]string `yaml:"environment"`
 }
 
 type ImportGitResponse struct {

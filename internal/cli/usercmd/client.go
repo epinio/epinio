@@ -6,11 +6,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"gopkg.in/yaml.v2"
 
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
@@ -684,11 +687,69 @@ func (c *EpinioClient) AppShow(appName string) error {
 		msg = msg.WithTableRow("Status", "not deployed")
 	}
 
-	msg.
+	msg = msg.
 		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
 		WithTableRow("Bound Services", strings.Join(app.Configuration.Services, ", ")).
-		WithTableRow("Environment", `See it by running the command "epinio app env list `+appName+`"`).
-		Msg("Details:")
+		WithTableRow("Environment", "")
+
+	if len(app.Configuration.Environment) > 0 {
+		for _, ev := range app.Configuration.Environment {
+			msg = msg.WithTableRow("  - "+ev.Name, ev.Value)
+		}
+	}
+
+	msg.Msg("Details:")
+
+	return nil
+}
+
+// AppManifest saves the information of the named app, in the targeted org, into a manifest file
+func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Application", appName).
+		WithStringValue("Destination", manifestPath).
+		Msg("Save application details to manifest")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	details.Info("show application")
+
+	app, err := c.API.AppShow(c.Config.Org, appName)
+	if err != nil {
+		return err
+	}
+
+	m := models.ApplicationManifest{}
+
+	m.Instances = app.Configuration.Instances
+	m.Services = app.Configuration.Services
+
+	if len(app.Configuration.Environment) > 0 {
+		m.Environment = map[string]string{}
+		for _, ev := range app.Configuration.Environment {
+			m.Environment[ev.Name] = ev.Value
+		}
+	}
+
+	yaml, err := yaml.Marshal(m)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(manifestPath, yaml, 0600)
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().Msg("Saved")
 
 	return nil
 }
