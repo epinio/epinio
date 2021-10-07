@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -311,7 +312,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					status, updateResponseBody := updateAppInstances(org, app, -3)
 					Expect(status).To(Equal(http.StatusBadRequest))
 
-					var errorResponse v1.ErrorResponse
+					var errorResponse apierrors.ErrorResponse
 					err := json.Unmarshal(updateResponseBody, &errorResponse)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusBadRequest))
@@ -330,7 +331,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					status, updateResponseBody := updateAppInstancesNAN(org, app)
 					Expect(status).To(Equal(http.StatusBadRequest))
 
-					var errorResponse v1.ErrorResponse
+					var errorResponse apierrors.ErrorResponse
 					err := json.Unmarshal(updateResponseBody, &errorResponse)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusBadRequest))

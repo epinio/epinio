@@ -1,4 +1,4 @@
-package v1
+package application
 
 import (
 	"context"
@@ -23,13 +23,17 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 const (
@@ -92,17 +96,14 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 
 // Stage handles the API endpoint /orgs/:org/applications/:app/stage
 // It creates a Tekton PipelineRun resource to stage the app
-func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
 	p := httprouter.ParamsFromContext(ctx)
 	org := p.ByName("org")
 	name := p.ByName("app")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -230,7 +231,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Stage:    models.NewStage(uid),
 		ImageURL: params.ImageURL(params.RegistryURL),
 	}
-	err = jsonResponse(w, resp)
+	err = response.JSON(w, resp)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -240,7 +241,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 // Staged handles the API endpoint /orgs/:org/staging/:stage_id/complete
 // It waits for the Tekton PipelineRun resource staging the app to complete
-func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Staged(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 
 	p := httprouter.ParamsFromContext(ctx)
@@ -297,7 +298,7 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}

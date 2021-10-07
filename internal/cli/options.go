@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
-	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -19,7 +19,7 @@ import (
 
 // instancesOption initializes the --instances/-i option for the provided command
 func instancesOption(cmd *cobra.Command) {
-	cmd.Flags().Int32P("instances", "i", v1.DefaultInstances,
+	cmd.Flags().Int32P("instances", "i", application.DefaultInstances,
 		"The number of instances the application should have")
 }
 

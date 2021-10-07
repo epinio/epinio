@@ -1,4 +1,4 @@
-package v1
+package application
 
 import (
 	"context"
@@ -11,31 +11,33 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-// ApplicationsController represents all functionality of the API related to applications
-type ApplicationsController struct {
+// Controller represents all functionality of the API related to applications
+type Controller struct {
 	conn *websocket.Conn
 }
 
 // Create handles the API endpoint POST /namespaces/:org/applications
 // It creates a new and empty application. I.e. without a workload.
-func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -94,12 +96,12 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 			}
 
 			theIssues = append([]APIError{InternalError(err)}, theIssues...)
-			return MultiError{theIssues}
+			return NewMultiError(theIssues)
 		}
 	}
 
 	if len(theIssues) > 0 {
-		return MultiError{theIssues}
+		return NewMultiError(theIssues)
 	}
 
 	// Arguments found OK, now we can modify the system state
@@ -133,7 +135,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -142,7 +144,7 @@ func (hc ApplicationsController) Create(w http.ResponseWriter, r *http.Request) 
 
 // Index handles the API endpoint GET /applications
 // It lists all the known applications in all namespaces, with and without workload.
-func (hc ApplicationsController) FullIndex(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) FullIndex(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -171,7 +173,7 @@ func (hc ApplicationsController) FullIndex(w http.ResponseWriter, r *http.Reques
 
 // Index handles the API endpoint GET /namespaces/:org/applications
 // It lists all the known applications in the specified namespace, with and without workload.
-func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -195,7 +197,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, apps)
+	err = response.JSON(w, apps)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -205,7 +207,7 @@ func (hc ApplicationsController) Index(w http.ResponseWriter, r *http.Request) A
 
 // Show handles the API endpoint GET /namespaces/:org/applications/:app
 // It returns the details of the specified application.
-func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -234,43 +236,7 @@ func (hc ApplicationsController) Show(w http.ResponseWriter, r *http.Request) AP
 		return AppIsNotKnown(appName)
 	}
 
-	err = jsonResponse(w, app)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	return nil
-}
-
-// ServiceApps handles the API endpoint GET /namespaces/:org/serviceapps
-// It returns a map from services to the apps they are bound to, in
-// the specified org.  Internally it asks each app in the org for its
-// bound services and then inverts that map to get the desired result.
-func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	exists, err := organizations.Exists(ctx, cluster, org)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	if !exists {
-		return OrgIsNotKnown(org)
-	}
-
-	appsOf, err := servicesToApps(ctx, cluster, org)
-	if err != nil {
-		return InternalError(err)
-	}
-
-	err = jsonResponse(w, appsOf)
+	err = response.JSON(w, app)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -281,15 +247,12 @@ func (hc ApplicationsController) ServiceApps(w http.ResponseWriter, r *http.Requ
 // Update handles the API endpoint PATCH /namespaces/:org/applications/:app
 // It modifies the specified application. Currently this is only the
 // number of instances to run.
-func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) APIErrors { // nolint:gocyclo // simplification defered
+func (hc Controller) Update(w http.ResponseWriter, r *http.Request) APIErrors { // nolint:gocyclo // simplification defered
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -399,7 +362,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 				}
 
 				theIssues = append([]APIError{InternalError(err)}, theIssues...)
-				return MultiError{theIssues}
+				return NewMultiError(theIssues)
 			}
 
 			okToBind = append(okToBind, serviceName)
@@ -408,7 +371,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 		err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, true)
 		if err != nil {
 			theIssues = append([]APIError{InternalError(err)}, theIssues...)
-			return MultiError{theIssues}
+			return NewMultiError(theIssues)
 		}
 
 		// Restart workload, if any
@@ -418,23 +381,23 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
 			if err != nil {
 				theIssues = append([]APIError{InternalError(err)}, theIssues...)
-				return MultiError{theIssues}
+				return NewMultiError(theIssues)
 			}
 
 			err = application.NewWorkload(cluster, app.Meta).
 				BoundServicesChange(ctx, username, oldBound, newBound)
 			if err != nil {
 				theIssues = append([]APIError{InternalError(err)}, theIssues...)
-				return MultiError{theIssues}
+				return NewMultiError(theIssues)
 			}
 		}
 
 		if len(theIssues) > 0 {
-			return MultiError{theIssues}
+			return NewMultiError(theIssues)
 		}
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -448,7 +411,7 @@ func (hc ApplicationsController) Update(w http.ResponseWriter, r *http.Request) 
 // the application does not become running without
 // `duration.ToAppBuilt()` (default: 10 minutes). In that case it
 // returns with an error after that time.
-func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Running(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -489,7 +452,7 @@ func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request)
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -501,7 +464,7 @@ func (hc ApplicationsController) Running(w http.ResponseWriter, r *http.Request)
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
-func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
+func (hc Controller) Logs(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -512,19 +475,19 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	log.Info("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		jsonErrorResponse(w, InternalError(err))
+		response.JSONError(w, InternalError(err))
 		return
 	}
 
 	log.Info("validate organization", "name", org)
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		jsonErrorResponse(w, InternalError(err))
+		response.JSONError(w, InternalError(err))
 		return
 	}
 
 	if !exists {
-		jsonErrorResponse(w, OrgIsNotKnown(org))
+		response.JSONError(w, OrgIsNotKnown(org))
 		return
 	}
 
@@ -533,24 +496,24 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 
 		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
-			jsonErrorResponse(w, InternalError(err))
+			response.JSONError(w, InternalError(err))
 			return
 		}
 
 		if app == nil {
-			jsonErrorResponse(w, AppIsNotKnown(appName))
+			response.JSONError(w, AppIsNotKnown(appName))
 			return
 		}
 
 		if app.Workload == nil {
 			// While the app exists it has no workload, therefore no logs
-			jsonErrorResponse(w, NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
+			response.JSONError(w, NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
 			return
 		}
 	}
 
 	if appName == "" && stageID == "" {
-		jsonErrorResponse(w, BadRequest(errors.New("You need to specify either the stage id or the app")))
+		response.JSONError(w, BadRequest(errors.New("You need to specify either the stage id or the app")))
 		return
 	}
 
@@ -564,14 +527,11 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 	var upgrader = websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		jsonErrorResponse(w, InternalError(err))
+		response.JSONError(w, InternalError(err))
 		return
 	}
 
-	follow := false
-	if followStr == "true" {
-		follow = true
-	}
+	follow := followStr == "true"
 
 	log.Info("streaming mode", "follow", follow)
 	log.Info("streaming begin")
@@ -601,7 +561,7 @@ func (hc ApplicationsController) Logs(w http.ResponseWriter, r *http.Request) {
 // connection is closed. In any case it will call the cancel func that will stop
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
-func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
+func (hc Controller) streamPodLogs(ctx context.Context, orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
 	logger := tracelog.NewLogger().WithName("streamer-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
@@ -679,7 +639,7 @@ func (hc ApplicationsController) streamPodLogs(ctx context.Context, orgName, app
 
 // Delete handles the API endpoint DELETE /namespaces/:org/applications/:app
 // It removes the named application
-func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -714,27 +674,17 @@ func (hc ApplicationsController) Delete(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err)
 	}
 
-	response := models.ApplicationDeleteResponse{UnboundServices: services}
+	resp := models.ApplicationDeleteResponse{UnboundServices: services}
 
 	err = application.Delete(ctx, cluster, app)
 	if err != nil {
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, response)
+	err = response.JSON(w, resp)
 	if err != nil {
 		return InternalError(err)
 	}
 
 	return nil
-}
-
-// GetUsername returns the username from the header
-func GetUsername(r *http.Request) (string, error) {
-	username := r.Header.Get("X-Webauth-User")
-	if len(username) <= 0 {
-		return "", errors.New("username not found in the header")
-	}
-
-	return username, nil
 }

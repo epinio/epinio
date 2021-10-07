@@ -1,4 +1,4 @@
-package v1
+package servicebinding
 
 import (
 	"context"
@@ -7,16 +7,20 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-// ServicebindingsController represents all functionality of the API related to service bindings
-type ServicebindingsController struct {
+// Controller represents all functionality of the API related to service bindings
+type Controller struct {
 }
 
 // General behaviour: Internal errors (5xx) abort an action.
@@ -26,15 +30,12 @@ type ServicebindingsController struct {
 
 // Create handles the API endpoint /orgs/:org/applications/:app/servicebindings (POST)
 // It creates a binding between the specified service and application
-func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -113,7 +114,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 			}
 
 			theIssues = append([]APIError{InternalError(err)}, theIssues...)
-			return MultiError{theIssues}
+			return NewMultiError(theIssues)
 		}
 
 		okToBind = append(okToBind, serviceName)
@@ -126,7 +127,7 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 		err := application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
 			theIssues = append([]APIError{InternalError(err)}, theIssues...)
-			return MultiError{theIssues}
+			return NewMultiError(theIssues)
 		}
 
 		// Update the workload, if there is any.
@@ -136,23 +137,23 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
 			if err != nil {
 				theIssues = append([]APIError{InternalError(err)}, theIssues...)
-				return MultiError{theIssues}
+				return NewMultiError(theIssues)
 			}
 
 			err = application.NewWorkload(cluster, app.Meta).
 				BoundServicesChange(ctx, username, oldBound, newBound)
 			if err != nil {
 				theIssues = append([]APIError{InternalError(err)}, theIssues...)
-				return MultiError{theIssues}
+				return NewMultiError(theIssues)
 			}
 		}
 	}
 
 	if len(theIssues) > 0 {
-		return MultiError{theIssues}
+		return NewMultiError(theIssues)
 	}
 
-	err = jsonResponse(w, resp)
+	err = response.JSON(w, resp)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -162,16 +163,13 @@ func (hc ServicebindingsController) Create(w http.ResponseWriter, r *http.Reques
 
 // Delete handles the API endpoint /orgs/:org/applications/:app/servicebindings/:service
 // It removes the binding between the specified service and application
-func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	appName := params.ByName("app")
 	serviceName := params.ByName("service")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -191,7 +189,7 @@ func (hc ServicebindingsController) Delete(w http.ResponseWriter, r *http.Reques
 		return apiErr
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}

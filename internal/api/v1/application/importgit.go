@@ -1,4 +1,4 @@
-package v1
+package application
 
 import (
 	"fmt"
@@ -10,17 +10,21 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/julienschmidt/httprouter"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // ImportGit handles the API endpoint /namespaces/:org/applications/:app/import-git.
 // It receives a Git repo url and revision, clones that (shallow clone), creates a tarball
 // of the repo and puts it on S3.
-func (hc ApplicationsController) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -78,10 +82,7 @@ func (hc ApplicationsController) ImportGit(w http.ResponseWriter, r *http.Reques
 		return InternalError(err, "creating an S3 manager")
 	}
 
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 	blobUID, err := manager.Upload(ctx, tarball, map[string]string{
 		"app": name, "org": org, "username": username,
 	})
@@ -92,7 +93,7 @@ func (hc ApplicationsController) ImportGit(w http.ResponseWriter, r *http.Reques
 
 	// Return response
 	resp := models.ImportGitResponse{BlobUID: blobUID}
-	err = jsonResponse(w, resp)
+	err = response.JSON(w, resp)
 	if err != nil {
 		return InternalError(err)
 	}

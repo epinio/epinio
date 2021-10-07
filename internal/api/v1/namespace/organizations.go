@@ -1,4 +1,4 @@
-package v1
+package namespace
 
 import (
 	"context"
@@ -11,21 +11,24 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/julienschmidt/httprouter"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-// NamespacesController represents all functionality of the API related to namespaces
-type NamespacesController struct {
+// Controller represents all functionality of the API related to namespaces
+type Controller struct {
 }
 
 // Match handles the API endpoint /namespaces/:pattern (GET)
 // It returns a list of all Epinio-controlled namespaces matching the prefix pattern.
-func (oc NamespacesController) Match(w http.ResponseWriter, r *http.Request) APIErrors {
+func (oc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -57,7 +60,7 @@ func (oc NamespacesController) Match(w http.ResponseWriter, r *http.Request) API
 
 	log.Info("deliver matches", "found", matches)
 
-	err = jsonResponse(w, models.NamespacesMatchResponse{Names: matches})
+	err = response.JSON(w, models.NamespacesMatchResponse{Names: matches})
 	if err != nil {
 		return InternalError(err)
 	}
@@ -69,7 +72,7 @@ func (oc NamespacesController) Match(w http.ResponseWriter, r *http.Request) API
 // It returns a list of all Epinio-controlled namespaces
 // An Epinio namespace is nothing but a kubernetes namespace which has a
 // special Label (Look at the code to see which).
-func (oc NamespacesController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
+func (oc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -110,7 +113,7 @@ func (oc NamespacesController) Index(w http.ResponseWriter, r *http.Request) API
 		})
 	}
 
-	err = jsonResponse(w, namespaces)
+	err = response.JSON(w, namespaces)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -120,7 +123,7 @@ func (oc NamespacesController) Index(w http.ResponseWriter, r *http.Request) API
 
 // Create handles the API endpoint /namespaces (POST).
 // It creates a namespace with the specified name.
-func (oc NamespacesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+func (oc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -163,7 +166,7 @@ func (oc NamespacesController) Create(w http.ResponseWriter, r *http.Request) AP
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -174,7 +177,7 @@ func (oc NamespacesController) Create(w http.ResponseWriter, r *http.Request) AP
 // Delete handles the API endpoint /namespaces/:org (DELETE).
 // It destroys the namespace specified by its name.
 // This includes all the applications and services in it.
-func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+func (oc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
@@ -218,7 +221,7 @@ func (oc NamespacesController) Delete(w http.ResponseWriter, r *http.Request) AP
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}

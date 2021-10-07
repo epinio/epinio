@@ -1,4 +1,4 @@
-package v1
+package application
 
 import (
 	"io"
@@ -10,15 +10,19 @@ import (
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/julienschmidt/httprouter"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // Upload handles the API endpoint /orgs/:org/applications/:app/store.
 // It receives the application data as a tarball and stores it. Then
 // it creates the k8s resources needed for staging
-func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Upload(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -68,10 +72,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 		return InternalError(err, "creating an S3 manager")
 	}
 
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 	blobUID, err := manager.Upload(ctx, blob, map[string]string{
 		"app": name, "org": org, "username": username,
 	})
@@ -82,7 +83,7 @@ func (hc ApplicationsController) Upload(w http.ResponseWriter, r *http.Request) 
 	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
 	resp := models.UploadResponse{BlobUID: blobUID}
-	err = jsonResponse(w, resp)
+	err = response.JSON(w, resp)
 	if err != nil {
 		return InternalError(err)
 	}

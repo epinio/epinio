@@ -1,4 +1,4 @@
-package v1
+package service
 
 import (
 	"context"
@@ -8,20 +8,25 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/api/v1/servicebinding"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/julienschmidt/httprouter"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-// ServicesController represents all functionality of the API related to services
-type ServicesController struct {
+// Controller represents all functionality of the API related to services
+type Controller struct {
 }
 
 // Show handles the API end point /orgs/:org/services/:service
 // It returns the detail information of the named service instance
-func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErrors {
+func (sc Controller) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -60,7 +65,7 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 		responseData[key] = value
 	}
 
-	err = jsonResponse(w, models.ServiceShowResponse{
+	err = response.JSON(w, models.ServiceShowResponse{
 		Username: service.User(),
 		Details:  responseData,
 	})
@@ -73,7 +78,7 @@ func (sc ServicesController) Show(w http.ResponseWriter, r *http.Request) APIErr
 
 // Index handles the API end point /orgs/:org/services
 // It returns a list of all known service instances
-func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIErrors {
+func (sc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -115,7 +120,7 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 		})
 	}
 
-	err = jsonResponse(w, responseData)
+	err = response.JSON(w, responseData)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -125,14 +130,11 @@ func (sc ServicesController) Index(w http.ResponseWriter, r *http.Request) APIEr
 
 // Create handles the API end point /orgs/:org/services
 // It creates the named service from its parameters
-func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+func (sc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -188,7 +190,7 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -198,15 +200,12 @@ func (sc ServicesController) Create(w http.ResponseWriter, r *http.Request) APIE
 
 // Delete handles the API end point /orgs/:org/services/:service (DELETE)
 // It deletes the named service
-func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 	serviceName := params.ByName("service")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -260,7 +259,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		}
 
 		for _, app := range boundApps {
-			apiErr := DeleteBinding(ctx, cluster, org, app.Meta.Name, serviceName, username)
+			apiErr := servicebinding.DeleteBinding(ctx, cluster, org, app.Meta.Name, serviceName, username)
 			if apiErr != nil {
 				return apiErr
 			}
@@ -274,7 +273,7 @@ func (sc ServicesController) Delete(w http.ResponseWriter, r *http.Request) APIE
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, models.ServiceDeleteResponse{BoundApps: boundAppNames})
+	err = response.JSON(w, models.ServiceDeleteResponse{BoundApps: boundAppNames})
 	if err != nil {
 		return InternalError(err)
 	}
@@ -308,4 +307,40 @@ func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string
 	}
 
 	return appsOf, nil
+}
+
+// ServiceApps handles the API endpoint GET /namespaces/:org/serviceapps
+// It returns a map from services to the apps they are bound to, in
+// the specified org.  Internally it asks each app in the org for its
+// bound services and then inverts that map to get the desired result.
+func (hc Controller) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
+	ctx := r.Context()
+	params := httprouter.ParamsFromContext(ctx)
+	org := params.ByName("org")
+
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	exists, err := organizations.Exists(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	if !exists {
+		return OrgIsNotKnown(org)
+	}
+
+	appsOf, err := servicesToApps(ctx, cluster, org)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	err = response.JSON(w, appsOf)
+	if err != nil {
+		return InternalError(err)
+	}
+
+	return nil
 }

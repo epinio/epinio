@@ -4,17 +4,16 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-)
 
-// InfoController represents all functionality of the API related to epinio inspection
-type InfoController struct {
-}
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+)
 
 // Info handles the API endpoint /info.  It returns version
 // information for various epinio components.
-func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) APIErrors {
+func Info(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -35,7 +34,7 @@ func (hc InfoController) Info(w http.ResponseWriter, r *http.Request) APIErrors 
 		KubeVersion: kubeVersion,
 	}
 
-	err = jsonResponse(w, info)
+	err = response.JSON(w, info)
 	if err != nil {
 		return InternalError(err)
 	}

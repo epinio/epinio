@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/cli/logprinter"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/go-logr/logr"
@@ -381,7 +382,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			// and the response contains an array of their
 			// names.
 
-			var apiError api.ErrorResponse
+			var apiError apierrors.ErrorResponse
 			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
 				return err
 			}

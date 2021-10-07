@@ -9,7 +9,7 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
-	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo"
@@ -73,7 +73,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				var responseBody map[string][]apiv1.APIError
+				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody).To(HaveKey("errors"), string(bodyBytes))
 				Expect(responseBody["errors"][0].Title).To(
@@ -89,7 +89,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				var responseBody map[string][]apiv1.APIError
+				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
 					Equal("json: cannot unmarshal array into Go value of type map[string]string"))
@@ -104,7 +104,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
-				var responseBody map[string][]apiv1.APIError
+				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
 					Equal("name of namespace to create not found"))
@@ -133,7 +133,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err = ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
-				var responseBody map[string][]apiv1.APIError
+				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
 					Equal("Namespace 'birdy' already exists"))
@@ -148,7 +148,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
-				var responseBody map[string][]apiv1.APIError
+				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
 					Equal("Namespace 'epinio' name cannot be used. Please try another name"))

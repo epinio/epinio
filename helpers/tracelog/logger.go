@@ -14,7 +14,6 @@ import (
 )
 
 type CtxLoggerKey struct{}
-type UserLoggerKey struct{}
 
 // Logger returns the logger from the context, the server injects a logger into
 // each request.

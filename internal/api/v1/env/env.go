@@ -1,4 +1,4 @@
-package v1
+package env
 
 import (
 	"encoding/json"
@@ -8,16 +8,22 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/julienschmidt/httprouter"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-// EnvIndex handles the API endpoint /orgs/:org/applications/:app/environment
+// Controller represents all functionality of the API related to envs
+type Controller struct{}
+
+// Index handles the API endpoint /orgs/:org/applications/:app/environment
 // It receives the org, application name and returns the environment
 // associated with that application
-func (hc ApplicationsController) EnvIndex(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -57,7 +63,7 @@ func (hc ApplicationsController) EnvIndex(w http.ResponseWriter, r *http.Request
 		return InternalError(err)
 	}
 
-	err = jsonResponse(w, environment)
+	err = response.JSON(w, environment)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -65,11 +71,11 @@ func (hc ApplicationsController) EnvIndex(w http.ResponseWriter, r *http.Request
 	return nil
 }
 
-// EnvMatch handles the API endpoint /orgs/:org/applications/:app/environment/:env/match/:pattern
+// Match handles the API endpoint /orgs/:org/applications/:app/environment/:env/match/:pattern
 // It receives the org, application name, plus a prefix and returns
 // the names of all the environment associated with that application
 // with prefix
-func (hc ApplicationsController) EnvMatch(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -121,7 +127,7 @@ func (hc ApplicationsController) EnvMatch(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	err = jsonResponse(w, models.EnvMatchResponse{Names: matches})
+	err = response.JSON(w, models.EnvMatchResponse{Names: matches})
 	if err != nil {
 		return InternalError(err)
 	}
@@ -129,10 +135,10 @@ func (hc ApplicationsController) EnvMatch(w http.ResponseWriter, r *http.Request
 	return nil
 }
 
-// EnvSet handles the API endpoint /orgs/:org/applications/:app/environment (POST)
+// Set handles the API endpoint /orgs/:org/applications/:app/environment (POST)
 // It receives the org, application name, var name and value,
 // and add/modifies the variable in the  application's environment.
-func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Set(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -194,7 +200,7 @@ func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -204,7 +210,7 @@ func (hc ApplicationsController) EnvSet(w http.ResponseWriter, r *http.Request) 
 // EnvShow handles the API endpoint /orgs/:org/applications/:app/environment/:env
 // It receives the org, application name, var name, and returns
 // the variable's value in the application's environment.
-func (hc ApplicationsController) EnvShow(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -258,7 +264,7 @@ func (hc ApplicationsController) EnvShow(w http.ResponseWriter, r *http.Request)
 
 	// Not found => Returns a nil object
 
-	err = jsonResponse(w, match)
+	err = response.JSON(w, match)
 	if err != nil {
 		return InternalError(err)
 	}
@@ -266,10 +272,10 @@ func (hc ApplicationsController) EnvShow(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-// EnvUnset handles the API endpoint /orgs/:org/applications/:app/environment/:env (DELETE)
+// Unset handles the API endpoint /orgs/:org/applications/:app/environment/:env (DELETE)
 // It receives the org, application name, var name, and removes the
 // variable from the application's environment.
-func (hc ApplicationsController) EnvUnset(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Unset(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -320,7 +326,7 @@ func (hc ApplicationsController) EnvUnset(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
 		return InternalError(err)
 	}

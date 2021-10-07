@@ -1,4 +1,4 @@
-package v1
+package application
 
 import (
 	"encoding/json"
@@ -6,7 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/julienschmidt/httprouter"
 	appsv1 "k8s.io/api/apps/v1"
@@ -20,6 +22,8 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
+	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 const (
@@ -39,17 +43,14 @@ type deployParam struct {
 
 // Deploy handles the API endpoint /orgs/:org/applications/:app/deploy
 // It creates the deployment, service and ingress (kube) resources for the app
-func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
 	p := httprouter.ParamsFromContext(ctx)
 	org := p.ByName("org")
 	name := p.ByName("app")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
@@ -191,7 +192,7 @@ func (hc ApplicationsController) Deploy(w http.ResponseWriter, r *http.Request) 
 	resp := models.DeployResponse{
 		Route: route,
 	}
-	err = jsonResponse(w, resp)
+	err = response.JSON(w, resp)
 	if err != nil {
 		return InternalError(err)
 	}
