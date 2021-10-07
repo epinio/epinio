@@ -8,15 +8,15 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/organizations"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/julienschmidt/httprouter"
 
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/julienschmidt/httprouter"
 )
 
 // Match handles the API endpoint /namespaces/:pattern (GET)
 // It returns a list of all Epinio-controlled namespaces matching the prefix pattern.
-func (oc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
+func (oc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -25,13 +25,13 @@ func (oc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	log.Info("list namespaces")
 	namespaces, err := organizations.List(ctx, cluster)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	log.Info("get namespace prefix")
@@ -50,7 +50,7 @@ func (oc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	err = response.JSON(w, models.NamespacesMatchResponse{Names: matches})
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

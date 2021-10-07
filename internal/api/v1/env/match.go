@@ -9,17 +9,17 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/julienschmidt/httprouter"
 
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/julienschmidt/httprouter"
 )
 
 // Match handles the API endpoint /orgs/:org/applications/:app/environment/:env/match/:pattern
 // It receives the org, application name, plus a prefix and returns
 // the names of all the environment associated with that application
 // with prefix
-func (hc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -33,27 +33,27 @@ func (hc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, orgName)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return OrgIsNotKnown(orgName)
+		return apierror.OrgIsNotKnown(orgName)
 	}
 
 	app := models.NewAppRef(appName, orgName)
 
 	exists, err = application.Exists(ctx, cluster, app)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return AppIsNotKnown(appName)
+		return apierror.AppIsNotKnown(appName)
 	}
 
 	// EnvList, with post-processing - selection of matches, and
@@ -61,7 +61,7 @@ func (hc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	environment, err := application.Environment(ctx, cluster, app)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	matches := []string{}
@@ -73,7 +73,7 @@ func (hc Controller) Match(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	err = response.JSON(w, models.EnvMatchResponse{Names: matches})
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

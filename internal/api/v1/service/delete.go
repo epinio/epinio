@@ -12,15 +12,15 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/julienschmidt/httprouter"
 
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/julienschmidt/httprouter"
 )
 
 // Delete handles the API end point /orgs/:org/services/:service (DELETE)
 // It deletes the named service
-func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -30,34 +30,34 @@ func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	var deleteRequest models.ServiceDeleteRequest
 	err = json.Unmarshal(bodyBytes, &deleteRequest)
 	if err != nil {
-		return BadRequest(err)
+		return apierror.BadRequest(err)
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 	if !exists {
-		return OrgIsNotKnown(org)
+		return apierror.OrgIsNotKnown(org)
 	}
 
 	service, err := services.Lookup(ctx, cluster, org, serviceName)
 	if err != nil && err.Error() == "service not found" {
-		return ServiceIsNotKnown(serviceName)
+		return apierror.ServiceIsNotKnown(serviceName)
 	}
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	// Verify that the service is unbound. IOW not bound to any application.
@@ -67,7 +67,7 @@ func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 	boundAppNames := []string{}
 	appsOf, err := servicesToApps(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 	if boundApps, found := appsOf[service.Name()]; found {
 		for _, app := range boundApps {
@@ -75,7 +75,7 @@ func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 		}
 
 		if !deleteRequest.Unbind {
-			return NewBadRequest("bound applications exist", strings.Join(boundAppNames, ","))
+			return apierror.NewBadRequest("bound applications exist", strings.Join(boundAppNames, ","))
 		}
 
 		for _, app := range boundApps {
@@ -90,12 +90,12 @@ func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	err = service.Delete(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	err = response.JSON(w, models.ServiceDeleteResponse{BoundApps: boundAppNames})
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

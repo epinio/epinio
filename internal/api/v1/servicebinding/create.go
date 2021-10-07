@@ -11,11 +11,11 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // Controller represents all functionality of the API related to service bindings
@@ -29,7 +29,7 @@ type Controller struct {
 
 // Create handles the API endpoint /orgs/:org/applications/:app/servicebindings (POST)
 // It creates a binding between the specified service and application
-func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -39,46 +39,46 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	var bindRequest models.BindRequest
 	err = json.Unmarshal(bodyBytes, &bindRequest)
 	if err != nil {
-		return BadRequest(err)
+		return apierror.BadRequest(err)
 	}
 
 	if len(bindRequest.Names) == 0 {
 		err := errors.New("Cannot bind service without names")
-		return BadRequest(err)
+		return apierror.BadRequest(err)
 	}
 
 	for _, serviceName := range bindRequest.Names {
 		if serviceName == "" {
 			err := errors.New("Cannot bind service with empty name")
-			return BadRequest(err)
+			return apierror.BadRequest(err)
 		}
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 	if !exists {
-		return OrgIsNotKnown(org)
+		return apierror.OrgIsNotKnown(org)
 	}
 
 	app, err := application.Lookup(ctx, cluster, org, appName)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 	if app == nil {
-		return AppIsNotKnown(appName)
+		return apierror.AppIsNotKnown(appName)
 	}
 
 	// Collect errors and warnings per service, to report as much
@@ -89,12 +89,12 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	// Take old state
 	oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	resp := models.BindResponse{}
 
-	var theIssues []APIError
+	var theIssues []apierror.APIError
 	var okToBind []string
 
 	// Validate existence of new services. Report invalid services as errors, later.
@@ -108,12 +108,12 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 		_, err := services.Lookup(ctx, cluster, org, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
-				theIssues = append(theIssues, ServiceIsNotKnown(serviceName))
+				theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
 				continue
 			}
 
-			theIssues = append([]APIError{InternalError(err)}, theIssues...)
-			return NewMultiError(theIssues)
+			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			return apierror.NewMultiError(theIssues)
 		}
 
 		okToBind = append(okToBind, serviceName)
@@ -125,8 +125,8 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 
 		err := application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
-			theIssues = append([]APIError{InternalError(err)}, theIssues...)
-			return NewMultiError(theIssues)
+			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			return apierror.NewMultiError(theIssues)
 		}
 
 		// Update the workload, if there is any.
@@ -135,26 +135,26 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 			// as full service structures
 			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
 			if err != nil {
-				theIssues = append([]APIError{InternalError(err)}, theIssues...)
-				return NewMultiError(theIssues)
+				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+				return apierror.NewMultiError(theIssues)
 			}
 
 			err = application.NewWorkload(cluster, app.Meta).
 				BoundServicesChange(ctx, username, oldBound, newBound)
 			if err != nil {
-				theIssues = append([]APIError{InternalError(err)}, theIssues...)
-				return NewMultiError(theIssues)
+				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+				return apierror.NewMultiError(theIssues)
 			}
 		}
 	}
 
 	if len(theIssues) > 0 {
-		return NewMultiError(theIssues)
+		return apierror.NewMultiError(theIssues)
 	}
 
 	err = response.JSON(w, resp)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

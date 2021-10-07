@@ -13,12 +13,11 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	"github.com/gorilla/websocket"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
-
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // Logs handles the API endpoints GET /namespaces/:org/applications/:app/logs
@@ -37,19 +36,19 @@ func (hc Controller) Logs(w http.ResponseWriter, r *http.Request) {
 	log.Info("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		response.JSONError(w, InternalError(err))
+		response.JSONError(w, apierror.InternalError(err))
 		return
 	}
 
 	log.Info("validate organization", "name", org)
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		response.JSONError(w, InternalError(err))
+		response.JSONError(w, apierror.InternalError(err))
 		return
 	}
 
 	if !exists {
-		response.JSONError(w, OrgIsNotKnown(org))
+		response.JSONError(w, apierror.OrgIsNotKnown(org))
 		return
 	}
 
@@ -58,24 +57,24 @@ func (hc Controller) Logs(w http.ResponseWriter, r *http.Request) {
 
 		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
-			response.JSONError(w, InternalError(err))
+			response.JSONError(w, apierror.InternalError(err))
 			return
 		}
 
 		if app == nil {
-			response.JSONError(w, AppIsNotKnown(appName))
+			response.JSONError(w, apierror.AppIsNotKnown(appName))
 			return
 		}
 
 		if app.Workload == nil {
 			// While the app exists it has no workload, therefore no logs
-			response.JSONError(w, NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
+			response.JSONError(w, apierror.NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
 			return
 		}
 	}
 
 	if appName == "" && stageID == "" {
-		response.JSONError(w, BadRequest(errors.New("You need to specify either the stage id or the app")))
+		response.JSONError(w, apierror.BadRequest(errors.New("You need to specify either the stage id or the app")))
 		return
 	}
 
@@ -89,7 +88,7 @@ func (hc Controller) Logs(w http.ResponseWriter, r *http.Request) {
 	var upgrader = websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		response.JSONError(w, InternalError(err))
+		response.JSONError(w, apierror.InternalError(err))
 		return
 	}
 

@@ -8,10 +8,10 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/julienschmidt/httprouter"
 
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/julienschmidt/httprouter"
 )
 
 // Controller represents all functionality of the API related to envs
@@ -20,7 +20,7 @@ type Controller struct{}
 // Index handles the API endpoint /orgs/:org/applications/:app/environment
 // It receives the org, application name and returns the environment
 // associated with that application
-func (hc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -32,37 +32,37 @@ func (hc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, orgName)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return OrgIsNotKnown(orgName)
+		return apierror.OrgIsNotKnown(orgName)
 	}
 
 	app := models.NewAppRef(appName, orgName)
 
 	exists, err = application.Exists(ctx, cluster, app)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return AppIsNotKnown(appName)
+		return apierror.AppIsNotKnown(appName)
 	}
 
 	environment, err := application.Environment(ctx, cluster, app)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	err = response.JSON(w, environment)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

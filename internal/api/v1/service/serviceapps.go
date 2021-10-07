@@ -8,43 +8,43 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/julienschmidt/httprouter"
 
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/julienschmidt/httprouter"
 )
 
 // ServiceApps handles the API endpoint GET /namespaces/:org/serviceapps
 // It returns a map from services to the apps they are bound to, in
 // the specified org.  Internally it asks each app in the org for its
 // bound services and then inverts that map to get the desired result.
-func (hc Controller) ServiceApps(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) ServiceApps(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return OrgIsNotKnown(org)
+		return apierror.OrgIsNotKnown(org)
 	}
 
 	appsOf, err := servicesToApps(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	err = response.JSON(w, appsOf)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

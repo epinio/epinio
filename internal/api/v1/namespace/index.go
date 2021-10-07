@@ -8,9 +8,8 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // Controller represents all functionality of the API related to namespaces
@@ -21,16 +20,16 @@ type Controller struct {
 // It returns a list of all Epinio-controlled namespaces
 // An Epinio namespace is nothing but a kubernetes namespace which has a
 // special Label (Look at the code to see which).
-func (oc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
+func (oc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	orgList, err := organizations.List(ctx, cluster)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	namespaces := make(models.NamespaceList, 0, len(orgList))
@@ -38,7 +37,7 @@ func (oc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 		// Retrieve app references for namespace, and reduce to their names.
 		appRefs, err := application.ListAppRefs(ctx, cluster, org.Name)
 		if err != nil {
-			return InternalError(err)
+			return apierror.InternalError(err)
 		}
 		appNames := make([]string, 0, len(appRefs))
 		for _, app := range appRefs {
@@ -48,7 +47,7 @@ func (oc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 		// Retrieve services for namespace, and reduce to their names.
 		services, err := services.List(ctx, cluster, org.Name)
 		if err != nil {
-			return InternalError(err)
+			return apierror.InternalError(err)
 		}
 		serviceNames := make([]string, 0, len(services))
 		for _, service := range services {
@@ -64,7 +63,7 @@ func (oc Controller) Index(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	err = response.JSON(w, namespaces)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

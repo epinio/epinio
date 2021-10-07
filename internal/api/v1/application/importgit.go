@@ -6,6 +6,10 @@ import (
 	"net/http"
 	"os"
 
+	git "github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/julienschmidt/httprouter"
+
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -13,18 +17,14 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/s3manager"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	git "github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/julienschmidt/httprouter"
-
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // ImportGit handles the API endpoint /namespaces/:org/applications/:app/import-git.
 // It receives a Git repo url and revision, clones that (shallow clone), creates a tarball
 // of the repo and puts it on S3.
-func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -37,7 +37,7 @@ func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors
 
 	gitRepo, err := ioutil.TempDir("", "epinio-app")
 	if err != nil {
-		return InternalError(err, "can't create temp directory")
+		return apierror.InternalError(err, "can't create temp directory")
 	}
 	defer os.RemoveAll(gitRepo)
 
@@ -54,7 +54,7 @@ func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors
 		Depth:         1,
 	})
 	if err != nil {
-		return InternalError(err, fmt.Sprintf("cloning the git repository: %s, revision: %s", url, revision))
+		return apierror.InternalError(err, fmt.Sprintf("cloning the git repository: %s, revision: %s", url, revision))
 	}
 
 	// Create a tarball
@@ -65,21 +65,21 @@ func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors
 		}
 	}()
 	if err != nil {
-		return InternalError(err, "create a tarball from the git repository")
+		return apierror.InternalError(err, "create a tarball from the git repository")
 	}
 
 	// Upload to S3
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err, "failed to get access to a kube client")
+		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
 	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
 	if err != nil {
-		return InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
+		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
 	}
 	manager, err := s3manager.New(connectionDetails)
 	if err != nil {
-		return InternalError(err, "creating an S3 manager")
+		return apierror.InternalError(err, "creating an S3 manager")
 	}
 
 	username := requestctx.User(ctx)
@@ -87,7 +87,7 @@ func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors
 		"app": name, "org": org, "username": username,
 	})
 	if err != nil {
-		return InternalError(err, "uploading the application sources blob")
+		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
@@ -95,7 +95,7 @@ func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) APIErrors
 	resp := models.ImportGitResponse{BlobUID: blobUID}
 	err = response.JSON(w, resp)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

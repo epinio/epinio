@@ -6,10 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/names"
 	"github.com/julienschmidt/httprouter"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -20,10 +16,13 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/names"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 const (
@@ -43,7 +42,7 @@ type deployParam struct {
 
 // Deploy handles the API endpoint /orgs/:org/applications/:app/deploy
 // It creates the deployment, service and ingress (kube) resources for the app
-func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -55,33 +54,33 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	req := models.DeployRequest{}
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
-		return NewBadRequest("Failed to unmarshal deploy request ", err.Error())
+		return apierror.NewBadRequest("Failed to unmarshal deploy request ", err.Error())
 	}
 
 	if name != req.App.Name {
-		return NewBadRequest("name parameter from URL does not match name param in body")
+		return apierror.NewBadRequest("name parameter from URL does not match name param in body")
 	}
 	if org != req.App.Org {
-		return NewBadRequest("org parameter from URL does not match org param in body")
+		return apierror.NewBadRequest("org parameter from URL does not match org param in body")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err, "failed to get access to a kube client")
+		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
 
 	// check application resource
 	applicationCR, err := application.Get(ctx, cluster, req.App)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return AppIsNotKnown("cannot deploy app, application resource is missing")
+			return apierror.AppIsNotKnown("cannot deploy app, application resource is missing")
 		}
-		return InternalError(err, "failed to get the application resource")
+		return apierror.InternalError(err, "failed to get the application resource")
 	}
 	owner := metav1.OwnerReference{
 		APIVersion: applicationCR.GetAPIVersion(),
@@ -93,29 +92,29 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 	// determine number of desired instances
 	instances, err := application.Scaling(ctx, cluster, req.App)
 	if err != nil {
-		return InternalError(err, "failed to access application's desired instances")
+		return apierror.InternalError(err, "failed to access application's desired instances")
 	}
 
 	// determine runtime environment, if any
 	environment, err := application.Environment(ctx, cluster, req.App)
 	if err != nil {
-		return InternalError(err, "failed to access application's runtime environment")
+		return apierror.InternalError(err, "failed to access application's runtime environment")
 	}
 
 	// determine bound services, if any
 	services, err := application.BoundServices(ctx, cluster, req.App)
 	if err != nil {
-		return InternalError(err, "failed to access application's bound services")
+		return apierror.InternalError(err, "failed to access application's bound services")
 	}
 
 	bindings, err := application.ToBinds(ctx, services, req.App.Name, username)
 	if err != nil {
-		return InternalError(err, "failed to process application's bound services")
+		return apierror.InternalError(err, "failed to process application's bound services")
 	}
 
 	route, err := domain.AppDefaultRoute(ctx, req.App.Name)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	deployParams := deployParam{
@@ -134,10 +133,10 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 	if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Org).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Org).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
-				return InternalError(err)
+				return apierror.InternalError(err)
 			}
 		} else {
-			return InternalError(err)
+			return apierror.InternalError(err)
 		}
 	}
 
@@ -152,16 +151,16 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 		if apierrors.IsAlreadyExists(err) {
 			service, err := cluster.Kubectl.CoreV1().Services(req.App.Org).Get(ctx, svc.Name, metav1.GetOptions{})
 			if err != nil {
-				return InternalError(err)
+				return apierror.InternalError(err)
 			}
 
 			svc.ResourceVersion = service.ResourceVersion
 			svc.Spec.ClusterIP = service.Spec.ClusterIP
 			if _, err := cluster.Kubectl.CoreV1().Services(req.App.Org).Update(ctx, svc, metav1.UpdateOptions{}); err != nil {
-				return InternalError(err)
+				return apierror.InternalError(err)
 			}
 		} else {
-			return InternalError(err)
+			return apierror.InternalError(err)
 		}
 	}
 
@@ -175,17 +174,17 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 	if _, err := cluster.Kubectl.NetworkingV1().Ingresses(req.App.Org).Create(ctx, ing, metav1.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			if _, err := cluster.Kubectl.NetworkingV1().Ingresses(req.App.Org).Update(ctx, ing, metav1.UpdateOptions{}); err != nil {
-				return InternalError(err)
+				return apierror.InternalError(err)
 			}
 		} else {
-			return InternalError(err)
+			return apierror.InternalError(err)
 		}
 	}
 
 	// Delete previous pipelineruns except for the current one
 	if req.Stage.ID != "" {
 		if err := application.Unstage(ctx, cluster, req.App, req.Stage.ID); err != nil {
-			return InternalError(err)
+			return apierror.InternalError(err)
 		}
 	}
 
@@ -194,7 +193,7 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) APIErrors {
 	}
 	err = response.JSON(w, resp)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

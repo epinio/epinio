@@ -8,16 +8,16 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/julienschmidt/httprouter"
 
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/julienschmidt/httprouter"
 )
 
 // EnvShow handles the API endpoint /orgs/:org/applications/:app/environment/:env
 // It receives the org, application name, var name, and returns
 // the variable's value in the application's environment.
-func (hc Controller) Show(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Show(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
@@ -31,34 +31,34 @@ func (hc Controller) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, orgName)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return OrgIsNotKnown(orgName)
+		return apierror.OrgIsNotKnown(orgName)
 	}
 
 	app := models.NewAppRef(appName, orgName)
 
 	exists, err = application.Exists(ctx, cluster, app)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return AppIsNotKnown(appName)
+		return apierror.AppIsNotKnown(appName)
 	}
 
 	// EnvList, with post-processing - select specific value
 
 	environment, err := application.Environment(ctx, cluster, app)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	var match models.EnvVariable
@@ -73,7 +73,7 @@ func (hc Controller) Show(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	err = response.JSON(w, match)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

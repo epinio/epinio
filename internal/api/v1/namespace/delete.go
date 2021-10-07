@@ -10,55 +10,55 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/julienschmidt/httprouter"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // Delete handles the API endpoint /namespaces/:org (DELETE).
 // It destroys the namespace specified by its name.
 // This includes all the applications and services in it.
-func (oc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
+func (oc Controller) Delete(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(r.Context())
 	org := params.ByName("org")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 	if !exists {
-		return OrgIsNotKnown(org)
+		return apierror.OrgIsNotKnown(org)
 	}
 
 	err = deleteApps(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	serviceList, err := services.List(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	for _, service := range serviceList {
 		err = service.Delete(ctx)
 		if err != nil && !apierrors.IsNotFound(err) {
-			return InternalError(err)
+			return apierror.InternalError(err)
 		}
 	}
 
 	// Deleting the namespace here. That will automatically delete the application resources.
 	err = organizations.Delete(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -66,7 +66,7 @@ func (oc Controller) Delete(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

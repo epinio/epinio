@@ -11,16 +11,15 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/julienschmidt/httprouter"
-
-	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
 // Create handles the API endpoint POST /namespaces/:org/applications
 // It creates a new and empty application. I.e. without a workload.
-func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	params := httprouter.ParamsFromContext(ctx)
 	org := params.ByName("org")
@@ -28,37 +27,37 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return OrgIsNotKnown(org)
+		return apierror.OrgIsNotKnown(org)
 	}
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	var createRequest models.ApplicationCreateRequest
 	err = json.Unmarshal(bodyBytes, &createRequest)
 	if err != nil {
-		return BadRequest(err)
+		return apierror.BadRequest(err)
 	}
 
 	appRef := models.NewAppRef(createRequest.Name, org)
 	found, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {
-		return InternalError(err, "failed to check for app resource")
+		return apierror.InternalError(err, "failed to check for app resource")
 	}
 	if found {
-		return AppAlreadyKnown(createRequest.Name)
+		return apierror.AppAlreadyKnown(createRequest.Name)
 	}
 
 	// Sanity check the services, if any. IOW anything to be bound
@@ -72,30 +71,30 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 	//      either reject the operation, or, when forced, unbind S
 	//      from the app.
 
-	var theIssues []APIError
+	var theIssues []apierror.APIError
 
 	for _, serviceName := range createRequest.Configuration.Services {
 		_, err := services.Lookup(ctx, cluster, org, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
-				theIssues = append(theIssues, ServiceIsNotKnown(serviceName))
+				theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
 				continue
 			}
 
-			theIssues = append([]APIError{InternalError(err)}, theIssues...)
-			return NewMultiError(theIssues)
+			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			return apierror.NewMultiError(theIssues)
 		}
 	}
 
 	if len(theIssues) > 0 {
-		return NewMultiError(theIssues)
+		return apierror.NewMultiError(theIssues)
 	}
 
 	// Arguments found OK, now we can modify the system state
 
 	err = application.Create(ctx, cluster, appRef, username)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	desired := DefaultInstances
@@ -105,26 +104,26 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) APIErrors {
 
 	err = application.ScalingSet(ctx, cluster, appRef, desired)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	// Save service information.
 	err = application.BoundServicesSet(ctx, cluster, appRef,
 		createRequest.Configuration.Services, true)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	// Save environment assignments
 	err = application.EnvironmentSet(ctx, cluster, appRef,
 		createRequest.Configuration.Environment, true)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 	return nil
 }
