@@ -74,7 +74,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("creates the app with environment variables", func() {
-			out, err := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue", "--instances", "2")
+			out, err := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Ok"))
 
