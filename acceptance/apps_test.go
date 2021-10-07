@@ -73,6 +73,19 @@ var _ = Describe("Apps", func() {
 			})
 		})
 
+		Context("with environment variable", func() {
+			It("creates the app with instance count", func() {
+				out, err := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue", "--instances", "2")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp("Ok"))
+
+				out, err = env.Epinio("", "apps", "env", "list", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(`MYVAR`))
+				Expect(out).To(ContainSubstring(`myvalue`))
+			})
+		})
+
 		When("pushing a workload", func() {
 			BeforeEach(func() {
 				out, err := env.Epinio("", "app", "create", appName)
@@ -105,7 +118,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		Describe("update", func() {
-			It("respects the desired number of instances", func() {
+			BeforeEach(func() {
 				wordpress := "https://github.com/epinio/example-wordpress"
 				pushLog, err := env.Epinio("", "apps", "push", appName, wordpress, "--git", "main")
 				Expect(err).ToNot(HaveOccurred(), pushLog)
@@ -122,7 +135,9 @@ var _ = Describe("Apps", func() {
 
 					return out
 				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+			})
 
+			It("respects the desired number of instances", func() {
 				out, err := env.Epinio("", "app", "update", appName, "-i", "3")
 				Expect(err).ToNot(HaveOccurred(), out)
 
@@ -132,6 +147,17 @@ var _ = Describe("Apps", func() {
 
 					return out
 				}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+			})
+
+			It("respects environment variable changes", func() {
+				out, err := env.Epinio("", "app", "update", appName, "--env", "MYVAR=myvalue")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "apps", "env", "list", appName)
+					Expect(err).ToNot(HaveOccurred(), out)
+					return out
+				}, "2m").Should(MatchRegexp("MYVAR.*myvalue"))
 			})
 
 			AfterEach(func() {
@@ -431,6 +457,28 @@ var _ = Describe("Apps", func() {
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 
 			env.DeleteService(serviceName)
+		})
+
+		Context("with environment variable", func() {
+			AfterEach(func() {
+				env.DeleteApp(appName)
+			})
+
+			It("pushes an app", func() {
+				currentDir, err := os.Getwd()
+				Expect(err).ToNot(HaveOccurred())
+
+				pushOutput, err := env.Epinio(path.Join(currentDir, "../assets/sample-app"),
+					"apps", "push", appName, "-e", "MYVAR=myvalue")
+				Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+				// And check presence
+				Eventually(func() string {
+					out, err := env.Epinio("", "apps", "env", "list", appName)
+					Expect(err).ToNot(HaveOccurred(), out)
+					return out
+				}, "2m").Should(MatchRegexp("MYVAR.*myvalue"))
+			})
 		})
 	})
 
