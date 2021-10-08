@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
+	"github.com/epinio/epinio/internal/manifest"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -96,12 +98,12 @@ var CmdAppCreate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		ac, err := appConfiguration(cmd, "")
+		m, err := manifest.UpdateISE(models.ApplicationManifest{}, cmd)
 		if err != nil {
 			return errors.Wrap(err, "unable to get app configuration")
 		}
 
-		err = client.AppCreate(args[0], ac)
+		err = client.AppCreate(args[0], m.Configuration)
 		if err != nil {
 			return errors.Wrap(err, "error creating app")
 		}
@@ -219,12 +221,12 @@ var CmdAppUpdate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		ac, err := appConfiguration(cmd, "")
+		m, err := manifest.UpdateISE(models.ApplicationManifest{}, cmd)
 		if err != nil {
 			return errors.Wrap(err, "unable to get app configuration")
 		}
 
-		err = client.AppUpdate(args[0], ac)
+		err = client.AppUpdate(args[0], m.Configuration)
 		if err != nil {
 			return errors.Wrap(err, "error updating the app")
 		}

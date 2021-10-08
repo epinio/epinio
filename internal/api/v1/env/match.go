@@ -2,6 +2,7 @@ package env
 
 import (
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -65,11 +66,12 @@ func (hc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIE
 	}
 
 	matches := []string{}
-	for _, ev := range environment {
-		if strings.HasPrefix(ev.Name, prefix) {
-			matches = append(matches, ev.Name)
+	for evName := range environment {
+		if strings.HasPrefix(evName, prefix) {
+			matches = append(matches, evName)
 		}
 	}
+	sort.Strings(matches)
 
 	err = response.JSON(w, models.EnvMatchResponse{Names: matches})
 	if err != nil {

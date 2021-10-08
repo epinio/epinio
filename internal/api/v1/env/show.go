@@ -61,15 +61,14 @@ func (hc Controller) Show(w http.ResponseWriter, r *http.Request) apierror.APIEr
 		return apierror.InternalError(err)
 	}
 
-	var match models.EnvVariable
-	for _, ev := range environment {
-		if ev.Name == varName {
-			match = ev
-			break
-		}
-	}
+	match := models.EnvVariable{}
 
-	// Not found => Returns a nil object
+	value, ok := environment[varName]
+	if ok {
+		match.Name = varName
+		match.Value = value
+	}
+	// Not found: Returns an empty object.
 
 	err = response.JSON(w, match)
 	if err != nil {

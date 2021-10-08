@@ -9,9 +9,9 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// EnvList returns a list of all env vars for an app
-func (c *Client) EnvList(org string, appName string) (models.EnvVariableList, error) {
-	var resp models.EnvVariableList
+// EnvList returns a map of all env vars for an app
+func (c *Client) EnvList(org string, appName string) (models.EnvVariableMap, error) {
+	var resp models.EnvVariableMap
 
 	data, err := c.get(api.Routes.Path("EnvList", org, appName))
 	if err != nil {
@@ -26,7 +26,7 @@ func (c *Client) EnvList(org string, appName string) (models.EnvVariableList, er
 }
 
 // EnvSet set env vars for an app
-func (c *Client) EnvSet(req models.EnvVariableList, org string, appName string) (models.Response, error) {
+func (c *Client) EnvSet(req models.EnvVariableMap, org string, appName string) (models.Response, error) {
 	resp := models.Response{}
 
 	b, err := json.Marshal(req)

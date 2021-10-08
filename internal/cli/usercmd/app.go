@@ -212,7 +212,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 		WithTableRow("Environment", "")
 
 	if len(app.Configuration.Environment) > 0 {
-		for _, ev := range app.Configuration.Environment {
+		for _, ev := range app.Configuration.Environment.List() {
 			msg = msg.WithTableRow("  - "+ev.Name, ev.Value)
 		}
 	}
@@ -246,17 +246,11 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 		return err
 	}
 
+	// TODO -- Not available: Origin information. This is not stored server side.
+
 	m := models.ApplicationManifest{}
-
-	m.Instances = app.Configuration.Instances
-	m.Services = app.Configuration.Services
-
-	if len(app.Configuration.Environment) > 0 {
-		m.Environment = map[string]string{}
-		for _, ev := range app.Configuration.Environment {
-			m.Environment[ev.Name] = ev.Value
-		}
-	}
+	m.Name = appName
+	m.Configuration = app.Configuration
 
 	yaml, err := yaml.Marshal(m)
 	if err != nil {

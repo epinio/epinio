@@ -2,8 +2,11 @@ package cli
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
+	"github.com/epinio/epinio/internal/manifest"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -11,9 +14,13 @@ import (
 var ()
 
 func init() {
-	CmdAppPush.Flags().String("builder-image", "paketobuildpacks/builder:full", "paketo builder image to use for staging")
-	CmdAppPush.Flags().String("git", "", "git revision of sources. PATH becomes repository location")
-	CmdAppPush.Flags().String("container-image-url", "", "container image url for the app workload image")
+	CmdAppPush.Flags().String("builder-image", "paketobuildpacks/builder:full", "Paketo builder image to use for staging")
+
+	// The following options override manifest data
+	CmdAppPush.Flags().StringP("git", "g", "", "Git repository and revision of sources")
+	CmdAppPush.Flags().String("container-image-url", "", "Container image url for the app workload image")
+	CmdAppPush.Flags().StringP("name", "n", "", "Application name.")
+	CmdAppPush.Flags().StringP("path", "p", "", "Path to application sources.")
 
 	bindOption(CmdAppPush)
 	envOption(CmdAppPush)
@@ -22,9 +29,9 @@ func init() {
 
 // CmdAppPush implements the command: epinio app push
 var CmdAppPush = &cobra.Command{
-	Use:   "push NAME [URL|PATH_TO_APPLICATION_SOURCES]",
-	Short: "Push an application from the specified directory, or the current working directory",
-	Args:  cobra.RangeArgs(1, 2),
+	Use:   "push [flags] [PATH_TO_APPLICATION_MANIFEST]",
+	Short: "Push an application declared in the specified manifest",
+	Args:  cobra.RangeArgs(0, 1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -33,18 +40,50 @@ var CmdAppPush = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		gitRevision, err := cmd.Flags().GetString("git")
+		// Syntax:
+		//   - push [flags] [PATH-TO-MANIFEST-FILE]
+
+		wd, err := os.Getwd()
 		if err != nil {
-			return errors.Wrap(err, "could not read option --git")
+			return errors.Wrap(err, "working directory not accessible")
 		}
 
-		containerImageURL, err := cmd.Flags().GetString("container-image-url")
-		if err != nil {
-			return errors.Wrap(err, "could not read option --container-image-url")
+		var manifestPath string
+
+		if len(args) == 1 {
+			manifestPath = args[0]
+		} else {
+			manifestPath = filepath.Join(wd, "epinio.yml")
 		}
 
-		if gitRevision != "" && containerImageURL != "" {
-			return errors.Wrap(err, "cannot use both, git and container image url")
+		m, err := manifest.Get(manifestPath)
+		if err != nil {
+			cmd.SilenceUsage = false
+			return errors.Wrap(err, "Manifest error")
+		}
+
+		m, err = manifest.UpdateISE(m, cmd)
+		if err != nil {
+			return err
+		}
+
+		m, err = manifest.UpdateSN(m, cmd)
+		if err != nil {
+			return err
+		}
+
+		// Final manifest verify: Name is specified
+
+		if m.Name == "" {
+			cmd.SilenceUsage = false
+			return errors.New("Name required, not found in manifest nor options")
+		}
+
+		// Final completion: Without origin fall back to working directory
+
+		if m.Origin.Kind == models.OriginNone {
+			m.Origin.Kind = models.OriginPath
+			m.Origin.Path = wd
 		}
 
 		builderImage, err := cmd.Flags().GetString("builder-image")
@@ -52,59 +91,17 @@ var CmdAppPush = &cobra.Command{
 			return errors.Wrap(err, "could not read option --builder-image")
 		}
 
-		// Syntax:
-		// 1. push NAME
-		// 2. push NAME PATH
-		// 3. push NAME URL --git REV
-		// 4. push NAME --container-image-url URL
-
-		var pathOrUrl string
-		if len(args) == 1 {
-			if gitRevision != "" {
-				// Missing argument is user error. Show usage
-				cmd.SilenceUsage = false
-				return errors.New("app name or git repository url missing")
-			}
-
-			pathOrUrl, err = os.Getwd()
-			if err != nil {
-				return errors.Wrap(err, "working directory not accessible")
-			}
-		} else {
-			pathOrUrl = args[1]
-		}
-
-		if containerImageURL != "" {
-			pathOrUrl = ""
-		}
-
-		// Local path is used to look for a manifest file. This is of course
-		// nonsense for the push modes taking an url instead of a filesystem path.
-		localPath := pathOrUrl
-
-		if gitRevision == "" && containerImageURL == "" {
-			if _, err := os.Stat(pathOrUrl); err != nil {
+		if m.Origin.Kind == models.OriginPath {
+			if _, err := os.Stat(m.Origin.Path); err != nil {
 				// Path issue is user error. Show usage
 				cmd.SilenceUsage = false
 				return errors.Wrap(err, "path not accessible")
 			}
-		} else {
-			// url mode, no path to look into for a manifest file
-			localPath = ""
-		}
-
-		ac, err := appConfiguration(cmd, localPath)
-		if err != nil {
-			return errors.Wrap(err, "unable to get app configuration")
 		}
 
 		params := usercmd.PushParams{
-			Name:          args[0],
-			GitRev:        gitRevision,
-			Container:     containerImageURL,
-			Path:          pathOrUrl,
-			BuilderImage:  builderImage,
-			Configuration: ac,
+			BuilderImage:        builderImage,
+			ApplicationManifest: m,
 		}
 
 		err = client.Push(cmd.Context(), params)
