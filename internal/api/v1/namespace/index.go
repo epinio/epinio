@@ -16,7 +16,7 @@ import (
 type Controller struct {
 }
 
-// Co// Index handles the API endpoint /namespaces (GET)
+// Index handles the API endpoint /namespaces (GET)
 // It returns a list of all Epinio-controlled namespaces
 // An Epinio namespace is nothing but a kubernetes namespace which has a
 // special Label (Look at the code to see which).

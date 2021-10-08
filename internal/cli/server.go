@@ -13,12 +13,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// CtxIDKey is the unique key to lookup the request ID from the request's context
-type CtxIDKey struct{}
-
-// CtxUserKey is the unique key to lookup the username from the request's context
-type CtxUserKey struct{}
-
 func init() {
 	flags := CmdServer.Flags()
 	flags.Int("port", 0, "(PORT) The port to listen on. Leave empty to auto-assign a random port")
