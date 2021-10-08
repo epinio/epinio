@@ -1,4 +1,4 @@
-# Generated with: `minio init -o`
+# Generated with: `kubectl minio init -o`
 # Also, removed all console related resources (we don't need the console)
 ---
 apiVersion: v1
@@ -84,6 +84,7 @@ rules:
   resources:
   - statefulsets
   - deployments
+  - deployments/finalizers
   verbs:
   - get
   - create
@@ -659,6 +660,25 @@ spec:
                   replicas:
                     format: int32
                     type: integer
+                  resources:
+                    properties:
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        type: object
+                    type: object
                   securityContext:
                     properties:
                       fsGroup:
@@ -3945,11 +3965,15 @@ spec:
               drivesOnline:
                 format: int32
                 type: integer
+              healthMessage:
+                type: string
               healthStatus:
                 type: string
               pools:
                 items:
                   properties:
+                    legacySecurityContext:
+                      type: boolean
                     ssName:
                       type: string
                     state:
@@ -3965,6 +3989,21 @@ spec:
                 type: integer
               syncVersion:
                 type: string
+              usage:
+                properties:
+                  capacity:
+                    format: int64
+                    type: integer
+                  rawCapacity:
+                    format: int64
+                    type: integer
+                  rawUsage:
+                    format: int64
+                    type: integer
+                  usage:
+                    format: int64
+                    type: integer
+                type: object
               waitingOnReady:
                 format: date-time
                 type: string
@@ -4450,6 +4489,25 @@ spec:
                   replicas:
                     format: int32
                     type: integer
+                  resources:
+                    properties:
+                      limits:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        type: object
+                      requests:
+                        additionalProperties:
+                          anyOf:
+                          - type: integer
+                          - type: string
+                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          x-kubernetes-int-or-string: true
+                        type: object
+                    type: object
                   securityContext:
                     properties:
                       fsGroup:
@@ -4532,6 +4590,71 @@ spec:
                     type: array
                 required:
                 - kesSecret
+                type: object
+              liveness:
+                properties:
+                  exec:
+                    properties:
+                      command:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  failureThreshold:
+                    format: int32
+                    type: integer
+                  httpGet:
+                    properties:
+                      host:
+                        type: string
+                      httpHeaders:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        type: string
+                    required:
+                    - port
+                    type: object
+                  initialDelaySeconds:
+                    format: int32
+                    type: integer
+                  periodSeconds:
+                    format: int32
+                    type: integer
+                  successThreshold:
+                    format: int32
+                    type: integer
+                  tcpSocket:
+                    properties:
+                      host:
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
+                    required:
+                    - port
+                    type: object
+                  timeoutSeconds:
+                    format: int32
+                    type: integer
                 type: object
               log:
                 properties:
@@ -5708,6 +5831,14 @@ spec:
                               type: array
                           type: object
                       type: object
+                    annotations:
+                      additionalProperties:
+                        type: string
+                      type: object
+                    labels:
+                      additionalProperties:
+                        type: string
+                      type: object
                     name:
                       type: string
                     nodeSelector:
@@ -6337,6 +6468,71 @@ spec:
                     additionalProperties:
                       type: string
                     type: object
+                type: object
+              readiness:
+                properties:
+                  exec:
+                    properties:
+                      command:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  failureThreshold:
+                    format: int32
+                    type: integer
+                  httpGet:
+                    properties:
+                      host:
+                        type: string
+                      httpHeaders:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            value:
+                              type: string
+                          required:
+                          - name
+                          - value
+                          type: object
+                        type: array
+                      path:
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
+                      scheme:
+                        type: string
+                    required:
+                    - port
+                    type: object
+                  initialDelaySeconds:
+                    format: int32
+                    type: integer
+                  periodSeconds:
+                    format: int32
+                    type: integer
+                  successThreshold:
+                    format: int32
+                    type: integer
+                  tcpSocket:
+                    properties:
+                      host:
+                        type: string
+                      port:
+                        anyOf:
+                        - type: integer
+                        - type: string
+                        x-kubernetes-int-or-string: true
+                    required:
+                    - port
+                    type: object
+                  timeoutSeconds:
+                    format: int32
+                    type: integer
                 type: object
               requestAutoCert:
                 type: boolean
@@ -7775,11 +7971,15 @@ spec:
               drivesOnline:
                 format: int32
                 type: integer
+              healthMessage:
+                type: string
               healthStatus:
                 type: string
               pools:
                 items:
                   properties:
+                    legacySecurityContext:
+                      type: boolean
                     ssName:
                       type: string
                     state:
@@ -7795,6 +7995,21 @@ spec:
                 type: integer
               syncVersion:
                 type: string
+              usage:
+                properties:
+                  capacity:
+                    format: int64
+                    type: integer
+                  rawCapacity:
+                    format: int64
+                    type: integer
+                  rawUsage:
+                    format: int64
+                    type: integer
+                  usage:
+                    format: int64
+                    type: integer
+                type: object
               waitingOnReady:
                 format: date-time
                 type: string
@@ -7871,7 +8086,7 @@ spec:
       - env:
         - name: CLUSTER_DOMAIN
           value: cluster.local
-        image: minio/operator:v4.2.2
+        image: minio/operator:v4.2.12
         imagePullPolicy: IfNotPresent
         name: minio-operator
         resources:

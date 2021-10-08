@@ -32,7 +32,7 @@ const (
 	MinioTenantNamespace = "minio-epinio"
 	MinioHostname        = "minio.minio-epinio.svc.cluster.local"
 	MinioBucket          = "epinio"
-	minioVersion         = "4.2.5"
+	minioVersion         = "4.2.12"
 	minioOperatorYAML    = "minio/operator.yaml"
 	minioTenantYAML      = "minio/tenant.yaml"
 )
