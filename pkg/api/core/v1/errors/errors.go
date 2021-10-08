@@ -1,14 +1,10 @@
-package v1
+package errors
 
 import (
 	"fmt"
 	"net/http"
 	"strings"
 )
-
-// APIActionFunc is matched by all actions. Actions can return a list of errors.
-// The "Status" of the first error in the list becomes the response Status Code.
-type APIActionFunc func(http.ResponseWriter, *http.Request) APIErrors
 
 // ErrorResponse is the response's JSON, that is send in case of an error
 type ErrorResponse struct {
@@ -76,6 +72,11 @@ func (m MultiError) Errors() []APIError {
 // FirstStatus (APIErrors interface) returns the status of the first error stored
 func (m MultiError) FirstStatus() int {
 	return m.errors[0].Status
+}
+
+// NewMultiError constructs an APIerror from basics
+func NewMultiError(errs []APIError) MultiError {
+	return MultiError{errors: errs}
 }
 
 // InternalError constructs an API error for server internal issues, from a lower-level error

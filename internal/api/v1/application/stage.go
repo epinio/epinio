@@ -1,4 +1,4 @@
-package v1
+package application
 
 import (
 	"context"
@@ -23,12 +23,15 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/s3manager"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
@@ -92,72 +95,69 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 
 // Stage handles the API endpoint /orgs/:org/applications/:app/stage
 // It creates a Tekton PipelineRun resource to stage the app
-func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Stage(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 	log := tracelog.Logger(ctx)
 
 	p := httprouter.ParamsFromContext(ctx)
 	org := p.ByName("org")
 	name := p.ByName("app")
-	username, err := GetUsername(r)
-	if err != nil {
-		return UserNotFound()
-	}
+	username := requestctx.User(ctx)
 
 	defer r.Body.Close()
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	req := models.StageRequest{}
 	if err := json.Unmarshal(bodyBytes, &req); err != nil {
-		return NewBadRequest("Failed to construct an Application from the request", err.Error())
+		return apierror.NewBadRequest("Failed to construct an Application from the request", err.Error())
 	}
 
 	if name != req.App.Name {
-		return NewBadRequest("name parameter from URL does not match name param in body")
+		return apierror.NewBadRequest("name parameter from URL does not match name param in body")
 	}
 	if org != req.App.Org {
-		return NewBadRequest("org parameter from URL does not match org param in body")
+		return apierror.NewBadRequest("org parameter from URL does not match org param in body")
 	}
 
 	if req.BuilderImage == "" {
-		return NewBadRequest("builder image cannot be empty")
+		return apierror.NewBadRequest("builder image cannot be empty")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err, "failed to get access to a kube client")
+		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
 
 	// check application resource
 	app, err := application.Get(ctx, cluster, req.App)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			return AppIsNotKnown("cannot stage app, application resource is missing")
+			return apierror.AppIsNotKnown("cannot stage app, application resource is missing")
 		}
-		return InternalError(err, "failed to get the application resource")
+		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
 	log.Info("staging app", "org", org, "app", req)
 
 	staging, err := application.CurrentlyStaging(ctx, cluster, req.App.Org, req.App.Name)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 	if staging {
-		return NewBadRequest("pipelinerun for image ID still running")
+		return apierror.NewBadRequest("pipelinerun for image ID still running")
 	}
 
 	uid, err := randstr.Hex16()
 	if err != nil {
-		return InternalError(err, "failed to generate a uid")
+		return apierror.InternalError(err, "failed to generate a uid")
 	}
 
 	environment, err := application.Environment(ctx, cluster, req.App)
 	if err != nil {
-		return InternalError(err, "failed to access application runtime environment")
+		return apierror.InternalError(err, "failed to access application runtime environment")
 	}
 
 	owner := metav1.OwnerReference{
@@ -169,12 +169,12 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	mainDomain, err := domain.MainDomain(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
 	if err != nil {
-		return InternalError(err, "failed to fetch the S3 connection details")
+		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
 	params := stageParam{
@@ -191,18 +191,18 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	err = ensurePVC(ctx, cluster, req.App)
 	if err != nil {
-		return InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
+		return apierror.InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}
 
 	tc, err := cluster.ClientTekton()
 	if err != nil {
-		return InternalError(err, "failed to get access to a tekton client")
+		return apierror.InternalError(err, "failed to get access to a tekton client")
 	}
 	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
 	pr := newPipelineRun(params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
-		return InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
+		return apierror.InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
 	cert := auth.CertParam{
@@ -216,7 +216,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 	err = auth.CreateCertificate(ctx, cluster, cert, &owner)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
@@ -230,9 +230,9 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 		Stage:    models.NewStage(uid),
 		ImageURL: params.ImageURL(params.RegistryURL),
 	}
-	err = jsonResponse(w, resp)
+	err = response.JSON(w, resp)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil
@@ -240,7 +240,7 @@ func (hc ApplicationsController) Stage(w http.ResponseWriter, r *http.Request) A
 
 // Staged handles the API endpoint /orgs/:org/staging/:stage_id/complete
 // It waits for the Tekton PipelineRun resource staging the app to complete
-func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) APIErrors {
+func (hc Controller) Staged(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
 	ctx := r.Context()
 
 	p := httprouter.ParamsFromContext(ctx)
@@ -249,21 +249,21 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	cs, err := tekton.NewForConfig(cluster.RestConfig)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
@@ -294,12 +294,12 @@ func (hc ApplicationsController) Staged(w http.ResponseWriter, r *http.Request) 
 		})
 
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
-	err = jsonResponse(w, models.ResponseOK)
+	err = response.JSON(w, models.ResponseOK)
 	if err != nil {
-		return InternalError(err)
+		return apierror.InternalError(err)
 	}
 
 	return nil

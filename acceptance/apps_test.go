@@ -17,7 +17,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
-	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/onsi/ginkgo"
@@ -265,7 +265,7 @@ environment:
 
 				Eventually(func() string {
 					return replicas(org, appName)
-				}, timeout, interval).Should(Equal(strconv.Itoa(int(v1.DefaultInstances))))
+				}, timeout, interval).Should(Equal(strconv.Itoa(int(application.DefaultInstances))))
 			})
 			By("pushing with an instance count", func() {
 				out, err := act("--instances", "2")

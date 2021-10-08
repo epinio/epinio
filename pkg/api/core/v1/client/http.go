@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	api "github.com/epinio/epinio/internal/api/v1"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/go-logr/logr"
 
 	"github.com/pkg/errors"
@@ -248,7 +248,7 @@ func responseLogger(l logr.Logger, response *http.Response) logr.Logger {
 func formatError(bodyBytes []byte, response *http.Response) error {
 	t := "response body is empty"
 	if len(bodyBytes) > 0 {
-		var eResponse api.ErrorResponse
+		var eResponse apierrors.ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &eResponse); err != nil {
 			return errors.Wrapf(err, "cannot parse JSON response: '%s'", bodyBytes)
 		}
