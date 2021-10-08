@@ -152,7 +152,7 @@ func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
 func (c *Cluster) ClientCertManager() (dynamic.NamespaceableResourceInterface, error) {
 	gvr := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
+		Version:  "v1",
 		Resource: "clusterissuers",
 	}
 
@@ -168,7 +168,7 @@ func (c *Cluster) ClientCertManager() (dynamic.NamespaceableResourceInterface, e
 func (c *Cluster) ClientCertificate() (dynamic.NamespaceableResourceInterface, error) {
 	gvr := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
+		Version:  "v1",
 		Resource: "certificates",
 	}
 
