@@ -7871,7 +7871,7 @@ spec:
       - env:
         - name: CLUSTER_DOMAIN
           value: cluster.local
-        image: minio/operator:v4.2.2
+        image: minio/operator:v4.2.12
         imagePullPolicy: IfNotPresent
         name: minio-operator
         resources:
