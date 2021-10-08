@@ -19,7 +19,7 @@ import (
 var _ = Describe("Namespaces API Application Endpoints", func() {
 	var org string
 	const jsOK = `{"status":"ok"}`
-	dockerImageURL := "splatform/sample-app"
+	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -185,7 +185,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 
 			It("deletes an namespace including apps and services", func() {
 				app1 := catalog.NewAppName()
-				env.MakeDockerImageApp(app1, 1, dockerImageURL)
+				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				svc1 := catalog.NewServiceName()
 				env.MakeService(svc1)
 				env.BindAppService(app1, svc1, org)

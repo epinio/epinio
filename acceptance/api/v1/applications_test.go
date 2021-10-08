@@ -34,7 +34,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	var (
 		org string
 	)
-	dockerImageURL := "splatform/sample-app"
+	containerImageURL := "splatform/sample-app"
 
 	uploadRequest := func(url, path string) (*http.Request, error) {
 		file, err := os.Open(path)
@@ -287,7 +287,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			When("instances is valid integer", func() {
 				It("updates an application with the desired number of instances", func() {
 					app := catalog.NewAppName()
-					env.MakeDockerImageApp(app, 1, dockerImageURL)
+					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 
 					Expect(appStatus(org, app)).To(Equal("1/1"))
@@ -304,7 +304,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			When("instances is invalid", func() {
 				It("returns BadRequest when instances is a negative number", func() {
 					app := catalog.NewAppName()
-					env.MakeDockerImageApp(app, 1, dockerImageURL)
+					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 					Expect(appStatus(org, app)).To(Equal("1/1"))
 
@@ -323,7 +323,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					// convert into the expected structure.
 
 					app := catalog.NewAppName()
-					env.MakeDockerImageApp(app, 1, dockerImageURL)
+					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 					Expect(appStatus(org, app)).To(Equal("1/1"))
 
@@ -343,10 +343,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Describe("GET api/v1/namespaces/:orgs/applications", func() {
 			It("lists all applications belonging to the namespace", func() {
 				app1 := catalog.NewAppName()
-				env.MakeDockerImageApp(app1, 1, dockerImageURL)
+				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				defer env.DeleteApp(app1)
 				app2 := catalog.NewAppName()
-				env.MakeDockerImageApp(app2, 1, dockerImageURL)
+				env.MakeContainerImageApp(app2, 1, containerImageURL)
 				defer env.DeleteApp(app2)
 
 				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/applications",
@@ -388,7 +388,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Describe("GET api/v1/namespaces/:org/applications/:app", func() {
 			It("lists the application data", func() {
 				app := catalog.NewAppName()
-				env.MakeDockerImageApp(app, 1, dockerImageURL)
+				env.MakeContainerImageApp(app, 1, containerImageURL)
 				defer env.DeleteApp(app)
 
 				Expect(appStatus(org, app)).To(Equal("1/1"))
@@ -396,7 +396,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			It("returns a 404 when the org does not exist", func() {
 				app := catalog.NewAppName()
-				env.MakeDockerImageApp(app, 1, dockerImageURL)
+				env.MakeContainerImageApp(app, 1, containerImageURL)
 				defer env.DeleteApp(app)
 
 				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
@@ -424,7 +424,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Describe("DELETE api/v1/namespaces/:org/applications/:app", func() {
 			It("removes the application, unbinds bound services", func() {
 				app1 := catalog.NewAppName()
-				env.MakeDockerImageApp(app1, 1, dockerImageURL)
+				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				service := catalog.NewServiceName()
 				env.MakeService(service)
 				env.BindAppService(app1, service, org)
@@ -448,7 +448,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			It("returns a 404 when the org does not exist", func() {
 				app1 := catalog.NewAppName()
-				env.MakeDockerImageApp(app1, 1, dockerImageURL)
+				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				defer env.DeleteApp(app1)
 
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
@@ -484,13 +484,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.SetupAndTargetOrg(org1)
 
 				app1 = catalog.NewAppName()
-				env.MakeDockerImageApp(app1, 1, dockerImageURL)
+				env.MakeContainerImageApp(app1, 1, containerImageURL)
 
 				org2 = catalog.NewOrgName()
 				env.SetupAndTargetOrg(org2)
 
 				app2 = catalog.NewAppName()
-				env.MakeDockerImageApp(app2, 1, dockerImageURL)
+				env.MakeContainerImageApp(app2, 1, containerImageURL)
 			})
 			AfterEach(func() {
 				env.TargetOrg(org2)
@@ -671,7 +671,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Context("with non-staging using custom docker image", func() {
+		Context("with non-staging using custom container image", func() {
 			BeforeEach(func() {
 				request = models.DeployRequest{
 					App: models.AppRef{

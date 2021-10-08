@@ -48,7 +48,7 @@ type stageParam struct {
 	Username            string
 }
 
-// ImageURL returns the URL of the docker image to be, using the
+// ImageURL returns the URL of the container image to be, using the
 // ImageID. The ImageURL is later used in app.yml and to send in the
 // stage response.
 func (app *stageParam) ImageURL(registryURL string) string {

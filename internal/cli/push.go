@@ -13,7 +13,7 @@ var ()
 func init() {
 	CmdAppPush.Flags().String("builder-image", "paketobuildpacks/builder:full", "paketo builder image to use for staging")
 	CmdAppPush.Flags().String("git", "", "git revision of sources. PATH becomes repository location")
-	CmdAppPush.Flags().String("docker-image-url", "", "docker image url for the app workload image")
+	CmdAppPush.Flags().String("container-image-url", "", "container image url for the app workload image")
 
 	bindOption(CmdAppPush)
 	envOption(CmdAppPush)
@@ -38,13 +38,13 @@ var CmdAppPush = &cobra.Command{
 			return errors.Wrap(err, "could not read option --git")
 		}
 
-		dockerImageURL, err := cmd.Flags().GetString("docker-image-url")
+		containerImageURL, err := cmd.Flags().GetString("container-image-url")
 		if err != nil {
-			return errors.Wrap(err, "could not read option --docker-image-url")
+			return errors.Wrap(err, "could not read option --container-image-url")
 		}
 
-		if gitRevision != "" && dockerImageURL != "" {
-			return errors.Wrap(err, "cannot use both, git and docker image url")
+		if gitRevision != "" && containerImageURL != "" {
+			return errors.Wrap(err, "cannot use both, git and container image url")
 		}
 
 		builderImage, err := cmd.Flags().GetString("builder-image")
@@ -56,7 +56,7 @@ var CmdAppPush = &cobra.Command{
 		// 1. push NAME
 		// 2. push NAME PATH
 		// 3. push NAME URL --git REV
-		// 4. push NAME --docker-image-url URL
+		// 4. push NAME --container-image-url URL
 
 		var pathOrUrl string
 		if len(args) == 1 {
@@ -74,7 +74,7 @@ var CmdAppPush = &cobra.Command{
 			pathOrUrl = args[1]
 		}
 
-		if dockerImageURL != "" {
+		if containerImageURL != "" {
 			pathOrUrl = ""
 		}
 
@@ -82,7 +82,7 @@ var CmdAppPush = &cobra.Command{
 		// nonsense for the push modes taking an url instead of a filesystem path.
 		localPath := pathOrUrl
 
-		if gitRevision == "" && dockerImageURL == "" {
+		if gitRevision == "" && containerImageURL == "" {
 			if _, err := os.Stat(pathOrUrl); err != nil {
 				// Path issue is user error. Show usage
 				cmd.SilenceUsage = false
@@ -101,7 +101,7 @@ var CmdAppPush = &cobra.Command{
 		params := usercmd.PushParams{
 			Name:          args[0],
 			GitRev:        gitRevision,
-			Docker:        dockerImageURL,
+			Container:     containerImageURL,
 			Path:          pathOrUrl,
 			BuilderImage:  builderImage,
 			Configuration: ac,

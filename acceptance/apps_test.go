@@ -29,7 +29,7 @@ var _ = Describe("Apps", func() {
 		org     string
 		appName string
 	)
-	dockerImageURL := "splatform/sample-app"
+	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -440,7 +440,7 @@ environment:
 		})
 
 		It("removes the app's ingress when deleting an app", func() {
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 
 			By("deleting the app")
 			env.DeleteApp(appName)
@@ -461,7 +461,7 @@ environment:
 		It("should not fail for a max-length application name", func() {
 			appNameLong := "app123456789012345678901234567890123456789012345678901234567890"
 			// 3+60 characters
-			env.MakeDockerImageApp(appNameLong, 1, dockerImageURL)
+			env.MakeContainerImageApp(appNameLong, 1, containerImageURL)
 
 			By("deleting the app")
 			env.DeleteApp(appNameLong)
@@ -469,7 +469,7 @@ environment:
 
 		It("should not fail for an application name with leading digits", func() {
 			appNameLeadNumeric := "12monkeys"
-			env.MakeDockerImageApp(appNameLeadNumeric, 1, dockerImageURL)
+			env.MakeContainerImageApp(appNameLeadNumeric, 1, containerImageURL)
 
 			By("deleting the app")
 			env.DeleteApp(appNameLeadNumeric)
@@ -477,7 +477,7 @@ environment:
 
 		It("respects the desired number of instances", func() {
 			app := catalog.NewAppName()
-			env.MakeDockerImageApp(app, 3, dockerImageURL)
+			env.MakeContainerImageApp(app, 3, containerImageURL)
 			defer env.DeleteApp(app)
 
 			Eventually(func() string {
@@ -521,7 +521,7 @@ environment:
 		It("unbinds bound services when deleting an app, and then deletes the service", func() {
 			serviceName := catalog.NewServiceName()
 
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 
@@ -571,7 +571,7 @@ environment:
 		})
 
 		It("respects the desired number of instances", func() {
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 
 			Eventually(func() string {
 				out, err := env.Epinio("", "app", "show", appName)
@@ -606,7 +606,7 @@ environment:
 			})
 
 			It("respects the bound services", func() {
-				env.MakeDockerImageApp(appName, 1, dockerImageURL)
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
 
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
@@ -633,7 +633,7 @@ environment:
 		var serviceName string
 		BeforeEach(func() {
 			serviceName = catalog.NewServiceName()
-			env.MakeDockerImageApp(appName, 1, dockerImageURL)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeService(serviceName)
 			env.BindAppService(appName, serviceName, org)
 		})
@@ -701,13 +701,13 @@ environment:
 			env.SetupAndTargetOrg(org1)
 
 			app1 = catalog.NewAppName()
-			env.MakeDockerImageApp(app1, 1, dockerImageURL)
+			env.MakeContainerImageApp(app1, 1, containerImageURL)
 
 			org2 = catalog.NewOrgName()
 			env.SetupAndTargetOrg(org2)
 
 			app2 = catalog.NewAppName()
-			env.MakeDockerImageApp(app2, 1, dockerImageURL)
+			env.MakeContainerImageApp(app2, 1, containerImageURL)
 		})
 
 		AfterEach(func() {

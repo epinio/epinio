@@ -17,9 +17,9 @@ func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bo
 	return m.MakeAppWithDir(appName, instances, deployFromCurrentDir, appDir)
 }
 
-func (m *Machine) MakeDockerImageApp(appName string, instances int, dockerImageURL string) string {
+func (m *Machine) MakeContainerImageApp(appName string, instances int, containerImageURL string) string {
 	pushOutput, err := m.Epinio("", "apps", "push", appName,
-		"--docker-image-url", dockerImageURL,
+		"--container-image-url", containerImageURL,
 		"--instances", strconv.Itoa(instances))
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 

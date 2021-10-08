@@ -1,4 +1,4 @@
-name: sample-app-docker-image
+name: sample-app-container-image
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     - 'assets/sample-app'
     
 jobs:
-  build_sample_app_docker_image:
+  build_sample_app_container_image:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

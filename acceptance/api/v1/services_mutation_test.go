@@ -16,7 +16,7 @@ import (
 var _ = Describe("Services API Application Endpoints, Mutations", func() {
 	var org string
 	const jsOK = `{"status":"ok"}`
-	dockerImageURL := "splatform/sample-app"
+	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		org = catalog.NewOrgName()
@@ -271,7 +271,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				service = catalog.NewServiceName()
 				app = catalog.NewAppName()
 				env.MakeService(service)
-				env.MakeDockerImageApp(app, 1, dockerImageURL)
+				env.MakeContainerImageApp(app, 1, containerImageURL)
 				env.BindAppService(app, service, org)
 			})
 
@@ -439,7 +439,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			BeforeEach(func() {
 				app = catalog.NewAppName()
 				service = catalog.NewServiceName()
-				env.MakeDockerImageApp(app, 1, dockerImageURL)
+				env.MakeContainerImageApp(app, 1, containerImageURL)
 				env.MakeService(service)
 			})
 
@@ -557,7 +557,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 			BeforeEach(func() {
 				app = catalog.NewAppName()
-				env.MakeDockerImageApp(app, 1, dockerImageURL)
+				env.MakeContainerImageApp(app, 1, containerImageURL)
 			})
 
 			AfterEach(func() {
