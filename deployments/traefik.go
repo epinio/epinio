@@ -33,7 +33,7 @@ const (
 	MessageLoadbalancerIP = "timed out waiting for LoadBalancer IP on traefik service\n" +
 		"Ensure your kubernetes platform has the ability to provision a LoadBalancer IP address.\n\n" +
 		"Follow these steps to enable this ability\n" +
-		"https://github.com/epinio/epinio/blob/main/docs/user/howtos/provision_external_ip_for_local_kubernetes.md\n"
+		"https://docs.epinio.io/howtos/provision_external_ip_for_local_kubernetes.html\n"
 )
 
 func (k Traefik) ID() string {
