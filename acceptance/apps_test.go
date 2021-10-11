@@ -103,13 +103,15 @@ var _ = Describe("Apps", func() {
 					manifest, err := ioutil.ReadFile(destinationPath)
 					Expect(err).ToNot(HaveOccurred(), destinationPath)
 
-					Expect(string(manifest)).To(Equal(`instances: 2
-services:
-- ` + serviceName + `
-environment:
-  CREDO: up
-  DOGMA: "no"
-`))
+					Expect(string(manifest)).To(Equal(fmt.Sprintf(`name: %s
+configuration:
+  instances: 2
+  services:
+  - %s
+  environment:
+    CREDO: up
+    DOGMA: "no"
+`, appName, serviceName)))
 				})
 			})
 		})
@@ -133,7 +135,8 @@ environment:
 
 			It("creates the workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(appDir, "app", "push", appName)
+				out, err := env.Epinio(appDir, "app", "push",
+					"--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("App is online"))
 			})
@@ -143,7 +146,9 @@ environment:
 	When("pushing an app from an external repository", func() {
 		It("pushes the app successfully", func() {
 			wordpress := "https://github.com/epinio/example-wordpress"
-			pushLog, err := env.Epinio("", "apps", "push", appName, wordpress, "--git", "main")
+			pushLog, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--git", wordpress+",main")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			Eventually(func() string {
@@ -159,7 +164,9 @@ environment:
 		Describe("update", func() {
 			BeforeEach(func() {
 				wordpress := "https://github.com/epinio/example-wordpress"
-				pushLog, err := env.Epinio("", "apps", "push", appName, wordpress, "--git", "main")
+				pushLog, err := env.Epinio("", "apps", "push",
+					"--name", appName,
+					"--git", wordpress+",main")
 				Expect(err).ToNot(HaveOccurred(), pushLog)
 
 				Eventually(func() string {
@@ -213,7 +220,9 @@ environment:
 		It("uses the custom builder to stage", func() {
 			By("Pushing a golang app")
 			appDir := "../assets/golang-sample-app"
-			pushLog, err := env.Epinio(appDir, "apps", "push", appName, "--builder-image", "paketobuildpacks/builder:tiny")
+			pushLog, err := env.Epinio(appDir, "apps", "push",
+				"--name", appName,
+				"--builder-image", "paketobuildpacks/builder:tiny")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			By("checking if the staging is using custom builder image")
@@ -235,7 +244,8 @@ environment:
 
 		act := func(arg ...string) (string, error) {
 			appDir := "../assets/sample-app"
-			return env.Epinio(appDir, "app", append([]string{"push", appName}, arg...)...)
+			return env.Epinio(appDir, "app", append([]string{"push",
+				"--name", appName}, arg...)...)
 		}
 
 		replicas := func(ns, name string) string {
@@ -289,7 +299,8 @@ environment:
 	Describe("build cache", func() {
 		push := func(arg ...string) (string, error) {
 			appDir := "../assets/sample-app"
-			return env.Epinio(appDir, "app", append([]string{"push", appName}, arg...)...)
+			return env.Epinio(appDir, "app", append([]string{"push",
+				"--name", appName}, arg...)...)
 		}
 		BeforeEach(func() {
 			out, err := push()
@@ -302,7 +313,7 @@ environment:
 			})
 
 			It("is using the cache PVC", func() {
-				out, err := helpers.Kubectl("get", "pvc", "-n",
+				out, err := helpers.Kubectl("get", "pvc", "--namespace",
 					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 
@@ -314,12 +325,12 @@ environment:
 		})
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
-				out, err := helpers.Kubectl("get", "pvc", "-n",
+				out, err := helpers.Kubectl("get", "pvc", "--namespace",
 					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
-				out, err = helpers.Kubectl("get", "pvc", "-n",
+				out, err = helpers.Kubectl("get", "pvc", "--namespace",
 					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
 				Expect(err).To(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(org, appName))))
@@ -396,36 +407,37 @@ environment:
 		})
 
 		Context("manifest", func() {
-			var destinationPath string
 			var manifestPath string
 
 			origin := testenv.AssetPath("sample-app")
 
 			BeforeEach(func() {
-				destinationPath = catalog.NewTmpName("tmpApp")
-				manifestPath = path.Join(destinationPath, "epinio.yml")
+				manifestPath = catalog.NewTmpName("app.yml")
 			})
 
 			AfterEach(func() {
-				// Remove transient copy of the application
-				out, err := proc.Run("", false, "rm", "-rf", destinationPath)
-				Expect(err).ToNot(HaveOccurred(), out)
+				err := os.Remove(manifestPath)
+				Expect(err).ToNot(HaveOccurred())
 			})
 
 			It("deploys an app with the desired options", func() {
-				By("Copying the app, and providing a manifest")
-				out, err := proc.Run("", false, "cp", "-rf", origin, destinationPath)
-				Expect(err).ToNot(HaveOccurred(), out)
-
-				err = ioutil.WriteFile(manifestPath, []byte(`instances: 2
-environment:
-  CREDO: up
-  DOGMA: "no"
-`), 0600)
+				By("providing a manifest")
+				err := ioutil.WriteFile(manifestPath, []byte(fmt.Sprintf(`origin:
+  path: %s
+name: %s
+configuration:
+  instances: 2
+  environment:
+    CREDO: up
+    DOGMA: "no"
+`, origin, appName)), 0600)
 				Expect(err).ToNot(HaveOccurred())
 
-				By("pushing the app in the specified app directory")
-				env.MakeAppWithDirSimple(appName, false, destinationPath)
+				By("pushing the app specified in the manifest")
+
+				out, err := env.Epinio("", "apps", "push", manifestPath)
+				Expect(err).ToNot(HaveOccurred(), out)
+				// TODO : Match push output lines ?
 
 				By("verifying the stored settings")
 				out, err = env.Epinio("", "app", "show", appName)
@@ -506,7 +518,9 @@ environment:
 				Expect(err).ToNot(HaveOccurred())
 
 				pushOutput, err := env.Epinio(path.Join(currentDir, "../assets/sample-app"),
-					"apps", "push", appName, "-b", serviceName)
+					"apps", "push",
+					"--name", appName,
+					"--bind", serviceName)
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
@@ -552,7 +566,9 @@ environment:
 				Expect(err).ToNot(HaveOccurred())
 
 				pushOutput, err := env.Epinio(path.Join(currentDir, "../assets/sample-app"),
-					"apps", "push", appName, "-e", "MYVAR=myvalue")
+					"apps", "push",
+					"--name", appName,
+					"--env", "MYVAR=myvalue")
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence

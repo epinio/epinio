@@ -62,13 +62,14 @@ var _ = Describe("apps env", func() {
 			It("is retrieved as empty string with show", func() {
 				out, err := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(`MYVAR`)) // Var name ois shown, value is empty
+				Expect(out).To(ContainSubstring(`MYVAR`)) // Var name is shown, value is empty
 				Expect(out).ToNot(ContainSubstring(`myvalue`))
 			})
 
 			It("is not present in the pushed workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(appDir, "apps", "push", appName)
+				out, err := env.Epinio(appDir, "apps", "push",
+					"--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(org, appName)).ToNot(MatchRegexp("MYVAR"))
@@ -102,7 +103,8 @@ var _ = Describe("apps env", func() {
 
 			It("is injected into the pushed workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(appDir, "apps", "push", appName)
+				out, err := env.Epinio(appDir, "apps", "push",
+					"--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(org, appName)).To(MatchRegexp("MYVAR"))
@@ -113,7 +115,8 @@ var _ = Describe("apps env", func() {
 	Describe("deployed app", func() {
 		BeforeEach(func() {
 			appDir := "../assets/sample-app"
-			out, err := env.Epinio(appDir, "apps", "push", appName)
+			out, err := env.Epinio(appDir, "apps", "push",
+				"--name", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
