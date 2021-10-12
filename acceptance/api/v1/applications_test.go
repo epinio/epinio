@@ -73,7 +73,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return request, nil
 	}
 
-	appStatus := func(org, app string) string {
+	appFromAPI := func(org, app string) models.App {
 		response, err := env.Curl("GET",
 			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
 			strings.NewReader(""))
@@ -91,11 +91,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		ExpectWithOffset(1, responseApp.Meta.Name).To(Equal(app))
 		ExpectWithOffset(1, responseApp.Meta.Org).To(Equal(org))
 
-		if responseApp.Workload == nil {
-			return ""
-		}
-
-		return responseApp.Workload.Status
+		return responseApp
 	}
 
 	updateAppInstances := func(org string, app string, instances int32) (int, []byte) {
@@ -291,13 +287,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 
-					Expect(appStatus(org, app)).To(Equal("1/1"))
+					appObj := appFromAPI(org, app)
+					Expect(appObj.Workload.Status).To(Equal("1/1"))
 
 					status, _ := updateAppInstances(org, app, 3)
 					Expect(status).To(Equal(http.StatusOK))
 
 					Eventually(func() string {
-						return appStatus(org, app)
+						return appFromAPI(org, app).Workload.Status
 					}, "1m").Should(Equal("3/3"))
 				})
 			})
@@ -307,7 +304,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
-					Expect(appStatus(org, app)).To(Equal("1/1"))
+					Expect(appFromAPI(org, app).Workload.Status).To(Equal("1/1"))
 
 					status, updateResponseBody := updateAppInstances(org, app, -3)
 					Expect(status).To(Equal(http.StatusBadRequest))
@@ -326,7 +323,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
-					Expect(appStatus(org, app)).To(Equal("1/1"))
+					Expect(appFromAPI(org, app).Workload.Status).To(Equal("1/1"))
 
 					status, updateResponseBody := updateAppInstancesNAN(org, app)
 					Expect(status).To(Equal(http.StatusBadRequest))
@@ -392,7 +389,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 				defer env.DeleteApp(app)
 
-				Expect(appStatus(org, app)).To(Equal("1/1"))
+				appObj := appFromAPI(org, app)
+				Expect(appObj.Workload.Status).To(Equal("1/1"))
+				createdAt, err := time.Parse(time.RFC3339, appObj.Workload.CreatedAt)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(createdAt.Unix()).To(BeNumerically("<", time.Now().Unix()))
 			})
 
 			It("returns a 404 when the org does not exist", func() {
@@ -666,7 +667,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					By("confirming at highlevel")
 					// Highlevel check and confirmation
 					Eventually(func() string {
-						return appStatus(org, appName)
+						return appFromAPI(org, appName).Workload.Status
 					}, "5m").Should(Equal("1/1"))
 				})
 			})
@@ -708,7 +709,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					Eventually(func() string {
-						return appStatus(org, appName)
+						return appFromAPI(org, appName).Workload.Status
 					}, "5m").Should(Equal("1/1"))
 
 					// Check if autoserviceaccounttoken is true

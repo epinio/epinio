@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/names"
@@ -280,6 +281,13 @@ func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	)
 }
 
+// Restarts returns the number of restarts the application currently has
+// The pod's restarts is the sum of restarts of each and every container in that Pod
+// TODO: What is the "restarts" value of an app with multiple replicas?
+func (a *Workload) Restarts(ctx context.Context) int {
+	return 0
+}
+
 // Get returns the state of the app deployment encoded in the workload.
 func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
 	active := false
@@ -301,6 +309,9 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	desiredReplicas := int32(0)
 	currentReplicas := int32(0)
 
+	var createdAt time.Time
+	var restarts int
+
 	if err != nil {
 		status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
 	} else if len(deployments.Items) < 1 {
@@ -308,6 +319,9 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	} else {
 		desiredReplicas = deployments.Items[0].Status.Replicas
 		currentReplicas = deployments.Items[0].Status.ReadyReplicas
+
+		createdAt = deployments.Items[0].ObjectMeta.CreationTimestamp.Time
+		restarts = 0 // Find it from the container from the pod?
 
 		status = fmt.Sprintf("%d/%d",
 			deployments.Items[0].Status.ReadyReplicas,
@@ -329,6 +343,8 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 
 	return &models.AppDeployment{
 		Active:          active,
+		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
+		Restarts:        restarts,
 		Username:        username,
 		StageID:         stageID,
 		Status:          status,

@@ -197,11 +197,17 @@ func (c *EpinioClient) AppShow(appName string) error {
 
 	msg := c.ui.Success().WithTable("Key", "Value")
 
+	var createdAt time.Time
 	if app.Workload != nil {
+		createdAt, err = time.Parse(time.RFC3339, app.Workload.CreatedAt)
+		if err != nil {
+			return err
+		}
 		msg = msg.WithTableRow("Status", app.Workload.Status).
 			WithTableRow("Username", app.Workload.Username).
 			WithTableRow("StageId", app.Workload.StageID).
-			WithTableRow("Routes", app.Workload.Route)
+			WithTableRow("Routes", app.Workload.Route).
+			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String())
 	} else {
 		msg = msg.WithTableRow("Status", "not deployed")
 	}

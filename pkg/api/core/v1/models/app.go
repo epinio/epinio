@@ -37,7 +37,12 @@ type App struct {
 // AppDeployment contains all the information specific to an active
 // application, i.e. one with a deployment in the cluster.
 type AppDeployment struct {
+	// TODO: Readiness and Liveness fields?
 	Active          bool   `json:"active,omitempty"` // app is > 0 replicas
+	CreatedAt       string `json:"createdAt,omitempty"`
+	Restarts        int    `json:"restarts,omitempty"`
+	Memory          int    `json:"memory,omitempty"`
+	CPU             int    `json:"cpu,omitempty"`
 	DesiredReplicas int32  `json:"desiredreplicas"`
 	CurrentReplicas int32  `json:"currentreplicas"`
 	Username        string `json:"username,omitempty"` // app creator
