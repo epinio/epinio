@@ -15,7 +15,7 @@ import (
 
 const (
 	separator      = ","
-	defaultBuilder = "paketobuildpacks/builder:full"
+	DefaultBuilder = "paketobuildpacks/builder:full"
 )
 
 // UpdateBSN updates the incoming manifest with information pulled from the --builder,
@@ -226,7 +226,7 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 			Path: filepath.Dir(manifestPath),
 		},
 		Staging: models.ApplicationStage{
-			Builder: defaultBuilder,
+			Builder: DefaultBuilder,
 		},
 	}
 
