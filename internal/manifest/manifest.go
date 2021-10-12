@@ -218,13 +218,15 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 		return empty, errors.Wrapf(err, "filesystem error")
 	}
 
+	defaultOrigin := models.ApplicationOrigin{
+		Kind: models.OriginPath,
+		Path: filepath.Dir(manifestPath),
+	}
+
 	// Base manifest, defaults
 	manifest := models.ApplicationManifest{
-		Self: "<<Defaults>>",
-		Origin: models.ApplicationOrigin{
-			Kind: models.OriginPath,
-			Path: filepath.Dir(manifestPath),
-		},
+		Self:   "<<Defaults>>",
+		Origin: defaultOrigin,
 		Staging: models.ApplicationStage{
 			Builder: DefaultBuilder,
 		},
@@ -241,6 +243,11 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 	if err != nil {
 		return empty, errors.Wrapf(err, "filesystem error")
 	}
+
+	// Modified manifest 2. Remove default origin - would clash with the unmarshalled
+	// data. Will be added back later if no origin was specified by the manifest
+	// itself.
+	manifest.Origin = models.ApplicationOrigin{}
 
 	err = yaml.Unmarshal(yamlFile, &manifest)
 	if err != nil {
@@ -271,10 +278,9 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 		return empty, errors.New("Cannot use `path`, `git`, and `container` keys together")
 	}
 
-	// Fall back to default location (manifest directory)
+	// Add default location (manifest directory) back, if needed
 	if origins == 0 {
-		manifest.Origin.Kind = models.OriginPath
-		manifest.Origin.Path = filepath.Dir(manifestPath)
+		manifest.Origin = defaultOrigin
 	}
 
 	// Resolve relative path to app sources, relative to manifest file directory
