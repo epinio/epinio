@@ -109,7 +109,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			It("fails with an error", func() {
+			It("works", func() {
 				m, err := manifest.Get("goodyaml.yml")
 				Expect(err).ToNot(HaveOccurred())
 				var instances int32 = 2
