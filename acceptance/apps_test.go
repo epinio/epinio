@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -432,12 +433,14 @@ configuration:
     DOGMA: "no"
 `, origin, appName)), 0600)
 				Expect(err).ToNot(HaveOccurred())
+				absManifestPath, err := filepath.Abs(manifestPath)
+				Expect(err).ToNot(HaveOccurred())
 
 				By("pushing the app specified in the manifest")
 
 				out, err := env.Epinio("", "apps", "push", manifestPath)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(`Manifest: ` + manifestPath))
+				Expect(out).To(MatchRegexp(`Manifest: ` + absManifestPath))
 
 				// TODO : Match push output lines ?
 
