@@ -46,10 +46,12 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
 	msg := c.ui.Note().
+		WithStringValue("Manifest", params.Self).
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Source Origin", source).
 		WithStringValue("Target Namespace", appRef.Org)
 	// TODO 872 : environment
+	// TODO ? Make this a table for nicer alignment
 
 	if err := c.TargetOk(); err != nil {
 		return err

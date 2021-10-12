@@ -53,9 +53,12 @@ type BindResponse struct {
 	WasBound []string `json:"wasbound"`
 }
 
-// ApplicationManifest represents and contains the data of an application's manifest file.
+// ApplicationManifest represents and contains the data of an application's manifest file,
+// plus some auxiliary data never (un)marshaled. Namely, the file's location, and origin
+// type tag.
 type ApplicationManifest struct {
 	ApplicationCreateRequest `yaml:",inline"`
+	Self                     string            // Internal. The file's location.
 	Origin                   ApplicationOrigin `yaml:"origin,omitempty"`
 	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
 }

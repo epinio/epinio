@@ -220,6 +220,7 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 
 	// Base manifest, defaults
 	manifest := models.ApplicationManifest{
+		Self: "<<Defaults>>",
 		Origin: models.ApplicationOrigin{
 			Kind: models.OriginPath,
 			Path: filepath.Dir(manifestPath),
@@ -247,6 +248,8 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 	}
 
 	// Verify that origin information is one-of only.
+
+	manifest.Self = manifestPath
 
 	origins := 0
 	if manifest.Origin.Path != "" {

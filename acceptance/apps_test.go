@@ -437,6 +437,8 @@ configuration:
 
 				out, err := env.Epinio("", "apps", "push", manifestPath)
 				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(`Manifest: ` + manifestPath))
+
 				// TODO : Match push output lines ?
 
 				By("verifying the stored settings")
