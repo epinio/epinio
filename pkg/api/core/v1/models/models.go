@@ -58,7 +58,7 @@ type BindResponse struct {
 // type tag.
 type ApplicationManifest struct {
 	ApplicationCreateRequest `yaml:",inline"`
-	Self                     string            // Internal. The file's location.
+	Self                     string            `yaml:"-"` // Hidden from yaml. The file's location.
 	Origin                   ApplicationOrigin `yaml:"origin,omitempty"`
 	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
 }
@@ -73,7 +73,7 @@ type ApplicationStage struct {
 // ApplicationOrigin is the part of the manifest describing the origin of the application
 // (sources). At most one of the fields may be specified / not empty.
 type ApplicationOrigin struct {
-	Kind      int    // Internal type tag to simplify struct usage
+	Kind      int    `yaml:"-"` // Hidden from yaml. Type tag to simplify struct usage.
 	Container string `yaml:"container,omitempty"`
 	Git       GitRef `yaml:"git,omitempty"`
 	Path      string `yaml:"path,omitempty"`
