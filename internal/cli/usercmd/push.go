@@ -57,6 +57,12 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return err
 	}
 
+	// Show builder, if relevant (i.e. path/git sources, not for container)
+	if params.Origin.Kind != models.OriginContainer &&
+		params.Staging.Builder != "" {
+		msg = msg.WithStringValue("Builder", params.Staging.Builder)
+	}
+
 	if params.Configuration.Instances != nil {
 		msg = msg.WithStringValue("Instances",
 			strconv.Itoa(int(*params.Configuration.Instances)))
