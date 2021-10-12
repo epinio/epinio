@@ -50,7 +50,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Source Origin", source).
 		WithStringValue("Target Namespace", appRef.Org)
-	// TODO 872 : environment
+	for _, ev := range params.Configuration.Environment.List() {
+		msg = msg.WithStringValue(fmt.Sprintf("Environment '%s'", ev.Name), ev.Value)
+	}
 	// TODO ? Make this a table for nicer alignment
 
 	if err := c.TargetOk(); err != nil {
