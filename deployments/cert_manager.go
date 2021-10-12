@@ -31,8 +31,8 @@ var _ kubernetes.Deployment = &CertManager{}
 
 const (
 	CertManagerDeploymentID = "cert-manager"
-	certManagerVersion      = "1.2.0"
-	certManagerChartFile    = "cert-manager-v1.2.0.tgz"
+	certManagerVersion      = "1.5.4"
+	certManagerChartFile    = "cert-manager-v1.5.4.tgz"
 	SelfSignedIssuer        = "selfsigned-issuer"
 	LetsencryptIssuer       = "letsencrypt-production"
 	EpinioCAIssuer          = "epinio-ca"
@@ -292,7 +292,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	}
 
 	caCert := fmt.Sprintf(`{
-		"apiVersion" : "cert-manager.io/v1alpha2",
+		"apiVersion" : "cert-manager.io/v1",
 		"kind"       : "Certificate",
 		"metadata"   : {
 			"name" : "epinio-ca"
@@ -371,7 +371,7 @@ func (cm CertManager) GetVersion() string {
 }
 
 const clusterIssuerLetsencrypt = `{
-	"apiVersion": "cert-manager.io/v1alpha2",
+	"apiVersion": "cert-manager.io/v1",
 	"kind": "ClusterIssuer",
 	"metadata": {
 		"name": "` + LetsencryptIssuer + `"
@@ -405,7 +405,7 @@ const clusterIssuerLetsencrypt = `{
 }`
 
 const clusterIssuerLocal = `{
-	"apiVersion": "cert-manager.io/v1alpha2",
+	"apiVersion": "cert-manager.io/v1",
 	"kind": "ClusterIssuer",
 	"metadata": {
 		"name": "` + SelfSignedIssuer + `"
@@ -416,7 +416,7 @@ const clusterIssuerLocal = `{
 }`
 
 const clusterIssuerEpinio = `{
-	"apiVersion" : "cert-manager.io/v1alpha2",
+	"apiVersion" : "cert-manager.io/v1",
 	"kind"       : "ClusterIssuer",
 	"metadata"   : {
 		"name" : "` + EpinioCAIssuer + `"

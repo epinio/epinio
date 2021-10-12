@@ -109,7 +109,7 @@ func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
 
 	cn := names.TruncateMD5(fmt.Sprintf("%s.%s", cert.Name, cert.Domain), 64)
 	data := fmt.Sprintf(`{
-		"apiVersion": "cert-manager.io/v1alpha2",
+		"apiVersion": "cert-manager.io/v1",
 		"kind": "Certificate",
 		"metadata": {
 			"name": "%[1]s"

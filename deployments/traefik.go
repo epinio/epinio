@@ -28,8 +28,8 @@ var _ kubernetes.Deployment = &Traefik{}
 
 const (
 	TraefikDeploymentID   = "traefik"
-	traefikVersion        = "9.11.0"
-	traefikChartURL       = "https://helm.traefik.io/traefik/traefik-9.11.0.tgz"
+	traefikVersion        = "10.3.4"
+	traefikChartURL       = "https://helm.traefik.io/traefik/traefik-10.3.4.tgz"
 	MessageLoadbalancerIP = "timed out waiting for LoadBalancer IP on traefik service\n" +
 		"Ensure your kubernetes platform has the ability to provision a LoadBalancer IP address.\n\n" +
 		"Follow these steps to enable this ability\n" +

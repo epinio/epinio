@@ -141,9 +141,9 @@ func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
 	}
 
 	gvr := schema.GroupVersionResource{
-		Group:    "app.k8s.io",
-		Version:  "v1beta1",
-		Resource: "applications",
+		Group:    "application.epinio.io",
+		Version:  "v1",
+		Resource: "apps",
 	}
 	return cs.Resource(gvr), nil
 }
@@ -152,7 +152,7 @@ func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
 func (c *Cluster) ClientCertManager() (dynamic.NamespaceableResourceInterface, error) {
 	gvr := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
+		Version:  "v1",
 		Resource: "clusterissuers",
 	}
 
@@ -168,23 +168,8 @@ func (c *Cluster) ClientCertManager() (dynamic.NamespaceableResourceInterface, e
 func (c *Cluster) ClientCertificate() (dynamic.NamespaceableResourceInterface, error) {
 	gvr := schema.GroupVersionResource{
 		Group:    "cert-manager.io",
-		Version:  "v1alpha2",
+		Version:  "v1",
 		Resource: "certificates",
-	}
-
-	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)
-	if err != nil {
-		return nil, err
-	}
-	return dynamicClient.Resource(gvr), nil
-}
-
-// ClientServiceCatalog returns a dynamic namespaced client for the specified service catalog resource
-func (c *Cluster) ClientServiceCatalog(res string) (dynamic.NamespaceableResourceInterface, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    "servicecatalog.k8s.io",
-		Version:  "v1beta1",
-		Resource: res,
 	}
 
 	dynamicClient, err := dynamic.NewForConfig(c.RestConfig)

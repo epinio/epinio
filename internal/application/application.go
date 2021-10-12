@@ -18,6 +18,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
+	epinioappv1 "github.com/epinio/application/api/v1"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/selection"
-	appv1beta1 "sigs.k8s.io/application/api/v1beta1"
 )
 
 // Create generates a new kube app resource in the namespace of the
@@ -38,22 +38,8 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	}
 
 	// we create the appCRD in the org's namespace
-	obj := &appv1beta1.Application{
-		Spec: appv1beta1.ApplicationSpec{
-			Descriptor: appv1beta1.Descriptor{
-				Type: "epinio-workload",
-				Maintainers: []appv1beta1.ContactData{
-					{
-						Name: username,
-					},
-				},
-				Owners: []appv1beta1.ContactData{
-					{
-						Name: username,
-					},
-				},
-			},
-		},
+	obj := &epinioappv1.App{
+		Spec: epinioappv1.AppSpec{},
 	}
 
 	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
@@ -61,8 +47,8 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 		return err
 	}
 	us := &unstructured.Unstructured{Object: u}
-	us.SetAPIVersion("app.k8s.io/v1beta1")
-	us.SetKind("Application")
+	us.SetAPIVersion("application.epinio.io/v1")
+	us.SetKind("App")
 	us.SetName(app.Name)
 
 	_, err = client.Namespace(app.Org).Create(ctx, us, metav1.CreateOptions{})
@@ -70,7 +56,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 }
 
 // Get returns the application resource from the cluster.  This should be
-// changed to return a typed application struct, like appv1beta1.Application if
+// changed to return a typed application struct, like epinioappv1.App if
 // needed in the future.
 func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*unstructured.Unstructured, error) {
 	client, err := cluster.ClientApp()

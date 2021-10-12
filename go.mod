@@ -8,6 +8,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
+	github.com/epinio/application v0.0.0-20211007132313-f10b973eec8b
 	github.com/fatih/color v1.12.0
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0
@@ -39,6 +40,5 @@ require (
 	k8s.io/apiextensions-apiserver v0.20.4
 	k8s.io/apimachinery v0.20.5
 	k8s.io/client-go v0.20.5
-	sigs.k8s.io/application v0.8.3
 	sigs.k8s.io/yaml v1.2.0
 )
