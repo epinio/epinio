@@ -14,13 +14,12 @@ import (
 var ()
 
 func init() {
-	CmdAppPush.Flags().String("builder-image", "paketobuildpacks/builder:full", "Paketo builder image to use for staging")
-
 	// The following options override manifest data
 	CmdAppPush.Flags().StringP("git", "g", "", "Git repository and revision of sources")
 	CmdAppPush.Flags().String("container-image-url", "", "Container image url for the app workload image")
 	CmdAppPush.Flags().StringP("name", "n", "", "Application name.")
 	CmdAppPush.Flags().StringP("path", "p", "", "Path to application sources.")
+	CmdAppPush.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 
 	bindOption(CmdAppPush)
 	envOption(CmdAppPush)
@@ -67,7 +66,7 @@ var CmdAppPush = &cobra.Command{
 			return err
 		}
 
-		m, err = manifest.UpdateSN(m, cmd)
+		m, err = manifest.UpdateBSN(m, cmd)
 		if err != nil {
 			return err
 		}
@@ -86,11 +85,6 @@ var CmdAppPush = &cobra.Command{
 			m.Origin.Path = wd
 		}
 
-		builderImage, err := cmd.Flags().GetString("builder-image")
-		if err != nil {
-			return errors.Wrap(err, "could not read option --builder-image")
-		}
-
 		if m.Origin.Kind == models.OriginPath {
 			if _, err := os.Stat(m.Origin.Path); err != nil {
 				// Path issue is user error. Show usage
@@ -100,7 +94,6 @@ var CmdAppPush = &cobra.Command{
 		}
 
 		params := usercmd.PushParams{
-			BuilderImage:        builderImage,
 			ApplicationManifest: m,
 		}
 

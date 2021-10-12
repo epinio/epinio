@@ -20,7 +20,6 @@ import (
 
 type PushParams struct {
 	models.ApplicationManifest
-	BuilderImage string
 }
 
 // Push pushes an app
@@ -159,7 +158,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		req := models.StageRequest{
 			App:          appRef,
 			BlobUID:      blobUID,
-			BuilderImage: params.BuilderImage,
+			BuilderImage: params.Staging.Builder,
 		}
 		details.Info("staging code", "Blob", blobUID)
 		stageResponse, err = c.API.AppStage(req)
@@ -207,7 +206,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Namespace", appRef.Org).
 		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
-		WithStringValue("Builder Image", params.BuilderImage).
+		WithStringValue("Builder Image", params.Staging.Builder).
 		Msg("App is online.")
 
 	return nil

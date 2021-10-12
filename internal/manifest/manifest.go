@@ -13,13 +13,23 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const separator = ","
+const (
+	separator      = ","
+	defaultBuilder = "paketobuildpacks/builder:full"
+)
 
-// UpdateSN updates the incoming manifest with information pulled from the sources
-// (--path, --git, and --container-imageurl), and --name options. Option information
-// replaces any existing information.
-func UpdateSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
-	// SN - Source origin, Name
+// UpdateBSN updates the incoming manifest with information pulled from the --builder,
+// sources (--path, --git, and --container-imageurl), and --name options. Option
+// information replaces any existing information.
+func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	// BSN - Builder, Source origin, Name
+
+	// B:uilder - Retrieve from options
+
+	builderImage, err := cmd.Flags().GetString("builder-image")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --builder-image")
+	}
 
 	// S:ources - Retrieve from options
 
@@ -92,6 +102,12 @@ func UpdateSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.A
 
 	// Retrieval complete, without errors. Update manifest as needed. No errors
 	// possible here.
+
+	// B:uilder - replace
+
+	if builderImage != "" {
+		manifest.Staging.Builder = builderImage
+	}
 
 	// S:ources - Replace
 
@@ -189,37 +205,45 @@ func UpdateISE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 // an empty manifest.
 func Get(manifestPath string) (models.ApplicationManifest, error) {
 
+	// Empty manifest, for errors
+	empty := models.ApplicationManifest{}
+
 	manifestPath, err := filepath.Abs(manifestPath)
 	if err != nil {
-		return models.ApplicationManifest{}, errors.Wrapf(err, "filesystem error")
+		return empty, errors.Wrapf(err, "filesystem error")
 	}
 
 	manifestExists, err := fileExists(manifestPath)
 	if err != nil {
-		return models.ApplicationManifest{}, errors.Wrapf(err, "filesystem error")
+		return empty, errors.Wrapf(err, "filesystem error")
 	}
-	if !manifestExists {
-		// Without manifest we still have to provide a default
-		// app source location.
 
-		return models.ApplicationManifest{
-			Origin: models.ApplicationOrigin{
-				Kind: models.OriginPath,
-				Path: filepath.Dir(manifestPath),
-			},
-		}, nil
+	// Base manifest, defaults
+	manifest := models.ApplicationManifest{
+		Origin: models.ApplicationOrigin{
+			Kind: models.OriginPath,
+			Path: filepath.Dir(manifestPath),
+		},
+		Staging: models.ApplicationStage{
+			Builder: defaultBuilder,
+		},
+	}
+
+	if !manifestExists {
+		// Without manifest we simply provide the defaults for app sources and
+		// builder.
+
+		return manifest, nil
 	}
 
 	yamlFile, err := ioutil.ReadFile(manifestPath)
 	if err != nil {
-		return models.ApplicationManifest{}, errors.Wrapf(err, "filesystem error")
+		return empty, errors.Wrapf(err, "filesystem error")
 	}
-
-	var manifest models.ApplicationManifest
 
 	err = yaml.Unmarshal(yamlFile, &manifest)
 	if err != nil {
-		return models.ApplicationManifest{}, errors.Wrapf(err, "bad yaml")
+		return empty, errors.Wrapf(err, "bad yaml")
 	}
 
 	// Verify that origin information is one-of only.
@@ -241,7 +265,7 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 	}
 
 	if origins > 1 {
-		return models.ApplicationManifest{}, errors.New("Cannot use `path`, `git`, and `container` keys together")
+		return empty, errors.New("Cannot use `path`, `git`, and `container` keys together")
 	}
 
 	// Fall back to default location (manifest directory)

@@ -47,21 +47,28 @@ type BindRequest struct {
 	Names []string `json:"names"`
 }
 
-// BindResponse represents the server's response to successful binding of services to an app
+// BindResponse represents the server's response to the successful binding of services to
+// an application.
 type BindResponse struct {
 	WasBound []string `json:"wasbound"`
 }
 
-// ApplicationManifest represents and contains the data of an
-// application's manifest file.
+// ApplicationManifest represents and contains the data of an application's manifest file.
 type ApplicationManifest struct {
 	ApplicationCreateRequest `yaml:",inline"`
 	Origin                   ApplicationOrigin `yaml:"origin,omitempty"`
+	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
 }
 
-// ApplicationOrigin is the part of the manifest describing the origin
-// of the application (sources). At most one of the fields may be
-// specified / not empty.
+// ApplicationStaging is the part of the manifest holding information relevant to staging
+// the application's sources. This is, currently, only the reference to the Paketo builder
+// image to use.
+type ApplicationStage struct {
+	Builder string `yaml:"builder,omitempty"`
+}
+
+// ApplicationOrigin is the part of the manifest describing the origin of the application
+// (sources). At most one of the fields may be specified / not empty.
 type ApplicationOrigin struct {
 	Kind      int    // Internal type tag to simplify struct usage
 	Container string `yaml:"container,omitempty"`
