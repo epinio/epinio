@@ -156,5 +156,5 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
-prepare_ci_environment_k3d: embed_files build-linux-amd64
-	@./scripts/prepare-ci-environment-k3d.sh
+prepare_environment_k3d: embed_files build-linux-amd64
+	@./scripts/prepare-environment-k3d.sh

@@ -10,7 +10,7 @@ If none is available, K3d can be
 
 The Kubernetes instance needs to be prepared prior to the test run. K3d has
 its own make target for the preparation which can be initiated by running
-`make prepare_ci_environment_k3d`.
+`make prepare_environment_k3d`.
 
 ### Execution
 
