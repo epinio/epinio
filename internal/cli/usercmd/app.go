@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -207,7 +208,8 @@ func (c *EpinioClient) AppShow(appName string) error {
 			WithTableRow("Username", app.Workload.Username).
 			WithTableRow("StageId", app.Workload.StageID).
 			WithTableRow("Routes", app.Workload.Route).
-			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String())
+			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
+			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts)))
 	} else {
 		msg = msg.WithTableRow("Status", "not deployed")
 	}

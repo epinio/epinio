@@ -394,6 +394,36 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				createdAt, err := time.Parse(time.RFC3339, appObj.Workload.CreatedAt)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(createdAt.Unix()).To(BeNumerically("<", time.Now().Unix()))
+
+				Expect(appObj.Workload.Restarts).To(BeNumerically("==", 0))
+
+				out, err := helpers.Kubectl("get", "pods",
+					fmt.Sprintf("--selector=app.kubernetes.io/name=%s", app),
+					"--namespace", org, "--output", "name")
+				Expect(err).ToNot(HaveOccurred())
+				podNames := strings.Split(string(out), "\n")
+
+				// Kill a linkerd proxy container and see the count staying unchanged
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", "linkerd-proxy",
+					"--", "bin/sh", "-c", "kill 1")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Consistently(func() int32 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.Restarts
+				}, "5s", "1s").Should(BeNumerically("==", 0))
+
+				// Kill an app container and see the count increasing
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "bin/sh", "-c", "kill 1")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() int32 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.Restarts
+				}, "4s", "1s").Should(BeNumerically("==", 1))
 			})
 
 			It("returns a 404 when the org does not exist", func() {

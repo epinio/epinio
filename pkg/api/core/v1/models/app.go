@@ -40,7 +40,7 @@ type AppDeployment struct {
 	// TODO: Readiness and Liveness fields?
 	Active          bool   `json:"active,omitempty"` // app is > 0 replicas
 	CreatedAt       string `json:"createdAt,omitempty"`
-	Restarts        int    `json:"restarts,omitempty"`
+	Restarts        int32  `json:"restarts,omitempty"`
 	Memory          int    `json:"memory,omitempty"`
 	CPU             int    `json:"cpu,omitempty"`
 	DesiredReplicas int32  `json:"desiredreplicas"`

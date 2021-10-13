@@ -15,6 +15,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/retry"
 )
 
@@ -283,9 +284,29 @@ func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 
 // Restarts returns the number of restarts the application currently has
 // The pod's restarts is the sum of restarts of each and every container in that Pod
-// TODO: What is the "restarts" value of an app with multiple replicas?
-func (a *Workload) Restarts(ctx context.Context) int {
-	return 0
+func (a *Workload) Restarts(ctx context.Context) (int32, error) {
+	deployment, err := a.Deployment(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
+	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Org).List(ctx,
+		metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return 0, err
+	}
+
+	restarts := int32(0)
+	for _, p := range pods.Items {
+		for _, cs := range p.Status.ContainerStatuses {
+			if cs.Name == a.app.Name {
+				restarts += cs.RestartCount
+			}
+		}
+	}
+
+	return restarts, nil
 }
 
 // Get returns the state of the app deployment encoded in the workload.
@@ -310,7 +331,6 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	currentReplicas := int32(0)
 
 	var createdAt time.Time
-	var restarts int
 
 	if err != nil {
 		status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
@@ -321,7 +341,6 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		currentReplicas = deployments.Items[0].Status.ReadyReplicas
 
 		createdAt = deployments.Items[0].ObjectMeta.CreationTimestamp.Time
-		restarts = 0 // Find it from the container from the pod?
 
 		status = fmt.Sprintf("%d/%d",
 			deployments.Items[0].Status.ReadyReplicas,
@@ -339,6 +358,11 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		route = err.Error()
 	} else {
 		route = routes[0]
+	}
+
+	restarts, err := a.Restarts(ctx)
+	if err != nil {
+		status = pkgerrors.Wrap(err, "failed to calculate application restarts").Error()
 	}
 
 	return &models.AppDeployment{
