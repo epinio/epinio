@@ -1,8 +1,8 @@
 # Generated with:
 # ```
-# kubectl minio tenant create tenant1 --servers 1 --volumes 4 --capacity 5Gi --namespace minio -o
+# kubectl minio tenant create tenant1 --servers 1 --volumes 4 --capacity 10Gi --namespace minio-epinio -o
 # ```
-# Also changed `requestAutoCert` to "false"
+# Also changed `requestAutoCert` to "false" and removed all console related resources (we don't need the console)
 ---
 apiVersion: minio.min.io/v2
 kind: Tenant
@@ -16,7 +16,7 @@ spec:
   certConfig: {}
   credsSecret:
     name: tenant-creds
-  image: minio/minio:RELEASE.2021-08-25T00-41-18Z
+  image: minio/minio:RELEASE.2021-10-06T23-36-31Z
   imagePullSecret: {}
   mountPath: /export
   pools:
@@ -31,10 +31,7 @@ spec:
               - tenant1
           topologyKey: kubernetes.io/hostname
     resources: {}
-    # https://docs.min.io/minio/baremetal/installation/deploy-minio-distributed.html
     servers: 1
-    # minimum is 4 volumes
-    volumesPerServer: 4
     volumeClaimTemplate:
       apiVersion: v1
       kind: persistentvolumeclaims
@@ -47,4 +44,5 @@ spec:
           requests:
             storage: 10Gi
       status: {}
+    volumesPerServer: 4
   requestAutoCert: false
