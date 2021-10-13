@@ -181,7 +181,7 @@ func (hc Controller) Stage(w http.ResponseWriter, r *http.Request) apierror.APIE
 		AppRef:              req.App,
 		BuilderImage:        req.BuilderImage,
 		BlobUID:             req.BlobUID,
-		Environment:         environment,
+		Environment:         environment.List(),
 		Owner:               owner,
 		RegistryURL:         fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
 		S3ConnectionDetails: s3ConnectionDetails,

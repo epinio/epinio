@@ -5,6 +5,8 @@
 // TODO: Give even the most simple requests and responses properly named types.
 package models
 
+import "fmt"
+
 type Response struct {
 	Status string `json:"status"`
 }
@@ -45,16 +47,68 @@ type BindRequest struct {
 	Names []string `json:"names"`
 }
 
-// BindResponse represents the server's response to successful binding of services to an app
+// BindResponse represents the server's response to the successful binding of services to
+// an application.
 type BindResponse struct {
 	WasBound []string `json:"wasbound"`
+}
+
+// ApplicationManifest represents and contains the data of an application's manifest file,
+// plus some auxiliary data never (un)marshaled. Namely, the file's location, and origin
+// type tag.
+type ApplicationManifest struct {
+	ApplicationCreateRequest `yaml:",inline"`
+	Self                     string            `yaml:"-"` // Hidden from yaml. The file's location.
+	Origin                   ApplicationOrigin `yaml:"origin,omitempty"`
+	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
+}
+
+// ApplicationStaging is the part of the manifest holding information relevant to staging
+// the application's sources. This is, currently, only the reference to the Paketo builder
+// image to use.
+type ApplicationStage struct {
+	Builder string `yaml:"builder,omitempty"`
+}
+
+// ApplicationOrigin is the part of the manifest describing the origin of the application
+// (sources). At most one of the fields may be specified / not empty.
+type ApplicationOrigin struct {
+	Kind      int    `yaml:"-"` // Hidden from yaml. Type tag to simplify struct usage.
+	Container string `yaml:"container,omitempty"`
+	Git       GitRef `yaml:"git,omitempty"`
+	Path      string `yaml:"path,omitempty"`
+}
+
+// manifest origin codes for `Kind`.
+const (
+	OriginNone = iota
+	OriginPath
+	OriginGit
+	OriginContainer
+)
+
+func (o *ApplicationOrigin) String() string {
+	switch o.Kind {
+	case OriginPath:
+		return o.Path
+	case OriginGit:
+		if o.Git.Revision == "" {
+			return o.Git.URL
+		}
+		return fmt.Sprintf("%s @ %s", o.Git.URL, o.Git.Revision)
+	case OriginContainer:
+		return o.Container
+	default:
+		// Nonthing
+	}
+	return "<<undefined>>"
 }
 
 // ApplicationCreateRequest represents and contains the data needed to
 // create an application (at rest), possibly with presets (services)
 type ApplicationCreateRequest struct {
-	Name          string                   `json:"name"`
-	Configuration ApplicationUpdateRequest `json:"configuration"`
+	Name          string                   `json:"name"          yaml:"name"`
+	Configuration ApplicationUpdateRequest `json:"configuration" yaml:"configuration,omitempty"`
 }
 
 // ApplicationUpdateRequest represents and contains the data needed to update
@@ -63,19 +117,9 @@ type ApplicationCreateRequest struct {
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
-	Instances   *int32          `json:"instances"`
-	Services    []string        `json:"services"`
-	Environment EnvVariableList `json:"environment"`
-}
-
-// ApplicationManifest represents and contains the data of an application's
-// manifest file.  It differs from ApplicationUpdateRequest in the coding of
-// environment variables. The manifest uses a map, which inherently prevents
-// duplicate EV assignments.
-type ApplicationManifest struct {
-	Instances   *int32            `yaml:"instances"`
-	Services    []string          `yaml:"services"`
-	Environment map[string]string `yaml:"environment"`
+	Instances   *int32         `json:"instances"   yaml:"instances,omitempty"`
+	Services    []string       `json:"services"    yaml:"services,omitempty"`
+	Environment EnvVariableMap `json:"environment" yaml:"environment,omitempty"`
 }
 
 type ImportGitResponse struct {

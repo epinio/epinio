@@ -118,7 +118,8 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	It("can deploy Wordpress", func() {
-		out, err := env.Epinio(wordpress.Dir, "apps", "push", wordpress.Name)
+		out, err := env.Epinio(wordpress.Dir, "apps", "push",
+			"--name", wordpress.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		out, err = env.Epinio("", "app", "list")

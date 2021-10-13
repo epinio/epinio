@@ -96,7 +96,9 @@ var _ = Describe("<Scenario4>", func() {
 			out, err = epinioHelper.Run("apps", "env", "set", appName, "MYVAR", "myvalue")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"))
+			out, err = epinioHelper.Run("push",
+				"--name", appName,
+				"--path", testenv.AssetPath("sample-app"))
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() string {

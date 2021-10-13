@@ -58,7 +58,7 @@ func (hc Controller) Set(w http.ResponseWriter, r *http.Request) apierror.APIErr
 		return apierror.InternalError(err)
 	}
 
-	var setRequest models.EnvVariableList
+	var setRequest models.EnvVariableMap
 	err = json.Unmarshal(bodyBytes, &setRequest)
 	if err != nil {
 		return apierror.BadRequest(err)

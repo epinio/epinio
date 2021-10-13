@@ -2,6 +2,7 @@ package models
 
 import (
 	"fmt"
+	"sort"
 
 	v1 "k8s.io/api/core/v1"
 )
@@ -15,11 +16,28 @@ type EnvVariable struct {
 	Value string `json:"value"`
 }
 
-// EnvVariableList is a collection of EVs, it is used for Set Requests, and as List Responses
+// EnvVariableList is a collection of EVs.
 type EnvVariableList []EnvVariable
 
-// EnvVarnameList is a collection of EV names, it is used for Unset Requests, and as Match Responses
+// EnvVariableMap is a collection of EVs as a map. It is used for Set Requests, and as
+// List Responses
+type EnvVariableMap map[string]string
+
+// EnvVarnameList is a collection of EV names, it is used for Unset Requests, and as Match
+// Responses
 type EnvVarnameList []string
+
+func (evm EnvVariableMap) List() EnvVariableList {
+	result := EnvVariableList{}
+	for name, value := range evm {
+		result = append(result, EnvVariable{
+			Name:  name,
+			Value: value,
+		})
+	}
+	sort.Sort(result)
+	return result
+}
 
 // Implement the Sort interface for EV definition slices
 

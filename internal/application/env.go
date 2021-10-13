@@ -28,18 +28,15 @@ func EnvironmentNames(ctx context.Context, cluster *kubernetes.Cluster, appRef m
 }
 
 // Environment returns the environment variables and their values which are set on the named application by users
-func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableList, error) {
+func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.EnvVariableMap, error) {
 	evSecret, err := envLoad(ctx, cluster, appRef)
 	if err != nil {
 		return nil, err
 	}
 
-	result := models.EnvVariableList{}
+	result := models.EnvVariableMap{}
 	for name, value := range evSecret.Data {
-		result = append(result, models.EnvVariable{
-			Name:  name,
-			Value: string(value),
-		})
+		result[name] = string(value)
 	}
 
 	return result, nil
@@ -50,14 +47,14 @@ func Environment(ctx context.Context, cluster *kubernetes.Cluster, appRef models
 // will have the specified value. If the application is active the
 // workload is restarted to update it to the new settings. The
 // function will __not__ wait on this to complete.
-func EnvironmentSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, assignments models.EnvVariableList, replace bool) error {
+func EnvironmentSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, assignments models.EnvVariableMap, replace bool) error {
 	return envUpdate(ctx, cluster, appRef, func(evSecret *v1.Secret) {
 		// Replacement is adding to a clear structure
 		if replace {
 			evSecret.Data = make(map[string][]byte)
 		}
-		for _, ev := range assignments {
-			evSecret.Data[ev.Name] = []byte(ev.Value)
+		for name, value := range assignments {
+			evSecret.Data[name] = []byte(value)
 		}
 	})
 }

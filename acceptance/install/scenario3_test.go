@@ -108,7 +108,10 @@ var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
 			out, err := epinioHelper.Run("service", "create", serviceName, "mariadb", "10-3-22")
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"), "--bind", serviceName)
+			out, err = epinioHelper.Run("push",
+				"--name", appName,
+				"--path", testenv.AssetPath("sample-app"),
+				"--bind", serviceName)
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			env.VerifyAppServiceBound(appName, serviceName, testenv.DefaultWorkspace, 1)

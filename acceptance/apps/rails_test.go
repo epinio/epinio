@@ -128,7 +128,9 @@ var _ = Describe("RubyOnRails", func() {
 	})
 
 	It("can deploy Rails", func() {
-		out, err := env.Epinio(rails.Dir, "apps", "push", rails.Name, "-b", serviceName)
+		out, err := env.Epinio(rails.Dir, "apps", "push",
+			"--name", rails.Name,
+			"--bind", serviceName)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		route := testenv.AppRouteFromOutput(out)

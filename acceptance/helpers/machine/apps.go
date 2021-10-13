@@ -18,7 +18,8 @@ func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bo
 }
 
 func (m *Machine) MakeContainerImageApp(appName string, instances int, containerImageURL string) string {
-	pushOutput, err := m.Epinio("", "apps", "push", appName,
+	pushOutput, err := m.Epinio("", "apps", "push",
+		"--name", appName,
 		"--container-image-url", containerImageURL,
 		"--instances", strconv.Itoa(instances))
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
@@ -47,12 +48,15 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
-		pushOutput, err = m.Epinio(appDir, "apps", "push", appName,
+		pushOutput, err = m.Epinio(appDir, "apps", "push",
+			"--name", appName,
 			"--instances", strconv.Itoa(instances))
 	} else {
 		// Note: appDir is handed as second argument to the epinio cli.
 		// This means that the command gets the sources from that directory instead of CWD.
-		pushOutput, err = m.Epinio("", "apps", "push", appName, appDir,
+		pushOutput, err = m.Epinio("", "apps", "push",
+			"--name", appName,
+			"--path", appDir,
 			"--instances", strconv.Itoa(instances))
 	}
 
@@ -75,11 +79,14 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
-		pushOutput, err = m.Epinio(appDir, "apps", "push", appName)
+		pushOutput, err = m.Epinio(appDir, "apps", "push",
+			"--name", appName)
 	} else {
 		// Note: appDir is handed as second argument to the epinio cli.
 		// This means that the command gets the sources from that directory instead of CWD.
-		pushOutput, err = m.Epinio("", "apps", "push", appName, appDir)
+		pushOutput, err = m.Epinio("", "apps", "push",
+			"--name", appName,
+			"--path", appDir)
 	}
 
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)

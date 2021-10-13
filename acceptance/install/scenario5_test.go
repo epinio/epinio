@@ -97,7 +97,9 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		}).Should(ContainSubstring("Epinio Version: "))
 
 		By("Pushing an app", func() {
-			out, err = epinioHelper.Run("push", appName, testenv.AssetPath("sample-app"))
+			out, err = epinioHelper.Run("push",
+				"--name", appName,
+				"--path", testenv.AssetPath("sample-app"))
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			// verify cluster_issuer is used

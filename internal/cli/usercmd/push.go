@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -18,12 +19,7 @@ import (
 )
 
 type PushParams struct {
-	Configuration models.ApplicationUpdateRequest // instances, services, EVs
-	Container     string
-	GitRev        string
-	BuilderImage  string
-	Name          string
-	Path          string
+	models.ApplicationManifest
 }
 
 // Push pushes an app
@@ -35,10 +31,11 @@ type PushParams struct {
 // * deploy
 // * wait for app
 func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
-	name := params.Name
-	source := params.Path
-
-	appRef := models.AppRef{Name: name, Org: c.Config.Org}
+	source := params.Origin.String()
+	appRef := models.AppRef{
+		Name: params.Name,
+		Org:  c.Config.Org,
+	}
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", appRef.Name,
@@ -48,26 +45,36 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
-	sourceToShow := source
-	if params.GitRev != "" {
-		sourceToShow = fmt.Sprintf("%s @ %s", sourceToShow, params.GitRev)
-	}
-
 	msg := c.ui.Note().
+		WithStringValue("Manifest", params.Self).
 		WithStringValue("Name", appRef.Name).
-		WithStringValue("Sources", sourceToShow).
-		WithStringValue("Namespace", appRef.Org)
+		WithStringValue("Source Origin", source).
+		WithStringValue("Target Namespace", appRef.Org)
+	for _, ev := range params.Configuration.Environment.List() {
+		msg = msg.WithStringValue(fmt.Sprintf("Environment '%s'", ev.Name), ev.Value)
+	}
+	// TODO ? Make this a table for nicer alignment
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
+	// Show builder, if relevant (i.e. path/git sources, not for container)
+	if params.Origin.Kind != models.OriginContainer &&
+		params.Staging.Builder != "" {
+		msg = msg.WithStringValue("Builder", params.Staging.Builder)
+	}
+
+	if params.Configuration.Instances != nil {
+		msg = msg.WithStringValue("Instances",
+			strconv.Itoa(int(*params.Configuration.Instances)))
+	}
 	if len(params.Configuration.Services) > 0 {
-		msg = msg.WithStringValue("Services:",
+		msg = msg.WithStringValue("Services",
 			strings.Join(params.Configuration.Services, ", "))
 	}
 
-	msg.Msg("About to push an application with given name and sources into the specified namespace")
+	msg.Msg("About to push an application with the given setup")
 
 	c.ui.Exclamation().
 		Timeout(duration.UserAbort()).
@@ -111,7 +118,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 	// AppUpload / AppImportGit
 	var blobUID string
-	if params.GitRev == "" && params.Container == "" {
+	switch params.Origin.Kind {
+	case models.OriginNone:
+		return fmt.Errorf("%s", "No application origin")
+	case models.OriginPath:
 		c.ui.Normal().Msg("Collecting the application sources ...")
 
 		tmpDir, tarball, err := helpers.Tar(source)
@@ -135,30 +145,30 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 
 		blobUID = upload.BlobUID
 
-	} else if params.GitRev != "" {
+	case models.OriginGit:
 		c.ui.Normal().Msg("Importing the application sources from Git ...")
 
-		gitRef := models.GitRef{
-			URL:      source,
-			Revision: params.GitRev,
-		}
-		response, err := c.API.AppImportGit(appRef, gitRef)
+		response, err := c.API.AppImportGit(appRef, params.Origin.Git)
 		if err != nil {
 			return errors.Wrap(err, "importing git remote")
 		}
+
 		blobUID = response.BlobUID
+
+	case models.OriginContainer:
+		// Nothing to upload (nor stage)
 	}
 
 	// AppStage
 	stageID := ""
 	var stageResponse *models.StageResponse
-	if params.Container == "" {
+	if params.Origin.Kind != models.OriginContainer {
 		c.ui.Normal().Msg("Staging application with code...")
 
 		req := models.StageRequest{
 			App:          appRef,
 			BlobUID:      blobUID,
-			BuilderImage: params.BuilderImage,
+			BuilderImage: params.Staging.Builder,
 		}
 		details.Info("staging code", "Blob", blobUID)
 		stageResponse, err = c.API.AppStage(req)
@@ -182,8 +192,8 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	}
 	// If container param is specified, then we just take it into ImageURL
 	// If not, we take the one from the staging response
-	if params.Container != "" {
-		deployRequest.ImageURL = params.Container
+	if params.Origin.Kind == models.OriginContainer {
+		deployRequest.ImageURL = params.Origin.Container
 	} else {
 		deployRequest.ImageURL = stageResponse.ImageURL
 		deployRequest.Stage = models.StageRef{ID: stageID}
@@ -206,7 +216,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Namespace", appRef.Org).
 		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
-		WithStringValue("Builder Image", params.BuilderImage).
+		WithStringValue("Builder Image", params.Staging.Builder).
 		Msg("App is online.")
 
 	return nil

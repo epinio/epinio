@@ -32,7 +32,7 @@ one. Unbinding them is not deleting anything either also.
   - `service unbind S A`
   - `service delete S`
   - `app create --bind S,... ... A`
-  - `app push --bind S,... ... A`
+  - `app push --bind S,... ... --name A ...`
   - `app delete A`
 
 ### Semantics: `service bind S A`
@@ -177,7 +177,7 @@ user --> client  :service bind S A
 user <-- client  :report ok/fail
 ```
 
-### Semantics: `app push --bind S,... ... A`
+### Semantics: `app push --bind S,... ... --name A ...`
 
 The named services S... are bound to the named application `A`.
 
@@ -199,7 +199,7 @@ as part of its deployment, after re-staging.
 
 TODO: replace by equivalent SVG graphic
 ```
-user --> client :app push ... -b S ... A
+user --> client :app push ... -b S ... -n A
          client --> server :POST AppCreate O (A, S...)
                     server --> cluster :create app resource
                     server <-- cluster :ok/fail

@@ -120,7 +120,7 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) apierror.API
 	deployParams := deployParam{
 		AppRef:      req.App,
 		Owner:       owner,
-		Environment: environment,
+		Environment: environment.List(),
 		Services:    bindings,
 		Instances:   instances,
 		ImageURL:    req.ImageURL,

@@ -2,7 +2,6 @@ package usercmd
 
 import (
 	"context"
-	"sort"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -30,8 +29,7 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 
 	msg := c.ui.Success().WithTable("Variable", "Value")
 
-	sort.Sort(eVariables)
-	for _, ev := range eVariables {
+	for _, ev := range eVariables.List() {
 		msg = msg.WithTableRow(ev.Name, ev.Value)
 	}
 
@@ -57,12 +55,8 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 		return err
 	}
 
-	request := models.EnvVariableList{
-		models.EnvVariable{
-			Name:  envName,
-			Value: envValue,
-		},
-	}
+	request := models.EnvVariableMap{}
+	request[envName] = envValue
 
 	_, err := c.API.EnvSet(request, c.Config.Org, appName)
 	if err != nil {
