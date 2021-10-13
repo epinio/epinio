@@ -14,9 +14,9 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/gin-gonic/gin"
 
 	"github.com/gorilla/websocket"
-	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 )
 
@@ -25,30 +25,29 @@ import (
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
-func (hc Controller) Logs(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	appName := params.ByName("app")
-	stageID := params.ByName("stage_id")
+func (hc Controller) Logs(c *gin.Context) {
+	ctx := c.Request.Context()
+	org := c.Param("org")
+	appName := c.Param("app")
+	stageID := c.Param("stage_id")
 	log := tracelog.Logger(ctx)
 
 	log.Info("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		response.JSONError(w, apierror.InternalError(err))
+		response.JSONError(c, apierror.InternalError(err))
 		return
 	}
 
 	log.Info("validate organization", "name", org)
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		response.JSONError(w, apierror.InternalError(err))
+		response.JSONError(c, apierror.InternalError(err))
 		return
 	}
 
 	if !exists {
-		response.JSONError(w, apierror.OrgIsNotKnown(org))
+		response.JSONError(c, apierror.OrgIsNotKnown(org))
 		return
 	}
 
@@ -57,38 +56,37 @@ func (hc Controller) Logs(w http.ResponseWriter, r *http.Request) {
 
 		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
-			response.JSONError(w, apierror.InternalError(err))
+			response.JSONError(c, apierror.InternalError(err))
 			return
 		}
 
 		if app == nil {
-			response.JSONError(w, apierror.AppIsNotKnown(appName))
+			response.JSONError(c, apierror.AppIsNotKnown(appName))
 			return
 		}
 
 		if app.Workload == nil {
 			// While the app exists it has no workload, therefore no logs
-			response.JSONError(w, apierror.NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
+			response.JSONError(c, apierror.NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
 			return
 		}
 	}
 
 	if appName == "" && stageID == "" {
-		response.JSONError(w, apierror.BadRequest(errors.New("You need to specify either the stage id or the app")))
+		response.JSONError(c, apierror.BadRequest(errors.New("You need to specify either the stage id or the app")))
 		return
 	}
 
 	log.Info("process query")
-	queryValues := r.URL.Query()
-	followStr := queryValues.Get("follow")
 
-	log.Info("processed query", "values", queryValues)
+	followStr, _ := c.GetQuery("follow")
+
 	log.Info("upgrade to web socket")
 
 	var upgrader = websocket.Upgrader{}
-	conn, err := upgrader.Upgrade(w, r, nil)
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		response.JSONError(w, apierror.InternalError(err))
+		response.JSONError(c, apierror.InternalError(err))
 		return
 	}
 

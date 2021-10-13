@@ -76,8 +76,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody).To(HaveKey("errors"), string(bodyBytes))
-				Expect(responseBody["errors"][0].Title).To(
-					Equal("unexpected end of JSON input"))
+				Expect(responseBody["errors"][0].Title).To(Equal("EOF"))
 			})
 
 			It("fails for non-object JSON body", func() {
@@ -92,7 +91,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("json: cannot unmarshal array into Go value of type map[string]string"))
+					Equal("json: cannot unmarshal array into Go value of type models.NamespaceCreateRequest"))
 			})
 
 			It("fails for JSON object without name key", func() {

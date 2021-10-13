@@ -1,10 +1,6 @@
 package env
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -12,20 +8,18 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Set handles the API endpoint /orgs/:org/applications/:app/environment (POST)
 // It receives the org, application name, var name and value,
 // and add/modifies the variable in the  application's environment.
-func (hc Controller) Set(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(ctx)
-	orgName := params.ByName("org")
-	appName := params.ByName("app")
+	orgName := c.Param("org")
+	appName := c.Param("app")
 
 	log.Info("processing environment variable assignment",
 		"org", orgName, "app", appName)
@@ -52,14 +46,8 @@ func (hc Controller) Set(w http.ResponseWriter, r *http.Request) apierror.APIErr
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	var setRequest models.EnvVariableMap
-	err = json.Unmarshal(bodyBytes, &setRequest)
+	err = c.BindJSON(&setRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
@@ -81,7 +69,7 @@ func (hc Controller) Set(w http.ResponseWriter, r *http.Request) apierror.APIErr
 		}
 	}
 
-	err = response.JSON(w, models.ResponseOK)
+	err = response.JSON(c, models.ResponseOK)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

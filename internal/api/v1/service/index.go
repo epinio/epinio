@@ -1,28 +1,20 @@
 package service
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
-
-// Controller represents all functionality of the API related to services
-type Controller struct {
-}
 
 // Index handles the API end point /orgs/:org/services
 // It returns a list of all known service instances
-func (sc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
+func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -61,7 +53,7 @@ func (sc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIE
 		})
 	}
 
-	err = response.JSON(w, responseData)
+	err = response.JSON(c, responseData)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

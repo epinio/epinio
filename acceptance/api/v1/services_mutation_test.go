@@ -38,8 +38,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0].Title).To(
-				Equal("unexpected end of JSON input"))
+			Expect(responseBody["errors"][0].Title).To(Equal("EOF"))
 		})
 
 		It("returns a 'bad request' for a non-object JSON body", func() {
@@ -205,8 +204,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0].Title).To(
-				Equal("unexpected end of JSON input"))
+			Expect(responseBody["errors"][0].Title).To(Equal("EOF"))
 		})
 
 		It("returns a 'bad request' for a non-object JSON body", func() {
@@ -360,7 +358,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0].Title).To(Equal("unexpected end of JSON input"))
+			Expect(responseBody["errors"][0].Title).To(Equal("EOF"))
 		})
 
 		It("returns a 'bad request' for a non-object JSON body", func() {

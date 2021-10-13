@@ -3,60 +3,61 @@
 package v1
 
 import (
-	"net/http"
 	"reflect"
 	"runtime"
 
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/helpers/tracelog"
+
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/env"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
+
 	"github.com/epinio/epinio/internal/api/v1/service"
 	"github.com/epinio/epinio/internal/api/v1/servicebinding"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
-
-const v = "/api/v1"
 
 // APIActionFunc is matched by all actions. Actions can return a list of errors.
 // The "Status" of the first error in the list becomes the response Status Code.
-type APIActionFunc func(http.ResponseWriter, *http.Request) errors.APIErrors
+type APIActionFunc func(c *gin.Context) errors.APIErrors
 
 func funcName(i interface{}) string {
 	return runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name()
 }
 
-func errorHandler(action APIActionFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if errors := action(w, r); errors != nil {
-			tracelog.Logger(r.Context()).V(1).
+func errorHandler(action APIActionFunc) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if errors := action(c); errors != nil {
+			tracelog.Logger(c.Request.Context()).V(1).
 				Info("responding with json error response", "action", funcName(action), "errors", errors)
-			response.JSONError(w, errors)
+			response.JSONError(c, errors)
 		}
 	}
 }
 
-func get(path string, h http.HandlerFunc) routes.Route {
-	return routes.NewRoute("GET", v+path, h)
+func get(path string, h gin.HandlerFunc) routes.Route {
+	return routes.NewRoute("GET", path, h)
 }
 
-func post(path string, h http.HandlerFunc) routes.Route {
-	return routes.NewRoute("POST", v+path, h)
+func post(path string, h gin.HandlerFunc) routes.Route {
+	return routes.NewRoute("POST", path, h)
 }
 
-func delete(path string, h http.HandlerFunc) routes.Route {
-	return routes.NewRoute("DELETE", v+path, h)
+func delete(path string, h gin.HandlerFunc) routes.Route {
+	return routes.NewRoute("DELETE", path, h)
 }
 
-func patch(path string, h http.HandlerFunc) routes.Route {
-	return routes.NewRoute("PATCH", v+path, h)
+func patch(path string, h gin.HandlerFunc) routes.Route {
+	return routes.NewRoute("PATCH", path, h)
 }
 
 var Routes = routes.NamedRoutes{
 	"Info": get("/info", errorHandler(Info)),
+
+	// app controller files see application/*.go
 
 	"AllApps":         get("/applications", errorHandler(application.Controller{}.FullIndex)),
 	"Apps":            get("/namespaces/:org/applications", errorHandler(application.Controller{}.Index)),
@@ -108,15 +109,10 @@ var Routes = routes.NamedRoutes{
 	"ServiceDelete": delete("/namespaces/:org/services/:service", errorHandler(service.Controller{}.Delete)),
 }
 
-// Router constructs and returns the router mapping methods and urls to the API handlers.
-func Router() *httprouter.Router {
-	router := httprouter.New()
-
+// Lemon extends the specified router with the methods and urls
+// handling the API endpoints
+func Lemon(router *gin.RouterGroup) {
 	for _, r := range Routes {
-		router.HandlerFunc(r.Method, r.Path, r.Handler)
+		router.Handle(r.Method, r.Path, r.Handler)
 	}
-
-	router.NotFound = http.NotFoundHandler()
-
-	return router
 }

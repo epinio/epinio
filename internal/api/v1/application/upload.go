@@ -3,7 +3,6 @@ package application
 import (
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 
@@ -15,26 +14,28 @@ import (
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Upload handles the API endpoint /orgs/:org/applications/:app/store.
 // It receives the application data as a tarball and stores it. Then
 // it creates the k8s resources needed for staging
-func (hc Controller) Upload(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	name := params.ByName("app")
+	org := c.Param("org")
+	name := c.Param("app")
 
 	log.Info("processing upload", "org", org, "app", name)
 
 	log.V(2).Info("parsing multipart form")
 
-	file, _, err := r.FormFile("file")
+	// Staying with the http.FormFile(). Because the gin.FormFile() function returns
+	// only a `multipart.FileHeader`, and no `multipart.File`. The header is the one
+	// thing ignored below.
+
+	file, _, err := c.Request.FormFile("file")
 	if err != nil {
 		return apierror.BadRequest(err, "can't read multipart file input")
 	}
@@ -82,8 +83,10 @@ func (hc Controller) Upload(w http.ResponseWriter, r *http.Request) apierror.API
 
 	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
-	resp := models.UploadResponse{BlobUID: blobUID}
-	err = response.JSON(w, resp)
+	resp := models.UploadResponse{
+		BlobUID: blobUID,
+	}
+	err = response.JSON(c, resp)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

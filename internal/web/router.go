@@ -2,18 +2,13 @@
 package web
 
 import (
-	"net/http"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
-// Router constructs and returns the router mapping methods and urls to the dashboard handlers.
-func Router() *httprouter.Router {
-	router := httprouter.New()
-	router.HandlerFunc("GET", "/", ApplicationsController{}.Index)
-	router.HandlerFunc("GET", "/info", InfoController{}.Index)
-	router.HandlerFunc("GET", "/orgs/target/:org", OrgsController{}.Target)
-	router.NotFound = http.NotFoundHandler()
-
-	return router
+// Lemon extends the specified router with the methods and urls
+// handling the dashboard endpoints
+func Lemon(router *gin.Engine) {
+	router.GET("/", gin.Logger(), ApplicationsController{}.Index)
+	router.GET("/info", gin.Logger(), InfoController{}.Index)
+	router.GET("/orgs/target/:org", gin.Logger(), OrgsController{}.Target)
 }

@@ -1,8 +1,6 @@
 package env
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -11,22 +9,18 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
-
-// Controller represents all functionality of the API related to envs
-type Controller struct{}
 
 // Index handles the API endpoint /orgs/:org/applications/:app/environment
 // It receives the org, application name and returns the environment
 // associated with that application
-func (hc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(ctx)
-	orgName := params.ByName("org")
-	appName := params.ByName("app")
+	orgName := c.Param("org")
+	appName := c.Param("app")
 
 	log.Info("returning environment", "org", orgName, "app", appName)
 
@@ -60,7 +54,7 @@ func (hc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIE
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(w, environment)
+	err = response.JSON(c, environment)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

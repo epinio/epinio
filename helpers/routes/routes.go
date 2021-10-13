@@ -3,9 +3,10 @@ package routes
 
 import (
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Route describes a route for httprouter
@@ -13,14 +14,14 @@ type Route struct {
 	Method  string
 	Path    string
 	Format  string
-	Handler http.HandlerFunc
+	Handler gin.HandlerFunc
 }
 
 var formatRegex = regexp.MustCompile(`:\w+`)
 
-// NewRoute returns a new route, which can be added to NamedRoutes and used with
-// httprouter. Trailing and leading slashes are removed.
-func NewRoute(method string, path string, h http.HandlerFunc) Route {
+// NewRoute returns a new route, which can be added to NamedRoutes and
+// used with gin. Trailing and leading slashes are removed.
+func NewRoute(method string, path string, h gin.HandlerFunc) Route {
 	format := formatRegex.ReplaceAllString(path, "%s")
 	format = strings.Trim(format, "/")
 	return Route{method, path, format, h}

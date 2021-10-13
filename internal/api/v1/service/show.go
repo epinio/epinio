@@ -1,25 +1,21 @@
 package service
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Show handles the API end point /orgs/:org/services/:service
 // It returns the detail information of the named service instance
-func (sc Controller) Show(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	serviceName := params.ByName("service")
+func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
+	serviceName := c.Param("service")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -54,7 +50,7 @@ func (sc Controller) Show(w http.ResponseWriter, r *http.Request) apierror.APIEr
 		responseData[key] = value
 	}
 
-	err = response.JSON(w, models.ServiceShowResponse{
+	err = response.JSON(c, models.ServiceShowResponse{
 		Username: service.User(),
 		Details:  responseData,
 	})

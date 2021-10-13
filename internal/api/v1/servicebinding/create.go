@@ -1,10 +1,6 @@
 package servicebinding
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -13,14 +9,10 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 
-	"github.com/julienschmidt/httprouter"
 	"github.com/pkg/errors"
 )
-
-// Controller represents all functionality of the API related to service bindings
-type Controller struct {
-}
 
 // General behaviour: Internal errors (5xx) abort an action.
 // Non-internal errors and warnings may be reported with it,
@@ -29,21 +21,14 @@ type Controller struct {
 
 // Create handles the API endpoint /orgs/:org/applications/:app/servicebindings (POST)
 // It creates a binding between the specified service and application
-func (hc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	appName := params.ByName("app")
+func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
+	appName := c.Param("app")
 	username := requestctx.User(ctx)
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	var bindRequest models.BindRequest
-	err = json.Unmarshal(bodyBytes, &bindRequest)
+	err := c.BindJSON(&bindRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
@@ -152,7 +137,7 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.API
 		return apierror.NewMultiError(theIssues)
 	}
 
-	err = response.JSON(w, resp)
+	err = response.JSON(c, resp)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

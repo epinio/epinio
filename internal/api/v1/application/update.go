@@ -1,10 +1,6 @@
 package application
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -13,18 +9,16 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Update handles the API endpoint PATCH /namespaces/:org/applications/:app
 // It modifies the specified application. Currently this is only the
 // number of instances to run.
-func (hc Controller) Update(w http.ResponseWriter, r *http.Request) apierror.APIErrors { // nolint:gocyclo // simplification defered
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	appName := params.ByName("app")
+func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
+	ctx := c.Request.Context()
+	org := c.Param("org")
+	appName := c.Param("app")
 	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -52,14 +46,8 @@ func (hc Controller) Update(w http.ResponseWriter, r *http.Request) apierror.API
 
 	// Retrieve and validate update request ...
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	var updateRequest models.ApplicationUpdateRequest
-	err = json.Unmarshal(bodyBytes, &updateRequest)
+	err = c.BindJSON(&updateRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
@@ -170,7 +158,7 @@ func (hc Controller) Update(w http.ResponseWriter, r *http.Request) apierror.API
 		}
 	}
 
-	err = response.JSON(w, models.ResponseOK)
+	err = response.JSON(c, models.ResponseOK)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

@@ -1,8 +1,6 @@
 package service
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -12,26 +10,18 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Create handles the API end point /orgs/:org/services
 // It creates the named service from its parameters
-func (sc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
+func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
 	username := requestctx.User(ctx)
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	var createRequest models.ServiceCreateRequest
-	err = json.Unmarshal(bodyBytes, &createRequest)
+	err := c.BindJSON(&createRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
@@ -75,10 +65,7 @@ func (sc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.API
 		return apierror.InternalError(err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	err = response.JSON(w, models.ResponseOK)
+	err = response.JSONWithStatus(c, http.StatusCreated, models.ResponseOK)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

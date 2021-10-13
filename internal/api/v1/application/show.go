@@ -1,24 +1,20 @@
 package application
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Show handles the API endpoint GET /namespaces/:org/applications/:app
 // It returns the details of the specified application.
-func (hc Controller) Show(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	appName := params.ByName("app")
+func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
+	appName := c.Param("app")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -43,7 +39,7 @@ func (hc Controller) Show(w http.ResponseWriter, r *http.Request) apierror.APIEr
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	err = response.JSON(w, app)
+	err = response.JSON(c, app)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

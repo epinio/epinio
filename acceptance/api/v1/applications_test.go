@@ -149,7 +149,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		}
 		body := string(b)
 
-		url := serverURL + "/" + v1.Routes.Path("AppCreate", org)
+		url := serverURL + "/api/v1/" + v1.Routes.Path("AppCreate", org)
 		return env.Curl("POST", url, strings.NewReader(body))
 	}
 
@@ -165,7 +165,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	uploadApplication := func(appName string) *models.UploadResponse {
-		uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
+		uploadURL := serverURL + "/api/v1/" + v1.Routes.Path("AppUpload", org, appName)
 		uploadPath := testenv.TestAssetPath("sample-app.tar")
 		uploadRequest, err := uploadRequest(uploadURL, uploadPath)
 		Expect(err).ToNot(HaveOccurred())
@@ -224,7 +224,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Expect(err).NotTo(HaveOccurred())
 		body := string(b)
 
-		url := serverURL + "/" + v1.Routes.Path("AppStage", org, appName)
+		url := serverURL + "/api/v1/" + v1.Routes.Path("AppStage", org, appName)
 		response, err := env.Curl("POST", url, strings.NewReader(body))
 		Expect(err).NotTo(HaveOccurred())
 
@@ -260,7 +260,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				data.Set("giturl", gitURL)
 				data.Set("gitrev", "main")
 
-				url := serverURL + "/" + v1.Routes.Path("AppImportGit", org, app)
+				url := serverURL + "/api/v1/" + v1.Routes.Path("AppImportGit", org, app)
 				request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 				Expect(err).ToNot(HaveOccurred())
 				request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
@@ -541,7 +541,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		)
 
 		JustBeforeEach(func() {
-			url = serverURL + "/" + v1.Routes.Path("AppUpload", org, "testapp")
+			url = serverURL + "/api/v1/" + v1.Routes.Path("AppUpload", org, "testapp")
 			var err error
 			request, err = uploadRequest(url, path)
 			Expect(err).ToNot(HaveOccurred())
@@ -638,7 +638,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					body = string(bodyBytes)
 
-					url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)
+					url = serverURL + "/api/v1/" + v1.Routes.Path("AppDeploy", org, appName)
 
 					response, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
@@ -656,7 +656,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					By("waiting for the deployment to complete")
 
-					url = serverURL + "/" + v1.Routes.Path("AppRunning", org, appName)
+					url = serverURL + "/api/v1/" + v1.Routes.Path("AppRunning", org, appName)
 
 					response, err = env.Curl("GET", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
@@ -682,7 +682,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					ImageURL: "splatform/sample-app",
 				}
 
-				url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)
+				url = serverURL + "/api/v1/" + v1.Routes.Path("AppDeploy", org, appName)
 			})
 
 			When("deploying a new app", func() {
@@ -746,7 +746,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			readLogs := func(org, app string) string {
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
-				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsURL := fmt.Sprintf("%s/api/v1/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
 				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("read the logs")
@@ -786,7 +786,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
-				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsURL := fmt.Sprintf("%s/api/v1/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
 				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("get to the end of logs")
@@ -858,7 +858,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 			})
 		})
 	})

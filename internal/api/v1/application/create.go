@@ -1,8 +1,6 @@
 package application
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -13,16 +11,14 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Create handles the API endpoint POST /namespaces/:org/applications
 // It creates a new and empty application. I.e. without a workload.
-func (hc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
+func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
 	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -39,14 +35,9 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.API
 		return apierror.OrgIsNotKnown(org)
 	}
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
 
 	var createRequest models.ApplicationCreateRequest
-	err = json.Unmarshal(bodyBytes, &createRequest)
+	err = c.BindJSON(&createRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
@@ -121,7 +112,7 @@ func (hc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.API
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(w, models.ResponseOK)
+	err = response.JSONWithStatus(c, http.StatusCreated, models.ResponseOK)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

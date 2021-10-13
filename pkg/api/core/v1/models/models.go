@@ -126,8 +126,6 @@ type ImportGitResponse struct {
 	BlobUID string `json:"blobuid,omitempty"`
 }
 
-// TODO: CreateOrgRequest
-
 // UploadRequest is a multipart form
 
 // UploadResponse represents the server's response to a successful app sources upload
