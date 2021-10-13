@@ -81,59 +81,58 @@ func (k Tekton) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *
 func (k Tekton) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Tekton...")
 
-	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, TektonStagingNamespace)
+	existsAndOwnedStaging, err := c.NamespaceExistsAndOwned(ctx, TektonStagingNamespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", TektonStagingNamespace)
 	}
-	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Tekton staging because namespace either doesn't exist or not owned by Epinio")
-		return nil
-	}
-
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
-	}
-
-	message := "Deleting Tekton staging namespace " + TektonStagingNamespace
-	_, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return "", c.DeleteNamespace(ctx, TektonStagingNamespace)
-		},
-	)
-	if err != nil {
-		return errors.Wrapf(err, "Failed deleting namespace %s", TektonStagingNamespace)
-	}
-
-	err = c.WaitForNamespaceMissing(ctx, ui, TektonStagingNamespace, k.Timeout)
-	if err != nil {
-		return errors.Wrapf(err, "Failed waiting for namespace %s to be deleted", TektonStagingNamespace)
-	}
-
-	existsAndOwned, err = c.NamespaceExistsAndOwned(ctx, tektonNamespace)
+	existsAndOwnedPipelines, err := c.NamespaceExistsAndOwned(ctx, tektonNamespace)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", tektonNamespace)
 	}
-	if !existsAndOwned {
-		ui.Exclamation().Msg("Skipping Tekton because namespace either doesn't exist or not owned by Epinio")
-		return nil
+
+	if existsAndOwnedStaging {
+		if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAdminRoleYamlPath, true); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAdminRoleYamlPath, out))
+		}
+
+		message := "Deleting Tekton staging namespace " + TektonStagingNamespace
+		_, err = helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return "", c.DeleteNamespace(ctx, TektonStagingNamespace)
+			},
+		)
+		if err != nil {
+			return errors.Wrapf(err, "Failed deleting namespace %s", TektonStagingNamespace)
+		}
+
+		err = c.WaitForNamespaceMissing(ctx, ui, TektonStagingNamespace, k.Timeout)
+		if err != nil {
+			return errors.Wrapf(err, "Failed waiting for namespace %s to be deleted", TektonStagingNamespace)
+		}
+	} else {
+		ui.Exclamation().Msg("Skipping Tekton staging namespace because it either doesn't exist or not owned by Epinio")
 	}
 
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
-	}
+	if existsAndOwnedPipelines {
+		if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonPipelineReleaseYamlPath, true); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonPipelineReleaseYamlPath, out))
+		}
 
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAWSYamlPath, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAWSYamlPath, out))
-	}
+		if out, err := helpers.KubectlDeleteEmbeddedYaml(tektonAWSYamlPath, true); err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", tektonAWSYamlPath, out))
+		}
 
-	message = "Deleting Tekton namespace " + tektonNamespace
-	_, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return "", c.DeleteNamespace(ctx, tektonNamespace)
-		},
-	)
-	if err != nil {
-		return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
+		message := "Deleting Tekton namespace " + tektonNamespace
+		_, err = helpers.WaitForCommandCompletion(ui, message,
+			func() (string, error) {
+				return "", c.DeleteNamespace(ctx, tektonNamespace)
+			},
+		)
+		if err != nil {
+			return errors.Wrapf(err, "Failed deleting namespace %s", tektonNamespace)
+		}
+	} else {
+		ui.Exclamation().Msg("Skipping Tekton pipelines namespace because it either doesn't exist or not owned by Epinio")
 	}
 
 	return nil
