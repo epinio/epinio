@@ -160,4 +160,4 @@ same binary as the client.
 __Note__ When building for another OS or architecture the
 `dist/epinio-linux-amd64` binary will not exist. In this case the path
 has to be specified by the environment variable `EPINIO_BINARY_PATH`
-as describe above in this document.
+as described above in this document.
