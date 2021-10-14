@@ -24,7 +24,10 @@ build-arm64:
 
 build-linux-amd64: build-amd64
 build-amd64:
-	GOARCH="amd64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-amd64
+	GOARCH="amd64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -tags "install server app" -o dist/epinio-linux-amd64
+	GOARCH="amd64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -tags "install" -o dist/epinio-installer-linux-amd64
+	GOARCH="amd64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -tags "server" -o dist/epinio-server-linux-amd64-s
+	GOARCH="amd64" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -tags "app" -o dist/epinio-client-linux-amd64
 
 build-windows-amd64: build-windows
 build-windows:

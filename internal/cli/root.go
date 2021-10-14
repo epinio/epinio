@@ -72,22 +72,7 @@ func init() {
 
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
-	rootCmd.AddCommand(CmdCompletion)
-	rootCmd.AddCommand(CmdConfig)
-	rootCmd.AddCommand(CmdInstall)
-	rootCmd.AddCommand(CmdInstallIngress)
-	rootCmd.AddCommand(CmdInstallCertManager)
-	rootCmd.AddCommand(CmdUninstall)
-	rootCmd.AddCommand(CmdInfo)
-	rootCmd.AddCommand(CmdNamespace)
-	rootCmd.AddCommand(CmdAppPush) // shorthand access to `app push`.
-	rootCmd.AddCommand(CmdApp)
-	rootCmd.AddCommand(CmdTarget)
-	rootCmd.AddCommand(CmdService)
-	rootCmd.AddCommand(CmdServer)
 	rootCmd.AddCommand(cmdVersion)
-	// Hidden command providing developer tools
-	rootCmd.AddCommand(CmdDebug)
 }
 
 var cmdVersion = &cobra.Command{

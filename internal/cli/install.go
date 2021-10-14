@@ -1,3 +1,5 @@
+// +build install
+
 package cli
 
 import (
@@ -164,6 +166,12 @@ const (
 )
 
 func init() {
+	rootCmd.AddCommand(CmdConfig)
+	rootCmd.AddCommand(CmdInstall)
+	rootCmd.AddCommand(CmdInstallIngress)
+	rootCmd.AddCommand(CmdInstallCertManager)
+	rootCmd.AddCommand(CmdUninstall)
+
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 	CmdInstall.Flags().BoolP("skip-default-namespace", "s", false, "Set this to skip the creation of a default namespace")
 

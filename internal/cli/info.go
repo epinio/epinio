@@ -1,3 +1,5 @@
+// +build app
+
 package cli
 
 import (
@@ -6,7 +8,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ()
+func init() {
+	rootCmd.AddCommand(CmdCompletion)
+	rootCmd.AddCommand(CmdNamespace)
+	rootCmd.AddCommand(CmdAppPush) // shorthand access to `app push`.
+	rootCmd.AddCommand(CmdApp)
+	rootCmd.AddCommand(CmdTarget)
+	rootCmd.AddCommand(CmdService)
+	rootCmd.AddCommand(CmdInfo)
+	// Hidden command providing developer tools
+	rootCmd.AddCommand(CmdDebug)
+}
 
 // CmdInfo implements the command: epinio info
 var CmdInfo = &cobra.Command{

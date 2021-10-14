@@ -1,3 +1,5 @@
+// +build server
+
 package cli
 
 import (
@@ -14,6 +16,8 @@ import (
 )
 
 func init() {
+	rootCmd.AddCommand(CmdServer)
+
 	flags := CmdServer.Flags()
 	flags.Int("port", 0, "(PORT) The port to listen on. Leave empty to auto-assign a random port")
 	viper.BindPFlag("port", flags.Lookup("port"))
