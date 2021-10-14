@@ -44,7 +44,7 @@ type AppDeployment struct {
 	MemoryBytes     int64  `json:"memoryBytes"`
 	MilliCPUs       int64  `json:"millicpus"`
 	DesiredReplicas int32  `json:"desiredreplicas"`
-	CurrentReplicas int32  `json:"currentreplicas"`
+	ReadyReplicas   int32  `json:"readyreplicas"`
 	Username        string `json:"username,omitempty"` // app creator
 	StageID         string `json:"stage_id,omitempty"` // tekton staging id
 	Status          string `json:"status,omitempty"`   // app replica status

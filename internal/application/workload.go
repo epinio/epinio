@@ -373,7 +373,7 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).List(ctx, deploymentListOptions)
 
 	desiredReplicas := int32(0)
-	currentReplicas := int32(0)
+	readyReplicas := int32(0)
 
 	var createdAt time.Time
 
@@ -383,7 +383,7 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		status = "0/0"
 	} else {
 		desiredReplicas = deployments.Items[0].Status.Replicas
-		currentReplicas = deployments.Items[0].Status.ReadyReplicas
+		readyReplicas = deployments.Items[0].Status.ReadyReplicas
 
 		createdAt = deployments.Items[0].ObjectMeta.CreationTimestamp.Time
 
@@ -426,6 +426,6 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		Status:          status,
 		Route:           route,
 		DesiredReplicas: desiredReplicas,
-		CurrentReplicas: currentReplicas,
+		ReadyReplicas:   readyReplicas,
 	}
 }

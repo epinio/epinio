@@ -397,6 +397,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				Expect(appObj.Workload.Restarts).To(BeNumerically("==", 0))
 
+				Expect(appObj.Workload.DesiredReplicas).To(BeNumerically("==", 1))
+				Expect(appObj.Workload.ReadyReplicas).To(BeNumerically("==", 1))
+
 				out, err := helpers.Kubectl("get", "pods",
 					fmt.Sprintf("--selector=app.kubernetes.io/name=%s", app),
 					"--namespace", org, "--output", "name")
