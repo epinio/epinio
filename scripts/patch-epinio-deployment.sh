@@ -1,6 +1,6 @@
 #!/bin/bash
 
-timeout=240s
+timeout=480s
 
 # This script should be used while doing development on Epinio.
 # When running `epinio install`, the Epinio Deployment will try to apply
