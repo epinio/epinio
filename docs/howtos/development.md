@@ -39,22 +39,21 @@ Look at the Makefile at the root of the project to see what is available.
 ### Installing Epinio
 
 While we have a [dedicated document](https://docs.epinio.io/installation/installation.html) for cluster
-specific instructions, the following should generally be sufficient to get you running:
+specific instructions, there are some differences for dev environments.
+These differences are explained in the section [Behind the curtains](#curtain) at the end of this document.
+
+Since we use `k3d` in our CI tests we have created the make target `prepare_environment_k3d` to prepare
+such an environment. For all other environments the following commands should be sufficient:
 
 ```
-make install
+EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 ./dist/epinio-linux-amd64 install --skip-default-namespace
+make patch-epinio-deployment
 ./dist/epinio-linux-amd64 namespace create workspace
 ./dist/epinio-linux-amd64 target workspace
 ```
 
-In case you're curious why `make install` is used here instead of
-`epinio install`, we have a section to look
-[Behind the curtains](#curtain) at the end of the document, which
-explains the details of running an Epinio dev environment.
-
-After making changes to the binary simply invoking `make
-patch-epinio-deployment` again will upload the changes into the
-running cluster.
+After making changes to the binary simply invoking `make patch-epinio-deployment` again
+will upload the changes into the running cluster.
 
 Another thing `epinio install` does after deploying all components is
 the creation and targeting of a standard namespace, `workspace`.
@@ -63,7 +62,7 @@ With the failing server component these actions will fail, making the
 installation fail. Using the option `--skip-default-namespace` instructs the
 command to forego these actions. Which in turn makes it necessary to
 run them manually to reach the standard state of a cluster. These are
-the last two commands in the above script.
+the last two commands in the above snippet.
 
 The one post-deployment action performed by `install` not affected by
 all of the above is the automatic `config update` saving
@@ -112,7 +111,7 @@ the ingress, and that then has to properly resolve in the DNS.
 <a id='curtain'>
 #### Behind the curtains
 
-`make install` does quite a bit more than the plain
+Setting up a dev cluster takes quite a bit more than the plain
 
 ```
 epinio install
@@ -120,7 +119,7 @@ epinio install
 
 found in the quick install intructions.
 
-Let's look at what `make install` actually does:
+Let's look at what is actually done:
 
 When building Epinio, the generated binary assumes that there is a
 container image for the Epinio server components, with a tag that
@@ -135,7 +134,7 @@ that such an image is built and published.
 However when building locally building and publishing an image for
 every little change is ... inconvenient.
 
-`make install` is setting
+As described above we set
 ```
 export EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1
 ```
@@ -152,12 +151,13 @@ kubectl get pod -n epinio --selector=app.kubernetes.io/name=epinio-server
 
 will confirm this.
 
-Then `make install` runs `scripts/patch-epinio-deployment.sh` which compensates for this
-issue. This make target patches the failing Epinio server deployment
-to use an existing image from some release and then copies the locally
-built `dist/epinio-linux-amd64` binary into it, ensuring that it runs
-the same binary as the client.
+Running `make patch-epinio-deployment` compensates for this issue.
+This make target patches the failing Epinio server deployment to use an
+existing image from some release and then copies the locally built
+`dist/epinio-linux-amd64` binary into it, ensuring that it runs the
+same binary as the client.
 
 __Note__ When building for another OS or architecture the
-`dist/epinio-linux-amd64` binary will not exist, and the script has to
-be adjusted accordingly.
+`dist/epinio-linux-amd64` binary will not exist. In this case the path
+has to be specified by the environment variable `EPINIO_BINARY_PATH`
+as described above in this document.
