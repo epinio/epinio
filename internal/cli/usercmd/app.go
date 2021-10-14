@@ -15,6 +15,7 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/epinio/epinio/helpers/bytes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/logprinter"
@@ -209,7 +210,9 @@ func (c *EpinioClient) AppShow(appName string) error {
 			WithTableRow("StageId", app.Workload.StageID).
 			WithTableRow("Routes", app.Workload.Route).
 			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
-			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts)))
+			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts))).
+			WithTableRow("milliCPUs", strconv.Itoa(int(app.Workload.MilliCPUs))).
+			WithTableRow("Memory", bytes.ByteCountIEC(app.Workload.MemoryBytes))
 	} else {
 		msg = msg.WithTableRow("Status", "not deployed")
 	}
