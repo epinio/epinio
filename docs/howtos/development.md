@@ -43,7 +43,7 @@ specific instructions, there are some differences for dev environments.
 These differences are explained in the section [Behind the curtains](#curtain) at the end of this document.
 
 Since we use `k3d` in our CI tests we have created the make target `prepare_environment_k3d` to prepare
-the environment but for all other environments the following commands should be sufficient:
+such an environment. For all other environments the following commands should be sufficient:
 
 ```
 EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 ./dist/epinio-linux-amd64 install --skip-default-namespace
