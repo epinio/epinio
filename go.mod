@@ -2,6 +2,9 @@ module github.com/epinio/epinio
 
 go 1.15
 
+// To avoid CVE-2021-29482
+replace github.com/ulikunitz/xz => github.com/ulikunitz/xz v0.5.8
+
 require (
 	github.com/Azure/go-autorest/autorest v0.11.17 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.10 // indirect
