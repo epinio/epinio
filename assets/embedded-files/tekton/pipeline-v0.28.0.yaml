@@ -1,3 +1,6 @@
+# NOTE: The affinity-assistant is not needed, see commit ef6d457b
+#       This file was copied and modified.
+#
 # Copyright 2019 The Tekton Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -1459,7 +1462,7 @@ data:
   # See more in the workspace documentation about Affinity Assistant
   # https://github.com/tektoncd/pipeline/blob/main/docs/workspaces.md#affinity-assistant-and-specifying-workspace-order-in-a-pipeline
   # or https://github.com/tektoncd/pipeline/pull/2630 for more info.
-  disable-affinity-assistant: "false"
+  disable-affinity-assistant: "true"
   # Setting this flag to "false" will allow Tekton to override your
   # Task container's $HOME environment variable.
   #
