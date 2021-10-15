@@ -49,7 +49,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	// Endpoint structure ...
 	// | Path              | Notes      | Logging
 	// | ---               | ---        | ----
-	// | /api/v1/...       | API        | Via "/api/v1" Group
+	// | <Root>/...        | API        | Via "<Root>" Group
 	// | /ready            | L/R Probes |
 	// | /assets           |            | Via "/assets" Group
 	// | /                 | Dashboard  | Via individual attachment, web.Lemon()
@@ -70,7 +70,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	assets.Use(gin.Logger())
 	assets.StaticFS("/", assetsDir)
 
-	api := router.Group("/api/v1")
+	api := router.Group(apiv1.Root)
 	api.Use(gin.Logger())
 	api.Use(func(c *gin.Context) {
 		user := c.GetHeader("X-Webauth-User")

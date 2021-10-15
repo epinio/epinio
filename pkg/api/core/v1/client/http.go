@@ -13,13 +13,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	api "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/go-logr/logr"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 )
-
-const apiRoot = "api/v1"
 
 type responseError struct {
 	error
@@ -51,7 +50,7 @@ func (c *Client) delete(endpoint string) ([]byte, error) {
 
 // upload the given path as param "file" in a multipart form
 func (c *Client) upload(endpoint string, path string) ([]byte, error) {
-	uri := fmt.Sprintf("%s/%s/%s", c.URL, apiRoot, endpoint)
+	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
 
 	// open the tarball
 	file, err := os.Open(path)
@@ -109,7 +108,7 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 }
 
 func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
-	uri := fmt.Sprintf("%s/%s/%s", c.URL, apiRoot, endpoint)
+	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
 	reqLog := requestLogger(c.log, method, uri, requestBody)
@@ -173,7 +172,7 @@ type errorFunc = func(response *http.Response, bodyBytes []byte, err error) erro
 // it's data in a normal Response, instead of an error?
 func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string, f errorFunc) ([]byte, error) {
 
-	uri := fmt.Sprintf("%s/%s/%s", c.URL, apiRoot, endpoint)
+	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
 	reqLog := requestLogger(c.log, method, uri, requestBody)

@@ -147,7 +147,7 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 	data.Set("giturl", gitRef.URL)
 	data.Set("gitrev", gitRef.Revision)
 
-	url := fmt.Sprintf("%s/api/v1/%s", c.URL, api.Routes.Path("AppImportGit", app.Org, app.Name))
+	url := fmt.Sprintf("%s%s/%s", c.URL, api.Root, api.Routes.Path("AppImportGit", app.Org, app.Name))
 	request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing the request")

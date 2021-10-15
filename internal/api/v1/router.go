@@ -20,6 +20,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Root is the url path prefix for all API endpoints.
+const Root = "/api/v1"
+
 // APIActionFunc is matched by all actions. Actions can return a list of errors.
 // The "Status" of the first error in the list becomes the response Status Code.
 type APIActionFunc func(c *gin.Context) errors.APIErrors
