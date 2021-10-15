@@ -406,6 +406,32 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				podNames := strings.Split(string(out), "\n")
 
+				// Run `yes > /dev/null &` and expect at least 1000 millicpus
+				// https://winaero.com/how-to-create-100-cpu-load-in-linux/
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "bin/sh", "-c", "yes > /dev/null 2> /dev/null &")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Eventually(func() int64 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.MilliCPUs
+				}, "240s", "1s").Should(BeNumerically(">=", 900))
+				// Kill the "yes" process to bring CPU down again
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "killall", "-9", "yes")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				// Increase memory for 3 minutes to check memory metric
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "bin/bash", "-c", "cat <( </dev/zero head -c 50m) <(sleep 180) | tail")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Eventually(func() int64 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.MemoryBytes
+				}, "240s", "1s").Should(BeNumerically(">=", 0))
+
 				// Kill a linkerd proxy container and see the count staying unchanged
 				out, err = helpers.Kubectl("exec",
 					"--namespace", org, podNames[0], "--container", "linkerd-proxy",
