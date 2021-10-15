@@ -40,9 +40,25 @@ EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 "${EPINIO_BINARY}" install --skip-default-name
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh
 
+# Check Epinio Installation
+# Retry 5 times because sometimes it takes a while before epinio server
+# is ready after patching.
+retry=0
+maxRetries=5
+retryInterval=1
+until [ ${retry} -ge ${maxRetries} ]
+do
+	${EPINIO_BINARY} info && break
+	retry=$[${retry}+1]
+	echo "Retrying [${retry}/${maxRetries}] in ${retryInterval}(s) "
+	sleep ${retryInterval}
+done
+
+if [ ${retry} -ge ${maxRetries} ]; then
+  echo "Failed to reach epinio endpoint after ${maxRetries} attempts!"
+  exit 1
+fi
+
 # Create Org
 "${EPINIO_BINARY}" namespace create workspace
 "${EPINIO_BINARY}" target workspace
-
-# Check Epinio Insllation
-"${EPINIO_BINARY}" info
