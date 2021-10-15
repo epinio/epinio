@@ -39,11 +39,7 @@ func (hc Controller) ServiceApps(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, appsOf)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, appsOf)
 	return nil
 }
 

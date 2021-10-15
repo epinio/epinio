@@ -28,16 +28,10 @@ func Info(c *gin.Context) APIErrors {
 
 	platform := cluster.GetPlatform()
 
-	info := models.InfoResponse{
+	response.OKReturn(c, models.InfoResponse{
 		Version:     version.Version,
 		Platform:    platform.String(),
 		KubeVersion: kubeVersion,
-	}
-
-	err = response.JSON(c, info)
-	if err != nil {
-		return InternalError(err)
-	}
-
+	})
 	return nil
 }

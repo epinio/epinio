@@ -59,11 +59,7 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OK(c)
 	return nil
 }
 

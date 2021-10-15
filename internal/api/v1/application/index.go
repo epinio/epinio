@@ -34,10 +34,6 @@ func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, apps)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, apps)
 	return nil
 }

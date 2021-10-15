@@ -2,7 +2,6 @@ package namespace
 
 import (
 	"errors"
-	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -47,10 +46,6 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSONWithStatus(c, http.StatusCreated, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.Created(c)
 	return nil
 }

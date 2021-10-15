@@ -178,14 +178,9 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	resp := models.DeployResponse{
+	response.OKReturn(c, models.DeployResponse{
 		Route: route,
-	}
-	err = response.JSON(c, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	})
 	return nil
 }
 

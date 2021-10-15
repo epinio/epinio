@@ -53,10 +53,6 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 		})
 	}
 
-	err = response.JSON(c, responseData)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, responseData)
 	return nil
 }

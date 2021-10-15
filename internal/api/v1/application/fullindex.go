@@ -24,10 +24,6 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, allApps)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, allApps)
 	return nil
 }

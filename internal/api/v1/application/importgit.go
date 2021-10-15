@@ -89,12 +89,9 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 	}
 	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
-	// Return response
-	resp := models.ImportGitResponse{BlobUID: blobUID}
-	err = response.JSON(c, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	// Return the id of the new blob
+	response.OKReturn(c, models.ImportGitResponse{
+		BlobUID: blobUID,
+	})
 	return nil
 }

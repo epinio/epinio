@@ -5,27 +5,30 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/gin-gonic/gin"
 )
 
-// JSONWithStatus writes the response struct as JSON to the writer
-func JSONWithStatus(c *gin.Context, code int, response interface{}) error {
-	c.JSON(code, response)
-	return nil
+// OK reports a generic success
+func OK(c *gin.Context) {
+	c.JSON(http.StatusOK, models.ResponseOK)
 }
 
-// JSON writes the response struct as JSON to the writer
-func JSON(c *gin.Context, response interface{}) error {
+// OKReturn reports a success with some data
+func OKReturn(c *gin.Context, response interface{}) {
 	c.JSON(http.StatusOK, response)
-	return nil
 }
 
-// JSONError writes the error as a JSON response to the writer
-func JSONError(c *gin.Context, responseErrors errors.APIErrors) {
-	response := errors.ErrorResponse{
-		Errors: responseErrors.Errors(),
-	}
+// Created reports successful creation of a resource.
+func Created(c *gin.Context) {
+	c.JSON(http.StatusCreated, models.ResponseOK)
+}
 
+// Error reports the specified errors
+func Error(c *gin.Context, responseErrors errors.APIErrors) {
 	c.Header("X-Content-Type-Options", "nosniff")
-	c.JSON(responseErrors.FirstStatus(), response)
+	c.JSON(responseErrors.FirstStatus(), errors.ErrorResponse{
+		Errors: responseErrors.Errors(),
+	})
 }

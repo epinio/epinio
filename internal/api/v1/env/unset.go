@@ -7,7 +7,6 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -64,10 +63,6 @@ func (hc Controller) Unset(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	err = response.JSON(c, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OK(c)
 	return nil
 }

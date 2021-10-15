@@ -9,7 +9,6 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -59,9 +58,6 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+	response.OK(c)
 	return nil
 }

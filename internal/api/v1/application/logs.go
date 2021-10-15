@@ -35,19 +35,19 @@ func (hc Controller) Logs(c *gin.Context) {
 	log.Info("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		response.JSONError(c, apierror.InternalError(err))
+		response.Error(c, apierror.InternalError(err))
 		return
 	}
 
 	log.Info("validate organization", "name", org)
 	exists, err := organizations.Exists(ctx, cluster, org)
 	if err != nil {
-		response.JSONError(c, apierror.InternalError(err))
+		response.Error(c, apierror.InternalError(err))
 		return
 	}
 
 	if !exists {
-		response.JSONError(c, apierror.OrgIsNotKnown(org))
+		response.Error(c, apierror.OrgIsNotKnown(org))
 		return
 	}
 
@@ -56,24 +56,24 @@ func (hc Controller) Logs(c *gin.Context) {
 
 		app, err := application.Lookup(ctx, cluster, org, appName)
 		if err != nil {
-			response.JSONError(c, apierror.InternalError(err))
+			response.Error(c, apierror.InternalError(err))
 			return
 		}
 
 		if app == nil {
-			response.JSONError(c, apierror.AppIsNotKnown(appName))
+			response.Error(c, apierror.AppIsNotKnown(appName))
 			return
 		}
 
 		if app.Workload == nil {
 			// While the app exists it has no workload, therefore no logs
-			response.JSONError(c, apierror.NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
+			response.Error(c, apierror.NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
 			return
 		}
 	}
 
 	if appName == "" && stageID == "" {
-		response.JSONError(c, apierror.BadRequest(errors.New("You need to specify either the stage id or the app")))
+		response.Error(c, apierror.BadRequest(errors.New("You need to specify either the stage id or the app")))
 		return
 	}
 
@@ -86,7 +86,7 @@ func (hc Controller) Logs(c *gin.Context) {
 	var upgrader = websocket.Upgrader{}
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		response.JSONError(c, apierror.InternalError(err))
+		response.Error(c, apierror.InternalError(err))
 		return
 	}
 

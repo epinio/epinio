@@ -71,12 +71,8 @@ func (hc Controller) Match(c *gin.Context) apierror.APIErrors {
 	}
 	sort.Strings(matches)
 
-	err = response.JSON(c, models.EnvMatchResponse{
+	response.OKReturn(c, models.EnvMatchResponse{
 		Names: matches,
 	})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	return nil
 }

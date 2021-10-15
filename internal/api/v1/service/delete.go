@@ -82,12 +82,8 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, models.ServiceDeleteResponse{
+	response.OKReturn(c, models.ServiceDeleteResponse{
 		BoundApps: boundAppNames,
 	})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	return nil
 }

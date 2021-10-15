@@ -67,10 +67,6 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 	}
 	// Not found: Returns an empty object.
 
-	err = response.JSON(c, match)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, match)
 	return nil
 }

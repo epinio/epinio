@@ -44,10 +44,9 @@ func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Info("deliver matches", "found", matches)
-	err = response.JSON(c, models.NamespacesMatchResponse{Names: matches})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
 
+	response.OKReturn(c, models.NamespacesMatchResponse{
+		Names: matches,
+	})
 	return nil
 }

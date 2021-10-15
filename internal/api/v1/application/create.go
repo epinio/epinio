@@ -1,8 +1,6 @@
 package application
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -34,7 +32,6 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	if !exists {
 		return apierror.OrgIsNotKnown(org)
 	}
-
 
 	var createRequest models.ApplicationCreateRequest
 	err = c.BindJSON(&createRequest)
@@ -112,9 +109,6 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSONWithStatus(c, http.StatusCreated, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+	response.Created(c)
 	return nil
 }

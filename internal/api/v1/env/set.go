@@ -69,9 +69,6 @@ func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	err = response.JSON(c, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+	response.OK(c)
 	return nil
 }

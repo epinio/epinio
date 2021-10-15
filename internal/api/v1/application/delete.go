@@ -55,10 +55,6 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, resp)
 	return nil
 }

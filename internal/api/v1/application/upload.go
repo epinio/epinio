@@ -83,13 +83,8 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
-	resp := models.UploadResponse{
+	response.OKReturn(c, models.UploadResponse{
 		BlobUID: blobUID,
-	}
-	err = response.JSON(c, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	})
 	return nil
 }

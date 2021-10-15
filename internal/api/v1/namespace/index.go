@@ -56,10 +56,6 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 		})
 	}
 
-	err = response.JSON(c, namespaces)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, namespaces)
 	return nil
 }

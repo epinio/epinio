@@ -39,10 +39,6 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	err = response.JSON(c, app)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, app)
 	return nil
 }

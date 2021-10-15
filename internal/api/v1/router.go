@@ -33,7 +33,7 @@ func errorHandler(action APIActionFunc) gin.HandlerFunc {
 		if errors := action(c); errors != nil {
 			tracelog.Logger(c.Request.Context()).V(1).
 				Info("responding with json error response", "action", funcName(action), "errors", errors)
-			response.JSONError(c, errors)
+			response.Error(c, errors)
 		}
 	}
 }

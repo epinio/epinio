@@ -50,13 +50,9 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 		responseData[key] = value
 	}
 
-	err = response.JSON(c, models.ServiceShowResponse{
+	response.OKReturn(c, models.ServiceShowResponse{
 		Username: service.User(),
 		Details:  responseData,
 	})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	return nil
 }

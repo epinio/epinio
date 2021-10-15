@@ -137,10 +137,6 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewMultiError(theIssues)
 	}
 
-	err = response.JSON(c, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, resp)
 	return nil
 }

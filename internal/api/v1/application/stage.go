@@ -210,21 +210,18 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
+
 	// The ImageURL in the response should be the one accessible by kubernetes.
 	// In stageParam above, the registry is passed with the registry ingress url,
 	// since it's where tekton will push.
 	if viper.GetBool("use-internal-registry-node-port") {
 		params.RegistryURL = LocalRegistry
 	}
-	resp := models.StageResponse{
+
+	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
 		ImageURL: params.ImageURL(params.RegistryURL),
-	}
-	err = response.JSON(c, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	})
 	return nil
 }
 
@@ -286,11 +283,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(c, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OK(c)
 	return nil
 }
 
