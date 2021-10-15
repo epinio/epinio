@@ -210,7 +210,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	log.Info("run helm command")
 
 	if out, err := helpers.RunProc(currentdir, cm.Debug, "helm", helmArgs...); err != nil {
-		return errors.New("Failed installing CertManager: " + out)
+		return errors.Wrap(err, "failed installing CertManager: "+out)
 	}
 
 	log.Info("completed helm command")
