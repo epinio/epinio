@@ -76,6 +76,22 @@ func (c *Client) NamespaceDelete(org string) (models.Response, error) {
 	return resp, nil
 }
 
+// NamespaceShow shows a namespace
+func (c *Client) NamespaceShow(org string) (models.Namespace, error) {
+	resp := models.Namespace{}
+
+	data, err := c.get(api.Routes.Path("NamespaceShow", org))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, err
+	}
+
+	return resp, nil
+}
+
 // NamespacesMatch returns all matching namespaces for the prefix
 func (c *Client) NamespacesMatch(prefix string) (models.NamespacesMatchResponse, error) {
 	resp := models.NamespacesMatchResponse{}

@@ -1,6 +1,8 @@
 package namespace
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -8,6 +10,7 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,24 +32,14 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 
 	namespaces := make(models.NamespaceList, 0, len(orgList))
 	for _, org := range orgList {
-		// Retrieve app references for namespace, and reduce to their names.
-		appRefs, err := application.ListAppRefs(ctx, cluster, org.Name)
+		appNames, err := namespaceApps(ctx, cluster, org.Name)
 		if err != nil {
-			return apierror.InternalError(err)
-		}
-		appNames := make([]string, 0, len(appRefs))
-		for _, app := range appRefs {
-			appNames = append(appNames, app.Name)
+			return err
 		}
 
-		// Retrieve services for namespace, and reduce to their names.
-		services, err := services.List(ctx, cluster, org.Name)
+		serviceNames, err := namespaceServices(ctx, cluster, org.Name)
 		if err != nil {
-			return apierror.InternalError(err)
-		}
-		serviceNames := make([]string, 0, len(services))
-		for _, service := range services {
-			serviceNames = append(serviceNames, service.Name())
+			return err
 		}
 
 		namespaces = append(namespaces, models.Namespace{
@@ -58,4 +51,32 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 
 	response.OKReturn(c, namespaces)
 	return nil
+}
+
+func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, apierror.APIErrors) {
+	// Retrieve app references for namespace, and reduce to their names.
+	appRefs, err := application.ListAppRefs(ctx, cluster, org)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+	appNames := make([]string, 0, len(appRefs))
+	for _, app := range appRefs {
+		appNames = append(appNames, app.Name)
+	}
+
+	return appNames, nil
+}
+
+func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, apierror.APIErrors) {
+	// Retrieve services for namespace, and reduce to their names.
+	services, err := services.List(ctx, cluster, org)
+	if err != nil {
+		return nil, apierror.InternalError(err)
+	}
+	serviceNames := make([]string, 0, len(services))
+	for _, service := range services {
+		serviceNames = append(serviceNames, service.Name())
+	}
+
+	return serviceNames, nil
 }

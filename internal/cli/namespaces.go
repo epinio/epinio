@@ -40,6 +40,7 @@ func init() {
 	CmdNamespace.AddCommand(CmdNamespaceCreate)
 	CmdNamespace.AddCommand(CmdNamespaceList)
 	CmdNamespace.AddCommand(CmdNamespaceDelete)
+	CmdNamespace.AddCommand(CmdNamespaceShow)
 }
 
 // CmdNamespaces implements the command: epinio namespace list
@@ -115,6 +116,42 @@ var CmdNamespaceDelete = &cobra.Command{
 		err = client.DeleteOrg(args[0])
 		if err != nil {
 			return errors.Wrap(err, "error deleting epinio-controlled namespace")
+		}
+
+		return nil
+	},
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if len(args) != 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app, err := usercmd.New()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		matches := app.OrgsMatching(toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	},
+}
+
+// CmdNamespaceShow implements the command: epinio namespace show
+var CmdNamespaceShow = &cobra.Command{
+	Use:   "show NAME",
+	Short: "Shows the details of an epinio-controlled namespace",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		err = client.ShowOrg(args[0])
+		if err != nil {
+			return errors.Wrap(err, "error showing epinio-controlled namespace")
 		}
 
 		return nil

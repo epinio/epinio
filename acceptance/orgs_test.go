@@ -37,6 +37,69 @@ var _ = Describe("Orgs", func() {
 		})
 	})
 
+	Describe("namespace list", func() {
+		var org string
+		var serviceName string
+		var appName string
+
+		BeforeEach(func() {
+			org = catalog.NewOrgName()
+			env.SetupAndTargetOrg(org)
+
+			serviceName = catalog.NewServiceName()
+			env.MakeService(serviceName)
+
+			appName = catalog.NewAppName()
+			out, err := env.Epinio("", "app", "create", appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Ok"))
+		})
+
+		It("lists namespaces", func() {
+			out, err := env.Epinio("", "namespace", "list", org)
+
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`%s.* \| .*%s.* \| .*%s`, org, appName, serviceName)))
+		})
+	})
+
+	Describe("namespace show", func() {
+		It("rejects showing an unknown namespace", func() {
+			out, err := env.Epinio("", "namespace", "show", "missing-namespace")
+			Expect(err).To(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp("namespace 'missing-namespace' does not exist"))
+		})
+
+		Context("existing namespace", func() {
+			var org string
+			var serviceName string
+			var appName string
+
+			BeforeEach(func() {
+				org = catalog.NewOrgName()
+				env.SetupAndTargetOrg(org)
+
+				serviceName = catalog.NewServiceName()
+				env.MakeService(serviceName)
+
+				appName = catalog.NewAppName()
+				out, err := env.Epinio("", "app", "create", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp("Ok"))
+			})
+
+			It("shows a namespace", func() {
+				out, err := env.Epinio("", "namespace", "show", org)
+
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`Name .*\| .*%s`, org)))
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`Services .*\| .*%s`, serviceName)))
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`Applications .*\| .*%s`, appName)))
+			})
+		})
+	})
+
 	Describe("namespace delete", func() {
 		It("deletes an namespace", func() {
 			org := catalog.NewOrgName()

@@ -176,10 +176,36 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 			})
 		})
 
+		Describe("GET /api/v1/namespaces/:org", func() {
+			It("lists the namespace data", func() {
+				response, err := env.Curl("GET",
+					fmt.Sprintf("%s%s/namespaces/%s",
+						serverURL, api.Root, org),
+					strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response).ToNot(BeNil())
+
+				defer response.Body.Close()
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+				bodyBytes, err := ioutil.ReadAll(response.Body)
+				Expect(err).ToNot(HaveOccurred())
+
+				var responseSpace models.Namespace
+				err = json.Unmarshal(bodyBytes, &responseSpace)
+				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
+				Expect(responseSpace).To(Equal(models.Namespace{
+					Name:     org,
+					Apps:     []string{},
+					Services: []string{},
+				}))
+			})
+		})
+
 		Describe("DELETE /api/v1/namespaces/:org", func() {
 			It("deletes an namespace", func() {
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s",
-					serverURL, api.Root, org),
+				response, err := env.Curl("DELETE",
+					fmt.Sprintf("%s%s/namespaces/%s",
+						serverURL, api.Root, org),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
