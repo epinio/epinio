@@ -175,8 +175,13 @@ func Render(templates []string, c *gin.Context, data map[string]interface{}) {
 // response writer and returns true if there was an error
 func handleError(c *gin.Context, err error) bool {
 	if err != nil {
-		// not checking if attempting to set an error into the response caused an error
-		_ = c.AbortWithError(http.StatusInternalServerError, err)
+		// When attempting to set an error into the response
+		// caused an error, give up. The recovery middleware
+		// will catch our panic and return that error.
+		err := c.AbortWithError(http.StatusInternalServerError, err)
+		if err != nil {
+			panic(err.Error())
+		}
 		return true
 	}
 	return false

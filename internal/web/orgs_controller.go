@@ -31,11 +31,16 @@ func (hc OrgsController) Target(c *gin.Context) {
 	}
 
 	if !exists {
-		// not checking if attempting to set an error into the response caused an error
-		_ = c.AbortWithError(
+		// When attempting to set an error into the response
+		// caused an error, give up. The recovery middleware
+		// will catch our panic and return that error.
+		err := c.AbortWithError(
 			http.StatusNotFound,
 			errors.New("Organization not found"),
 		)
+		if err != nil {
+			panic(err.Error())
+		}
 		return
 	}
 

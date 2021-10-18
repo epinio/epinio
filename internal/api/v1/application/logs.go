@@ -79,7 +79,7 @@ func (hc Controller) Logs(c *gin.Context) {
 
 	log.Info("process query")
 
-	followStr, _ := c.GetQuery("follow")
+	followStr := c.Query("follow")
 
 	log.Info("upgrade to web socket")
 

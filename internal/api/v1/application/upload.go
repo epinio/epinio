@@ -31,9 +31,9 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	log.V(2).Info("parsing multipart form")
 
-	// Staying with the http.FormFile(). Because the gin.FormFile() function returns
-	// only a `multipart.FileHeader`, and no `multipart.File`. The header is the one
-	// thing ignored below.
+	// Staying with the http.Request.FormFile(). Because the gin.Context.FormFile()
+	// function returns only a `multipart.FileHeader`, and no `multipart.File`. The
+	// header is the one thing ignored below. Thus `r` -> `c.Request`.
 
 	file, _, err := c.Request.FormFile("file")
 	if err != nil {
