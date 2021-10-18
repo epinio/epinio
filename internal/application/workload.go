@@ -3,6 +3,8 @@ package application
 import (
 	"context"
 	"fmt"
+	"math"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/names"
@@ -13,8 +15,11 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/util/retry"
+	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 type AppServiceBind struct {
@@ -273,11 +278,80 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 	})
 }
 
-// deployment is a helper, it returns the kube deployment resource of the workload.
+// Deployment is a helper, it returns the kube deployment resource of the workload.
 func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	return a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Get(
 		ctx, a.app.Name, metav1.GetOptions{},
 	)
+}
+
+// Metrics returns CPU and Memory usage or and error if one occurs
+func (a *Workload) Metrics(ctx context.Context) (int64, int64, error) {
+	mc, err := metrics.NewForConfig(a.cluster.RestConfig)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	deployment, err := a.Deployment(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
+	podMetrics, err := mc.MetricsV1beta1().PodMetricses(a.app.Org).
+		List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return 0, 0, err
+	}
+
+	cpuUsage := resource.NewQuantity(0, resource.DecimalSI)
+	memUsage := resource.NewQuantity(0, resource.BinarySI)
+
+	for _, podMetric := range podMetrics.Items {
+		podContainers := podMetric.Containers
+		for _, container := range podContainers {
+			// TODO: Filter only application containers?
+			cpuUsage.Add(*container.Usage.Cpu())
+			memUsage.Add(*container.Usage.Memory())
+		}
+	}
+
+	// cpu * 1000 -> milliCPUs (rounded)
+	milliCPUs := int64(math.Round(cpuUsage.ToDec().AsApproximateFloat64() * 1000))
+
+	mem, ok := memUsage.AsInt64()
+	if !ok {
+		fmt.Printf("memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
+	}
+
+	return milliCPUs, mem, nil
+}
+
+// Restarts returns the number of restarts the application currently has
+// The pod's restarts is the sum of restarts of each and every container in that Pod
+func (a *Workload) Restarts(ctx context.Context) (int32, error) {
+	deployment, err := a.Deployment(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
+	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Org).List(ctx,
+		metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return 0, err
+	}
+
+	restarts := int32(0)
+	for _, p := range pods.Items {
+		for _, cs := range p.Status.ContainerStatuses {
+			if cs.Name == a.app.Name {
+				restarts += cs.RestartCount
+			}
+		}
+	}
+
+	return restarts, nil
 }
 
 // Get returns the state of the app deployment encoded in the workload.
@@ -299,7 +373,9 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).List(ctx, deploymentListOptions)
 
 	desiredReplicas := int32(0)
-	currentReplicas := int32(0)
+	readyReplicas := int32(0)
+
+	var createdAt time.Time
 
 	if err != nil {
 		status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
@@ -307,7 +383,9 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		status = "0/0"
 	} else {
 		desiredReplicas = deployments.Items[0].Status.Replicas
-		currentReplicas = deployments.Items[0].Status.ReadyReplicas
+		readyReplicas = deployments.Items[0].Status.ReadyReplicas
+
+		createdAt = deployments.Items[0].ObjectMeta.CreationTimestamp.Time
 
 		status = fmt.Sprintf("%d/%d",
 			deployments.Items[0].Status.ReadyReplicas,
@@ -327,13 +405,27 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		route = routes[0]
 	}
 
+	restarts, err := a.Restarts(ctx)
+	if err != nil {
+		status = pkgerrors.Wrap(err, "failed to calculate application restarts").Error()
+	}
+
+	cpu, mem, err := a.Metrics(ctx)
+	if err != nil {
+		status = pkgerrors.Wrap(err, "failed to calculate resource usage").Error()
+	}
+
 	return &models.AppDeployment{
 		Active:          active,
+		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
+		MilliCPUs:       cpu,
+		MemoryBytes:     mem,
+		Restarts:        restarts,
 		Username:        username,
 		StageID:         stageID,
 		Status:          status,
 		Route:           route,
 		DesiredReplicas: desiredReplicas,
-		CurrentReplicas: currentReplicas,
+		ReadyReplicas:   readyReplicas,
 	}
 }

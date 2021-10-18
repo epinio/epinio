@@ -73,7 +73,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return request, nil
 	}
 
-	appStatus := func(org, app string) string {
+	appFromAPI := func(org, app string) models.App {
 		response, err := env.Curl("GET",
 			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
 			strings.NewReader(""))
@@ -91,11 +91,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		ExpectWithOffset(1, responseApp.Meta.Name).To(Equal(app))
 		ExpectWithOffset(1, responseApp.Meta.Org).To(Equal(org))
 
-		if responseApp.Workload == nil {
-			return ""
-		}
-
-		return responseApp.Workload.Status
+		return responseApp
 	}
 
 	updateAppInstances := func(org string, app string, instances int32) (int, []byte) {
@@ -291,13 +287,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 
-					Expect(appStatus(org, app)).To(Equal("1/1"))
+					appObj := appFromAPI(org, app)
+					Expect(appObj.Workload.Status).To(Equal("1/1"))
 
 					status, _ := updateAppInstances(org, app, 3)
 					Expect(status).To(Equal(http.StatusOK))
 
 					Eventually(func() string {
-						return appStatus(org, app)
+						return appFromAPI(org, app).Workload.Status
 					}, "1m").Should(Equal("3/3"))
 				})
 			})
@@ -307,7 +304,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
-					Expect(appStatus(org, app)).To(Equal("1/1"))
+					Expect(appFromAPI(org, app).Workload.Status).To(Equal("1/1"))
 
 					status, updateResponseBody := updateAppInstances(org, app, -3)
 					Expect(status).To(Equal(http.StatusBadRequest))
@@ -326,7 +323,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
-					Expect(appStatus(org, app)).To(Equal("1/1"))
+					Expect(appFromAPI(org, app).Workload.Status).To(Equal("1/1"))
 
 					status, updateResponseBody := updateAppInstancesNAN(org, app)
 					Expect(status).To(Equal(http.StatusBadRequest))
@@ -392,7 +389,70 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 				defer env.DeleteApp(app)
 
-				Expect(appStatus(org, app)).To(Equal("1/1"))
+				appObj := appFromAPI(org, app)
+				Expect(appObj.Workload.Status).To(Equal("1/1"))
+				createdAt, err := time.Parse(time.RFC3339, appObj.Workload.CreatedAt)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(createdAt.Unix()).To(BeNumerically("<", time.Now().Unix()))
+
+				Expect(appObj.Workload.Restarts).To(BeNumerically("==", 0))
+
+				Expect(appObj.Workload.DesiredReplicas).To(BeNumerically("==", 1))
+				Expect(appObj.Workload.ReadyReplicas).To(BeNumerically("==", 1))
+
+				out, err := helpers.Kubectl("get", "pods",
+					fmt.Sprintf("--selector=app.kubernetes.io/name=%s", app),
+					"--namespace", org, "--output", "name")
+				Expect(err).ToNot(HaveOccurred())
+				podNames := strings.Split(string(out), "\n")
+
+				// Run `yes > /dev/null &` and expect at least 1000 millicpus
+				// https://winaero.com/how-to-create-100-cpu-load-in-linux/
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "bin/sh", "-c", "yes > /dev/null 2> /dev/null &")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Eventually(func() int64 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.MilliCPUs
+				}, "240s", "1s").Should(BeNumerically(">=", 900))
+				// Kill the "yes" process to bring CPU down again
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "killall", "-9", "yes")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				// Increase memory for 3 minutes to check memory metric
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "bin/bash", "-c", "cat <( </dev/zero head -c 50m) <(sleep 180) | tail")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Eventually(func() int64 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.MemoryBytes
+				}, "240s", "1s").Should(BeNumerically(">=", 0))
+
+				// Kill a linkerd proxy container and see the count staying unchanged
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", "linkerd-proxy",
+					"--", "bin/sh", "-c", "kill 1")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Consistently(func() int32 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.Restarts
+				}, "5s", "1s").Should(BeNumerically("==", 0))
+
+				// Kill an app container and see the count increasing
+				out, err = helpers.Kubectl("exec",
+					"--namespace", org, podNames[0], "--container", app,
+					"--", "bin/sh", "-c", "kill 1")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() int32 {
+					appObj := appFromAPI(org, app)
+					return appObj.Workload.Restarts
+				}, "4s", "1s").Should(BeNumerically("==", 1))
 			})
 
 			It("returns a 404 when the org does not exist", func() {
@@ -666,7 +726,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					By("confirming at highlevel")
 					// Highlevel check and confirmation
 					Eventually(func() string {
-						return appStatus(org, appName)
+						return appFromAPI(org, appName).Workload.Status
 					}, "5m").Should(Equal("1/1"))
 				})
 			})
@@ -708,7 +768,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					Eventually(func() string {
-						return appStatus(org, appName)
+						return appFromAPI(org, appName).Workload.Status
 					}, "5m").Should(Equal("1/1"))
 
 					// Check if autoserviceaccounttoken is true

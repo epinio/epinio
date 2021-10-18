@@ -271,7 +271,7 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 				os.Exit(1)
 			}
 			if err := c.PostDeleteCheck(ctx, deployment, details); err != nil {
-				c.ui.Exclamation().Msgf("Failed to delete deployment %s", deployment.ID())
+				c.ui.Exclamation().Msgf("Failed to delete deployment %s\n error: %s\n", deployment.ID(), err.Error())
 			}
 		}(deployment, wg)
 	}

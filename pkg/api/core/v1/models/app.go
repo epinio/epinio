@@ -37,9 +37,14 @@ type App struct {
 // AppDeployment contains all the information specific to an active
 // application, i.e. one with a deployment in the cluster.
 type AppDeployment struct {
+	// TODO: Readiness and Liveness fields?
 	Active          bool   `json:"active,omitempty"` // app is > 0 replicas
+	CreatedAt       string `json:"createdAt,omitempty"`
+	Restarts        int32  `json:"restarts"`
+	MemoryBytes     int64  `json:"memoryBytes"`
+	MilliCPUs       int64  `json:"millicpus"`
 	DesiredReplicas int32  `json:"desiredreplicas"`
-	CurrentReplicas int32  `json:"currentreplicas"`
+	ReadyReplicas   int32  `json:"readyreplicas"`
 	Username        string `json:"username,omitempty"` // app creator
 	StageID         string `json:"stage_id,omitempty"` // tekton staging id
 	Status          string `json:"status,omitempty"`   // app replica status
