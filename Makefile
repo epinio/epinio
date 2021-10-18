@@ -64,6 +64,7 @@ REGEX ?= ""
 
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
+	@if test -f /usr/local/bin/rke2-uninstall.sh; then sudo sh /usr/local/bin/rke2-uninstall.sh; fi
 
 acceptance-cluster-delete-kind:
 	kind delete cluster --name epinio-acceptance
