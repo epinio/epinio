@@ -46,8 +46,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 		return nil, "", err
 	}
 
-	// gin.SetMode(gin.ReleaseMode) // TODO 878 // export GIN_MODE=release|debug|test
-	// !debug is default!
+	gin.SetMode(gin.ReleaseMode)
 
 	// Endpoint structure ...
 	// | Path              | Notes      | Logging
