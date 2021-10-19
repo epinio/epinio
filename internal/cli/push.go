@@ -15,7 +15,7 @@ var ()
 
 func init() {
 	// The following options override manifest data
-	CmdAppPush.Flags().StringP("git", "g", "", "Git repository and revision of sources")
+	CmdAppPush.Flags().StringP("git", "g", "", "Git repository and revision of sources separated by comma (e.g. GIT_URL,REVISION)")
 	CmdAppPush.Flags().String("container-image-url", "", "Container image url for the app workload image")
 	CmdAppPush.Flags().StringP("name", "n", "", "Application name.")
 	CmdAppPush.Flags().StringP("path", "p", "", "Path to application sources.")
