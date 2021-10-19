@@ -195,8 +195,8 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
 				Expect(responseSpace).To(Equal(models.Namespace{
 					Name:     org,
-					Apps:     []string{},
-					Services: []string{},
+					Apps:     nil,
+					Services: nil,
 				}))
 			})
 		})
