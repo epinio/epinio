@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -10,14 +9,13 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Match handles the API endpoint /namespaces/:pattern (GET)
 // It returns a list of all Epinio-controlled namespaces matching the prefix pattern.
-func (oc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
 	log.Info("match namespaces")
@@ -35,8 +33,7 @@ func (oc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIE
 	}
 
 	log.Info("get namespace prefix")
-	params := httprouter.ParamsFromContext(ctx)
-	prefix := params.ByName("pattern")
+	prefix := c.Param("pattern")
 
 	log.Info("match prefix", "pattern", prefix)
 	matches := []string{}
@@ -48,10 +45,8 @@ func (oc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIE
 
 	log.Info("deliver matches", "found", matches)
 
-	err = response.JSON(w, models.NamespacesMatchResponse{Names: matches})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, models.NamespacesMatchResponse{
+		Names: matches,
+	})
 	return nil
 }

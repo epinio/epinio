@@ -1,30 +1,25 @@
 package env
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Unset handles the API endpoint /orgs/:org/applications/:app/environment/:env (DELETE)
 // It receives the org, application name, var name, and removes the
 // variable from the application's environment.
-func (hc Controller) Unset(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Unset(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(ctx)
-	orgName := params.ByName("org")
-	appName := params.ByName("app")
-	varName := params.ByName("env")
+	orgName := c.Param("org")
+	appName := c.Param("app")
+	varName := c.Param("env")
 
 	log.Info("processing environment variable removal",
 		"org", orgName, "app", appName, "var", varName)
@@ -68,10 +63,6 @@ func (hc Controller) Unset(w http.ResponseWriter, r *http.Request) apierror.APIE
 		}
 	}
 
-	err = response.JSON(w, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OK(c)
 	return nil
 }

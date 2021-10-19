@@ -1,7 +1,6 @@
 package env
 
 import (
-	"net/http"
 	"sort"
 	"strings"
 
@@ -13,21 +12,20 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Match handles the API endpoint /orgs/:org/applications/:app/environment/:env/match/:pattern
 // It receives the org, application name, plus a prefix and returns
 // the names of all the environment associated with that application
 // with prefix
-func (hc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Match(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(ctx)
-	orgName := params.ByName("org")
-	appName := params.ByName("app")
-	prefix := params.ByName("pattern")
+	orgName := c.Param("org")
+	appName := c.Param("app")
+	prefix := c.Param("pattern")
 
 	log.Info("returning matching environment variable names",
 		"org", orgName, "app", appName, "prefix", prefix)
@@ -73,10 +71,8 @@ func (hc Controller) Match(w http.ResponseWriter, r *http.Request) apierror.APIE
 	}
 	sort.Strings(matches)
 
-	err = response.JSON(w, models.EnvMatchResponse{Names: matches})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, models.EnvMatchResponse{
+		Names: matches,
+	})
 	return nil
 }

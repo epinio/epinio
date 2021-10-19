@@ -1,67 +1,51 @@
 package namespace
 
 import (
-	"encoding/json"
 	"errors"
-	"io/ioutil"
-	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
+	"github.com/gin-gonic/gin"
 )
 
 // Create handles the API endpoint /namespaces (POST).
 // It creates a namespace with the specified name.
-func (oc Controller) Create(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	// map ~ json oject / Required key: name
-	var parts map[string]string
-	err = json.Unmarshal(bodyBytes, &parts)
+	var request models.NamespaceCreateRequest
+	err = c.BindJSON(&request)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
 
-	org, ok := parts["name"]
-	if !ok {
+	if request.Name == "" {
 		err := errors.New("name of namespace to create not found")
 		return apierror.BadRequest(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, request.Name)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if exists {
-		return apierror.OrgAlreadyKnown(org)
+		return apierror.OrgAlreadyKnown(request.Name)
 	}
 
-	err = organizations.Create(r.Context(), cluster, org)
+	err = organizations.Create(ctx, cluster, request.Name)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-
-	err = response.JSON(w, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.Created(c)
 	return nil
 }

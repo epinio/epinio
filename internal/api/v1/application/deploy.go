@@ -1,12 +1,8 @@
 package application
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 
-	"github.com/julienschmidt/httprouter"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -23,6 +19,7 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -42,23 +39,16 @@ type deployParam struct {
 
 // Deploy handles the API endpoint /orgs/:org/applications/:app/deploy
 // It creates the deployment, service and ingress (kube) resources for the app
-func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	p := httprouter.ParamsFromContext(ctx)
-	org := p.ByName("org")
-	name := p.ByName("app")
+	org := c.Param("org")
+	name := c.Param("app")
 	username := requestctx.User(ctx)
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	req := models.DeployRequest{}
-	if err := json.Unmarshal(bodyBytes, &req); err != nil {
+	if err := c.BindJSON(&req); err != nil {
 		return apierror.NewBadRequest("Failed to unmarshal deploy request ", err.Error())
 	}
 
@@ -188,14 +178,9 @@ func (hc Controller) Deploy(w http.ResponseWriter, r *http.Request) apierror.API
 		}
 	}
 
-	resp := models.DeployResponse{
+	response.OKReturn(c, models.DeployResponse{
 		Route: route,
-	}
-	err = response.JSON(w, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	})
 	return nil
 }
 

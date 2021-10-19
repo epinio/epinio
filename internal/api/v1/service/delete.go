@@ -1,9 +1,6 @@
 package service
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -14,27 +11,19 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Delete handles the API end point /orgs/:org/services/:service (DELETE)
 // It deletes the named service
-func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	serviceName := params.ByName("service")
+func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
+	serviceName := c.Param("service")
 	username := requestctx.User(ctx)
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	var deleteRequest models.ServiceDeleteRequest
-	err = json.Unmarshal(bodyBytes, &deleteRequest)
+	err := c.BindJSON(&deleteRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
@@ -93,10 +82,8 @@ func (sc Controller) Delete(w http.ResponseWriter, r *http.Request) apierror.API
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(w, models.ServiceDeleteResponse{BoundApps: boundAppNames})
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, models.ServiceDeleteResponse{
+		BoundApps: boundAppNames,
+	})
 	return nil
 }

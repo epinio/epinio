@@ -3,12 +3,11 @@ package application
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 
+	"github.com/gin-gonic/gin"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
-	"github.com/julienschmidt/httprouter"
 
 	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
@@ -24,16 +23,15 @@ import (
 // ImportGit handles the API endpoint /namespaces/:org/applications/:app/import-git.
 // It receives a Git repo url and revision, clones that (shallow clone), creates a tarball
 // of the repo and puts it on S3.
-func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	name := params.ByName("app")
+	org := c.Param("org")
+	name := c.Param("app")
 
-	url := r.FormValue("giturl")
-	revision := r.FormValue("gitrev")
+	url := c.PostForm("giturl")
+	revision := c.PostForm("gitrev")
 
 	gitRepo, err := ioutil.TempDir("", "epinio-app")
 	if err != nil {
@@ -91,12 +89,9 @@ func (hc Controller) ImportGit(w http.ResponseWriter, r *http.Request) apierror.
 	}
 	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
 
-	// Return response
-	resp := models.ImportGitResponse{BlobUID: blobUID}
-	err = response.JSON(w, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	// Return the id of the new blob
+	response.OKReturn(c, models.ImportGitResponse{
+		BlobUID: blobUID,
+	})
 	return nil
 }

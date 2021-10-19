@@ -2,14 +2,11 @@ package application
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"time"
 
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
@@ -95,24 +92,17 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 
 // Stage handles the API endpoint /orgs/:org/applications/:app/stage
 // It creates a Tekton PipelineRun resource to stage the app
-func (hc Controller) Stage(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	p := httprouter.ParamsFromContext(ctx)
-	org := p.ByName("org")
-	name := p.ByName("app")
+	org := c.Param("org")
+	name := c.Param("app")
 	username := requestctx.User(ctx)
 
-	defer r.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	req := models.StageRequest{}
-	if err := json.Unmarshal(bodyBytes, &req); err != nil {
-		return apierror.NewBadRequest("Failed to construct an Application from the request", err.Error())
+	if err := c.BindJSON(&req); err != nil {
+		return apierror.NewBadRequest("Failed to unmarshal app stage request", err.Error())
 	}
 
 	if name != req.App.Name {
@@ -220,32 +210,28 @@ func (hc Controller) Stage(w http.ResponseWriter, r *http.Request) apierror.APIE
 	}
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
+
 	// The ImageURL in the response should be the one accessible by kubernetes.
 	// In stageParam above, the registry is passed with the registry ingress url,
 	// since it's where tekton will push.
 	if viper.GetBool("use-internal-registry-node-port") {
 		params.RegistryURL = LocalRegistry
 	}
-	resp := models.StageResponse{
+
+	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
 		ImageURL: params.ImageURL(params.RegistryURL),
-	}
-	err = response.JSON(w, resp)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	})
 	return nil
 }
 
 // Staged handles the API endpoint /orgs/:org/staging/:stage_id/complete
 // It waits for the Tekton PipelineRun resource staging the app to complete
-func (hc Controller) Staged(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 
-	p := httprouter.ParamsFromContext(ctx)
-	org := p.ByName("org")
-	id := p.ByName("stage_id")
+	org := c.Param("org")
+	id := c.Param("stage_id")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -297,11 +283,7 @@ func (hc Controller) Staged(w http.ResponseWriter, r *http.Request) apierror.API
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(w, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OK(c)
 	return nil
 }
 

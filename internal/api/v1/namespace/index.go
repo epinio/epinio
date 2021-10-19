@@ -1,8 +1,6 @@
 package namespace
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -10,18 +8,15 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 )
-
-// Controller represents all functionality of the API related to namespaces
-type Controller struct {
-}
 
 // Index handles the API endpoint /namespaces (GET)
 // It returns a list of all Epinio-controlled namespaces
 // An Epinio namespace is nothing but a kubernetes namespace which has a
 // special Label (Look at the code to see which).
-func (oc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
+func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -61,10 +56,6 @@ func (oc Controller) Index(w http.ResponseWriter, r *http.Request) apierror.APIE
 		})
 	}
 
-	err = response.JSON(w, namespaces)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, namespaces)
 	return nil
 }

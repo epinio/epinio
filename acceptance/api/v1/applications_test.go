@@ -75,7 +75,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 	appFromAPI := func(org, app string) models.App {
 		response, err := env.Curl("GET",
-			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
+			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+				serverURL, v1.Root, org, app),
 			strings.NewReader(""))
 
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -102,7 +103,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 
 		response, err := env.Curl("PATCH",
-			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
+			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+				serverURL, v1.Root, org, app),
 			strings.NewReader(string(data)))
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		ExpectWithOffset(1, response).ToNot(BeNil())
@@ -125,7 +127,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		data = []byte(strings.Replace(string(data), "314", `"thisisnotanumber"`, 1))
 
 		response, err := env.Curl("PATCH",
-			fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app),
+			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+				serverURL, v1.Root, org, app),
 			strings.NewReader(string(data)))
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		ExpectWithOffset(1, response).ToNot(BeNil())
@@ -145,7 +148,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		}
 		body := string(b)
 
-		url := serverURL + "/" + v1.Routes.Path("AppCreate", org)
+		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", org)
 		return env.Curl("POST", url, strings.NewReader(body))
 	}
 
@@ -161,7 +164,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	uploadApplication := func(appName string) *models.UploadResponse {
-		uploadURL := serverURL + "/" + v1.Routes.Path("AppUpload", org, appName)
+		uploadURL := serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", org, appName)
 		uploadPath := testenv.TestAssetPath("sample-app.tar")
 		uploadRequest, err := uploadRequest(uploadURL, uploadPath)
 		Expect(err).ToNot(HaveOccurred())
@@ -220,7 +223,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Expect(err).NotTo(HaveOccurred())
 		body := string(b)
 
-		url := serverURL + "/" + v1.Routes.Path("AppStage", org, appName)
+		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppStage", org, appName)
 		response, err := env.Curl("POST", url, strings.NewReader(body))
 		Expect(err).NotTo(HaveOccurred())
 
@@ -242,7 +245,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		// Wait for server to be up and running
 		Eventually(func() error {
-			_, err := env.Curl("GET", serverURL+"/api/v1/info", strings.NewReader(""))
+			_, err := env.Curl("GET", serverURL+v1.Root+"/info", strings.NewReader(""))
 			return err
 		}, "1m").ShouldNot(HaveOccurred())
 	})
@@ -256,7 +259,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				data.Set("giturl", gitURL)
 				data.Set("gitrev", "main")
 
-				url := serverURL + "/" + v1.Routes.Path("AppImportGit", org, app)
+				url := serverURL + v1.Root + "/" + v1.Routes.Path("AppImportGit", org, app)
 				request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 				Expect(err).ToNot(HaveOccurred())
 				request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
@@ -338,7 +341,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		})
 
-		Describe("GET api/v1/namespaces/:orgs/applications", func() {
+		Describe("GET /api/v1/namespaces/:orgs/applications", func() {
 			It("lists all applications belonging to the namespace", func() {
 				app1 := catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
@@ -347,8 +350,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeContainerImageApp(app2, 1, containerImageURL)
 				defer env.DeleteApp(app2)
 
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/applications",
-					serverURL, org), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications",
+					serverURL, v1.Root, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -372,7 +375,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the org does not exist", func() {
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications", serverURL), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/idontexist/applications",
+					serverURL, v1.Root), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -383,7 +387,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("GET api/v1/namespaces/:org/applications/:app", func() {
+		Describe("GET /api/v1/namespaces/:org/applications/:app", func() {
 			It("lists the application data", func() {
 				app := catalog.NewAppName()
 				env.MakeContainerImageApp(app, 1, containerImageURL)
@@ -460,7 +464,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 				defer env.DeleteApp(app)
 
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications/%s", serverURL, app), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/idontexist/applications/%s",
+					serverURL, v1.Root, app), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -471,7 +476,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the app does not exist", func() {
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/namespaces/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications/bogus",
+					serverURL, v1.Root, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -482,7 +488,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("DELETE api/v1/namespaces/:org/applications/:app", func() {
+		Describe("DELETE /api/v1/namespaces/:org/applications/:app", func() {
 			It("removes the application, unbinds bound services", func() {
 				app1 := catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
@@ -491,7 +497,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.BindAppService(app1, service, org)
 				defer env.CleanupService(service)
 
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/%s/applications/%s", serverURL, org, app1), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+					serverURL, v1.Root, org, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -512,7 +519,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				defer env.DeleteApp(app1)
 
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/idontexist/applications/%s", serverURL, app1), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/idontexist/applications/%s",
+					serverURL, v1.Root, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -523,7 +531,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 
 			It("returns a 404 when the app does not exist", func() {
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s/api/v1/namespaces/%s/applications/bogus", serverURL, org), strings.NewReader(""))
+				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/applications/bogus",
+					serverURL, v1.Root, org), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -534,7 +543,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("GET api/v1/applications", func() {
+		Describe("GET /api/v1/applications", func() {
 			var org1 string
 			var org2 string
 			var app1 string
@@ -561,8 +570,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.DeleteApp(app1)
 			})
 			It("lists all applications belonging to all namespaces", func() {
-				response, err := env.Curl("GET", fmt.Sprintf("%s/api/v1/applications",
-					serverURL), strings.NewReader(""))
+				response, err := env.Curl("GET", fmt.Sprintf("%s%s/applications",
+					serverURL, v1.Root), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -601,7 +610,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		)
 
 		JustBeforeEach(func() {
-			url = serverURL + "/" + v1.Routes.Path("AppUpload", org, "testapp")
+			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", org, "testapp")
 			var err error
 			request, err = uploadRequest(url, path)
 			Expect(err).ToNot(HaveOccurred())
@@ -698,7 +707,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					body = string(bodyBytes)
 
-					url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)
+					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", org, appName)
 
 					response, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
@@ -716,7 +725,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					By("waiting for the deployment to complete")
 
-					url = serverURL + "/" + v1.Routes.Path("AppRunning", org, appName)
+					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppRunning", org, appName)
 
 					response, err = env.Curl("GET", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
@@ -742,7 +751,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					ImageURL: "splatform/sample-app",
 				}
 
-				url = serverURL + "/" + v1.Routes.Path("AppDeploy", org, appName)
+				url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", org, appName)
 			})
 
 			When("deploying a new app", func() {
@@ -785,7 +794,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	})
 
 	Context("Logs", func() {
-		Describe("GET api/v1/namespaces/:orgs/applications/:app/logs", func() {
+		Describe("GET /api/v1/namespaces/:orgs/applications/:app/logs", func() {
 			logLength := 0
 			var (
 				route string
@@ -806,7 +815,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			readLogs := func(org, app string) string {
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
-				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
 				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("read the logs")
@@ -846,7 +855,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
-				wsURL := fmt.Sprintf("%s/%s?%s", websocketURL, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
 				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("get to the end of logs")
@@ -918,7 +927,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 			})
 		})
 	})

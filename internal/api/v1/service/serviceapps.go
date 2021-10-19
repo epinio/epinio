@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -10,18 +9,16 @@ import (
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // ServiceApps handles the API endpoint GET /namespaces/:org/serviceapps
 // It returns a map from services to the apps they are bound to, in
 // the specified org.  Internally it asks each app in the org for its
 // bound services and then inverts that map to get the desired result.
-func (hc Controller) ServiceApps(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
+func (hc Controller) ServiceApps(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -42,11 +39,7 @@ func (hc Controller) ServiceApps(w http.ResponseWriter, r *http.Request) apierro
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(w, appsOf)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OKReturn(c, appsOf)
 	return nil
 }
 

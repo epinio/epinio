@@ -9,9 +9,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gin-gonic/gin"
 )
 
 // Running handles the API endpoint GET /namespaces/:org/applications/:app/running
@@ -20,11 +18,10 @@ import (
 // the application does not become running without
 // `duration.ToAppBuilt()` (default: 10 minutes). In that case it
 // returns with an error after that time.
-func (hc Controller) Running(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(ctx)
-	org := params.ByName("org")
-	appName := params.ByName("app")
+func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
+	appName := c.Param("app")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -61,9 +58,6 @@ func (hc Controller) Running(w http.ResponseWriter, r *http.Request) apierror.AP
 		return apierror.InternalError(err)
 	}
 
-	err = response.JSON(w, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
+	response.OK(c)
 	return nil
 }

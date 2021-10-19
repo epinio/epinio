@@ -2,7 +2,6 @@ package namespace
 
 import (
 	"context"
-	"net/http"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -12,18 +11,17 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/gin-gonic/gin"
 
-	"github.com/julienschmidt/httprouter"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Delete handles the API endpoint /namespaces/:org (DELETE).
 // It destroys the namespace specified by its name.
 // This includes all the applications and services in it.
-func (oc Controller) Delete(w http.ResponseWriter, r *http.Request) apierror.APIErrors {
-	ctx := r.Context()
-	params := httprouter.ParamsFromContext(r.Context())
-	org := params.ByName("org")
+func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
+	ctx := c.Request.Context()
+	org := c.Param("org")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -61,14 +59,7 @@ func (oc Controller) Delete(w http.ResponseWriter, r *http.Request) apierror.API
 		return apierror.InternalError(err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	err = response.JSON(w, models.ResponseOK)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
+	response.OK(c)
 	return nil
 }
 
