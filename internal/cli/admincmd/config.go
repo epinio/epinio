@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 
@@ -138,37 +139,22 @@ func getCredentials(ctx context.Context, log logr.Logger) (string, string, error
 	// which has to talk to the cluster to retrieve the
 	// information. This is allowed.
 
-	cluster, err := kubernetes.GetCluster(ctx)
+	log.Info("got cluster")
+	accounts, err := auth.GetUserAccounts(ctx)
 	if err != nil {
 		return "", "", err
 	}
+	log.Info("got user accounts")
 
-	log.Info("got cluster")
-
-	// Waiting for the secret is better than simply trying to get
-	// it. This way we automatically handle the case where we try
-	// to pull data from a secret still under construction by some
-	// other part of the system.
-	//
-	// See assets/embedded-files/epinio/server.yaml for the
-	// definition
-
-	secret, err := cluster.WaitForSecret(ctx,
-		deployments.EpinioDeploymentID,
-		"epinio-api-auth-data",
-		duration.ToServiceSecret(),
-	)
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to get API auth secret")
+	user, pass := "", ""
+	for k, v := range *accounts {
+		user = k
+		pass = v
+		break
 	}
 
-	log.Info("got secret", "secret", "epinio-api-auth-data")
-
-	user := string(secret.Data["user"])
-	pass := string(secret.Data["pass"])
-
 	if user == "" || pass == "" {
-		return "", "", errors.New("bad API auth secret, expected fields missing")
+		return "", "", errors.New("No user account found")
 	}
 
 	return user, pass, nil

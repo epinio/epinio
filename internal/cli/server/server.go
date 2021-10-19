@@ -16,9 +16,12 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/filesystem"
 	"github.com/epinio/epinio/internal/web"
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
@@ -62,17 +65,27 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 
 	web.Lemon(router)
 
+	// Authentication Middleware
+	authMiddleware := func(ctx *gin.Context) {
+		accounts, err := auth.GetUserAccounts(ctx)
+		if err != nil {
+			response.Error(ctx, apierrors.InternalError(err))
+		}
+		gin.BasicAuth(*accounts)(ctx)
+	}
+
 	router.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
 	assets := router.Group("/assets")
-	assets.Use(gin.Logger())
+	assets.Use(gin.Logger(), authMiddleware)
 	assets.StaticFS("/", assetsDir)
 
 	api := router.Group(apiv1.Root)
-	api.Use(gin.Logger())
+	api.Use(gin.Logger(), authMiddleware)
 	api.Use(func(c *gin.Context) {
+		// TODO: Nobody sets this header anymore. Let's update the context in the authMiddleware instead.
 		user := c.GetHeader("X-Webauth-User")
 		id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
 		ctx := c.Request.Context()
