@@ -369,9 +369,31 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	liveness, err := Liveness(ctx, cluster, app.Meta)
+	if err != nil {
+		return err
+	}
+
+	readiness, err := Readiness(ctx, cluster, app.Meta)
+	if err != nil {
+		return err
+	}
+
 	app.Configuration.Instances = &instances
 	app.Configuration.Services = services
 	app.Configuration.Environment = environment
+
+	if liveness != nil || readiness != nil {
+		app.Configuration.Health = &models.ApplicationHealth{}
+
+		if liveness != nil {
+			app.Configuration.Health.Live = liveness
+		}
+
+		if readiness != nil {
+			app.Configuration.Health.Ready = readiness
+		}
+	}
 
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.

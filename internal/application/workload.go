@@ -258,8 +258,26 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 	})
 }
 
-// Scale changes the number of instances (replicas) for the
-// application's Deployment.
+// Probes changes the live/ready probes in the application's Deployment.
+func (a *Workload) Probes(ctx context.Context, live, ready *models.ApplicationProbe) error {
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Retrieve the latest version of Deployment before attempting update
+		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
+		deployment, err := a.Deployment(ctx)
+		if err != nil {
+			return err
+		}
+
+		deployment.Spec.Replicas = &instances
+
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
+			ctx, deployment, metav1.UpdateOptions{})
+
+		return err
+	})
+}
+
+// Scale changes the number of instances (replicas) for the application's Deployment.
 func (a *Workload) Scale(ctx context.Context, instances int32) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update

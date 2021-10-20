@@ -85,6 +85,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// Instances
 	desired := DefaultInstances
 	if createRequest.Configuration.Instances != nil {
 		desired = *createRequest.Configuration.Instances
@@ -93,6 +94,25 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	err = application.ScalingSet(ctx, cluster, appRef, desired)
 	if err != nil {
 		return apierror.InternalError(err)
+	}
+
+	// Probes
+	if createRequest.Configuration.Health {
+		if createRequest.Configuration.Health.Live {
+			err = application.LivenessSet(ctx, cluster, appRef,
+				createRequest.Configuration.Health.Live)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+		}
+
+		if createRequest.Configuration.Health.Ready {
+			err = application.ReadinessSet(ctx, cluster, appRef,
+				createRequest.Configuration.Health.Ready)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+		}
 	}
 
 	// Save service information.

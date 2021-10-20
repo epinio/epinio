@@ -82,6 +82,35 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		}
 	}
 
+	if updateRequest.Health != nil {
+		changes := false
+
+		if updateRequest.Health.Live != nil {
+			err = application.LivenessSet(ctx, cluster, appRef, updateRequest.Health.Live)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+			changes = true
+		}
+		if updateRequest.Health.Ready != nil {
+			err = application.ReadinessSet(ctx, cluster, appRef, updateRequest.Health.Ready)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+			changes = true
+		}
+
+		// Restart workload, if any
+		if changes && app.Workload != nil {
+			err = application.NewWorkload(cluster, app.Meta).Probes(ctx,
+				updateRequest.Health.Live,
+				updateRequest.Health.Ready)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+		}
+	}
+
 	if len(updateRequest.Environment) > 0 {
 		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, true)
 		if err != nil {
