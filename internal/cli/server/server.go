@@ -2,6 +2,7 @@
 package server
 
 import (
+	"encoding/base64"
 	"fmt"
 	"log"
 	"math/rand"
@@ -71,6 +72,33 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 			response.Error(ctx, apierrors.InternalError(err))
 		}
 		gin.BasicAuth(*accounts)(ctx)
+
+		// Put the user in the context
+		authHeader := string(ctx.GetHeader("Authorization"))
+		if authHeader == "" {
+			response.Error(ctx, apierrors.NewInternalError("Empty Authorization header"))
+		}
+		// A Basic auth header looks something like this:
+		// Basic base64_encoded_username:password_string
+		headerParts := strings.Split(authHeader, " ")
+		if len(headerParts) < 2 {
+			response.Error(ctx, apierrors.NewInternalError("Authorization header format was not expected"))
+		}
+		creds, err := base64.StdEncoding.DecodeString(headerParts[1])
+		if err != nil {
+			response.Error(ctx, apierrors.NewInternalError("Couldn't decode auth header"))
+		}
+
+		// creds is in username:password format
+		user := strings.Split(string(creds), ":")[0]
+		if user == "" {
+			response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
+		}
+		id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
+		newCtx := ctx.Request.Context()
+		newCtx = requestctx.ContextWithUser(newCtx, user)
+		newCtx = requestctx.ContextWithID(newCtx, id)
+		ctx.Request = ctx.Request.WithContext(newCtx)
 	}
 
 	router.GET("/ready", func(c *gin.Context) {
@@ -83,15 +111,6 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 
 	api := router.Group(apiv1.Root)
 	api.Use(gin.Logger(), authMiddleware)
-	api.Use(func(c *gin.Context) {
-		// TODO: Nobody sets this header anymore. Let's update the context in the authMiddleware instead.
-		user := c.GetHeader("X-Webauth-User")
-		id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
-		ctx := c.Request.Context()
-		ctx = requestctx.ContextWithUser(ctx, user)
-		ctx = requestctx.ContextWithID(ctx, id)
-		c.Request = c.Request.WithContext(ctx)
-	})
 	apiv1.Lemon(api)
 
 	srv := &http.Server{
