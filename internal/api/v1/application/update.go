@@ -17,7 +17,7 @@ import (
 // number of instances to run.
 func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("org")
 	appName := c.Param("app")
 	username := requestctx.User(ctx)
 
@@ -26,16 +26,16 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.OrgIsNotKnown(namespace)
 	}
 
-	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
+	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, namespace))
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -56,7 +56,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -86,14 +86,14 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		changes := false
 
 		if updateRequest.Health.Live != nil {
-			err = application.LivenessSet(ctx, cluster, appRef, updateRequest.Health.Live)
+			err = application.LivenessSet(ctx, cluster, app.Meta, updateRequest.Health.Live)
 			if err != nil {
 				return apierror.InternalError(err)
 			}
 			changes = true
 		}
 		if updateRequest.Health.Ready != nil {
-			err = application.ReadinessSet(ctx, cluster, appRef, updateRequest.Health.Ready)
+			err = application.ReadinessSet(ctx, cluster, app.Meta, updateRequest.Health.Ready)
 			if err != nil {
 				return apierror.InternalError(err)
 			}
@@ -144,7 +144,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		var okToBind []string
 
 		for _, serviceName := range updateRequest.Services {
-			_, err := services.Lookup(ctx, cluster, org, serviceName)
+			_, err := services.Lookup(ctx, cluster, namespace, serviceName)
 			if err != nil {
 				if err.Error() == "service not found" {
 					theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))

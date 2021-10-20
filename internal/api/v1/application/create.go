@@ -16,7 +16,7 @@ import (
 // It creates a new and empty application. I.e. without a workload.
 func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("org")
 	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -24,13 +24,13 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := organizations.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.OrgIsNotKnown(namespace)
 	}
 
 	var createRequest models.ApplicationCreateRequest
@@ -39,7 +39,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.BadRequest(err)
 	}
 
-	appRef := models.NewAppRef(createRequest.Name, org)
+	appRef := models.NewAppRef(createRequest.Name, namespace)
 	found, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {
 		return apierror.InternalError(err, "failed to check for app resource")
@@ -62,7 +62,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	var theIssues []apierror.APIError
 
 	for _, serviceName := range createRequest.Configuration.Services {
-		_, err := services.Lookup(ctx, cluster, org, serviceName)
+		_, err := services.Lookup(ctx, cluster, namespace, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
 				theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
@@ -97,8 +97,8 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Probes
-	if createRequest.Configuration.Health {
-		if createRequest.Configuration.Health.Live {
+	if createRequest.Configuration.Health != nil {
+		if createRequest.Configuration.Health.Live != nil {
 			err = application.LivenessSet(ctx, cluster, appRef,
 				createRequest.Configuration.Health.Live)
 			if err != nil {
@@ -106,7 +106,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 			}
 		}
 
-		if createRequest.Configuration.Health.Ready {
+		if createRequest.Configuration.Health.Ready != nil {
 			err = application.ReadinessSet(ctx, cluster, appRef,
 				createRequest.Configuration.Health.Ready)
 			if err != nil {

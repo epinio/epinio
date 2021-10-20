@@ -259,7 +259,7 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 }
 
 // Probes changes the live/ready probes in the application's Deployment.
-func (a *Workload) Probes(ctx context.Context, live, ready *models.ApplicationProbe) error {
+func (a *Workload) Probes(ctx context.Context, liveness, readiness *models.ApplicationProbe) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		// Retrieve the latest version of Deployment before attempting update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
@@ -268,13 +268,39 @@ func (a *Workload) Probes(ctx context.Context, live, ready *models.ApplicationPr
 			return err
 		}
 
-		deployment.Spec.Replicas = &instances
+			deployment.Spec.Template.Spec.Contqainers[0].LivenessProbe = toKubernetesProbe (liveness)
+		} else {
+			deployment.Spec.Template.Spec.Containers[0].LivenessProbe = 
+		}
+		
+		// TODO deployment.Spec.Template.Spec. ...  = liveness, readiness
+		//		containers[...]
+		//		*LivenessProbe
+		//		*ReadinessProbe
+		//		(Handler) *HttpGet
+		//		Path (required), Port, Host, Scheme
 
 		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
 			ctx, deployment, metav1.UpdateOptions{})
 
 		return err
 	})
+}
+
+func toKubernetesProbe (probe *models.ApplicationProbe) *corev1.Probe {
+	if probe == nil {
+		return nil
+	}
+
+	return &corev1.Probe{
+				corev1.Handler{
+					HTTPGet: &corev1.HTTPGetAction{
+					Path:
+					Port:
+					Scheme:
+					}
+				},
+			}
 }
 
 // Scale changes the number of instances (replicas) for the application's Deployment.
