@@ -150,3 +150,32 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 
 	return nil
 }
+
+// ShowOrg shows an Org
+func (c *EpinioClient) ShowOrg(org string) error {
+	log := c.Log.WithName("ShowNamespace").WithValues("Namespace", org)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Name", org).
+		Msg("Showing namespace...")
+
+	space, err := c.API.NamespaceShow(org)
+	if err != nil {
+		return err
+	}
+
+	msg := c.ui.Success().WithTable("Key", "Value")
+
+	sort.Strings(space.Apps)
+	sort.Strings(space.Services)
+
+	msg = msg.WithTableRow("Name", space.Name).
+		WithTableRow("Applications", strings.Join(space.Apps, "\n")).
+		WithTableRow("Services", strings.Join(space.Services, "\n"))
+
+	msg.Msg("Details:")
+
+	return nil
+}

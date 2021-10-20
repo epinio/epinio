@@ -98,6 +98,7 @@ var Routes = routes.NamedRoutes{
 	"Namespaces":      get("/namespaces", errorHandler(namespace.Controller{}.Index)),
 	"NamespaceCreate": post("/namespaces", errorHandler(namespace.Controller{}.Create)),
 	"NamespaceDelete": delete("/namespaces/:org", errorHandler(namespace.Controller{}.Delete)),
+	"NamespaceShow":   get("/namespaces/:org", errorHandler(namespace.Controller{}.Show)),
 
 	// Note, the second registration catches calls with an empty pattern!
 	"NamespacesMatch":  get("/namespacematches/:pattern", errorHandler(namespace.Controller{}.Match)),
