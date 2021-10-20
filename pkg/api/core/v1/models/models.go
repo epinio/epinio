@@ -63,7 +63,7 @@ type ApplicationManifest struct {
 	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
 }
 
-// ApplicationStaging is the part of the manifest holding information relevant to staging
+// ApplicationStage is the part of the manifest holding information relevant to staging
 // the application's sources. This is, currently, only the reference to the Paketo builder
 // image to use.
 type ApplicationStage struct {
@@ -117,9 +117,31 @@ type ApplicationCreateRequest struct {
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
-	Instances   *int32         `json:"instances"   yaml:"instances,omitempty"`
-	Services    []string       `json:"services"    yaml:"services,omitempty"`
-	Environment EnvVariableMap `json:"environment" yaml:"environment,omitempty"`
+	Instances   *int32             `json:"instances"        yaml:"instances,omitempty"`
+	Services    []string           `json:"services"         yaml:"services,omitempty"`
+	Environment EnvVariableMap     `json:"environment"      yaml:"environment,omitempty"`
+	Health      *ApplicationHealth `json:"health,omitempty" yaml:"health,omitempty"`
+}
+
+// ApplicationHealth contains information related application
+// health. This currently are only the specifications of the
+// application's liveness/readiness probes.
+type ApplicationHealth struct {
+	Live  *ApplicationProbe `json:"live,omitempty"  yaml:"live,omitempty"`
+	Ready *ApplicationProbe `json:"ready,omitempty" yaml:"ready,omitempty"`
+}
+
+// ApplicationProbe contains the specification for any kind of probe
+type ApplicationProbe struct {
+	Http *ApplicationProbeHTTP `json:"http,omitempty" yaml:"http,omitempty"`
+}
+
+// ApplicationProbeHTTP contains the configuration of an http based
+// probe.
+type ApplicationProbeHTTP struct {
+	Scheme string `json:"scheme,omitempty" yaml:"scheme,omitempty"`
+	Port   *int32 `json:"port,omitempty"   yaml:"port,omitempty"`
+	Path   string `json:"path,omitempty"   yaml:"path,omitempty"`
 }
 
 type ImportGitResponse struct {
