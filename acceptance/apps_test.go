@@ -243,10 +243,10 @@ configuration:
 			interval = 1 * time.Second
 		)
 
-		act := func(arg ...string) (string, error) {
+		act := func(name string, arg ...string) (string, error) {
 			appDir := "../assets/sample-app"
 			return env.Epinio(appDir, "app", append([]string{"push",
-				"--name", appName}, arg...)...)
+				"--name", name}, arg...)...)
 		}
 
 		replicas := func(ns, name string) string {
@@ -271,7 +271,7 @@ configuration:
 
 		It("honours the given instance count", func() {
 			By("pushing without instance count", func() {
-				out, err := act()
+				out, err := act(appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
@@ -279,7 +279,7 @@ configuration:
 				}, timeout, interval).Should(Equal(strconv.Itoa(int(application.DefaultInstances))))
 			})
 			By("pushing with an instance count", func() {
-				out, err := act("--instances", "2")
+				out, err := act(appName, "--instances", "2")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
@@ -287,7 +287,7 @@ configuration:
 				}, timeout, interval).Should(Equal("2"))
 			})
 			By("pushing again, without an instance count", func() {
-				out, err := act()
+				out, err := act(appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
