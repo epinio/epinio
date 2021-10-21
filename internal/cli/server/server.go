@@ -185,7 +185,12 @@ func authMiddleware(ctx *gin.Context) {
 		if !userStillExists {
 			session.Clear()
 			session.Options(sessions.Options{MaxAge: -1})
-			session.Save()
+			err := session.Save()
+			if err != nil {
+				response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
+				ctx.Abort()
+				return
+			}
 			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
 			ctx.Abort()
 			return
