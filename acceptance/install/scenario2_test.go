@@ -99,13 +99,11 @@ var _ = Describe("<Scenario2>", func() {
 				"--instances", instancesNum)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			// Due to https://github.com/epinio/epinio/issues/891
-			// we keep the string 1 as a workaround for avoiding the test to fail.
 			Eventually(func() string {
 				out, err := proc.RunW("kubectl", "get", "deployment", "--namespace", testenv.DefaultWorkspace, appName, "-o", "jsonpath={.spec.replicas}")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}).Should(MatchRegexp("1"))
+			}).Should(MatchRegexp("0"))
 		})
 	})
 })

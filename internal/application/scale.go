@@ -30,7 +30,7 @@ func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	}
 
 	// Reject bad values, and assume single instance - Return err better ? Save back, fix resource ?
-	if result <= 0 || result > math.MaxInt32 {
+	if result < 0 || result > math.MaxInt32 {
 		result = 1
 	}
 
