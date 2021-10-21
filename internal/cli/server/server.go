@@ -13,9 +13,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/epinio/epinio/helpers/termui"
 
+	"github.com/epinio/epinio/helpers/tracelog"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
@@ -31,7 +33,7 @@ import (
 	"github.com/mattn/go-colorable"
 )
 
-// startEpinioServer is a helper which initializes and start the API server
+// Start is a helper which initializes and starts the API server
 func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*http.Server, string, error) {
 	// Support colors on Windows also
 	gin.DefaultWriter = colorable.NewColorableStdout()
@@ -65,134 +67,25 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	router.HandleMethodNotAllowed = true
 	router.Use(gin.Recovery())
 
-	web.Lemon(router)
+	// No authentication, no logging, no session. This is the healthcheck.
+	router.GET("/ready", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{})
+	})
 
 	// TODO: generate the "secret" here
 	store := cookie.NewStore([]byte("secret"))
 	store.Options(sessions.Options{MaxAge: 60 * 60 * 24}) // expire in a day
 	router.Use(sessions.Sessions("epinio-session", store))
 
-	// Authentication Middleware
-	authMiddleware := func(ctx *gin.Context) {
-		// First get the available users
-		accounts, err := auth.GetUserAccounts(ctx)
-		if err != nil {
-			response.Error(ctx, apierrors.InternalError(err))
-		}
+	ginLogger := gin.LoggerWithFormatter(Formatter)
+	authenticatedGroup := router.Group("", ginLogger, authMiddleware, sessionMiddleware)
 
-		// We set this to the current user after successful authentication.
-		// This is also added to the context for controllers to use.
-		var user string
+	web.Lemon(authenticatedGroup)
 
-		session := sessions.Default(ctx)
-		sessionUser := session.Get("user")
-		if sessionUser == nil { // no session exists, try basic auth
-			logger.V(1).Info("Basic auth authentication")
-			authHeader := string(ctx.GetHeader("Authorization"))
-			// If basic auth header is there, extract the user out of it
-			if authHeader != "" {
-				// A Basic auth header looks something like this:
-				// Basic base64_encoded_username:password_string
-				headerParts := strings.Split(authHeader, " ")
-				if len(headerParts) < 2 {
-					response.Error(ctx, apierrors.NewInternalError("Authorization header format was not expected"))
-					ctx.Abort()
-					return
-				}
-				creds, err := base64.StdEncoding.DecodeString(headerParts[1])
-				if err != nil {
-					response.Error(ctx, apierrors.NewInternalError("Couldn't decode auth header"))
-					ctx.Abort()
-					return
-				}
-
-				// creds is in username:password format
-				user = strings.Split(string(creds), ":")[0]
-				if user == "" {
-					response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
-					ctx.Abort()
-					return
-				}
-			}
-
-			// Perform basic auth authentication
-			gin.BasicAuth(*accounts)(ctx)
-		} else {
-			logger.V(1).Info("Session authentication")
-			var ok bool
-			user, ok = sessionUser.(string)
-			if !ok {
-				response.Error(ctx, apierrors.NewInternalError("Couldn't parse user from session"))
-				ctx.Abort()
-				return
-			}
-
-			// Check if that user still exists. If not delete the sessino and block the request!
-			// This allows us to kick out users even if they keep their browser open.
-			userStillExists := false
-			for checkUser, _ := range *accounts {
-				if checkUser == user {
-					userStillExists = true
-					break
-				}
-			}
-			if !userStillExists {
-				session.Clear()
-				session.Options(sessions.Options{MaxAge: -1})
-				session.Save()
-				response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
-				ctx.Abort()
-				return
-			}
-		}
-
-		// Write the user info in the context. It's needed by the next middlware
-		// to write it in the session.
-		id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
-		newCtx := ctx.Request.Context()
-		newCtx = requestctx.ContextWithUser(newCtx, user)
-		newCtx = requestctx.ContextWithID(newCtx, id)
-		ctx.Request = ctx.Request.WithContext(newCtx)
-	}
-
-	// This middleware won't be called if authentication fails because ctx.Abort
-	// will be called. We only set the user in session upon successful authentication
-	// (either basic auth or cookie based).
-	sessionMiddleware := func(ctx *gin.Context) {
-		session := sessions.Default(ctx)
-		requestContext := ctx.Request.Context()
-		user := requestctx.User(requestContext)
-		if user == "" { // This can't be, authentication has succeeded.
-			response.Error(ctx, apierrors.NewInternalError("Couldn't set user in session after successful authentication. This can't happen."))
-			ctx.Abort()
-			return
-		}
-		if session.Get("user") == nil { // Only the first time after authentication success
-			session.Set("user", user)
-			session.Options(sessions.Options{
-				MaxAge:   172800, // Expire session every 2 days
-				Secure:   true,
-				HttpOnly: true,
-			})
-			err := session.Save()
-			if err != nil {
-				response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
-				ctx.Abort()
-				return
-			}
-		}
-	}
-
-	router.GET("/ready", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{})
-	})
-
-	assets := router.Group("/assets")
-	assets.Use(gin.Logger(), authMiddleware, sessionMiddleware)
+	assets := authenticatedGroup.Group("/assets")
 	assets.StaticFS("/", assetsDir)
 
-	api := router.Group(apiv1.Root)
-	api.Use(gin.Logger(), authMiddleware, sessionMiddleware)
+	api := authenticatedGroup.Group(apiv1.Root)
 	apiv1.Lemon(api)
 
 	srv := &http.Server{
@@ -214,4 +107,124 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	listeningPort := elements[len(elements)-1]
 
 	return srv, listeningPort, nil
+}
+
+func Formatter(params gin.LogFormatterParams) string {
+	user := requestctx.User(params.Request.Context())
+	return fmt.Sprintf("Method: %s | Path: %s | User: %s | IP: %s | Timestamp: %s | Latency: %s | Status: %d | Message: %s \n",
+		params.Method, params.Path, user, params.ClientIP, params.TimeStamp.Format(time.RFC3339), params.Latency, params.StatusCode, params.ErrorMessage)
+}
+
+// authMiddleware is authenticates the user either using the session or if one
+// doesn't exist, it authenticates with basic auth.
+func authMiddleware(ctx *gin.Context) {
+	logger := tracelog.NewLogger().WithName("AuthMiddleware")
+
+	// First get the available users
+	accounts, err := auth.GetUserAccounts(ctx)
+	if err != nil {
+		response.Error(ctx, apierrors.InternalError(err))
+	}
+
+	// We set this to the current user after successful authentication.
+	// This is also added to the context for controllers to use.
+	var user string
+
+	session := sessions.Default(ctx)
+	sessionUser := session.Get("user")
+	if sessionUser == nil { // no session exists, try basic auth
+		logger.V(1).Info("Basic auth authentication")
+		authHeader := string(ctx.GetHeader("Authorization"))
+		// If basic auth header is there, extract the user out of it
+		if authHeader != "" {
+			// A Basic auth header looks something like this:
+			// Basic base64_encoded_username:password_string
+			headerParts := strings.Split(authHeader, " ")
+			if len(headerParts) < 2 {
+				response.Error(ctx, apierrors.NewInternalError("Authorization header format was not expected"))
+				ctx.Abort()
+				return
+			}
+			creds, err := base64.StdEncoding.DecodeString(headerParts[1])
+			if err != nil {
+				response.Error(ctx, apierrors.NewInternalError("Couldn't decode auth header"))
+				ctx.Abort()
+				return
+			}
+
+			// creds is in username:password format
+			user = strings.Split(string(creds), ":")[0]
+			if user == "" {
+				response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
+				ctx.Abort()
+				return
+			}
+		}
+
+		// Perform basic auth authentication
+		gin.BasicAuth(*accounts)(ctx)
+	} else {
+		logger.V(1).Info("Session authentication")
+		var ok bool
+		user, ok = sessionUser.(string)
+		if !ok {
+			response.Error(ctx, apierrors.NewInternalError("Couldn't parse user from session"))
+			ctx.Abort()
+			return
+		}
+
+		// Check if that user still exists. If not delete the sessino and block the request!
+		// This allows us to kick out users even if they keep their browser open.
+		userStillExists := false
+		for checkUser := range *accounts {
+			if checkUser == user {
+				userStillExists = true
+				break
+			}
+		}
+		if !userStillExists {
+			session.Clear()
+			session.Options(sessions.Options{MaxAge: -1})
+			session.Save()
+			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+	}
+
+	// Write the user info in the context. It's needed by the next middlware
+	// to write it in the session.
+	id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
+	newCtx := ctx.Request.Context()
+	newCtx = requestctx.ContextWithUser(newCtx, user)
+	newCtx = requestctx.ContextWithID(newCtx, id)
+	ctx.Request = ctx.Request.WithContext(newCtx)
+}
+
+// This middleware won't be called if authentication fails because ctx.Abort
+// will be called is called in authMiddleware. We only set the user in session
+// upon successful authentication (either basic auth or cookie based).
+func sessionMiddleware(ctx *gin.Context) {
+	session := sessions.Default(ctx)
+	requestContext := ctx.Request.Context()
+	user := requestctx.User(requestContext)
+	if user == "" { // This can't be, authentication has succeeded.
+		response.Error(ctx, apierrors.NewInternalError("Couldn't set user in session after successful authentication. This can't happen."))
+		ctx.Abort()
+		return
+	}
+	if session.Get("user") == nil { // Only the first time after authentication success
+		session.Set("user", user)
+		session.Options(sessions.Options{
+			MaxAge:   172800, // Expire session every 2 days
+			Secure:   true,
+			HttpOnly: true,
+		})
+		err := session.Save()
+		if err != nil {
+			response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
+			ctx.Abort()
+			return
+		}
+	}
 }
