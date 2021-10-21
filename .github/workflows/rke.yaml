@@ -3,6 +3,12 @@ name: RKE-CI
 on:
   schedule:
     - cron:  '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
 
 env:
   SETUP_GO_VERSION: '^1.13.7'
@@ -68,6 +74,6 @@ jobs:
           make test-acceptance-install
 
       - name: Delete RKE cluster
-        if: ${{ always() }}
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
         run: |
           sudo sh /usr/local/bin/rke2-uninstall.sh
