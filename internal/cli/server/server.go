@@ -122,7 +122,25 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 			var ok bool
 			user, ok = sessionUser.(string)
 			if !ok {
-				response.Error(ctx, apierrors.NewInternalError("Couldn't parse session cookie"))
+				response.Error(ctx, apierrors.NewInternalError("Couldn't parse user from session"))
+				ctx.Abort()
+				return
+			}
+
+			// Check if that user still exists. If not delete the sessino and block the request!
+			// This allows us to kick out users even if they keep their browser open.
+			userStillExists := false
+			for checkUser, _ := range *accounts {
+				if checkUser == user {
+					userStillExists = true
+					break
+				}
+			}
+			if !userStillExists {
+				session.Clear()
+				session.Options(sessions.Options{MaxAge: -1})
+				session.Save()
+				response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
 				ctx.Abort()
 				return
 			}
@@ -138,7 +156,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	}
 
 	// This middleware won't be called if authentication fails because ctx.Abort
-	// will be called. We only set the user in session upon successul authentication
+	// will be called. We only set the user in session upon successful authentication
 	// (either basic auth or cookie based).
 	sessionMiddleware := func(ctx *gin.Context) {
 		session := sessions.Default(ctx)
@@ -149,12 +167,19 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 			ctx.Abort()
 			return
 		}
-		session.Set("user", user)
-		err := session.Save()
-		if err != nil {
-			response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
-			ctx.Abort()
-			return
+		if session.Get("user") == nil { // Only the first time after authentication success
+			session.Set("user", user)
+			session.Options(sessions.Options{
+				MaxAge:   172800, // Expire session every 2 days
+				Secure:   true,
+				HttpOnly: true,
+			})
+			err := session.Save()
+			if err != nil {
+				response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
+				ctx.Abort()
+				return
+			}
 		}
 	}
 
