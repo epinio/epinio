@@ -22,6 +22,8 @@ func (c *Client) EnvList(org string, appName string) (models.EnvVariableMap, err
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -43,6 +45,8 @@ func (c *Client) EnvSet(req models.EnvVariableMap, org string, appName string) (
 		return resp, errors.Wrap(err, "response body is not JSON")
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -58,6 +62,8 @@ func (c *Client) EnvShow(org string, appName string, envName string) (models.Env
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }
@@ -75,6 +81,8 @@ func (c *Client) EnvUnset(org string, appName string, envName string) (models.Re
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -90,6 +98,8 @@ func (c *Client) EnvMatch(org string, appName string, prefix string) (models.Env
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }

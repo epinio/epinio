@@ -37,6 +37,8 @@ func (c *Client) AppCreate(req models.ApplicationCreateRequest, org string) (mod
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -52,6 +54,8 @@ func (c *Client) Apps(org string) (models.AppList, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }
@@ -69,6 +73,8 @@ func (c *Client) AllApps() (models.AppList, error) {
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -84,6 +90,8 @@ func (c *Client) AppShow(org string, appName string) (models.App, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }
@@ -106,6 +114,8 @@ func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, org string, appN
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -122,6 +132,8 @@ func (c *Client) AppDelete(org string, name string) (models.ApplicationDeleteRes
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -137,6 +149,8 @@ func (c *Client) AppUpload(org string, name string, tarball string) (models.Uplo
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, errors.Wrap(err, "response body is not JSON")
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }
@@ -176,6 +190,8 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 		return nil, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -197,6 +213,8 @@ func (c *Client) AppStage(req models.StageRequest) (*models.StageResponse, error
 		return nil, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -217,6 +235,8 @@ func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, er
 	if err := json.Unmarshal(b, resp); err != nil {
 		return nil, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }
@@ -261,6 +281,8 @@ func (c *Client) StagingComplete(org string, id string) (models.Response, error)
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -303,6 +325,8 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }

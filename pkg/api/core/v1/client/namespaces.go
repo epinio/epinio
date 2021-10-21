@@ -57,6 +57,8 @@ func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Resp
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -72,6 +74,8 @@ func (c *Client) NamespaceDelete(org string) (models.Response, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }
@@ -89,6 +93,8 @@ func (c *Client) NamespaceShow(org string) (models.Namespace, error) {
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -105,6 +111,8 @@ func (c *Client) NamespacesMatch(prefix string) (models.NamespacesMatchResponse,
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -120,6 +128,8 @@ func (c *Client) Namespaces() (models.NamespaceList, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }

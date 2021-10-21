@@ -22,6 +22,8 @@ func (c *Client) Services(org string) (models.ServiceResponseList, error) {
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -43,6 +45,8 @@ func (c *Client) ServiceBindingCreate(req models.BindRequest, org string, appNam
 		return resp, errors.Wrap(err, "response body is not JSON")
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -58,6 +62,8 @@ func (c *Client) ServiceBindingDelete(org string, appName string, serviceName st
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, err
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }
@@ -87,6 +93,8 @@ func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, org string, name
 		}
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -112,6 +120,8 @@ func (c *Client) ServiceCreate(req models.ServiceCreateRequest, org string) (mod
 		return resp, errors.Wrap(err, "response body is not JSON")
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -128,6 +138,8 @@ func (c *Client) ServiceShow(org string, name string) (models.ServiceShowRespons
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
 
@@ -143,6 +155,8 @@ func (c *Client) ServiceApps(org string) (models.ServiceAppsResponse, error) {
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, errors.Wrap(err, "response body is not JSON")
 	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
 }

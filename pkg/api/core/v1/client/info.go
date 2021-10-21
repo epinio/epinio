@@ -20,5 +20,7 @@ func (c *Client) Info() (models.InfoResponse, error) {
 		return resp, err
 	}
 
+	c.log.V(1).Info("response decoded", "response", resp)
+
 	return resp, nil
 }
