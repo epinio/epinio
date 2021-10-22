@@ -2,6 +2,7 @@ package deployments
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"fmt"
 	"io/ioutil"
@@ -21,6 +22,7 @@ import (
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -33,11 +35,10 @@ type Epinio struct {
 var _ kubernetes.Deployment = &Epinio{}
 
 const (
-	EpinioDeploymentID  = "epinio"
-	epinioServerYaml    = "epinio/server.yaml"
-	epinioRolesYAML     = "epinio/roles.yaml"
-	epinioBasicAuthYaml = "epinio/basicauth.yaml"
-	applicationCRDYaml  = "epinio/app-crd.yaml"
+	EpinioDeploymentID = "epinio"
+	epinioServerYaml   = "epinio/server.yaml"
+	epinioRolesYAML    = "epinio/roles.yaml"
+	applicationCRDYaml = "epinio/app-crd.yaml"
 )
 
 func (k Epinio) ID() string {
@@ -70,16 +71,6 @@ func (k Epinio) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 
 	if out, err := helpers.KubectlDeleteEmbeddedYaml(epinioRolesYAML, true); err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", epinioRolesYAML, out))
-	}
-
-	// (yyy) Note: We ignore deletion errors due to a mising
-	// Middleware CRD. That indicates that a traefik v1 controller
-	// was used, and the object was not applied. See also (xxx).
-
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(epinioBasicAuthYaml, true); err != nil {
-		if !strings.Contains(out, `no matches for kind "Middleware"`) {
-			return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", epinioServerYaml, out))
-		}
 	}
 
 	message := "Deleting Epinio namespace " + EpinioDeploymentID
@@ -128,9 +119,28 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		Password: apiPassword,
 	}
 
+	// Create a BasicAuth secret for our default user
+	authSecret := corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "default-epinio-user",
+			Labels: map[string]string{
+				kubernetes.EpinioAPISecretLabelKey: kubernetes.EpinioAPISecretLabelValue,
+			},
+		},
+		StringData: map[string]string{
+			"username": authAPI.Username,
+			"password": authAPI.Password,
+		},
+		Type: "BasicAuth",
+	}
+	_, err = c.Kubectl.CoreV1().Secrets(EpinioDeploymentID).Create(ctx, &authSecret, metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "Couldn't create secret for default Epinio API user")
+	}
+
 	issuer := options.GetStringNG("tls-issuer")
 	nodePort := options.GetBoolNG("use-internal-registry-node-port")
-	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, authAPI, issuer, nodePort); err != nil {
+	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, issuer, nodePort); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -247,26 +257,8 @@ func (k Epinio) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 }
 
 // Replaces ##current_epinio_version## with version.Version and applies the embedded yaml
-func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, auth auth.PasswordAuth, issuer string, nodePort bool) (string, error) {
-	// (xxx) Apply traefik v2 middleware. This will fail for a
-	// traefik v1 controller.  Ignore error if it was due due to a
-	// missing Middleware CRD. That indicates presence of the
-	// traefik v1 controller. See also (yyy).
-
-	yamlPathOnDisk, err := helpers.ExtractFile(epinioBasicAuthYaml)
-	if err != nil {
-		return "", errors.New("Failed to extract embedded file: " + epinioBasicAuthYaml + " - " + err.Error())
-	}
-	defer os.Remove(yamlPathOnDisk)
-
-	out, err := helpers.Kubectl("apply",
-		"--namespace", EpinioDeploymentID,
-		"--filename", yamlPathOnDisk)
-	if err != nil && !strings.Contains(out, `no matches for kind "Middleware"`) {
-		return "", err
-	}
-
-	yamlPathOnDisk, err = helpers.ExtractFile(epinioServerYaml)
+func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, issuer string, nodePort bool) (string, error) {
+	yamlPathOnDisk, err := helpers.ExtractFile(epinioServerYaml)
 
 	if err != nil {
 		return "", errors.New("Failed to extract embedded file: " + epinioServerYaml + " - " + err.Error())
@@ -278,25 +270,17 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 		return "", err
 	}
 
-	htpasswd, err := auth.Htpassword()
+	randomBytes := make([]byte, 20)
+	_, err = rand.Read(randomBytes)
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, "generating a random session key")
 	}
-	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(htpasswd))
-	encodedUser := base64.StdEncoding.EncodeToString([]byte(auth.Username))
-	encodedPass := base64.StdEncoding.EncodeToString([]byte(auth.Password))
+	sessionKey := base64.URLEncoding.EncodeToString(randomBytes)
+	re := regexp.MustCompile(`##epinio_session_key##`)
+	renderedFileContents := re.ReplaceAll(fileContents, []byte(sessionKey))
 
-	re := regexp.MustCompile(`##current_epinio_version##`)
-	renderedFileContents := re.ReplaceAll(fileContents, []byte(version.Version))
-
-	re = regexp.MustCompile(`##api_credentials##`)
-	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(encodedCredentials))
-
-	re = regexp.MustCompile(`##api_user##`)
-	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(encodedUser))
-
-	re = regexp.MustCompile(`##api_password##`)
-	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(encodedPass))
+	re = regexp.MustCompile(`##current_epinio_version##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(version.Version))
 
 	re = regexp.MustCompile(`##tls_issuer##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(issuer))
@@ -346,14 +330,6 @@ func (k *Epinio) createIngress(ctx context.Context, c *kubernetes.Cluster, subdo
 				Namespace: EpinioDeploymentID,
 				Annotations: map[string]string{
 					"kubernetes.io/ingress.class": "traefik",
-					// Traefik v1 annotations for ingress with basic auth.
-					// See `assets/embedded-files/epinio/server.yaml` for
-					// the definition of the secret.
-					"ingress.kubernetes.io/auth-type":   "basic",
-					"ingress.kubernetes.io/auth-secret": "epinio-api-auth-secret",
-					// Traefik v2 annotation for ingress with basic auth.
-					// The name of the middleware is `(namespace)-(object)@kubernetescrd`.
-					"traefik.ingress.kubernetes.io/router.middlewares": EpinioDeploymentID + "-epinio-api-auth@kubernetescrd",
 					// Traefik v1/v2 tls annotations.
 					"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
 					"traefik.ingress.kubernetes.io/router.tls":         "true",

@@ -1,22 +1,5 @@
 ---
 apiVersion: v1
-kind: Secret
-metadata:
-  name: epinio-api-auth-secret
-  namespace: epinio
-data:
-  users: "##api_credentials##"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: epinio-api-auth-data
-  namespace: epinio
-data:
-  user: "##api_user##"
-  pass: "##api_password##"
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: epinio-server
@@ -216,6 +199,8 @@ spec:
               value: ##tls_issuer##
             - name: USE_INTERNAL_REGISTRY_NODE_PORT
               value: "##use_internal_registry_node_port##"
+            - name: SESSION_KEY
+              value: "##epinio_session_key##"
           image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:

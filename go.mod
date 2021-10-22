@@ -13,6 +13,7 @@ require (
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
 	github.com/epinio/application v0.0.0-20211007132313-f10b973eec8b
 	github.com/fatih/color v1.12.0
+	github.com/gin-contrib/sessions v0.0.3
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v0.4.0

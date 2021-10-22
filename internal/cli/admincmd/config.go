@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 
@@ -61,7 +62,7 @@ func (a *Admin) ConfigUpdate(ctx context.Context) error {
 
 	details.Info("retrieving credentials")
 
-	user, password, err := getCredentials(ctx, details)
+	user, password, err := auth.GetFirstUserAccount(ctx)
 	if err != nil {
 		a.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -130,48 +131,6 @@ func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 	}
 
 	return epinioURL, epinioWsURL, err
-}
-
-// TODO: https://github.com/epinio/epinio/issues/667
-func getCredentials(ctx context.Context, log logr.Logger) (string, string, error) {
-	// This is called only by the admin command `config update`
-	// which has to talk to the cluster to retrieve the
-	// information. This is allowed.
-
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
-	log.Info("got cluster")
-
-	// Waiting for the secret is better than simply trying to get
-	// it. This way we automatically handle the case where we try
-	// to pull data from a secret still under construction by some
-	// other part of the system.
-	//
-	// See assets/embedded-files/epinio/server.yaml for the
-	// definition
-
-	secret, err := cluster.WaitForSecret(ctx,
-		deployments.EpinioDeploymentID,
-		"epinio-api-auth-data",
-		duration.ToServiceSecret(),
-	)
-	if err != nil {
-		return "", "", errors.Wrap(err, "failed to get API auth secret")
-	}
-
-	log.Info("got secret", "secret", "epinio-api-auth-data")
-
-	user := string(secret.Data["user"])
-	pass := string(secret.Data["pass"])
-
-	if user == "" || pass == "" {
-		return "", "", errors.New("bad API auth secret, expected fields missing")
-	}
-
-	return user, pass, nil
 }
 
 func getCerts(ctx context.Context, log logr.Logger) (string, error) {
