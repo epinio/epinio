@@ -30,6 +30,8 @@ env:
   SETUP_GO_VERSION: '^1.13.7'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+  AWS_REGION: 'us-east-2'
 
 jobs:
   acceptance-scenario5:
@@ -38,6 +40,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
       - name: Get All Git Tags
         run: git fetch --force --prune --unshallow --tags
 
@@ -45,6 +48,7 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
+
       - name: Setup Ginkgo Test Framework
         run: go install github.com/onsi/ginkgo/ginkgo@v1.16.2
 
@@ -55,9 +59,9 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+          aws-region: ${{ env.AWS_REGION }}
 
-      # follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
+      # Follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
       # az group create --name epinioCI --location westeurope
       # az ad sp create-for-rbac --name "epinioCI" --sdk-auth --role contributor \
       #   --scopes /subscriptions/{id}/resourceGroups/epinioC
@@ -67,13 +71,21 @@ jobs:
 
       - name: Create AKS cluster
         id: create-cluster
+        # We need to specify bash as a shell when a job is running on windows runner
         shell: bash
         run: |
           id=$RANDOM
           echo '::set-output name=ID::'$id
-          az aks create --resource-group epinioCI --name epinioCI$id --node-count 2 --generate-ssh-keys
-          az aks get-credentials --resource-group epinioCI --name epinioCI$id --file kubeconfig
-          # list existing clusters
+          az aks create --resource-group epinioCI \
+          --name epinioCI$id \
+          --node-count 2 \
+          --generate-ssh-keys
+
+          az aks get-credentials --resource-group epinioCI \
+          --name epinioCI$id \
+          --file ${{ env.KUBECONFIG_NAME }}
+
+          # List existing clusters
           az aks list | jq '.[] | .name + " " + (.powerState|tostring)'
 
       - name: Installation Acceptance Tests
@@ -82,13 +94,13 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
-          # use a random host name, so we don't collide with our workflows on AKS
+          # Use a random host name, so we don't collide with our workflows on AKS
           AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         shell: bash
         run: |
           echo "System Domain: $AKS_DOMAIN"
-          export KUBECONFIG=$PWD/kubeconfig
+          export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
           make test-acceptance-install
 
       - name: Delete AKS cluster
