@@ -74,7 +74,9 @@ func RandomPasswordAuth() (*PasswordAuth, error) {
 	}, nil
 }
 
-// GetFirstUserAccount return the
+// GetFirstUserAccount returns the credentials of the oldest Epinio user.
+// This should normally be the one created during installation unless someone
+// deleted that.
 func GetFirstUserAccount(ctx context.Context) (string, string, error) {
 	secrets, err := GetUserSecretsByAge(ctx)
 	if err != nil {
@@ -90,6 +92,8 @@ func GetFirstUserAccount(ctx context.Context) (string, string, error) {
 	}
 }
 
+// GetUserAccounts returns all Epinio users as a gin.Accounts object to be
+// passed to the BasicAuth middleware.
 func GetUserAccounts(ctx context.Context) (*gin.Accounts, error) {
 	secrets, err := GetUserSecretsByAge(ctx)
 	if err != nil {

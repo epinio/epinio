@@ -119,7 +119,7 @@ func Formatter(params gin.LogFormatterParams) string {
 		params.Method, params.Path, user, params.ClientIP, params.TimeStamp.Format(time.RFC3339), params.Latency, params.StatusCode, params.ErrorMessage)
 }
 
-// authMiddleware is authenticates the user either using the session or if one
+// authMiddleware authenticates the user either using the session or if one
 // doesn't exist, it authenticates with basic auth.
 func authMiddleware(ctx *gin.Context) {
 	logger := tracelog.NewLogger().WithName("AuthMiddleware")
@@ -181,7 +181,7 @@ func authMiddleware(ctx *gin.Context) {
 			return
 		}
 
-		// Check if that user still exists. If not delete the sessino and block the request!
+		// Check if that user still exists. If not delete the session and block the request!
 		// This allows us to kick out users even if they keep their browser open.
 		userStillExists := false
 		for checkUser := range *accounts {
@@ -205,8 +205,8 @@ func authMiddleware(ctx *gin.Context) {
 		}
 	}
 
-	// Write the user info in the context. It's needed by the next middlware
-	// to write it in the session.
+	// Write the user info in the context. It's needed by the next middleware
+	// to write it into the session.
 	id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
 	newCtx := ctx.Request.Context()
 	newCtx = requestctx.ContextWithUser(newCtx, user)
@@ -214,9 +214,10 @@ func authMiddleware(ctx *gin.Context) {
 	ctx.Request = ctx.Request.WithContext(newCtx)
 }
 
-// This middleware won't be called if authentication fails because ctx.Abort
-// will be called is called in authMiddleware. We only set the user in session
-// upon successful authentication (either basic auth or cookie based).
+// This middleware is not called when authentication fails. That's because
+// the authMiddleware calls "ctx.Abort()" in that case.
+// We only set the user in session upon successful authentication
+// (either basic auth or cookie based).
 func sessionMiddleware(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 	requestContext := ctx.Request.Context()

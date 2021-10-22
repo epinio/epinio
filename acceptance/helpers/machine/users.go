@@ -37,6 +37,7 @@ type: BasicAuth
 	return user, password
 }
 
+// DeleteEpinioUser deletes the relevant Kubernetes secret if it exists.
 func (m *Machine) DeleteEpinioUser(username string) error {
 	out, err := helpers.Kubectl("delete", "secret", "-n", "epinio", "epinio-user-"+username, "--ignore-not-found")
 	Expect(err).ToNot(HaveOccurred(), out)
