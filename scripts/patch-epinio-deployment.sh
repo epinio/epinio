@@ -129,10 +129,6 @@ read -r -d '' PATCH <<EOF
 EOF
 kubectl patch deployment -n epinio epinio-server -p "${PATCH}"
 
-
-echo "Ensuring the deployment is restarted"
-kubectl rollout restart deployment -n epinio epinio-server
-
 # https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-status-em-
 echo "Waiting for the rollout of the deployment to complete"
 kubectl rollout status deployment -n epinio epinio-server  --timeout=$timeout
