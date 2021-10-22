@@ -8,6 +8,14 @@ import (
 	"time"
 )
 
+// RandInt return a random integer produced with a new seed every time.
+// This guarantees that future test runs won't collide with any possible left overs
+// from previous runs.
+// More here: https://gobyexample.com/random-numbers
+func RandInt() int {
+	return rand.New(rand.NewSource(time.Now().UnixNano())).Int() // nolint:gosec // Non-crypto use
+}
+
 func NewTmpName(base string) string {
 	return base + strconv.Itoa(int(time.Now().Nanosecond()))
 }
@@ -20,8 +28,12 @@ func NewAppName() string {
 	return "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
+func NewUserCredentials() (string, string) {
+	return strconv.Itoa(RandInt()), strconv.Itoa(RandInt())
+}
+
 func NewServiceName() string {
-	return "service-" + strconv.Itoa(int(time.Now().Nanosecond())) + strconv.Itoa(rand.Int()) // nolint:gosec // Non-crypto use
+	return "service-" + strconv.Itoa(int(time.Now().Nanosecond())) + strconv.Itoa(RandInt())
 }
 
 func GetServiceBindingName(orgName, serviceName, appName string) string {
