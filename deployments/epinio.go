@@ -2,6 +2,8 @@ package deployments
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -268,8 +270,17 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 		return "", err
 	}
 
-	re := regexp.MustCompile(`##current_epinio_version##`)
-	renderedFileContents := re.ReplaceAll(fileContents, []byte(version.Version))
+	randomBytes := make([]byte, 20)
+	_, err = rand.Read(randomBytes)
+	if err != nil {
+		return "", errors.Wrap(err, "generating a random session key")
+	}
+	sessionKey := base64.URLEncoding.EncodeToString(randomBytes)
+	re := regexp.MustCompile(`##epinio_session_key##`)
+	renderedFileContents := re.ReplaceAll(fileContents, []byte(sessionKey))
+
+	re = regexp.MustCompile(`##current_epinio_version##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(version.Version))
 
 	re = regexp.MustCompile(`##tls_issuer##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(issuer))

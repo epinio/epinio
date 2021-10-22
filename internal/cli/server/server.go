@@ -3,6 +3,7 @@ package server
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand"
@@ -72,8 +73,11 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
-	// TODO: generate the "secret" here
-	store := cookie.NewStore([]byte("secret"))
+	if os.Getenv("SESSION_KEY") == "" {
+		return nil, "", errors.New("SESSION_KEY environment variable not defined")
+	}
+
+	store := cookie.NewStore([]byte(os.Getenv("SESSION_KEY")))
 	store.Options(sessions.Options{MaxAge: 60 * 60 * 24}) // expire in a day
 	router.Use(sessions.Sessions("epinio-session", store))
 

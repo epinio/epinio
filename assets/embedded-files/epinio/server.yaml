@@ -199,6 +199,8 @@ spec:
               value: ##tls_issuer##
             - name: USE_INTERNAL_REGISTRY_NODE_PORT
               value: "##use_internal_registry_node_port##"
+            - name: SESSION_KEY
+              value: "##epinio_session_key##"
           image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:
