@@ -44,7 +44,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: "true"
-          excludeLabels: "apparently external cause,chore,devops admin,duplicate,invalid,later,overcome by events,spike,wontfix,do not log,question"
+          excludeLabels: "apparently external cause,chore,devops admin,duplicate,invalid,later,overcome by events,spike,wontfix,do not log,question,QA"
           pullRequests: "false"
           onlyLastTag: "true"
           stripGeneratorNotice: "true"
