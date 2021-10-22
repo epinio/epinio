@@ -1,6 +1,10 @@
 name: EKS-CI
 
 on:
+  pull_request:
+    paths:
+      - 'acceptance/install/scenario4_test.go'
+      - '.github/workflows/eks.yml'
   schedule:
     - cron:  '0 6 * * *'
   workflow_dispatch:

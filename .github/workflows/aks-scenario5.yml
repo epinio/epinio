@@ -1,6 +1,10 @@
 name: AKS-CI-Scenario5
 
 on:
+  pull_request:
+    paths:
+      - 'acceptance/install/scenario5_test.go'
+      - '.github/workflows/aks-scenario5.yml'
   schedule:
     - cron:  '25 5 * * *'
   workflow_dispatch:

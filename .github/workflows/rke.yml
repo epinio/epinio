@@ -1,6 +1,10 @@
 name: RKE-CI
 
 on:
+  pull_request:
+    paths:
+      - 'acceptance/install/scenario7_test.go'
+      - '.github/workflows/rke.yml'
   schedule:
     - cron:  '0 2 * * *'
   workflow_dispatch:
