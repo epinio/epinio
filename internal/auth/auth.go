@@ -4,6 +4,8 @@ package auth
 
 import (
 	"context"
+	"errors"
+	"sort"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -11,6 +13,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"k8s.io/apimachinery/pkg/labels"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -20,7 +23,18 @@ type PasswordAuth struct {
 	Password string
 }
 
-// Htpasswd returns user+hash string suitable for use by Traefik's
+type SecretsSortable []corev1.Secret
+
+func (a SecretsSortable) Len() int { return len(a) }
+func (a SecretsSortable) Less(i, j int) bool {
+	time1 := a[i].ObjectMeta.CreationTimestamp
+	time2 := a[j].ObjectMeta.CreationTimestamp
+
+	return time1.Before(&time2)
+}
+func (a SecretsSortable) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+// Htpassword returns user+hash string suitable for use by Traefik's
 // BasicAuth module.
 func (auth *PasswordAuth) Htpassword() (string, error) {
 	hash, err := HashBcrypt(auth.Password)
@@ -60,7 +74,38 @@ func RandomPasswordAuth() (*PasswordAuth, error) {
 	}, nil
 }
 
+// GetFirstUserAccount return the
+func GetFirstUserAccount(ctx context.Context) (string, string, error) {
+	secrets, err := GetUserSecretsByAge(ctx)
+	if err != nil {
+		return "", "", err
+	}
+
+	if len(secrets) > 0 {
+		username := string(secrets[0].Data["username"])
+		password := string(secrets[0].Data["password"])
+		return username, password, nil
+	} else {
+		return "", "", errors.New("no user account found")
+	}
+}
+
 func GetUserAccounts(ctx context.Context) (*gin.Accounts, error) {
+	secrets, err := GetUserSecretsByAge(ctx)
+	if err != nil {
+		return nil, err
+	}
+	accounts := gin.Accounts{}
+	for _, secret := range secrets {
+		accounts[string(secret.Data["username"])] = string(secret.Data["password"])
+	}
+
+	return &accounts, nil
+}
+
+// GetUserSecretsByAge returns the user BasicAuth Secrets sorted from older to
+// younger by creationTimestamp.
+func GetUserSecretsByAge(ctx context.Context) ([]corev1.Secret, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, err
@@ -79,10 +124,8 @@ func GetUserAccounts(ctx context.Context) (*gin.Accounts, error) {
 		return nil, err
 	}
 
-	accounts := gin.Accounts{}
-	for _, secret := range secretList.Items {
-		accounts[string(secret.Data["username"])] = string(secret.Data["password"])
-	}
+	// Now lets sort the list
+	sort.Sort(SecretsSortable(secretList.Items))
 
-	return &accounts, nil
+	return secretList.Items, nil
 }

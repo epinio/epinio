@@ -126,6 +126,10 @@ func authMiddleware(ctx *gin.Context) {
 		response.Error(ctx, apierrors.InternalError(err))
 	}
 
+	if len(*accounts) == 0 {
+		response.Error(ctx, apierrors.NewAPIError("no user found", "", http.StatusUnauthorized))
+	}
+
 	// We set this to the current user after successful authentication.
 	// This is also added to the context for controllers to use.
 	var user string

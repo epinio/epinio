@@ -10,7 +10,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Users", func() {
+var _ = Describe("Users", func() {
 	var request *http.Request
 	var err error
 	var uri string
@@ -78,6 +78,11 @@ var _ = FDescribe("Users", func() {
 			Expect(len(resp.Header["Set-Cookie"])).To(Equal(1))
 			// New request without basic auth credentials and just a session cookie
 			cookie = resp.Header["Set-Cookie"][0]
+		})
+
+		AfterEach(func() {
+			// Ensure it's deleted even if test fails
+			env.DeleteEpinioUser(user)
 		})
 
 		Specify("the user can no longer authenticate with the session cookie", func() {

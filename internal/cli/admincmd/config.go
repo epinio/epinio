@@ -62,7 +62,7 @@ func (a *Admin) ConfigUpdate(ctx context.Context) error {
 
 	details.Info("retrieving credentials")
 
-	user, password, err := getCredentials(ctx, details)
+	user, password, err := auth.GetFirstUserAccount(ctx)
 	if err != nil {
 		a.ui.Exclamation().Msg(err.Error())
 		return nil
@@ -131,33 +131,6 @@ func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 	}
 
 	return epinioURL, epinioWsURL, err
-}
-
-// TODO: https://github.com/epinio/epinio/issues/667
-func getCredentials(ctx context.Context, log logr.Logger) (string, string, error) {
-	// This is called only by the admin command `config update`
-	// which has to talk to the cluster to retrieve the
-	// information. This is allowed.
-
-	log.Info("got cluster")
-	accounts, err := auth.GetUserAccounts(ctx)
-	if err != nil {
-		return "", "", err
-	}
-	log.Info("got user accounts")
-
-	user, pass := "", ""
-	for k, v := range *accounts {
-		user = k
-		pass = v
-		break
-	}
-
-	if user == "" || pass == "" {
-		return "", "", errors.New("No user account found")
-	}
-
-	return user, pass, nil
 }
 
 func getCerts(ctx context.Context, log logr.Logger) (string, error) {

@@ -38,7 +38,7 @@ type: BasicAuth
 }
 
 func (m *Machine) DeleteEpinioUser(username string) error {
-	out, err := helpers.Kubectl("delete", "secret", "-n", "epinio", "epinio-user-"+username)
+	out, err := helpers.Kubectl("delete", "secret", "-n", "epinio", "epinio-user-"+username, "--ignore-not-found")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return nil
