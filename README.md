@@ -6,6 +6,8 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
 [![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=event%3Aschedule)
 [![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks.yml)
 [![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/eks.yml)
+[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke.yml)
+[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/rke.yml)
 [![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml)
 
 <img src="./docs/epinio.png" align="right" width="200" height="50%">

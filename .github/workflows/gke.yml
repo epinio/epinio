@@ -33,6 +33,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
       - name: Get All Git Tags
         run: git fetch --force --prune --unshallow --tags
 
@@ -74,7 +75,6 @@ jobs:
           --zone ${{ env.GKE_ZONE }}
 
       - name: Get kubeconfig file from GKE
-        shell: bash
         run: |
           id="${{ steps.create-cluster.outputs.ID }}"
           gcloud container clusters get-credentials epinioci$id --zone ${{ env.GKE_ZONE }} --project ${{ secrets.EPCI_GKE_PROJECT }}
@@ -85,6 +85,7 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          # Use a random host name, so we don't collide with our workflows on GKE
           GKE_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.gke_domain || secrets.GKE_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
@@ -94,8 +95,6 @@ jobs:
 
       - name: Delete GKE cluster
         if: ${{ always() && !github.event.inputs.keep_cluster }}
-        shell: bash
         run: |
-          echo "debug keep_cluster: ${{ github.event.inputs.keep_cluster }}"
           id="${{ steps.create-cluster.outputs.ID }}"
           gcloud container clusters delete epinioci$id --zone ${{ env.GKE_ZONE }} --quiet

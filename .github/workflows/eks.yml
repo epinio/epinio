@@ -25,10 +25,17 @@ on:
         description: "AWS_ZONE_ID"
         required: false
         default: ""
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
 
 env:
   SETUP_GO_VERSION: '^1.13.7'
   GINKGO_NODES: 1
+  AWS_REGION: 'us-east-2'
+  AWS_MACHINE_TYPE: 't3.xlarge'
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
 
 jobs:
   acceptance-scenario4:
@@ -37,6 +44,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
       - name: Get All Git Tags
         run: git fetch --force --prune --unshallow --tags
 
@@ -44,8 +52,10 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
+
       - name: Setup Ginkgo Test Framework
         run: go install github.com/onsi/ginkgo/ginkgo@v1.16.2
+
       - name: Install Dependencies
         run: |
           brew install kubernetes-cli eksctl
@@ -55,13 +65,20 @@ jobs:
         with:
           aws-access-key-id: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-2
+          aws-region: ${{ env.AWS_REGION }}
+
       - name: Create EKS cluster
         id: create-cluster
         run: |
           id=$RANDOM
           echo '::set-output name=ID::'$id
-          eksctl create cluster --name=epinio-ci$id --region=us-east-2 --nodes=2 --node-type=t3.xlarge --node-volume-size=40 --managed --kubeconfig=kubeconfig-epinio-ci
+          eksctl create cluster --name=epinio-ci$id \
+          --region=${{ env.AWS_REGION }} \
+          --nodes=2 \
+          --node-type=${{ env.AWS_MACHINE_TYPE }} \
+          --node-volume-size=40 \
+          --managed \
+          --kubeconfig=kubeconfig-epinio-ci
 
       - name: Installation Acceptance Tests
         env:
@@ -69,16 +86,21 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
-          AWS_DOMAIN: ${{ github.events.inputs.aks_domain || secrets.AWS_DOMAIN }}
+          # Use a random host name, so we don't collide with our workflows on EKS
+          AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aws_domain || secrets.AWS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          export KUBECONFIG=$PWD/kubeconfig-epinio-ci
+          echo "System Domain: $AWS_DOMAIN"
+          export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
           make test-acceptance-install
 
       - name: Delete EKS cluster
-        if: ${{ always() }}
+        # We always tear down the cluster, to avoid costs. Except when running
+        # manually and keep_cluster was set to a non-empty string, like "yes"
+        # TODO this was not called, when scheduled and tests failed
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
         env:
-          KUBECONFIG: kubeconfig-epinio-ci
+          KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
         run: |
           id="${{ steps.create-cluster.outputs.ID }}"
-          eksctl delete cluster --region=us-east-2 --name=epinio-ci$id
+          eksctl delete cluster --region=${{ env.AWS_REGION }} --name=epinio-ci$id

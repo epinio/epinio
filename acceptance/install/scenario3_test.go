@@ -2,7 +2,6 @@ package install_test
 
 import (
 	"encoding/json"
-	"os"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -10,19 +9,18 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/acceptance/helpers/route53"
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
+var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 	var (
-		appName      = catalog.NewAppName()
-		domain       string
-		epinioHelper epinio.Epinio
 		flags        []string
-		loadbalancer string
+		epinioHelper epinio.Epinio
+		appName      = catalog.NewAppName()
 		serviceName  = catalog.NewServiceName()
-		zoneID       string
+		loadbalancer string
+		metallbURL   string
+		localpathURL string
 		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
 		env testenv.EpinioEnv
 	)
@@ -30,18 +28,13 @@ var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
 	BeforeEach(func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
-		// use Route53
-		domain = os.Getenv("AKS_DOMAIN")
-		Expect(domain).ToNot(BeEmpty())
-
-		zoneID = os.Getenv("AWS_ZONE_ID")
-		Expect(zoneID).ToNot(BeEmpty())
+		metallbURL = "https://raw.githubusercontent.com/google/metallb/v0.10.3/manifests/metallb.yaml"
+		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 
 		flags = []string{
 			"--skip-default-namespace",
 			"--skip-cert-manager",
 			"--tls-issuer=private-ca",
-			"--system-domain=" + domain,
 		}
 	})
 
@@ -50,32 +43,24 @@ var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs and passes scenario", func() {
-		By("Installing Traefik", func() {
-			out, err := epinioHelper.Run("install-ingress")
+	It("installs with private CA and pushes an app with service", func() {
+		By("Installing MetalLB", func() {
+			out, err := proc.RunW("kubectl", "create", "namespace", "metallb-system")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Traefik deployed"), ContainSubstring("Traefik Ingress info")))
+
+			out, err = proc.RunW("kubectl", "apply", "-f", metallbURL)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("config-metallb-rke.yml"))
+			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
-		By("Extracting AKS Loadbalancer Name", func() {
-			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
+		By("Configuring local-path storage", func() {
+			out, err := proc.RunW("kubectl", "apply", "-f", localpathURL)
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			status := &testenv.LoadBalancerHostname{}
-			err = json.Unmarshal([]byte(out), status)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
-			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
-			Expect(loadbalancer).ToNot(BeEmpty(), out)
-		})
-
-		By("Updating DNS Entries", func() {
-			change := route53.A(domain, loadbalancer)
-			out, err := route53.Upsert(zoneID, change, nodeTmpDir)
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			change = route53.A("*."+domain, loadbalancer)
-			out, err = route53.Upsert(zoneID, change, nodeTmpDir)
+			value := `{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}`
+			out, err = proc.RunW("kubectl", "patch", "storageclass", "local-path", "-p", value)
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
@@ -84,7 +69,7 @@ var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("CertManager deployed"))
 
-			// create certificate secret and cluster_issuer
+			// Create certificate secret and cluster_issuer
 			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
@@ -96,6 +81,18 @@ var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
 
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		By("Checking Loadbalancer IP", func() {
+			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			status := &testenv.LoadBalancerHostname{}
+			err = json.Unmarshal([]byte(out), status)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
+			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
+			Expect(loadbalancer).ToNot(BeEmpty())
 		})
 
 		// Now create the default org which we skipped because
@@ -116,7 +113,7 @@ var _ = Describe("<Scenario3> Azure, Private CA, Service", func() {
 
 			env.VerifyAppServiceBound(appName, serviceName, testenv.DefaultWorkspace, 1)
 
-			// verify cluster_issuer is used
+			// Verify cluster_issuer is used
 			out, err = proc.RunW("kubectl", "get", "certificate",
 				"-n", testenv.DefaultWorkspace, appName, "-o", "jsonpath='{.spec.issuerRef.name}'")
 			Expect(err).NotTo(HaveOccurred(), out)

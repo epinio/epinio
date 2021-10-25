@@ -3,7 +3,7 @@ name: RKE-CI
 on:
   pull_request:
     paths:
-      - 'acceptance/install/scenario7_test.go'
+      - 'acceptance/install/scenario3_test.go'
       - '.github/workflows/rke.yml'
   schedule:
     - cron:  '0 2 * * *'
@@ -20,12 +20,13 @@ env:
   FLAKE_ATTEMPTS: 1
 
 jobs:
-  acceptance-scenario7:
+  acceptance-scenario3:
     runs-on: self-hosted
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
       - name: Get All Git Tags
         run: git fetch --force --prune --unshallow --tags
 
@@ -70,7 +71,7 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
-          REGEX: Scenario7
+          REGEX: Scenario3
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
