@@ -49,10 +49,10 @@ kubectl apply -f fantasticuser.yaml
 ```
 
 Now you can edit your `~/.config/epinio/config.yaml` and set `pass` and `user`
-to the new credentials above. You can delete all users and and new ones at any
+to the new credentials above. You can delete all users and add new ones at any
 time.
 
 ## NOTE
 
 The admin command `epinio config update` updates the epinio `config.yaml`
-with the credentials of the "older" user, based on creation date.
+with the credentials of the "oldest" user, based on creation date.
