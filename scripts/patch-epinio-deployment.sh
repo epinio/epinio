@@ -97,6 +97,9 @@ kubectl exec -i -n epinio -c copier epinio-copier -- mv "$(basename "${EPINIO_BI
 kubectl exec -i -n epinio -c copier epinio-copier -- chmod ugo+x epinio/epinio
 kubectl exec -i -n epinio -c copier epinio-copier -- ls -l epinio
 
+echo "Deleting the epinio-copier to avoid multi-attach issue between pods"
+kubectl delete pod -n epinio epinio-copier
+
 # https://stackoverflow.com/a/5773761
 EPINIO_BINARY_HASH=($(shasum ${EPINIO_BINARY_PATH}))
 
