@@ -303,7 +303,7 @@ func (k Registry) createCertificate(ctx context.Context, c *kubernetes.Cluster, 
 		return errors.Wrap(err, "failed trying to create the epinio API server cert")
 	}
 
-	// Wait until the cert is there before we create the Ingress
+	// Wait until the cert is there
 	if _, err := c.WaitForSecret(ctx, RegistryDeploymentID, RegistryDeploymentID+"-tls", duration.ToSecretCopied()); err != nil {
 		return errors.Wrap(err, "waiting for the Registry tls certificate to be created")
 	}
