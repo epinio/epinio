@@ -252,7 +252,7 @@ configuration:
 		replicas := func(ns, name string) string {
 			n, err := helpers.Kubectl("get", "deployment",
 				"--namespace", ns, name,
-				"-o", "jsonpath={.status.replicas}")
+				"-o", "jsonpath={.spec.replicas}")
 			if err != nil {
 				return ""
 			}
@@ -277,6 +277,14 @@ configuration:
 				Eventually(func() string {
 					return replicas(org, appName)
 				}, timeout, interval).Should(Equal(strconv.Itoa(int(application.DefaultInstances))))
+			})
+			By("pushing with 0 instance count", func() {
+				out, err := act(appName, "--instances", "0")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					return replicas(org, appName)
+				}, timeout, interval).Should(Equal("0"))
 			})
 			By("pushing with an instance count", func() {
 				out, err := act(appName, "--instances", "2")
