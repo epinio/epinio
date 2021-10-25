@@ -102,9 +102,14 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to process application's bound services")
 	}
 
-	route, err := domain.AppDefaultRoute(ctx, req.App.Name)
-	if err != nil {
-		return apierror.InternalError(err)
+	route := ""
+	if req.Domain != "" {
+		route = req.Domain
+	} else {
+		route, err = domain.AppDefaultRoute(ctx, req.App.Name)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
 	}
 
 	deployParams := deployParam{

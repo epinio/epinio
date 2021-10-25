@@ -213,6 +213,27 @@ configuration:
 		})
 	})
 
+	When("pushing with custom domain flag", func() {
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("creates an ingress with the custom domain as host", func() {
+			domain := "mycustomdomain.org"
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+				"--domain", domain,
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+			out, err := helpers.Kubectl("get", "ingress",
+				"--namespace", org, "i-"+appName,
+				"-o", "jsonpath={.spec.rules[0].host}")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(out).To(Equal(domain))
+		})
+	})
 	When("pushing with custom builder flag", func() {
 		AfterEach(func() {
 			env.DeleteApp(appName)

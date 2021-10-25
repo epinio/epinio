@@ -790,6 +790,27 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(out).To(ContainSubstring("true"))
 				})
 			})
+
+			When("deploying an app with a custom domain", func() {
+				BeforeEach(func() {
+					request.Domain = "mycustom.domain.org"
+				})
+				BeforeEach(func() {
+					bodyBytes, err := json.Marshal(request)
+					Expect(err).ToNot(HaveOccurred())
+					body = string(bodyBytes)
+					_, err = env.Curl("POST", url, strings.NewReader(body))
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				It("the app Ingress matches the specified domain", func() {
+					out, err := helpers.Kubectl("get", "ingress",
+						"--namespace", org, "i-"+appName,
+						"-o", "jsonpath={.spec.rules[0].host}")
+					Expect(err).NotTo(HaveOccurred())
+					Expect(out).To(Equal(request.Domain))
+				})
+			})
 		})
 	})
 

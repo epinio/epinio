@@ -61,6 +61,7 @@ type ApplicationManifest struct {
 	Self                     string            `yaml:"-"` // Hidden from yaml. The file's location.
 	Origin                   ApplicationOrigin `yaml:"origin,omitempty"`
 	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
+	Domain                   string            `yaml:"domain,omitempty"`
 }
 
 // ApplicationStaging is the part of the manifest holding information relevant to staging
@@ -153,6 +154,7 @@ type DeployRequest struct {
 	App      AppRef   `json:"app,omitempty"`
 	Stage    StageRef `json:"stage,omitempty"`
 	ImageURL string   `json:"image,omitempty"`
+	Domain   string   `json:"domain,omitempty"`
 }
 
 // DeployResponse represents the server's response to a successful app deployment
