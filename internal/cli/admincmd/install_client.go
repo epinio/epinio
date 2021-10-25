@@ -443,7 +443,7 @@ func (c *InstallClient) preDeployCheck(ctx context.Context, deployment kubernete
 	return deployment.PreDeployCheck(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
-// postDeleteCheck checks the if the deployment was deleted and waits
+// postDeleteCheck checks if the deployment was deleted and waits
 func (c *InstallClient) postDeleteCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("check", "Uninstall", deployment.ID())
 	defer logger.Info("return")
