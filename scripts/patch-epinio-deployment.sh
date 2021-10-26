@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 timeout=480s
 
 # This script should be used while doing development on Epinio.
@@ -95,10 +97,17 @@ kubectl exec -i -n epinio -c copier epinio-copier -- mv "$(basename "${EPINIO_BI
 kubectl exec -i -n epinio -c copier epinio-copier -- chmod ugo+x epinio/epinio
 kubectl exec -i -n epinio -c copier epinio-copier -- ls -l epinio
 
+# https://stackoverflow.com/a/5773761
+EPINIO_BINARY_HASH=($(md5sum ${EPINIO_BINARY_PATH}))
+
 echo "Patching the epinio-server deployment to use the copied binary"
-read -r -d '' PATCH <<EOF
-{
-  "spec": { "template": {
+PATCH=$(cat <<EOF
+{ "spec": { "template": {
+      "metadata": {
+        "annotations": {
+          "binary-hash": "${EPINIO_BINARY_HASH}"
+        }
+      },
       "spec": {
         "volumes": [
           {
@@ -127,6 +136,7 @@ read -r -d '' PATCH <<EOF
   }
 }
 EOF
+)
 kubectl patch deployment -n epinio epinio-server -p "${PATCH}"
 
 # https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-status-em-
