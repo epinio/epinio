@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -16,6 +18,21 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+const accountExpiryInterval = 60 * time.Second
+
+// Local globals for managing a timed cache of user accounts.
+var (
+	cache cacheState
+)
+
+// cacheState encapsulates the current state of the account cache.
+type cacheState struct {
+	Init     sync.Once     // Initializer
+	Lock     sync.RWMutex  // Multi-Reader / Single-Writer Lock
+	Accounts *gin.Accounts // Result of last getAccounts() call
+	Err      error         // Error result of the same.
+}
 
 // PasswordAuth wraps a set of password-based credentials
 type PasswordAuth struct {
@@ -92,9 +109,58 @@ func GetFirstUserAccount(ctx context.Context) (string, string, error) {
 	}
 }
 
-// GetUserAccounts returns all Epinio users as a gin.Accounts object to be
-// passed to the BasicAuth middleware.
+// GetUserAccounts returns all Epinio users as a gin.Accounts object to be passed to the
+// BasicAuth middleware.
 func GetUserAccounts(ctx context.Context) (*gin.Accounts, error) {
+	// Initialize cache system
+	cache.Init.Do(func() {
+		// Spawn the goroutine which periodically refreshes the cache.
+		go func(ctx context.Context) {
+			// Operation
+			// - A timed loop refreshes the cache state as per the expiry interval.
+			// - This is the single writer of the system.
+			// - The requestors are the reader.
+			// - All use the cache.Lock to sync their access.
+
+			for {
+				current, err := getAccounts(ctx)
+				func() {
+					cache.Lock.Lock()
+					defer cache.Lock.Unlock()
+
+					cache.Accounts = current
+					cache.Err = err
+				}()
+				time.Sleep(accountExpiryInterval)
+			}
+		}(context.Background())
+	})
+
+	cache.Lock.RLock()
+	defer cache.Lock.RUnlock()
+
+	// Wait for the goroutine to initialize the map. This may spin a bit. Should
+	// affect only a few first user requests.
+	if cache.Accounts == nil {
+		cache.Lock.RUnlock()
+		for {
+			cache.Lock.RLock()
+			if cache.Accounts != nil {
+				break
+			}
+			cache.Lock.RUnlock()
+		}
+	}
+
+	// Note: We are returning a pointer to a map which is used only to read from the
+	// map (len, gin.BasicAuth, range loop. The locking here is only so that getting
+	// the pointer in question is not troubled by the writer goroutine above.
+
+	return cache.Accounts, cache.Err
+}
+
+// getAccounts retrieves the current set of users from the kube cluster.
+func getAccounts(ctx context.Context) (*gin.Accounts, error) {
 	secrets, err := GetUserSecretsByAge(ctx)
 	if err != nil {
 		return nil, err
