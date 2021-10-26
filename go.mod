@@ -8,6 +8,7 @@ replace github.com/ulikunitz/xz => github.com/ulikunitz/xz v0.5.8
 require (
 	github.com/Azure/go-autorest/autorest v0.11.17 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.10 // indirect
+	github.com/alexander-yu/stream v0.0.0-20190408032938-f6f8149baa3a
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
