@@ -56,7 +56,7 @@ var _ = Describe("<Scenario2>", func() {
 			Expect(out).To(Or(ContainSubstring("Traefik deployed"), ContainSubstring("Traefik Ingress info")))
 		})
 
-		By("Extracting Loadbalancer Name", func() {
+		By("Extracting Loadbalancer IP", func() {
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
 
@@ -76,6 +76,22 @@ var _ = Describe("<Scenario2>", func() {
 			change = route53.A("*."+domain, loadbalancer)
 			out, err = route53.Upsert(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
+		})
+
+		// Check that DNS entry is correctly propagated
+		By("Checking that DNS entry is correctly propagated", func() {
+			Eventually(func() string {
+				out, err := route53.TestDnsAnswer(zoneID, domain, "A")
+				Expect(err).NotTo(HaveOccurred(), out)
+
+				answer := &route53.DNSAnswer{}
+				err = json.Unmarshal([]byte(out), answer)
+				Expect(err).NotTo(HaveOccurred())
+				if len(answer.RecordData) == 0 {
+					return ""
+				}
+				return answer.RecordData[0]
+			}, "5m", "2s").Should(Equal(loadbalancer))
 		})
 
 		By("Installing Epinio", func() {
@@ -103,7 +119,13 @@ var _ = Describe("<Scenario2>", func() {
 				out, err := proc.RunW("kubectl", "get", "deployment", "--namespace", testenv.DefaultWorkspace, appName, "-o", "jsonpath={.spec.replicas}")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}).Should(MatchRegexp("0"))
+			}, "30s", "1s").Should(Equal("0"))
+
+			// Verify cluster_issuer is used
+			out, err = proc.RunW("kubectl", "get", "certificate",
+				"-n", testenv.DefaultWorkspace, appName, "-o", "jsonpath='{.spec.issuerRef.name}'")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal("'letsencrypt-production'"))
 		})
 	})
 })
