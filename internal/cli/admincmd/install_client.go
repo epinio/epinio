@@ -107,14 +107,14 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	if err := c.InstallDeployment(ctx, &deployments.Linkerd{
+	if err := c.deploy(ctx, &deployments.Linkerd{
 		Timeout: duration.ToDeployment(),
 		Log:     details.V(1),
 	}, details); err != nil {
 		return err
 	}
 
-	if err := c.InstallDeployment(ctx, &deployments.Traefik{
+	if err := c.deploy(ctx, &deployments.Traefik{
 		Timeout: duration.ToDeployment(),
 		Log:     details.V(1),
 	}, details); err != nil {
@@ -181,7 +181,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 	}
 
 	for _, deployment := range steps {
-		if err := c.PreInstallCheck(ctx, deployment, details); err != nil {
+		if err := c.preDeployCheck(ctx, deployment, details); err != nil {
 			return errors.Wrapf(err, "Deployment %s failed pre-installation checks", deployment.ID())
 		}
 	}
@@ -191,7 +191,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		installationWg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
-			if err := c.InstallDeployment(ctx, deployment, details); err != nil {
+			if err := c.deploy(ctx, deployment, details); err != nil {
 				c.ui.Exclamation().Msgf("Deployment %s failed with error: %v\n", deployment.ID(), err)
 				os.Exit(1)
 			}
@@ -266,18 +266,18 @@ func (c *InstallClient) Uninstall(ctx context.Context) error {
 		wg.Add(1)
 		go func(deployment kubernetes.Deployment, wg *sync.WaitGroup) {
 			defer wg.Done()
-			if err := c.UninstallDeployment(ctx, deployment, details); err != nil {
+			if err := c.delete(ctx, deployment, details); err != nil {
 				c.ui.Exclamation().Msgf("Uninstall of %s failed: %v", deployment.ID(), err)
 				os.Exit(1)
 			}
-			if err := c.PostDeleteCheck(ctx, deployment, details); err != nil {
+			if err := c.postDeleteCheck(ctx, deployment, details); err != nil {
 				c.ui.Exclamation().Msgf("Failed to delete deployment %s\n error: %s\n", deployment.ID(), err.Error())
 			}
 		}(deployment, wg)
 	}
 	wg.Wait()
 
-	if err := c.UninstallDeployment(ctx, &deployments.Linkerd{
+	if err := c.delete(ctx, &deployments.Linkerd{
 		Timeout: duration.ToDeployment(),
 		Log:     details.V(1),
 	}, details); err != nil {
@@ -336,14 +336,14 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 	// to report all problems at once, instead of early and
 	// piecemal.
 
-	if err := c.InstallDeployment(ctx, &deployments.Linkerd{
+	if err := c.deploy(ctx, &deployments.Linkerd{
 		Timeout: duration.ToDeployment(),
 		Log:     details.V(1),
 	}, details); err != nil {
 		return err
 	}
 
-	if err := c.InstallDeployment(ctx, &deployments.Traefik{
+	if err := c.deploy(ctx, &deployments.Traefik{
 		Timeout: duration.ToDeployment(),
 		Log:     details.V(1),
 	}, details); err != nil {
@@ -402,7 +402,7 @@ func (c *InstallClient) InstallCertManager(cmd *cobra.Command) error {
 	details.Info("show option configuration")
 	c.showInstallConfiguration(c.options)
 
-	if err := c.InstallDeployment(ctx, &deployments.CertManager{
+	if err := c.deploy(ctx, &deployments.CertManager{
 		Timeout: duration.ToDeployment(),
 		Log:     details.V(1),
 	}, details); err != nil {
@@ -435,32 +435,32 @@ func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) erro
 	return nil
 }
 
-// PreInstallCheck checks the pre conditions for a single deployment
-func (c *InstallClient) PreInstallCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
+// preDeployCheck checks the pre conditions for a single deployment
+func (c *InstallClient) preDeployCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("check", "Deployment", deployment.ID())
 	defer logger.Info("return")
 
 	return deployment.PreDeployCheck(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
-// PostDeleteCheck checks the if the deployment was deleted and waits
-func (c *InstallClient) PostDeleteCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
+// postDeleteCheck checks if the deployment was deleted and waits
+func (c *InstallClient) postDeleteCheck(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("check", "Uninstall", deployment.ID())
 	defer logger.Info("return")
 
 	return deployment.PostDeleteCheck(ctx, c.kubeClient, c.ui)
 }
 
-// InstallDeployment installs one single Deployment on the cluster
-func (c *InstallClient) InstallDeployment(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
+// deploy installs one single Deployment on the cluster
+func (c *InstallClient) deploy(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("deploy", "Deployment", deployment.ID())
 	defer logger.Info("return")
 
 	return deployment.Deploy(ctx, c.kubeClient, c.ui, c.options.ForDeployment(deployment.ID()))
 }
 
-// UninstallDeployment uninstalls one single Deployment from the cluster
-func (c *InstallClient) UninstallDeployment(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
+// delete uninstalls one single Deployment from the cluster
+func (c *InstallClient) delete(ctx context.Context, deployment kubernetes.Deployment, logger logr.Logger) error {
 	logger.Info("remove", "Deployment", deployment.ID())
 	return deployment.Delete(ctx, c.kubeClient, c.ui)
 }
