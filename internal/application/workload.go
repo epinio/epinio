@@ -356,7 +356,6 @@ func (a *Workload) Restarts(ctx context.Context) (int32, error) {
 // Get returns the state of the app deployment encoded in the workload.
 func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
 	active := false
-	routes := []string{}
 	stageID := ""
 	status := ""
 	username := ""
@@ -397,7 +396,7 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		active = true
 	}
 
-	routes, err = ListRoutes(ctx, a.cluster, a.app)
+	routes, err := ListRoutes(ctx, a.cluster, a.app)
 	if err != nil {
 		routes = []string{err.Error()}
 	}

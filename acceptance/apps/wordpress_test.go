@@ -11,7 +11,6 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -39,8 +38,6 @@ func (w *WordpressApp) CreateDir() error {
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("tarPaths := %v\n", tarPaths)
 
 	if out, err := helpers.RunProc(w.Dir, false, "tar", append([]string{"xvf"}, tarPaths...)...); err != nil {
 		return errors.Wrap(err, out)
@@ -79,11 +76,12 @@ extension=mysqli
 	return nil
 }
 
-// Uri Finds the application ingress and returns the url to the app.
+// AppURL Finds the application ingress and returns the url to the app.
+// If more than one domains are set on the app, it will return just one.
 func (w *WordpressApp) AppURL() (string, error) {
 	host, err := helpers.Kubectl("get", "ingress",
 		"--namespace", w.Org,
-		"--field-selector", "metadata.name="+names.IngressName(w.Name),
+		"--selector", "app.kubernetes.io/name="+w.Name,
 		"-o", "jsonpath={.items[0].spec['rules'][0]['host']}")
 	if err != nil {
 		return "", err

@@ -29,7 +29,7 @@ func ListRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef models.
 
 	result := []string{}
 	for _, ingress := range ingressList.Items {
-		result = append(result, "https://"+ingress.Spec.Rules[0].Host)
+		result = append(result, ingress.Spec.Rules[0].Host)
 	}
 
 	return result, nil
