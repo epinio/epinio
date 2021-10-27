@@ -139,7 +139,7 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Meta.Org,
 					app.Meta.Name,
 					app.Workload.Status,
-					app.Workload.Route,
+					strings.Join(app.Workload.Routes, ", "),
 					strings.Join(app.Configuration.Services, ", "),
 					app.StatusMessage,
 				)
@@ -161,7 +161,7 @@ func (c *EpinioClient) Apps(all bool) error {
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Workload.Status,
-					app.Workload.Route,
+					strings.Join(app.Workload.Routes, ", "),
 					strings.Join(app.Configuration.Services, ", "),
 					app.StatusMessage,
 				)
@@ -208,7 +208,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 		msg = msg.WithTableRow("Status", app.Workload.Status).
 			WithTableRow("Username", app.Workload.Username).
 			WithTableRow("StageId", app.Workload.StageID).
-			WithTableRow("Routes", app.Workload.Route).
+			WithTableRow("Routes", strings.Join(app.Workload.Routes, ", ")).
 			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
 			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts))).
 			WithTableRow("milliCPUs", strconv.Itoa(int(app.Workload.MilliCPUs))).

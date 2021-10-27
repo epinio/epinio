@@ -18,6 +18,23 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
+// ListRoutes lists all (currently active) routes for the given application
+// The list is constructed from the actual Ingresses and not from the stored
+// information on the Application Custom Resource.
+func ListRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
+	ingressList, err := ingressListForApp(ctx, cluster, appRef)
+	if err != nil {
+		return []string{}, err
+	}
+
+	result := []string{}
+	for _, ingress := range ingressList.Items {
+		result = append(result, "https://"+ingress.Spec.Rules[0].Host)
+	}
+
+	return result, nil
+}
+
 // SyncIngresses ensures that each domain in the Application CRD "Domains" field
 // has a respective Ingress resource. It also ensures that no other Ingresses
 // exist for that application (e.g. domains that have been removed).
@@ -45,13 +62,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 		return []string{}, err
 	}
 
-	// Find all user credential secrets
-	ingressSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/name": appRef.Name,
-	}).AsSelector().String()
-	ingressList, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).List(ctx, metav1.ListOptions{
-		LabelSelector: ingressSelector,
-	})
+	ingressList, err := ingressListForApp(ctx, cluster, appRef)
 	if err != nil {
 		return []string{}, err
 	}
@@ -163,4 +174,15 @@ func newAppIngress(appRef models.AppRef, route, username, prefix string) *networ
 			},
 		},
 	}
+}
+
+func ingressListForApp(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*networkingv1.IngressList, error) {
+	// Find all user credential secrets
+	ingressSelector := labels.Set(map[string]string{
+		"app.kubernetes.io/name": appRef.Name,
+	}).AsSelector().String()
+
+	return cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).List(ctx, metav1.ListOptions{
+		LabelSelector: ingressSelector,
+	})
 }

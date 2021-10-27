@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -357,7 +356,7 @@ func (a *Workload) Restarts(ctx context.Context) (int32, error) {
 // Get returns the state of the app deployment encoded in the workload.
 func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
 	active := false
-	route := ""
+	routes := []string{}
 	stageID := ""
 	status := ""
 	username := ""
@@ -398,11 +397,9 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		active = true
 	}
 
-	routes, err := a.cluster.ListIngressRoutes(ctx, a.app.Org, names.IngressName(a.app.Name))
+	routes, err = ListRoutes(ctx, a.cluster, a.app)
 	if err != nil {
-		route = err.Error()
-	} else {
-		route = routes[0]
+		routes = []string{err.Error()}
 	}
 
 	restarts, err := a.Restarts(ctx)
@@ -424,7 +421,7 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		Username:        username,
 		StageID:         stageID,
 		Status:          status,
-		Route:           route,
+		Routes:          routes,
 		DesiredReplicas: desiredReplicas,
 		ReadyReplicas:   readyReplicas,
 	}
