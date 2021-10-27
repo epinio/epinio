@@ -140,8 +140,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return response.StatusCode, bodyBytes
 	}
 
-	createApplication := func(name string, org string) (*http.Response, error) {
-		request := models.ApplicationCreateRequest{Name: name}
+	createApplication := func(name string, org string, domains []string) (*http.Response, error) {
+		request := models.ApplicationCreateRequest{
+			Name: name,
+			Configuration: models.ApplicationUpdateRequest{
+				Domains: domains,
+			},
+		}
 		b, err := json.Marshal(request)
 		if err != nil {
 			return nil, err
@@ -338,7 +343,37 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(errorResponse.Errors[0].Title).To(Equal("json: cannot unmarshal string into Go struct field ApplicationUpdateRequest.instances of type int32"))
 				})
 			})
+			When("domains has changed", func() {
+				It("synchronizes the ingresses of the application with the new domains list", func() {
+					app := catalog.NewAppName()
+					env.MakeContainerImageApp(app, 1, containerImageURL)
+					defer env.DeleteApp(app)
 
+					appObj := appFromAPI(org, app)
+					Expect(appObj.Workload.Status).To(Equal("1/1"))
+
+					newDomains := []string{"domain1.org", "domain2.org"}
+					data, err := json.Marshal(models.ApplicationUpdateRequest{
+						Domains: newDomains,
+					})
+					Expect(err).ToNot(HaveOccurred())
+
+					response, err := env.Curl("PATCH",
+						fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+							serverURL, v1.Root, org, app),
+						strings.NewReader(string(data)))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+					out, err := helpers.Kubectl("get", "ingresses", "-n", org, "-o", "jsonpath={.items[*].spec.rules[*].host}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(strings.Split(out, " ")).To(Equal(newDomains))
+
+					out, err = helpers.Kubectl("get", "apps", "-n", org, app, "-o", "jsonpath={.spec.domains[*]}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(strings.Split(out, " ")).To(Equal(newDomains))
+				})
+			})
 		})
 
 		Describe("GET /api/v1/namespaces/:orgs/applications", func() {
@@ -654,7 +689,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			appName = catalog.NewAppName()
 
 			By("creating application resource first")
-			_, err := createApplication(appName, org)
+			_, err := createApplication(appName, org, []string{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -786,14 +821,19 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						"--namespace", org,
 						"-l", labels,
 						"-o", "jsonpath={.items[*].spec.automountServiceAccountToken}")
-					Expect(err).NotTo(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred(), out)
 					Expect(out).To(ContainSubstring("true"))
 				})
 			})
 
-			When("deploying an app with a custom domain", func() {
+			When("deploying an app with custom domains", func() {
+				var domains []string
 				BeforeEach(func() {
-					request.Domain = "mycustom.domain.org"
+					domains = append(domains, "appdomain.org", "appdomain2.org")
+					out, err := helpers.Kubectl("patch", "apps", "--type", "json",
+						"-n", org, appName, "--patch",
+						fmt.Sprintf(`[{"op": "replace", "path": "/spec/domains", "value": [%q, %q]}]`, domains[0], domains[1]))
+					Expect(err).NotTo(HaveOccurred(), out)
 				})
 				BeforeEach(func() {
 					bodyBytes, err := json.Marshal(request)
@@ -805,10 +845,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				It("the app Ingress matches the specified domain", func() {
 					out, err := helpers.Kubectl("get", "ingress",
-						"--namespace", org, "i-"+appName,
-						"-o", "jsonpath={.spec.rules[0].host}")
-					Expect(err).NotTo(HaveOccurred())
-					Expect(out).To(Equal(request.Domain))
+						"--namespace", org, "-o", "jsonpath={.items[*].spec.rules[0].host}")
+					Expect(err).NotTo(HaveOccurred(), out)
+					Expect(strings.Split(out, " ")).To(Equal(domains))
 				})
 			})
 		})
@@ -941,7 +980,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("creating a new app", func() {
 			It("creates the app resource", func() {
-				response, err := createApplication(appName, org)
+				response, err := createApplication(appName, org, []string{"mytestdomain.org"})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -949,6 +988,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+				out, err := helpers.Kubectl("get", "apps", "-n", org, appName, "-o", "jsonpath={.spec.domains[0]}")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(Equal("mytestdomain.org"))
 			})
 		})
 	})

@@ -231,7 +231,12 @@ configuration:
 				"--namespace", org,
 				"--selector=app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.rules[0].host}")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(domain))
 
+			out, err = helpers.Kubectl("get", "app",
+				"--namespace", org, appName,
+				"-o", "jsonpath={.spec.domains[0]}")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(domain))
 		})
