@@ -303,10 +303,15 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
+	msg := c.ui.Note().
 		WithStringValue("Namespace", c.Config.Org).
-		WithStringValue("Application", appName).
-		Msg("Update application")
+		WithStringValue("Application", appName)
+
+	if len(appConfig.Domains) > 0 {
+		msg = msg.WithStringValue("Domains", strings.Join(appConfig.Domains, ","))
+	}
+
+	msg.Msg("Update application")
 
 	if err := c.TargetOk(); err != nil {
 		return err

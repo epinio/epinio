@@ -721,7 +721,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					deploy := &models.DeployResponse{}
 					err = json.Unmarshal(bodyBytes, deploy)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+					Expect(deploy.Domains[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					By("waiting for the deployment to complete")
 
@@ -774,7 +774,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					deploy := &models.DeployResponse{}
 					err = json.Unmarshal(bodyBytes, deploy)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+					Expect(deploy.Domains[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					Eventually(func() string {
 						return appFromAPI(org, appName).Workload.Status

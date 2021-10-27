@@ -1,6 +1,9 @@
 package application
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -10,6 +13,8 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // Update handles the API endpoint PATCH /namespaces/:org/applications/:app
@@ -35,7 +40,8 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.OrgIsNotKnown(org)
 	}
 
-	exists, err = application.Exists(ctx, cluster, models.NewAppRef(appName, org))
+	appRef := models.NewAppRef(appName, org)
+	exists, err = application.Exists(ctx, cluster, appRef)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -155,6 +161,36 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 		if len(theIssues) > 0 {
 			return apierror.NewMultiError(theIssues)
+		}
+	}
+
+	// Only update the app if domains have been set, otherwise just leave it
+	// as it is.
+	if len(updateRequest.Domains) > 0 {
+		client, err := cluster.ClientApp()
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		domains := []string{}
+		for _, d := range updateRequest.Domains {
+			domains = append(domains, fmt.Sprintf("%q", d))
+		}
+
+		patch := fmt.Sprintf(`[{
+			"op": "replace",
+			"path": "/spec/domains",
+			"value": [%s]
+	    }]`, strings.Join(domains, ","))
+
+		_, err = client.Namespace(app.Meta.Org).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		_, err = application.SyncIngresses(ctx, cluster, appRef, username)
+		if err != nil {
+			return apierror.InternalError(err)
 		}
 	}
 

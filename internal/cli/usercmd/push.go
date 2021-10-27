@@ -73,6 +73,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		msg = msg.WithStringValue("Services",
 			strings.Join(params.Configuration.Services, ", "))
 	}
+	if len(params.Configuration.Domains) > 0 {
+		msg = msg.WithStringValue("Domains", strings.Join(params.Configuration.Domains, ","))
+	}
 
 	msg.Msg("About to push an application with the given setup")
 
@@ -212,10 +215,15 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return errors.Wrap(err, "waiting for app failed")
 	}
 
+	routes := []string{}
+	for _, d := range deployResponse.Domains {
+		routes = append(routes, fmt.Sprintf("https://%s", d))
+	}
+
 	c.ui.Success().
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Namespace", appRef.Org).
-		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
+		WithStringValue("Routes", strings.Join(routes, ", ")).
 		WithStringValue("Builder Image", params.Staging.Builder).
 		Msg("App is online.")
 

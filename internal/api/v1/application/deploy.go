@@ -1,11 +1,8 @@
 package application
 
 import (
-	"fmt"
-
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
-	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -15,7 +12,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/names"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -102,16 +98,6 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to process application's bound services")
 	}
 
-	route := ""
-	if req.Domain != "" {
-		route = req.Domain
-	} else {
-		route, err = domain.AppDefaultRoute(ctx, req.App.Name)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-	}
-
 	deployParams := deployParam{
 		AppRef:      req.App,
 		Owner:       owner,
@@ -159,21 +145,9 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Info("deploying app ingress", "org", org, "app", req.App, "", route)
-
-	ing := newAppIngress(req.App, route, username)
-
-	log.Info("app ingress", "name", ing.ObjectMeta.Name)
-
-	ing.SetOwnerReferences([]metav1.OwnerReference{owner})
-	if _, err := cluster.Kubectl.NetworkingV1().Ingresses(req.App.Org).Create(ctx, ing, metav1.CreateOptions{}); err != nil {
-		if apierrors.IsAlreadyExists(err) {
-			if _, err := cluster.Kubectl.NetworkingV1().Ingresses(req.App.Org).Update(ctx, ing, metav1.UpdateOptions{}); err != nil {
-				return apierror.InternalError(err)
-			}
-		} else {
-			return apierror.InternalError(err)
-		}
+	domains, err := application.SyncIngresses(ctx, cluster, req.App, username)
+	if err != nil {
+		return apierror.InternalError(err, "syncing application Ingresses")
 	}
 
 	// Delete previous pipelineruns except for the current one
@@ -184,7 +158,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	}
 
 	response.OKReturn(c, models.DeployResponse{
-		Route: route,
+		Domains: domains,
 	})
 	return nil
 }
@@ -283,62 +257,6 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 				"app.kubernetes.io/name":      app.Name,
 			},
 			Type: v1.ServiceTypeClusterIP,
-		},
-	}
-}
-
-// newAppIngress is a helper that creates the kube ingress resource for the app
-func newAppIngress(appRef models.AppRef, route, username string) *networkingv1.Ingress {
-	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
-
-	return &networkingv1.Ingress{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: names.IngressName(appRef.Name),
-			Annotations: map[string]string{
-				"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
-				"traefik.ingress.kubernetes.io/router.tls":         "true",
-				"kubernetes.io/ingress.class":                      "traefik",
-			},
-			Labels: map[string]string{
-				"app.kubernetes.io/component":  "application",
-				"app.kubernetes.io/managed-by": "epinio",
-				"app.kubernetes.io/name":       appRef.Name,
-				"app.kubernetes.io/created-by": username,
-				"app.kubernetes.io/part-of":    appRef.Org,
-			},
-		},
-		Spec: networkingv1.IngressSpec{
-			Rules: []networkingv1.IngressRule{
-				{
-					Host: route,
-					IngressRuleValue: networkingv1.IngressRuleValue{
-						HTTP: &networkingv1.HTTPIngressRuleValue{
-							Paths: []networkingv1.HTTPIngressPath{
-								{
-									Backend: networkingv1.IngressBackend{
-										Service: &networkingv1.IngressServiceBackend{
-											Name: names.ServiceName(appRef.Name),
-											Port: networkingv1.ServiceBackendPort{
-												Number: 8080,
-											},
-										},
-									},
-									Path:     "/",
-									PathType: &pathTypeImplementationSpecific,
-								},
-							},
-						},
-					},
-				},
-			},
-			TLS: []networkingv1.IngressTLS{
-				{
-					Hosts: []string{
-						route,
-					},
-					SecretName: fmt.Sprintf("%s-tls", appRef.Name),
-				},
-			},
 		},
 	}
 }

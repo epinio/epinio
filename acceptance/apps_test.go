@@ -228,9 +228,11 @@ configuration:
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 			out, err := helpers.Kubectl("get", "ingress",
-				"--namespace", org, "i-"+appName,
-				"-o", "jsonpath={.spec.rules[0].host}")
-			Expect(err).NotTo(HaveOccurred())
+				"--namespace", org,
+				"--selector=app.kubernetes.io/name="+appName,
+				"-o", "jsonpath={.items[*].spec.rules[0].host}")
+
+			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(domain))
 		})
 	})

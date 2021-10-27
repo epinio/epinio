@@ -5,6 +5,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -78,9 +79,20 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewMultiError(theIssues)
 	}
 
+	var domains []string
+	if len(createRequest.Configuration.Domains) > 0 {
+		domains = createRequest.Configuration.Domains
+	} else {
+		domain, err := domain.AppDefaultRoute(ctx, createRequest.Name)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		domains = append([]string{}, domain)
+	}
+
 	// Arguments found OK, now we can modify the system state
 
-	err = application.Create(ctx, cluster, appRef, username)
+	err = application.Create(ctx, cluster, appRef, username, domains)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
