@@ -1,6 +1,8 @@
 package acceptance_test
 
 import (
+	"fmt"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 
 	. "github.com/onsi/ginkgo"
@@ -36,6 +38,58 @@ var _ = Describe("Services", func() {
 		AfterEach(func() {
 			env.CleanupService(serviceName1)
 			env.CleanupService(serviceName2)
+		})
+	})
+
+	Describe("list across namespaces", func() {
+		var org1 string
+		var org2 string
+		var service1 string
+		var service2 string
+		var app1 string
+
+		// Setting up:
+		// org1 service1 app1
+		// org2 service1
+		// org2 service2
+
+		BeforeEach(func() {
+			org1 = catalog.NewOrgName()
+			org2 = catalog.NewOrgName()
+			service1 = catalog.NewServiceName()
+			service2 = catalog.NewServiceName()
+			app1 = catalog.NewAppName()
+
+			env.SetupAndTargetOrg(org1)
+			env.MakeService(service1)
+			env.MakeContainerImageApp(app1, 1, containerImageURL)
+			env.BindAppService(app1, service1, org1)
+
+			env.SetupAndTargetOrg(org2)
+			env.MakeService(service1) // separate from org1.service1
+			env.MakeService(service2)
+		})
+
+		AfterEach(func() {
+			env.TargetOrg(org2)
+			env.DeleteService(service1)
+			env.DeleteService(service2)
+
+			env.TargetOrg(org1)
+			env.DeleteApp(app1)
+			env.DeleteService(service1)
+		})
+
+		It("lists all services belonging to all namespaces", func() {
+			// But we care only about the three we know about from the setup.
+
+			out, err := env.Epinio("", "service", "list", "--all")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Listing all services"))
+
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *%s *\|`, org1, service1, app1)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, org2, service1)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, org2, service2)))
 		})
 	})
 
