@@ -2,8 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/alexander-yu/stream/minmax"
@@ -61,10 +63,10 @@ var CmdDebugTTY = &cobra.Command{
 
 // CmdDebugLoad implements the command: epinio debug load
 var CmdDebugLoad = &cobra.Command{
-	Use:   "load count millis",
+	Use:   "load count millis streams",
 	Short: "Generate server load",
 	Long:  `Generate server load and collect response statistics`,
-	Args:  cobra.ExactArgs(2),
+	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -76,83 +78,119 @@ var CmdDebugLoad = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "bad millis")
 		}
+		streams, err := strconv.Atoi(args[2])
+		if err != nil {
+			return errors.Wrap(err, "bad streams")
+		}
 
 		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		timing := make(chan time.Duration, 10000)
+		// Stream of measurements, connects the load generators to the statistics
+		// engine. A large buffer, scaled by the streams, to be sure that even
+		// when the statistics processor falls behind there is enough space to
+		// reasonably prevent the load generators from blocking while active.
+		timing := make(chan time.Duration, 10000*streams)
 
-		// Load Engine
-		// - naive, trivial: ping every X milliseconds
+		// Load Engine - Spawn multiple streams ...
+		// - naive, trivial: ping every X milliseconds, multiple streams (same spec)
 
 		// TODO:
 		// - jitter (randomization)
-		// - multiple streams (same load per stream)
 		// - streams with different loads
 		// - general user simulation driven by some distribution
 		//   + distribution driven user creation/deletion (streams)
 
-		go func(timing chan time.Duration) {
-			// millis and count are from outer scope.
-			delta := time.Duration(millis) * time.Millisecond
+		wg := &sync.WaitGroup{}
+		eg := &sync.WaitGroup{}
 
-			// Two unmeasured initial calls as warmup
-			client.API.Info() // nolint:errcheck // Result is irrelevant
-			client.API.Info() // nolint:errcheck // Result is irrelevant
+		delta := time.Duration(millis) * time.Millisecond
 
-			for k := 0; k < count; k++ {
-				start := time.Now()
+		for j := 0; j < streams; j++ {
+			wg.Add(1)
+			go func(timing chan time.Duration) {
+				defer wg.Done()
+
+				// count, delta, and millis are from outer scope.
+
+				// Random initial delay. Attempt to ensure that the
+				// generators run mostly out of phase, except through the
+				// random delays as time goes on (which then simulates
+				// local bursts of load).
+				time.Sleep(time.Duration(rand.Intn(millis)) * time.Millisecond) // nolint:gosec // Non-crypto us
+
+				// Two unmeasured initial calls as warmup
 				client.API.Info() // nolint:errcheck // Result is irrelevant
-				timing <- time.Since(start)
-				time.Sleep(delta)
-			}
-			close(timing)
-		}(timing)
+				client.API.Info() // nolint:errcheck // Result is irrelevant
 
-		// Receiver and statistics engine (streaming)
-
-		quants, _ := quantile.NewGlobalQuantile()
-		max := minmax.NewGlobalMax()
-		min := minmax.NewGlobalMin()
-		mean := moment.NewGlobalMean()
-		stdv := moment.NewGlobalStd()
-		moment.Init(mean) // nolint:errcheck
-		moment.Init(stdv) // nolint:errcheck
-
-		pings := 0
-		for duration := range timing {
-			pings++
-
-			fmt.Fprintf(os.Stderr, "\r\033[2K%dms %d/%d", millis, count, pings)
-
-			dmilli := float64(duration.Milliseconds())
-
-			mean.Push(dmilli)   // nolint:errcheck
-			stdv.Push(dmilli)   // nolint:errcheck
-			min.Push(dmilli)    // nolint:errcheck
-			max.Push(dmilli)    // nolint:errcheck
-			quants.Push(dmilli) // nolint:errcheck
+				for k := 0; k < count; k++ {
+					start := time.Now()
+					client.API.Info() // nolint:errcheck // Result is irrelevant
+					timing <- time.Since(start)
+					time.Sleep(delta)
+				}
+			}(timing)
 		}
 
-		fmt.Fprintf(os.Stderr, "\r\033[2K")
+		// Spawn receiver and statistics engine (streaming)
+		eg.Add(1)
+		go func(timing chan time.Duration) {
+			defer eg.Done()
 
-		minv, _ := min.Value()        // nolint:errcheck
-		maxv, _ := max.Value()        // nolint:errcheck
-		avgv, _ := mean.Value()       // nolint:errcheck
-		varv, _ := stdv.Value()       // nolint:errcheck
-		tenv, _ := quants.Value(0.1)  // nolint:errcheck
-		fifv, _ := quants.Value(0.5)  // nolint:errcheck
-		ninv, _ := quants.Value(0.9)  // nolint:errcheck
-		niiv, _ := quants.Value(0.99) // nolint:errcheck
+			quants, _ := quantile.NewGlobalQuantile()
+			max := minmax.NewGlobalMax()
+			min := minmax.NewGlobalMin()
+			mean := moment.NewGlobalMean()
+			stdv := moment.NewGlobalStd()
+			moment.Init(mean) // nolint:errcheck
+			moment.Init(stdv) // nolint:errcheck
 
-		reqs := 1000 / millis
+			pings := 0
+			for duration := range timing {
+				pings++
 
-		fmt.Printf("pings___ millis req/s_ | min___     max___ | mean_____  stdvar_ | 10%%____ 50%%____ 90%%____ 99%%____\n")
-		fmt.Printf("%8d %6d %6d | %6.0f ... %6.0f | %9.4f  %7.4f | %7.3f %7.3f %7.3f %7.3f\n",
-			pings, millis, reqs, minv, maxv, avgv, varv, tenv, fifv, ninv, niiv)
+				fmt.Fprintf(os.Stderr, "\r\033[2K%dms %d*%d/%d", millis, streams, count, pings)
 
+				dmilli := float64(duration.Milliseconds())
+
+				mean.Push(dmilli)   // nolint:errcheck
+				stdv.Push(dmilli)   // nolint:errcheck
+				min.Push(dmilli)    // nolint:errcheck
+				max.Push(dmilli)    // nolint:errcheck
+				quants.Push(dmilli) // nolint:errcheck
+			}
+
+			// This part is reached when `timing` closes, see [xx].
+
+			fmt.Fprintf(os.Stderr, "\r\033[2K")
+
+			minv, _ := min.Value()        // nolint:errcheck
+			maxv, _ := max.Value()        // nolint:errcheck
+			avgv, _ := mean.Value()       // nolint:errcheck
+			varv, _ := stdv.Value()       // nolint:errcheck
+			tenv, _ := quants.Value(0.1)  // nolint:errcheck
+			fifv, _ := quants.Value(0.5)  // nolint:errcheck
+			ninv, _ := quants.Value(0.9)  // nolint:errcheck
+			niiv, _ := quants.Value(0.99) // nolint:errcheck
+
+			reqs := streams * 1000 / millis
+
+			fmt.Printf("streams_ pings___ millis req/s___ | min___     max_____ | mean______  stdvar____ | 10%%_______ 50%%_______ 90%%_______ 99%%_______\n")
+			fmt.Printf("%8d %8d %6d %8d | %6.0f ... %8.0f | %10.4f  %10.4f | %8.3f %10.3f %10.3f %10.3f\n",
+				streams, pings, millis, reqs, minv, maxv, avgv, varv, tenv, fifv, ninv, niiv)
+		}(timing)
+
+		// Wait for the generators to complete
+		wg.Wait()
+
+		// [xx] Close the channel to the statistics engine. This signals the end
+		// of load generation, and causes it to compute and print the statistics.
+		close(timing)
+
+		// Wait for the statistics to be done before ending the process.
+		eg.Wait()
 		return nil
 	},
 }
