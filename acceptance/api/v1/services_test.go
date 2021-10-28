@@ -33,6 +33,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 	})
 
 	AfterEach(func() {
+		env.TargetOrg(org)
 		env.DeleteService(svc1)
 		env.DeleteService(svc2)
 	})
