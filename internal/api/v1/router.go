@@ -107,6 +107,7 @@ var Routes = routes.NamedRoutes{
 	// List, show, create and delete services
 	"ServiceApps": get("/namespaces/:org/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
 	//
+	"AllServices":   get("/services", errorHandler(service.Controller{}.FullIndex)),
 	"Services":      get("/namespaces/:org/services", errorHandler(service.Controller{}.Index)),
 	"ServiceShow":   get("/namespaces/:org/services/:service", errorHandler(service.Controller{}.Show)),
 	"ServiceCreate": post("/namespaces/:org/services", errorHandler(service.Controller{}.Create)),

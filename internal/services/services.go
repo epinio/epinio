@@ -7,6 +7,9 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	epinioerrors "github.com/epinio/epinio/internal/errors"
+	"github.com/epinio/epinio/internal/organizations"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,14 +26,14 @@ type Service struct {
 	kubeClient *kubernetes.Cluster
 }
 
-// Lookup locates a Service by org and name. It finds the Service
+// Lookup locates a Service by namespace and name. It finds the Service
 // instance by looking for the relevant Secret.
-func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service string) (*Service, error) {
+func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, service string) (*Service, error) {
 	// TODO 844 inline
 
-	secretName := serviceResourceName(org, service)
+	secretName := serviceResourceName(namespace, service)
 
-	s, err := kubeClient.GetSecret(ctx, org, secretName)
+	s, err := kubeClient.GetSecret(ctx, namespace, secretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, errors.New("service not found")
@@ -41,15 +44,32 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, org, service st
 
 	return &Service{
 		SecretName: secretName,
-		OrgName:    org,
+		OrgName:    namespace,
 		Service:    service,
 		kubeClient: kubeClient,
 		Username:   username,
 	}, nil
 }
 
-// List returns a ServiceList of all available Services
+// List returns a ServiceList of all available Services in the specified namespace. If no namespace is
+// specified (empty string) then services across all namespaces are returned.
 func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (ServiceList, error) {
+	labelSelector := "app.kubernetes.io/name=epinio"
+
+	// Verify namespace, if specified
+	if namespace != "" {
+		exists, err := organizations.Exists(ctx, cluster, namespace)
+		if err != nil {
+			return ServiceList{}, err
+		}
+		if !exists {
+			return ServiceList{}, epinioerrors.NamespaceMissingError{
+				Namespace: namespace,
+			}
+		}
+
+		labelSelector = fmt.Sprintf("%s, epinio.suse.org/namespace=%s", labelSelector, namespace)
+	}
 
 	secrets, err := cluster.Kubectl.CoreV1().
 		Secrets(namespace).List(ctx,

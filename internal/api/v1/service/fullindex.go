@@ -3,48 +3,45 @@ package service
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/gin-gonic/gin"
 )
 
-// Index handles the API end point /orgs/:org/services
-// It returns a list of all known service instances
-func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
+// FullIndex handles the API endpoint GET /services
+// It lists all the known applications in all namespaces, with and without workload.
+func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if !exists {
-		return apierror.OrgIsNotKnown(org)
-	}
-
-	orgServices, err := services.List(ctx, cluster, org)
+	allServices, err := services.List(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	appsOf, err := servicesToApps(ctx, cluster, org)
+	appsOf, err := servicesToApps(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	var responseData models.ServiceResponseList
 
-	for _, service := range orgServices {
+	for _, service := range allServices {
 		var appNames []string
 
-		for _, app := range appsOf[service.Name()] {
+		// NOTE that `appsOf` is keyed here by service and
+		// namespace, not service alone. Done to distinguish
+		// between services of the same name in different
+		// namespaces, with different binding states.
+
+		key := serviceKey(service.Name(), service.Org())
+		for _, app := range appsOf[key] {
 			appNames = append(appNames, app.Meta.Name)
 		}
 		responseData = append(responseData, models.ServiceResponse{

@@ -51,8 +51,8 @@ var _ = Describe("Services API Application Endpoints", func() {
 			var data models.ServiceResponseList
 			err = json.Unmarshal(bodyBytes, &data)
 			Expect(err).ToNot(HaveOccurred())
-			serviceNames = append(serviceNames, data[0].Name)
-			serviceNames = append(serviceNames, data[1].Name)
+			serviceNames = append(serviceNames, data[0].Meta.Name)
+			serviceNames = append(serviceNames, data[1].Meta.Name)
 			Expect(serviceNames).Should(ContainElements(svc1, svc2))
 		})
 

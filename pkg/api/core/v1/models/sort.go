@@ -17,5 +17,5 @@ func (srl ServiceResponseList) Swap(i, j int) {
 // indices in the ServiceResponseList and returns true if the
 // condition holds, and else false.
 func (srl ServiceResponseList) Less(i, j int) bool {
-	return srl[i].Name < srl[j].Name
+	return srl[i].Meta.Name < srl[j].Meta.Name
 }

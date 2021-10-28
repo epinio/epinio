@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -43,27 +44,49 @@ func (hc Controller) ServiceApps(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
+func serviceKey(name, namespace string) string {
+	return fmt.Sprintf("%s\000%s", name, namespace)
+}
+
 // servicesToApps is a helper to Index and Delete. It produces a map
 // from service instances names to application names, the apps bound
 // to each service.
-func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, org string) (map[string]models.AppList, error) {
+func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]models.AppList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)
-	// Literally query apps in the org for their services and invert.
+	// Literally query apps in the namespace for their services and invert.
 
 	var appsOf = map[string]models.AppList{}
 
-	apps, err := application.List(ctx, cluster, org)
+	apps, err := application.List(ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, app := range apps {
-		for _, bound := range app.Configuration.Services {
-			if theapps, found := appsOf[bound]; found {
-				appsOf[bound] = append(theapps, app)
-			} else {
-				appsOf[bound] = models.AppList{app}
+	if namespace == "" {
+		// services are collected across all namespaces.
+		// Key the map by service and namespace!
+		// Because services of the same name can exist in
+		// different namespaces, and different binding states.
+
+		for _, app := range apps {
+			for _, bound := range app.Configuration.Services {
+				key := serviceKey(bound, app.Meta.Org)
+				if theapps, found := appsOf[key]; found {
+					appsOf[key] = append(theapps, app)
+				} else {
+					appsOf[key] = models.AppList{app}
+				}
+			}
+		}
+	} else {
+		for _, app := range apps {
+			for _, bound := range app.Configuration.Services {
+				if theapps, found := appsOf[bound]; found {
+					appsOf[bound] = append(theapps, app)
+				} else {
+					appsOf[bound] = models.AppList{app}
+				}
 			}
 		}
 	}
