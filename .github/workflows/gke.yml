@@ -22,7 +22,7 @@ env:
   SETUP_GO_VERSION: '^1.13.7'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
-  GKE_ZONE: 'europe-west1'
+  GKE_ZONE: 'europe-west1-b'
   GKE_VERSION: '1.21.4-gke.2300'
   GKE_MACHINE_TYPE: 'n2-standard-4'
 
