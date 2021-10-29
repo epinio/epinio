@@ -98,7 +98,7 @@ kubectl exec -i -n epinio -c copier epinio-copier -- chmod ugo+x epinio/epinio
 kubectl exec -i -n epinio -c copier epinio-copier -- ls -l epinio
 
 # https://stackoverflow.com/a/5773761
-EPINIO_BINARY_HASH=($(md5sum ${EPINIO_BINARY_PATH}))
+EPINIO_BINARY_HASH=($(shasum ${EPINIO_BINARY_PATH}))
 
 echo "Patching the epinio-server deployment to use the copied binary"
 PATCH=$(cat <<EOF
