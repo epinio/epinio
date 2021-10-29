@@ -100,8 +100,11 @@ kubectl exec -i -n epinio -c copier epinio-copier -- ls -l epinio
 echo "Deleting the epinio-copier to avoid multi-attach issue between pods"
 kubectl delete pod -n epinio epinio-copier
 
+# On Windows the shasum command is not in the path
+[[ $(uname -s) =~ "MINGW64_NT" ]] && SHASUM=/bin/core_perl/shasum
+
 # https://stackoverflow.com/a/5773761
-EPINIO_BINARY_HASH=($(shasum ${EPINIO_BINARY_PATH}))
+EPINIO_BINARY_HASH=($(${SHASUM:=shasum} ${EPINIO_BINARY_PATH}))
 
 echo "Patching the epinio-server deployment to use the copied binary"
 PATCH=$(cat <<EOF
