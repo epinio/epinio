@@ -8,6 +8,11 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
 
+const (
+	// Uses Google's DNS because it's the most widely deployed and used one
+	resolverIP = "8.8.8.8"
+)
+
 type ResourceRecord struct {
 	Value string `json:"Value"`
 }
@@ -26,6 +31,15 @@ type Change struct {
 
 type ChangeResourceRecordSet struct {
 	Changes []Change `json:"Changes"`
+}
+
+type DNSAnswer struct {
+	Nameserver   string   `json:"Nameserver"`
+	RecordName   string   `json:"RecordName"`
+	RecordType   string   `json:"RecordType"`
+	RecordData   []string `json:"RecordData"`
+	ResponseCode string   `json:"ResponseCode"`
+	Protocol     string   `json:"Protocol"`
 }
 
 func CNAME(record string, value string) ChangeResourceRecordSet {
@@ -76,4 +90,8 @@ func Upsert(zoneID string, change ChangeResourceRecordSet, dir string) (string, 
 		return "", err
 	}
 	return proc.RunW("aws", "route53", "change-resource-record-sets", "--hosted-zone-id", zoneID, "--change-batch", "file://"+f)
+}
+
+func TestDnsAnswer(zoneID string, recordName string, recordType string) (string, error) {
+	return proc.RunW("aws", "route53", "test-dns-answer", "--hosted-zone-id", zoneID, "--record-name", recordName, "--record-type", recordType, "--resolver-ip", resolverIP)
 }

@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'acceptance/install/scenario5_test.go'
-      - '.github/workflows/aks-scenario5.yml'
+      - '.github/workflows/aks.yml'
   schedule:
     - cron:  '0 5 * * *'
   workflow_dispatch:
@@ -32,6 +32,7 @@ env:
   FLAKE_ATTEMPTS: 1
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
   AWS_REGION: 'us-east-2'
+  AKS_MACHINE_TYPE: 'Standard_D3_v2'
 
 jobs:
   acceptance-scenario5:
@@ -77,6 +78,7 @@ jobs:
           id=$RANDOM
           echo '::set-output name=ID::'$id
           az aks create --resource-group epinioCI \
+          --node-vm-size ${{ env.AKS_MACHINE_TYPE }} \
           --name epinioCI$id \
           --node-count 2 \
           --generate-ssh-keys
