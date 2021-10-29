@@ -349,6 +349,43 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 
+					// Check Ingresses
+					out, err := helpers.Kubectl("get", "ingresses", "-n", org, "-o", "jsonpath={.items[*].spec.rules[*].host}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					domains := strings.Split(out, " ")
+					Expect(len(domains)).To(Equal(1))
+					Expect(domains[0]).To(MatchRegexp(app + ".*"))
+
+					// Check certificates (wait until it's created)
+					Eventually(func() string {
+						out, err = helpers.Kubectl("get", "certificates",
+							"-n", org,
+							"--selector", "app.kubernetes.io/name="+app,
+							"-o", "jsonpath={.items[*].spec.commonName}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						return strings.Split(out, " ")[0]
+					}, "20s", "1s").ShouldNot(BeEmpty())
+					out, err = helpers.Kubectl("get", "certificates",
+						"-n", org,
+						"--selector", "app.kubernetes.io/name="+app,
+						"-o", "jsonpath={.items[*].spec.commonName}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certCN := strings.Split(strings.TrimSpace(out), " ")
+					Expect(certCN[0]).To(MatchRegexp(app + ".*"))
+
+					// Check tls secret
+					out, err = helpers.Kubectl("get", "certificates",
+						"-n", org,
+						"--selector", "app.kubernetes.io/name="+app,
+						"-o", "jsonpath={.items[*].spec.secretName}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certSecrets := strings.Split(strings.TrimSpace(out), " ")
+					Expect(len(certSecrets)).To(Equal(1))
+					out, err = helpers.Kubectl("get", "secret", "-n", org, certSecrets[0],
+						"-o", "jsonpath={.metadata.name}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(out).To(Equal(certSecrets[0]))
+
 					appObj := appFromAPI(org, app)
 					Expect(appObj.Workload.Status).To(Equal("1/1"))
 
@@ -365,13 +402,48 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					out, err := helpers.Kubectl("get", "ingresses", "-n", org, "-o", "jsonpath={.items[*].spec.rules[*].host}")
+					out, err = helpers.Kubectl("get", "ingresses", "-n", org, "-o", "jsonpath={.items[*].spec.rules[*].host}")
 					Expect(err).ToNot(HaveOccurred(), out)
 					Expect(strings.Split(out, " ")).To(Equal(newDomains))
 
 					out, err = helpers.Kubectl("get", "apps", "-n", org, app, "-o", "jsonpath={.spec.domains[*]}")
 					Expect(err).ToNot(HaveOccurred(), out)
 					Expect(strings.Split(out, " ")).To(Equal(newDomains))
+
+					// Check certificates again
+					Eventually(func() int {
+						out, err = helpers.Kubectl("get", "certificates",
+							"-n", org,
+							"--selector", "app.kubernetes.io/name="+app,
+							"-o", "jsonpath={.items[*].spec.commonName}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						return len(strings.Split(out, " "))
+					}, "20s", "1s").Should(Equal(2))
+					out, err = helpers.Kubectl("get", "certificates",
+						"-n", org,
+						"--selector", "app.kubernetes.io/name="+app,
+						"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certCN = strings.Split(strings.TrimSpace(out), " ")
+					Expect(certCN).To(ContainElements("domain1.org", "domain2.org"))
+					Expect(len(certCN)).To(Equal(2))
+
+					// Check tls secret
+					out, err = helpers.Kubectl("get", "certificates",
+						"-n", org,
+						"--selector", "app.kubernetes.io/name="+app,
+						"-o", "jsonpath={.items[*].spec.secretName}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certSecrets = strings.Split(strings.TrimSpace(out), " ")
+					Expect(len(certSecrets)).To(Equal(2))
+					out, err = helpers.Kubectl("get", "secret", "-n", org, certSecrets[0],
+						"-o", "jsonpath={.metadata.name}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(out).To(Equal(certSecrets[0]))
+					out, err = helpers.Kubectl("get", "secret", "-n", org, certSecrets[1],
+						"-o", "jsonpath={.metadata.name}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(out).To(Equal(certSecrets[1]))
 				})
 			})
 		})

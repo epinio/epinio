@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -55,6 +56,7 @@ type CertParam struct {
 	Namespace string
 	Domain    string
 	Issuer    string
+	Labels    map[string]string
 }
 
 // CreateCertificate creates a certificate resource, for the given
@@ -107,25 +109,30 @@ func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
 	//   full string as means of keeping the text unique across
 	//   apps.
 
+	quotedLabels := []string{}
+	for k, v := range cert.Labels {
+		quotedLabels = append(quotedLabels, fmt.Sprintf("%q: %q", k, v))
+	}
 	cn := names.TruncateMD5(fmt.Sprintf("%s.%s", cert.Name, cert.Domain), 64)
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1",
 		"kind": "Certificate",
 		"metadata": {
-			"name": "%[1]s"
+			"name": "%[1]s",
+			"labels": {%[5]s}
 		},
 		"spec": {
 			"commonName" : "%[2]s",
 			"secretName" : "%[1]s-tls",
 			"dnsNames": [
-				"%[1]s.%[3]s"
+				"%[3]s"
 			],
 			"issuerRef" : {
 				"name" : "%[4]s",
 				"kind" : "ClusterIssuer"
 			}
 		}
-        }`, cert.Name, cn, cert.Domain, cert.Issuer)
+	}`, cert.Name, cn, cert.Domain, cert.Issuer, strings.Join(quotedLabels, ","))
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}

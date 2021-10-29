@@ -285,7 +285,8 @@ func (k Registry) createCertificate(ctx context.Context, c *kubernetes.Cluster, 
 		Namespace: RegistryDeploymentID,
 		Name:      RegistryDeploymentID,
 		Issuer:    issuer,
-		Domain:    domain,
+		Domain:    fmt.Sprintf("%s.%s", RegistryDeploymentID, domain),
+		Labels:    map[string]string{},
 	}
 	err = retry.Do(func() error {
 		return auth.CreateCertificate(ctx, c, cert, nil)

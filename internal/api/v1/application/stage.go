@@ -22,7 +22,6 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
@@ -193,20 +192,6 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return apierror.InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
-	}
-
-	cert := auth.CertParam{
-		Name:      params.Name,
-		Namespace: params.Org,
-		Issuer:    viper.GetString("tls-issuer"),
-		Domain:    mainDomain,
-	}
-
-	log.Info("app cert", "domain", cert.Domain, "issuer", cert.Issuer)
-
-	err = auth.CreateCertificate(ctx, cluster, cert, &owner)
-	if err != nil {
-		return apierror.InternalError(err)
 	}
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)

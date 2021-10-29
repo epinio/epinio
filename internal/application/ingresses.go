@@ -5,12 +5,13 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/names"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,33 +84,54 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 		}
 		log.Info("creating app ingress", "org", appRef.Org, "app", appRef.Name, "", desiredDomain)
 
-		ingressPrefix, err := randstr.Hex16()
-		if err != nil {
-			return []string{}, err
-		}
-
-		ing := newAppIngress(appRef, desiredDomain, username, ingressPrefix)
+		ing := newAppIngress(appRef, desiredDomain, username)
 
 		log.Info("app ingress", "name", ing.ObjectMeta.Name)
 
-		// TODO: All Ingresses have the same name and we simply overwrite the same
-		// Ingress again and again! We need to generate unique names for the ingresses.
 		ing.SetOwnerReferences([]metav1.OwnerReference{owner})
-		if _, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Create(ctx, ing, metav1.CreateOptions{}); err != nil {
-			if apierrors.IsAlreadyExists(err) {
-				if _, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Update(ctx, ing, metav1.UpdateOptions{}); err != nil {
+
+		// Check if ingress already exists and skip.
+		// If it doesn't exist, create the Ingress and the cert for it.
+		if _, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Get(ctx, ing.Name, metav1.GetOptions{}); err != nil {
+			if apierrors.IsNotFound(err) {
+				createdIngress, createErr := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Create(ctx, ing, metav1.CreateOptions{})
+				if createErr != nil {
+					return []string{}, errors.Wrap(err, "creating an application Ingress")
+				}
+
+				// Create the certificate for this Ingress (Ignores it if it exists)
+				cert := auth.CertParam{
+					Name:      createdIngress.Name,
+					Namespace: appRef.Org,
+					Issuer:    viper.GetString("tls-issuer"),
+					Domain:    desiredDomain,
+					Labels:    map[string]string{"app.kubernetes.io/name": appRef.Name},
+				}
+				certOwner := &metav1.OwnerReference{
+					APIVersion: "networking.k8s.io/v1",
+					Kind:       "Ingress",
+					Name:       createdIngress.Name,
+					UID:        createdIngress.UID,
+				}
+				log.Info("app cert", "domain", cert.Domain, "issuer", cert.Issuer)
+				err = auth.CreateCertificate(ctx, cluster, cert, certOwner)
+				if err != nil {
 					return []string{}, err
 				}
-			} else {
+			} else if err != nil {
 				return []string{}, err
 			}
 		}
 	}
 
-	// Cleanup removed ingresses
+	// Cleanup removed ingresses. Automatically deletes certificates using
+	// owner references.
 	for domain, ingress := range existingIngresses {
 		if _, ok := desiredDomainsMap[domain]; !ok {
-			if err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Delete(ctx, ingress.Name, metav1.DeleteOptions{}); err != nil {
+			deletionPropagation := metav1.DeletePropagationBackground
+			if err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Delete(ctx, ingress.Name, metav1.DeleteOptions{
+				PropagationPolicy: &deletionPropagation,
+			}); err != nil {
 				return []string{}, err
 			}
 			log.Info("deleted ingress", ingress.Name)
@@ -120,13 +142,17 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 }
 
 // newAppIngress is a helper that creates the kube ingress resource for the app
-func newAppIngress(appRef models.AppRef, route, username, prefix string) *networkingv1.Ingress {
+func newAppIngress(appRef models.AppRef, route, username string) *networkingv1.Ingress {
 	pathTypeImplementationSpecific := networkingv1.PathTypeImplementationSpecific
 
+	// name is used both for the Ingress name and the secret name
+	// We don't create the secret here, we just expect it to be called like that.
+	// The caller (SyncIngresses) makes sure the secret is created with the same
+	// name and has this Ingress as an owner.
+	name := names.IngressName(fmt.Sprintf("%s-%s", appRef.Name, route))
 	return &networkingv1.Ingress{
 		ObjectMeta: metav1.ObjectMeta{
-
-			Name: names.IngressName(fmt.Sprintf("%s-%s", prefix, appRef.Name)),
+			Name: name,
 			Annotations: map[string]string{
 				"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
 				"traefik.ingress.kubernetes.io/router.tls":         "true",
@@ -169,7 +195,7 @@ func newAppIngress(appRef models.AppRef, route, username, prefix string) *networ
 					Hosts: []string{
 						route,
 					},
-					SecretName: fmt.Sprintf("%s-tls", appRef.Name),
+					SecretName: name + "-tls",
 				},
 			},
 		},
