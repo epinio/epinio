@@ -343,7 +343,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(errorResponse.Errors[0].Title).To(Equal("json: cannot unmarshal string into Go struct field ApplicationUpdateRequest.instances of type int32"))
 				})
 			})
-			When("domains has changed", func() {
+			When("domains have changed", func() {
 				It("synchronizes the ingresses of the application with the new domains list", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
@@ -907,15 +907,15 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						fmt.Sprintf(`[{"op": "replace", "path": "/spec/domains", "value": [%q, %q]}]`, domains[0], domains[1]))
 					Expect(err).NotTo(HaveOccurred(), out)
 				})
-				BeforeEach(func() {
+
+				It("the app Ingress matches the specified domain", func() {
 					bodyBytes, err := json.Marshal(request)
 					Expect(err).ToNot(HaveOccurred())
 					body = string(bodyBytes)
+					// call the deploy action. Deploy should respect the domains on the App CR.
 					_, err = env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
-				})
 
-				It("the app Ingress matches the specified domain", func() {
 					out, err := helpers.Kubectl("get", "ingress",
 						"--namespace", org, "-o", "jsonpath={.items[*].spec.rules[0].host}")
 					Expect(err).NotTo(HaveOccurred(), out)
@@ -1060,9 +1060,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				out, err := helpers.Kubectl("get", "apps", "-n", org, appName, "-o", "jsonpath={.spec.domains[0]}")
+				out, err := helpers.Kubectl("get", "apps", "-n", org, appName, "-o", "jsonpath={.spec.domains[*]}")
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(Equal("mytestdomain.org"))
+				domains := strings.Split(out, " ")
+				Expect(len(domains)).To(Equal(1))
+				Expect(domains[0]).To(Equal("mytestdomain.org"))
 			})
 		})
 	})

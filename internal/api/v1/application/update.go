@@ -180,8 +180,8 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		patch := fmt.Sprintf(`[{
 			"op": "replace",
 			"path": "/spec/domains",
-			"value": [%s]
-	    }]`, strings.Join(domains, ","))
+			"value": [%s] }]`,
+			strings.Join(domains, ","))
 
 		_, err = client.Namespace(app.Meta.Org).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {

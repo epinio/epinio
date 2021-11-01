@@ -18,7 +18,7 @@ const (
 	DefaultBuilder = "paketobuildpacks/builder:full"
 )
 
-// UpdateDomains updates the incoming with information pulled from the --domain option.
+// UpdateDomains updates the incoming manifest with information pulled from the --domain option.
 // Option information replaces any existing information.
 func UpdateDomains(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	domains, err := cmd.Flags().GetStringSlice("domain")

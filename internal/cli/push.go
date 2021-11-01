@@ -19,9 +19,9 @@ func init() {
 	CmdAppPush.Flags().String("container-image-url", "", "Container image url for the app workload image")
 	CmdAppPush.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
 	CmdAppPush.Flags().StringP("path", "p", "", "Path to application sources.")
-	CmdAppPush.Flags().StringSliceP("domain", "d", []string{}, "A domain to use as the application's route (a subdomain of the default domain will be used if this is not set). Can be set multiple times to use multiple domains with the same application.")
 	CmdAppPush.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 
+	domainOption(CmdAppPush)
 	bindOption(CmdAppPush)
 	envOption(CmdAppPush)
 	instancesOption(CmdAppPush)

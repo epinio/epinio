@@ -158,7 +158,7 @@ type DeployRequest struct {
 
 // DeployResponse represents the server's response to a successful app deployment
 type DeployResponse struct {
-	Domains []string `json:"route,omitempty"`
+	Domains []string `json:"domains,omitempty"`
 }
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion

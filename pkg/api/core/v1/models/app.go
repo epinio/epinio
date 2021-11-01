@@ -48,7 +48,7 @@ type AppDeployment struct {
 	Username        string   `json:"username,omitempty"` // app creator
 	StageID         string   `json:"stage_id,omitempty"` // tekton staging id
 	Status          string   `json:"status,omitempty"`   // app replica status
-	Routes          []string `json:"route,omitempty"`    // app route
+	Routes          []string `json:"routes,omitempty"`   // app routes
 }
 
 // NewApp returns a new app for name and org

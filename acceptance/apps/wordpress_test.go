@@ -7,6 +7,8 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -77,17 +79,20 @@ extension=mysqli
 }
 
 // AppURL Finds the application ingress and returns the url to the app.
-// If more than one domains are set on the app, it will return just one.
+// If more than one domain is specified for the app, it will return the first
+// one alphabetically.
 func (w *WordpressApp) AppURL() (string, error) {
-	host, err := helpers.Kubectl("get", "ingress",
+	out, err := helpers.Kubectl("get", "ingress",
 		"--namespace", w.Org,
 		"--selector", "app.kubernetes.io/name="+w.Name,
-		"-o", "jsonpath={.items[0].spec['rules'][0]['host']}")
+		"-o", "jsonpath={.items[*].spec.rules[*].host}")
 	if err != nil {
 		return "", err
 	}
+	hosts := strings.Split(out, " ")
+	sort.Strings(hosts)
 
-	return fmt.Sprintf("https://%s", host), nil
+	return fmt.Sprintf("https://%s", hosts[0]), nil
 }
 
 var _ = Describe("Wordpress", func() {

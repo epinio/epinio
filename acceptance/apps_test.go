@@ -715,7 +715,7 @@ configuration:
 			Expect(out).To(MatchRegexp("Show application details"))
 			Expect(out).To(MatchRegexp("Application: " + appName))
 			Expect(out).To(MatchRegexp(`Services .*\|.* ` + serviceName))
-			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
+			Expect(out).To(MatchRegexp("Routes .*\n|.* " + appName))
 
 			Eventually(func() string {
 				out, err := env.Epinio("", "app", "show", appName)

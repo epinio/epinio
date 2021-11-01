@@ -87,7 +87,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		if err != nil {
 			return apierror.InternalError(err)
 		}
-		domains = append([]string{}, domain)
+		domains = []string{domain}
 	}
 
 	// Arguments found OK, now we can modify the system state

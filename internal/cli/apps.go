@@ -35,9 +35,8 @@ func init() {
 	flags.Bool("follow", false, "follow the logs of the application")
 	flags.Bool("staging", false, "show the staging logs of the application")
 
-	CmdAppCreate.Flags().StringSliceP("domain", "d", []string{}, "Custom domain to use as the application's route (a subdomain of the default domain will be used if this is not set). Can be set multiple times to use multiple domains with the same application.")
-	CmdAppUpdate.Flags().StringSliceP("domain", "d", []string{}, "Custom domain to use as the application's route (a subdomain of the default domain will be used if this is not set). Can be set multiple times to use multiple domains with the same application.")
-
+	domainOption(CmdAppCreate)
+	domainOption(CmdAppUpdate)
 	bindOption(CmdAppCreate)
 	bindOption(CmdAppUpdate)
 	envOption(CmdAppCreate)
