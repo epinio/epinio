@@ -37,7 +37,7 @@ spec:
           spec:
             description: AppSpec defines the desired state of App
             properties:
-              domains:
+              routes:
                 items:
                   type: string
                 type: array

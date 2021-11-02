@@ -35,8 +35,8 @@ func init() {
 	flags.Bool("follow", false, "follow the logs of the application")
 	flags.Bool("staging", false, "show the staging logs of the application")
 
-	domainOption(CmdAppCreate)
-	domainOption(CmdAppUpdate)
+	routeOption(CmdAppCreate)
+	routeOption(CmdAppUpdate)
 	bindOption(CmdAppCreate)
 	bindOption(CmdAppUpdate)
 	envOption(CmdAppCreate)
@@ -105,7 +105,7 @@ var CmdAppCreate = &cobra.Command{
 			return errors.Wrap(err, "unable to get app configuration")
 		}
 
-		m, err = manifest.UpdateDomains(m, cmd)
+		m, err = manifest.UpdateRoutes(m, cmd)
 		if err != nil {
 			return err
 		}
@@ -233,7 +233,7 @@ var CmdAppUpdate = &cobra.Command{
 			return errors.Wrap(err, "unable to get app configuration")
 		}
 
-		m, err = manifest.UpdateDomains(m, cmd)
+		m, err = manifest.UpdateRoutes(m, cmd)
 		if err != nil {
 			return errors.Wrap(err, "unable to update domains")
 		}

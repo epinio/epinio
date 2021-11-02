@@ -18,16 +18,16 @@ const (
 	DefaultBuilder = "paketobuildpacks/builder:full"
 )
 
-// UpdateDomains updates the incoming manifest with information pulled from the --domain option.
+// UpdateRoutes updates the incoming manifest with information pulled from the --route option.
 // Option information replaces any existing information.
-func UpdateDomains(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
-	domains, err := cmd.Flags().GetStringSlice("domain")
+func UpdateRoutes(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	routes, err := cmd.Flags().GetStringSlice("route")
 	if err != nil {
-		return manifest, errors.Wrap(err, "could not read option --domain")
+		return manifest, errors.Wrap(err, "could not read option --route")
 	}
 
-	if len(domains) > 0 {
-		manifest.Configuration.Domains = domains
+	if len(routes) > 0 {
+		manifest.Configuration.Routes = routes
 	}
 
 	return manifest, nil

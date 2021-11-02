@@ -142,11 +142,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return response.StatusCode, bodyBytes
 	}
 
-	createApplication := func(name string, org string, domains []string) (*http.Response, error) {
+	createApplication := func(name string, org string, routes []string) (*http.Response, error) {
 		request := models.ApplicationCreateRequest{
 			Name: name,
 			Configuration: models.ApplicationUpdateRequest{
-				Domains: domains,
+				Routes: routes,
 			},
 		}
 		b, err := json.Marshal(request)
@@ -345,7 +345,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(errorResponse.Errors[0].Title).To(Equal("json: cannot unmarshal string into Go struct field ApplicationUpdateRequest.instances of type int32"))
 				})
 			})
-			When("domains have changed", func() {
+			When("routes have changed", func() {
 				// removes empty strings from the given slice
 				deleteEmpty := func(elements []string) []string {
 					var result []string
@@ -357,7 +357,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					return result
 				}
 
-				checkCertificateDNSNames := func(appName, orgName string, domains ...string) {
+				checkCertificateDNSNames := func(appName, orgName string, routes ...string) {
 					Eventually(func() int {
 						out, err := helpers.Kubectl("get", "certificates",
 							"-n", orgName,
@@ -365,7 +365,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 							"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
 						Expect(err).ToNot(HaveOccurred(), out)
 						return len(deleteEmpty(strings.Split(out, " ")))
-					}, "20s", "1s").Should(Equal(len(domains)))
+					}, "20s", "1s").Should(Equal(len(routes)))
 
 					out, err := helpers.Kubectl("get", "certificates",
 						"-n", orgName,
@@ -373,11 +373,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
 					Expect(err).ToNot(HaveOccurred(), out)
 					certDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
-					Expect(certDomains).To(ContainElements(domains))
-					Expect(len(certDomains)).To(Equal(len(domains)))
+					Expect(certDomains).To(ContainElements(routes))
+					Expect(len(certDomains)).To(Equal(len(routes)))
 				}
 
-				checkIngressHosts := func(appName, orgName string, domains ...string) {
+				checkIngressHosts := func(appName, orgName string, routes ...string) {
 					Eventually(func() int {
 						out, err := helpers.Kubectl("get", "ingresses",
 							"-n", orgName,
@@ -385,7 +385,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 							"-o", "jsonpath={.items[*].spec.rules[*].host}")
 						Expect(err).ToNot(HaveOccurred(), out)
 						return len(deleteEmpty(strings.Split(out, " ")))
-					}, "20s", "1s").Should(Equal(len(domains)))
+					}, "20s", "1s").Should(Equal(len(routes)))
 
 					out, err := helpers.Kubectl("get", "ingresses",
 						"-n", orgName,
@@ -393,14 +393,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						"-o", "jsonpath={.items[*].spec.rules[*].host}")
 					Expect(err).ToNot(HaveOccurred(), out)
 					ingressDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
-					Expect(ingressDomains).To(ContainElements(domains))
-					Expect(len(ingressDomains)).To(Equal(len(domains)))
+					Expect(ingressDomains).To(ContainElements(routes))
+					Expect(len(ingressDomains)).To(Equal(len(routes)))
 				}
 
 				// Checks if every secret referenced in a certificate of the given app,
-				// has a corresponding secret. domains are used to wait until all
+				// has a corresponding secret. routes are used to wait until all
 				// certificates are created.
-				checkSecretsForCerts := func(appName, orgName string, domains ...string) {
+				checkSecretsForCerts := func(appName, orgName string, routes ...string) {
 					Eventually(func() int {
 						out, err := helpers.Kubectl("get", "certificates",
 							"-n", orgName,
@@ -409,7 +409,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						Expect(err).ToNot(HaveOccurred(), out)
 						certSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
 						return len(certSecrets)
-					}, "20s", "1s").Should(Equal(len(domains)))
+					}, "20s", "1s").Should(Equal(len(routes)))
 
 					out, err := helpers.Kubectl("get", "certificates",
 						"-n", orgName,
@@ -426,14 +426,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					}, "60s", "1s").Should(ContainElements(certSecrets))
 				}
 
-				checkDomainsOnApp := func(appName, orgName string, domains ...string) {
-					out, err := helpers.Kubectl("get", "apps", "-n", orgName, appName, "-o", "jsonpath={.spec.domains[*]}")
+				checkRoutesOnApp := func(appName, orgName string, routes ...string) {
+					out, err := helpers.Kubectl("get", "apps", "-n", orgName, appName, "-o", "jsonpath={.spec.routes[*]}")
 					Expect(err).ToNot(HaveOccurred(), out)
-					appDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
-					Expect(appDomains).To(Equal(domains))
+					appRoutes := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					Expect(appRoutes).To(Equal(routes))
 				}
 
-				It("synchronizes the ingresses of the application with the new domains list", func() {
+				It("synchronizes the ingresses of the application with the new routes list", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
@@ -441,7 +441,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					mainDomain, err := domain.MainDomain(context.Background())
 					Expect(err).ToNot(HaveOccurred())
 
-					checkDomainsOnApp(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkRoutesOnApp(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
 					checkIngressHosts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
 					checkCertificateDNSNames(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
 					checkSecretsForCerts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
@@ -449,9 +449,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					appObj := appFromAPI(org, app)
 					Expect(appObj.Workload.Status).To(Equal("1/1"))
 
-					newDomains := []string{"domain1.org", "domain2.org"}
+					newRoutes := []string{"domain1.org", "domain2.org"}
 					data, err := json.Marshal(models.ApplicationUpdateRequest{
-						Domains: newDomains,
+						Routes: newRoutes,
 					})
 					Expect(err).ToNot(HaveOccurred())
 
@@ -462,10 +462,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					checkDomainsOnApp(app, org, newDomains...)
-					checkIngressHosts(app, org, newDomains...)
-					checkCertificateDNSNames(app, org, newDomains...)
-					checkSecretsForCerts(app, org, newDomains...)
+					checkRoutesOnApp(app, org, newRoutes...)
+					checkIngressHosts(app, org, newRoutes...)
+					checkCertificateDNSNames(app, org, newRoutes...)
+					checkSecretsForCerts(app, org, newRoutes...)
 				})
 			})
 		})
@@ -850,7 +850,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					deploy := &models.DeployResponse{}
 					err = json.Unmarshal(bodyBytes, deploy)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(deploy.Domains[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+					Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					By("waiting for the deployment to complete")
 
@@ -903,7 +903,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					deploy := &models.DeployResponse{}
 					err = json.Unmarshal(bodyBytes, deploy)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(deploy.Domains[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+					Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					Eventually(func() string {
 						return appFromAPI(org, appName).Workload.Status
@@ -920,28 +920,28 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				})
 			})
 
-			When("deploying an app with custom domains", func() {
-				var domains []string
+			When("deploying an app with custom routes", func() {
+				var routes []string
 				BeforeEach(func() {
-					domains = append(domains, "appdomain.org", "appdomain2.org")
+					routes = append(routes, "appdomain.org", "appdomain2.org")
 					out, err := helpers.Kubectl("patch", "apps", "--type", "json",
 						"-n", org, appName, "--patch",
-						fmt.Sprintf(`[{"op": "replace", "path": "/spec/domains", "value": [%q, %q]}]`, domains[0], domains[1]))
+						fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))
 					Expect(err).NotTo(HaveOccurred(), out)
 				})
 
-				It("the app Ingress matches the specified domain", func() {
+				It("the app Ingress matches the specified route", func() {
 					bodyBytes, err := json.Marshal(request)
 					Expect(err).ToNot(HaveOccurred())
 					body = string(bodyBytes)
-					// call the deploy action. Deploy should respect the domains on the App CR.
+					// call the deploy action. Deploy should respect the routes on the App CR.
 					_, err = env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
 
 					out, err := helpers.Kubectl("get", "ingress",
 						"--namespace", org, "-o", "jsonpath={.items[*].spec.rules[0].host}")
 					Expect(err).NotTo(HaveOccurred(), out)
-					Expect(strings.Split(out, " ")).To(Equal(domains))
+					Expect(strings.Split(out, " ")).To(Equal(routes))
 				})
 			})
 		})
@@ -1082,11 +1082,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				out, err := helpers.Kubectl("get", "apps", "-n", org, appName, "-o", "jsonpath={.spec.domains[*]}")
+				out, err := helpers.Kubectl("get", "apps", "-n", org, appName, "-o", "jsonpath={.spec.routes[*]}")
 				Expect(err).ToNot(HaveOccurred(), out)
-				domains := strings.Split(out, " ")
-				Expect(len(domains)).To(Equal(1))
-				Expect(domains[0]).To(Equal("mytestdomain.org"))
+				routes := strings.Split(out, " ")
+				Expect(len(routes)).To(Equal(1))
+				Expect(routes[0]).To(Equal("mytestdomain.org"))
 			})
 		})
 	})

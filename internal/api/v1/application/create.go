@@ -79,20 +79,20 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewMultiError(theIssues)
 	}
 
-	var domains []string
-	if len(createRequest.Configuration.Domains) > 0 {
-		domains = createRequest.Configuration.Domains
+	var routes []string
+	if len(createRequest.Configuration.Routes) > 0 {
+		routes = createRequest.Configuration.Routes
 	} else {
-		domain, err := domain.AppDefaultRoute(ctx, createRequest.Name)
+		route, err := domain.AppDefaultRoute(ctx, createRequest.Name)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
-		domains = []string{domain}
+		routes = []string{route}
 	}
 
 	// Arguments found OK, now we can modify the system state
 
-	err = application.Create(ctx, cluster, appRef, username, domains)
+	err = application.Create(ctx, cluster, appRef, username, routes)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
