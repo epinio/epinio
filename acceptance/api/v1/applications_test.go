@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/domain"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
@@ -344,47 +346,105 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				})
 			})
 			When("domains have changed", func() {
+				// removes empty strings from the given slice
+				deleteEmpty := func(elements []string) []string {
+					var result []string
+					for _, e := range elements {
+						if e != "" {
+							result = append(result, e)
+						}
+					}
+					return result
+				}
+
+				checkCertificateDNSNames := func(appName, orgName string, domains ...string) {
+					Eventually(func() int {
+						out, err := helpers.Kubectl("get", "certificates",
+							"-n", orgName,
+							"--selector", "app.kubernetes.io/name="+appName,
+							"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						return len(deleteEmpty(strings.Split(out, " ")))
+					}, "20s", "1s").Should(Equal(len(domains)))
+
+					out, err := helpers.Kubectl("get", "certificates",
+						"-n", orgName,
+						"--selector", "app.kubernetes.io/name="+appName,
+						"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					Expect(certDomains).To(ContainElements(domains))
+					Expect(len(certDomains)).To(Equal(len(domains)))
+				}
+
+				checkIngressHosts := func(appName, orgName string, domains ...string) {
+					Eventually(func() int {
+						out, err := helpers.Kubectl("get", "ingresses",
+							"-n", orgName,
+							"--selector", "app.kubernetes.io/name="+appName,
+							"-o", "jsonpath={.items[*].spec.rules[*].host}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						return len(deleteEmpty(strings.Split(out, " ")))
+					}, "20s", "1s").Should(Equal(len(domains)))
+
+					out, err := helpers.Kubectl("get", "ingresses",
+						"-n", orgName,
+						"--selector", "app.kubernetes.io/name="+appName,
+						"-o", "jsonpath={.items[*].spec.rules[*].host}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					ingressDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					Expect(ingressDomains).To(ContainElements(domains))
+					Expect(len(ingressDomains)).To(Equal(len(domains)))
+				}
+
+				// Checks if every secret referenced in a certificate of the given app,
+				// has a corresponding secret. domains are used to wait until all
+				// certificates are created.
+				checkSecretsForCerts := func(appName, orgName string, domains ...string) {
+					Eventually(func() int {
+						out, err := helpers.Kubectl("get", "certificates",
+							"-n", orgName,
+							"--selector", "app.kubernetes.io/name="+appName,
+							"-o", "jsonpath={.items[*].spec.secretName}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						certSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+						return len(certSecrets)
+					}, "20s", "1s").Should(Equal(len(domains)))
+
+					out, err := helpers.Kubectl("get", "certificates",
+						"-n", orgName,
+						"--selector", "app.kubernetes.io/name="+appName,
+						"-o", "jsonpath={.items[*].spec.secretName}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+
+					Eventually(func() []string {
+						out, err = helpers.Kubectl("get", "secrets", "-n", orgName, "-o", "jsonpath={.items[*].metadata.name}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						existingSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+						return existingSecrets
+					}, "60s", "1s").Should(ContainElements(certSecrets))
+				}
+
+				checkDomainsOnApp := func(appName, orgName string, domains ...string) {
+					out, err := helpers.Kubectl("get", "apps", "-n", orgName, appName, "-o", "jsonpath={.spec.domains[*]}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					appDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					Expect(appDomains).To(Equal(domains))
+				}
+
 				It("synchronizes the ingresses of the application with the new domains list", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 
-					// Check Ingresses
-					out, err := helpers.Kubectl("get", "ingresses", "-n", org, "-o", "jsonpath={.items[*].spec.rules[*].host}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					domains := strings.Split(out, " ")
-					Expect(len(domains)).To(Equal(1))
-					Expect(domains[0]).To(MatchRegexp(app + ".*"))
+					mainDomain, err := domain.MainDomain(context.Background())
+					Expect(err).ToNot(HaveOccurred())
 
-					// Check certificates (wait until it's created)
-					Eventually(func() string {
-						out, err = helpers.Kubectl("get", "certificates",
-							"-n", org,
-							"--selector", "app.kubernetes.io/name="+app,
-							"-o", "jsonpath={.items[*].spec.commonName}")
-						Expect(err).ToNot(HaveOccurred(), out)
-						return strings.Split(out, " ")[0]
-					}, "20s", "1s").ShouldNot(BeEmpty())
-					out, err = helpers.Kubectl("get", "certificates",
-						"-n", org,
-						"--selector", "app.kubernetes.io/name="+app,
-						"-o", "jsonpath={.items[*].spec.commonName}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					certCN := strings.Split(strings.TrimSpace(out), " ")
-					Expect(certCN[0]).To(MatchRegexp(app + ".*"))
-
-					// Check tls secret
-					out, err = helpers.Kubectl("get", "certificates",
-						"-n", org,
-						"--selector", "app.kubernetes.io/name="+app,
-						"-o", "jsonpath={.items[*].spec.secretName}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					certSecrets := strings.Split(strings.TrimSpace(out), " ")
-					Expect(len(certSecrets)).To(Equal(1))
-					out, err = helpers.Kubectl("get", "secret", "-n", org, certSecrets[0],
-						"-o", "jsonpath={.metadata.name}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(out).To(Equal(certSecrets[0]))
+					checkDomainsOnApp(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkIngressHosts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkCertificateDNSNames(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkSecretsForCerts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
 
 					appObj := appFromAPI(org, app)
 					Expect(appObj.Workload.Status).To(Equal("1/1"))
@@ -402,48 +462,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					out, err = helpers.Kubectl("get", "ingresses", "-n", org, "-o", "jsonpath={.items[*].spec.rules[*].host}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(strings.Split(out, " ")).To(Equal(newDomains))
-
-					out, err = helpers.Kubectl("get", "apps", "-n", org, app, "-o", "jsonpath={.spec.domains[*]}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(strings.Split(out, " ")).To(Equal(newDomains))
-
-					// Check certificates again
-					Eventually(func() int {
-						out, err = helpers.Kubectl("get", "certificates",
-							"-n", org,
-							"--selector", "app.kubernetes.io/name="+app,
-							"-o", "jsonpath={.items[*].spec.commonName}")
-						Expect(err).ToNot(HaveOccurred(), out)
-						return len(strings.Split(out, " "))
-					}, "20s", "1s").Should(Equal(2))
-					out, err = helpers.Kubectl("get", "certificates",
-						"-n", org,
-						"--selector", "app.kubernetes.io/name="+app,
-						"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					certCN = strings.Split(strings.TrimSpace(out), " ")
-					Expect(certCN).To(ContainElements("domain1.org", "domain2.org"))
-					Expect(len(certCN)).To(Equal(2))
-
-					// Check tls secret
-					out, err = helpers.Kubectl("get", "certificates",
-						"-n", org,
-						"--selector", "app.kubernetes.io/name="+app,
-						"-o", "jsonpath={.items[*].spec.secretName}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					certSecrets = strings.Split(strings.TrimSpace(out), " ")
-					Expect(len(certSecrets)).To(Equal(2))
-					out, err = helpers.Kubectl("get", "secret", "-n", org, certSecrets[0],
-						"-o", "jsonpath={.metadata.name}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(out).To(Equal(certSecrets[0]))
-					out, err = helpers.Kubectl("get", "secret", "-n", org, certSecrets[1],
-						"-o", "jsonpath={.metadata.name}")
-					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(out).To(Equal(certSecrets[1]))
+					checkDomainsOnApp(app, org, newDomains...)
+					checkIngressHosts(app, org, newDomains...)
+					checkCertificateDNSNames(app, org, newDomains...)
+					checkSecretsForCerts(app, org, newDomains...)
 				})
 			})
 		})
