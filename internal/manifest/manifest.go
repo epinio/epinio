@@ -18,6 +18,21 @@ const (
 	DefaultBuilder = "paketobuildpacks/builder:full"
 )
 
+// UpdateDomains updates the incoming manifest with information pulled from the --domain option.
+// Option information replaces any existing information.
+func UpdateDomains(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	domains, err := cmd.Flags().GetStringSlice("domain")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --domain")
+	}
+
+	if len(domains) > 0 {
+		manifest.Configuration.Domains = domains
+	}
+
+	return manifest, nil
+}
+
 // UpdateBSN updates the incoming manifest with information pulled from the --builder,
 // sources (--path, --git, and --container-imageurl), and --name options. Option
 // information replaces any existing information.

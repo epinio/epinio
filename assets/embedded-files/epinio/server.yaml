@@ -63,6 +63,7 @@ rules:
   verbs:
   - create
   - update
+  - delete
   - get
   - list
 - apiGroups:
@@ -135,6 +136,7 @@ rules:
   - list
   - create
   - delete
+  - patch
 - apiGroups:
   - "metrics.k8s.io"
   resources:

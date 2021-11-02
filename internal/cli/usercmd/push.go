@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,7 +31,7 @@ type PushParams struct {
 // * wait for pipelinerun
 // * deploy
 // * wait for app
-func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
+func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // nolint: gocyclo // Many ifs for view purposes
 	source := params.Origin.String()
 	appRef := models.AppRef{
 		Name: params.Name,
@@ -72,6 +73,13 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 	if len(params.Configuration.Services) > 0 {
 		msg = msg.WithStringValue("Services",
 			strings.Join(params.Configuration.Services, ", "))
+	}
+	if len(params.Configuration.Domains) > 0 {
+		msg = msg.WithStringValue("Domains", "")
+		sort.Strings(params.Configuration.Domains)
+		for i, d := range params.Configuration.Domains {
+			msg = msg.WithStringValue(strconv.Itoa(i+1), d)
+		}
 	}
 
 	msg.Msg("About to push an application with the given setup")
@@ -212,12 +220,24 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error {
 		return errors.Wrap(err, "waiting for app failed")
 	}
 
-	c.ui.Success().
+	routes := []string{}
+	for _, d := range deployResponse.Domains {
+		routes = append(routes, fmt.Sprintf("https://%s", d))
+	}
+
+	msg = c.ui.Success().
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Namespace", appRef.Org).
-		WithStringValue("Route", fmt.Sprintf("https://%s", deployResponse.Route)).
 		WithStringValue("Builder Image", params.Staging.Builder).
-		Msg("App is online.")
+		WithStringValue("Routes", "")
+
+	if len(routes) > 0 {
+		sort.Strings(routes)
+		for i, r := range routes {
+			msg = msg.WithStringValue(strconv.Itoa(i+1), r)
+		}
+	}
+	msg.Msg("App is online.")
 
 	return nil
 }

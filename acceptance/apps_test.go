@@ -213,6 +213,34 @@ configuration:
 		})
 	})
 
+	When("pushing with custom domain flag", func() {
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("creates an ingress with the custom domain as host", func() {
+			domain := "mycustomdomain.org"
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+				"--domain", domain,
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+			out, err := helpers.Kubectl("get", "ingress",
+				"--namespace", org,
+				"--selector=app.kubernetes.io/name="+appName,
+				"-o", "jsonpath={.items[*].spec.rules[0].host}")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(domain))
+
+			out, err = helpers.Kubectl("get", "app",
+				"--namespace", org, appName,
+				"-o", "jsonpath={.spec.domains[0]}")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(domain))
+		})
+	})
 	When("pushing with custom builder flag", func() {
 		AfterEach(func() {
 			env.DeleteApp(appName)
@@ -687,7 +715,7 @@ configuration:
 			Expect(out).To(MatchRegexp("Show application details"))
 			Expect(out).To(MatchRegexp("Application: " + appName))
 			Expect(out).To(MatchRegexp(`Services .*\|.* ` + serviceName))
-			Expect(out).To(MatchRegexp(`Routes .*\|.* ` + appName))
+			Expect(out).To(MatchRegexp("Routes .*\n|.* " + appName))
 
 			Eventually(func() string {
 				out, err := env.Epinio("", "app", "show", appName)

@@ -135,11 +135,13 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.StatusMessage,
 				)
 			} else {
+				sort.Strings(app.Workload.Routes)
+				sort.Strings(app.Configuration.Services)
 				msg = msg.WithTableRow(
 					app.Meta.Org,
 					app.Meta.Name,
 					app.Workload.Status,
-					app.Workload.Route,
+					strings.Join(app.Workload.Routes, ", "),
 					strings.Join(app.Configuration.Services, ", "),
 					app.StatusMessage,
 				)
@@ -158,10 +160,12 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.StatusMessage,
 				)
 			} else {
+				sort.Strings(app.Workload.Routes)
+				sort.Strings(app.Configuration.Services)
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Workload.Status,
-					app.Workload.Route,
+					strings.Join(app.Workload.Routes, ", "),
 					strings.Join(app.Configuration.Services, ", "),
 					app.StatusMessage,
 				)
@@ -208,11 +212,18 @@ func (c *EpinioClient) AppShow(appName string) error {
 		msg = msg.WithTableRow("Status", app.Workload.Status).
 			WithTableRow("Username", app.Workload.Username).
 			WithTableRow("StageId", app.Workload.StageID).
-			WithTableRow("Routes", app.Workload.Route).
 			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
 			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts))).
 			WithTableRow("milliCPUs", strconv.Itoa(int(app.Workload.MilliCPUs))).
-			WithTableRow("Memory", bytes.ByteCountIEC(app.Workload.MemoryBytes))
+			WithTableRow("Memory", bytes.ByteCountIEC(app.Workload.MemoryBytes)).
+			WithTableRow("Routes", "")
+
+		if len(app.Workload.Routes) > 0 {
+			sort.Strings(app.Workload.Routes)
+			for _, r := range app.Workload.Routes {
+				msg = msg.WithTableRow("", r)
+			}
+		}
 	} else {
 		msg = msg.WithTableRow("Status", "not deployed")
 	}
@@ -303,10 +314,19 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
+	msg := c.ui.Note().
 		WithStringValue("Namespace", c.Config.Org).
-		WithStringValue("Application", appName).
-		Msg("Update application")
+		WithStringValue("Application", appName)
+
+	if len(appConfig.Domains) > 0 {
+		msg = msg.WithStringValue("Domains", "")
+		sort.Strings(appConfig.Domains)
+		for i, d := range appConfig.Domains {
+			msg = msg.WithStringValue(strconv.Itoa(i+1), d)
+		}
+	}
+
+	msg.Msg("Update application")
 
 	if err := c.TargetOk(); err != nil {
 		return err

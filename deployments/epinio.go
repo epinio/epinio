@@ -160,7 +160,8 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		Name:      EpinioDeploymentID,
 		Namespace: EpinioDeploymentID,
 		Issuer:    issuer,
-		Domain:    domain,
+		Domain:    fmt.Sprintf("%s.%s", EpinioDeploymentID, domain),
+		Labels:    map[string]string{},
 	}
 	err = retry.Do(func() error {
 		return auth.CreateCertificate(ctx, c, cert, nil)

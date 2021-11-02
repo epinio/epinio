@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -16,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/names"
 )
 
 // ExtendLocalTrust makes the certs found in specified PEM string
@@ -55,6 +55,7 @@ type CertParam struct {
 	Namespace string
 	Domain    string
 	Issuer    string
+	Labels    map[string]string
 }
 
 // CreateCertificate creates a certificate resource, for the given
@@ -92,40 +93,33 @@ func CreateCertificate(
 // specified parameters. The result is suitable for upload to the
 // cluster.
 func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
-	// Notes:
-	// - spec.CommonName is length-limited.
-	//   At most 64 characters are allowed, as per [RFC 3280](https://www.rfc-editor.org/rfc/rfc3280.txt).
-	//   That makes it a problem for long app name and domain combinations.
-	// - The spec.dnsNames (SAN, Subject Alternate Names) do not have such a limit.
-	// - Luckily CN is deprecated with regard to DNS checking.
-	//   The SANs are preferred and usually checked first.
-	//
-	// As such our solution is to
-	// - Keep the full app + domain in the spec.dnsNames/SAN.
-	// - Truncate the full app + domain in CN to 64 characters,
-	//   replace the tail with an MD5 suffix computed over the
-	//   full string as means of keeping the text unique across
-	//   apps.
-
-	cn := names.TruncateMD5(fmt.Sprintf("%s.%s", cert.Name, cert.Domain), 64)
+	// spec.CommonName is deprecated and length-limited.
+	// At most 64 characters are allowed, as per [RFC 3280](https://www.rfc-editor.org/rfc/rfc3280.txt).
+	// That makes it a problem for long app name and domain combinations.
+	// The spec.dnsNames (SAN, Subject Alternate Names) do not have such a limit.
+	// The SANs are preferred and usually checked first.
+	quotedLabels := []string{}
+	for k, v := range cert.Labels {
+		quotedLabels = append(quotedLabels, fmt.Sprintf("%q: %q", k, v))
+	}
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1",
 		"kind": "Certificate",
 		"metadata": {
-			"name": "%[1]s"
+			"name": "%[1]s",
+			"labels": {%[4]s}
 		},
 		"spec": {
-			"commonName" : "%[2]s",
 			"secretName" : "%[1]s-tls",
 			"dnsNames": [
-				"%[1]s.%[3]s"
+				"%[2]s"
 			],
 			"issuerRef" : {
-				"name" : "%[4]s",
+				"name" : "%[3]s",
 				"kind" : "ClusterIssuer"
 			}
 		}
-        }`, cert.Name, cn, cert.Domain, cert.Issuer)
+	}`, cert.Name, cert.Domain, cert.Issuer, strings.Join(quotedLabels, ","))
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}

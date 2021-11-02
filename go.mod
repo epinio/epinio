@@ -11,7 +11,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
-	github.com/epinio/application v0.0.0-20211007132313-f10b973eec8b
+	github.com/epinio/application v0.0.0-20211027125547-aaa6273bc8da
 	github.com/fatih/color v1.12.0
 	github.com/gin-contrib/sessions v0.0.3
 	github.com/gin-gonic/gin v1.7.4
@@ -27,8 +27,8 @@ require (
 	github.com/mholt/archiver/v3 v3.5.0
 	github.com/minio/minio-go/v7 v7.0.13
 	github.com/olekukonko/tablewriter v0.0.4
-	github.com/onsi/ginkgo v1.16.2
-	github.com/onsi/gomega v1.10.5
+	github.com/onsi/ginkgo v1.16.4
+	github.com/onsi/gomega v1.15.0
 	github.com/pkg/errors v0.9.1
 	github.com/rakyll/statik v0.1.7
 	github.com/smartystreets/assertions v1.0.1 // indirect

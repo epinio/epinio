@@ -2,6 +2,7 @@ package v1_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/domain"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
@@ -140,8 +142,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return response.StatusCode, bodyBytes
 	}
 
-	createApplication := func(name string, org string) (*http.Response, error) {
-		request := models.ApplicationCreateRequest{Name: name}
+	createApplication := func(name string, org string, domains []string) (*http.Response, error) {
+		request := models.ApplicationCreateRequest{
+			Name: name,
+			Configuration: models.ApplicationUpdateRequest{
+				Domains: domains,
+			},
+		}
 		b, err := json.Marshal(request)
 		if err != nil {
 			return nil, err
@@ -338,7 +345,129 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(errorResponse.Errors[0].Title).To(Equal("json: cannot unmarshal string into Go struct field ApplicationUpdateRequest.instances of type int32"))
 				})
 			})
+			When("domains have changed", func() {
+				// removes empty strings from the given slice
+				deleteEmpty := func(elements []string) []string {
+					var result []string
+					for _, e := range elements {
+						if e != "" {
+							result = append(result, e)
+						}
+					}
+					return result
+				}
 
+				checkCertificateDNSNames := func(appName, orgName string, domains ...string) {
+					Eventually(func() int {
+						out, err := helpers.Kubectl("get", "certificates",
+							"-n", orgName,
+							"--selector", "app.kubernetes.io/name="+appName,
+							"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						return len(deleteEmpty(strings.Split(out, " ")))
+					}, "20s", "1s").Should(Equal(len(domains)))
+
+					out, err := helpers.Kubectl("get", "certificates",
+						"-n", orgName,
+						"--selector", "app.kubernetes.io/name="+appName,
+						"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					Expect(certDomains).To(ContainElements(domains))
+					Expect(len(certDomains)).To(Equal(len(domains)))
+				}
+
+				checkIngressHosts := func(appName, orgName string, domains ...string) {
+					Eventually(func() int {
+						out, err := helpers.Kubectl("get", "ingresses",
+							"-n", orgName,
+							"--selector", "app.kubernetes.io/name="+appName,
+							"-o", "jsonpath={.items[*].spec.rules[*].host}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						return len(deleteEmpty(strings.Split(out, " ")))
+					}, "20s", "1s").Should(Equal(len(domains)))
+
+					out, err := helpers.Kubectl("get", "ingresses",
+						"-n", orgName,
+						"--selector", "app.kubernetes.io/name="+appName,
+						"-o", "jsonpath={.items[*].spec.rules[*].host}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					ingressDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					Expect(ingressDomains).To(ContainElements(domains))
+					Expect(len(ingressDomains)).To(Equal(len(domains)))
+				}
+
+				// Checks if every secret referenced in a certificate of the given app,
+				// has a corresponding secret. domains are used to wait until all
+				// certificates are created.
+				checkSecretsForCerts := func(appName, orgName string, domains ...string) {
+					Eventually(func() int {
+						out, err := helpers.Kubectl("get", "certificates",
+							"-n", orgName,
+							"--selector", "app.kubernetes.io/name="+appName,
+							"-o", "jsonpath={.items[*].spec.secretName}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						certSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+						return len(certSecrets)
+					}, "20s", "1s").Should(Equal(len(domains)))
+
+					out, err := helpers.Kubectl("get", "certificates",
+						"-n", orgName,
+						"--selector", "app.kubernetes.io/name="+appName,
+						"-o", "jsonpath={.items[*].spec.secretName}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					certSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+
+					Eventually(func() []string {
+						out, err = helpers.Kubectl("get", "secrets", "-n", orgName, "-o", "jsonpath={.items[*].metadata.name}")
+						Expect(err).ToNot(HaveOccurred(), out)
+						existingSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+						return existingSecrets
+					}, "60s", "1s").Should(ContainElements(certSecrets))
+				}
+
+				checkDomainsOnApp := func(appName, orgName string, domains ...string) {
+					out, err := helpers.Kubectl("get", "apps", "-n", orgName, appName, "-o", "jsonpath={.spec.domains[*]}")
+					Expect(err).ToNot(HaveOccurred(), out)
+					appDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					Expect(appDomains).To(Equal(domains))
+				}
+
+				It("synchronizes the ingresses of the application with the new domains list", func() {
+					app := catalog.NewAppName()
+					env.MakeContainerImageApp(app, 1, containerImageURL)
+					defer env.DeleteApp(app)
+
+					mainDomain, err := domain.MainDomain(context.Background())
+					Expect(err).ToNot(HaveOccurred())
+
+					checkDomainsOnApp(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkIngressHosts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkCertificateDNSNames(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkSecretsForCerts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+
+					appObj := appFromAPI(org, app)
+					Expect(appObj.Workload.Status).To(Equal("1/1"))
+
+					newDomains := []string{"domain1.org", "domain2.org"}
+					data, err := json.Marshal(models.ApplicationUpdateRequest{
+						Domains: newDomains,
+					})
+					Expect(err).ToNot(HaveOccurred())
+
+					response, err := env.Curl("PATCH",
+						fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+							serverURL, v1.Root, org, app),
+						strings.NewReader(string(data)))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+					checkDomainsOnApp(app, org, newDomains...)
+					checkIngressHosts(app, org, newDomains...)
+					checkCertificateDNSNames(app, org, newDomains...)
+					checkSecretsForCerts(app, org, newDomains...)
+				})
+			})
 		})
 
 		Describe("GET /api/v1/namespaces/:orgs/applications", func() {
@@ -654,7 +783,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			appName = catalog.NewAppName()
 
 			By("creating application resource first")
-			_, err := createApplication(appName, org)
+			_, err := createApplication(appName, org, []string{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -721,7 +850,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					deploy := &models.DeployResponse{}
 					err = json.Unmarshal(bodyBytes, deploy)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+					Expect(deploy.Domains[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					By("waiting for the deployment to complete")
 
@@ -774,7 +903,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					deploy := &models.DeployResponse{}
 					err = json.Unmarshal(bodyBytes, deploy)
 					Expect(err).NotTo(HaveOccurred())
-					Expect(deploy.Route).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+					Expect(deploy.Domains[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					Eventually(func() string {
 						return appFromAPI(org, appName).Workload.Status
@@ -786,8 +915,33 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						"--namespace", org,
 						"-l", labels,
 						"-o", "jsonpath={.items[*].spec.automountServiceAccountToken}")
-					Expect(err).NotTo(HaveOccurred())
+					Expect(err).NotTo(HaveOccurred(), out)
 					Expect(out).To(ContainSubstring("true"))
+				})
+			})
+
+			When("deploying an app with custom domains", func() {
+				var domains []string
+				BeforeEach(func() {
+					domains = append(domains, "appdomain.org", "appdomain2.org")
+					out, err := helpers.Kubectl("patch", "apps", "--type", "json",
+						"-n", org, appName, "--patch",
+						fmt.Sprintf(`[{"op": "replace", "path": "/spec/domains", "value": [%q, %q]}]`, domains[0], domains[1]))
+					Expect(err).NotTo(HaveOccurred(), out)
+				})
+
+				It("the app Ingress matches the specified domain", func() {
+					bodyBytes, err := json.Marshal(request)
+					Expect(err).ToNot(HaveOccurred())
+					body = string(bodyBytes)
+					// call the deploy action. Deploy should respect the domains on the App CR.
+					_, err = env.Curl("POST", url, strings.NewReader(body))
+					Expect(err).ToNot(HaveOccurred())
+
+					out, err := helpers.Kubectl("get", "ingress",
+						"--namespace", org, "-o", "jsonpath={.items[*].spec.rules[0].host}")
+					Expect(err).NotTo(HaveOccurred(), out)
+					Expect(strings.Split(out, " ")).To(Equal(domains))
 				})
 			})
 		})
@@ -920,7 +1074,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("creating a new app", func() {
 			It("creates the app resource", func() {
-				response, err := createApplication(appName, org)
+				response, err := createApplication(appName, org, []string{"mytestdomain.org"})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -928,6 +1082,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+				out, err := helpers.Kubectl("get", "apps", "-n", org, appName, "-o", "jsonpath={.spec.domains[*]}")
+				Expect(err).ToNot(HaveOccurred(), out)
+				domains := strings.Split(out, " ")
+				Expect(len(domains)).To(Equal(1))
+				Expect(domains[0]).To(Equal("mytestdomain.org"))
 			})
 		})
 	})
