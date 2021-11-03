@@ -221,10 +221,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		"cert-manager",
 		"cainjector",
 	} {
-		if err := c.WaitUntilPodBySelectorExist(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to exist")
-		}
-		if err := c.WaitForPodBySelectorRunning(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
+		if err := c.WaitForPodBySelector(ctx, ui, CertManagerDeploymentID, "app.kubernetes.io/name="+podname, cm.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting CertManager "+podname+" deployment to come up")
 		}
 	}
