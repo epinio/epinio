@@ -1,4 +1,4 @@
-// Package auth collects structures and functions around the domains
+// Package domain collects structures and functions around the domains
 // the client works with.
 package domain
 

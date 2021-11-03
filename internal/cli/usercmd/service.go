@@ -13,36 +13,65 @@ import (
 )
 
 // Services gets all Epinio services in the targeted org
-func (c *EpinioClient) Services() error {
+func (c *EpinioClient) Services(all bool) error {
 	log := c.Log.WithName("Services").WithValues("Namespace", c.Config.Org)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
-		Msg("Listing services")
+	msg := c.ui.Note()
+	if all {
+		msg.Msg("Listing all services")
+	} else {
+		msg.
+			WithStringValue("Namespace", c.Config.Org).
+			Msg("Listing services")
 
-	if err := c.TargetOk(); err != nil {
-		return err
+		if err := c.TargetOk(); err != nil {
+			return err
+		}
 	}
 
 	details.Info("list services")
 
-	response, err := c.API.Services(c.Config.Org)
+	var services models.ServiceResponseList
+	var err error
+
+	if all {
+		services, err = c.API.AllServices()
+	} else {
+		services, err = c.API.Services(c.Config.Org)
+	}
 	if err != nil {
 		return err
 	}
 
 	details.Info("list services")
 
-	sort.Sort(response)
-	msg := c.ui.Success().WithTable("Name", "Applications")
+	sort.Sort(services)
 
-	details.Info("list services")
-	for _, service := range response {
-		msg = msg.WithTableRow(service.Name, strings.Join(service.BoundApps, ", "))
+	details.Info("show services")
+
+	msg = c.ui.Success()
+	if all {
+		msg = msg.WithTable("Namespace", "Name", "Applications")
+
+		for _, service := range services {
+			msg = msg.WithTableRow(
+				service.Meta.Namespace,
+				service.Meta.Name,
+				strings.Join(service.BoundApps, ", "))
+		}
+	} else {
+		msg = msg.WithTable("Name", "Applications")
+
+		for _, service := range services {
+			msg = msg.WithTableRow(
+				service.Meta.Name,
+				strings.Join(service.BoundApps, ", "))
+		}
 	}
+
 	msg.Msg("Epinio Services:")
 
 	return nil
@@ -67,7 +96,7 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 	}
 
 	for _, s := range response {
-		service := s.Name
+		service := s.Meta.Name
 		details.Info("Found", "Name", service)
 		if strings.HasPrefix(service, prefix) {
 			details.Info("Matched", "Name", service)

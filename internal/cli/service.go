@@ -17,6 +17,8 @@ func init() {
 	CmdService.AddCommand(CmdServiceBind)
 	CmdService.AddCommand(CmdServiceUnbind)
 	CmdService.AddCommand(CmdServiceList)
+
+	CmdServiceList.Flags().Bool("all", false, "list all services")
 }
 
 // CmdService implements the command: epinio service
@@ -162,8 +164,9 @@ var CmdServiceUnbind = &cobra.Command{
 
 // CmdServiceList implements the command: epinio service list
 var CmdServiceList = &cobra.Command{
-	Use:   "list",
-	Short: "Lists all services",
+	Use:   "list [--all]",
+	Short: "Lists services",
+	Long:  "Lists services in the targeted namespace, or all",
 	RunE:  ServiceList,
 }
 
@@ -193,7 +196,12 @@ func ServiceList(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = client.Services()
+	all, err := cmd.Flags().GetBool("all")
+	if err != nil {
+		return errors.Wrap(err, "error reading option --all")
+	}
+
+	err = client.Services(all)
 	if err != nil {
 		return errors.Wrap(err, "error listing services")
 	}

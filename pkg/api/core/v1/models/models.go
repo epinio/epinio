@@ -16,10 +16,16 @@ var ResponseOK = Response{"ok"}
 type Request struct {
 }
 
+// ServiceRef references a Service by name and namespace
+type ServiceRef struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
+
 // ServiceResponse represents the data of a single service instance
 type ServiceResponse struct {
-	Name      string   `json:"name"`
-	BoundApps []string `json:"boundapps"`
+	Meta      ServiceRef `json:"meta"`
+	BoundApps []string   `json:"boundapps"`
 }
 
 // ServiceResponseList represents a collection of service instance

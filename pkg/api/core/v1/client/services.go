@@ -9,11 +9,29 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// Services returns a list of services
-func (c *Client) Services(org string) (models.ServiceResponseList, error) {
+// Services returns a list of services for the specified namespace
+func (c *Client) Services(namespace string) (models.ServiceResponseList, error) {
 	resp := models.ServiceResponseList{}
 
-	data, err := c.get(api.Routes.Path("Services", org))
+	data, err := c.get(api.Routes.Path("Services", namespace))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
+}
+
+// AllServices returns a list of all services, across all namespaces
+func (c *Client) AllServices() (models.ServiceResponseList, error) {
+	resp := models.ServiceResponseList{}
+
+	data, err := c.get(api.Routes.Path("AllServices"))
 	if err != nil {
 		return resp, err
 	}
@@ -28,7 +46,7 @@ func (c *Client) Services(org string) (models.ServiceResponseList, error) {
 }
 
 // ServiceBindingCreate creates a binding from an app to a serviceclass
-func (c *Client) ServiceBindingCreate(req models.BindRequest, org string, appName string) (models.BindResponse, error) {
+func (c *Client) ServiceBindingCreate(req models.BindRequest, namespace string, appName string) (models.BindResponse, error) {
 	resp := models.BindResponse{}
 
 	b, err := json.Marshal(req)
@@ -36,7 +54,7 @@ func (c *Client) ServiceBindingCreate(req models.BindRequest, org string, appNam
 		return resp, nil
 	}
 
-	data, err := c.post(api.Routes.Path("ServiceBindingCreate", org, appName), string(b))
+	data, err := c.post(api.Routes.Path("ServiceBindingCreate", namespace, appName), string(b))
 	if err != nil {
 		return resp, err
 	}
@@ -51,10 +69,10 @@ func (c *Client) ServiceBindingCreate(req models.BindRequest, org string, appNam
 }
 
 // ServiceBindingDelete deletes a binding from an app to a serviceclass
-func (c *Client) ServiceBindingDelete(org string, appName string, serviceName string) (models.Response, error) {
+func (c *Client) ServiceBindingDelete(namespace string, appName string, serviceName string) (models.Response, error) {
 	resp := models.Response{}
 
-	data, err := c.delete(api.Routes.Path("ServiceBindingDelete", org, appName, serviceName))
+	data, err := c.delete(api.Routes.Path("ServiceBindingDelete", namespace, appName, serviceName))
 	if err != nil {
 		return resp, err
 	}
@@ -69,7 +87,7 @@ func (c *Client) ServiceBindingDelete(org string, appName string, serviceName st
 }
 
 // ServiceDelete deletes a service
-func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, org string, name string, f errorFunc) (models.ServiceDeleteResponse, error) {
+func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f errorFunc) (models.ServiceDeleteResponse, error) {
 	resp := models.ServiceDeleteResponse{}
 
 	b, err := json.Marshal(req)
@@ -78,7 +96,7 @@ func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, org string, name
 	}
 
 	data, err := c.doWithCustomErrorHandling(
-		api.Routes.Path("ServiceDelete", org, name),
+		api.Routes.Path("ServiceDelete", namespace, name),
 		"DELETE", string(b), f)
 	if err != nil {
 		if err.Error() != "Bad Request" {
@@ -99,22 +117,22 @@ func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, org string, name
 }
 
 // ServiceCreate creates a service by invoking the associated API endpoint
-func (c *Client) ServiceCreate(req models.ServiceCreateRequest, org string) (models.Response, error) {
+func (c *Client) ServiceCreate(req models.ServiceCreateRequest, namespace string) (models.Response, error) {
 	resp := models.Response{}
 
-	c.log.V(5).WithValues("request", req, "org", org).Info("requesting ServiceCreate")
+	c.log.V(5).WithValues("request", req, "namespace", namespace).Info("requesting ServiceCreate")
 
 	b, err := json.Marshal(req)
 	if err != nil {
 		return resp, nil
 	}
 
-	data, err := c.post(api.Routes.Path("ServiceCreate", org), string(b))
+	data, err := c.post(api.Routes.Path("ServiceCreate", namespace), string(b))
 	if err != nil {
 		return resp, err
 	}
 
-	c.log.V(5).WithValues("response", req, "org", org).Info("received ServiceCreate")
+	c.log.V(5).WithValues("response", req, "namespace", namespace).Info("received ServiceCreate")
 
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return resp, errors.Wrap(err, "response body is not JSON")
@@ -126,10 +144,10 @@ func (c *Client) ServiceCreate(req models.ServiceCreateRequest, org string) (mod
 }
 
 // ServiceShow shows a service
-func (c *Client) ServiceShow(org string, name string) (models.ServiceShowResponse, error) {
+func (c *Client) ServiceShow(namespace string, name string) (models.ServiceShowResponse, error) {
 	var resp models.ServiceShowResponse
 
-	data, err := c.get(api.Routes.Path("ServiceShow", org, name))
+	data, err := c.get(api.Routes.Path("ServiceShow", namespace, name))
 	if err != nil {
 		return resp, err
 	}
@@ -144,10 +162,10 @@ func (c *Client) ServiceShow(org string, name string) (models.ServiceShowRespons
 }
 
 // ServiceApps lists all the apps by services
-func (c *Client) ServiceApps(org string) (models.ServiceAppsResponse, error) {
+func (c *Client) ServiceApps(namespace string) (models.ServiceAppsResponse, error) {
 	resp := models.ServiceAppsResponse{}
 
-	data, err := c.get(api.Routes.Path("ServiceApps", org))
+	data, err := c.get(api.Routes.Path("ServiceApps", namespace))
 	if err != nil {
 		return resp, err
 	}
