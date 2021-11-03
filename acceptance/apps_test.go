@@ -20,6 +20,7 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/epinio/epinio/internal/routes"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -218,8 +219,8 @@ configuration:
 			env.DeleteApp(appName)
 		})
 
-		It("creates an ingress with the custom route as host", func() {
-			route := "mycustomdomain.org"
+		It("creates an ingress matching the custom route", func() {
+			route := "mycustomdomain.org/api"
 			pushOutput, err := env.Epinio("", "apps", "push",
 				"--name", appName,
 				"--container-image-url", containerImageURL,
@@ -227,12 +228,20 @@ configuration:
 			)
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 
+			routeObj := routes.FromString(route)
 			out, err := helpers.Kubectl("get", "ingress",
 				"--namespace", org,
 				"--selector=app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.rules[0].host}")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Equal(route))
+			Expect(out).To(Equal(routeObj.Domain))
+
+			out, err = helpers.Kubectl("get", "ingress",
+				"--namespace", org,
+				"--selector=app.kubernetes.io/name="+appName,
+				"-o", "jsonpath={.items[*].spec.rules[0].http.paths[0].path}")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(routeObj.Path))
 
 			out, err = helpers.Kubectl("get", "app",
 				"--namespace", org, appName,
