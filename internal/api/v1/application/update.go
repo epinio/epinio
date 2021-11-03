@@ -164,24 +164,24 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		}
 	}
 
-	// Only update the app if domains have been set, otherwise just leave it
+	// Only update the app if routes have been set, otherwise just leave it
 	// as it is.
-	if len(updateRequest.Domains) > 0 {
+	if len(updateRequest.Routes) > 0 {
 		client, err := cluster.ClientApp()
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 
-		domains := []string{}
-		for _, d := range updateRequest.Domains {
-			domains = append(domains, fmt.Sprintf("%q", d))
+		routes := []string{}
+		for _, d := range updateRequest.Routes {
+			routes = append(routes, fmt.Sprintf("%q", d))
 		}
 
 		patch := fmt.Sprintf(`[{
 			"op": "replace",
-			"path": "/spec/domains",
+			"path": "/spec/routes",
 			"value": [%s] }]`,
-			strings.Join(domains, ","))
+			strings.Join(routes, ","))
 
 		_, err = client.Namespace(app.Meta.Org).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {

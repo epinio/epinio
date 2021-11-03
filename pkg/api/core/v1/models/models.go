@@ -120,7 +120,7 @@ type ApplicationUpdateRequest struct {
 	Instances   *int32         `json:"instances"   yaml:"instances,omitempty"`
 	Services    []string       `json:"services"    yaml:"services,omitempty"`
 	Environment EnvVariableMap `json:"environment" yaml:"environment,omitempty"`
-	Domains     []string       `json:"domains" yaml:"domains,omitempty"`
+	Routes      []string       `json:"routes" yaml:"routes,omitempty"`
 }
 
 type ImportGitResponse struct {
@@ -158,7 +158,7 @@ type DeployRequest struct {
 
 // DeployResponse represents the server's response to a successful app deployment
 type DeployResponse struct {
-	Domains []string `json:"domains,omitempty"`
+	Routes []string `json:"routes,omitempty"`
 }
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion

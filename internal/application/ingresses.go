@@ -36,10 +36,10 @@ func ListRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef models.
 	return result, nil
 }
 
-// SyncIngresses ensures that each domain in the Application CRD "Domains" field
+// SyncIngresses ensures that each route in the Application CRD "Routes" field
 // has a respective Ingress resource. It also ensures that no other Ingresses
-// exist for that application (e.g. domains that have been removed).
-// Returns the current list of domains (after syncing) and error if something goes wrong.
+// exist for that application (e.g. for routes that have been removed).
+// Returns the current list of routes (after syncing) and error if something goes wrong.
 func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, username string) ([]string, error) {
 	applicationCR, err := Get(ctx, cluster, appRef)
 	if err != nil {
@@ -55,9 +55,9 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 		UID:        applicationCR.GetUID(),
 	}
 
-	desiredDomains, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "domains")
+	desiredRoutes, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "routes")
 	if !found {
-		return []string{}, errors.New("couldn't parse the Application for Domains")
+		return []string{}, errors.New("couldn't parse the Application for Routes")
 	}
 	if err != nil {
 		return []string{}, err
@@ -74,17 +74,17 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 		existingIngresses[ingress.Spec.Rules[0].Host] = ingress
 	}
 
-	// Ensure desired domains
+	// Ensure desired routes
 	log := tracelog.Logger(ctx)
-	desiredDomainsMap := map[string]bool{}
-	for _, desiredDomain := range desiredDomains {
-		desiredDomainsMap[desiredDomain] = true
-		if _, ok := existingIngresses[desiredDomain]; ok {
+	desiredRoutesMap := map[string]bool{}
+	for _, desiredRoute := range desiredRoutes {
+		desiredRoutesMap[desiredRoute] = true
+		if _, ok := existingIngresses[desiredRoute]; ok {
 			continue
 		}
-		log.Info("creating app ingress", "org", appRef.Org, "app", appRef.Name, "", desiredDomain)
+		log.Info("creating app ingress", "org", appRef.Org, "app", appRef.Name, "", desiredRoute)
 
-		ing := newAppIngress(appRef, desiredDomain, username)
+		ing := newAppIngress(appRef, desiredRoute, username)
 
 		log.Info("app ingress", "name", ing.ObjectMeta.Name)
 
@@ -104,7 +104,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 					Name:      createdIngress.Name,
 					Namespace: appRef.Org,
 					Issuer:    viper.GetString("tls-issuer"),
-					Domain:    desiredDomain,
+					Domain:    desiredRoute,
 					Labels:    map[string]string{"app.kubernetes.io/name": appRef.Name},
 				}
 				certOwner := &metav1.OwnerReference{
@@ -113,7 +113,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 					Name:       createdIngress.Name,
 					UID:        createdIngress.UID,
 				}
-				log.Info("app cert", "domain", cert.Domain, "issuer", cert.Issuer)
+				log.Info("app cert", "route", cert.Domain, "issuer", cert.Issuer)
 				err = auth.CreateCertificate(ctx, cluster, cert, certOwner)
 				if err != nil {
 					return []string{}, err
@@ -126,8 +126,8 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 
 	// Cleanup removed ingresses. Automatically deletes certificates using
 	// owner references.
-	for domain, ingress := range existingIngresses {
-		if _, ok := desiredDomainsMap[domain]; !ok {
+	for route, ingress := range existingIngresses {
+		if _, ok := desiredRoutesMap[route]; !ok {
 			deletionPropagation := metav1.DeletePropagationBackground
 			if err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Delete(ctx, ingress.Name, metav1.DeleteOptions{
 				PropagationPolicy: &deletionPropagation,
@@ -138,7 +138,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 		}
 	}
 
-	return desiredDomains, nil
+	return desiredRoutes, nil
 }
 
 // newAppIngress is a helper that creates the kube ingress resource for the app

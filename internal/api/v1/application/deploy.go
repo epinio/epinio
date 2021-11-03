@@ -145,7 +145,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	domains, err := application.SyncIngresses(ctx, cluster, req.App, username)
+	routes, err := application.SyncIngresses(ctx, cluster, req.App, username)
 	if err != nil {
 		return apierror.InternalError(err, "syncing application Ingresses")
 	}
@@ -158,7 +158,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	}
 
 	response.OKReturn(c, models.DeployResponse{
-		Domains: domains,
+		Routes: routes,
 	})
 	return nil
 }

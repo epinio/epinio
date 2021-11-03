@@ -74,10 +74,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		msg = msg.WithStringValue("Services",
 			strings.Join(params.Configuration.Services, ", "))
 	}
-	if len(params.Configuration.Domains) > 0 {
-		msg = msg.WithStringValue("Domains", "")
-		sort.Strings(params.Configuration.Domains)
-		for i, d := range params.Configuration.Domains {
+	if len(params.Configuration.Routes) > 0 {
+		msg = msg.WithStringValue("Routes", "")
+		sort.Strings(params.Configuration.Routes)
+		for i, d := range params.Configuration.Routes {
 			msg = msg.WithStringValue(strconv.Itoa(i+1), d)
 		}
 	}
@@ -221,7 +221,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	}
 
 	routes := []string{}
-	for _, d := range deployResponse.Domains {
+	for _, d := range deployResponse.Routes {
 		routes = append(routes, fmt.Sprintf("https://%s", d))
 	}
 

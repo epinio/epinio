@@ -79,7 +79,7 @@ extension=mysqli
 }
 
 // AppURL Finds the application ingress and returns the url to the app.
-// If more than one domain is specified for the app, it will return the first
+// If more than one route is specified for the app, it will return the first
 // one alphabetically.
 func (w *WordpressApp) AppURL() (string, error) {
 	out, err := helpers.Kubectl("get", "ingress",

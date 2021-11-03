@@ -213,17 +213,17 @@ configuration:
 		})
 	})
 
-	When("pushing with custom domain flag", func() {
+	When("pushing with custom route flag", func() {
 		AfterEach(func() {
 			env.DeleteApp(appName)
 		})
 
-		It("creates an ingress with the custom domain as host", func() {
-			domain := "mycustomdomain.org"
+		It("creates an ingress with the custom route as host", func() {
+			route := "mycustomdomain.org"
 			pushOutput, err := env.Epinio("", "apps", "push",
 				"--name", appName,
 				"--container-image-url", containerImageURL,
-				"--domain", domain,
+				"--route", route,
 			)
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 
@@ -232,13 +232,13 @@ configuration:
 				"--selector=app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.rules[0].host}")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Equal(domain))
+			Expect(out).To(Equal(route))
 
 			out, err = helpers.Kubectl("get", "app",
 				"--namespace", org, appName,
-				"-o", "jsonpath={.spec.domains[0]}")
+				"-o", "jsonpath={.spec.routes[0]}")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Equal(domain))
+			Expect(out).To(Equal(route))
 		})
 	})
 	When("pushing with custom builder flag", func() {

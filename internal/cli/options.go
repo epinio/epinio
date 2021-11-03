@@ -14,8 +14,8 @@ func instancesOption(cmd *cobra.Command) {
 		"The number of instances the application should have")
 }
 
-func domainOption(cmd *cobra.Command) {
-	cmd.Flags().StringSliceP("domain", "d", []string{}, "Custom domain to use as the application's route (a subdomain of the default domain will be used if this is not set). Can be set multiple times to use multiple domains with the same application.")
+func routeOption(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("route", "r", []string{}, "Custom route to use for the application (a subdomain of the default domain will be used if this is not set). Can be set multiple times to use multiple routes with the same application.")
 }
 
 // bindOption initializes the --bind/-b option for the provided command

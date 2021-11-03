@@ -21,7 +21,7 @@ func init() {
 	CmdAppPush.Flags().StringP("path", "p", "", "Path to application sources.")
 	CmdAppPush.Flags().String("builder-image", "", "Paketo builder image to use for staging")
 
-	domainOption(CmdAppPush)
+	routeOption(CmdAppPush)
 	bindOption(CmdAppPush)
 	envOption(CmdAppPush)
 	instancesOption(CmdAppPush)
@@ -72,7 +72,7 @@ var CmdAppPush = &cobra.Command{
 			return err
 		}
 
-		m, err = manifest.UpdateDomains(m, cmd)
+		m, err = manifest.UpdateRoutes(m, cmd)
 		if err != nil {
 			return err
 		}

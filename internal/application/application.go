@@ -31,7 +31,7 @@ import (
 // Create generates a new kube app resource in the namespace of the
 // organization. Note that this is the passive resource holding the
 // app's configuration. It is not the active workload
-func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, domains []string) error {
+func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	// we create the appCRD in the org's namespace
 	obj := &epinioappv1.App{
 		Spec: epinioappv1.AppSpec{
-			Domains: domains,
+			Routes: routes,
 		},
 	}
 
