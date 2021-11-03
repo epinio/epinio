@@ -492,6 +492,19 @@ func (c *Cluster) WaitForPodBySelectorRunning(ctx context.Context, ui *termui.UI
 	return nil
 }
 
+// WaitForPodBySelector combines WaitUntilPodBySelectorExist and
+// WaitForPodBySelectorRunning, as one doesn't check if the pod is ready and
+// the other would fail immediately if the pod does not exist.
+func (c *Cluster) WaitForPodBySelector(ctx context.Context, ui *termui.UI, namespace, selector string, timeout time.Duration) error {
+	if err := c.WaitUntilPodBySelectorExist(ctx, ui, namespace, selector, timeout); err != nil {
+		return err
+	}
+	if err := c.WaitForPodBySelectorRunning(ctx, ui, namespace, selector, timeout); err != nil {
+		return err
+	}
+	return nil
+}
+
 // GetPodEventsWithSelector tries to find a pod using the provided selector and
 // namespace. If found it returns the events on that Pod. If not found it returns
 // an error.

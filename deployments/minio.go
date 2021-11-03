@@ -9,6 +9,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
@@ -139,6 +140,11 @@ func (k Minio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, 
 
 	if out, err := helpers.KubectlApplyEmbeddedYaml(minioTenantYAML); err != nil {
 		return errors.Wrapf(err, "Installing %s failed:\n%s", minioTenantYAML, out)
+	}
+
+	if err := c.WaitForPodBySelector(ctx, ui, MinioTenantNamespace, "statefulset.kubernetes.io/pod-name=tenant1-ss-0-0",
+		duration.ToPodReady()); err != nil {
+		return errors.Wrap(err, "failed waiting for minio tenant to be ready")
 	}
 
 	ui.Success().Msg("Minio deployed")
