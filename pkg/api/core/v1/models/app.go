@@ -86,7 +86,9 @@ func (al AppList) Swap(i, j int) {
 // indices in the AppList and returns true if the condition holds, and
 // else false.
 func (al AppList) Less(i, j int) bool {
-	return al[i].Meta.Name < al[j].Meta.Name
+	return (al[i].Meta.Org < al[j].Meta.Org) ||
+		((al[i].Meta.Org == al[j].Meta.Org) &&
+			(al[i].Meta.Name < al[j].Meta.Name))
 }
 
 // AppRef references an App by name and org

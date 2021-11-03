@@ -44,13 +44,17 @@ func (hc Controller) ServiceApps(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
+// serviceKey constructs a single key string from service and namespace names, for the
+// `servicesToApps` map, when used for services and apps across all namespaces. It uses
+// ASCII NUL (\000) as the separator character. NUL is forbidden to occur in the names
+// themselves. This should make it impossible to construct two different pairs of
+// service/namespace names which map to the same key.
 func serviceKey(name, namespace string) string {
 	return fmt.Sprintf("%s\000%s", name, namespace)
 }
 
-// servicesToApps is a helper to Index and Delete. It produces a map
-// from service instances names to application names, the apps bound
-// to each service.
+// servicesToApps is a helper to Index and Delete. It produces a map from service
+// instances names to application names, the apps bound to each service.
 func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]models.AppList, error) {
 	// Determine apps bound to services
 	// (inversion of services bound to apps)

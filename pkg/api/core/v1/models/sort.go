@@ -17,5 +17,8 @@ func (srl ServiceResponseList) Swap(i, j int) {
 // indices in the ServiceResponseList and returns true if the
 // condition holds, and else false.
 func (srl ServiceResponseList) Less(i, j int) bool {
-	return srl[i].Meta.Name < srl[j].Meta.Name
+	// Comparison is done on the namespace names first, and then on the service names.
+	return (srl[i].Meta.Namespace < srl[j].Meta.Namespace) ||
+		((srl[i].Meta.Namespace == srl[j].Meta.Namespace) &&
+			(srl[i].Meta.Name < srl[j].Meta.Name))
 }
