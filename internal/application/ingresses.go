@@ -20,6 +20,30 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
+// DesiredRoutes lists all desired routes for the given application
+// The list is constructed from the stored information on the
+// Application Custom Resource.
+func DesiredRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
+	applicationCR, err := Get(ctx, cluster, appRef)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return []string{}, apierror.AppIsNotKnown("application resource is missing")
+		}
+		return []string{}, apierror.InternalError(err, "failed to get the application resource")
+	}
+
+	desiredRoutes, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "routes")
+
+	if !found {
+		return []string{}, errors.New("couldn't parse the Application for Routes")
+	}
+	if err != nil {
+		return []string{}, err
+	}
+
+	return desiredRoutes, nil
+}
+
 // ListRoutes lists all (currently active) routes for the given application
 // The list is constructed from the actual Ingresses and not from the stored
 // information on the Application Custom Resource.
@@ -47,6 +71,10 @@ func ListRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef models.
 // exist for that application (e.g. for routes that have been removed).
 // Returns the current list of routes (after syncing) and error if something goes wrong.
 func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, username string) ([]string, error) {
+	// Note: While the code below is very similar to `DesiredRoutes` (DR) it is not
+	// identical. It constructs an owner reference, whereas DR does not. This is the
+	// reason why `DR` is not used here when it was introduced.
+
 	applicationCR, err := Get(ctx, cluster, appRef)
 	if err != nil {
 		if apierrors.IsNotFound(err) {

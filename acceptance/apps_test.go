@@ -105,7 +105,7 @@ var _ = Describe("Apps", func() {
 					manifest, err := ioutil.ReadFile(destinationPath)
 					Expect(err).ToNot(HaveOccurred(), destinationPath)
 
-					Expect(string(manifest)).To(Equal(fmt.Sprintf(`name: %s
+					Expect(string(manifest)).To(MatchRegexp(fmt.Sprintf(`name: %s
 configuration:
   instances: 2
   services:
@@ -113,7 +113,9 @@ configuration:
   environment:
     CREDO: up
     DOGMA: "no"
-`, appName, serviceName)))
+  routes:
+  - %s\..*
+`, appName, serviceName, appName)))
 				})
 			})
 		})

@@ -239,6 +239,14 @@ func (c *EpinioClient) AppShow(appName string) error {
 		}
 	}
 
+	msg = msg.WithTableRow("Routes", "")
+
+	if len(app.Configuration.Routes) > 0 {
+		for idx, route := range app.Configuration.Routes {
+			msg = msg.WithTableRow(fmt.Sprintf("  - %d", idx), route)
+		}
+	}
+
 	msg.Msg("Details:")
 
 	return nil

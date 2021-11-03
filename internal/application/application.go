@@ -353,8 +353,13 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	// Consider delayed loading, i.e. on first access, or for transfer (API response).
 	// Consider objects for the information which hide the defered loading.
 	// These could also have the necessary modifier methods.
-	// See sibling files scale.go, env.go, services.go.
+	// See sibling files scale.go, env.go, services.go, ingresses.go.
 	// Defered at the moment, the PR is big enough already.
+
+	desiredRoutes, err := DesiredRoutes(ctx, cluster, app.Meta)
+	if err != nil {
+		return err
+	}
 
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
@@ -374,6 +379,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Instances = &instances
 	app.Configuration.Services = services
 	app.Configuration.Environment = environment
+	app.Configuration.Routes = desiredRoutes
 
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.
