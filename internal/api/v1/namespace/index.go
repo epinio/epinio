@@ -6,6 +6,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/organizations"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -34,12 +35,16 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	for _, org := range orgList {
 		appNames, err := namespaceApps(ctx, cluster, org.Name)
 		if err != nil {
-			return err
+			return apierror.InternalError(err)
 		}
 
 		serviceNames, err := namespaceServices(ctx, cluster, org.Name)
+		// Ignore namespace if deleted mid-flight
+		if _, ok := err.(epinioerrors.NamespaceMissingError); ok {
+			continue
+		}
 		if err != nil {
-			return err
+			return apierror.InternalError(err)
 		}
 
 		namespaces = append(namespaces, models.Namespace{
@@ -53,11 +58,11 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, apierror.APIErrors) {
+func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, error) {
 	// Retrieve app references for namespace, and reduce to their names.
 	appRefs, err := application.ListAppRefs(ctx, cluster, org)
 	if err != nil {
-		return nil, apierror.InternalError(err)
+		return nil, err
 	}
 	appNames := make([]string, 0, len(appRefs))
 	for _, app := range appRefs {
@@ -67,11 +72,11 @@ func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, org string)
 	return appNames, nil
 }
 
-func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, apierror.APIErrors) {
+func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, error) {
 	// Retrieve services for namespace, and reduce to their names.
 	services, err := services.List(ctx, cluster, org)
 	if err != nil {
-		return nil, apierror.InternalError(err)
+		return nil, err
 	}
 	serviceNames := make([]string, 0, len(services))
 	for _, service := range services {
