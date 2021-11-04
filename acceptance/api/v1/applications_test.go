@@ -805,7 +805,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
-			env.DeleteNamespace(org)
 		})
 
 		Context("with staging", func() {
@@ -1087,7 +1086,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				}
 				return ""
 			}, "5m").Should(BeEmpty())
-			env.DeleteNamespace(org)
 		})
 
 		When("creating a new app", func() {
