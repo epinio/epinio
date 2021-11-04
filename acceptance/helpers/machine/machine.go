@@ -45,9 +45,9 @@ func (m *Machine) SetupAndTargetOrg(org string) {
 	out, err := m.Epinio("", "namespace", "create", org)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	orgs, err := m.Epinio("", "namespace", "list")
+	out, err = m.Epinio("", "namespace", "show", org)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, orgs).To(MatchRegexp(org))
+	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + org))
 
 	m.TargetOrg(org)
 }
