@@ -74,6 +74,22 @@ var _ = Describe("<Scenario4>", func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
+		// Check that DNS entry is correctly propagated
+		By("Checking that DNS entry is correctly propagated", func() {
+			Eventually(func() string {
+				out, err := route53.TestDnsAnswer(zoneID, domain, "CNAME")
+				Expect(err).NotTo(HaveOccurred(), out)
+
+				answer := &route53.DNSAnswer{}
+				err = json.Unmarshal([]byte(out), answer)
+				Expect(err).NotTo(HaveOccurred())
+				if len(answer.RecordData) == 0 {
+					return ""
+				}
+				return answer.RecordData[0]
+			}, "5m", "2s").Should(Equal(loadbalancer + ".")) // CNAME ends with a '.'
+		})
+
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
