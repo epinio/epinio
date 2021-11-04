@@ -30,14 +30,14 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.OrgIsNotKnown(org)
 	}
 
-	appNames, apierr := namespaceApps(ctx, cluster, org)
+	appNames, err := namespaceApps(ctx, cluster, org)
 	if err != nil {
-		return apierr
+		return apierror.InternalError(err)
 	}
 
-	serviceNames, apierr := namespaceServices(ctx, cluster, org)
+	serviceNames, err := namespaceServices(ctx, cluster, org)
 	if err != nil {
-		return apierr
+		return apierror.InternalError(err)
 	}
 
 	response.OKReturn(c, models.Namespace{
