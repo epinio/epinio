@@ -69,12 +69,12 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 		})
 
 		By("Updating DNS Entries", func() {
-			change := route53.A(domain, loadbalancer)
-			out, err := route53.Upsert(zoneID, change, nodeTmpDir)
+			change := route53.A(domain, loadbalancer, "UPSERT")
+			out, err := route53.Update(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			change = route53.A("*."+domain, loadbalancer)
-			out, err = route53.Upsert(zoneID, change, nodeTmpDir)
+			change = route53.A("*."+domain, loadbalancer, "UPSERT")
+			out, err = route53.Update(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
@@ -128,6 +128,16 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 				"-o", "jsonpath='{.items[*].spec.issuerRef.name}'")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal("'letsencrypt-production'"))
+		})
+
+		By("Cleaning DNS Entries", func() {
+			change := route53.A(domain, loadbalancer, "DELETE")
+			out, err := route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			change = route53.A("*."+domain, loadbalancer, "DELETE")
+			out, err = route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
 		})
 	})
 })

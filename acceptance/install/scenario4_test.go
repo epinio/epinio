@@ -65,12 +65,12 @@ var _ = Describe("<Scenario4> EKS, epinio-ca", func() {
 		})
 
 		By("Updating DNS Entries", func() {
-			change := route53.CNAME(domain, loadbalancer)
-			out, err := route53.Upsert(zoneID, change, nodeTmpDir)
+			change := route53.CNAME(domain, loadbalancer, "UPSERT")
+			out, err := route53.Update(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			change = route53.CNAME("*."+domain, loadbalancer)
-			out, err = route53.Upsert(zoneID, change, nodeTmpDir)
+			change = route53.CNAME("*."+domain, loadbalancer, "UPSERT")
+			out, err = route53.Update(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
@@ -122,6 +122,16 @@ var _ = Describe("<Scenario4> EKS, epinio-ca", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}).Should(MatchRegexp("MYVAR"))
+		})
+
+		By("Cleaning DNS Entries", func() {
+			change := route53.CNAME(domain, loadbalancer, "DELETE")
+			out, err := route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			change = route53.CNAME("*."+domain, loadbalancer, "DELETE")
+			out, err = route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
 		})
 	})
 })
