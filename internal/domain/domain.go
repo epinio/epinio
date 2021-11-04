@@ -26,6 +26,17 @@ func AppDefaultRoute(ctx context.Context, name string) (string, error) {
 	return fmt.Sprintf("%s.%s", name, mainDomain), nil
 }
 
+func EpinioRegistryPublicURL(ctx context.Context) (string, error) {
+	// TODO: Either find the external registry or construct this here
+
+	mainDomain, err := MainDomain(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s.%s/apps", deployments.RegistryDeploymentID, mainDomain), nil
+}
+
 // MainDomain determines the name of the main domain of the currently
 // accessed epinio installation. The result is cached in-memory (see
 // variable mainDomain). The function preferably returns cached data,
