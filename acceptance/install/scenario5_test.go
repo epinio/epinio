@@ -120,7 +120,9 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 
 			// Verify cluster_issuer is used
 			out, err = proc.RunW("kubectl", "get", "certificate",
-				"-n", testenv.DefaultWorkspace, appName, "-o", "jsonpath='{.spec.issuerRef.name}'")
+				"-n", testenv.DefaultWorkspace,
+				"--selector", "app.kubernetes.io/name="+appName,
+				"-o", "jsonpath='{.items[*].spec.issuerRef.name}'")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal("'letsencrypt-production'"))
 		})
