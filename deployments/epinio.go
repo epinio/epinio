@@ -204,10 +204,7 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	// the installation continue. You can use the `make patch-epinio-deployment` target
 	// later to fix the failing deployment. See also docs/development.md
 	if os.Getenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT") == "" {
-		if err := c.WaitUntilPodBySelectorExist(ctx, ui, EpinioDeploymentID, "app.kubernetes.io/name=epinio-server", k.Timeout); err != nil {
-			return errors.Wrap(err, "failed waiting Epinio epinio-server deployment to exist")
-		}
-		if err := c.WaitForPodBySelectorRunning(ctx, ui, EpinioDeploymentID, "app.kubernetes.io/name=epinio-server", k.Timeout); err != nil {
+		if err := c.WaitForPodBySelector(ctx, ui, EpinioDeploymentID, "app.kubernetes.io/name=epinio-server", k.Timeout); err != nil {
 			return errors.Wrap(err, "failed waiting Epinio epinio-server deployment to be running")
 		}
 	}

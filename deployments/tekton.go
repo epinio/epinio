@@ -159,11 +159,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, fmt.Sprintf("Installing %s failed:\n%s", tektonAdminRoleYamlPath, out))
 	}
 
-	err := c.WaitUntilPodBySelectorExist(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
-	if err != nil {
-		return errors.Wrap(err, "failed waiting tekton pipelines webhook pod to exist")
-	}
-	err = c.WaitForPodBySelectorRunning(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
+	err := c.WaitForPodBySelector(ctx, ui, tektonNamespace, "app=tekton-pipelines-webhook", k.Timeout)
 	if err != nil {
 		return errors.Wrap(err, "failed waiting tekton pipelines webhook pod to be running")
 	}

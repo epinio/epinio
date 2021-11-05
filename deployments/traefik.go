@@ -150,15 +150,9 @@ func (k Traefik) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI
 	}
 
 	log.Info("completed helm command")
-	log.Info("waiting for pods to exist")
-
-	if err := c.WaitUntilPodBySelectorExist(ctx, ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
-		return errors.Wrap(err, "failed waiting for Traefik Ingress deployment to exist")
-	}
-
 	log.Info("waiting for pods to run")
 
-	if err := c.WaitForPodBySelectorRunning(ctx, ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
+	if err := c.WaitForPodBySelector(ctx, ui, TraefikDeploymentID, "app.kubernetes.io/name=traefik", k.Timeout); err != nil {
 		return errors.Wrap(err, "failed waiting for Traefik Ingress deployment to come up")
 	}
 
