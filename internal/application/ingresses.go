@@ -96,18 +96,18 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 
 		route := routes.FromString(desiredRoute)
 		ingressName := names.IngressName(fmt.Sprintf("%s-%s", appRef.Name, route))
-		ing := route.ToIngress(ingressName)
-		completeIngress(&ing, appRef, username) // Add more fields, annotations, etc
+		ingress := route.ToIngress(ingressName)
+		completeIngress(&ingress, appRef, username) // Add more fields, annotations, etc
 
-		log.Info("app ingress", "name", ing.ObjectMeta.Name)
+		log.Info("app ingress", "name", ingress.ObjectMeta.Name)
 
-		ing.SetOwnerReferences([]metav1.OwnerReference{owner})
+		ingress.SetOwnerReferences([]metav1.OwnerReference{owner})
 
 		// Check if ingress already exists and skip.
 		// If it doesn't exist, create the Ingress and the cert for it.
-		if _, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Get(ctx, ing.Name, metav1.GetOptions{}); err != nil {
+		if _, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Get(ctx, ingress.Name, metav1.GetOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
-				createdIngress, createErr := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Create(ctx, &ing, metav1.CreateOptions{})
+				createdIngress, createErr := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Create(ctx, &ingress, metav1.CreateOptions{})
 				if createErr != nil {
 					return []string{}, errors.Wrap(err, "creating an application Ingress")
 				}
@@ -154,7 +154,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 	return desiredRoutes, nil
 }
 
-// completeIngress that takes an Ingress as created by the routes#ToIngress
+// completeIngress takes an Ingress as created by the routes#ToIngress
 // method and fills in more data needed for Epinio.
 func completeIngress(ingress *networkingv1.Ingress, appRef models.AppRef, username string) *networkingv1.Ingress {
 	ingress.ObjectMeta.Annotations = map[string]string{

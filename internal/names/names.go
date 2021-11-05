@@ -21,7 +21,7 @@ func ServiceName(base string) string {
 // base string. It ensures that things like leading digits are
 // sufficiently hidden to prevent kube from erroring out on the name.
 // It also replaces "/" characters with "-" to produce a valid resource
-// name from a route (which may have "/" in it).
+// name from a route (which may contain "/" characters).
 func IngressName(base string) string {
 	baseSafe := strings.ReplaceAll(base, "/", "-")
 	return GenerateResourceName("i-" + baseSafe)

@@ -63,7 +63,7 @@ func FromString(routeStr string) Route {
 }
 
 // FromIngress returns a Route resource matching the given Ingress
-// NOTE: Epinio doesn't create Ingresses with multiple rules. For the reason,
+// NOTE: Epinio doesn't create Ingresses with multiple rules. For that reason,
 // this function will try to construct a Route from the first rule of the passed
 // Ingress, ingoring all other rules if they exist.
 func FromIngress(ingress networkingv1.Ingress) (*Route, error) {
