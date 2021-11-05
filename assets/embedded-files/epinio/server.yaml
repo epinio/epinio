@@ -203,8 +203,8 @@ spec:
               value: ##tls_issuer##
             - name: TRACE_LEVEL
               value: "##trace_level##"
-            - name: USE_INTERNAL_REGISTRY_NODE_PORT
-              value: "##use_internal_registry_node_port##"
+            - name: FORCE_KUBE_INTERNAL_REGISTRY_TLS
+              value: "##force_kube_internal_registry_tls##"
           image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:

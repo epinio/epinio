@@ -294,7 +294,7 @@ func replaceInternalRegistry(ctx context.Context, imageURL string) (string, erro
 	image := imageURLParts[len(imageURLParts)-1]                              // The last part
 
 	result := imageURL
-	if imageRegistry == registryPublicURL && viper.GetBool("use-internal-registry-node-port") {
+	if imageRegistry == registryPublicURL && !viper.GetBool("force-kube-internal-registry-tls") {
 		result = fmt.Sprintf("%s/%s", LocalRegistry, image)
 	}
 

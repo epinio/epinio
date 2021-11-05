@@ -37,7 +37,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		flags = []string{
 			"--skip-default-namespace",
 			"--tls-issuer=letsencrypt-production",
-			"--use-internal-registry-node-port=false",
+			"--force-kube-internal-registry-tls=true",
 			"--system-domain=" + domain,
 		}
 	})

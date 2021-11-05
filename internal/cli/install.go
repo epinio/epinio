@@ -104,11 +104,11 @@ var neededOptions = kubernetes.InstallationOptions{
 		Value:   deployments.EpinioCAIssuer,
 	},
 	{
-		Name:        "use-internal-registry-node-port",
-		Description: "Make the internal registry accessible via a node port, so kubelet can access the registry without trusting its cert.",
+		Name:        "force-kube-internal-registry-tls",
+		Description: "When true, the application images will be pulled by Kubernetes over TLS. Only applies to the internal registry.",
 		Type:        kubernetes.BooleanType,
-		Default:     true,
-		Value:       true,
+		Default:     false,
+		Value:       false,
 	},
 	{
 		Name:        "access-control-allow-origin",

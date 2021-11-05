@@ -177,7 +177,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		tarPath,
 		`--set`, `auth.htpasswd=` + htpasswd,
 		`--set`, fmt.Sprintf("domain=%s.%s", RegistryDeploymentID, domain),
-		`--set`, fmt.Sprintf(`createNodePort=%v`, options.GetBoolNG("use-internal-registry-node-port")),
+		`--set`, fmt.Sprintf(`createNodePort=%v`, !options.GetBoolNG("force-kube-internal-registry-tls")),
 	}
 
 	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))
