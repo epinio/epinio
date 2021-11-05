@@ -15,7 +15,7 @@ import (
 )
 
 // This test uses AWS route53 to update the system domain's records
-var _ = Describe("<Scenario2>", func() {
+var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 	var (
 		flags        []string
 		epinioHelper epinio.Epinio
