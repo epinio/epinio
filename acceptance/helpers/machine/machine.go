@@ -63,6 +63,17 @@ func (m *Machine) TargetOrg(org string) {
 	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: " + org))
 }
 
+func (m *Machine) DeleteNamespace(namespace string) {
+	By("deleting a namespace")
+
+	out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+	out, err = m.Epinio("", "namespace", "show", namespace)
+	ExpectWithOffset(1, err).To(HaveOccurred())
+	ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: Targeted namespace.*does not exist.*"))
+}
+
 func (m *Machine) VerifyOrgNotExist(org string) {
 	out, err := m.Epinio("", "namespace", "list")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)

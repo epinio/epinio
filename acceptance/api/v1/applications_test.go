@@ -24,6 +24,7 @@ import (
 	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/routes"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
@@ -256,6 +257,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			return err
 		}, "1m").ShouldNot(HaveOccurred())
 	})
+	AfterEach(func() {
+		env.DeleteNamespace(org)
+	})
 
 	Context("Apps", func() {
 		Describe("POST /namespaces/:org/applications/:app/import-git", func() {
@@ -377,7 +381,12 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(len(certDomains)).To(Equal(len(routes)))
 				}
 
-				checkIngressHosts := func(appName, orgName string, routes ...string) {
+				checkIngresses := func(appName, orgName string, routesStr ...string) {
+					routeObjects := []routes.Route{}
+					for _, route := range routesStr {
+						routeObjects = append(routeObjects, routes.FromString(route))
+					}
+
 					Eventually(func() int {
 						out, err := helpers.Kubectl("get", "ingresses",
 							"-n", orgName,
@@ -385,16 +394,20 @@ var _ = Describe("Apps API Application Endpoints", func() {
 							"-o", "jsonpath={.items[*].spec.rules[*].host}")
 						Expect(err).ToNot(HaveOccurred(), out)
 						return len(deleteEmpty(strings.Split(out, " ")))
-					}, "20s", "1s").Should(Equal(len(routes)))
+					}, "20s", "1s").Should(Equal(len(routeObjects)))
 
 					out, err := helpers.Kubectl("get", "ingresses",
 						"-n", orgName,
 						"--selector", "app.kubernetes.io/name="+appName,
-						"-o", "jsonpath={.items[*].spec.rules[*].host}")
+						"-o", "jsonpath={range .items[*]}{@.spec.rules[0].host}{@.spec.rules[0].http.paths[0].path} ")
 					Expect(err).ToNot(HaveOccurred(), out)
-					ingressDomains := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
-					Expect(ingressDomains).To(ContainElements(routes))
-					Expect(len(ingressDomains)).To(Equal(len(routes)))
+					ingressRoutes := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+					trimmedRoutes := []string{}
+					for _, ir := range ingressRoutes {
+						trimmedRoutes = append(trimmedRoutes, strings.TrimSuffix(ir, "/"))
+					}
+					Expect(trimmedRoutes).To(ContainElements(routesStr))
+					Expect(len(trimmedRoutes)).To(Equal(len(routesStr)))
 				}
 
 				// Checks if every secret referenced in a certificate of the given app,
@@ -442,7 +455,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 
 					checkRoutesOnApp(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
-					checkIngressHosts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkIngresses(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
 					checkCertificateDNSNames(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
 					checkSecretsForCerts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
 
@@ -463,7 +476,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
 					checkRoutesOnApp(app, org, newRoutes...)
-					checkIngressHosts(app, org, newRoutes...)
+					checkIngresses(app, org, newRoutes...)
 					checkCertificateDNSNames(app, org, newRoutes...)
 					checkSecretsForCerts(app, org, newRoutes...)
 				})
@@ -697,6 +710,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				env.TargetOrg(org1)
 				env.DeleteApp(app1)
+
+				env.DeleteNamespace(org1)
+				env.DeleteNamespace(org2)
 			})
 			It("lists all applications belonging to all namespaces", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s%s/applications",

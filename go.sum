@@ -222,8 +222,6 @@ github.com/envoyproxy/go-control-plane v0.9.4/go.mod h1:6rpuAdCZL397s3pYoYcLgu1m
 github.com/envoyproxy/go-control-plane v0.9.9-0.20201210154907-fd9021fe5dad/go.mod h1:cXg6YxExXjJnVBQHBLXeUAgxn2UodCpnH306RInaBQk=
 github.com/envoyproxy/go-control-plane v0.9.9-0.20210512163311-63b5d3c536b0/go.mod h1:hliV/p42l8fGbc6Y9bQ70uLwIvmJyVE5k4iMKlh8wCQ=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
-github.com/epinio/application v0.0.0-20211027125547-aaa6273bc8da h1:euWZq/yo8hLjsp80EXanuajUQqq0SDPQ2D5vODW/ZvQ=
-github.com/epinio/application v0.0.0-20211027125547-aaa6273bc8da/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
 github.com/epinio/application v0.0.0-20211102124051-0d8c19325c97 h1:0jIx9/sSS8qMmo54BbzgnL6GOBrcFP+dgB9kdWaoNV4=
 github.com/epinio/application v0.0.0-20211102124051-0d8c19325c97/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
 github.com/evanphx/json-patch v0.5.2/go.mod h1:ZWS5hhDbVDyob71nXKNL0+PWn6ToqBHMikGIFbs31qQ=
@@ -282,7 +280,6 @@ github.com/go-logr/logr v0.4.0 h1:K7/B1jt6fIBQVd4Owv2MqGQClcgf0R266+7C/QjRcLc=
 github.com/go-logr/logr v0.4.0/go.mod h1:z6/tIYblkpsD+a4lm/fGIIU9mZ+XfAiaFtq7xTgseGU=
 github.com/go-logr/stdr v0.4.0 h1:ijk9G/xzDRZdMU1QRhLYdHuWvNZWqte+NZMOGsiKWbc=
 github.com/go-logr/stdr v0.4.0/go.mod h1:NO1vneyJDqKVgJYnxhwXWWmQPOvNM391IG3H8ql3jiA=
-github.com/go-logr/zapr v0.4.0 h1:uc1uML3hRYL9/ZZPdgHS/n8Nzo+eaYL/Efxkkamf7OM=
 github.com/go-logr/zapr v0.4.0/go.mod h1:tabnROwaDl0UNxkVeFRbY8bwB37GwRv0P8lg6aAiEnk=
 github.com/go-openapi/jsonpointer v0.0.0-20160704185906-46af16f9f7b1/go.mod h1:+35s3my2LFTysnkMfxsJBAMHj/DoqoB9knIWoYG/Vk0=
 github.com/go-openapi/jsonpointer v0.19.2/go.mod h1:3akKfEdA7DF1sugOqz1dVQHBcuDBPKZGEoHC/NkiQRg=
@@ -1330,7 +1327,6 @@ k8s.io/cloud-provider v0.19.7/go.mod h1:aO/VpUwkG+JQN7ZXc5WBLZ5NBXuq/Y5B6vri6U94
 k8s.io/code-generator v0.19.7/go.mod h1:lwEq3YnLYb/7uVXLorOJfxg+cUu2oihFhHZ0n9NIla0=
 k8s.io/code-generator v0.21.4/go.mod h1:K3y0Bv9Cz2cOW2vXUrNZlFbflhuPvuadW6JdnN6gGKo=
 k8s.io/component-base v0.19.7/go.mod h1:YX8spPBgwl3I6UGcSdQiEMAqRMSUsGQOW7SEr4+Qa3U=
-k8s.io/component-base v0.21.4 h1:Bc0AttSyhJFVXEIHz+VX+D11j/5z7SPPhl6whiXaRzs=
 k8s.io/component-base v0.21.4/go.mod h1:ZKG0eHVX+tUDcaoIGpU3Vtk4TIjMddN9uhEWDmW6Nyg=
 k8s.io/csi-translation-lib v0.19.7/go.mod h1:WghizPQuzuygr2WdpgN2EjcNpDD2V4EAbxFXsgHgSBk=
 k8s.io/gengo v0.0.0-20200413195148-3a45101e95ac/go.mod h1:ezvh/TsK7cY6rbqRK0oQQ8IAqLxYwwyPxAX1Pzy0ii0=

@@ -20,8 +20,11 @@ func ServiceName(base string) string {
 // IngressName returns the name of a kube ingress derived from the
 // base string. It ensures that things like leading digits are
 // sufficiently hidden to prevent kube from erroring out on the name.
+// It also replaces "/" characters with "-" to produce a valid resource
+// name from a route (which may contain "/" characters).
 func IngressName(base string) string {
-	return GenerateResourceName("i-" + base)
+	baseSafe := strings.ReplaceAll(base, "/", "-")
+	return GenerateResourceName("i-" + baseSafe)
 }
 
 // GenerateResourceName joins the input strings with dots (".")  and
