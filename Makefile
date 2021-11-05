@@ -9,7 +9,7 @@ build: embed_files build-amd64
 
 build-win: embed_files build-windows
 
-build-all: embed_files build-amd64 build-arm64 build-arm32 build-windows build-darwin
+build-all: embed_files build-amd64 build-arm64 build-arm32 build-windows build-darwin build-darwin-m1
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
@@ -34,6 +34,10 @@ build-darwin-amd64: build-darwin
 build-darwin:
 	GOARCH="amd64" GOOS="darwin" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-amd64
 
+build-darwin-arm64: build-darwin-m1
+build-darwin-m1:
+	GOARCH="arm64" GOOS="darwin" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-darwin-arm64
+
 build-linux-s390x: build-s390x
 build-s390x:
 	GOARCH="s390x" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-s390x
@@ -47,6 +51,7 @@ compress:
 	upx --brute -1 ./dist/epinio-linux-amd64
 	upx --brute -1 ./dist/epinio-windows-amd64.exe
 	upx --brute -1 ./dist/epinio-darwin-amd64
+	upx --brute -1 ./dist/epinio-darwin-arm64
 
 test: embed_files
 	ginkgo -r -p -race -failOnPending helpers internal
