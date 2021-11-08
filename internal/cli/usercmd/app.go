@@ -204,7 +204,8 @@ func (c *EpinioClient) AppShow(appName string) error {
 	msg := c.ui.Success().WithTable("Key", "Value")
 
 	var createdAt time.Time
-	if app.Workload != nil {
+	deployed := app.Workload != nil
+	if deployed {
 		createdAt, err = time.Parse(time.RFC3339, app.Workload.CreatedAt)
 		if err != nil {
 			return err
@@ -216,7 +217,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts))).
 			WithTableRow("milliCPUs", strconv.Itoa(int(app.Workload.MilliCPUs))).
 			WithTableRow("Memory", bytes.ByteCountIEC(app.Workload.MemoryBytes)).
-			WithTableRow("Routes", "")
+			WithTableRow("Active Routes", "")
 
 		if len(app.Workload.Routes) > 0 {
 			sort.Strings(app.Workload.Routes)
@@ -239,11 +240,13 @@ func (c *EpinioClient) AppShow(appName string) error {
 		}
 	}
 
-	msg = msg.WithTableRow("Routes", "")
+	if !deployed {
+		msg = msg.WithTableRow("Desired Routes", "")
 
-	if len(app.Configuration.Routes) > 0 {
-		for idx, route := range app.Configuration.Routes {
-			msg = msg.WithTableRow(fmt.Sprintf("  - %d", idx), route)
+		if len(app.Configuration.Routes) > 0 {
+			for idx, route := range app.Configuration.Routes {
+				msg = msg.WithTableRow(fmt.Sprintf("  - %d", idx), route)
+			}
 		}
 	}
 
