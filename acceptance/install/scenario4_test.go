@@ -15,7 +15,7 @@ import (
 )
 
 // This test uses AWS route53 to update the system domain's records
-var _ = Describe("<Scenario4>", func() {
+var _ = Describe("<Scenario4> EKS, epinio-ca", func() {
 	var (
 		flags        []string
 		epinioHelper epinio.Epinio
@@ -65,13 +65,29 @@ var _ = Describe("<Scenario4>", func() {
 		})
 
 		By("Updating DNS Entries", func() {
-			change := route53.CNAME(domain, loadbalancer)
-			out, err := route53.Upsert(zoneID, change, nodeTmpDir)
+			change := route53.CNAME(domain, loadbalancer, "UPSERT")
+			out, err := route53.Update(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			change = route53.CNAME("*."+domain, loadbalancer)
-			out, err = route53.Upsert(zoneID, change, nodeTmpDir)
+			change = route53.CNAME("*."+domain, loadbalancer, "UPSERT")
+			out, err = route53.Update(zoneID, change, nodeTmpDir)
 			Expect(err).NotTo(HaveOccurred(), out)
+		})
+
+		// Check that DNS entry is correctly propagated
+		By("Checking that DNS entry is correctly propagated", func() {
+			Eventually(func() string {
+				out, err := route53.TestDnsAnswer(zoneID, domain, "CNAME")
+				Expect(err).NotTo(HaveOccurred(), out)
+
+				answer := &route53.DNSAnswer{}
+				err = json.Unmarshal([]byte(out), answer)
+				Expect(err).NotTo(HaveOccurred())
+				if len(answer.RecordData) == 0 {
+					return ""
+				}
+				return answer.RecordData[0]
+			}, "5m", "2s").Should(Equal(loadbalancer + ".")) // CNAME ends with a '.'
 		})
 
 		By("Installing Epinio", func() {
@@ -106,6 +122,16 @@ var _ = Describe("<Scenario4>", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}).Should(MatchRegexp("MYVAR"))
+		})
+
+		By("Cleaning DNS Entries", func() {
+			change := route53.CNAME(domain, loadbalancer, "DELETE")
+			out, err := route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			change = route53.CNAME("*."+domain, loadbalancer, "DELETE")
+			out, err = route53.Update(zoneID, change, nodeTmpDir)
+			Expect(err).NotTo(HaveOccurred(), out)
 		})
 	})
 })

@@ -42,11 +42,11 @@ type DNSAnswer struct {
 	Protocol     string   `json:"Protocol"`
 }
 
-func CNAME(record string, value string) ChangeResourceRecordSet {
+func CNAME(record string, value string, action string) ChangeResourceRecordSet {
 	return ChangeResourceRecordSet{
 		Changes: []Change{
 			{
-				Action: "UPSERT",
+				Action: action,
 				ResourceRecordSet: ResourceRecordSet{
 					Name: record,
 					Type: "CNAME",
@@ -60,11 +60,11 @@ func CNAME(record string, value string) ChangeResourceRecordSet {
 	}
 }
 
-func A(record string, value string) ChangeResourceRecordSet {
+func A(record string, value string, action string) ChangeResourceRecordSet {
 	return ChangeResourceRecordSet{
 		Changes: []Change{
 			{
-				Action: "UPSERT",
+				Action: action,
 				ResourceRecordSet: ResourceRecordSet{
 					Name: record,
 					Type: "A",
@@ -78,7 +78,7 @@ func A(record string, value string) ChangeResourceRecordSet {
 	}
 }
 
-func Upsert(zoneID string, change ChangeResourceRecordSet, dir string) (string, error) {
+func Update(zoneID string, change ChangeResourceRecordSet, dir string) (string, error) {
 	b, err := json.MarshalIndent(change, "", " ")
 	if err != nil {
 		return "", err
