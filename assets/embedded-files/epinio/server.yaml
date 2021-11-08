@@ -193,16 +193,18 @@ spec:
         - command: ["/epinio", "server"]
           args: ["--port", "80"]
           env:
-            - name: TRACE_LEVEL
-              value: "##trace_level##"
+            - name: ACCESS_CONTROL_ALLOW_ORIGIN
+              value: "##access_control_allow_origin##"
             - name: EPINIO_TIMEOUT_MULTIPLIER
               value: "##epinio_timeout_multiplier##"
-            - name: TLS_ISSUER
-              value: ##tls_issuer##
-            - name: USE_INTERNAL_REGISTRY_NODE_PORT
-              value: "##use_internal_registry_node_port##"
             - name: SESSION_KEY
               value: "##epinio_session_key##"
+            - name: TLS_ISSUER
+              value: ##tls_issuer##
+            - name: TRACE_LEVEL
+              value: "##trace_level##"
+            - name: USE_INTERNAL_REGISTRY_NODE_PORT
+              value: "##use_internal_registry_node_port##"
           image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:

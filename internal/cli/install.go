@@ -110,6 +110,13 @@ var neededOptions = kubernetes.InstallationOptions{
 		Default:     true,
 		Value:       true,
 	},
+	{
+		Name:        "access-control-allow-origin",
+		Description: "Domain allowed to access the API. Comma-separated.",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
 	ingressServiceIPOption,
 	{
 		Name:        "s3-access-key-id",
