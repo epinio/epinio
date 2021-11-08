@@ -6,7 +6,7 @@ on:
       - 'acceptance/install/scenario4_test.go'
       - '.github/workflows/eks.yml'
   schedule:
-    - cron:  '0 6 * * *'
+    - cron:  '0 4 * * *'
   workflow_dispatch:
     inputs:
       aws_id:
