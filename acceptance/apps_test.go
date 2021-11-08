@@ -42,6 +42,7 @@ var _ = Describe("Apps", func() {
 
 	When("creating an application without a workload", func() {
 		AfterEach(func() {
+			// MakeApp... by each test (It)
 			env.DeleteApp(appName)
 		})
 
@@ -105,7 +106,7 @@ var _ = Describe("Apps", func() {
 					manifest, err := ioutil.ReadFile(destinationPath)
 					Expect(err).ToNot(HaveOccurred(), destinationPath)
 
-					Expect(string(manifest)).To(Equal(fmt.Sprintf(`name: %s
+					Expect(string(manifest)).To(MatchRegexp(fmt.Sprintf(`name: %s
 configuration:
   instances: 2
   services:
@@ -113,7 +114,9 @@ configuration:
   environment:
     CREDO: up
     DOGMA: "no"
-`, appName, serviceName)))
+  routes:
+  - %s\..*
+`, appName, serviceName, appName)))
 				})
 			})
 		})
@@ -406,6 +409,7 @@ configuration:
 				}, "1m").Should(ContainSubstring("AGE")) // this checks for the table header from kubectl
 			})
 
+			// WARNING -- Find may return a bad value for higher trace levels
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
 
@@ -431,6 +435,7 @@ configuration:
 			By("pushing the app in the current working directory")
 			out := env.MakeApp(appName, 1, true)
 
+			// WARNING -- Find may return a bad value for higher trace levels
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route := string(routeRegexp.Find([]byte(out)))
 

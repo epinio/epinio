@@ -216,7 +216,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts))).
 			WithTableRow("milliCPUs", strconv.Itoa(int(app.Workload.MilliCPUs))).
 			WithTableRow("Memory", bytes.ByteCountIEC(app.Workload.MemoryBytes)).
-			WithTableRow("Routes", "")
+			WithTableRow("Active Routes", "")
 
 		if len(app.Workload.Routes) > 0 {
 			sort.Strings(app.Workload.Routes)
@@ -226,6 +226,13 @@ func (c *EpinioClient) AppShow(appName string) error {
 		}
 	} else {
 		msg = msg.WithTableRow("Status", "not deployed")
+		msg = msg.WithTableRow("Desired Routes", "")
+
+		if len(app.Configuration.Routes) > 0 {
+			for _, route := range app.Configuration.Routes {
+				msg = msg.WithTableRow("", route)
+			}
+		}
 	}
 
 	msg = msg.
