@@ -6,9 +6,7 @@ package organizations
 import (
 	"context"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -64,6 +62,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, org string) err
 			ObjectMeta: metav1.ObjectMeta{
 				Name: org,
 				Labels: map[string]string{
+					"kubed-sync":                 "registry-creds", // Let kubed copy-over image pull secrets
 					kubernetes.EpinioOrgLabelKey: kubernetes.EpinioOrgLabelValue,
 				},
 				Annotations: map[string]string{
@@ -77,12 +76,6 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, org string) err
 			return errors.Errorf("Namespace '%s' name cannot be used. Please try another name", org)
 		}
 		return err
-	}
-
-	// This secret is used as ImagePullSecrets for the application ServiceAccount
-	// in order to allow the image to be pulled from the registry.
-	if err := copySecret(ctx, "registry-creds", deployments.TektonStagingNamespace, org, kubeClient); err != nil {
-		return errors.Wrap(err, "failed to copy the registry credentials secret")
 	}
 
 	if err := createServiceAccount(ctx, kubeClient, org); err != nil {
@@ -101,30 +94,6 @@ func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, org string) err
 	}
 
 	return kubeClient.WaitForNamespaceMissing(ctx, nil, org, duration.ToOrgDeletion())
-}
-
-// copySecret is helper to Create which replicates the specified kube
-// secret into a target namespace.
-func copySecret(ctx context.Context, secretName, originOrg, targetOrg string, kubeClient *kubernetes.Cluster) error {
-	log := tracelog.Logger(ctx)
-	log.V(1).Info("will now copy secret", "name", secretName)
-	secret, err := kubeClient.Kubectl.CoreV1().
-		Secrets(originOrg).
-		Get(ctx, secretName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	newSecret := secret.DeepCopy()
-	newSecret.ObjectMeta.Namespace = targetOrg
-	newSecret.ResourceVersion = ""
-	newSecret.OwnerReferences = []metav1.OwnerReference{}
-	log.V(2).Info("newSecret", "data", newSecret)
-
-	_, err = kubeClient.Kubectl.CoreV1().Secrets(targetOrg).
-		Create(ctx, newSecret, metav1.CreateOptions{})
-
-	return err
 }
 
 // createServiceAccount is a helper to `Create` which creates the

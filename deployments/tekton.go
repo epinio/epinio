@@ -6,7 +6,6 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/json"
 	"encoding/pem"
@@ -22,6 +21,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
@@ -33,11 +33,12 @@ import (
 )
 
 type Tekton struct {
-	Debug               bool
-	Secrets             []string
-	ConfigMaps          []string
-	Timeout             time.Duration
-	S3ConnectionDetails *s3manager.ConnectionDetails
+	Debug                     bool
+	Secrets                   []string
+	ConfigMaps                []string
+	Timeout                   time.Duration
+	S3ConnectionDetails       *s3manager.ConnectionDetails
+	RegistryConnectionDetails *registry.ConnectionDetails
 }
 
 var _ kubernetes.Deployment = &Tekton{}
@@ -229,15 +230,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return err
 	}
 
-	domain, err := options.GetString("system_domain", TektonDeploymentID)
-	if err != nil {
-		return errors.Wrap(err, "Couldn't get system_domain option")
-	}
-
-	if err := k.createClusterRegistryCredsSecret(ctx, c, domain); err != nil {
-		return err
-	}
-
 	message = fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace)
 	out, err := helpers.WaitForCommandCompletion(ui, message,
 		func() (string, error) {
@@ -275,8 +267,18 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	// Create the secret that will be used to store and retrieve application
 	// sources from the S3 compatible storage.
-	if err := k.storeS3Settings(ctx, c, options); err != nil {
+	if err := k.storeS3Settings(ctx, c); err != nil {
 		return errors.Wrap(err, "storing the S3 options")
+	}
+
+	// Create the dockerconfigjson secret that will be used to push and pull
+	// images from the Epinio registry (internal or external).
+	// This secret is used as a Kubed source secret to be automatically copied to
+	// all application namespaces to that Kubernetes can pull application images.
+	//
+	// TODO: Does it need kubed to be running before this can work?
+	if _, err := k.RegistryConnectionDetails.Store(ctx, c, TektonStagingNamespace, "registry-creds"); err != nil {
+		return errors.Wrap(err, "storing the Registry options")
 	}
 
 	ui.Success().Msg("Tekton deployed")
@@ -433,45 +435,6 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	return nil
 }
 
-func (k Tekton) createClusterRegistryCredsSecret(ctx context.Context, c *kubernetes.Cluster, domain string) error {
-	// Generate random credentials
-	registryAuth, err := RegistryInstallAuth()
-	if err != nil {
-		return err
-	}
-
-	encodedCredentials := base64.StdEncoding.EncodeToString([]byte(
-		registryAuth.Username + ":" + registryAuth.Password))
-	jsonFull := fmt.Sprintf(`"auth":"%s","username":"%s","password":"%s"`,
-		encodedCredentials, registryAuth.Username, registryAuth.Password)
-	jsonPart := fmt.Sprintf(`"username":"%s","password":"%s"`,
-		registryAuth.Username, registryAuth.Password)
-
-	// TODO: Are all of these really used? We need tekton to be able to access
-	// the registry and also kubernetes (when we deploy our app deployments)
-	auths := fmt.Sprintf(`{ "auths": {
-		"https://127.0.0.1:30500":{%s},
-		"%s":{%s} } }`,
-		jsonFull, fmt.Sprintf("%s.%s", RegistryDeploymentID, domain), jsonPart)
-	// The relevant place in the registry is `deployments/registry.go`, func `apply`, see (**).
-
-	_, err = c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).Create(ctx,
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "registry-creds",
-			},
-			StringData: map[string]string{
-				".dockerconfigjson": auths,
-			},
-			Type: "kubernetes.io/dockerconfigjson",
-		}, metav1.CreateOptions{})
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 // -----------------------------------------------------------------------------------
 
 func GenerateHash(certRaw []byte) (string, error) {
@@ -590,7 +553,7 @@ func CanonicalString(s string) string {
 }
 
 // storeS3Settings stores the provides S3 settings in a Secret.
-func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster, _ kubernetes.InstallationOptions) error {
+func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster) error {
 	_, err := s3manager.StoreConnectionDetails(ctx, cluster, TektonStagingNamespace, S3ConnectionDetailsSecret, *k.S3ConnectionDetails)
 
 	return err

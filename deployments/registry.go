@@ -212,6 +212,11 @@ func (k Registry) GetVersion() string {
 }
 
 func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	if options.GetStringNG("external-registry-url") != "" {
+		ui.Exclamation().Msg("External registry configuration detected. Epinio won't install a registry")
+		return nil
+	}
+
 	log := k.Log.WithName("Deploy")
 	log.Info("start")
 	defer log.Info("return")

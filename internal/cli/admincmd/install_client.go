@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/internal/version"
 
@@ -154,30 +155,30 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		}
 	}
 
-	endpoint := c.options.GetStringNG("s3-endpoint")
-	key := c.options.GetStringNG("s3-access-key-id")
-	secret := c.options.GetStringNG("s3-secret-access-key")
-	bucket := c.options.GetStringNG("s3-bucket")
-	location := c.options.GetStringNG("s3-location")
-	useSSL := c.options.GetBoolNG("s3-use-ssl")
-	cd := s3manager.NewConnectionDetails(endpoint, key, secret, bucket, location, useSSL)
-	if err := cd.Validate(); err != nil {
+	s3ConnectionDetails, err := getS3ConnectionDetails(c.options)
+	if err != nil {
 		return err
 	}
-	if endpoint == "" { // All options empty
-		cd, err = deployments.MinioInternalConnectionSettings()
-		if err != nil {
-			return err
-		}
+
+	registryConnectionDetails, err := getRegistryConnectionDetails(c.options)
+	if err != nil {
+		return err
 	}
 
 	steps := []kubernetes.Deployment{
 		&deployments.Kubed{Timeout: duration.ToDeployment()},
 		&deployments.CertManager{Timeout: duration.ToDeployment(), Log: details.V(1)},
 		&deployments.Epinio{Timeout: duration.ToDeployment()},
-		&deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)},
-		&deployments.Tekton{Timeout: duration.ToDeployment(), S3ConnectionDetails: cd},
-		&deployments.Minio{Timeout: duration.ToDeployment(), Log: details.V(1), S3ConnectionDetails: cd},
+		&deployments.Tekton{Timeout: duration.ToDeployment(),
+			S3ConnectionDetails:       s3ConnectionDetails,
+			RegistryConnectionDetails: registryConnectionDetails,
+		},
+		&deployments.Minio{Timeout: duration.ToDeployment(), Log: details.V(1), S3ConnectionDetails: s3ConnectionDetails},
+	}
+
+	// Deploy internal registry if no externl is defined
+	if c.options.GetStringNG("external-registry-url") == "" {
+		steps = append(steps, &deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)})
 	}
 
 	for _, deployment := range steps {
@@ -543,4 +544,89 @@ func (c *InstallClient) traefikServiceIngressInfo(ctx context.Context) (string, 
 	}
 
 	return string(traefikServiceIngressInfo), nil
+}
+
+func getS3ConnectionDetails(options *kubernetes.InstallationOptions) (*s3manager.ConnectionDetails, error) {
+	endpoint := options.GetStringNG("s3-endpoint")
+	key := options.GetStringNG("s3-access-key-id")
+	secret := options.GetStringNG("s3-secret-access-key")
+	bucket := options.GetStringNG("s3-bucket")
+	location := options.GetStringNG("s3-location")
+	useSSL := options.GetBoolNG("s3-use-ssl")
+
+	var cd *s3manager.ConnectionDetails
+	var err error
+
+	cd = s3manager.NewConnectionDetails(endpoint, key, secret, bucket, location, useSSL)
+	if err = cd.Validate(); err != nil {
+		return cd, err
+	}
+	if endpoint == "" { // All options empty
+		cd, err = deployments.MinioInternalConnectionSettings()
+		if err != nil {
+			return cd, err
+		}
+	}
+
+	return cd, nil
+}
+
+// getRegistryConnectionDetails returns the user provided registry connection
+// details or the internal registry details if user provided none.
+// This function also validates user provided input and returns an error if
+// something is wrong.
+func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*registry.ConnectionDetails, error) {
+	url := options.GetStringNG("external-registry-url")
+	namespace := options.GetStringNG("external-registry-namespace")
+	username := options.GetStringNG("external-registry-username")
+	password := options.GetStringNG("external-registry-password")
+	if err := registry.Validate(url, namespace, username, password); err != nil {
+		return nil, err
+	}
+
+	var registryDetails *registry.ConnectionDetails
+	// If no user provided setting, use internal registry ones
+	if url == "" {
+		domain, err := options.GetString("system_domain", "")
+		if err != nil {
+			return nil, errors.Wrap(err, "Couldn't get system_domain option")
+		}
+
+		// Generate random credentials
+		registryAuth, err := deployments.RegistryInstallAuth()
+		if err != nil {
+			return nil, err
+		}
+		containerConfig, err := registry.NewDockerConfigJSON([]registry.RegistryCredentials{
+			{
+				URL:      "https://127.0.0.1:30500",
+				Username: registryAuth.Username,
+				Password: registryAuth.Password,
+			},
+			{
+				URL:      fmt.Sprintf("%s.%s", deployments.RegistryDeploymentID, domain),
+				Username: registryAuth.Username,
+				Password: registryAuth.Password,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		registryDetails = registry.NewConnectionDetails(containerConfig, "apps")
+	} else {
+		containerConfig, err := registry.NewDockerConfigJSON([]registry.RegistryCredentials{
+			{
+				URL:      url,
+				Username: username,
+				Password: password,
+			},
+		})
+		if err != nil {
+			return nil, err
+		}
+		registryDetails = registry.NewConnectionDetails(containerConfig, namespace)
+	}
+
+	return registryDetails, nil
 }
