@@ -140,7 +140,9 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	issuer := options.GetStringNG("tls-issuer")
 	nodePort := options.GetBoolNG("use-internal-registry-node-port")
-	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, issuer, nodePort); err != nil {
+	accessControlAllowOrigin := options.GetStringNG("access-control-allow-origin")
+
+	if out, err := k.applyEpinioConfigYaml(ctx, c, ui, issuer, nodePort, accessControlAllowOrigin); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -255,7 +257,7 @@ func (k Epinio) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 }
 
 // Replaces ##current_epinio_version## with version.Version and applies the embedded yaml
-func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, issuer string, nodePort bool) (string, error) {
+func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, issuer string, nodePort bool, accessControlAllowOrigin string) (string, error) {
 	yamlPathOnDisk, err := helpers.ExtractFile(epinioServerYaml)
 
 	if err != nil {
@@ -285,6 +287,9 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 
 	re = regexp.MustCompile(`##use_internal_registry_node_port##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(strconv.FormatBool(nodePort)))
+
+	re = regexp.MustCompile(`##access_control_allow_origin##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(accessControlAllowOrigin))
 
 	re = regexp.MustCompile(`##trace_level##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(strconv.Itoa(viper.GetInt("trace-level"))))

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/spf13/viper"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
@@ -67,6 +68,14 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
 	router.Use(gin.Recovery())
+
+	// Do not set header if nothing is specified.
+	accessControlAllowOrigin := viper.GetString("access-control-allow-origin")
+	if accessControlAllowOrigin != "" {
+		router.Use(func(ctx *gin.Context) {
+			ctx.Header("Access-Control-Allow-Origin", accessControlAllowOrigin)
+		})
+	}
 
 	// No authentication, no logging, no session. This is the healthcheck.
 	router.GET("/ready", func(c *gin.Context) {
