@@ -204,8 +204,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 	msg := c.ui.Success().WithTable("Key", "Value")
 
 	var createdAt time.Time
-	deployed := app.Workload != nil
-	if deployed {
+	if app.Workload != nil {
 		createdAt, err = time.Parse(time.RFC3339, app.Workload.CreatedAt)
 		if err != nil {
 			return err
@@ -227,6 +226,13 @@ func (c *EpinioClient) AppShow(appName string) error {
 		}
 	} else {
 		msg = msg.WithTableRow("Status", "not deployed")
+		msg = msg.WithTableRow("Desired Routes", "")
+
+		if len(app.Configuration.Routes) > 0 {
+			for _, route := range app.Configuration.Routes {
+				msg = msg.WithTableRow("", route)
+			}
+		}
 	}
 
 	msg = msg.
@@ -237,16 +243,6 @@ func (c *EpinioClient) AppShow(appName string) error {
 	if len(app.Configuration.Environment) > 0 {
 		for _, ev := range app.Configuration.Environment.List() {
 			msg = msg.WithTableRow("  - "+ev.Name, ev.Value)
-		}
-	}
-
-	if !deployed {
-		msg = msg.WithTableRow("Desired Routes", "")
-
-		if len(app.Configuration.Routes) > 0 {
-			for _, route := range app.Configuration.Routes {
-				msg = msg.WithTableRow("", route)
-			}
 		}
 	}
 
