@@ -17,14 +17,13 @@ type NamespacesResponse struct {
 	Body models.NamespaceList
 }
 
-// swagger:route POST /namespaces/{namespace} namespace NamespaceCreate
-// Create a new named `namespace`.
+// swagger:route POST /namespaces namespace NamespaceCreate
+// Create the posted new namespace.
 // responses:
 //   200: NamespaceCreateResponse
 
 // swagger:parameters NamespaceCreate
 type NamespaceCreateParam struct {
-	Namespace string
 	// in: body
 	Body models.NamespaceCreateRequest
 }
