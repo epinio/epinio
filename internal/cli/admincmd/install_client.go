@@ -172,6 +172,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		&deployments.Tekton{Timeout: duration.ToDeployment(),
 			S3ConnectionDetails:       s3ConnectionDetails,
 			RegistryConnectionDetails: registryConnectionDetails,
+			Log:                       details.V(1),
 		},
 		&deployments.Minio{Timeout: duration.ToDeployment(), Log: details.V(1), S3ConnectionDetails: s3ConnectionDetails},
 	}
@@ -599,7 +600,7 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 		}
 		containerConfig, err := registry.NewDockerConfigJSON([]registry.RegistryCredentials{
 			{
-				URL:      "https://127.0.0.1:30500",
+				URL:      "127.0.0.1:30500",
 				Username: registryAuth.Username,
 				Password: registryAuth.Password,
 			},

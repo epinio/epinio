@@ -7,8 +7,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"regexp"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	parser "github.com/novln/docker-parser"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +19,7 @@ import (
 const (
 	RegistrySecretNamespaceAnnotationKey = "epinio.suse.org/registry-namespace"
 	KubedNamespaceSelector               = "kubed-sync=registry-creds"
+	CredentialsSecretName                = "registry-creds"
 )
 
 type RegistryCredentials struct {
@@ -102,6 +105,50 @@ func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 	return "", nil
 }
 
+// ReplaceWithInternalRegistry replaces the registry part of the given container
+// imageURL with the internal (localhost) URL of the registry when:
+// - the imageURL is on the Epinio registry (could be deploying from another
+//   registry, with the --container-image-url flag)
+// - there is a localhost URL defined on the ConnectionDetails (if we are using
+//   an external Epinio registry, there is no need to replace anything and there
+//   no localhost URL defined either.
+func (d *ConnectionDetails) ReplaceWithInternalRegistry(imageURL string) (string, error) {
+	privateURL, err := d.PrivateRegistryURL()
+	if err != nil {
+		return imageURL, err
+	}
+	if privateURL == "" {
+		return imageURL, nil // no-op
+	}
+
+	publicURL, err := d.PublicRegistryURL()
+	if err != nil {
+		return imageURL, err
+	}
+
+	imageRegistryURL, _, err := ExtractImageParts(imageURL)
+	if err != nil {
+		return imageURL, err
+	}
+
+	if imageRegistryURL == publicURL {
+		return strings.Replace(imageURL, imageRegistryURL, privateURL, -1), nil
+	}
+
+	return imageURL, nil
+}
+
+// ExtractImageParts accepts a container image URL and returns the registry
+// and the image parts.
+func ExtractImageParts(imageURL string) (string, string, error) {
+	ref, err := parser.Parse(imageURL)
+	if err != nil {
+		return "", "", err
+	}
+
+	return ref.Registry(), ref.Name(), nil
+}
+
 // Validate makes sure the provided settings are valid
 // The user should provide all the mandatory settings or no settings at all.
 func Validate(url, namespace, username, password string) error {
@@ -124,13 +171,8 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 		return nil, err
 	}
 
-	var jsonData []byte
-	_, err = base64.RawStdEncoding.Decode(jsonData, []byte(secret.Data[".dockerconfigjson"]))
-	if err != nil {
-		return nil, err
-	}
 	var dockerconfigjson DockerConfigJSON
-	err = json.Unmarshal([]byte(jsonData), &dockerconfigjson)
+	err = json.Unmarshal(secret.Data[".dockerconfigjson"], &dockerconfigjson)
 	if err != nil {
 		return nil, err
 	}
@@ -146,8 +188,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 // the secret in a a specific format). It is used to contruct the full url to
 // an application image in the form: registryURL/registryNamespace/appImage
 func (d *ConnectionDetails) Store(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (*corev1.Secret, error) {
-
-	dockerconfigjson, err := json.Marshal(d.Auths)
+	dockerconfigjson, err := json.Marshal(d)
 	if err != nil {
 		return nil, err
 	}

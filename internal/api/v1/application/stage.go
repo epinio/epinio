@@ -22,9 +22,9 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -156,7 +156,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	registryPublicURL, err := domain.EpinioRegistryPublicURL(ctx)
+	registryPublicURL, err := getRegistryURL(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err, "getting the Epinio registry public URL")
 	}
@@ -334,4 +334,20 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 			},
 		},
 	}
+}
+
+func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
+	cd, err := registry.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, registry.CredentialsSecretName)
+	if err != nil {
+		return "", err
+	}
+	registryPublicURL, err := cd.PublicRegistryURL()
+	if err != nil {
+		return "", err
+	}
+	if registryPublicURL == "" {
+		return "", errors.New("no public registry URL found")
+	}
+
+	return fmt.Sprintf("%s/%s", registryPublicURL, cd.Namespace), nil
 }

@@ -132,7 +132,7 @@ var neededOptions = kubernetes.InstallationOptions{
 		Value:       "",
 	},
 	{
-		Name:        "external-registry-user",
+		Name:        "external-registry-username",
 		Description: "Provide a username for an external registry. This disables installation of the internal registry.",
 		Type:        kubernetes.StringType,
 		Default:     "",

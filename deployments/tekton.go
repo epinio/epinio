@@ -23,6 +23,7 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
+	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
@@ -39,6 +40,7 @@ type Tekton struct {
 	Timeout                   time.Duration
 	S3ConnectionDetails       *s3manager.ConnectionDetails
 	RegistryConnectionDetails *registry.ConnectionDetails
+	Log                       logr.Logger
 }
 
 var _ kubernetes.Deployment = &Tekton{}
@@ -182,7 +184,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	message := "Installing staging pipelines"
 	// Workaround for tekton webhook service not working, despite pod and deployment being ready
-	err = retry.Do(
+	retryErr := retry.Do(
 		func() error {
 			out, err := helpers.WaitForCommandCompletion(ui, message,
 				func() (string, error) {
@@ -202,10 +204,10 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		}),
 		retry.Delay(5*time.Second),
 	)
-	if err != nil {
-		return err
+	if retryErr != nil {
+		return retryErr
 	}
-	err = retry.Do(
+	retryErr = retry.Do(
 		func() error {
 			out, err := helpers.WaitForCommandCompletion(ui, message,
 				func() (string, error) {
@@ -226,44 +228,18 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		}),
 		retry.Delay(5*time.Second),
 	)
-	if err != nil {
-		return err
+	if retryErr != nil {
+		return retryErr
 	}
 
-	message = fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace)
-	out, err := helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			out, err := helpers.ExecToSuccessWithTimeout(
-				func() (string, error) {
-					out, err := helpers.Kubectl("get", "secret",
-						"--namespace", TektonStagingNamespace, RegistryCertSecret,
-						"-o", "jsonpath={.data.tls\\.crt}")
-					if err != nil {
-						return "", err
-					}
-
-					if out == "" {
-						return "", errors.New("secret is not filled")
-					}
-					return out, nil
-				}, k.Timeout, duration.PollInterval())
-			return out, err
-		},
-	)
+	message = "applying tekton staging"
+	s := ui.Progress(message)
+	err = k.applyTektonStaging(ctx, c, options, ui)
 	if err != nil {
-		return errors.Wrapf(err, "%s failed:\n%s", message, out)
+		s.Stop()
+		return errors.Wrap(err, message)
 	}
-
-	message = "Applying tekton staging resources"
-
-	out, err = helpers.WaitForCommandCompletion(ui, message,
-		func() (string, error) {
-			return "", applyTektonStaging(ctx, c, ui)
-		},
-	)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("%s failed:\n%s", message, out))
-	}
+	s.Stop()
 
 	// Create the secret that will be used to store and retrieve application
 	// sources from the S3 compatible storage.
@@ -350,9 +326,7 @@ func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster) (string, erro
 	return hash, nil
 }
 
-func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
-	var caHash string
-
+func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions, ui *termui.UI) error {
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
@@ -373,53 +347,9 @@ func applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		return errors.Wrapf(err, "failed to unmarshal task %s", string(fileContents))
 	}
 
-	// TODO this workaround is only needed for untrusted certs.
-	//  Once we can reach Tekton via linkerd, blocked by
-	//  https://github.com/tektoncd/catalog/issues/757, we can remove the
-	//  workaround.
-
-	// Add volume and volume mount of registry-certs for local deployment
-	// since tekton should trust the registry-certs.
-	err = retry.Do(func() error {
-		caHash, err = getRegistryCAHash(ctx, c)
-		return err
-	},
-		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), "failed find PEM data")
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			ui.Note().Msgf("Retrying fetching of CA hash from registry certificate secret (%d/%d)", n, duration.RetryMax)
-		}),
-		retry.Delay(5*time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-	if err != nil {
-		return errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
-	}
-
-	if caHash != "" {
-		volume := corev1.Volume{
-			Name: "registry-certs",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: RegistryCertSecret,
-				},
-			},
-		}
-		tektonTask.Spec.Volumes = append(tektonTask.Spec.Volumes, volume)
-
-		volumeMount := corev1.VolumeMount{
-			Name:      "registry-certs",
-			MountPath: fmt.Sprintf("%s/%s", "/etc/ssl/certs", caHash),
-			SubPath:   "ca.crt",
-			ReadOnly:  true,
-		}
-		for stepIndex, step := range tektonTask.Spec.Steps {
-			if step.Name == "create" {
-				tektonTask.Spec.Steps[stepIndex].VolumeMounts = append(tektonTask.Spec.Steps[stepIndex].VolumeMounts, volumeMount)
-				break
-			}
-		}
+	// Trust our own CA if an external registry is not used
+	if options.GetStringNG("external-registry-url") == "" {
+		k.mountCA(ctx, c, tektonTask)
 	}
 
 	clientSet, err := versioned.NewForConfig(c.RestConfig)
@@ -557,4 +487,87 @@ func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster
 	_, err := s3manager.StoreConnectionDetails(ctx, cluster, TektonStagingNamespace, S3ConnectionDetailsSecret, *k.S3ConnectionDetails)
 
 	return err
+}
+
+// TODO this workaround is only needed for untrusted certs.
+//  Once we can reach Tekton via linkerd, blocked by
+//  https://github.com/tektoncd/catalog/issues/757, we can remove the workaround.
+func (k Tekton) mountCA(ctx context.Context, c *kubernetes.Cluster, tektonTask *v1beta1.Task) error {
+	var caHash string
+	var err error
+
+	k.Log.Info(fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace))
+	k.waitForRegistryCA(ctx, c)
+
+	// Add volume and volume mount of registry-certs for local deployment
+	// since tekton should trust the registry-certs.
+	retryErr := retry.Do(func() error {
+		caHash, err = getRegistryCAHash(ctx, c)
+		return err
+	},
+		retry.RetryIf(func(err error) bool {
+			return strings.Contains(err.Error(), "failed find PEM data")
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			k.Log.Info(fmt.Sprintf("Retrying fetching of CA hash from registry certificate secret (%d/%d)", n, duration.RetryMax))
+		}),
+		retry.Delay(5*time.Second),
+		retry.Attempts(duration.RetryMax),
+	)
+	if retryErr != nil {
+		return errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
+	}
+
+	if caHash != "" {
+		volume := corev1.Volume{
+			Name: "registry-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: RegistryCertSecret,
+				},
+			},
+		}
+		tektonTask.Spec.Volumes = append(tektonTask.Spec.Volumes, volume)
+
+		volumeMount := corev1.VolumeMount{
+			Name:      "registry-certs",
+			MountPath: fmt.Sprintf("%s/%s", "/etc/ssl/certs", caHash),
+			SubPath:   "ca.crt",
+			ReadOnly:  true,
+		}
+		for stepIndex, step := range tektonTask.Spec.Steps {
+			if step.Name == "create" {
+				tektonTask.Spec.Steps[stepIndex].VolumeMounts = append(tektonTask.Spec.Steps[stepIndex].VolumeMounts, volumeMount)
+				break
+			}
+		}
+	}
+	return nil
+}
+
+func (k Tekton) waitForRegistryCA(ctx context.Context, cluster *kubernetes.Cluster) error {
+	_, err := cluster.WaitForSecret(ctx, TektonStagingNamespace, RegistryCertSecret, duration.ToSecretCopied())
+	if err != nil {
+		return err
+	}
+
+	out, err := helpers.ExecToSuccessWithTimeout(
+		func() (string, error) {
+			out, err := helpers.Kubectl("get", "secret",
+				"--namespace", TektonStagingNamespace, RegistryCertSecret,
+				"-o", "jsonpath={.data.tls\\.crt}")
+			if err != nil {
+				return "", err
+			}
+
+			if out == "" {
+				return "", errors.New("secret is not filled")
+			}
+			return out, nil
+		}, k.Log, k.Timeout, duration.PollInterval())
+	if err != nil {
+		return errors.Wrapf(err, "waiting for registry ca failed:\n%s", out)
+	}
+
+	return nil
 }

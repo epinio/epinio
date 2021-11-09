@@ -2,8 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -11,13 +9,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -117,7 +116,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 
 	log.Info("deploying app", "org", org, "app", req.App)
 
-	deployParams.ImageURL, err = replaceInternalRegistry(ctx, deployParams.ImageURL)
+	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, deployParams.ImageURL)
 	if err != nil {
 		return apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes")
 	}
@@ -282,21 +281,16 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 // - the Epinio registry is deployed on Kubernetes with a valid cert (e.g. letsencrypt)
 // - the Epinio registry is an external one (if Epinio was deployed that way)
 // - a pre-existing image is being deployed (coming from an outer registry, not ours)
-// TODO: Also check that we don't use an external registry? the flag below is not compatible with
-// the external registry ones, validate on installation?
-func replaceInternalRegistry(ctx context.Context, imageURL string) (string, error) {
-	registryPublicURL, err := domain.EpinioRegistryPublicURL(ctx)
+func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
+	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, registry.CredentialsSecretName)
 	if err != nil {
 		return imageURL, err
 	}
-	imageURLParts := strings.Split(imageURL, "/")
-	imageRegistry := strings.Join(imageURLParts[0:len(imageURLParts)-1], "/") // All but the last part
-	image := imageURLParts[len(imageURLParts)-1]                              // The last part
 
-	result := imageURL
-	if imageRegistry == registryPublicURL && !viper.GetBool("force-kube-internal-registry-tls") {
-		result = fmt.Sprintf("%s/%s", LocalRegistry, image)
+	// Only if kube can access the registry on localhost
+	if !viper.GetBool("force-kube-internal-registry-tls") {
+		return registryDetails.ReplaceWithInternalRegistry(imageURL)
 	}
 
-	return result, nil
+	return imageURL, nil // no-op
 }
