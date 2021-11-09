@@ -176,6 +176,8 @@ type AppImportGitResponse struct {
 type AppStageParam struct {
 	Namespace string
 	App       string
+	// in: body
+	Body models.StageRequest
 }
 
 // swagger:response AppStageResponse
@@ -193,6 +195,8 @@ type AppStageResponse struct {
 type AppDeployParam struct {
 	Namespace string
 	App       string
+	// in: body
+	Body models.DeployRequest
 }
 
 // swagger:response AppDeployResponse
@@ -210,6 +214,8 @@ type AppDeployResponse struct {
 type AppUpdateParam struct {
 	Namespace string
 	App       string
+	// in: body
+	Body models.ApplicationUpdateRequest
 }
 
 // swagger:response AppUpdateResponse
