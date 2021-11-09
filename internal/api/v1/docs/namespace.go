@@ -7,7 +7,7 @@ import (
 //go:generate swagger generate spec
 
 // swagger:route GET /namespaces namespace Namespaces
-// Return map of all controlled namespaces.
+// Return list of all controlled namespaces.
 // responses:
 //   200: NamespacesResponse
 
@@ -62,13 +62,13 @@ type NamespaceShowParam struct {
 }
 
 // swagger:response NamespaceShowResponse
-type NamesapceShowResponse struct {
+type NamespaceShowResponse struct {
 	// in: body
 	Body models.Namespace
 }
 
 // swagger:route GET /namespaces/{pattern} namespace NamespaceMatch
-// Return map of all controlled namespaces matching the prefix `pattern`.
+// Return list of names for all controlled namespaces whose name matches the prefix `pattern`.
 // responses:
 //   200: NamespaceMatchResponse
 
@@ -78,12 +78,12 @@ type NamespaceMatchParam struct {
 }
 
 // swagger:response NamespaceMatchResponse
-type NamesapceMatchResponse struct {
+type NamespaceMatchResponse struct {
 	// in: body
 	Body models.NamespacesMatchResponse
 }
 
 // swagger:route GET /namespaces namespace NamespaceMatch0
-// Return map of all namespaces.
+// Return list of names for all controlled namespaces (No prefix = empty prefix = match everything)
 // responses:
 //   200: NamespaceMatchResponse
