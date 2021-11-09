@@ -74,6 +74,16 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	if accessControlAllowOrigin != "" {
 		router.Use(func(ctx *gin.Context) {
 			ctx.Header("Access-Control-Allow-Origin", accessControlAllowOrigin)
+			ctx.Header("Access-Control-Allow-Credentials", "true")
+			ctx.Header("Access-Control-Allow-Methods", "POST, PUT, PATCH, GET, OPTIONS, DELETE") // This cannot be a wildcard when `Access-Control-Allow-Credentials` is true
+			ctx.Header("Access-Control-Allow-Headers", "Authorization,x-api-csrf,content-type,file-size") // This cannot be a wildcard when `Access-Control-Allow-Credentials` is true
+			ctx.Header("Vary", "Origin") // Required when `Access-Control-Allow-Origin` is not a wildcard value
+
+			if ctx.Request.Method == "OPTIONS" { // CORS policy: It does not have HTTP ok status.
+				// OPTIONS requests don't support `Authorization` headers, so return before we hit any
+				ctx.AbortWithStatus(http.StatusNoContent)
+				return
+			}
 		})
 	}
 
