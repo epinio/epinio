@@ -1,8 +1,6 @@
 package docs
 
-import (
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
-)
+import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 //go:generate swagger generate spec
 
@@ -86,3 +84,8 @@ type NamespaceMatchResponse struct {
 // Return list of names for all controlled namespaces (No prefix = empty prefix = match everything)
 // responses:
 //   200: NamespaceMatchResponse
+
+// swagger:parameters NamespaceMatch0
+type NamespaceMatch0Param struct{}
+
+// response: See NamespaceMatch.
