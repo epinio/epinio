@@ -5,6 +5,7 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 // Env -- Application Environment
 
 // swagger:route GET /namespaces/{namespace}/applications/{app}/environment app-env EnvList
+// Return the environment variable assignments for the `app` in the namespace`.
 // responses:
 //   200: EnvListResponse
 
@@ -21,6 +22,7 @@ type EnvListResponse struct {
 }
 
 // swagger:route GET /namespaces/{namespace}/applications/{app}/environment/{env}/match/{pattern} app-env EnvMatch
+// Return the environment variable names of the `app` in the `namespace` with prefix `pattern`.
 // responses:
 //   200: EnvMatchResponse
 
@@ -38,6 +40,7 @@ type EnvMatchResponse struct {
 }
 
 // swagger:route GET /namespaces/{namespace}/applications/{app}/environment/{env}/match app-env EnvMatch0
+// Return the environment variable names of the `app` in the `namespace`. (No prefix == Empty prefix == All match)
 // responses:
 //   200: EnvMatchResponse
 
@@ -50,6 +53,7 @@ type EnvMatch0Params struct {
 // See EnvMatch above
 
 // swagger:route POST /namespaces/{namespace}/applications/{app}/environment app-env EnvSet
+// Create/modify the posted environment variable assignments for the `app` in the `namespace`.
 // responses:
 //   200: EnvSetResponse
 
@@ -68,6 +72,7 @@ type EnvSetResponse struct {
 }
 
 // swagger:route GET /namespaces/{namespace}/applications/{app}/environment/{env} app-env EnvShow
+// Return the named `env` variable assignment for the `app` in the `namespace`.
 // responses:
 //   200: EnvShowResponse
 
@@ -84,6 +89,7 @@ type EnvShowResponse struct {
 }
 
 // swagger:route DELETE /namespaces/{namespace}/applications/{app}/environment/{env} app-env EnvUnset
+// Remove the named `env` variable from the `app` in the `namespace`.
 // responses:
 //   200: EnvUnsetResponse
 
