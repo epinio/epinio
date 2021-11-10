@@ -1,4 +1,4 @@
-{
+{ "info": {"title": "Epinio", "version":"1"},
   "swagger": "2.0",
   "paths": {
     "/applications": {
