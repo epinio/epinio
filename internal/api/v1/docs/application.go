@@ -102,7 +102,7 @@ type StagingLogsParam struct {
 type StagingLogsResponse struct{}
 
 // swagger:route GET /namespaces/{Namespace}/staging/{StageID}/complete application StagingComplete
-// Return logs of the named `StageID` in the `Namespace`.
+// Waits for the completion of the Tekton PipelineRun resource identified by `StageID` in the `Namespace`.
 // responses:
 //   200: StagingCompleteResponse
 
