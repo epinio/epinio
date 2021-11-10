@@ -250,7 +250,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	// Create the dockerconfigjson secret that will be used to push and pull
 	// images from the Epinio registry (internal or external).
 	// This secret is used as a Kubed source secret to be automatically copied to
-	// all application namespaces to that Kubernetes can pull application images.
+	// all application namespaces that Kubernetes can pull application images into.
 	if _, err := k.RegistryConnectionDetails.Store(ctx, c, TektonStagingNamespace, "registry-creds"); err != nil {
 		return errors.Wrap(err, "storing the Registry options")
 	}
@@ -345,7 +345,7 @@ func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, o
 		return errors.Wrapf(err, "failed to unmarshal task %s", string(fileContents))
 	}
 
-	// Trust our own CA if an external registry is not used
+	// Trust our own CA if the internal registry is used
 	if options.GetStringNG("external-registry-url") == "" {
 		if err := k.mountCA(ctx, c, tektonTask); err != nil {
 			return errors.Wrapf(err, "creating the volume mount for the registry CA")

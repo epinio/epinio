@@ -62,7 +62,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, org string) err
 			ObjectMeta: metav1.ObjectMeta{
 				Name: org,
 				Labels: map[string]string{
-					"kubed-sync":                 "registry-creds", // Let kubed copy-over image pull secrets
+					"kubed-sync":                 "registry-creds", // Instruct kubed to copy image pull secrets over.
 					kubernetes.EpinioOrgLabelKey: kubernetes.EpinioOrgLabelValue,
 				},
 				Annotations: map[string]string{

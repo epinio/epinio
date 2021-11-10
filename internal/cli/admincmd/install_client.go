@@ -175,7 +175,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		&deployments.Minio{Timeout: duration.ToDeployment(), Log: details.V(1), S3ConnectionDetails: s3ConnectionDetails},
 	}
 
-	// Deploy internal registry if no externl is defined
+	// Deploy internal registry if no external is defined
 	if c.options.GetStringNG("external-registry-url") == "" {
 		steps = append(steps, &deployments.Registry{Timeout: duration.ToDeployment(), Log: details.V(1)})
 	}
@@ -631,7 +631,7 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 }
 
 // performs early validation on installation options for incompatible configuration
-// Some issues result in an error some other simply print a warning.
+// Some issues result in an error, some others simply print a warning.
 func (c *InstallClient) validateInstallationOptions() error {
 	forceInternalTLS := c.options.GetBoolNG("force-kube-internal-registry-tls")
 	externalRegistryUsed := c.options.GetStringNG("external-registry-url") != ""
@@ -641,7 +641,7 @@ func (c *InstallClient) validateInstallationOptions() error {
 	}
 
 	if !forceInternalTLS && !externalRegistryUsed {
-		c.ui.Exclamation().Msg("force-kube-internal-registry-tls is \"false\". Communication between Kuberentes and the internal registry will not be encrypted!")
+		c.ui.Exclamation().Msg("force-kube-internal-registry-tls is not set. Communication between Kubernetes and the internal registry will not be encrypted!")
 	}
 
 	return nil

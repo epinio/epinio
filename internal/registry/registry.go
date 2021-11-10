@@ -70,7 +70,7 @@ func NewConnectionDetails(config *DockerConfigJSON, namespace string) *Connectio
 }
 
 // PublicRegistryURL returns the public registry URL from the dockerconfigjson
-// object. Assumes there is only one non-local registry in the config. If there
+// object. Assumes to have only one non-local registry in the config. If there
 // are more, it will just return the first one found (no guaranteed order since
 // there should only be one)
 func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
@@ -87,10 +87,10 @@ func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 	return "", nil
 }
 
-// PrivateRegistryURL return the internal (localhost) registry URL. That
+// PrivateRegistryURL returns the internal (localhost) registry URL. That
 // url can be used by Kubernetes to pull images only when the internal registry
 // is used and exposed over NodePort. This method will return an empty string
-// if a locahost URL doesn't exist in the config.
+// if no localhost URL exists in the config.
 func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 	r, err := regexp.Compile(`127\.0\.0\.1`)
 	if err != nil {
@@ -111,7 +111,7 @@ func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 //   registry, with the --container-image-url flag)
 // - there is a localhost URL defined on the ConnectionDetails (if we are using
 //   an external Epinio registry, there is no need to replace anything and there
-//   no localhost URL defined either.
+//   is no localhost URL defined either.
 func (d *ConnectionDetails) ReplaceWithInternalRegistry(imageURL string) (string, error) {
 	privateURL, err := d.PrivateRegistryURL()
 	if err != nil {
@@ -156,7 +156,7 @@ func Validate(url, namespace, username, password string) error {
 
 	// If only optional fields are set
 	if url == "" && optionalSet {
-		return errors.New("do not specify options if using the internal container registry")
+		return errors.New("do not specify options while using the internal container registry")
 	}
 
 	// Either all empty or at least the URL is set
@@ -185,7 +185,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 
 // Store stores the connection details in a secret.
 // The registry namespace (or org) is stored in an annotation (because Kubernetes expects
-// the secret in a a specific format). It is used to construct the full url to
+// the secret in a specific format). It is used to construct the full url to
 // an application image in the form: registryURL/registryNamespace/appImage
 func (d *ConnectionDetails) Store(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (*corev1.Secret, error) {
 	dockerconfigjson, err := json.Marshal(d)

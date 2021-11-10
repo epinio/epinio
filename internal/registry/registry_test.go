@@ -14,7 +14,7 @@ var _ = Describe("ConnectionDetails", func() {
 		When("mandatory settings are empty but there are optional set", func() {
 			It("returns an error", func() {
 				Expect(registry.Validate("", "", "myuser", "")).To(
-					MatchError("do not specify options if using the internal container registry"))
+					MatchError("do not specify options while using the internal container registry"))
 			})
 		})
 		When("all settings are empty", func() {
