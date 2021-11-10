@@ -858,7 +858,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `StageID` in the `Namespace`.",
+        "summary": "Waits for the completion of the Tekton PipelineRun resource identified by `StageID` in the `Namespace`.",
         "operationId": "StagingComplete",
         "parameters": [
           {
