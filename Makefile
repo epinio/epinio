@@ -152,10 +152,11 @@ help:
 # Docs
 
 swagger:
-	swagger generate spec > swagger.json
+	swagger generate spec > docs/references/api/swagger.json
+	swagger validate        docs/references/api/swagger.json
 
 swagger-serve:
-	swagger serve swagger.json
+	swagger serve docs/references/api/swagger.json
 
 ########################################################################
 # Support

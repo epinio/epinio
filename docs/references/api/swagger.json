@@ -1,0 +1,1555 @@
+{
+  "swagger": "2.0",
+  "paths": {
+    "/applications": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of applications in all namespaces.",
+        "operationId": "AllApps",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppsResponse"
+          }
+        }
+      }
+    },
+    "/info": {
+      "get": {
+        "description": "Return server system information",
+        "tags": [
+          "info"
+        ],
+        "operationId": "Info",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/InfoResponse"
+          }
+        }
+      }
+    },
+    "/namespacematches": {
+      "get": {
+        "description": "Return list of names for all controlled namespaces (No prefix = empty prefix = match everything)",
+        "tags": [
+          "namespace"
+        ],
+        "operationId": "NamespaceMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NamespaceMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespacematches/{pattern}": {
+      "get": {
+        "tags": [
+          "namespace"
+        ],
+        "summary": "Return list of names for all controlled namespaces whose name matches the prefix `pattern`.",
+        "operationId": "NamespaceMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NamespaceMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces": {
+      "get": {
+        "tags": [
+          "namespace"
+        ],
+        "summary": "Return list of all controlled namespaces.",
+        "operationId": "Namespaces",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NamespacesResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "namespace"
+        ],
+        "summary": "Create the posted new namespace.",
+        "operationId": "NamespaceCreate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/NamespaceCreateRequest"
+            }
+          },
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NamespaceCreateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}": {
+      "get": {
+        "tags": [
+          "namespace"
+        ],
+        "summary": "Return details of the named `namespace`.",
+        "operationId": "NamespaceShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NamespaceShowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "namespace"
+        ],
+        "summary": "Delete the named `namespace`.",
+        "operationId": "NamespaceDelete",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/NamespaceDeleteResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of applications in the `namespace`.",
+        "operationId": "Apps",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppsResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Create the posted new application in the `namespace`.",
+        "operationId": "AppCreate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "name": "Service",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ApplicationCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppCreateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{application}": {
+      "delete": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Delete the named `application` in the `namespace`.",
+        "operationId": "AppDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppDeleteResponse"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Patch the named `application` in the `namespace`.",
+        "operationId": "AppUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ApplicationUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppUpdateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{application}/deploy": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Create the deployment, service and ingress resources for the named `application` in the `namespace`.",
+        "operationId": "AppDeploy",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/DeployRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppDeployResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{application}/import-git": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Store the named `application` from a Git repo in the `namespace`.",
+        "operationId": "AppImportGit",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "GitUrl",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "GitRev",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppImportGitResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{application}/running": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Wait for the named `application` in the `namespace` to be running.",
+        "operationId": "AppRunning",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppRunningResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{application}/stage": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Create a Tekton PipelineRun resource to stage the named `application` in the `namespace`.",
+        "operationId": "AppStage",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/StageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppStageResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{application}/store": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Store the named `application` in the `namespace`.",
+        "operationId": "AppUpload",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppUploadResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return details of the named `application` in the `namespace`.",
+        "operationId": "AppShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppShowResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/environment": {
+      "get": {
+        "tags": [
+          "app-env"
+        ],
+        "summary": "Return the environment variable assignments for the `app` in the namespace`.",
+        "operationId": "EnvList",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/EnvListResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "app-env"
+        ],
+        "summary": "Create/modify the posted environment variable assignments for the `app` in the `namespace`.",
+        "operationId": "EnvSet",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/EnvVariableMap"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/EnvSetResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/environment/{env}": {
+      "get": {
+        "tags": [
+          "app-env"
+        ],
+        "summary": "Return the named `env` variable assignment for the `app` in the `namespace`.",
+        "operationId": "EnvShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/EnvShowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "app-env"
+        ],
+        "summary": "Remove the named `env` variable from the `app` in the `namespace`.",
+        "operationId": "EnvUnset",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/EnvUnsetResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/environment/{env}/match": {
+      "get": {
+        "description": "Return the environment variable names of the `app` in the `namespace`. (No prefix == Empty prefix == All match)",
+        "tags": [
+          "app-env"
+        ],
+        "operationId": "EnvMatch0",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/EnvMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/environment/{env}/match/{pattern}": {
+      "get": {
+        "tags": [
+          "app-env"
+        ],
+        "summary": "Return the environment variable names of the `app` in the `namespace` with prefix `pattern`.",
+        "operationId": "EnvMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/EnvMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/logs": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return logs of the named `application` in the `namespace`.",
+        "operationId": "AppLogs",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppLogsResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/servicebindings": {
+      "post": {
+        "tags": [
+          "svc-binding"
+        ],
+        "summary": "Create service binding between `app` in `namespace`, and the posted services, also in `namespace`.",
+        "operationId": "ServiceBindingCreate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/BindRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceBindResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/servicebindings/{service}": {
+      "delete": {
+        "tags": [
+          "svc-binding"
+        ],
+        "summary": "Remove service binding between `app` and `service` in `namespace`.",
+        "operationId": "ServiceBindingDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceUnbindReponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/serviceapps": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return map from services in the `namespace`, to the apps in the same.",
+        "operationId": "ServiceApps",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceAppsResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/services": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return list of services in the `namespace`.",
+        "operationId": "Services",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServicesResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Create the posted new service in the `namespace`.",
+        "operationId": "ServiceCreate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "name": "Service",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCreateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/services/{service}": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return details of the named `service` in the `namespace`.",
+        "operationId": "ServiceShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceShowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Delete the named `service` in the `namespace`.",
+        "operationId": "ServiceDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceDeleteResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/staging/{stage_id}/complete": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return logs of the named `stage_id` in the `namespace`.",
+        "operationId": "StagingComplete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "StageId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/StagingCompleteResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/staging/{stage_id}/logs": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return logs of the named `stage_id` in the `namespace`.",
+        "operationId": "StagingLogs",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "StageId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/StagingLogsResponse"
+          }
+        }
+      }
+    },
+    "/services": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return list of services in all namespaces.",
+        "operationId": "AllServices",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServicesResponse"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "App": {
+      "description": "The main structure has identifying information.\nIt is used in the CLI and API responses.\nIf an error is hit while constructing the app object, the Error attribute\nwill be set to that.",
+      "type": "object",
+      "title": "App has all the application's properties, for at rest (Configuration), and active (Workload).",
+      "properties": {
+        "configuration": {
+          "$ref": "#/definitions/ApplicationUpdateRequest"
+        },
+        "deployment": {
+          "$ref": "#/definitions/AppDeployment"
+        },
+        "meta": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "status": {
+          "$ref": "#/definitions/ApplicationStatus"
+        },
+        "statusmessage": {
+          "type": "string",
+          "x-go-name": "StatusMessage"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppDeployment": {
+      "description": "AppDeployment contains all the information specific to an active\napplication, i.e. one with a deployment in the cluster.",
+      "type": "object",
+      "properties": {
+        "active": {
+          "description": "TODO: Readiness and Liveness fields?",
+          "type": "boolean",
+          "x-go-name": "Active"
+        },
+        "createdAt": {
+          "type": "string",
+          "x-go-name": "CreatedAt"
+        },
+        "desiredreplicas": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "DesiredReplicas"
+        },
+        "memoryBytes": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MemoryBytes"
+        },
+        "millicpus": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MilliCPUs"
+        },
+        "readyreplicas": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "ReadyReplicas"
+        },
+        "restarts": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Restarts"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Routes"
+        },
+        "stage_id": {
+          "type": "string",
+          "x-go-name": "StageID"
+        },
+        "status": {
+          "type": "string",
+          "x-go-name": "Status"
+        },
+        "username": {
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppList": {
+      "description": "AppList is a collection of app references",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/App"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppRef": {
+      "description": "AppRef references an App by name and org",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Org"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ApplicationCreateRequest": {
+      "description": "ApplicationCreateRequest represents and contains the data needed to\ncreate an application (at rest), possibly with presets (services)",
+      "type": "object",
+      "properties": {
+        "configuration": {
+          "$ref": "#/definitions/ApplicationUpdateRequest"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ApplicationDeleteResponse": {
+      "description": "ApplicationDeleteResponse represents the server's response to a successful app deletion",
+      "type": "object",
+      "properties": {
+        "unboundservices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "UnboundServices"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ApplicationStatus": {
+      "type": "string",
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ApplicationUpdateRequest": {
+      "description": "ApplicationUpdateRequest represents and contains the data needed to update\nan application. Specifically to modify the number of replicas to\nrun, and the services bound to it.\nNote: Instances is a pointer to give us a nil value separate from\nactual integers, as means of communicating `default`/`no change`.",
+      "type": "object",
+      "properties": {
+        "environment": {
+          "$ref": "#/definitions/EnvVariableMap"
+        },
+        "instances": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Instances"
+        },
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Routes"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Services"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BindRequest": {
+      "type": "object",
+      "title": "BindRequest represents and contains the data needed to bind services to an application.",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "BindResponse": {
+      "description": "BindResponse represents the server's response to the successful binding of services to\nan application.",
+      "type": "object",
+      "properties": {
+        "wasbound": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "WasBound"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "DeployRequest": {
+      "description": "DeployRequest represents and contains the data needed to deploy an application\nNote that the overall application configuration (instances, services, EVs) is\nalready known server side, through AppCreate/AppUpdate requests.",
+      "type": "object",
+      "properties": {
+        "app": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "image": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
+        "stage": {
+          "$ref": "#/definitions/StageRef"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "DeployResponse": {
+      "description": "DeployResponse represents the server's response to a successful app deployment",
+      "type": "object",
+      "properties": {
+        "routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Routes"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "EnvMatchResponse": {
+      "description": "EnvMatchResponse contains the list of names for matching envs",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "EnvVariable": {
+      "description": "EnvVariable represents the Show Response for a single environment variable",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "value": {
+          "type": "string",
+          "x-go-name": "Value"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "EnvVariableMap": {
+      "description": "EnvVariableMap is a collection of EVs as a map. It is used for Set Requests, and as\nList Responses",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ImportGitResponse": {
+      "type": "object",
+      "properties": {
+        "blobuid": {
+          "type": "string",
+          "x-go-name": "BlobUID"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "InfoResponse": {
+      "description": "InfoResponse contains information about Epinio and its components",
+      "type": "object",
+      "properties": {
+        "kube_version": {
+          "type": "string",
+          "x-go-name": "KubeVersion"
+        },
+        "platform": {
+          "type": "string",
+          "x-go-name": "Platform"
+        },
+        "version": {
+          "type": "string",
+          "x-go-name": "Version"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "Namespace": {
+      "description": "Namespace has all the namespace properties, i.e. name, app names, and service names\nIt is used in the CLI and API responses.",
+      "type": "object",
+      "properties": {
+        "apps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Apps"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Services"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "NamespaceCreateRequest": {
+      "description": "NamespaceCreateRequest contains the name of the namespace that should be created",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "NamespaceList": {
+      "description": "NamespaceList is a collection of namespaces",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Namespace"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "NamespacesMatchResponse": {
+      "description": "NamespacesMatchResponse contains the list of names for matching namespaces",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "Response": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "x-go-name": "Status"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceCreateRequest": {
+      "description": "ServiceCreateRequest represents and contains the data needed to\ncreate a service instance",
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Data"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceDeleteResponse": {
+      "description": "ServiceDeleteResponse represents the server's response to a successful service deletion",
+      "type": "object",
+      "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceRef": {
+      "description": "ServiceRef references a Service by name and namespace",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Namespace"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceResponse": {
+      "description": "ServiceResponse represents the data of a single service instance",
+      "type": "object",
+      "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        },
+        "meta": {
+          "$ref": "#/definitions/ServiceRef"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceResponseList": {
+      "description": "ServiceResponseList represents a collection of service instance",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ServiceResponse"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceShowResponse": {
+      "description": "ServiceShowResponse contains details about a service",
+      "type": "object",
+      "properties": {
+        "details": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Details"
+        },
+        "user": {
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "StageRef": {
+      "description": "StageRef references a tekton staging run by ID, currently randomly generated\nfor each POST to the staging endpoint",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "x-go-name": "ID"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "StageRequest": {
+      "description": "StageRequest represents and contains the data needed to stage an application",
+      "type": "object",
+      "properties": {
+        "app": {
+          "$ref": "#/definitions/AppRef"
+        },
+        "blobuid": {
+          "type": "string",
+          "x-go-name": "BlobUID"
+        },
+        "builderimage": {
+          "type": "string",
+          "x-go-name": "BuilderImage"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "StageResponse": {
+      "description": "StageResponse represents the server's response to a successful app staging",
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
+        "stage": {
+          "$ref": "#/definitions/StageRef"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "UploadResponse": {
+      "description": "UploadResponse represents the server's response to a successful app sources upload",
+      "type": "object",
+      "properties": {
+        "blobuid": {
+          "type": "string",
+          "x-go-name": "BlobUID"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    }
+  },
+  "responses": {
+    "AppCreateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "AppDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ApplicationDeleteResponse"
+      }
+    },
+    "AppDeployResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/DeployResponse"
+      }
+    },
+    "AppImportGitResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ImportGitResponse"
+      }
+    },
+    "AppLogsResponse": {
+      "description": ""
+    },
+    "AppRunningResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "AppShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/App"
+      }
+    },
+    "AppStageResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/StageResponse"
+      }
+    },
+    "AppUpdateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "AppUploadResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/UploadResponse"
+      }
+    },
+    "AppsResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AppList"
+      }
+    },
+    "EnvListResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/EnvVariableMap"
+      }
+    },
+    "EnvMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/EnvMatchResponse"
+      }
+    },
+    "EnvSetResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "EnvShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/EnvVariable"
+      }
+    },
+    "EnvUnsetResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "InfoResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/InfoResponse"
+      }
+    },
+    "NamespaceCreateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "NamespaceDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "NamespaceMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/NamespacesMatchResponse"
+      }
+    },
+    "NamespaceShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Namespace"
+      }
+    },
+    "NamespacesResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/NamespaceList"
+      }
+    },
+    "ServiceAppsResponse": {
+      "description": "",
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/definitions/AppList"
+        }
+      }
+    },
+    "ServiceBindResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/BindResponse"
+      }
+    },
+    "ServiceCreateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ServiceDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceDeleteResponse"
+      }
+    },
+    "ServiceShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceShowResponse"
+      }
+    },
+    "ServiceUnbindReponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ServicesResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceResponseList"
+      }
+    },
+    "StagingCompleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "StagingLogsResponse": {
+      "description": ""
+    }
+  }
+}
