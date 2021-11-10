@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	RegistrySecretNamespaceAnnotationKey = "epinio.suse.org/registry-namespace"
+	RegistrySecretNamespaceAnnotationKey = "epinio.suse.org/registry-namespace" // nolint:gosec // not credentials
 	KubedNamespaceSelector               = "kubed-sync=registry-creds"
 	CredentialsSecretName                = "registry-creds"
 )
@@ -185,7 +185,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 
 // Store stores the connection details in a secret.
 // The registry namespace (or org) is stored in an annotation (because Kubernetes expects
-// the secret in a a specific format). It is used to contruct the full url to
+// the secret in a a specific format). It is used to construct the full url to
 // an application image in the form: registryURL/registryNamespace/appImage
 func (d *ConnectionDetails) Store(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (*corev1.Secret, error) {
 	dockerconfigjson, err := json.Marshal(d)

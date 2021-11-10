@@ -234,7 +234,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	message = "applying tekton staging"
 	s := ui.Progress(message)
-	err = k.applyTektonStaging(ctx, c, options, ui)
+	err = k.applyTektonStaging(ctx, c, options)
 	if err != nil {
 		s.Stop()
 		return errors.Wrap(err, message)
@@ -326,7 +326,7 @@ func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster) (string, erro
 	return hash, nil
 }
 
-func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions, ui *termui.UI) error {
+func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())
@@ -349,7 +349,9 @@ func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, o
 
 	// Trust our own CA if an external registry is not used
 	if options.GetStringNG("external-registry-url") == "" {
-		k.mountCA(ctx, c, tektonTask)
+		if err := k.mountCA(ctx, c, tektonTask); err != nil {
+			return errors.Wrapf(err, "creating the volume mount for the registry CA")
+		}
 	}
 
 	clientSet, err := versioned.NewForConfig(c.RestConfig)
@@ -497,7 +499,9 @@ func (k Tekton) mountCA(ctx context.Context, c *kubernetes.Cluster, tektonTask *
 	var err error
 
 	k.Log.Info(fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace))
-	k.waitForRegistryCA(ctx, c)
+	if err := k.waitForRegistryCA(ctx, c); err != nil {
+		return errors.Wrap(err, "waiting for the registry CA")
+	}
 
 	// Add volume and volume mount of registry-certs for local deployment
 	// since tekton should trust the registry-certs.
