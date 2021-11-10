@@ -104,13 +104,8 @@ generate:
 	go generate ./...
 
 # Assumes that the `docs` checkout is a sibling of the `epinio` checkout
-# perl -pi - Fixes ${HOME} references to proper `~`.
-# sed -i   - Fixes the cross-links to match hierarchy and mdbook expectations.
 generate-cli-docs:
-	rm -f ../docs/src/references/cli/*
-	go run internal/cli/docs/generate-cli-docs.go ../docs/src/references/cli/
-	perl -pi -e "s@${HOME}@~@" ../docs/src/references/cli/*md
-	sed -i 's@(\.\./\(.*\))@(\1.md)@' ../docs/src/references/cli/*md
+	@./scripts/cli-docs-generate.sh ../docs/src/references/cli
 
 lint: embed_files
 	go vet ./...
