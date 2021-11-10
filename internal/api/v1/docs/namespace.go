@@ -64,7 +64,7 @@ type NamespaceShowResponse struct {
 	Body models.Namespace
 }
 
-// swagger:route GET /namespaces/{pattern} namespace NamespaceMatch
+// swagger:route GET /namespacematches/{pattern} namespace NamespaceMatch
 // Return list of names for all controlled namespaces whose name matches the prefix `pattern`.
 // responses:
 //   200: NamespaceMatchResponse
@@ -80,7 +80,7 @@ type NamespaceMatchResponse struct {
 	Body models.NamespacesMatchResponse
 }
 
-// swagger:route GET /namespaces namespace NamespaceMatch0
+// swagger:route GET /namespacematches namespace NamespaceMatch0
 // Return list of names for all controlled namespaces (No prefix = empty prefix = match everything)
 // responses:
 //   200: NamespaceMatchResponse
