@@ -66,7 +66,7 @@ type AppShowResponse struct {
 }
 
 // swagger:route GET /namespaces/{namespace}/applications/{app}/logs application AppLogs
-// Return logs of the named `app` in the `namespace`.
+// Return logs of the named `app` in the `namespace` streamed over a websocket.
 // responses:
 //   200: AppLogsResponse
 
@@ -82,7 +82,7 @@ type AppLogsResponse struct {
 }
 
 // swagger:route GET /namespaces/{namespace}/staging/{stage_id}/logs application StagingLogs
-// Return logs of the named `stage_id` in the `namespace`.
+// Return logs of the named `stage_id` in the `namespace` streamed over a websocket.
 // responses:
 //   200: StagingLogsResponse
 
