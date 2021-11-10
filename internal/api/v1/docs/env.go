@@ -1,5 +1,7 @@
 package docs
 
+//go:generate swagger generate spec
+
 import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Env -- Application Environment
