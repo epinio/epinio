@@ -32,13 +32,14 @@ type NamespaceCreateResponse struct {
 	Body models.Response
 }
 
-// swagger:route DELETE /namespaces/{namespace} namespace NamespaceDelete
-// Delete the named `namespace`.
+// swagger:route DELETE /namespaces/{Namespace} namespace NamespaceDelete
+// Delete the named `Namespace`.
 // responses:
 //   200: NamespaceDeleteResponse
 
-// swagger:parameters NamespaceCreate
+// swagger:parameters NamespaceDelete
 type NamespaceDeleteParam struct {
+	// in: path
 	Namespace string
 }
 
@@ -48,13 +49,14 @@ type NamespaceDeleteResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{namespace} namespace NamespaceShow
-// Return details of the named `namespace`.
+// swagger:route GET /namespaces/{Namespace} namespace NamespaceShow
+// Return details of the named `Namespace`.
 // responses:
 //   200: NamespaceShowResponse
 
 // swagger:parameters NamespaceShow
 type NamespaceShowParam struct {
+	// in: path
 	Namespace string
 }
 
@@ -64,13 +66,14 @@ type NamespaceShowResponse struct {
 	Body models.Namespace
 }
 
-// swagger:route GET /namespacematches/{pattern} namespace NamespaceMatch
-// Return list of names for all controlled namespaces whose name matches the prefix `pattern`.
+// swagger:route GET /namespacematches/{Pattern} namespace NamespaceMatch
+// Return list of names for all controlled namespaces whose name matches the prefix `Pattern`.
 // responses:
 //   200: NamespaceMatchResponse
 
 // swagger:parameters NamespaceMatch
 type NamespaceMatchParam struct {
+	// in: path
 	Pattern string
 }
 

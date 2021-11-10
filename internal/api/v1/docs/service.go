@@ -6,15 +6,17 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Services
 
-// swagger:route DELETE /namespaces/{namespace}/services/{service} service ServiceDelete
-// Delete the named `service` in the `namespace`.
+// swagger:route DELETE /namespaces/{Namespace}/services/{Service} service ServiceDelete
+// Delete the named `Service` in the `Namespace`.
 // responses:
 //   200: ServiceDeleteResponse
 
 // swagger:parameters ServiceDelete
 type ServiceDeleteParam struct {
+	// in: path
 	Namespace string
-	Service   string
+	// in: path
+	Service string
 }
 
 // swagger:response ServiceDeleteResponse
@@ -23,13 +25,14 @@ type ServiceDeleteResponse struct {
 	Body models.ServiceDeleteResponse
 }
 
-// swagger:route GET /namespaces/{namespace}/serviceapps service ServiceApps
-// Return map from services in the `namespace`, to the apps in the same.
+// swagger:route GET /namespaces/{Namespace}/serviceapps service ServiceApps
+// Return map from services in the `Namespace`, to the apps in the same.
 // responses:
 //   200: ServiceAppsResponse
 
 // swagger:parameters ServiceApps
 type ServiceAppsParam struct {
+	// in: path
 	Namespace string
 }
 
@@ -39,13 +42,14 @@ type ServiceAppsResponse struct {
 	Body map[string]models.AppList
 }
 
-// swagger:route GET /namespaces/{namespace}/services service Services
-// Return list of services in the `namespace`.
+// swagger:route GET /namespaces/{Namespace}/services service Services
+// Return list of services in the `Namespace`.
 // responses:
 //   200: ServicesResponse
 
 // swagger:parameters Services
 type ServicesParam struct {
+	// in: path
 	Namespace string
 }
 
@@ -55,15 +59,17 @@ type ServicesResponse struct {
 	Body models.ServiceResponseList
 }
 
-// swagger:route GET /namespaces/{namespace}/services/{service} service ServiceShow
-// Return details of the named `service` in the `namespace`.
+// swagger:route GET /namespaces/{Namespace}/services/{Service} service ServiceShow
+// Return details of the named `Service` in the `Namespace`.
 // responses:
 //   200: ServiceShowResponse
 
 // swagger:parameters ServiceShow
 type ServiceShowParam struct {
+	// in: path
 	Namespace string
-	Service   string
+	// in: path
+	Service string
 }
 
 // swagger:response ServiceShowResponse
@@ -72,13 +78,14 @@ type ServiceShowResponse struct {
 	Body models.ServiceShowResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/services service ServiceCreate
-// Create the posted new service in the `namespace`.
+// swagger:route POST /namespaces/{Namespace}/services service ServiceCreate
+// Create the posted new service in the `Namespace`.
 // responses:
 //   200: ServiceCreateResponse
 
 // swagger:parameters ServiceCreate
 type ServiceCreateParam struct {
+	// in: path
 	Namespace string
 	// in: body
 	Service models.ServiceCreateRequest

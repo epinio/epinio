@@ -6,15 +6,17 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
 // Service Bindings
 
-// swagger:route POST   /namespaces/{namespace}/applications/{app}/servicebindings svc-binding ServiceBindingCreate
-// Create service binding between `app` in `namespace`, and the posted services, also in `namespace`.
+// swagger:route POST   /namespaces/{Namespace}/applications/{App}/servicebindings svc-binding ServiceBindingCreate
+// Create service binding between `App` in `Namespace`, and the posted services, also in `Namespace`.
 // responses:
 //   200: ServiceBindResponse
 
 // swagger:parameters ServiceBindingCreate
 type ServiceBindingCreateParams struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 	// in: body
 	Body models.BindRequest
 }
@@ -25,16 +27,19 @@ type ServiceBindResponse struct {
 	Body models.BindResponse
 }
 
-// swagger:route DELETE /namespaces/{namespace}/applications/{app}/servicebindings/{service} svc-binding ServiceBindingDelete
-// Remove service binding between `app` and `service` in `namespace`.
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App}/servicebindings/{Service} svc-binding ServiceBindingDelete
+// Remove service binding between `App` and `Service` in `Namespace`.
 // responses:
 //   200: ServiceUnbindReponse
 
 // swagger:parameters ServiceBindingDelete
 type ServiceBindingDeleteParams struct {
+	// in: path
 	Namespace string
-	App       string
-	Service   string
+	// in: path
+	App string
+	// in: path
+	Service string
 }
 
 // swagger:response ServiceUnbindReponse

@@ -43,18 +43,19 @@
         }
       }
     },
-    "/namespacematches/{pattern}": {
+    "/namespacematches/{Pattern}": {
       "get": {
         "tags": [
           "namespace"
         ],
-        "summary": "Return list of names for all controlled namespaces whose name matches the prefix `pattern`.",
+        "summary": "Return list of names for all controlled namespaces whose name matches the prefix `Pattern`.",
         "operationId": "NamespaceMatch",
         "parameters": [
           {
             "type": "string",
             "name": "Pattern",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -90,11 +91,6 @@
             "schema": {
               "$ref": "#/definitions/NamespaceCreateRequest"
             }
-          },
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "query"
           }
         ],
         "responses": {
@@ -104,18 +100,19 @@
         }
       }
     },
-    "/namespaces/{namespace}": {
+    "/namespaces/{Namespace}": {
       "get": {
         "tags": [
           "namespace"
         ],
-        "summary": "Return details of the named `namespace`.",
+        "summary": "Return details of the named `Namespace`.",
         "operationId": "NamespaceShow",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -128,8 +125,16 @@
         "tags": [
           "namespace"
         ],
-        "summary": "Delete the named `namespace`.",
+        "summary": "Delete the named `Namespace`.",
         "operationId": "NamespaceDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
         "responses": {
           "200": {
             "$ref": "#/responses/NamespaceDeleteResponse"
@@ -137,18 +142,19 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications": {
+    "/namespaces/{Namespace}/applications": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return list of applications in the `namespace`.",
+        "summary": "Return list of applications in the `Namespace`.",
         "operationId": "Apps",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -161,13 +167,14 @@
         "tags": [
           "application"
         ],
-        "summary": "Create the posted new application in the `namespace`.",
+        "summary": "Create the posted new application in the `Namespace`.",
         "operationId": "AppCreate",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "name": "Service",
@@ -184,23 +191,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}": {
+    "/namespaces/{Namespace}/applications/{App}": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return details of the named `app` in the `namespace`.",
+        "summary": "Return details of the named `App` in the `Namespace`.",
         "operationId": "AppShow",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -213,18 +222,20 @@
         "tags": [
           "application"
         ],
-        "summary": "Delete the named `app` in the `namespace`.",
+        "summary": "Delete the named `App` in the `Namespace`.",
         "operationId": "AppDelete",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -237,18 +248,20 @@
         "tags": [
           "application"
         ],
-        "summary": "Patch the named `app` in the `namespace`.",
+        "summary": "Patch the named `App` in the `Namespace`.",
         "operationId": "AppUpdate",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "name": "Body",
@@ -265,23 +278,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/deploy": {
+    "/namespaces/{Namespace}/applications/{App}/deploy": {
       "post": {
         "tags": [
           "application"
         ],
-        "summary": "Create the deployment, service and ingress resources for the named `app` in the `namespace`.",
+        "summary": "Create the deployment, service and ingress resources for the named `App` in the `Namespace`.",
         "operationId": "AppDeploy",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "name": "Body",
@@ -298,23 +313,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/environment": {
+    "/namespaces/{Namespace}/applications/{App}/environment": {
       "get": {
         "tags": [
           "app-env"
         ],
-        "summary": "Return the environment variable assignments for the `app` in the namespace`.",
+        "summary": "Return the environment variable assignments for the `App` in the namespace`.",
         "operationId": "EnvList",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -327,18 +344,20 @@
         "tags": [
           "app-env"
         ],
-        "summary": "Create/modify the posted environment variable assignments for the `app` in the `namespace`.",
+        "summary": "Create/modify the posted environment variable assignments for the `App` in the `Namespace`.",
         "operationId": "EnvSet",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "name": "Body",
@@ -355,23 +374,31 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/environment/{env}": {
+    "/namespaces/{Namespace}/applications/{App}/environment/{Env}": {
       "get": {
         "tags": [
           "app-env"
         ],
-        "summary": "Return the named `env` variable assignment for the `app` in the `namespace`.",
+        "summary": "Return the named `Env` variable assignment for the `App` in the `Namespace`.",
         "operationId": "EnvShow",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Env",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -384,18 +411,26 @@
         "tags": [
           "app-env"
         ],
-        "summary": "Remove the named `env` variable from the `app` in the `namespace`.",
+        "summary": "Remove the named `Env` variable from the `App` in the `Namespace`.",
         "operationId": "EnvUnset",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Env",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -405,9 +440,9 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/environment/{env}/match": {
+    "/namespaces/{Namespace}/applications/{App}/environmentmatch": {
       "get": {
-        "description": "Return the environment variable names of the `app` in the `namespace`. (No prefix == Empty prefix == All match)",
+        "description": "Return the environment variable names of the `App` in the `Namespace`. (No prefix == Empty prefix == All match)",
         "tags": [
           "app-env"
         ],
@@ -416,12 +451,14 @@
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -431,28 +468,31 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/environment/{env}/match/{pattern}": {
+    "/namespaces/{Namespace}/applications/{App}/environmentmatch/{Pattern}": {
       "get": {
         "tags": [
           "app-env"
         ],
-        "summary": "Return the environment variable names of the `app` in the `namespace` with prefix `pattern`.",
+        "summary": "Return the environment variable names of the `App` in the `Namespace` with prefix `Pattern`.",
         "operationId": "EnvMatch",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "Pattern",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -462,23 +502,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/import-git": {
+    "/namespaces/{Namespace}/applications/{App}/import-git": {
       "post": {
         "tags": [
           "application"
         ],
-        "summary": "Store the named `app` from a Git repo in the `namespace`.",
+        "summary": "Store the named `App` from a Git repo in the `Namespace`.",
         "operationId": "AppImportGit",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
@@ -498,23 +540,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/logs": {
+    "/namespaces/{Namespace}/applications/{App}/logs": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `app` in the `namespace`.",
+        "summary": "Return logs of the named `App` in the `Namespace`.",
         "operationId": "AppLogs",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -524,23 +568,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/running": {
+    "/namespaces/{Namespace}/applications/{App}/running": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Wait for the named `app` in the `namespace` to be running.",
+        "summary": "Wait for the named `App` in the `Namespace` to be running.",
         "operationId": "AppRunning",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -550,23 +596,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/servicebindings": {
+    "/namespaces/{Namespace}/applications/{App}/servicebindings": {
       "post": {
         "tags": [
           "svc-binding"
         ],
-        "summary": "Create service binding between `app` in `namespace`, and the posted services, also in `namespace`.",
+        "summary": "Create service binding between `App` in `Namespace`, and the posted services, also in `Namespace`.",
         "operationId": "ServiceBindingCreate",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "name": "Body",
@@ -583,28 +631,31 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/servicebindings/{service}": {
+    "/namespaces/{Namespace}/applications/{App}/servicebindings/{Service}": {
       "delete": {
         "tags": [
           "svc-binding"
         ],
-        "summary": "Remove service binding between `app` and `service` in `namespace`.",
+        "summary": "Remove service binding between `App` and `Service` in `Namespace`.",
         "operationId": "ServiceBindingDelete",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "Service",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -614,23 +665,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/stage": {
+    "/namespaces/{Namespace}/applications/{App}/stage": {
       "post": {
         "tags": [
           "application"
         ],
-        "summary": "Create a Tekton PipelineRun resource to stage the named `app` in the `namespace`.",
+        "summary": "Create a Tekton PipelineRun resource to stage the named `App` in the `Namespace`.",
         "operationId": "AppStage",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "name": "Body",
@@ -647,23 +700,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{app}/store": {
+    "/namespaces/{Namespace}/applications/{App}/store": {
       "post": {
         "tags": [
           "application"
         ],
-        "summary": "Store the named `app` in the `namespace`.",
+        "summary": "Store the named `App` in the `Namespace`.",
         "operationId": "AppUpload",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "App",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -673,18 +728,19 @@
         }
       }
     },
-    "/namespaces/{namespace}/serviceapps": {
+    "/namespaces/{Namespace}/serviceapps": {
       "get": {
         "tags": [
           "service"
         ],
-        "summary": "Return map from services in the `namespace`, to the apps in the same.",
+        "summary": "Return map from services in the `Namespace`, to the apps in the same.",
         "operationId": "ServiceApps",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -694,18 +750,19 @@
         }
       }
     },
-    "/namespaces/{namespace}/services": {
+    "/namespaces/{Namespace}/services": {
       "get": {
         "tags": [
           "service"
         ],
-        "summary": "Return list of services in the `namespace`.",
+        "summary": "Return list of services in the `Namespace`.",
         "operationId": "Services",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -718,13 +775,14 @@
         "tags": [
           "service"
         ],
-        "summary": "Create the posted new service in the `namespace`.",
+        "summary": "Create the posted new service in the `Namespace`.",
         "operationId": "ServiceCreate",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "name": "Service",
@@ -741,23 +799,25 @@
         }
       }
     },
-    "/namespaces/{namespace}/services/{service}": {
+    "/namespaces/{Namespace}/services/{Service}": {
       "get": {
         "tags": [
           "service"
         ],
-        "summary": "Return details of the named `service` in the `namespace`.",
+        "summary": "Return details of the named `Service` in the `Namespace`.",
         "operationId": "ServiceShow",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "Service",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -770,18 +830,20 @@
         "tags": [
           "service"
         ],
-        "summary": "Delete the named `service` in the `namespace`.",
+        "summary": "Delete the named `Service` in the `Namespace`.",
         "operationId": "ServiceDelete",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
             "name": "Service",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -791,18 +853,19 @@
         }
       }
     },
-    "/namespaces/{namespace}/staging/{StageID}/complete": {
+    "/namespaces/{Namespace}/staging/{StageID}/complete": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `StageID` in the `namespace`.",
+        "summary": "Return logs of the named `StageID` in the `Namespace`.",
         "operationId": "StagingComplete",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",
@@ -818,18 +881,19 @@
         }
       }
     },
-    "/namespaces/{namespace}/staging/{StageID}/logs": {
+    "/namespaces/{Namespace}/staging/{StageID}/logs": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `StageID` in the `namespace`.",
+        "summary": "Return logs of the named `StageID` in the `Namespace`.",
         "operationId": "StagingLogs",
         "parameters": [
           {
             "type": "string",
             "name": "Namespace",
-            "in": "query"
+            "in": "path",
+            "required": true
           },
           {
             "type": "string",

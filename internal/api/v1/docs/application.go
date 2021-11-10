@@ -14,13 +14,14 @@ type AllAppsParam struct{}
 
 // response: See Apps.
 
-// swagger:route GET /namespaces/{namespace}/applications application Apps
-// Return list of applications in the `namespace`.
+// swagger:route GET /namespaces/{Namespace}/applications application Apps
+// Return list of applications in the `Namespace`.
 // responses:
 //   200: AppsResponse
 
 // swagger:parameters Apps
 type AppsParam struct {
+	// in: path
 	Namespace string
 }
 
@@ -30,13 +31,14 @@ type AppsResponse struct {
 	Body models.AppList
 }
 
-// swagger:route POST /namespaces/{namespace}/applications application AppCreate
-// Create the posted new application in the `namespace`.
+// swagger:route POST /namespaces/{Namespace}/applications application AppCreate
+// Create the posted new application in the `Namespace`.
 // responses:
 //   200: AppCreateResponse
 
 // swagger:parameters AppCreate
 type AppCreateParam struct {
+	// in: path
 	Namespace string
 	// in: body
 	Service models.ApplicationCreateRequest
@@ -48,15 +50,17 @@ type AppCreateResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{namespace}/applications/{app} application AppShow
-// Return details of the named `app` in the `namespace`.
+// swagger:route GET /namespaces/{Namespace}/applications/{App} application AppShow
+// Return details of the named `App` in the `Namespace`.
 // responses:
 //   200: AppShowResponse
 
 // swagger:parameters AppShow
 type AppShowParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 }
 
 // swagger:response AppShowResponse
@@ -65,15 +69,17 @@ type AppShowResponse struct {
 	Body models.App
 }
 
-// swagger:route GET /namespaces/{namespace}/applications/{app}/logs application AppLogs
-// Return logs of the named `app` in the `namespace` streamed over a websocket.
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/logs application AppLogs
+// Return logs of the named `App` in the `Namespace` streamed over a websocket.
 // responses:
 //   200: AppLogsResponse
 
 // swagger:parameters AppLogs
 type AppLogsParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 }
 
 // swagger:response AppLogsResponse
@@ -81,13 +87,14 @@ type AppLogsResponse struct {
 	// in: body
 }
 
-// swagger:route GET /namespaces/{namespace}/staging/{StageID}/logs application StagingLogs
-// Return logs of the named `StageID` in the `namespace` streamed over a websocket.
+// swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs application StagingLogs
+// Return logs of the named `StageID` in the `Namespace` streamed over a websocket.
 // responses:
 //   200: StagingLogsResponse
 
 // swagger:parameters StagingLogs
 type StagingLogsParam struct {
+	// in: path
 	Namespace string
 	// in: path
 	StageID string
@@ -98,13 +105,14 @@ type StagingLogsResponse struct {
 	// in: body
 }
 
-// swagger:route GET /namespaces/{namespace}/staging/{StageID}/complete application StagingComplete
-// Return logs of the named `StageID` in the `namespace`.
+// swagger:route GET /namespaces/{Namespace}/staging/{StageID}/complete application StagingComplete
+// Return logs of the named `StageID` in the `Namespace`.
 // responses:
 //   200: StagingCompleteResponse
 
 // swagger:parameters StagingComplete
 type StagingCompleteParam struct {
+	// in: path
 	Namespace string
 	// in: path
 	StageID string
@@ -116,15 +124,17 @@ type StagingCompleteResponse struct {
 	Body models.Response
 }
 
-// swagger:route DELETE /namespaces/{namespace}/applications/{app} application AppDelete
-// Delete the named `app` in the `namespace`.
+// swagger:route DELETE /namespaces/{Namespace}/applications/{App} application AppDelete
+// Delete the named `App` in the `Namespace`.
 // responses:
 //   200: AppDeleteResponse
 
 // swagger:parameters AppDelete
 type AppDeleteParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 }
 
 // swagger:response AppDeleteResponse
@@ -133,15 +143,17 @@ type AppDeleteResponse struct {
 	Body models.ApplicationDeleteResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{app}/store application AppUpload
-// Store the named `app` in the `namespace`.
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/store application AppUpload
+// Store the named `App` in the `Namespace`.
 // responses:
 //   200: AppUploadResponse
 
 // swagger:parameters AppUpload
 type AppUploadParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 }
 
 // swagger:response AppUploadResponse
@@ -150,17 +162,19 @@ type AppUploadResponse struct {
 	Body models.UploadResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{app}/import-git application AppImportGit
-// Store the named `app` from a Git repo in the `namespace`.
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/import-git application AppImportGit
+// Store the named `App` from a Git repo in the `Namespace`.
 // responses:
 //   200: AppImportGitResponse
 
 // swagger:parameters AppImportGit
 type AppImportGitParam struct {
+	// in: path
 	Namespace string
-	App       string
-	GitUrl    string
-	GitRev    string
+	// in: path
+	App    string
+	GitUrl string
+	GitRev string
 }
 
 // swagger:response AppImportGitResponse
@@ -169,15 +183,17 @@ type AppImportGitResponse struct {
 	Body models.ImportGitResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{app}/stage application AppStage
-// Create a Tekton PipelineRun resource to stage the named `app` in the `namespace`.
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/stage application AppStage
+// Create a Tekton PipelineRun resource to stage the named `App` in the `Namespace`.
 // responses:
 //   200: AppStageResponse
 
 // swagger:parameters AppStage
 type AppStageParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 	// in: body
 	Body models.StageRequest
 }
@@ -188,15 +204,17 @@ type AppStageResponse struct {
 	Body models.StageResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{app}/deploy application AppDeploy
-// Create the deployment, service and ingress resources for the named `app` in the `namespace`.
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/deploy application AppDeploy
+// Create the deployment, service and ingress resources for the named `App` in the `Namespace`.
 // responses:
 //   200: AppDeployResponse
 
 // swagger:parameters AppDeploy
 type AppDeployParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 	// in: body
 	Body models.DeployRequest
 }
@@ -207,15 +225,17 @@ type AppDeployResponse struct {
 	Body models.DeployResponse
 }
 
-// swagger:route PATCH /namespaces/{namespace}/applications/{app} application AppUpdate
-// Patch the named `app` in the `namespace`.
+// swagger:route PATCH /namespaces/{Namespace}/applications/{App} application AppUpdate
+// Patch the named `App` in the `Namespace`.
 // responses:
 //   200: AppUpdateResponse
 
 // swagger:parameters AppUpdate
 type AppUpdateParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 	// in: body
 	Body models.ApplicationUpdateRequest
 }
@@ -226,15 +246,17 @@ type AppUpdateResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{namespace}/applications/{app}/running application AppRunning
-// Wait for the named `app` in the `namespace` to be running.
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/running application AppRunning
+// Wait for the named `App` in the `Namespace` to be running.
 // responses:
 //   200: AppRunningResponse
 
 // swagger:parameters AppRunning
 type AppRunningParam struct {
+	// in: path
 	Namespace string
-	App       string
+	// in: path
+	App string
 }
 
 // swagger:response AppRunningResponse
