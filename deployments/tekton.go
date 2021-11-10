@@ -251,8 +251,6 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 	// images from the Epinio registry (internal or external).
 	// This secret is used as a Kubed source secret to be automatically copied to
 	// all application namespaces to that Kubernetes can pull application images.
-	//
-	// TODO: Does it need kubed to be running before this can work?
 	if _, err := k.RegistryConnectionDetails.Store(ctx, c, TektonStagingNamespace, "registry-creds"); err != nil {
 		return errors.Wrap(err, "storing the Registry options")
 	}
