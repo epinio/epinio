@@ -215,7 +215,7 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           FLAKE_ATTEMPTS: 1
           GINKGO_NODES: 1
-          REGEX: "<ConfigFile>"
+          REGEX: "<ConfigFile>|<InvalidFlags>"
         run: |
           make acceptance-cluster-delete
           make acceptance-cluster-setup

@@ -287,8 +287,12 @@ func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, i
 		return imageURL, err
 	}
 
-	// Only if kube can access the registry on localhost
-	if !viper.GetBool("force-kube-internal-registry-tls") {
+	localURL, err := registryDetails.PrivateRegistryURL()
+	if err != nil {
+		return imageURL, err
+	}
+	// If there is a local registry and kube is not supposed to access it through Ingress
+	if localURL != "" && !viper.GetBool("force-kube-internal-registry-tls") {
 		return registryDetails.ReplaceWithInternalRegistry(imageURL)
 	}
 

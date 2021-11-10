@@ -102,11 +102,9 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 	details.Info("show option configuration")
 	c.showInstallConfiguration(c.options)
 
-	// TODO (post MVP): Run a validation phase which perform
-	// additional checks on the values. For example range limits,
-	// proper syntax of the string, etc. do it as pghase, and late
-	// to report all problems at once, instead of early and
-	// piecemal.
+	if err := c.validateInstallationOptions(); err != nil {
+		return err
+	}
 
 	if err := c.deploy(ctx, &deployments.Linkerd{
 		Timeout: duration.ToDeployment(),
@@ -630,4 +628,21 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 	}
 
 	return registryDetails, nil
+}
+
+// performs early validation on installation options for incompatible configuration
+// Some issues result in an error some other simply print a warning.
+func (c *InstallClient) validateInstallationOptions() error {
+	forceInternalTLS := c.options.GetBoolNG("force-kube-internal-registry-tls")
+	externalRegistryUsed := c.options.GetStringNG("external-registry-url") != ""
+
+	if forceInternalTLS && externalRegistryUsed {
+		return errors.New("force-kube-internal-registry-tls has no effect when an external registry is used")
+	}
+
+	if !forceInternalTLS && !externalRegistryUsed {
+		c.ui.Exclamation().Msg("force-kube-internal-registry-tls is \"false\". Communication between Kuberentes and the internal registry will not be encrypted!")
+	}
+
+	return nil
 }

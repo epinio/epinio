@@ -24,12 +24,12 @@ var _ = Describe("ConnectionDetails", func() {
 		})
 		When("mandatory settings are full and some optional are set", func() {
 			It("returns no error", func() {
-				Expect(registry.Validate("https://index.docker.io/v1/", "", "myuser", "")).ToNot(HaveOccurred())
+				Expect(registry.Validate("registry.hub.docker.com", "", "myuser", "")).ToNot(HaveOccurred())
 			})
 		})
 		When("mandatory settings are full and no optional are set", func() {
 			It("returns no error", func() {
-				Expect(registry.Validate("https://index.docker.io/v1/", "", "", "")).ToNot(HaveOccurred())
+				Expect(registry.Validate("registry.hub.docker.com", "", "", "")).ToNot(HaveOccurred())
 			})
 		})
 	})
@@ -72,8 +72,8 @@ var _ = Describe("ConnectionDetails", func() {
 					Namespace: "myorg",
 					DockerConfigJSON: &registry.DockerConfigJSON{
 						Auths: map[string]registry.ContainerRegistryAuth{
-							"http://127.0.0.1/":           {},
-							"https://index.docker.io/v1/": {},
+							"http://127.0.0.1/":       {},
+							"registry.hub.docker.com": {},
 						},
 					},
 				}
@@ -81,7 +81,7 @@ var _ = Describe("ConnectionDetails", func() {
 			It("returns that", func() {
 				url, err := details.PublicRegistryURL()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(url).To(Equal("https://index.docker.io/v1/"))
+				Expect(url).To(Equal("registry.hub.docker.com"))
 			})
 		})
 	})
@@ -94,7 +94,7 @@ var _ = Describe("ConnectionDetails", func() {
 					Namespace: "myorg",
 					DockerConfigJSON: &registry.DockerConfigJSON{
 						Auths: map[string]registry.ContainerRegistryAuth{
-							"https://index.docker.io/v1/": {},
+							"registry.hub.docker.com": {},
 						},
 					},
 				}
@@ -111,8 +111,8 @@ var _ = Describe("ConnectionDetails", func() {
 					Namespace: "myorg",
 					DockerConfigJSON: &registry.DockerConfigJSON{
 						Auths: map[string]registry.ContainerRegistryAuth{
-							"http://127.0.0.1/":           {},
-							"https://index.docker.io/v1/": {},
+							"http://127.0.0.1/":       {},
+							"registry.hub.docker.com": {},
 						},
 					},
 				}
@@ -134,7 +134,7 @@ var _ = Describe("ConnectionDetails", func() {
 					Namespace: "myorg",
 					DockerConfigJSON: &registry.DockerConfigJSON{
 						Auths: map[string]registry.ContainerRegistryAuth{
-							"https://index.docker.io/v1/": {},
+							"registry.hub.docker.com": {},
 						},
 					},
 				}
@@ -176,11 +176,12 @@ var _ = Describe("ConnectionDetails", func() {
 						Namespace: "myorg",
 						DockerConfigJSON: &registry.DockerConfigJSON{
 							Auths: map[string]registry.ContainerRegistryAuth{
-								"https://index.docker.io/v1/": {},
-								"127.0.0.1:30500":             {},
+								"registry.hub.docker.com": {},
+								"127.0.0.1:30500":         {},
 							},
 						},
 					}
+					imageURL = "otherregistry.com/apps/my-app"
 				})
 				It("leaves the image URL unchanged", func() {
 					newImageURL, err := details.ReplaceWithInternalRegistry(imageURL)
