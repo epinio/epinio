@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -23,16 +22,12 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-)
-
-const (
-	LocalRegistry = "127.0.0.1:30500/apps"
 )
 
 type stageParam struct {
@@ -156,23 +151,22 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		UID:        app.GetUID(),
 	}
 
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
 	if err != nil {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
+	registryPublicURL, err := getRegistryURL(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err, "getting the Epinio registry public URL")
+	}
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        req.BuilderImage,
 		BlobUID:             req.BlobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
-		RegistryURL:         fmt.Sprintf("%s.%s/%s", deployments.RegistryDeploymentID, mainDomain, "apps"),
+		RegistryURL:         registryPublicURL,
 		S3ConnectionDetails: s3ConnectionDetails,
 		Stage:               models.NewStage(uid),
 		Username:            username,
@@ -195,13 +189,6 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
-
-	// The ImageURL in the response should be the one accessible by kubernetes.
-	// In stageParam above, the registry is passed with the registry ingress url,
-	// since it's where tekton will push.
-	if viper.GetBool("use-internal-registry-node-port") {
-		params.RegistryURL = LocalRegistry
-	}
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
@@ -347,4 +334,20 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 			},
 		},
 	}
+}
+
+func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
+	cd, err := registry.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, registry.CredentialsSecretName)
+	if err != nil {
+		return "", err
+	}
+	registryPublicURL, err := cd.PublicRegistryURL()
+	if err != nil {
+		return "", err
+	}
+	if registryPublicURL == "" {
+		return "", errors.New("no public registry URL found")
+	}
+
+	return fmt.Sprintf("%s/%s", registryPublicURL, cd.Namespace), nil
 }

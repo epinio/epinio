@@ -177,7 +177,7 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		tarPath,
 		`--set`, `auth.htpasswd=` + htpasswd,
 		`--set`, fmt.Sprintf("domain=%s.%s", RegistryDeploymentID, domain),
-		`--set`, fmt.Sprintf(`createNodePort=%v`, options.GetBoolNG("use-internal-registry-node-port")),
+		`--set`, fmt.Sprintf(`createNodePort=%v`, !options.GetBoolNG("force-kube-internal-registry-tls")),
 	}
 
 	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))
@@ -212,6 +212,11 @@ func (k Registry) GetVersion() string {
 }
 
 func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+	if options.GetStringNG("external-registry-url") != "" {
+		ui.Exclamation().Msg("External registry configuration detected. Epinio won't install a registry")
+		return nil
+	}
+
 	log := k.Log.WithName("Deploy")
 	log.Info("start")
 	defer log.Info("return")

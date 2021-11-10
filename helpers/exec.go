@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/codeskyblue/kexec"
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/helpers/termui"
@@ -112,7 +113,7 @@ func WaitForCommandCompletion(ui *termui.UI, message string, funk ExternalFuncWi
 
 // ExecToSuccessWithTimeout retries the given function with string & error return,
 // until it either succeeds of the timeout is reached. It retries every "interval" duration.
-func ExecToSuccessWithTimeout(funk ExternalFuncWithString, timeout, interval time.Duration) (string, error) {
+func ExecToSuccessWithTimeout(funk ExternalFuncWithString, log logr.Logger, timeout, interval time.Duration) (string, error) {
 	timeoutChan := time.After(timeout)
 	for {
 		select {
@@ -120,6 +121,7 @@ func ExecToSuccessWithTimeout(funk ExternalFuncWithString, timeout, interval tim
 			return "", errors.Errorf("Timed out after %s", timeout.String())
 		default:
 			if out, err := funk(); err != nil {
+				log.Info(fmt.Sprintf("Retrying because of error: %s\n%s", err.Error(), out))
 				time.Sleep(interval)
 			} else {
 				return out, nil

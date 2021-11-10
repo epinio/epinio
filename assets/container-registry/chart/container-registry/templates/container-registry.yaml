@@ -22,9 +22,6 @@ spec:
   - name: registry
     port: 5000
     targetPort: 5000
-  - name: registry-tls
-    port: 443
-    targetPort: 443
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -71,10 +68,6 @@ spec:
     port: 5000
     targetPort: 5000
     nodePort: 30500
-  - name: registry-tls
-    port: 443
-    targetPort: 443
-    nodePort: 30501
 {{- end }}
 ---
 apiVersion: apps/v1

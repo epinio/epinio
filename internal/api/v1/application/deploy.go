@@ -1,25 +1,31 @@
 package application
 
 import (
+	"context"
+
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
+	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 const (
 	DefaultInstances = int32(1)
+	LocalRegistry    = "127.0.0.1:30500/apps"
 )
 
 type deployParam struct {
@@ -109,6 +115,12 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Info("deploying app", "org", org, "app", req.App)
+
+	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, deployParams.ImageURL)
+	if err != nil {
+		return apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes")
+	}
+
 	deployment := newAppDeployment(req.Stage.ID, deployParams)
 	deployment.SetOwnerReferences([]metav1.OwnerReference{owner})
 	if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Org).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
@@ -259,4 +271,30 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 			Type: v1.ServiceTypeClusterIP,
 		},
 	}
+}
+
+// replaceInternalRegistry replaces the registry part of ImageURL with the localhost
+// version of the internal Epinio registry.
+// That only happens if we are deploying an image from the Epinio registry
+// and that registry doesn't have a certificate signed by a well-known CA.
+// Otherwise leave the ImageURL as is because either:
+// - the Epinio registry is deployed on Kubernetes with a valid cert (e.g. letsencrypt)
+// - the Epinio registry is an external one (if Epinio was deployed that way)
+// - a pre-existing image is being deployed (coming from an outer registry, not ours)
+func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
+	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, registry.CredentialsSecretName)
+	if err != nil {
+		return imageURL, err
+	}
+
+	localURL, err := registryDetails.PrivateRegistryURL()
+	if err != nil {
+		return imageURL, err
+	}
+	// If there is a local registry and kube is not supposed to access it through Ingress
+	if localURL != "" && !viper.GetBool("force-kube-internal-registry-tls") {
+		return registryDetails.ReplaceWithInternalRegistry(imageURL)
+	}
+
+	return imageURL, nil // no-op
 }
