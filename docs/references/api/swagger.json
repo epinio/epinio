@@ -545,7 +545,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `App` in the `Namespace`.",
+        "summary": "Return logs of the named `App` in the `Namespace` streamed over a websocket.",
         "operationId": "AppLogs",
         "parameters": [
           {
@@ -886,7 +886,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `StageID` in the `Namespace`.",
+        "summary": "Return logs of the named `StageID` in the `Namespace` streamed over a websocket.",
         "operationId": "StagingLogs",
         "parameters": [
           {

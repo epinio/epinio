@@ -83,9 +83,7 @@ type AppLogsParam struct {
 }
 
 // swagger:response AppLogsResponse
-type AppLogsResponse struct {
-	// in: body
-}
+type AppLogsResponse struct{}
 
 // swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs application StagingLogs
 // Return logs of the named `StageID` in the `Namespace` streamed over a websocket.
@@ -101,9 +99,7 @@ type StagingLogsParam struct {
 }
 
 // swagger:response StagingLogsResponse
-type StagingLogsResponse struct {
-	// in: body
-}
+type StagingLogsResponse struct{}
 
 // swagger:route GET /namespaces/{Namespace}/staging/{StageID}/complete application StagingComplete
 // Return logs of the named `StageID` in the `Namespace`.
