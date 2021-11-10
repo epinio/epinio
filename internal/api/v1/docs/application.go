@@ -81,15 +81,16 @@ type AppLogsResponse struct {
 	// in: body
 }
 
-// swagger:route GET /namespaces/{namespace}/staging/{stage_id}/logs application StagingLogs
-// Return logs of the named `stage_id` in the `namespace` streamed over a websocket.
+// swagger:route GET /namespaces/{namespace}/staging/{StageID}/logs application StagingLogs
+// Return logs of the named `StageID` in the `namespace` streamed over a websocket.
 // responses:
 //   200: StagingLogsResponse
 
 // swagger:parameters StagingLogs
 type StagingLogsParam struct {
 	Namespace string
-	StageId   string
+	// in: path
+	StageID string
 }
 
 // swagger:response StagingLogsResponse
@@ -97,15 +98,16 @@ type StagingLogsResponse struct {
 	// in: body
 }
 
-// swagger:route GET /namespaces/{namespace}/staging/{stage_id}/complete application StagingComplete
-// Return logs of the named `stage_id` in the `namespace`.
+// swagger:route GET /namespaces/{namespace}/staging/{StageID}/complete application StagingComplete
+// Return logs of the named `StageID` in the `namespace`.
 // responses:
 //   200: StagingCompleteResponse
 
 // swagger:parameters StagingComplete
 type StagingCompleteParam struct {
 	Namespace string
-	StageId   string
+	// in: path
+	StageID string
 }
 
 // swagger:response StagingCompleteResponse

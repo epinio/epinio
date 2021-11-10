@@ -184,12 +184,36 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{application}": {
+    "/namespaces/{namespace}/applications/{app}": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return details of the named `app` in the `namespace`.",
+        "operationId": "AppShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppShowResponse"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "application"
         ],
-        "summary": "Delete the named `application` in the `namespace`.",
+        "summary": "Delete the named `app` in the `namespace`.",
         "operationId": "AppDelete",
         "parameters": [
           {
@@ -213,7 +237,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Patch the named `application` in the `namespace`.",
+        "summary": "Patch the named `app` in the `namespace`.",
         "operationId": "AppUpdate",
         "parameters": [
           {
@@ -241,12 +265,12 @@
         }
       }
     },
-    "/namespaces/{namespace}/applications/{application}/deploy": {
+    "/namespaces/{namespace}/applications/{app}/deploy": {
       "post": {
         "tags": [
           "application"
         ],
-        "summary": "Create the deployment, service and ingress resources for the named `application` in the `namespace`.",
+        "summary": "Create the deployment, service and ingress resources for the named `app` in the `namespace`.",
         "operationId": "AppDeploy",
         "parameters": [
           {
@@ -270,153 +294,6 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppDeployResponse"
-          }
-        }
-      }
-    },
-    "/namespaces/{namespace}/applications/{application}/import-git": {
-      "post": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Store the named `application` from a Git repo in the `namespace`.",
-        "operationId": "AppImportGit",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "GitUrl",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "GitRev",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppImportGitResponse"
-          }
-        }
-      }
-    },
-    "/namespaces/{namespace}/applications/{application}/running": {
-      "get": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Wait for the named `application` in the `namespace` to be running.",
-        "operationId": "AppRunning",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppRunningResponse"
-          }
-        }
-      }
-    },
-    "/namespaces/{namespace}/applications/{application}/stage": {
-      "post": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Create a Tekton PipelineRun resource to stage the named `application` in the `namespace`.",
-        "operationId": "AppStage",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "query"
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/StageRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppStageResponse"
-          }
-        }
-      }
-    },
-    "/namespaces/{namespace}/applications/{application}/store": {
-      "post": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Store the named `application` in the `namespace`.",
-        "operationId": "AppUpload",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppUploadResponse"
-          }
-        }
-      }
-    },
-    "/namespaces/{namespace}/applications/{app}": {
-      "get": {
-        "tags": [
-          "application"
-        ],
-        "summary": "Return details of the named `application` in the `namespace`.",
-        "operationId": "AppShow",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "query"
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/AppShowResponse"
           }
         }
       }
@@ -585,12 +462,48 @@
         }
       }
     },
+    "/namespaces/{namespace}/applications/{app}/import-git": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Store the named `app` from a Git repo in the `namespace`.",
+        "operationId": "AppImportGit",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "GitUrl",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "GitRev",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppImportGitResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{namespace}/applications/{app}/logs": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `application` in the `namespace`.",
+        "summary": "Return logs of the named `app` in the `namespace`.",
         "operationId": "AppLogs",
         "parameters": [
           {
@@ -607,6 +520,32 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppLogsResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/running": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Wait for the named `app` in the `namespace` to be running.",
+        "operationId": "AppRunning",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppRunningResponse"
           }
         }
       }
@@ -671,6 +610,65 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceUnbindReponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/stage": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Create a Tekton PipelineRun resource to stage the named `app` in the `namespace`.",
+        "operationId": "AppStage",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/StageRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppStageResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{namespace}/applications/{app}/store": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Store the named `app` in the `namespace`.",
+        "operationId": "AppUpload",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppUploadResponse"
           }
         }
       }
@@ -793,12 +791,12 @@
         }
       }
     },
-    "/namespaces/{namespace}/staging/{stage_id}/complete": {
+    "/namespaces/{namespace}/staging/{StageID}/complete": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `stage_id` in the `namespace`.",
+        "summary": "Return logs of the named `StageID` in the `namespace`.",
         "operationId": "StagingComplete",
         "parameters": [
           {
@@ -808,8 +806,9 @@
           },
           {
             "type": "string",
-            "name": "StageId",
-            "in": "query"
+            "name": "StageID",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -819,12 +818,12 @@
         }
       }
     },
-    "/namespaces/{namespace}/staging/{stage_id}/logs": {
+    "/namespaces/{namespace}/staging/{StageID}/logs": {
       "get": {
         "tags": [
           "application"
         ],
-        "summary": "Return logs of the named `stage_id` in the `namespace`.",
+        "summary": "Return logs of the named `StageID` in the `namespace`.",
         "operationId": "StagingLogs",
         "parameters": [
           {
@@ -834,8 +833,9 @@
           },
           {
             "type": "string",
-            "name": "StageId",
-            "in": "query"
+            "name": "StageID",
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
