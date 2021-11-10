@@ -49,7 +49,7 @@ type AppCreateResponse struct {
 }
 
 // swagger:route GET /namespaces/{namespace}/applications/{app} application AppShow
-// Return details of the named `application` in the `namespace`.
+// Return details of the named `app` in the `namespace`.
 // responses:
 //   200: AppShowResponse
 
@@ -66,7 +66,7 @@ type AppShowResponse struct {
 }
 
 // swagger:route GET /namespaces/{namespace}/applications/{app}/logs application AppLogs
-// Return logs of the named `application` in the `namespace`.
+// Return logs of the named `app` in the `namespace`.
 // responses:
 //   200: AppLogsResponse
 
@@ -114,8 +114,8 @@ type StagingCompleteResponse struct {
 	Body models.Response
 }
 
-// swagger:route DELETE /namespaces/{namespace}/applications/{application} application AppDelete
-// Delete the named `application` in the `namespace`.
+// swagger:route DELETE /namespaces/{namespace}/applications/{app} application AppDelete
+// Delete the named `app` in the `namespace`.
 // responses:
 //   200: AppDeleteResponse
 
@@ -131,8 +131,8 @@ type AppDeleteResponse struct {
 	Body models.ApplicationDeleteResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{application}/store application AppUpload
-// Store the named `application` in the `namespace`.
+// swagger:route POST /namespaces/{namespace}/applications/{app}/store application AppUpload
+// Store the named `app` in the `namespace`.
 // responses:
 //   200: AppUploadResponse
 
@@ -148,8 +148,8 @@ type AppUploadResponse struct {
 	Body models.UploadResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{application}/import-git application AppImportGit
-// Store the named `application` from a Git repo in the `namespace`.
+// swagger:route POST /namespaces/{namespace}/applications/{app}/import-git application AppImportGit
+// Store the named `app` from a Git repo in the `namespace`.
 // responses:
 //   200: AppImportGitResponse
 
@@ -167,8 +167,8 @@ type AppImportGitResponse struct {
 	Body models.ImportGitResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{application}/stage application AppStage
-// Create a Tekton PipelineRun resource to stage the named `application` in the `namespace`.
+// swagger:route POST /namespaces/{namespace}/applications/{app}/stage application AppStage
+// Create a Tekton PipelineRun resource to stage the named `app` in the `namespace`.
 // responses:
 //   200: AppStageResponse
 
@@ -186,8 +186,8 @@ type AppStageResponse struct {
 	Body models.StageResponse
 }
 
-// swagger:route POST /namespaces/{namespace}/applications/{application}/deploy application AppDeploy
-// Create the deployment, service and ingress resources for the named `application` in the `namespace`.
+// swagger:route POST /namespaces/{namespace}/applications/{app}/deploy application AppDeploy
+// Create the deployment, service and ingress resources for the named `app` in the `namespace`.
 // responses:
 //   200: AppDeployResponse
 
@@ -205,8 +205,8 @@ type AppDeployResponse struct {
 	Body models.DeployResponse
 }
 
-// swagger:route PATCH /namespaces/{namespace}/applications/{application} application AppUpdate
-// Patch the named `application` in the `namespace`.
+// swagger:route PATCH /namespaces/{namespace}/applications/{app} application AppUpdate
+// Patch the named `app` in the `namespace`.
 // responses:
 //   200: AppUpdateResponse
 
@@ -224,8 +224,8 @@ type AppUpdateResponse struct {
 	Body models.Response
 }
 
-// swagger:route GET /namespaces/{namespace}/applications/{application}/running application AppRunning
-// Wait for the named `application` in the `namespace` to be running.
+// swagger:route GET /namespaces/{namespace}/applications/{app}/running application AppRunning
+// Wait for the named `app` in the `namespace` to be running.
 // responses:
 //   200: AppRunningResponse
 
