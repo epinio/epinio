@@ -128,7 +128,7 @@ patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
 
 getstatik:
-	( [ -x "$$(command -v statik)" ] || go get github.com/rakyll/statik@v0.1.7 )
+	( [ -x "$$(command -v statik)" ] || go install github.com/rakyll/statik@v0.1.7 )
 
 wrap_registry_chart:
 	helm package ./assets/container-registry/chart/container-registry/ -d assets/embedded-files
@@ -144,19 +144,18 @@ embed_files: getstatik wrap_registry_chart
 	statik -m -f -src=./assets/embedded-web-files/views -ns webViews -p statikWebViews -dest assets
 	statik -m -f -src=./assets/embedded-web-files/assets -ns webAssets -p statikWebAssets -dest assets
 
-help:
-	( echo _ _ ___ _____ ________ Overview ; epinio help ; for cmd in apps completion create-org delete help info install orgs push target uninstall ; do echo ; echo _ _ ___ _____ ________ Command $$cmd ; epinio $$cmd --help ; done ; echo ) | tee HELP
-
-
 ########################################################################
 # Docs
 
-swagger:
+getswagger:
+	( [ -x "$$(command -v swagger)" ] || go install github.com/go-swagger/go-swagger/cmd/swagger@v0.28.0 )
+
+swagger: getswagger
 	swagger generate spec > docs/references/api/swagger.json
 	sed -i 's/^{/{ "info": {"title": "Epinio", "version":"1"},/' docs/references/api/swagger.json
 	swagger validate        docs/references/api/swagger.json
 
-swagger-serve:
+swagger-serve: getswagger
 	swagger serve docs/references/api/swagger.json
 
 ########################################################################
