@@ -154,6 +154,11 @@ embed_files: getstatik wrap_registry_chart
 	statik -m -f -src=./assets/embedded-web-files/views -ns webViews -p statikWebViews -dest assets
 	statik -m -f -src=./assets/embedded-web-files/assets -ns webAssets -p statikWebAssets -dest assets
 
+update-app-crd:
+	./scripts/update-app-crd.sh
+# The script in the previous line expects the environment variable REV
+# to be set to the desired revision.
+
 ########################################################################
 # Docs
 

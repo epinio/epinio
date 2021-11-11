@@ -37,10 +37,28 @@ spec:
           spec:
             description: AppSpec defines the desired state of App
             properties:
+              origin:
+                properties:
+                  container:
+                    type: string
+                  git:
+                    properties:
+                      repository:
+                        type: string
+                      revision:
+                        type: string
+                    required:
+                    - repository
+                    type: object
+                  path:
+                    type: string
+                type: object
               routes:
                 items:
                   type: string
                 type: array
+            required:
+            - origin
             type: object
           status:
             description: AppStatus defines the observed state of App
