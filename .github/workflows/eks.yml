@@ -31,7 +31,7 @@ on:
         default: ""
 
 env:
-  SETUP_GO_VERSION: '^1.13.7'
+  SETUP_GO_VERSION: '^1.17.2'
   GINKGO_NODES: 1
   AWS_REGION: 'us-east-2'
   AWS_MACHINE_TYPE: 't3.xlarge'

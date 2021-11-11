@@ -1,5 +1,8 @@
 name: golangci-lint
 
+env:
+  SETUP_GO_VERSION: '^1.17.2'
+
 on:
   schedule:
     - cron:  '0 5 * * *'

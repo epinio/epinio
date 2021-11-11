@@ -27,7 +27,7 @@ on:
         default: ""
 
 env:
-  SETUP_GO_VERSION: '^1.13.7'
+  SETUP_GO_VERSION: '^1.17.2'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
