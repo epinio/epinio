@@ -41,6 +41,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	obj := &epinioappv1.App{
 		Spec: epinioappv1.AppSpec{
 			Routes: routes,
+			Origin: epinioappv1.AppOrigin{},
 		},
 	}
 
