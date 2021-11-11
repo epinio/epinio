@@ -201,7 +201,8 @@ func (c *EpinioClient) AppShow(appName string) error {
 		return err
 	}
 
-	msg := c.ui.Success().WithTable("Key", "Value")
+	msg := c.ui.Success().WithTable("Key", "Value").
+		WithTableRow("Origin", app.Origin.String())
 
 	var createdAt time.Time
 	if app.Workload != nil {
@@ -275,11 +276,10 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 		return err
 	}
 
-	// TODO -- Not available: Origin information. This is not stored server side.
-
 	m := models.ApplicationManifest{}
 	m.Name = appName
 	m.Configuration = app.Configuration
+	m.Origin = app.Origin
 
 	yaml, err := yaml.Marshal(m)
 	if err != nil {
