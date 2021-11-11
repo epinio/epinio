@@ -146,9 +146,9 @@ func (k Epinio) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 		return errors.Wrap(err, out)
 	}
 
-	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	domain, err := options.GetString("system-domain", TektonDeploymentID)
 	if err != nil {
-		return errors.Wrap(err, "Couldn't get system_domain option")
+		return errors.Wrap(err, "Couldn't get system-domain option")
 	}
 
 	// Wait for the cert manager to be present and active. It is required

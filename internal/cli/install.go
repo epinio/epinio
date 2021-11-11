@@ -56,8 +56,8 @@ var neededOptions = kubernetes.InstallationOptions{
 		Value:       false,
 	},
 	{
-		Name:        "system_domain",
-		Description: "The domain you are planning to use for Epinio. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).",
+		Name:        "system-domain",
+		Description: "The domain you are planning to use for Epinio. Should be pointing to the traefik public IP.",
 		Type:        kubernetes.StringType,
 		Default:     "",
 		Value:       "",

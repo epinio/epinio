@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/epinio/epinio/deployments"
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -120,39 +118,6 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		return err
 	}
 
-	// Try to give a omg.howdoi.website domain if the user didn't specify one
-	domain, err := c.options.GetOpt("system_domain", "")
-	if err != nil {
-		return err
-	}
-
-	details.Info("ensure system-domain")
-	err = c.fillInMissingSystemDomain(ctx, domain)
-	if err != nil {
-		return err
-	}
-	if domain.Value.(string) == "" {
-		return errors.New("You didn't provide a system_domain and we were unable to setup a omg.howdoi.website domain (couldn't find an ExternalIP)")
-	}
-
-	c.ui.Success().Msg("Using system_domain: " + domain.Value.(string))
-
-	// Validate if ingress svc IP belongs to system domain
-	// if it is specified by user
-	ingressIP, err := flags.GetString("loadbalancer-ip")
-	if err != nil {
-		return errors.Wrap(err, "could not read option --loadbalancer-ip")
-	}
-	if ingressIP != "" {
-		bound, err := validateIngressIPDNSBind(domain.Value.(string), ingressIP)
-		if err != nil {
-			return errors.Wrapf(err, "could not map domain name and ingress service ip address")
-		}
-		if !bound {
-			return errors.New("system domain name is not pointing to ingress service loadbalancer ip address")
-		}
-	}
-
 	s3ConnectionDetails, err := getS3ConnectionDetails(c.options)
 	if err != nil {
 		return err
@@ -215,8 +180,13 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		return err
 	}
 
+	domain, err := c.options.GetString("system-domain", "")
+	if err != nil {
+		return err
+	}
+
 	c.ui.Success().
-		WithStringValue("System domain", domain.Value.(string)).
+		WithStringValue("System domain", domain).
 		WithStringValue("API User", apiUser).
 		WithStringValue("API Password", apiPassword).
 		WithStringValue("Traefik Ingress info", traefikServiceIngressInfo).
@@ -483,29 +453,30 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 	m.Msg("Configuration...")
 }
 
-func (c *InstallClient) fillInMissingSystemDomain(ctx context.Context, domain *kubernetes.InstallationOption) error {
-	if domain.Value.(string) == "" {
-		ip := ""
-		s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-		defer s.Stop()
-		err := helpers.RunToSuccessWithTimeout(
-			func() error {
-				return c.fetchIP(ctx, &ip)
-			}, duration.ToSystemDomain(), duration.PollInterval())
-		if err != nil {
-			if strings.Contains(err.Error(), "Timed out after") {
-				return errors.Wrap(err, deployments.MessageLoadbalancerIP)
-			}
-			return err
-		}
+// TODO: Use the waiting mechanism to print the IP in the end
+// func (c *InstallClient) fillInMissingSystemDomain(ctx context.Context, domain *kubernetes.InstallationOption) error {
+// 	if domain.Value.(string) == "" {
+// 		ip := ""
+// 		s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+// 		defer s.Stop()
+// 		err := helpers.RunToSuccessWithTimeout(
+// 			func() error {
+// 				return c.fetchIP(ctx, &ip)
+// 			}, duration.ToSystemDomain(), duration.PollInterval())
+// 		if err != nil {
+// 			if strings.Contains(err.Error(), "Timed out after") {
+// 				return errors.Wrap(err, deployments.MessageLoadbalancerIP)
+// 			}
+// 			return err
+// 		}
 
-		if ip != "" {
-			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
-		}
-	}
+// 		if ip != "" {
+// 			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
+// 		}
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func (c *InstallClient) fetchIP(ctx context.Context, ip *string) error {
 	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(ctx, metav1.ListOptions{
@@ -586,9 +557,9 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 	var registryDetails *registry.ConnectionDetails
 	// If no user provided setting, use internal registry ones
 	if url == "" {
-		domain, err := options.GetString("system_domain", "")
+		domain, err := options.GetString("system-domain", "")
 		if err != nil {
-			return nil, errors.Wrap(err, "Couldn't get system_domain option")
+			return nil, errors.Wrap(err, "Couldn't get system-domain option")
 		}
 
 		// Generate random credentials
@@ -633,6 +604,10 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 // performs early validation on installation options for incompatible configuration
 // Some issues result in an error, some others simply print a warning.
 func (c *InstallClient) validateInstallationOptions() error {
+	if err := c.validateSystemDomain(); err != nil {
+		return err
+	}
+
 	forceInternalTLS := c.options.GetBoolNG("force-kube-internal-registry-tls")
 	externalRegistryUsed := c.options.GetStringNG("external-registry-url") != ""
 
@@ -643,6 +618,36 @@ func (c *InstallClient) validateInstallationOptions() error {
 	if !forceInternalTLS && !externalRegistryUsed {
 		c.ui.Exclamation().Msg("force-kube-internal-registry-tls is not set. Communication between Kubernetes and the internal registry will not be encrypted!")
 	}
+
+	return nil
+}
+
+func (c *InstallClient) validateSystemDomain() error {
+	// system-domain should be set
+	domain, err := c.options.GetString("system-domain", "")
+	if err != nil {
+		return errors.Wrap(err, "system-domain")
+	}
+	if domain == "" {
+		return errors.New("system-domain not set")
+	} else {
+		c.ui.Success().Msg("Using system-domain: " + domain)
+	}
+
+	// TODO: Make that check in the end to prompt the user to fix it?
+	// ingressIP, err := c.options.GetString("loadbalancer-ip")
+	// if err != nil {
+	// 	return errors.Wrap(err, "could not read option --loadbalancer-ip")
+	// }
+	// if ingressIP != "" {
+	// 	bound, err := validateIngressIPDNSBind(domain, ingressIP)
+	// 	if err != nil {
+	// 		return errors.Wrapf(err, "could not map domain name and ingress service ip address")
+	// 	}
+	// 	if !bound {
+	// 		return errors.New("system domain name is not pointing to ingress service loadbalancer ip address")
+	// 	}
+	// }
 
 	return nil
 }
