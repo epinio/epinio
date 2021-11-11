@@ -81,8 +81,8 @@ var Routes = routes.NamedRoutes{
 	"EnvList": get("/namespaces/:org/applications/:app/environment", errorHandler(env.Controller{}.Index)),
 
 	// Note, the second registration catches calls with an empty pattern!
-	"EnvMatch":  get("/namespaces/:org/applications/:app/environment/:env/match/:pattern", errorHandler(env.Controller{}.Match)),
-	"EnvMatch0": get("/namespaces/:org/applications/:app/environment/:env/match", errorHandler(env.Controller{}.Match)),
+	"EnvMatch":  get("/namespaces/:org/applications/:app/environmentmatch/:pattern", errorHandler(env.Controller{}.Match)),
+	"EnvMatch0": get("/namespaces/:org/applications/:app/environmentmatch", errorHandler(env.Controller{}.Match)),
 
 	"EnvSet":   post("/namespaces/:org/applications/:app/environment", errorHandler(env.Controller{}.Set)),
 	"EnvShow":  get("/namespaces/:org/applications/:app/environment/:env", errorHandler(env.Controller{}.Show)),

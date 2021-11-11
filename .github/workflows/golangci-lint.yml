@@ -1,5 +1,8 @@
 name: golangci-lint
 
+env:
+  SETUP_GO_VERSION: '^1.17.2'
+
 on:
   schedule:
     - cron:  '0 5 * * *'
@@ -14,6 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Generate Golang
         run: |
