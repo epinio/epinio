@@ -61,7 +61,7 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
 - **Apps**
   - Push code directly without additional tools or steps
   - Basic operation of your application once pushed
-  - Cloud Native Buildpacks build your code for you
+  - Cloud Native Buildpacks build and containerize your code for you
 - **Services**
   - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
   - Bind services to apps
