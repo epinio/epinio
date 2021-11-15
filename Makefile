@@ -1,7 +1,22 @@
 ########################################################################
 ## Development
 
-VERSION ?= $(shell git describe --tags)
+# Custom version suffix for use during development. The default, the
+# empty string, ensures that CI, releases, etc. are not affected by
+# this additional variable. During development on the other hand it
+# can be used to provide a string allowing developers to distinguish
+# different binaries built from the same base commit. A simple means
+# for that would be a timestamp. For example, via
+#
+# VSUFFIX="-$(date +%Y-%m-%dT%H-%M-%S)" make ...
+#
+# yielding, for example
+#
+# % ep version
+# Epinio Version: "v0.1.6-16-ge5ad0849-2021-11-18T10-00-27"
+
+VSUFFIX ?= 
+VERSION ?= "$(shell git describe --tags)$(VSUFFIX)"
 CGO_ENABLED ?= 0
 export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 
