@@ -1,6 +1,6 @@
 # Epinio
 
-Opinionated platform that runs on Kubernetes, that takes you from App to URL in one step.
+Opinionated platform that runs on Kubernetes to take you from Code to URL in one step.
 
 [![godoc](https://pkg.go.dev/badge/epinio/epinio)](https://pkg.go.dev/github.com/epinio/epinio/internal/api/v1)
 [![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=event%3Aschedule)
@@ -25,13 +25,13 @@ Opinionated platform that runs on Kubernetes, that takes you from App to URL in 
   - [Contributing](#contributing)
   - [License](#license)
 
-## What problem does Epinio solve
+## What problem does Epinio solve?
 
-Epinio makes it easy for developers to deploy their applications to Kubernetes. Easy means:
+Epinio makes it easy for developers to iterate on their applications running in Kubernetes. Easy means:
 
-- No previous experience with Kubernetes is required
+- No experience with Kubernetes is required
 - No steep learning curve
-- Quick local setup with zero configuration
+- Quick local setup with minimal configuration
 - Deploying to production similar to development
 
 Kubernetes is becoming the de-facto standard for container orchestration.
@@ -54,16 +54,17 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
 
 - **Security**
   - mTLS: Epinio uses `linkerd` to secure all communication between epinio components inside the kubernetes cluster
-  - Basic Authentication to access the API.
+  - Basic Authentication to access the API
 - **Epinio Clients**
   - Web UI
   - Epinio CLI
 - **Apps**
-  - CRUD operations of your app. (An app can be a tarball or in a github repo)
-  - Cloud Native Buildpacks provide the runtime environment for your apps
+  - Push code directly without additional tools or steps
+  - Basic operation of your application once pushed
+  - Cloud Native Buildpacks build your code for you
 - **Services**
   - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
-  - Bind services to apps.
+  - Bind services to apps
 
 ## Usage
 
