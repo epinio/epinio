@@ -39,19 +39,19 @@
       <div class="collapse navbar-collapse" id="navbarCollapse">
         <ul class="navbar-nav mr-auto">
           <li class="nav-item dropdown">
-            [[ if .currentOrg  ]]
-            <a class="nav-link dropdown-toggle" href="" id="orgDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Organization: [[ .currentOrg ]]</a>
-            <div class="dropdown-menu" aria-labelledby="orgDropdown">
-              [[ range $index, $org := .orgs ]]
-              <a class="dropdown-item" href="/orgs/target/[[ $org ]]">[[ $org ]]</a>
+            [[ if .currentNamespace ]]
+            <a class="nav-link dropdown-toggle" href="" id="namespaceDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Namespace: [[ .currentNamespace ]]</a>
+            <div class="dropdown-menu" aria-labelledby="namespaceDropdown">
+              [[ range $index, $namespace := .namespaces ]]
+              <a class="dropdown-item" href="/namespaces/target/[[ $namespace ]]">[[ $namespace ]]</a>
               [[ end ]]
             </div>
             [[ else ]]
-            <a class="nav-link dropdown-toggle" href="" id="orgDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Organization: None</a>
+            <a class="nav-link dropdown-toggle" href="" id="namespaceDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Namespace: None</a>
             [[ end ]]
           </li>
           <li>
-            <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#newOrgModal">
+            <button class="btn btn-outline-secondary" data-toggle="modal" data-target="#newNamespaceModal">
               <i class="icon-button">[[ template "icon-plus-rectangle" ]]</i>
             </button>
           </li>
@@ -110,7 +110,7 @@
       </div>
     </footer>
 
-    [[template "new-org-modal"]]
+    [[template "new-namespace-modal"]]
 
     <!-- Optional JavaScript -->
     <!-- jQuery first, then Popper.js, then Bootstrap JS -->

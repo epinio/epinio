@@ -39,13 +39,13 @@ type deployParam struct {
 	Services    application.AppServiceBindList
 }
 
-// Deploy handles the API endpoint /orgs/:org/applications/:app/deploy
+// Deploy handles the API endpoint /namespaces/:namespace/applications/:app/deploy
 // It creates the deployment, service and ingress (kube) resources for the app
 func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	name := c.Param("app")
 	username := requestctx.User(ctx)
 
@@ -57,8 +57,8 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	if name != req.App.Name {
 		return apierror.NewBadRequest("name parameter from URL does not match name param in body")
 	}
-	if org != req.App.Org {
-		return apierror.NewBadRequest("org parameter from URL does not match org param in body")
+	if namespace != req.App.Namespace {
+		return apierror.NewBadRequest("namespace parameter from URL does not match namespace param in body")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -114,7 +114,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		Username:    username,
 	}
 
-	log.Info("deploying app", "org", org, "app", req.App)
+	log.Info("deploying app", "namespace", namespace, "app", req.App)
 
 	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, deployParams.ImageURL)
 	if err != nil {
@@ -123,9 +123,9 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 
 	deployment := newAppDeployment(req.Stage.ID, deployParams)
 	deployment.SetOwnerReferences([]metav1.OwnerReference{owner})
-	if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Org).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+	if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Org).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
+			if _, err := cluster.Kubectl.AppsV1().Deployments(req.App.Namespace).Update(ctx, deployment, metav1.UpdateOptions{}); err != nil {
 				return apierror.InternalError(err)
 			}
 		} else {
@@ -133,23 +133,23 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
-	log.Info("deploying app service", "org", org, "app", req.App)
+	log.Info("deploying app service", "namespace", namespace, "app", req.App)
 
 	svc := newAppService(req.App, username)
 
 	log.Info("app service", "name", svc.ObjectMeta.Name)
 
 	svc.SetOwnerReferences([]metav1.OwnerReference{owner})
-	if _, err := cluster.Kubectl.CoreV1().Services(req.App.Org).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
+	if _, err := cluster.Kubectl.CoreV1().Services(req.App.Namespace).Create(ctx, svc, metav1.CreateOptions{}); err != nil {
 		if apierrors.IsAlreadyExists(err) {
-			service, err := cluster.Kubectl.CoreV1().Services(req.App.Org).Get(ctx, svc.Name, metav1.GetOptions{})
+			service, err := cluster.Kubectl.CoreV1().Services(req.App.Namespace).Get(ctx, svc.Name, metav1.GetOptions{})
 			if err != nil {
 				return apierror.InternalError(err)
 			}
 
 			svc.ResourceVersion = service.ResourceVersion
 			svc.Spec.ClusterIP = service.Spec.ClusterIP
-			if _, err := cluster.Kubectl.CoreV1().Services(req.App.Org).Update(ctx, svc, metav1.UpdateOptions{}); err != nil {
+			if _, err := cluster.Kubectl.CoreV1().Services(req.App.Namespace).Update(ctx, svc, metav1.UpdateOptions{}); err != nil {
 				return apierror.InternalError(err)
 			}
 		} else {
@@ -180,7 +180,7 @@ func newAppDeployment(stageID string, deployParams deployParam) *appsv1.Deployme
 	automountServiceAccountToken := true
 	labels := map[string]string{
 		"app.kubernetes.io/name":       deployParams.Name,
-		"app.kubernetes.io/part-of":    deployParams.Org,
+		"app.kubernetes.io/part-of":    deployParams.Namespace,
 		"app.kubernetes.io/component":  "application",
 		"app.kubernetes.io/managed-by": "epinio",
 		"app.kubernetes.io/created-by": deployParams.Username,
@@ -194,7 +194,7 @@ func newAppDeployment(stageID string, deployParams deployParam) *appsv1.Deployme
 			Name: deployParams.Name,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       deployParams.Name,
-				"app.kubernetes.io/part-of":    deployParams.Org,
+				"app.kubernetes.io/part-of":    deployParams.Namespace,
 				"app.kubernetes.io/component":  "application",
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/created-by": deployParams.Username,
@@ -215,7 +215,7 @@ func newAppDeployment(stageID string, deployParams deployParam) *appsv1.Deployme
 					},
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName:           deployParams.Org,
+					ServiceAccountName:           deployParams.Namespace,
 					AutomountServiceAccountToken: &automountServiceAccountToken,
 					Volumes:                      deployParams.Services.ToVolumesArray(),
 					Containers: []v1.Container{
@@ -242,7 +242,7 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      names.ServiceName(app.Name),
-			Namespace: app.Org,
+			Namespace: app.Namespace,
 			Annotations: map[string]string{
 				"kubernetes.io/ingress.class":                      "traefik",
 				"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
@@ -252,7 +252,7 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 				"app.kubernetes.io/component":  "application",
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/name":       app.Name,
-				"app.kubernetes.io/part-of":    app.Org,
+				"app.kubernetes.io/part-of":    app.Namespace,
 				"app.kubernetes.io/created-by": username,
 			},
 		},

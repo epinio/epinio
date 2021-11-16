@@ -28,14 +28,14 @@ import (
 
 var _ = Describe("Apps", func() {
 	var (
-		org     string
-		appName string
+		namespace string
+		appName   string
 	)
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
-		org = catalog.NewOrgName()
-		env.SetupAndTargetOrg(org)
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
 
 		appName = catalog.NewAppName()
 	})
@@ -233,21 +233,21 @@ configuration:
 
 			routeObj := routes.FromString(route)
 			out, err := helpers.Kubectl("get", "ingress",
-				"--namespace", org,
+				"--namespace", namespace,
 				"--selector=app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.rules[0].host}")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(routeObj.Domain))
 
 			out, err = helpers.Kubectl("get", "ingress",
-				"--namespace", org,
+				"--namespace", namespace,
 				"--selector=app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.rules[0].http.paths[0].path}")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(routeObj.Path))
 
 			out, err = helpers.Kubectl("get", "app",
-				"--namespace", org, appName,
+				"--namespace", namespace, appName,
 				"-o", "jsonpath={.spec.routes[0]}")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(route))
@@ -315,7 +315,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
-					return replicas(org, appName)
+					return replicas(namespace, appName)
 				}, timeout, interval).Should(Equal(strconv.Itoa(int(application.DefaultInstances))))
 			})
 			By("pushing with 0 instance count", func() {
@@ -323,7 +323,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
-					return replicas(org, appName)
+					return replicas(namespace, appName)
 				}, timeout, interval).Should(Equal("0"))
 			})
 			By("pushing with an instance count", func() {
@@ -331,7 +331,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
-					return replicas(org, appName)
+					return replicas(namespace, appName)
 				}, timeout, interval).Should(Equal("2"))
 			})
 			By("pushing again, without an instance count", func() {
@@ -339,7 +339,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() string {
-					return replicas(org, appName)
+					return replicas(namespace, appName)
 				}, timeout, interval).Should(Equal("2"))
 			})
 		})
@@ -363,7 +363,7 @@ configuration:
 
 			It("is using the cache PVC", func() {
 				out, err := helpers.Kubectl("get", "pvc", "--namespace",
-					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
+					deployments.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				out, err = push()
@@ -375,14 +375,14 @@ configuration:
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
 				out, err := helpers.Kubectl("get", "pvc", "--namespace",
-					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
+					deployments.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
 				out, err = helpers.Kubectl("get", "pvc", "--namespace",
-					deployments.TektonStagingNamespace, names.GenerateResourceName(org, appName))
+					deployments.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).To(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(org, appName))))
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName))))
 			})
 		})
 	})
@@ -404,7 +404,7 @@ configuration:
 			By("checking for the application resource", func() {
 				Eventually(func() string {
 					out, _ := helpers.Kubectl("get", "app",
-						"--namespace", org, appName)
+						"--namespace", namespace, appName)
 					return out
 				}, "1m").Should(ContainSubstring("AGE")) // this checks for the table header from kubectl
 			})
@@ -425,7 +425,7 @@ configuration:
 			By("checking the application resource was removed", func() {
 				Eventually(func() string {
 					out, _ := helpers.Kubectl("get", "app",
-						"--namespace", org, appName)
+						"--namespace", namespace, appName)
 					return out
 				}, "1m").Should(ContainSubstring("NotFound"))
 			})
@@ -514,13 +514,13 @@ configuration:
 
 			Eventually(func() string {
 				out, _ := helpers.Kubectl("get", "ingress",
-					"--namespace", org, appName)
+					"--namespace", namespace, appName)
 				return out
 			}, "1m").Should(ContainSubstring("not found"))
 
 			Eventually(func() string {
 				out, _ := helpers.Kubectl("get", "service",
-					"--namespace", org, appName)
+					"--namespace", namespace, appName)
 				return out
 			}, "1m").Should(ContainSubstring("not found"))
 		})
@@ -592,7 +592,7 @@ configuration:
 
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeService(serviceName)
-			env.BindAppService(appName, serviceName, org)
+			env.BindAppService(appName, serviceName, namespace)
 
 			By("deleting the app")
 			out, err := env.Epinio("", "app", "delete", appName)
@@ -671,7 +671,7 @@ configuration:
 			})
 
 			AfterEach(func() {
-				env.UnbindAppService(appName, serviceName, org)
+				env.UnbindAppService(appName, serviceName, namespace)
 				env.DeleteService(serviceName)
 				// DeleteApp see outer context
 			})
@@ -706,7 +706,7 @@ configuration:
 			serviceName = catalog.NewServiceName()
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeService(serviceName)
-			env.BindAppService(appName, serviceName, org)
+			env.BindAppService(appName, serviceName, namespace)
 		})
 
 		AfterEach(func() {
@@ -762,30 +762,30 @@ configuration:
 	})
 
 	Describe("list across namespaces", func() {
-		var org1 string
-		var org2 string
+		var namespace1 string
+		var namespace2 string
 		var app1 string
 		var app2 string
 
 		BeforeEach(func() {
-			org1 = catalog.NewOrgName()
-			env.SetupAndTargetOrg(org1)
+			namespace1 = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace1)
 
 			app1 = catalog.NewAppName()
 			env.MakeContainerImageApp(app1, 1, containerImageURL)
 
-			org2 = catalog.NewOrgName()
-			env.SetupAndTargetOrg(org2)
+			namespace2 = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace2)
 
 			app2 = catalog.NewAppName()
 			env.MakeContainerImageApp(app2, 1, containerImageURL)
 		})
 
 		AfterEach(func() {
-			env.TargetOrg(org2)
+			env.TargetNamespace(namespace2)
 			env.DeleteApp(app2)
 
-			env.TargetOrg(org1)
+			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
 		})
 
@@ -815,7 +815,7 @@ configuration:
 			out, err := env.Epinio("", "app", "logs", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			podNames := env.GetPodNames(appName, org)
+			podNames := env.GetPodNames(appName, namespace)
 			for _, podName := range podNames {
 				Expect(out).To(ContainSubstring(podName))
 			}

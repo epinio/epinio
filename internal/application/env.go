@@ -89,7 +89,7 @@ func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 
 		modifyEnvironment(evSecret)
 
-		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Org).Update(
+		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Namespace).Update(
 			ctx, evSecret, metav1.UpdateOptions{})
 
 		return err
@@ -101,7 +101,7 @@ func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeEnvSecretName()
 
-	evSecret, err := cluster.GetSecret(ctx, appRef.Org, secretName)
+	evSecret, err := cluster.GetSecret(ctx, appRef.Namespace, secretName)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, err
@@ -126,19 +126,19 @@ func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		evSecret = &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
-				Namespace: appRef.Org,
+				Namespace: appRef.Namespace,
 				OwnerReferences: []metav1.OwnerReference{
 					owner,
 				},
 				Labels: map[string]string{
 					"app.kubernetes.io/name":       appRef.Name,
-					"app.kubernetes.io/part-of":    appRef.Org,
+					"app.kubernetes.io/part-of":    appRef.Namespace,
 					"app.kubernetes.io/managed-by": "epinio",
 					"app.kubernetes.io/component":  "application",
 				},
 			},
 		}
-		err = cluster.CreateSecret(ctx, appRef.Org, *evSecret)
+		err = cluster.CreateSecret(ctx, appRef.Namespace, *evSecret)
 
 		if err != nil {
 			return nil, err

@@ -9,9 +9,9 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, org, appName, serviceName, username string) apierror.APIErrors {
+func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, serviceName, username string) apierror.APIErrors {
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -19,7 +19,7 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, org, appNam
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	_, err = services.Lookup(ctx, cluster, org, serviceName)
+	_, err = services.Lookup(ctx, cluster, namespace, serviceName)
 	if err != nil && err.Error() == "service not found" {
 		return apierror.ServiceIsNotKnown(serviceName)
 	}

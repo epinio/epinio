@@ -5,19 +5,19 @@ import (
 	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/gin-gonic/gin"
 )
 
-// OrgsController represents all functionality of the dashboard related to organizations
-type OrgsController struct {
+// NamespacesController represents all functionality of the dashboard related to namespaces
+type NamespacesController struct {
 }
 
-// Target handles the dashboard's /orgs/target endpoint. It verifies
-// that the specified org exists, and then delivers a cookie
-// persisting the targeted org in the browser state
-func (hc OrgsController) Target(c *gin.Context) {
-	org := c.Param("org")
+// Target handles the dashboard's /namespaces/target endpoint. It verifies
+// that the specified namespace exists, and then delivers a cookie
+// persisting the targeted namespace in the browser state
+func (hc NamespacesController) Target(c *gin.Context) {
+	namespace := c.Param("namespace")
 	ctx := c.Request.Context()
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -25,7 +25,7 @@ func (hc OrgsController) Target(c *gin.Context) {
 		return
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if handleError(c, err) {
 		return
 	}
@@ -36,7 +36,7 @@ func (hc OrgsController) Target(c *gin.Context) {
 		// will catch our panic and return that error.
 		err := c.AbortWithError(
 			http.StatusNotFound,
-			errors.New("Organization not found"),
+			errors.New("Namespace not found"),
 		)
 		if err != nil {
 			panic(err.Error())
@@ -44,7 +44,7 @@ func (hc OrgsController) Target(c *gin.Context) {
 		return
 	}
 
-	setCurrentOrgInCookie(org, "currentOrg", c)
+	setCurrentNamespaceInCookie(namespace, "currentNamespace", c)
 
 	c.Redirect(http.StatusFound, c.GetHeader("Referer"))
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -29,7 +29,7 @@ import (
 )
 
 // Create generates a new kube app resource in the namespace of the
-// organization. Note that this is the passive resource holding the
+// namespace. Note that this is the passive resource holding the
 // app's configuration. It is not the active workload
 func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string) error {
 	client, err := cluster.ClientApp()
@@ -37,7 +37,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 		return err
 	}
 
-	// we create the appCRD in the org's namespace
+	// we create the appCRD in the namespace
 	obj := &epinioappv1.App{
 		Spec: epinioappv1.AppSpec{
 			Routes: routes,
@@ -53,7 +53,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	us.SetKind("App")
 	us.SetName(app.Name)
 
-	_, err = client.Namespace(app.Org).Create(ctx, us, metav1.CreateOptions{})
+	_, err = client.Namespace(app.Namespace).Create(ctx, us, metav1.CreateOptions{})
 	return err
 }
 
@@ -66,7 +66,7 @@ func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*
 		return nil, err
 	}
 
-	return client.Namespace(app.Org).Get(ctx, app.Name, metav1.GetOptions{})
+	return client.Namespace(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 }
 
 // Exists checks if the named application exists or not, and returns an appropriate boolean flag
@@ -106,9 +106,9 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 	return false, nil
 }
 
-// Lookup locates the named application (and org).
-func Lookup(ctx context.Context, cluster *kubernetes.Cluster, org, appName string) (*models.App, error) {
-	meta := models.NewAppRef(appName, org)
+// Lookup locates the named application (and namespace).
+func Lookup(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (*models.App, error) {
+	meta := models.NewAppRef(appName, namespace)
 
 	ok, err := Exists(ctx, cluster, meta)
 	if err != nil {
@@ -163,7 +163,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 	// Verify namespace, if specified
 
 	if namespace != "" {
-		exists, err := organizations.Exists(ctx, cluster, namespace)
+		exists, err := namespaces.Exists(ctx, cluster, namespace)
 		if err != nil {
 			return models.AppList{}, err
 		}
@@ -184,7 +184,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 	result := models.AppList{}
 
 	for _, ref := range appRefs {
-		app, err := Lookup(ctx, cluster, ref.Org, ref.Name)
+		app, err := Lookup(ctx, cluster, ref.Namespace, ref.Name)
 		if err != nil {
 			return result, err
 		}
@@ -206,7 +206,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 
 	// delete application resource, will cascade and delete deployment,
 	// ingress, service and certificate, environment variables, bindings
-	err = client.Namespace(appRef.Org).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
+	err = client.Namespace(appRef.Namespace).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
 	}
@@ -224,7 +224,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	}
 
 	err = cluster.WaitForPodBySelectorMissing(ctx, nil,
-		appRef.Org,
+		appRef.Namespace,
 		fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
 		duration.ToDeployment())
 	if err != nil {
@@ -263,7 +263,7 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
-			appRef.Name, appRef.Org),
+			appRef.Name, appRef.Namespace),
 	})
 	if err != nil {
 		return err
@@ -294,7 +294,7 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 // to close the logChan when done.
 // When stageID is an empty string, no staging logs are returned. If it is set,
 // then only logs from that staging process are returned.
-func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, org string) error {
+func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, namespace string) error {
 	logger := tracelog.NewLogger().WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
@@ -303,7 +303,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		selectors = [][]string{
 			{"app.kubernetes.io/component", "application"},
 			{"app.kubernetes.io/managed-by", "epinio"},
-			{"app.kubernetes.io/part-of", org},
+			{"app.kubernetes.io/part-of", namespace},
 			{"app.kubernetes.io/name", app},
 		}
 	} else {
@@ -311,7 +311,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 			{"app.kubernetes.io/component", "staging"},
 			{"app.kubernetes.io/managed-by", "epinio"},
 			{models.EpinioStageIDLabel, stageID},
-			{"app.kubernetes.io/part-of", org},
+			{"app.kubernetes.io/part-of", namespace},
 		}
 	}
 
@@ -410,7 +410,7 @@ func calculateStatus(ctx context.Context, cluster *kubernetes.Cluster, app *mode
 	if app.Status == models.ApplicationError {
 		return nil
 	}
-	staging, err := CurrentlyStaging(ctx, cluster, app.Meta.Org, app.Meta.Name)
+	staging, err := CurrentlyStaging(ctx, cluster, app.Meta.Namespace, app.Meta.Name)
 	if err != nil {
 		return err
 	}

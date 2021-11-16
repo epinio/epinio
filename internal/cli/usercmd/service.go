@@ -12,9 +12,9 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// Services gets all Epinio services in the targeted org
+// Services gets all Epinio services in the targeted namespace
 func (c *EpinioClient) Services(all bool) error {
-	log := c.Log.WithName("Services").WithValues("Namespace", c.Config.Org)
+	log := c.Log.WithName("Services").WithValues("Namespace", c.Config.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
@@ -24,7 +24,7 @@ func (c *EpinioClient) Services(all bool) error {
 		msg.Msg("Listing all services")
 	} else {
 		msg.
-			WithStringValue("Namespace", c.Config.Org).
+			WithStringValue("Namespace", c.Config.Namespace).
 			Msg("Listing services")
 
 		if err := c.TargetOk(); err != nil {
@@ -40,7 +40,7 @@ func (c *EpinioClient) Services(all bool) error {
 	if all {
 		services, err = c.API.AllServices()
 	} else {
-		services, err = c.API.Services(c.Config.Org)
+		services, err = c.API.Services(c.Config.Namespace)
 	}
 	if err != nil {
 		return err
@@ -90,7 +90,7 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 	// Ask for all services. Filtering is local.
 	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	response, err := c.API.Services(c.Config.Org)
+	response, err := c.API.Services(c.Config.Namespace)
 	if err != nil {
 		return result
 	}
@@ -108,17 +108,17 @@ func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []str
 }
 
 // BindService attaches a service specified by name to the named application,
-// both in the targeted organization.
+// both in the targeted namespace.
 func (c *EpinioClient) BindService(serviceName, appName string) error {
 	log := c.Log.WithName("Bind Service To Application").
-		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Config.Org)
+		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Config.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Bind Service")
 
 	if err := c.TargetOk(); err != nil {
@@ -129,7 +129,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		Names: []string{serviceName},
 	}
 
-	br, err := c.API.ServiceBindingCreate(request, c.Config.Org, appName)
+	br, err := c.API.ServiceBindingCreate(request, c.Config.Namespace, appName)
 	if err != nil {
 		return err
 	}
@@ -138,7 +138,7 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 		c.ui.Success().
 			WithStringValue("Service", serviceName).
 			WithStringValue("Application", appName).
-			WithStringValue("Namespace", c.Config.Org).
+			WithStringValue("Namespace", c.Config.Namespace).
 			Msg("Service Already Bound to Application.")
 
 		return nil
@@ -147,30 +147,30 @@ func (c *EpinioClient) BindService(serviceName, appName string) error {
 	c.ui.Success().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Service Bound to Application.")
 	return nil
 }
 
 // UnbindService detaches the service specified by name from the named
-// application, both in the targeted organization.
+// application, both in the targeted namespace.
 func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 	log := c.Log.WithName("Unbind Service").
-		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Config.Org)
+		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Config.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Unbind Service from Application")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	_, err := c.API.ServiceBindingDelete(c.Config.Org, appName, serviceName)
+	_, err := c.API.ServiceBindingDelete(c.Config.Namespace, appName, serviceName)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 	c.ui.Success().
 		WithStringValue("Service", serviceName).
 		WithStringValue("Application", appName).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Service Detached From Application.")
 	return nil
 }
@@ -186,13 +186,13 @@ func (c *EpinioClient) UnbindService(serviceName, appName string) error {
 // DeleteService deletes a service specified by name
 func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	log := c.Log.WithName("Delete Service").
-		WithValues("Name", name, "Namespace", c.Config.Org)
+		WithValues("Name", name, "Namespace", c.Config.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Delete Service")
 
 	if err := c.TargetOk(); err != nil {
@@ -205,7 +205,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 
 	var bound []string
 
-	_, err := c.API.ServiceDelete(request, c.Config.Org, name,
+	_, err := c.API.ServiceDelete(request, c.Config.Namespace, name,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
 			if response.StatusCode != http.StatusBadRequest {
@@ -246,7 +246,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 
 	c.ui.Success().
 		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Service Removed.")
 	return nil
 }
@@ -255,14 +255,14 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
 func (c *EpinioClient) CreateService(name string, dict []string) error {
 	log := c.Log.WithName("Create Service").
-		WithValues("Name", name, "Namespace", c.Config.Org)
+		WithValues("Name", name, "Namespace", c.Config.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	data := make(map[string]string)
 	msg := c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithTable("Parameter", "Value", "Access Path")
 	for i := 0; i < len(dict); i += 2 {
 		key := dict[i]
@@ -282,7 +282,7 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 		Data: data,
 	}
 
-	_, err := c.API.ServiceCreate(request, c.Config.Org)
+	_, err := c.API.ServiceCreate(request, c.Config.Namespace)
 	if err != nil {
 		return err
 	}
@@ -292,7 +292,7 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 
 	c.ui.Success().
 		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Service Saved.")
 	return nil
 }
@@ -300,20 +300,20 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 // ServiceDetails shows the information of a service specified by name
 func (c *EpinioClient) ServiceDetails(name string) error {
 	log := c.Log.WithName("Service Details").
-		WithValues("Name", name, "Namespace", c.Config.Org)
+		WithValues("Name", name, "Namespace", c.Config.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Service Details")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	resp, err := c.API.ServiceShow(c.Config.Org, name)
+	resp, err := c.API.ServiceShow(c.Config.Namespace, name)
 	if err != nil {
 		return err
 	}

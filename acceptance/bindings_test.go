@@ -8,12 +8,12 @@ import (
 )
 
 var _ = Describe("Bounds between Apps & Services", func() {
-	var org string
+	var namespace string
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
-		org = catalog.NewOrgName()
-		env.SetupAndTargetOrg(org)
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
 	})
 	Describe("Display", func() {
 		var appName string
@@ -24,7 +24,7 @@ var _ = Describe("Bounds between Apps & Services", func() {
 
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeService(serviceName)
-			env.BindAppService(appName, serviceName, org)
+			env.BindAppService(appName, serviceName, namespace)
 		})
 		It("shows the bound app for services list, and vice versa", func() {
 			out, err := env.Epinio("", "service", "list")

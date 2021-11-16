@@ -10,10 +10,10 @@ import (
 )
 
 // EnvList returns a map of all env vars for an app
-func (c *Client) EnvList(org string, appName string) (models.EnvVariableMap, error) {
+func (c *Client) EnvList(namespace string, appName string) (models.EnvVariableMap, error) {
 	var resp models.EnvVariableMap
 
-	data, err := c.get(api.Routes.Path("EnvList", org, appName))
+	data, err := c.get(api.Routes.Path("EnvList", namespace, appName))
 	if err != nil {
 		return resp, err
 	}
@@ -28,7 +28,7 @@ func (c *Client) EnvList(org string, appName string) (models.EnvVariableMap, err
 }
 
 // EnvSet set env vars for an app
-func (c *Client) EnvSet(req models.EnvVariableMap, org string, appName string) (models.Response, error) {
+func (c *Client) EnvSet(req models.EnvVariableMap, namespace string, appName string) (models.Response, error) {
 	resp := models.Response{}
 
 	b, err := json.Marshal(req)
@@ -36,7 +36,7 @@ func (c *Client) EnvSet(req models.EnvVariableMap, org string, appName string) (
 		return resp, nil
 	}
 
-	data, err := c.post(api.Routes.Path("EnvSet", org, appName), string(b))
+	data, err := c.post(api.Routes.Path("EnvSet", namespace, appName), string(b))
 	if err != nil {
 		return resp, err
 	}
@@ -51,10 +51,10 @@ func (c *Client) EnvSet(req models.EnvVariableMap, org string, appName string) (
 }
 
 // EnvShow shows an env variable
-func (c *Client) EnvShow(org string, appName string, envName string) (models.EnvVariable, error) {
+func (c *Client) EnvShow(namespace string, appName string, envName string) (models.EnvVariable, error) {
 	resp := models.EnvVariable{}
 
-	data, err := c.get(api.Routes.Path("EnvShow", org, appName, envName))
+	data, err := c.get(api.Routes.Path("EnvShow", namespace, appName, envName))
 	if err != nil {
 		return resp, err
 	}
@@ -69,10 +69,10 @@ func (c *Client) EnvShow(org string, appName string, envName string) (models.Env
 }
 
 // EnvUnset removes an env var
-func (c *Client) EnvUnset(org string, appName string, envName string) (models.Response, error) {
+func (c *Client) EnvUnset(namespace string, appName string, envName string) (models.Response, error) {
 	resp := models.Response{}
 
-	data, err := c.delete(api.Routes.Path("EnvUnset", org, appName, envName))
+	data, err := c.delete(api.Routes.Path("EnvUnset", namespace, appName, envName))
 	if err != nil {
 		return resp, err
 	}
@@ -87,10 +87,10 @@ func (c *Client) EnvUnset(org string, appName string, envName string) (models.Re
 }
 
 // EnvMatch returns all env vars matching the prefix
-func (c *Client) EnvMatch(org string, appName string, prefix string) (models.EnvMatchResponse, error) {
+func (c *Client) EnvMatch(namespace string, appName string, prefix string) (models.EnvMatchResponse, error) {
 	resp := models.EnvMatchResponse{}
 
-	data, err := c.get(api.Routes.Path("EnvMatch", org, appName, prefix))
+	data, err := c.get(api.Routes.Path("EnvMatch", namespace, appName, prefix))
 	if err != nil {
 		return resp, err
 	}

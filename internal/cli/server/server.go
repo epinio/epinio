@@ -63,7 +63,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	// | /assets           |            | Via "/assets" Group
 	// | /                 | Dashboard  | Via individual attachment, web.Lemon()
 	// | /info             | ditto      | ditto
-	// | /orgs/target/:org | ditto      | ditto
+	// | /namespaces/target/:namespace | ditto      | ditto
 
 	router := gin.New()
 	router.HandleMethodNotAllowed = true

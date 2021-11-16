@@ -34,13 +34,13 @@ type PushParams struct {
 func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // nolint: gocyclo // Many ifs for view purposes
 	source := params.Origin.String()
 	appRef := models.AppRef{
-		Name: params.Name,
-		Org:  c.Config.Org,
+		Name:      params.Name,
+		Namespace: c.Config.Namespace,
 	}
 	log := c.Log.
 		WithName("Push").
 		WithValues("Name", appRef.Name,
-			"Namespace", appRef.Org,
+			"Namespace", appRef.Namespace,
 			"Sources", source)
 	log.Info("start")
 	defer log.Info("return")
@@ -50,7 +50,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		WithStringValue("Manifest", params.Self).
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Source Origin", source).
-		WithStringValue("Target Namespace", appRef.Org)
+		WithStringValue("Target Namespace", appRef.Namespace)
 	for _, ev := range params.Configuration.Environment.List() {
 		msg = msg.WithStringValue(fmt.Sprintf("Environment '%s'", ev.Name), ev.Value)
 	}
@@ -102,7 +102,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		Configuration: params.Configuration,
 	}
 
-	_, err := c.API.AppCreate(request, appRef.Org)
+	_, err := c.API.AppCreate(request, appRef.Namespace)
 	if err != nil {
 		// try to recover if it's a response type Conflict error and not a http connection error
 		rerr, ok := err.(interface{ StatusCode() int })
@@ -118,7 +118,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		c.ui.Normal().Msg("Application exists, updating ...")
 		details.Info("app exists conflict")
 
-		_, err := c.API.AppUpdate(params.Configuration, appRef.Org, appRef.Name)
+		_, err := c.API.AppUpdate(params.Configuration, appRef.Namespace, appRef.Name)
 		if err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		c.ui.Normal().Msg("Uploading application code ...")
 
 		details.Info("upload code")
-		upload, err := c.API.AppUpload(appRef.Org, appRef.Name, tarball)
+		upload, err := c.API.AppUpload(appRef.Namespace, appRef.Name, tarball)
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 
 	msg = c.ui.Success().
 		WithStringValue("Name", appRef.Name).
-		WithStringValue("Namespace", appRef.Org).
+		WithStringValue("Namespace", appRef.Namespace).
 		WithStringValue("Builder Image", params.Staging.Builder).
 		WithStringValue("Routes", "")
 
@@ -261,7 +261,7 @@ func (c *EpinioClient) stageLogs(details logr.Logger, appRef models.AppRef, stag
 	details.Info("wait for pipelinerun", "StageID", stageID)
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
-	_, err := c.API.StagingComplete(appRef.Org, stageID)
+	_, err := c.API.StagingComplete(appRef.Namespace, stageID)
 	if err != nil {
 		stopChan <- true // Stop the printing go routine
 		return errors.Wrap(err, "waiting for staging failed")

@@ -55,7 +55,7 @@ var CmdNamespaceList = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.Orgs()
+		err = client.Namespaces()
 		if err != nil {
 			return errors.Wrap(err, "error listing epinio-controlled namespaces")
 		}
@@ -77,7 +77,7 @@ var CmdNamespaceCreate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.CreateOrg(args[0])
+		err = client.CreateNamespace(args[0])
 		if err != nil {
 			return errors.Wrap(err, "error creating epinio-controlled namespace")
 		}
@@ -113,7 +113,7 @@ var CmdNamespaceDelete = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.DeleteOrg(args[0])
+		err = client.DeleteNamespace(args[0])
 		if err != nil {
 			return errors.Wrap(err, "error deleting epinio-controlled namespace")
 		}
@@ -130,7 +130,7 @@ var CmdNamespaceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.OrgsMatching(toComplete)
+		matches := app.NamespacesMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -149,7 +149,7 @@ var CmdNamespaceShow = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.ShowOrg(args[0])
+		err = client.ShowNamespace(args[0])
 		if err != nil {
 			return errors.Wrap(err, "error showing epinio-controlled namespace")
 		}
@@ -166,7 +166,7 @@ var CmdNamespaceShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.OrgsMatching(toComplete)
+		matches := app.NamespacesMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

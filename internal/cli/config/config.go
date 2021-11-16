@@ -24,13 +24,13 @@ var (
 
 // Config represents a epinio config
 type Config struct {
-	Org      string `mapstructure:"namespace"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"pass"`
-	API      string `mapstructure:"api"`
-	WSS      string `mapstructure:"wss"`
-	Certs    string `mapstructure:"certs"`
-	Colors   bool   `mapstructure:"colors"`
+	Namespace string `mapstructure:"namespace"`
+	User      string `mapstructure:"user"`
+	Password  string `mapstructure:"pass"`
+	API       string `mapstructure:"api"`
+	WSS       string `mapstructure:"wss"`
+	Certs     string `mapstructure:"certs"`
+	Colors    bool   `mapstructure:"colors"`
 
 	Location string // Origin of data, file which was loaded
 
@@ -130,12 +130,12 @@ func LoadFrom(file string) (*Config, error) {
 func (c *Config) String() string {
 	return fmt.Sprintf(
 		"namespace=(%s), user=(%s), pass=(%s), api=(%s), wss=(%s), color=(%v), @(%s)",
-		c.Org, c.User, c.Password, c.API, c.WSS, c.Colors, c.Location)
+		c.Namespace, c.User, c.Password, c.API, c.WSS, c.Colors, c.Location)
 }
 
 // Save saves the Epinio config
 func (c *Config) Save() error {
-	c.v.Set("namespace", c.Org)
+	c.v.Set("namespace", c.Namespace)
 	c.v.Set("user", c.User)
 	c.v.Set("pass", c.Password)
 	c.v.Set("api", c.API)

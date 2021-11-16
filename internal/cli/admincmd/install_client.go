@@ -419,7 +419,7 @@ func (c *InstallClient) DeleteWorkloads(ctx context.Context, ui *termui.UI) erro
 	var err error
 
 	nsList, err = c.kubeClient.Kubectl.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", kubernetes.EpinioOrgLabelKey, kubernetes.EpinioOrgLabelValue),
+		LabelSelector: fmt.Sprintf("%s=%s", kubernetes.EpinioNamespaceLabelKey, kubernetes.EpinioNamespaceLabelValue),
 	})
 	if err != nil {
 		return err

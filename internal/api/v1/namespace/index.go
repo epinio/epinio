@@ -7,7 +7,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -26,19 +26,19 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	orgList, err := organizations.List(ctx, cluster)
+	namespaceList, err := namespaces.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	namespaces := make(models.NamespaceList, 0, len(orgList))
-	for _, org := range orgList {
-		appNames, err := namespaceApps(ctx, cluster, org.Name)
+	namespaces := make(models.NamespaceList, 0, len(namespaceList))
+	for _, namespace := range namespaceList {
+		appNames, err := namespaceApps(ctx, cluster, namespace.Name)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 
-		serviceNames, err := namespaceServices(ctx, cluster, org.Name)
+		serviceNames, err := namespaceServices(ctx, cluster, namespace.Name)
 		// Ignore namespace if deleted mid-flight
 		if _, ok := err.(epinioerrors.NamespaceMissingError); ok {
 			continue
@@ -48,7 +48,7 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 		}
 
 		namespaces = append(namespaces, models.Namespace{
-			Name:     org.Name,
+			Name:     namespace.Name,
 			Apps:     appNames,
 			Services: serviceNames,
 		})
@@ -58,9 +58,9 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, error) {
+func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
 	// Retrieve app references for namespace, and reduce to their names.
-	appRefs, err := application.ListAppRefs(ctx, cluster, org)
+	appRefs, err := application.ListAppRefs(ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +72,9 @@ func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, org string)
 	return appNames, nil
 }
 
-func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, org string) ([]string, error) {
+func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
 	// Retrieve services for namespace, and reduce to their names.
-	services, err := services.List(ctx, cluster, org)
+	services, err := services.List(ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}

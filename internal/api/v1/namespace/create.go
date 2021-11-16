@@ -5,7 +5,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -33,15 +33,15 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.BadRequest(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, request.Name)
+	exists, err := namespaces.Exists(ctx, cluster, request.Name)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if exists {
-		return apierror.OrgAlreadyKnown(request.Name)
+		return apierror.NamespaceAlreadyKnown(request.Name)
 	}
 
-	err = organizations.Create(ctx, cluster, request.Name)
+	err = namespaces.Create(ctx, cluster, request.Name)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

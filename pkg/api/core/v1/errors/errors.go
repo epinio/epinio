@@ -116,10 +116,10 @@ func UserNotFound() APIError {
 		http.StatusBadRequest)
 }
 
-// OrgIsNotKnown constructs an API error for when the desired org does not exist
-func OrgIsNotKnown(org string) APIError {
+// NamespaceIsNotKnown constructs an API error for when the desired namespace does not exist
+func NamespaceIsNotKnown(namespace string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Targeted namespace '%s' does not exist", org),
+		fmt.Sprintf("Targeted namespace '%s' does not exist", namespace),
 		"",
 		http.StatusNotFound)
 }
@@ -148,10 +148,10 @@ func ServiceIsNotKnown(service string) APIError {
 		http.StatusNotFound)
 }
 
-// OrgAlreadyKnown constructs an API error for when we have a conflict with an existing org
-func OrgAlreadyKnown(org string) APIError {
+// NamespaceAlreadyKnown constructs an API error for when we have a conflict with an existing namespace
+func NamespaceAlreadyKnown(namespace string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Namespace '%s' already exists", org),
+		fmt.Sprintf("Namespace '%s' already exists", namespace),
 		"",
 		http.StatusConflict)
 }

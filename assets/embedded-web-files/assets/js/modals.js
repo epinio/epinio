@@ -1,20 +1,20 @@
 'use strict';
 
-class NewOrgModal {
+class NewNamespaceModal {
   constructor() {
-    this.newOrgFormId = "#newOrgForm";
+    this.newNamespaceFormId = "#newNamespaceForm";
   }
 
   registerHook(){
-    $(this.newOrgFormId).submit(function(event) {
+    $(this.newNamespaceFormId).submit(function(event) {
       /* stop form from submitting normally */
       event.preventDefault();
       var $form = $(this), url = $form.attr('action');
 
-      var orgName = $(event.currentTarget).find("#orgName").val();
-      var data = { name: orgName };
+      var namespaceName = $(event.currentTarget).find("#namespaceName").val();
+      var data = { name: namespaceName };
       $.post(url, JSON.stringify(data), function(data){
-        window.location.href = "/orgs/target/"+orgName;
+        window.location.href = "/namespaces/target/"+namespaceName;
       })
       .fail(function(resp) {
         alert("Something went wrong: "+resp.responseText);
@@ -25,7 +25,7 @@ class NewOrgModal {
 };
 
 $( document ).ready(function() {
-  var modal = new NewOrgModal;
+  var modal = new NewNamespaceModal;
   modal.registerHook();
 });
 

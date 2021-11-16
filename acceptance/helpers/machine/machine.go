@@ -39,28 +39,28 @@ func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
 	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
 }
 
-func (m *Machine) SetupAndTargetOrg(org string) {
+func (m *Machine) SetupAndTargetNamespace(namespace string) {
 	By("creating a namespace")
 
-	out, err := m.Epinio("", "namespace", "create", org)
+	out, err := m.Epinio("", "namespace", "create", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
-	out, err = m.Epinio("", "namespace", "show", org)
+	out, err = m.Epinio("", "namespace", "show", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + org))
+	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
 
-	m.TargetOrg(org)
+	m.TargetNamespace(namespace)
 }
 
-func (m *Machine) TargetOrg(org string) {
+func (m *Machine) TargetNamespace(namespace string) {
 	By("targeting a namespace")
 
-	out, err := m.Epinio(m.nodeTmpDir, "target", org)
+	out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = m.Epinio(m.nodeTmpDir, "target")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: " + org))
+	ExpectWithOffset(1, out).To(MatchRegexp("Currently targeted namespace: " + namespace))
 }
 
 func (m *Machine) DeleteNamespace(namespace string) {
@@ -74,10 +74,10 @@ func (m *Machine) DeleteNamespace(namespace string) {
 	ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: Targeted namespace.*does not exist.*"))
 }
 
-func (m *Machine) VerifyOrgNotExist(org string) {
+func (m *Machine) VerifyNamespaceNotExist(namespace string) {
 	out, err := m.Epinio("", "namespace", "list")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).ToNot(MatchRegexp(org))
+	ExpectWithOffset(1, out).ToNot(MatchRegexp(namespace))
 }
 
 func (m *Machine) MakeWebSocketConnection(url string) *websocket.Conn {
@@ -95,11 +95,11 @@ func (m *Machine) MakeWebSocketConnection(url string) *websocket.Conn {
 	return ws
 }
 
-func (m *Machine) GetPodNames(appName, orgName string) []string {
+func (m *Machine) GetPodNames(appName, namespaceName string) []string {
 	jsonPath := `{range .items[*]}{.metadata.name}{"\n"}{end}`
 	out, err := helpers.Kubectl("get", "pods",
-		"--namespace", orgName,
-		"--selector", fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/name=%s, app.kubernetes.io/part-of=%s", appName, orgName),
+		"--namespace", namespaceName,
+		"--selector", fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/name=%s, app.kubernetes.io/part-of=%s", appName, namespaceName),
 		"-o", "jsonpath="+jsonPath)
 	Expect(err).NotTo(HaveOccurred())
 

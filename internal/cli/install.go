@@ -195,7 +195,7 @@ var traefikOptions = kubernetes.InstallationOptions{skipLinkerdOption, ingressSe
 var certManagerOptions = kubernetes.InstallationOptions{emailOption}
 
 const (
-	DefaultOrganization = "workspace"
+	DefaultNamespace = "workspace"
 )
 
 func init() {
@@ -299,13 +299,13 @@ func install(cmd *cobra.Command, args []string) error {
 	// Post Installation Tasks:
 	// - Retrieve API certs and credentials, save to configuration
 	//
-	// - Create and target a default organization, so that the
+	// - Create and target a default namespace, so that the
 	//   user can immediately begin to push applications.
 	//
 	// Dev Note: The targeting is done to ensure that a epinio
 	// config left over from a previous installation will contain
-	// a valid organization. Without it may contain the name of a
-	// now invalid organization from said previous install. This
+	// a valid namespace. Without it may contain the name of a
+	// now invalid namespace from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
 	err = cfgCmd.ConfigUpdate(cmd.Context())
@@ -324,21 +324,21 @@ func install(cmd *cobra.Command, args []string) error {
 
 	userCmd.Log.Info("Post update config", "value", userCmd.Config.String())
 
-	skipDefaultOrg, err := cmd.Flags().GetBool("skip-default-namespace")
+	skipDefaultNamespace, err := cmd.Flags().GetBool("skip-default-namespace")
 	if err != nil {
 		return errors.Wrap(err, "error reading option --skip-default-namespace")
 	}
 
-	if !skipDefaultOrg {
+	if !skipDefaultNamespace {
 		ui.Note().Msg("Now checking ability to use the API server. And setting up useful things at the same time")
 
-		err := userCmd.CreateOrg(DefaultOrganization)
+		err := userCmd.CreateNamespace(DefaultNamespace)
 
 		if err != nil {
 			return errors.Wrap(err, "error creating namespace")
 		}
 
-		err = userCmd.Target(DefaultOrganization)
+		err = userCmd.Target(DefaultNamespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to set target")
 		}

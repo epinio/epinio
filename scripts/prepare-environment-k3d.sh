@@ -59,6 +59,6 @@ if [ ${retry} -ge ${maxRetries} ]; then
   exit 1
 fi
 
-# Create Org
+# Create Namespace
 "${EPINIO_BINARY}" namespace create workspace
 "${EPINIO_BINARY}" target workspace

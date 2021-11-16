@@ -26,7 +26,7 @@ func BoundServices(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 	var bound = services.ServiceList{}
 
 	for _, name := range names {
-		service, err := services.Lookup(ctx, cluster, appRef.Org, name)
+		service, err := services.Lookup(ctx, cluster, appRef.Namespace, name)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +110,7 @@ func svcUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 
 		modifyBoundServices(svcSecret)
 
-		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Org).Update(
+		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Namespace).Update(
 			ctx, svcSecret, metav1.UpdateOptions{})
 
 		return err
@@ -122,7 +122,7 @@ func svcUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 func svcLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeServiceSecretName()
 
-	svcSecret, err := cluster.GetSecret(ctx, appRef.Org, secretName)
+	svcSecret, err := cluster.GetSecret(ctx, appRef.Namespace, secretName)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, err
@@ -147,19 +147,19 @@ func svcLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		svcSecret = &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
-				Namespace: appRef.Org,
+				Namespace: appRef.Namespace,
 				OwnerReferences: []metav1.OwnerReference{
 					owner,
 				},
 				Labels: map[string]string{
 					"app.kubernetes.io/name":       appRef.Name,
-					"app.kubernetes.io/part-of":    appRef.Org,
+					"app.kubernetes.io/part-of":    appRef.Namespace,
 					"app.kubernetes.io/managed-by": "epinio",
 					"app.kubernetes.io/component":  "application",
 				},
 			},
 		}
-		err = cluster.CreateSecret(ctx, appRef.Org, *svcSecret)
+		err = cluster.CreateSecret(ctx, appRef.Namespace, *svcSecret)
 
 		if err != nil {
 			return nil, err

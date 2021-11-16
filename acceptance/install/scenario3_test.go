@@ -95,7 +95,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 			Expect(loadbalancer).ToNot(BeEmpty())
 		})
 
-		// Now create the default org which we skipped because
+		// Now create the default namespace which we skipped because
 		// it would fail before patching.
 		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
 		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)

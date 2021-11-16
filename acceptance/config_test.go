@@ -58,7 +58,7 @@ var _ = Describe("Config", func() {
 			config, err := env.Epinio("", "config", "show")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(config).To(MatchRegexp(`Colorized Output.*\|`))  // Exact state not relevant
-			Expect(config).To(MatchRegexp(`Current Namespace.*\|`)) // Exact name of org is not relevant, and varies
+			Expect(config).To(MatchRegexp(`Current Namespace.*\|`)) // Exact name of namespace is not relevant, and varies
 			Expect(config).To(MatchRegexp(`Certificates.*\|.*Present`))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API User Name.*\|.*%s`, env.EpinioUser)))
 			Expect(config).To(MatchRegexp(fmt.Sprintf(`API Password.*\|.*%s`, env.EpinioPassword)))
@@ -72,7 +72,7 @@ var _ = Describe("Config", func() {
 
 		It("regenerates certs and credentials", func() {
 			// Get back the certs and credentials
-			// Note that `org`, as a purely local setting, is not restored
+			// Note that `namespace`, as a purely local setting, is not restored
 
 			out, err := env.Epinio("", "config", "update", "--config-file", tmpConfigPath)
 			Expect(err).ToNot(HaveOccurred())

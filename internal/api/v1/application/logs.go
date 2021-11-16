@@ -12,7 +12,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 
@@ -20,14 +20,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Logs handles the API endpoints GET /namespaces/:org/applications/:app/logs
-// and                            GET /namespaces/:org/staging/:stage_id/logs
+// Logs handles the API endpoints GET /namespaces/:namespace/applications/:app/logs
+// and                            GET /namespaces/:namespace/staging/:stage_id/logs
 // It arranges for the logs of the specified application to be
 // streamed over a websocket. Dependent on the endpoint this may be
 // either regular logs, or the app's staging logs.
 func (hc Controller) Logs(c *gin.Context) {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	stageID := c.Param("stage_id")
 	log := tracelog.Logger(ctx)
@@ -39,22 +39,22 @@ func (hc Controller) Logs(c *gin.Context) {
 		return
 	}
 
-	log.Info("validate organization", "name", org)
-	exists, err := organizations.Exists(ctx, cluster, org)
+	log.Info("validate namespace", "name", namespace)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		response.Error(c, apierror.InternalError(err))
 		return
 	}
 
 	if !exists {
-		response.Error(c, apierror.OrgIsNotKnown(org))
+		response.Error(c, apierror.NamespaceIsNotKnown(namespace))
 		return
 	}
 
 	if appName != "" {
-		log.Info("retrieve application", "name", appName, "org", org)
+		log.Info("retrieve application", "name", appName, "namespace", namespace)
 
-		app, err := application.Lookup(ctx, cluster, org, appName)
+		app, err := application.Lookup(ctx, cluster, namespace, appName)
 		if err != nil {
 			response.Error(c, apierror.InternalError(err))
 			return
@@ -95,7 +95,7 @@ func (hc Controller) Logs(c *gin.Context) {
 	log.Info("streaming mode", "follow", follow)
 	log.Info("streaming begin")
 
-	err = hc.streamPodLogs(ctx, conn, org, appName, stageID, cluster, follow)
+	err = hc.streamPodLogs(ctx, conn, namespace, appName, stageID, cluster, follow)
 	if err != nil {
 		log.V(1).Error(err, "error occurred after upgrading the websockets connection")
 		return
@@ -104,7 +104,7 @@ func (hc Controller) Logs(c *gin.Context) {
 	log.Info("streaming completed")
 }
 
-// streamPodLogs sends the logs of any containers matching orgName, appName
+// streamPodLogs sends the logs of any containers matching namespaceName, appName
 // and stageID to hc.conn (websockets) until ctx is Done or the connection is
 // closed.
 // Internally this uses two concurrent "threads" talking with each other
@@ -119,7 +119,7 @@ func (hc Controller) Logs(c *gin.Context) {
 // connection is closed. In any case it will call the cancel func that will stop
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
-func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, orgName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
+func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
 	logger := tracelog.NewLogger().WithName("streamer-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
@@ -133,7 +133,7 @@ func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, or
 		}()
 
 		var tailWg sync.WaitGroup
-		err := application.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, orgName)
+		err := application.Logs(logCtx, logChan, &tailWg, cluster, follow, appName, stageID, namespaceName)
 		if err != nil {
 			logger.Error(err, "setting up log routines failed")
 		}

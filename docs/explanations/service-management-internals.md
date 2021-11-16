@@ -47,7 +47,7 @@ the application's workload, a kubernetes `Deployment`. This change
 forces the deployment to restart the application's pods.
 
 The relevant API endpoint is `ServiceBindingCreate`
-(`POST /namespaces/:org/applications/:app/servicebindings`)
+(`POST /namespaces/:namespace/applications/:app/servicebindings`)
 
 TODO: replace by equivalent SVG graphic
 ```
@@ -87,7 +87,7 @@ the application's workload, a kubernetes `Deployment`. This change
 forces the deployment to restart the application's pods.
 
 The relevant API endpoint is `ServiceBindingDelete`
-(`DELETE /namespaces/:org/applications/:app/servicebindings/:service`)
+(`DELETE /namespaces/:namespace/applications/:app/servicebindings/:service`)
 
 TODO: replace by equivalent SVG graphic
 ```
@@ -259,9 +259,9 @@ user <-- client :report ok fail
 
 |Name                 |Op     |Location                                                      |
 |---                  |---    |---                                                           |
-|AppCreate            |POST   |`/namespaces/:org/applications`                               |
-|AppDelete            |DELETE |`/namespaces/:org/applications/:app`                          |
-|AppUpdate            |PATCH  |`/namespaces/:org/applications/:app`                          |
-|ServiceBindingCreate |POST   |`/namespaces/:org/applications/:app/servicebindings`          |
-|ServiceBindingDelete |DELETE |`/namespaces/:org/applications/:app/servicebindings/:service` |
-|ServiceDelete        |DELETE |`/namespaces/:org/services/:service`                          |
+|AppCreate            |POST   |`/namespaces/:namespace/applications`                               |
+|AppDelete            |DELETE |`/namespaces/:namespace/applications/:app`                          |
+|AppUpdate            |PATCH  |`/namespaces/:namespace/applications/:app`                          |
+|ServiceBindingCreate |POST   |`/namespaces/:namespace/applications/:app/servicebindings`          |
+|ServiceBindingDelete |DELETE |`/namespaces/:namespace/applications/:app/servicebindings/:service` |
+|ServiceDelete        |DELETE |`/namespaces/:namespace/services/:service`                          |

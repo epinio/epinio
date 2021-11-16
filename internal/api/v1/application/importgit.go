@@ -20,14 +20,14 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// ImportGit handles the API endpoint /namespaces/:org/applications/:app/import-git.
+// ImportGit handles the API endpoint /namespaces/:namespace/applications/:app/import-git.
 // It receives a Git repo url and revision, clones that (shallow clone), creates a tarball
 // of the repo and puts it on S3.
 func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	name := c.Param("app")
 
 	url := c.PostForm("giturl")
@@ -82,12 +82,12 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 
 	username := requestctx.User(ctx)
 	blobUID, err := manager.Upload(ctx, tarball, map[string]string{
-		"app": name, "org": org, "username": username,
+		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
-	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
+	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	// Return the id of the new blob
 	response.OKReturn(c, models.ImportGitResponse{

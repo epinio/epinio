@@ -21,12 +21,12 @@ var CmdTarget = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		org := ""
+		namespace := ""
 		if len(args) > 0 {
-			org = args[0]
+			namespace = args[0]
 		}
 
-		err = client.Target(org)
+		err = client.Target(namespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to set target")
 		}
@@ -43,7 +43,7 @@ var CmdTarget = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		matches := app.OrgsMatching(toComplete)
+		matches := app.NamespacesMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},

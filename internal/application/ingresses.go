@@ -120,7 +120,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 		if _, ok := existingIngresses[desiredRoute]; ok {
 			continue
 		}
-		log.Info("creating app ingress", "org", appRef.Org, "app", appRef.Name, "", desiredRoute)
+		log.Info("creating app ingress", "namespace", appRef.Namespace, "app", appRef.Name, "", desiredRoute)
 
 		route := routes.FromString(desiredRoute)
 		ingressName := names.IngressName(fmt.Sprintf("%s-%s", appRef.Name, route))
@@ -133,9 +133,9 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 
 		// Check if ingress already exists and skip.
 		// If it doesn't exist, create the Ingress and the cert for it.
-		if _, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Get(ctx, ingress.Name, metav1.GetOptions{}); err != nil {
+		if _, err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Namespace).Get(ctx, ingress.Name, metav1.GetOptions{}); err != nil {
 			if apierrors.IsNotFound(err) {
-				createdIngress, createErr := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Create(ctx, &ingress, metav1.CreateOptions{})
+				createdIngress, createErr := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Namespace).Create(ctx, &ingress, metav1.CreateOptions{})
 				if createErr != nil {
 					return []string{}, errors.Wrap(err, "creating an application Ingress")
 				}
@@ -143,7 +143,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 				// Create the certificate for this Ingress (Ignores it if it exists)
 				cert := auth.CertParam{
 					Name:      createdIngress.Name,
-					Namespace: appRef.Org,
+					Namespace: appRef.Namespace,
 					Issuer:    viper.GetString("tls-issuer"),
 					Domain:    route.Domain,
 					Labels:    map[string]string{"app.kubernetes.io/name": appRef.Name},
@@ -170,7 +170,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 	for route, ingress := range existingIngresses {
 		if _, ok := desiredRoutesMap[route]; !ok {
 			deletionPropagation := metav1.DeletePropagationBackground
-			if err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).Delete(ctx, ingress.Name, metav1.DeleteOptions{
+			if err := cluster.Kubectl.NetworkingV1().Ingresses(appRef.Namespace).Delete(ctx, ingress.Name, metav1.DeleteOptions{
 				PropagationPolicy: &deletionPropagation,
 			}); err != nil {
 				return []string{}, err
@@ -196,7 +196,7 @@ func completeIngress(ingress *networkingv1.Ingress, appRef models.AppRef, userna
 		"app.kubernetes.io/managed-by": "epinio",
 		"app.kubernetes.io/name":       appRef.Name,
 		"app.kubernetes.io/created-by": username,
-		"app.kubernetes.io/part-of":    appRef.Org,
+		"app.kubernetes.io/part-of":    appRef.Namespace,
 	}
 
 	ingress.Spec.Rules[0].IngressRuleValue.HTTP.Paths[0].Backend =
@@ -224,7 +224,7 @@ func ingressListForApp(ctx context.Context, cluster *kubernetes.Cluster, appRef 
 		"app.kubernetes.io/name": appRef.Name,
 	}).AsSelector().String()
 
-	return cluster.Kubectl.NetworkingV1().Ingresses(appRef.Org).List(ctx, metav1.ListOptions{
+	return cluster.Kubectl.NetworkingV1().Ingresses(appRef.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: ingressSelector,
 	})
 }

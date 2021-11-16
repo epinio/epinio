@@ -4,17 +4,17 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// Delete handles the API endpoint DELETE /namespaces/:org/applications/:app
+// Delete handles the API endpoint DELETE /namespaces/:namespace/applications/:app
 // It removes the named application
 func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	appName := c.Param("app")
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -22,16 +22,16 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	app := models.NewAppRef(appName, org)
+	app := models.NewAppRef(appName, namespace)
 
 	found, err := application.Exists(ctx, cluster, app)
 	if err != nil {

@@ -7,18 +7,18 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/servicebinding"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// Delete handles the API end point /orgs/:org/services/:service (DELETE)
+// Delete handles the API end point /namespaces/:namespace/services/:service (DELETE)
 // It deletes the named service
 func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
 	username := requestctx.User(ctx)
 
@@ -33,15 +33,15 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	service, err := services.Lookup(ctx, cluster, org, serviceName)
+	service, err := services.Lookup(ctx, cluster, namespace, serviceName)
 	if err != nil && err.Error() == "service not found" {
 		return apierror.ServiceIsNotKnown(serviceName)
 	}
@@ -54,7 +54,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	// Without automatic unbind such applications are reported as error.
 
 	boundAppNames := []string{}
-	appsOf, err := servicesToApps(ctx, cluster, org)
+	appsOf, err := servicesToApps(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -68,7 +68,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		}
 
 		for _, app := range boundApps {
-			apiErr := servicebinding.DeleteBinding(ctx, cluster, org, app.Meta.Name, serviceName, username)
+			apiErr := servicebinding.DeleteBinding(ctx, cluster, namespace, app.Meta.Name, serviceName, username)
 			if apiErr != nil {
 				return apiErr
 			}

@@ -23,7 +23,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -84,13 +84,13 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 	return err
 }
 
-// Stage handles the API endpoint /orgs/:org/applications/:app/stage
+// Stage handles the API endpoint /namespaces/:namespace/applications/:app/stage
 // It creates a Tekton PipelineRun resource to stage the app
 func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	name := c.Param("app")
 	username := requestctx.User(ctx)
 
@@ -102,8 +102,8 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	if name != req.App.Name {
 		return apierror.NewBadRequest("name parameter from URL does not match name param in body")
 	}
-	if org != req.App.Org {
-		return apierror.NewBadRequest("org parameter from URL does not match org param in body")
+	if namespace != req.App.Namespace {
+		return apierror.NewBadRequest("namespace parameter from URL does not match namespace param in body")
 	}
 
 	if req.BuilderImage == "" {
@@ -124,9 +124,9 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
-	log.Info("staging app", "org", org, "app", req)
+	log.Info("staging app", "namespace", namespace, "app", req)
 
-	staging, err := application.CurrentlyStaging(ctx, cluster, req.App.Org, req.App.Name)
+	staging, err := application.CurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -188,7 +188,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	log.Info("staged app", "org", org, "app", params.AppRef, "uid", uid)
+	log.Info("staged app", "namespace", namespace, "app", params.AppRef, "uid", uid)
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
@@ -197,12 +197,12 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-// Staged handles the API endpoint /orgs/:org/staging/:stage_id/complete
+// Staged handles the API endpoint /namespaces/:namespace/staging/:stage_id/complete
 // It waits for the Tekton PipelineRun resource staging the app to complete
 func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	id := c.Param("stage_id")
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -210,7 +210,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -280,7 +280,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 			Name: app.Stage.ID,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
-				"app.kubernetes.io/part-of":    app.Org,
+				"app.kubernetes.io/part-of":    app.Namespace,
 				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      app.Stage.ID,
 				models.EpinioStageBlobUIDLabel: app.BlobUID,

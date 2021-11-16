@@ -1,19 +1,19 @@
-[[define "new-org-modal"]]
-<div class="modal fade" id="newOrgModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+[[define "new-namespace-modal"]]
+<div class="modal fade" id="newNamespaceModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form id="newOrgForm" action="/api/v1/namespaces">
+      <form id="newNamespaceForm" action="/api/v1/namespaces">
         <div class="modal-header">
-          <h5 class="modal-title" id="exampleModalLabel">Create Organization</h5>
+          <h5 class="modal-title" id="exampleModalLabel">Create Namespace</h5>
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
           </button>
         </div>
         <div class="modal-body">
             <div class="form-group">
-              <label for="orgName">Organization Name</label>
-              <input type="text" class="form-control" id="orgName" aria-describedby="orgNameHelp" placeholder="E.g. MyNewOrg">
-              <small id="orgNameHelp" class="form-text text-muted">The name of the new Organization</small>
+              <label for="namespaceName">Namespace Name</label>
+              <input type="text" class="form-control" id="namespaceName" aria-describedby="namespaceNameHelp" placeholder="E.g. MyNewNamespace">
+              <small id="namespaceNameHelp" class="form-text text-muted">The name of the new Namespace</small>
             </div>
         </div>
         <div class="modal-footer">

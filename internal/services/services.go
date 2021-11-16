@@ -8,7 +8,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,11 +19,11 @@ type ServiceList []*Service
 
 // Service contains the information needed for Epinio to address a specific service.
 type Service struct {
-	SecretName string
-	OrgName    string
-	Service    string
-	Username   string
-	kubeClient *kubernetes.Cluster
+	SecretName    string
+	NamespaceName string
+	Service       string
+	Username      string
+	kubeClient    *kubernetes.Cluster
 }
 
 // Lookup locates a Service by namespace and name. It finds the Service
@@ -43,11 +43,11 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, serv
 	username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 	return &Service{
-		SecretName: secretName,
-		OrgName:    namespace,
-		Service:    service,
-		kubeClient: kubeClient,
-		Username:   username,
+		SecretName:    secretName,
+		NamespaceName: namespace,
+		Service:       service,
+		kubeClient:    kubeClient,
+		Username:      username,
 	}, nil
 }
 
@@ -58,7 +58,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (S
 
 	// Verify namespace, if specified
 	if namespace != "" {
-		exists, err := organizations.Exists(ctx, cluster, namespace)
+		exists, err := namespaces.Exists(ctx, cluster, namespace)
 		if err != nil {
 			return ServiceList{}, err
 		}
@@ -91,11 +91,11 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (S
 		secretName := s.ObjectMeta.Name
 
 		result = append(result, &Service{
-			SecretName: secretName,
-			OrgName:    namespace,
-			Service:    service,
-			kubeClient: cluster,
-			Username:   username,
+			SecretName:    secretName,
+			NamespaceName: namespace,
+			Service:       service,
+			kubeClient:    cluster,
+			Username:      username,
 		})
 	}
 
@@ -137,10 +137,10 @@ func CreateService(ctx context.Context, cluster *kubernetes.Cluster, name, names
 		return nil, err
 	}
 	return &Service{
-		SecretName: secretName,
-		OrgName:    namespace,
-		Service:    name,
-		kubeClient: cluster,
+		SecretName:    secretName,
+		NamespaceName: namespace,
+		Service:       name,
+		kubeClient:    cluster,
 	}, nil
 }
 
@@ -154,9 +154,9 @@ func (s *Service) User() string {
 	return s.Username
 }
 
-// Org returns the service instance's namespace
-func (s *Service) Org() string {
-	return s.OrgName
+// Namespace returns the service instance's namespace
+func (s *Service) Namespace() string {
+	return s.NamespaceName
 }
 
 // GetBinding returns the secret representing the instance's binding
@@ -164,7 +164,7 @@ func (s *Service) Org() string {
 // independent of the application.
 func (s *Service) GetBinding(ctx context.Context, appName string, _ string) (*corev1.Secret, error) {
 	cluster := s.kubeClient
-	serviceSecret, err := cluster.GetSecret(ctx, s.OrgName, s.SecretName)
+	serviceSecret, err := cluster.GetSecret(ctx, s.NamespaceName, s.SecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, errors.New("service does not exist")
@@ -178,13 +178,13 @@ func (s *Service) GetBinding(ctx context.Context, appName string, _ string) (*co
 // Delete destroys the service instance, i.e. its underlying secret
 // holding the instance's parameters
 func (s *Service) Delete(ctx context.Context) error {
-	return s.kubeClient.DeleteSecret(ctx, s.OrgName, s.SecretName)
+	return s.kubeClient.DeleteSecret(ctx, s.NamespaceName, s.SecretName)
 }
 
 // Details returns the service instance's configuration.
 // I.e. the parameter data.
 func (s *Service) Details(ctx context.Context) (map[string]string, error) {
-	serviceSecret, err := s.kubeClient.GetSecret(ctx, s.OrgName, s.SecretName)
+	serviceSecret, err := s.kubeClient.GetSecret(ctx, s.NamespaceName, s.SecretName)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, errors.New("service does not exist")
@@ -204,5 +204,5 @@ func (s *Service) Details(ctx context.Context) (map[string]string, error) {
 // serviceResourceName returns a name for a kube service resource
 // representing the namespace and service
 func serviceResourceName(namespace, service string) string {
-	return fmt.Sprintf("service.org-%s.svc-%s", namespace, service)
+	return fmt.Sprintf("service.namespace-%s.svc-%s", namespace, service)
 }

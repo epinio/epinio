@@ -8,7 +8,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -17,12 +17,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 )
 
-// Update handles the API endpoint PATCH /namespaces/:org/applications/:app
+// Update handles the API endpoint PATCH /namespaces/:namespace/applications/:app
 // It modifies the specified application. Currently this is only the
 // number of instances to run.
 func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	username := requestctx.User(ctx)
 
@@ -31,16 +31,16 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	appRef := models.NewAppRef(appName, org)
+	appRef := models.NewAppRef(appName, namespace)
 	exists, err = application.Exists(ctx, cluster, appRef)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -62,7 +62,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.NewBadRequest("instances param should be integer equal or greater than zero")
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -121,7 +121,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		var okToBind []string
 
 		for _, serviceName := range updateRequest.Services {
-			_, err := services.Lookup(ctx, cluster, org, serviceName)
+			_, err := services.Lookup(ctx, cluster, namespace, serviceName)
 			if err != nil {
 				if err.Error() == "service not found" {
 					theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
@@ -183,7 +183,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 			"value": [%s] }]`,
 			strings.Join(routes, ","))
 
-		_, err = client.Namespace(app.Meta.Org).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
 			return apierror.InternalError(err)
 		}

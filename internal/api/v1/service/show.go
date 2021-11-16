@@ -3,18 +3,18 @@ package service
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// Show handles the API end point /orgs/:org/services/:service
+// Show handles the API end point /namespaces/:namespace/services/:service
 // It returns the detail information of the named service instance
 func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -22,15 +22,15 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	service, err := services.Lookup(ctx, cluster, org, serviceName)
+	service, err := services.Lookup(ctx, cluster, namespace, serviceName)
 	if err != nil {
 		if err.Error() == "service not found" {
 			return apierror.ServiceIsNotKnown(serviceName)

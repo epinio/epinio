@@ -10,16 +10,16 @@ import (
 )
 
 var _ = Describe("Services", func() {
-	var org string
+	var namespace string
 	var serviceName1 string
 	var serviceName2 string
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
-		org = catalog.NewOrgName()
+		namespace = catalog.NewNamespaceName()
 		serviceName1 = catalog.NewServiceName()
 		serviceName2 = catalog.NewServiceName()
-		env.SetupAndTargetOrg(org)
+		env.SetupAndTargetNamespace(namespace)
 	})
 
 	Describe("service list", func() {
@@ -42,40 +42,40 @@ var _ = Describe("Services", func() {
 	})
 
 	Describe("list across namespaces", func() {
-		var org1 string
-		var org2 string
+		var namespace1 string
+		var namespace2 string
 		var service1 string
 		var service2 string
 		var app1 string
 
 		// Setting up:
-		// org1 service1 app1
-		// org2 service1
-		// org2 service2
+		// namespace1 service1 app1
+		// namespace2 service1
+		// namespace2 service2
 
 		BeforeEach(func() {
-			org1 = catalog.NewOrgName()
-			org2 = catalog.NewOrgName()
+			namespace1 = catalog.NewNamespaceName()
+			namespace2 = catalog.NewNamespaceName()
 			service1 = catalog.NewServiceName()
 			service2 = catalog.NewServiceName()
 			app1 = catalog.NewAppName()
 
-			env.SetupAndTargetOrg(org1)
+			env.SetupAndTargetNamespace(namespace1)
 			env.MakeService(service1)
 			env.MakeContainerImageApp(app1, 1, containerImageURL)
-			env.BindAppService(app1, service1, org1)
+			env.BindAppService(app1, service1, namespace1)
 
-			env.SetupAndTargetOrg(org2)
-			env.MakeService(service1) // separate from org1.service1
+			env.SetupAndTargetNamespace(namespace2)
+			env.MakeService(service1) // separate from namespace1.service1
 			env.MakeService(service2)
 		})
 
 		AfterEach(func() {
-			env.TargetOrg(org2)
+			env.TargetNamespace(namespace2)
 			env.DeleteService(service1)
 			env.DeleteService(service2)
 
-			env.TargetOrg(org1)
+			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
 			env.DeleteService(service1)
 		})
@@ -87,9 +87,9 @@ var _ = Describe("Services", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing all services"))
 
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *%s *\|`, org1, service1, app1)))
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, org2, service1)))
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, org2, service2)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *%s *\|`, namespace1, service1, app1)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, namespace2, service1)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, namespace2, service2)))
 		})
 	})
 
@@ -118,7 +118,7 @@ var _ = Describe("Services", func() {
 		It("doesn't delete a bound service", func() {
 			appName := catalog.NewAppName()
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
-			env.BindAppService(appName, serviceName1, org)
+			env.BindAppService(appName, serviceName1, namespace)
 
 			out, err := env.Epinio("", "service", "delete", serviceName1)
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -127,7 +127,7 @@ var _ = Describe("Services", func() {
 			Expect(out).To(MatchRegexp(appName))
 			Expect(out).To(MatchRegexp("Use --unbind to force the issue"))
 
-			env.VerifyAppServiceBound(appName, serviceName1, org, 1)
+			env.VerifyAppServiceBound(appName, serviceName1, namespace, 1)
 
 			// Delete again, and force unbind
 
@@ -136,7 +136,7 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(MatchRegexp("Service Removed"))
 
-			env.VerifyAppServiceNotbound(appName, serviceName1, org, 1)
+			env.VerifyAppServiceNotbound(appName, serviceName1, namespace, 1)
 
 			// And check non-presence
 			Eventually(func() string {
@@ -162,7 +162,7 @@ var _ = Describe("Services", func() {
 		})
 
 		It("binds a service to the application deployment", func() {
-			env.BindAppService(appName, serviceName1, org)
+			env.BindAppService(appName, serviceName1, namespace)
 		})
 	})
 
@@ -173,7 +173,7 @@ var _ = Describe("Services", func() {
 
 			env.MakeService(serviceName1)
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
-			env.BindAppService(appName, serviceName1, org)
+			env.BindAppService(appName, serviceName1, namespace)
 		})
 
 		AfterEach(func() {
@@ -182,7 +182,7 @@ var _ = Describe("Services", func() {
 		})
 
 		It("unbinds a service from the application deployment", func() {
-			env.UnbindAppService(appName, serviceName1, org)
+			env.UnbindAppService(appName, serviceName1, namespace)
 		})
 	})
 

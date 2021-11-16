@@ -17,17 +17,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Upload handles the API endpoint /orgs/:org/applications/:app/store.
+// Upload handles the API endpoint /namespaces/:namespace/applications/:app/store.
 // It receives the application data as a tarball and stores it. Then
 // it creates the k8s resources needed for staging
 func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	name := c.Param("app")
 
-	log.Info("processing upload", "org", org, "app", name)
+	log.Info("processing upload", "namespace", namespace, "app", name)
 
 	log.V(2).Info("parsing multipart form")
 
@@ -71,13 +71,13 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	username := requestctx.User(ctx)
 	blobUID, err := manager.Upload(ctx, blob, map[string]string{
-		"app": name, "org": org, "username": username,
+		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
 		return apierror.InternalError(err, "uploading the application sources blob")
 	}
 
-	log.Info("uploaded app", "org", org, "app", name, "blobUID", blobUID)
+	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 
 	response.OKReturn(c, models.UploadResponse{
 		BlobUID: blobUID,

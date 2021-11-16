@@ -5,40 +5,40 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// Set handles the API endpoint /orgs/:org/applications/:app/environment (POST)
-// It receives the org, application name, var name and value,
+// Set handles the API endpoint /namespaces/:namespace/applications/:app/environment (POST)
+// It receives the namespace, application name, var name and value,
 // and add/modifies the variable in the  application's environment.
 func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
 
-	orgName := c.Param("org")
+	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
 
 	log.Info("processing environment variable assignment",
-		"org", orgName, "app", appName)
+		"namespace", namespaceName, "app", appName)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, orgName)
+	exists, err := namespaces.Exists(ctx, cluster, namespaceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(orgName)
+		return apierror.NamespaceIsNotKnown(namespaceName)
 	}
 
-	app, err := application.Lookup(ctx, cluster, orgName, appName)
+	app, err := application.Lookup(ctx, cluster, namespaceName, appName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

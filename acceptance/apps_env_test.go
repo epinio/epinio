@@ -9,8 +9,8 @@ import (
 
 var _ = Describe("apps env", func() {
 	var (
-		org     string
-		appName string
+		namespace string
+		appName   string
 	)
 
 	secret := func(ns, appname string) string {
@@ -28,8 +28,8 @@ var _ = Describe("apps env", func() {
 	}
 
 	BeforeEach(func() {
-		org = catalog.NewOrgName()
-		env.SetupAndTargetOrg(org)
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
 
 		appName = catalog.NewAppName()
 	})
@@ -72,7 +72,7 @@ var _ = Describe("apps env", func() {
 					"--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(deployedEnv(org, appName)).ToNot(MatchRegexp("MYVAR"))
+				Expect(deployedEnv(namespace, appName)).ToNot(MatchRegexp("MYVAR"))
 			})
 		})
 
@@ -83,7 +83,7 @@ var _ = Describe("apps env", func() {
 			})
 
 			It("creates the relevant secret", func() {
-				secretName := secret(org, appName)
+				secretName := secret(namespace, appName)
 				Expect(secretName).ToNot(BeEmpty())
 			})
 
@@ -107,7 +107,7 @@ var _ = Describe("apps env", func() {
 					"--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(deployedEnv(org, appName)).To(MatchRegexp("MYVAR"))
+				Expect(deployedEnv(namespace, appName)).To(MatchRegexp("MYVAR"))
 			})
 		})
 	})
@@ -132,7 +132,7 @@ var _ = Describe("apps env", func() {
 				// Wait for variable to appear so that we can verify its proper
 				// removal
 				Eventually(func() string {
-					return deployedEnv(org, appName)
+					return deployedEnv(namespace, appName)
 				}).Should(MatchRegexp("MYVAR"))
 			})
 
@@ -145,7 +145,7 @@ var _ = Describe("apps env", func() {
 				// to settle here.
 
 				Eventually(func() string {
-					return deployedEnv(org, appName)
+					return deployedEnv(namespace, appName)
 				}).ShouldNot(MatchRegexp("MYVAR"))
 			})
 		})
@@ -160,7 +160,7 @@ var _ = Describe("apps env", func() {
 				// to settle here.
 
 				Eventually(func() string {
-					return deployedEnv(org, appName)
+					return deployedEnv(namespace, appName)
 				}).Should(MatchRegexp("MYVAR"))
 			})
 		})

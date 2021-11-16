@@ -4,16 +4,16 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 )
 
-// Delete handles the API endpoint /orgs/:org/applications/:app/servicebindings/:service
+// Delete handles the API endpoint /namespaces/:namespace/applications/:app/servicebindings/:service
 // It removes the binding between the specified service and application
 func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	serviceName := c.Param("service")
 	username := requestctx.User(ctx)
@@ -23,15 +23,15 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	apiErr := DeleteBinding(ctx, cluster, org, appName, serviceName, username)
+	apiErr := DeleteBinding(ctx, cluster, namespace, appName, serviceName, username)
 	if apiErr != nil {
 		return apiErr
 	}

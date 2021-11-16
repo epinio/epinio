@@ -21,7 +21,7 @@ import (
 
 type WordpressApp struct {
 	Name      string
-	Org       string
+	Namespace string
 	Dir       string
 	SourceURL string
 }
@@ -83,7 +83,7 @@ extension=mysqli
 // one alphabetically.
 func (w *WordpressApp) AppURL() (string, error) {
 	out, err := helpers.Kubectl("get", "ingress",
-		"--namespace", w.Org,
+		"--namespace", w.Namespace,
 		"--selector", "app.kubernetes.io/name="+w.Name,
 		"-o", "jsonpath={.items[*].spec.rules[*].host}")
 	if err != nil {
@@ -99,14 +99,14 @@ var _ = Describe("Wordpress", func() {
 	var wordpress WordpressApp
 
 	BeforeEach(func() {
-		org := catalog.NewOrgName()
+		namespace := catalog.NewNamespaceName()
 		wordpress = WordpressApp{
 			SourceURL: "https://wordpress.org/wordpress-5.6.1.tar.gz",
 			Name:      catalog.NewAppName(),
-			Org:       org,
+			Namespace: namespace,
 		}
 
-		env.SetupAndTargetOrg(org)
+		env.SetupAndTargetNamespace(namespace)
 
 		err := wordpress.CreateDir()
 		Expect(err).ToNot(HaveOccurred())

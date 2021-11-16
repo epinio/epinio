@@ -49,8 +49,8 @@ const (
 var (
 	EpinioDeploymentLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "deployment")
 	EpinioDeploymentLabelValue = "true"
-	EpinioOrgLabelKey          = "app.kubernetes.io/component"
-	EpinioOrgLabelValue        = "epinio-namespace"
+	EpinioNamespaceLabelKey    = "app.kubernetes.io/component"
+	EpinioNamespaceLabelValue  = "epinio-namespace"
 	EpinioAPISecretLabelKey    = fmt.Sprintf("%s/%s", APISGroupName, "api-user-credentials")
 	EpinioAPISecretLabelValue  = "true"
 )

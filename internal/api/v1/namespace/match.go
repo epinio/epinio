@@ -6,7 +6,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -27,7 +27,7 @@ func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 	}
 
 	log.Info("list namespaces")
-	namespaces, err := organizations.List(ctx, cluster)
+	namespaces, err := namespaces.List(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

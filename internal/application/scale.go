@@ -65,7 +65,7 @@ func scaleUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 
 		modifyScaling(scaleSecret)
 
-		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Org).Update(
+		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Namespace).Update(
 			ctx, scaleSecret, metav1.UpdateOptions{})
 
 		return err
@@ -77,7 +77,7 @@ func scaleUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 func scaleLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeScaleSecretName()
 
-	scaleSecret, err := cluster.GetSecret(ctx, appRef.Org, secretName)
+	scaleSecret, err := cluster.GetSecret(ctx, appRef.Namespace, secretName)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, err
@@ -102,19 +102,19 @@ func scaleLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.A
 		scaleSecret = &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
-				Namespace: appRef.Org,
+				Namespace: appRef.Namespace,
 				OwnerReferences: []metav1.OwnerReference{
 					owner,
 				},
 				Labels: map[string]string{
 					"app.kubernetes.io/name":       appRef.Name,
-					"app.kubernetes.io/part-of":    appRef.Org,
+					"app.kubernetes.io/part-of":    appRef.Namespace,
 					"app.kubernetes.io/managed-by": "epinio",
 					"app.kubernetes.io/component":  "application",
 				},
 			},
 		}
-		err = cluster.CreateSecret(ctx, appRef.Org, *scaleSecret)
+		err = cluster.CreateSecret(ctx, appRef.Namespace, *scaleSecret)
 
 		if err != nil {
 			return nil, err
