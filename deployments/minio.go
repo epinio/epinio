@@ -58,14 +58,6 @@ func (k Minio) PostDeleteCheck(ctx context.Context, c *kubernetes.Cluster, ui *t
 func (k Minio) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI) error {
 	ui.Note().KeeplineUnder(1).Msg("Removing Minio...")
 
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(minioTenantYAML, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", minioTenantYAML, out))
-	}
-
-	if out, err := helpers.KubectlDeleteEmbeddedYaml(minioOperatorYAML, true); err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", minioOperatorYAML, out))
-	}
-
 	existsAndOwned, err := c.NamespaceExistsAndOwned(ctx, MinioDeploymentID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to check if namespace '%s' is owned or not", MinioDeploymentID)
@@ -73,6 +65,14 @@ func (k Minio) Delete(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI)
 	if !existsAndOwned {
 		ui.Exclamation().Msg("Skipping Minio because namespace either doesn't exist or not owned by Epinio")
 		return nil
+	}
+
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(minioTenantYAML, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", minioTenantYAML, out))
+	}
+
+	if out, err := helpers.KubectlDeleteEmbeddedYaml(minioOperatorYAML, true); err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Deleting %s failed:\n%s", minioOperatorYAML, out))
 	}
 
 	message := "Deleting Minio operator namespace " + MinioDeploymentID
