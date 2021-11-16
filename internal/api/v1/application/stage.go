@@ -188,11 +188,13 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	log.Info("staged app", "namespace", namespace, "app", params.AppRef, "uid", uid)
+	imageURL := params.ImageURL(params.RegistryURL)
+
+	log.Info("staged app", "namespace", namespace, "app", params.AppRef, "uid", uid, "image", imageURL)
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
-		ImageURL: params.ImageURL(params.RegistryURL),
+		ImageURL: imageURL,
 	})
 	return nil
 }
