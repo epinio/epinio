@@ -46,7 +46,7 @@ type stageParam struct {
 // ImageID. The ImageURL is later used in app.yml and to send in the
 // stage response.
 func (app *stageParam) ImageURL(registryURL string) string {
-	return fmt.Sprintf("%s/%s-%s", registryURL, app.Name, app.Stage.ID)
+	return fmt.Sprintf("%s/%s-%s:%s", registryURL, app.Namespace, app.Name, app.Stage.ID)
 }
 
 // ensurePVC creates a PVC for the application if one doesn't already exist.
@@ -188,11 +188,13 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
 	}
 
-	log.Info("staged app", "namespace", namespace, "app", params.AppRef, "uid", uid)
+	imageURL := params.ImageURL(params.RegistryURL)
+
+	log.Info("staged app", "namespace", namespace, "app", params.AppRef, "uid", uid, "image", imageURL)
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
-		ImageURL: params.ImageURL(params.RegistryURL),
+		ImageURL: imageURL,
 	})
 	return nil
 }
