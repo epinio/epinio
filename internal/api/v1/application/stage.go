@@ -46,7 +46,7 @@ type stageParam struct {
 // ImageID. The ImageURL is later used in app.yml and to send in the
 // stage response.
 func (app *stageParam) ImageURL(registryURL string) string {
-	return fmt.Sprintf("%s/%s:%s", registryURL, app.Name, app.Stage.ID)
+	return fmt.Sprintf("%s/%s-%s:%s", registryURL, app.Namespace, app.Name, app.Stage.ID)
 }
 
 // ensurePVC creates a PVC for the application if one doesn't already exist.
