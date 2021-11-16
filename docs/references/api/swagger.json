@@ -1,4 +1,8 @@
-{ "info": {"title": "Epinio", "version":"1"},
+{
+  "info": {
+    "title": "Epinio",
+    "version": "1"
+  },
   "swagger": "2.0",
   "paths": {
     "/applications": {
@@ -1018,7 +1022,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "AppRef": {
-      "description": "AppRef references an App by name and org",
+      "description": "AppRef references an App by name and namespace",
       "type": "object",
       "properties": {
         "name": {
@@ -1027,7 +1031,7 @@
         },
         "namespace": {
           "type": "string",
-          "x-go-name": "Org"
+          "x-go-name": "Namespace"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

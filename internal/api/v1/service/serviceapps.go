@@ -7,35 +7,35 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// ServiceApps handles the API endpoint GET /namespaces/:org/serviceapps
+// ServiceApps handles the API endpoint GET /namespaces/:namespace/serviceapps
 // It returns a map from services to the apps they are bound to, in
 // the specified org.  Internally it asks each app in the org for its
 // bound services and then inverts that map to get the desired result.
 func (hc Controller) ServiceApps(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	appsOf, err := servicesToApps(ctx, cluster, org)
+	appsOf, err := servicesToApps(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -75,7 +75,7 @@ func servicesToApps(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 
 		for _, app := range apps {
 			for _, bound := range app.Configuration.Services {
-				key := serviceKey(bound, app.Meta.Org)
+				key := serviceKey(bound, app.Meta.Namespace)
 				if theapps, found := appsOf[key]; found {
 					appsOf[key] = append(theapps, app)
 				} else {

@@ -7,7 +7,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -16,32 +16,32 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// Delete handles the API endpoint /namespaces/:org (DELETE).
+// Delete handles the API endpoint /namespaces/:namespace (DELETE).
 // It destroys the namespace specified by its name.
 // This includes all the applications and services in it.
 func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	err = deleteApps(ctx, cluster, org)
+	err = deleteApps(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	serviceList, err := services.List(ctx, cluster, org)
+	serviceList, err := services.List(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -54,7 +54,7 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Deleting the namespace here. That will automatically delete the application resources.
-	err = organizations.Delete(ctx, cluster, org)
+	err = namespaces.Delete(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -64,8 +64,8 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 }
 
 // deleteApps removes the application and its resources
-func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, org string) error {
-	appRefs, err := application.ListAppRefs(ctx, cluster, org)
+func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) error {
+	appRefs, err := application.ListAppRefs(ctx, cluster, namespace)
 	if err != nil {
 		return err
 	}

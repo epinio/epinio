@@ -10,7 +10,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/filesystem"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/gin-gonic/gin"
 )
 
@@ -18,10 +18,10 @@ import (
 type ApplicationsController struct {
 }
 
-// setCurrentOrgInCookie is a helper for creating cookies to persist system state in the browser
-func setCurrentOrgInCookie(org, cookieName string, c *gin.Context) {
+// setCurrentNamespaceInCookie is a helper for creating cookies to persist system state in the browser
+func setCurrentNamespaceInCookie(namespace, cookieName string, c *gin.Context) {
 	c.SetCookie(cookieName,
-		org,
+		namespace,
 		365*24*60*60, // 1 year
 		"/",
 		"",
@@ -30,14 +30,14 @@ func setCurrentOrgInCookie(org, cookieName string, c *gin.Context) {
 	)
 }
 
-// getOrgs tries to decide what the current organization is.
-// First looks in the cookie named "currentOrg". If it is exists and the org
-// set there still exists that's our current organization. If the cookie exists
-// but the org does not (e.g. because it was deleted) or if the cookie does not
-// exist, then the first existing org becomes the current org and the cookie is
-// updated. If no orgs exist, then an empty string is returned as the org name.
-// The function also returns the rest of the available orgs.
-func getOrgs(c *gin.Context) (string, []string, error) {
+// getNamespaces tries to decide what the current namespace is.
+// First looks in the cookie named "currentNamespace". If it is exists and the namespace
+// set there still exists that's our current namespace. If the cookie exists
+// but the namespace does not (e.g. because it was deleted) or if the cookie does not
+// exist, then the first existing namespace becomes the current namespace and the cookie is
+// updated. If no namespaces exist, then an empty string is returned as the namespace name.
+// The function also returns the rest of the available namespaces.
+func getNamespaces(c *gin.Context) (string, []string, error) {
 
 	ctx := c.Request.Context()
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -45,70 +45,70 @@ func getOrgs(c *gin.Context) (string, []string, error) {
 		return "", []string{}, err
 	}
 
-	orgs, err := organizations.List(ctx, cluster)
+	allNamespaces, err := namespaces.List(ctx, cluster)
 	if err != nil {
 		return "", []string{}, err
 	}
-	if len(orgs) == 0 {
+	if len(allNamespaces) == 0 {
 		return "", []string{}, nil
 	}
 
-	otherOrgs := func(current string, orgs []organizations.Organization) []string {
-		otherOrgs := []string{}
-		for _, org := range orgs {
-			if org.Name != current {
-				otherOrgs = append(otherOrgs, org.Name)
+	otherNamespaces := func(current string, allNamespaces []namespaces.Namespace) []string {
+		other := []string{}
+		for _, namespace := range allNamespaces {
+			if namespace.Name != current {
+				other = append(other, namespace.Name)
 			}
 		}
-		return otherOrgs
+		return other
 	}
 
-	cookie, err := c.Request.Cookie("currentOrg")
+	cookie, err := c.Request.Cookie("currentNamespace")
 	if err != nil {
 		// There was no cookie, let's create one
 		if err == http.ErrNoCookie {
-			currentOrg := orgs[0].Name
-			restOrgs := otherOrgs(currentOrg, orgs)
-			setCurrentOrgInCookie(currentOrg, "currentOrg", c)
-			return currentOrg, restOrgs, nil
+			currentNamespace := allNamespaces[0].Name
+			rest := otherNamespaces(currentNamespace, allNamespaces)
+			setCurrentNamespaceInCookie(currentNamespace, "currentNamespace", c)
+			return currentNamespace, rest, nil
 		}
 		return "", []string{}, err
 	}
-	orgExists := func(cookieOrg string, orgs []organizations.Organization) bool {
-		for _, org := range orgs {
-			if org.Name == cookieOrg {
+	namespaceExists := func(cookieNamespace string, allNamespaces []namespaces.Namespace) bool {
+		for _, namespace := range allNamespaces {
+			if namespace.Name == cookieNamespace {
 				return true
 			}
 		}
 		return false
-	}(cookie.Value, orgs)
+	}(cookie.Value, allNamespaces)
 
-	// If the cookie org no longer exists, set currentOrg to the first existing one.
-	if !orgExists {
-		setCurrentOrgInCookie(orgs[0].Name, "currentOrg", c)
+	// If the cookie namespace no longer exists, set currentNamespace to the first existing one.
+	if !namespaceExists {
+		setCurrentNamespaceInCookie(allNamespaces[0].Name, "currentNamespace", c)
 	}
-	restOrgs := otherOrgs(cookie.Value, orgs)
+	rest := otherNamespaces(cookie.Value, allNamespaces)
 
-	return cookie.Value, restOrgs, nil
+	return cookie.Value, rest, nil
 }
 
 // Index handles the dashboard's / (root) endpoint. It returns the dashboard itself.
 func (hc ApplicationsController) Index(c *gin.Context) {
-	currentOrg, otherOrgs, err := getOrgs(c)
+	currentNamespace, otherNamespaces, err := getNamespaces(c)
 	if handleError(c, err) {
 		return
 	}
 
-	if currentOrg == "" {
-		// TODO: Redirect to create org page. No orgs exist.
+	if currentNamespace == "" {
+		// TODO: Redirect to create namespace page. No namespace exists.
 		panic("no current namespace")
 	}
 
-	// TODO: Move org specific links to a left navigation bar and keep only
-	// org specific actions at the top navbar
+	// TODO: Move namespace specific links to a left navigation bar and keep only
+	// namespace specific actions at the top navbar
 	data := map[string]interface{}{
-		"currentOrg": currentOrg,
-		"orgs":       otherOrgs,
+		"currentNamespace": currentNamespace,
+		"namespaces":       otherNamespaces,
 	}
 	Render([]string{
 		"main_layout",

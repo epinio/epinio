@@ -36,7 +36,7 @@ import (
 
 var _ = Describe("Apps API Application Endpoints", func() {
 	var (
-		org string
+		namespace string
 	)
 	containerImageURL := "splatform/sample-app"
 
@@ -76,10 +76,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return request, nil
 	}
 
-	appFromAPI := func(org, app string) models.App {
+	appFromAPI := func(namespace, app string) models.App {
 		response, err := env.Curl("GET",
 			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-				serverURL, v1.Root, org, app),
+				serverURL, v1.Root, namespace, app),
 			strings.NewReader(""))
 
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
@@ -93,12 +93,12 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		err = json.Unmarshal(bodyBytes, &responseApp)
 		ExpectWithOffset(1, err).ToNot(HaveOccurred(), string(bodyBytes))
 		ExpectWithOffset(1, responseApp.Meta.Name).To(Equal(app))
-		ExpectWithOffset(1, responseApp.Meta.Org).To(Equal(org))
+		ExpectWithOffset(1, responseApp.Meta.Namespace).To(Equal(namespace))
 
 		return responseApp
 	}
 
-	updateAppInstances := func(org string, app string, instances int32) (int, []byte) {
+	updateAppInstances := func(namespace string, app string, instances int32) (int, []byte) {
 		desired := instances
 		data, err := json.Marshal(models.ApplicationUpdateRequest{
 			Instances: &desired,
@@ -107,7 +107,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		response, err := env.Curl("PATCH",
 			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-				serverURL, v1.Root, org, app),
+				serverURL, v1.Root, namespace, app),
 			strings.NewReader(string(data)))
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		ExpectWithOffset(1, response).ToNot(BeNil())
@@ -119,7 +119,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return response.StatusCode, bodyBytes
 	}
 
-	updateAppInstancesNAN := func(org string, app string) (int, []byte) {
+	updateAppInstancesNAN := func(namespace string, app string) (int, []byte) {
 		desired := int32(314)
 		data, err := json.Marshal(models.ApplicationUpdateRequest{
 			Instances: &desired,
@@ -131,7 +131,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		response, err := env.Curl("PATCH",
 			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-				serverURL, v1.Root, org, app),
+				serverURL, v1.Root, namespace, app),
 			strings.NewReader(string(data)))
 		ExpectWithOffset(1, err).ToNot(HaveOccurred())
 		ExpectWithOffset(1, response).ToNot(BeNil())
@@ -143,7 +143,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return response.StatusCode, bodyBytes
 	}
 
-	createApplication := func(name string, org string, routes []string) (*http.Response, error) {
+	createApplication := func(name string, namespace string, routes []string) (*http.Response, error) {
 		request := models.ApplicationCreateRequest{
 			Name: name,
 			Configuration: models.ApplicationUpdateRequest{
@@ -156,7 +156,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		}
 		body := string(b)
 
-		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", org)
+		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", namespace)
 		return env.Curl("POST", url, strings.NewReader(body))
 	}
 
@@ -172,7 +172,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	uploadApplication := func(appName string) *models.UploadResponse {
-		uploadURL := serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", org, appName)
+		uploadURL := serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", namespace, appName)
 		uploadPath := testenv.TestAssetPath("sample-app.tar")
 		uploadRequest, err := uploadRequest(uploadURL, uploadPath)
 		Expect(err).ToNot(HaveOccurred())
@@ -218,11 +218,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		return strings.Split(string(out), "\n")
 	}
 
-	stageApplication := func(appName, org string, uploadResponse *models.UploadResponse) *models.StageResponse {
+	stageApplication := func(appName, namespace string, uploadResponse *models.UploadResponse) *models.StageResponse {
 		request := models.StageRequest{
 			App: models.AppRef{
-				Name: appName,
-				Org:  org,
+				Name:      appName,
+				Namespace: namespace,
 			},
 			BlobUID:      uploadResponse.BlobUID,
 			BuilderImage: "paketobuildpacks/builder:full",
@@ -231,7 +231,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		Expect(err).NotTo(HaveOccurred())
 		body := string(b)
 
-		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppStage", org, appName)
+		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppStage", namespace, appName)
 		response, err := env.Curl("POST", url, strings.NewReader(body))
 		Expect(err).NotTo(HaveOccurred())
 
@@ -248,8 +248,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	}
 
 	BeforeEach(func() {
-		org = catalog.NewOrgName()
-		env.SetupAndTargetOrg(org)
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
 
 		// Wait for server to be up and running
 		Eventually(func() error {
@@ -258,11 +258,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		}, "1m").ShouldNot(HaveOccurred())
 	})
 	AfterEach(func() {
-		env.DeleteNamespace(org)
+		env.DeleteNamespace(namespace)
 	})
 
 	Context("Apps", func() {
-		Describe("POST /namespaces/:org/applications/:app/import-git", func() {
+		Describe("POST /namespaces/:namespace/applications/:app/import-git", func() {
 			It("imports the git repo in the blob store", func() {
 				app := catalog.NewAppName()
 				gitURL := "https://github.com/epinio/example-wordpress"
@@ -270,7 +270,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				data.Set("giturl", gitURL)
 				data.Set("gitrev", "main")
 
-				url := serverURL + v1.Root + "/" + v1.Routes.Path("AppImportGit", org, app)
+				url := serverURL + v1.Root + "/" + v1.Routes.Path("AppImportGit", namespace, app)
 				request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 				Expect(err).ToNot(HaveOccurred())
 				request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
@@ -294,21 +294,21 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("PATCH /namespaces/:org/applications/:app", func() {
+		Describe("PATCH /namespaces/:namespace/applications/:app", func() {
 			When("instances is valid integer", func() {
 				It("updates an application with the desired number of instances", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
 
-					appObj := appFromAPI(org, app)
+					appObj := appFromAPI(namespace, app)
 					Expect(appObj.Workload.Status).To(Equal("1/1"))
 
-					status, _ := updateAppInstances(org, app, 3)
+					status, _ := updateAppInstances(namespace, app, 3)
 					Expect(status).To(Equal(http.StatusOK))
 
 					Eventually(func() string {
-						return appFromAPI(org, app).Workload.Status
+						return appFromAPI(namespace, app).Workload.Status
 					}, "1m").Should(Equal("3/3"))
 				})
 			})
@@ -318,9 +318,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
-					Expect(appFromAPI(org, app).Workload.Status).To(Equal("1/1"))
+					Expect(appFromAPI(namespace, app).Workload.Status).To(Equal("1/1"))
 
-					status, updateResponseBody := updateAppInstances(org, app, -3)
+					status, updateResponseBody := updateAppInstances(namespace, app, -3)
 					Expect(status).To(Equal(http.StatusBadRequest))
 
 					var errorResponse apierrors.ErrorResponse
@@ -337,9 +337,9 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					app := catalog.NewAppName()
 					env.MakeContainerImageApp(app, 1, containerImageURL)
 					defer env.DeleteApp(app)
-					Expect(appFromAPI(org, app).Workload.Status).To(Equal("1/1"))
+					Expect(appFromAPI(namespace, app).Workload.Status).To(Equal("1/1"))
 
-					status, updateResponseBody := updateAppInstancesNAN(org, app)
+					status, updateResponseBody := updateAppInstancesNAN(namespace, app)
 					Expect(status).To(Equal(http.StatusBadRequest))
 
 					var errorResponse apierrors.ErrorResponse
@@ -361,10 +361,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					return result
 				}
 
-				checkCertificateDNSNames := func(appName, orgName string, routes ...string) {
+				checkCertificateDNSNames := func(appName, namespaceName string, routes ...string) {
 					Eventually(func() int {
 						out, err := helpers.Kubectl("get", "certificates",
-							"-n", orgName,
+							"-n", namespaceName,
 							"--selector", "app.kubernetes.io/name="+appName,
 							"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
 						Expect(err).ToNot(HaveOccurred(), out)
@@ -372,7 +372,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					}, "20s", "1s").Should(Equal(len(routes)))
 
 					out, err := helpers.Kubectl("get", "certificates",
-						"-n", orgName,
+						"-n", namespaceName,
 						"--selector", "app.kubernetes.io/name="+appName,
 						"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
 					Expect(err).ToNot(HaveOccurred(), out)
@@ -381,7 +381,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(len(certDomains)).To(Equal(len(routes)))
 				}
 
-				checkIngresses := func(appName, orgName string, routesStr ...string) {
+				checkIngresses := func(appName, namespaceName string, routesStr ...string) {
 					routeObjects := []routes.Route{}
 					for _, route := range routesStr {
 						routeObjects = append(routeObjects, routes.FromString(route))
@@ -389,7 +389,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					Eventually(func() int {
 						out, err := helpers.Kubectl("get", "ingresses",
-							"-n", orgName,
+							"-n", namespaceName,
 							"--selector", "app.kubernetes.io/name="+appName,
 							"-o", "jsonpath={.items[*].spec.rules[*].host}")
 						Expect(err).ToNot(HaveOccurred(), out)
@@ -397,7 +397,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					}, "20s", "1s").Should(Equal(len(routeObjects)))
 
 					out, err := helpers.Kubectl("get", "ingresses",
-						"-n", orgName,
+						"-n", namespaceName,
 						"--selector", "app.kubernetes.io/name="+appName,
 						"-o", "jsonpath={range .items[*]}{@.spec.rules[0].host}{@.spec.rules[0].http.paths[0].path} ")
 					Expect(err).ToNot(HaveOccurred(), out)
@@ -413,10 +413,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				// Checks if every secret referenced in a certificate of the given app,
 				// has a corresponding secret. routes are used to wait until all
 				// certificates are created.
-				checkSecretsForCerts := func(appName, orgName string, routes ...string) {
+				checkSecretsForCerts := func(appName, namespaceName string, routes ...string) {
 					Eventually(func() int {
 						out, err := helpers.Kubectl("get", "certificates",
-							"-n", orgName,
+							"-n", namespaceName,
 							"--selector", "app.kubernetes.io/name="+appName,
 							"-o", "jsonpath={.items[*].spec.secretName}")
 						Expect(err).ToNot(HaveOccurred(), out)
@@ -425,22 +425,22 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					}, "20s", "1s").Should(Equal(len(routes)))
 
 					out, err := helpers.Kubectl("get", "certificates",
-						"-n", orgName,
+						"-n", namespaceName,
 						"--selector", "app.kubernetes.io/name="+appName,
 						"-o", "jsonpath={.items[*].spec.secretName}")
 					Expect(err).ToNot(HaveOccurred(), out)
 					certSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
 
 					Eventually(func() []string {
-						out, err = helpers.Kubectl("get", "secrets", "-n", orgName, "-o", "jsonpath={.items[*].metadata.name}")
+						out, err = helpers.Kubectl("get", "secrets", "-n", namespaceName, "-o", "jsonpath={.items[*].metadata.name}")
 						Expect(err).ToNot(HaveOccurred(), out)
 						existingSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
 						return existingSecrets
 					}, "60s", "1s").Should(ContainElements(certSecrets))
 				}
 
-				checkRoutesOnApp := func(appName, orgName string, routes ...string) {
-					out, err := helpers.Kubectl("get", "apps", "-n", orgName, appName, "-o", "jsonpath={.spec.routes[*]}")
+				checkRoutesOnApp := func(appName, namespaceName string, routes ...string) {
+					out, err := helpers.Kubectl("get", "apps", "-n", namespaceName, appName, "-o", "jsonpath={.spec.routes[*]}")
 					Expect(err).ToNot(HaveOccurred(), out)
 					appRoutes := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
 					Expect(appRoutes).To(Equal(routes))
@@ -454,12 +454,12 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					mainDomain, err := domain.MainDomain(context.Background())
 					Expect(err).ToNot(HaveOccurred())
 
-					checkRoutesOnApp(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
-					checkIngresses(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
-					checkCertificateDNSNames(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
-					checkSecretsForCerts(app, org, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkRoutesOnApp(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkIngresses(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkCertificateDNSNames(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
+					checkSecretsForCerts(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
 
-					appObj := appFromAPI(org, app)
+					appObj := appFromAPI(namespace, app)
 					Expect(appObj.Workload.Status).To(Equal("1/1"))
 
 					newRoutes := []string{"domain1.org", "domain2.org"}
@@ -470,20 +470,20 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					response, err := env.Curl("PATCH",
 						fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-							serverURL, v1.Root, org, app),
+							serverURL, v1.Root, namespace, app),
 						strings.NewReader(string(data)))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					checkRoutesOnApp(app, org, newRoutes...)
-					checkIngresses(app, org, newRoutes...)
-					checkCertificateDNSNames(app, org, newRoutes...)
-					checkSecretsForCerts(app, org, newRoutes...)
+					checkRoutesOnApp(app, namespace, newRoutes...)
+					checkIngresses(app, namespace, newRoutes...)
+					checkCertificateDNSNames(app, namespace, newRoutes...)
+					checkSecretsForCerts(app, namespace, newRoutes...)
 				})
 			})
 		})
 
-		Describe("GET /api/v1/namespaces/:orgs/applications", func() {
+		Describe("GET /api/v1/namespaces/:namespaces/applications", func() {
 			It("lists all applications belonging to the namespace", func() {
 				app1 := catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
@@ -493,7 +493,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				defer env.DeleteApp(app2)
 
 				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications",
-					serverURL, v1.Root, org), strings.NewReader(""))
+					serverURL, v1.Root, namespace), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -508,15 +508,15 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				appNames := []string{apps[0].Meta.Name, apps[1].Meta.Name}
 				Expect(appNames).To(ContainElements(app1, app2))
 
-				orgNames := []string{apps[0].Meta.Org, apps[1].Meta.Org}
-				Expect(orgNames).To(ContainElements(org, org))
+				namespaceNames := []string{apps[0].Meta.Namespace, apps[1].Meta.Namespace}
+				Expect(namespaceNames).To(ContainElements(namespace, namespace))
 
 				// Applications are deployed. Must have workload.
 				statuses := []string{apps[0].Workload.Status, apps[1].Workload.Status}
 				Expect(statuses).To(ContainElements("1/1", "1/1"))
 			})
 
-			It("returns a 404 when the org does not exist", func() {
+			It("returns a 404 when the namespace does not exist", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/idontexist/applications",
 					serverURL, v1.Root), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
@@ -529,13 +529,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("GET /api/v1/namespaces/:org/applications/:app", func() {
+		Describe("GET /api/v1/namespaces/:namespace/applications/:app", func() {
 			It("lists the application data", func() {
 				app := catalog.NewAppName()
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 				defer env.DeleteApp(app)
 
-				appObj := appFromAPI(org, app)
+				appObj := appFromAPI(namespace, app)
 				Expect(appObj.Workload.Status).To(Equal("1/1"))
 				createdAt, err := time.Parse(time.RFC3339, appObj.Workload.CreatedAt)
 				Expect(err).ToNot(HaveOccurred())
@@ -548,60 +548,60 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				out, err := helpers.Kubectl("get", "pods",
 					fmt.Sprintf("--selector=app.kubernetes.io/name=%s", app),
-					"--namespace", org, "--output", "name")
+					"--namespace", namespace, "--output", "name")
 				Expect(err).ToNot(HaveOccurred())
 				podNames := strings.Split(string(out), "\n")
 
 				// Run `yes > /dev/null &` and expect at least 1000 millicpus
 				// https://winaero.com/how-to-create-100-cpu-load-in-linux/
 				out, err = helpers.Kubectl("exec",
-					"--namespace", org, podNames[0], "--container", app,
+					"--namespace", namespace, podNames[0], "--container", app,
 					"--", "bin/sh", "-c", "yes > /dev/null 2> /dev/null &")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Eventually(func() int64 {
-					appObj := appFromAPI(org, app)
+					appObj := appFromAPI(namespace, app)
 					return appObj.Workload.MilliCPUs
 				}, "240s", "1s").Should(BeNumerically(">=", 900))
 				// Kill the "yes" process to bring CPU down again
 				out, err = helpers.Kubectl("exec",
-					"--namespace", org, podNames[0], "--container", app,
+					"--namespace", namespace, podNames[0], "--container", app,
 					"--", "killall", "-9", "yes")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				// Increase memory for 3 minutes to check memory metric
 				out, err = helpers.Kubectl("exec",
-					"--namespace", org, podNames[0], "--container", app,
+					"--namespace", namespace, podNames[0], "--container", app,
 					"--", "bin/bash", "-c", "cat <( </dev/zero head -c 50m) <(sleep 180) | tail")
 				Expect(err).ToNot(HaveOccurred(), out)
 				Eventually(func() int64 {
-					appObj := appFromAPI(org, app)
+					appObj := appFromAPI(namespace, app)
 					return appObj.Workload.MemoryBytes
 				}, "240s", "1s").Should(BeNumerically(">=", 0))
 
 				// Kill a linkerd proxy container and see the count staying unchanged
 				out, err = helpers.Kubectl("exec",
-					"--namespace", org, podNames[0], "--container", "linkerd-proxy",
+					"--namespace", namespace, podNames[0], "--container", "linkerd-proxy",
 					"--", "bin/sh", "-c", "kill 1")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Consistently(func() int32 {
-					appObj := appFromAPI(org, app)
+					appObj := appFromAPI(namespace, app)
 					return appObj.Workload.Restarts
 				}, "5s", "1s").Should(BeNumerically("==", 0))
 
 				// Kill an app container and see the count increasing
 				out, err = helpers.Kubectl("exec",
-					"--namespace", org, podNames[0], "--container", app,
+					"--namespace", namespace, podNames[0], "--container", app,
 					"--", "bin/sh", "-c", "kill 1")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Eventually(func() int32 {
-					appObj := appFromAPI(org, app)
+					appObj := appFromAPI(namespace, app)
 					return appObj.Workload.Restarts
 				}, "4s", "1s").Should(BeNumerically("==", 1))
 			})
 
-			It("returns a 404 when the org does not exist", func() {
+			It("returns a 404 when the namespace does not exist", func() {
 				app := catalog.NewAppName()
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 				defer env.DeleteApp(app)
@@ -619,7 +619,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			It("returns a 404 when the app does not exist", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications/bogus",
-					serverURL, v1.Root, org), strings.NewReader(""))
+					serverURL, v1.Root, namespace), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -630,17 +630,17 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			})
 		})
 
-		Describe("DELETE /api/v1/namespaces/:org/applications/:app", func() {
+		Describe("DELETE /api/v1/namespaces/:namespace/applications/:app", func() {
 			It("removes the application, unbinds bound services", func() {
 				app1 := catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				service := catalog.NewServiceName()
 				env.MakeService(service)
-				env.BindAppService(app1, service, org)
+				env.BindAppService(app1, service, namespace)
 				defer env.CleanupService(service)
 
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-					serverURL, v1.Root, org, app1), strings.NewReader(""))
+					serverURL, v1.Root, namespace, app1), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -656,7 +656,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				Expect(resp["unboundservices"]).To(ContainElement(service))
 			})
 
-			It("returns a 404 when the org does not exist", func() {
+			It("returns a 404 when the namespace does not exist", func() {
 				app1 := catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				defer env.DeleteApp(app1)
@@ -674,7 +674,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 			It("returns a 404 when the app does not exist", func() {
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/applications/bogus",
-					serverURL, v1.Root, org), strings.NewReader(""))
+					serverURL, v1.Root, namespace), strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 
@@ -686,33 +686,33 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		})
 
 		Describe("GET /api/v1/applications", func() {
-			var org1 string
-			var org2 string
+			var namespace1 string
+			var namespace2 string
 			var app1 string
 			var app2 string
 
 			BeforeEach(func() {
-				org1 = catalog.NewOrgName()
-				env.SetupAndTargetOrg(org1)
+				namespace1 = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespace1)
 
 				app1 = catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
 
-				org2 = catalog.NewOrgName()
-				env.SetupAndTargetOrg(org2)
+				namespace2 = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespace2)
 
 				app2 = catalog.NewAppName()
 				env.MakeContainerImageApp(app2, 1, containerImageURL)
 			})
 			AfterEach(func() {
-				env.TargetOrg(org2)
+				env.TargetNamespace(namespace2)
 				env.DeleteApp(app2)
 
-				env.TargetOrg(org1)
+				env.TargetNamespace(namespace1)
 				env.DeleteApp(app1)
 
-				env.DeleteNamespace(org1)
-				env.DeleteNamespace(org2)
+				env.DeleteNamespace(namespace1)
+				env.DeleteNamespace(namespace2)
 			})
 			It("lists all applications belonging to all namespaces", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s%s/applications",
@@ -737,11 +737,11 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 				var appRefs [][]string
 				for _, a := range apps {
-					appRefs = append(appRefs, []string{a.Meta.Name, a.Meta.Org})
+					appRefs = append(appRefs, []string{a.Meta.Name, a.Meta.Namespace})
 				}
 				Expect(appRefs).To(ContainElements(
-					[]string{app1, org1},
-					[]string{app2, org2}))
+					[]string{app1, namespace1},
+					[]string{app2, namespace2}))
 			})
 		})
 	})
@@ -755,7 +755,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		)
 
 		JustBeforeEach(func() {
-			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", org, "testapp")
+			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", namespace, "testapp")
 			var err error
 			request, err = uploadRequest(url, path)
 			Expect(err).ToNot(HaveOccurred())
@@ -794,12 +794,12 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		)
 
 		BeforeEach(func() {
-			org = catalog.NewOrgName()
-			env.SetupAndTargetOrg(org)
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
 			appName = catalog.NewAppName()
 
 			By("creating application resource first")
-			_, err := createApplication(appName, org, []string{})
+			_, err := createApplication(appName, namespace, []string{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -814,14 +814,14 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					uploadResponse := uploadApplication(appName)
 					oldBlob := uploadResponse.BlobUID
 					By("staging the application")
-					_ = stageApplication(appName, org, uploadResponse)
+					_ = stageApplication(appName, namespace, uploadResponse)
 					Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
 
 					By("uploading the code again")
 					uploadResponse = uploadApplication(appName)
 					newBlob := uploadResponse.BlobUID
 					By("staging the application again")
-					_ = stageApplication(appName, org, uploadResponse)
+					_ = stageApplication(appName, namespace, uploadResponse)
 
 					Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
 					Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
@@ -834,13 +834,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					uploadResponse := uploadApplication(appName)
 
 					By("staging the application")
-					stageResponse := stageApplication(appName, org, uploadResponse)
+					stageResponse := stageApplication(appName, namespace, uploadResponse)
 
 					By("deploying the staged resource")
 					request = models.DeployRequest{
 						App: models.AppRef{
-							Name: appName,
-							Org:  org,
+							Name:      appName,
+							Namespace: namespace,
 						},
 						Stage: models.StageRef{
 							ID: stageResponse.Stage.ID,
@@ -852,7 +852,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 					body = string(bodyBytes)
 
-					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", org, appName)
+					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
 
 					response, err := env.Curl("POST", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
@@ -870,7 +870,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 					By("waiting for the deployment to complete")
 
-					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppRunning", org, appName)
+					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppRunning", namespace, appName)
 
 					response, err = env.Curl("GET", url, strings.NewReader(body))
 					Expect(err).ToNot(HaveOccurred())
@@ -880,7 +880,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					By("confirming at highlevel")
 					// Highlevel check and confirmation
 					Eventually(func() string {
-						return appFromAPI(org, appName).Workload.Status
+						return appFromAPI(namespace, appName).Workload.Status
 					}, "5m").Should(Equal("1/1"))
 				})
 			})
@@ -890,13 +890,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			BeforeEach(func() {
 				request = models.DeployRequest{
 					App: models.AppRef{
-						Name: appName,
-						Org:  org,
+						Name:      appName,
+						Namespace: namespace,
 					},
 					ImageURL: "splatform/sample-app",
 				}
 
-				url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", org, appName)
+				url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
 			})
 
 			When("deploying a new app", func() {
@@ -922,13 +922,13 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 					Eventually(func() string {
-						return appFromAPI(org, appName).Workload.Status
+						return appFromAPI(namespace, appName).Workload.Status
 					}, "5m").Should(Equal("1/1"))
 
 					// Check if autoserviceaccounttoken is true
 					labels := fmt.Sprintf("app.kubernetes.io/name=%s", appName)
 					out, err := helpers.Kubectl("get", "pod",
-						"--namespace", org,
+						"--namespace", namespace,
 						"-l", labels,
 						"-o", "jsonpath={.items[*].spec.automountServiceAccountToken}")
 					Expect(err).NotTo(HaveOccurred(), out)
@@ -941,7 +941,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				BeforeEach(func() {
 					routes = append(routes, "appdomain.org", "appdomain2.org")
 					out, err := helpers.Kubectl("patch", "apps", "--type", "json",
-						"-n", org, appName, "--patch",
+						"-n", namespace, appName, "--patch",
 						fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))
 					Expect(err).NotTo(HaveOccurred(), out)
 				})
@@ -955,7 +955,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 					Expect(err).ToNot(HaveOccurred())
 
 					out, err := helpers.Kubectl("get", "ingress",
-						"--namespace", org, "-o", "jsonpath={.items[*].spec.rules[0].host}")
+						"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
 					Expect(err).NotTo(HaveOccurred(), out)
 					Expect(strings.Split(out, " ")).To(Equal(routes))
 				})
@@ -964,7 +964,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	})
 
 	Context("Logs", func() {
-		Describe("GET /api/v1/namespaces/:orgs/applications/:app/logs", func() {
+		Describe("GET /api/v1/namespaces/:namespaces/applications/:app/logs", func() {
 			logLength := 0
 			var (
 				route string
@@ -982,10 +982,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				env.DeleteApp(app)
 			})
 
-			readLogs := func(org, app string) string {
+			readLogs := func(namespace, app string) string {
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
-				wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
 				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("read the logs")
@@ -1010,22 +1010,22 @@ var _ = Describe("Apps API Application Endpoints", func() {
 			}
 
 			It("should send the logs", func() {
-				logs := readLogs(org, app)
+				logs := readLogs(namespace, app)
 
 				By("checking if the logs are right")
-				podNames := env.GetPodNames(app, org)
+				podNames := env.GetPodNames(app, namespace)
 				for _, podName := range podNames {
 					Expect(logs).To(ContainSubstring(podName))
 				}
 			})
 
 			It("should follow logs", func() {
-				existingLogs := readLogs(org, app)
+				existingLogs := readLogs(namespace, app)
 				logLength := len(strings.Split(existingLogs, "\n"))
 
 				var urlArgs = []string{}
 				urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
-				wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", org, app), strings.Join(urlArgs, "&"))
+				wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
 				wsConn := env.MakeWebSocketConnection(wsURL)
 
 				By("get to the end of logs")
@@ -1073,8 +1073,8 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		)
 
 		BeforeEach(func() {
-			org = catalog.NewOrgName()
-			env.SetupAndTargetOrg(org)
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
 			appName = catalog.NewAppName()
 		})
 
@@ -1090,7 +1090,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		When("creating a new app", func() {
 			It("creates the app resource", func() {
-				response, err := createApplication(appName, org, []string{"mytestdomain.org"})
+				response, err := createApplication(appName, namespace, []string{"mytestdomain.org"})
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
@@ -1098,7 +1098,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 				bodyBytes, err := ioutil.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-				out, err := helpers.Kubectl("get", "apps", "-n", org, appName, "-o", "jsonpath={.spec.routes[*]}")
+				out, err := helpers.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.routes[*]}")
 				Expect(err).ToNot(HaveOccurred(), out)
 				routes := strings.Split(out, " ")
 				Expect(len(routes)).To(Equal(1))

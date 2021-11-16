@@ -10,5 +10,5 @@ import (
 func Lemon(router *gin.RouterGroup) {
 	router.GET("/", ApplicationsController{}.Index)
 	router.GET("/info", InfoController{}.Index)
-	router.GET("/orgs/target/:org", OrgsController{}.Target)
+	router.GET("/namespaces/target/:namespace", NamespacesController{}.Target)
 }

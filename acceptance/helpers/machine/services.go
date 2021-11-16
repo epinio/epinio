@@ -19,23 +19,23 @@ func (m *Machine) MakeService(serviceName string) {
 	ExpectWithOffset(1, out).To(MatchRegexp(serviceName))
 }
 
-func (m *Machine) BindAppService(appName, serviceName, org string) {
+func (m *Machine) BindAppService(appName, serviceName, namespace string) {
 	out, err := m.Epinio("", "service", "bind", serviceName, appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check deep into the kube structures
-	m.VerifyAppServiceBound(appName, serviceName, org, 2)
+	m.VerifyAppServiceBound(appName, serviceName, namespace, 2)
 }
 
-func (m *Machine) VerifyAppServiceBound(appName, serviceName, org string, offset int) {
+func (m *Machine) VerifyAppServiceBound(appName, serviceName, namespace string, offset int) {
 	out, err := helpers.Kubectl("get", "deployment",
-		"--namespace", org, appName,
+		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.volumes}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).To(MatchRegexp(serviceName))
 
 	out, err = helpers.Kubectl("get", "deployment",
-		"--namespace", org, appName,
+		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.containers[0].volumeMounts}")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("/services/" + serviceName))
@@ -75,23 +75,23 @@ func (m *Machine) CleanupService(serviceName string) {
 	}
 }
 
-func (m *Machine) UnbindAppService(appName, serviceName, org string) {
+func (m *Machine) UnbindAppService(appName, serviceName, namespace string) {
 	out, err := m.Epinio("", "service", "unbind", serviceName, appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And deep check in kube structures for non-presence
-	m.VerifyAppServiceNotbound(appName, serviceName, org, 2)
+	m.VerifyAppServiceNotbound(appName, serviceName, namespace, 2)
 }
 
-func (m *Machine) VerifyAppServiceNotbound(appName, serviceName, org string, offset int) {
+func (m *Machine) VerifyAppServiceNotbound(appName, serviceName, namespace string, offset int) {
 	out, err := helpers.Kubectl("get", "deployment",
-		"--namespace", org, appName,
+		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.volumes}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp(serviceName))
 
 	out, err = helpers.Kubectl("get", "deployment",
-		"--namespace", org, appName,
+		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.containers[0].volumeMounts}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp("/services/" + serviceName))

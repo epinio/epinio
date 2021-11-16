@@ -51,17 +51,17 @@ type AppDeployment struct {
 	Routes          []string `json:"routes,omitempty"`   // app routes
 }
 
-// NewApp returns a new app for name and org
-func NewApp(name string, org string) *App {
+// NewApp returns a new app for name and namespace
+func NewApp(name string, namespace string) *App {
 	return &App{
 		Meta: AppRef{
-			Name: name,
-			Org:  org,
+			Name:      name,
+			Namespace: namespace,
 		},
 	}
 }
 
-// AppRef returns a reference to the app (name, org)
+// AppRef returns a reference to the app (name, namespace)
 func (a *App) AppRef() AppRef {
 	return a.Meta
 }
@@ -86,25 +86,25 @@ func (al AppList) Swap(i, j int) {
 // indices in the AppList and returns true if the condition holds, and
 // else false.
 func (al AppList) Less(i, j int) bool {
-	return (al[i].Meta.Org < al[j].Meta.Org) ||
-		((al[i].Meta.Org == al[j].Meta.Org) &&
+	return (al[i].Meta.Namespace < al[j].Meta.Namespace) ||
+		((al[i].Meta.Namespace == al[j].Meta.Namespace) &&
 			(al[i].Meta.Name < al[j].Meta.Name))
 }
 
-// AppRef references an App by name and org
+// AppRef references an App by name and namespace
 type AppRef struct {
-	Name string `json:"name"`
-	Org  string `json:"namespace"` // TODO: Rename to Namespace
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
 }
 
 // NewAppRef returns a new reference to an app
-func NewAppRef(name string, org string) AppRef {
-	return AppRef{Name: name, Org: org}
+func NewAppRef(name string, namespace string) AppRef {
+	return AppRef{Name: name, Namespace: namespace}
 }
 
 // App returns a fresh app model for the reference
 func (ar *AppRef) App() *App {
-	return NewApp(ar.Name, ar.Org)
+	return NewApp(ar.Name, ar.Namespace)
 }
 
 // MakeEnvSecretName returns the name of the kube secret holding the
@@ -130,7 +130,7 @@ func (ar *AppRef) MakeScaleSecretName() string {
 
 // MakePVCName returns the name of the kube pvc to use with/for the referenced application.
 func (ar *AppRef) MakePVCName() string {
-	return names.GenerateResourceName(ar.Org, ar.Name)
+	return names.GenerateResourceName(ar.Namespace, ar.Name)
 }
 
 // StageRef references a tekton staging run by ID, currently randomly generated

@@ -5,8 +5,8 @@ class Applications {
     this.methods = {
       fetchApplications() {
         var that = this
-        var org = this.getOrg();
-        $.get("/api/v1/namespaces/"+org+"/applications", function(data) {
+        var namespace = this.getNamespace();
+        $.get("/api/v1/namespaces/"+namespace+"/applications", function(data) {
           that.applications = data;
         }).fail(function() {
           console.log("failed to fetch applications");
@@ -16,8 +16,8 @@ class Applications {
         this.fetchApplications();
         setInterval(this.fetchApplications, 5000);
       },
-      getOrg() {
-        var name = "currentOrg";
+      getNamespace() {
+        var name = "currentNamespace";
         var decodedCookie = decodeURIComponent(document.cookie);
         var ca = decodedCookie.split(';');
         for(var i = 0; i <ca.length; i++) {

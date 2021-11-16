@@ -27,13 +27,13 @@ import (
 
 // AppCreate creates an app without a workload
 func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest) error {
-	log := c.Log.WithName("Apps").WithValues("Organization", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Organization", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		Msg("Create application")
 
@@ -44,7 +44,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 		Configuration: appConfig,
 	}
 
-	_, err := c.API.AppCreate(request, c.Config.Org)
+	_, err := c.API.AppCreate(request, c.Config.Namespace)
 	if err != nil {
 		return err
 	}
@@ -66,7 +66,7 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 	// Ask for all apps. Filtering is local.
 	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	apps, err := c.API.Apps(c.Config.Org)
+	apps, err := c.API.Apps(c.Config.Namespace)
 	if err != nil {
 		return result
 	}
@@ -85,9 +85,9 @@ func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string
 	return result
 }
 
-// Apps gets all Epinio apps in the targeted org, or all apps in all namespaces
+// Apps gets all Epinio apps in the targeted namespace, or all apps in all namespaces
 func (c *EpinioClient) Apps(all bool) error {
-	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
@@ -97,7 +97,7 @@ func (c *EpinioClient) Apps(all bool) error {
 		msg.Msg("Listing all applications")
 	} else {
 		msg.
-			WithStringValue("Namespace", c.Config.Org).
+			WithStringValue("Namespace", c.Config.Namespace).
 			Msg("Listing applications")
 
 		if err := c.TargetOk(); err != nil {
@@ -113,7 +113,7 @@ func (c *EpinioClient) Apps(all bool) error {
 	if all {
 		apps, err = c.API.AllApps()
 	} else {
-		apps, err = c.API.Apps(c.Config.Org)
+		apps, err = c.API.Apps(c.Config.Namespace)
 	}
 	if err != nil {
 		return err
@@ -127,7 +127,7 @@ func (c *EpinioClient) Apps(all bool) error {
 		for _, app := range apps {
 			if app.Workload == nil {
 				msg = msg.WithTableRow(
-					app.Meta.Org,
+					app.Meta.Namespace,
 					app.Meta.Name,
 					"n/a",
 					"n/a",
@@ -138,7 +138,7 @@ func (c *EpinioClient) Apps(all bool) error {
 				sort.Strings(app.Workload.Routes)
 				sort.Strings(app.Configuration.Services)
 				msg = msg.WithTableRow(
-					app.Meta.Org,
+					app.Meta.Namespace,
 					app.Meta.Name,
 					app.Workload.Status,
 					strings.Join(app.Workload.Routes, ", "),
@@ -178,15 +178,15 @@ func (c *EpinioClient) Apps(all bool) error {
 	return nil
 }
 
-// AppShow displays the information of the named app, in the targeted org
+// AppShow displays the information of the named app, in the targeted namespace
 func (c *EpinioClient) AppShow(appName string) error {
-	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		Msg("Show application details")
 
@@ -196,7 +196,7 @@ func (c *EpinioClient) AppShow(appName string) error {
 
 	details.Info("show application")
 
-	app, err := c.API.AppShow(c.Config.Org, appName)
+	app, err := c.API.AppShow(c.Config.Namespace, appName)
 	if err != nil {
 		return err
 	}
@@ -251,15 +251,15 @@ func (c *EpinioClient) AppShow(appName string) error {
 	return nil
 }
 
-// AppManifest saves the information of the named app, in the targeted org, into a manifest file
+// AppManifest saves the information of the named app, in the targeted namespace, into a manifest file
 func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
-	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		WithStringValue("Destination", manifestPath).
 		Msg("Save application details to manifest")
@@ -270,7 +270,7 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 
 	details.Info("show application")
 
-	app, err := c.API.AppShow(c.Config.Org, appName)
+	app, err := c.API.AppShow(c.Config.Namespace, appName)
 	if err != nil {
 		return err
 	}
@@ -296,13 +296,13 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 	return nil
 }
 
-// AppStageID returns the stage id of the named app, in the targeted org
+// AppStageID returns the stage id of the named app, in the targeted namespace
 func (c *EpinioClient) AppStageID(appName string) (string, error) {
-	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 
-	app, err := c.API.AppShow(c.Config.Org, appName)
+	app, err := c.API.AppShow(c.Config.Namespace, appName)
 	if err != nil {
 		return "", err
 	}
@@ -316,13 +316,13 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 
 // AppUpdate updates the specified running application's attributes (e.g. instances)
 func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpdateRequest) error {
-	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	msg := c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName)
 
 	if len(appConfig.Routes) > 0 {
@@ -341,7 +341,7 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 
 	details.Info("update application")
 
-	_, err := c.API.AppUpdate(appConfig, c.Config.Org, appName)
+	_, err := c.API.AppUpdate(appConfig, c.Config.Namespace, appName)
 	if err != nil {
 		return err
 	}
@@ -351,7 +351,7 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 	return nil
 }
 
-// AppLogs streams the logs of all the application instances, in the targeted org
+// AppLogs streams the logs of all the application instances, in the targeted namespace
 // If stageID is an empty string, runtime application logs are streamed. If stageID
 // is set, then the matching staging logs are streamed.
 // There are 2 ways of stopping this method:
@@ -378,13 +378,13 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 // same but starts from #2 above.
 // TODO move into transport package
 func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
-	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Org, "Application", appName)
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		Msg("Streaming application logs")
 
@@ -404,9 +404,9 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 
 	var endpoint string
 	if stageID == "" {
-		endpoint = api.Routes.Path("AppLogs", c.Config.Org, appName)
+		endpoint = api.Routes.Path("AppLogs", c.Config.Namespace, appName)
 	} else {
-		endpoint = api.Routes.Path("StagingLogs", c.Config.Org, stageID)
+		endpoint = api.Routes.Path("StagingLogs", c.Config.Namespace, stageID)
 	}
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(
 		fmt.Sprintf("%s%s/%s?%s", c.API.WsURL, api.Root, endpoint, strings.Join(urlArgs, "&")), headers)
@@ -480,17 +480,17 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 
 	c.ui.Note().
 		WithStringValue("Name", appname).
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		Msg("Deleting application...")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Org)
+	s := c.ui.Progressf("Deleting %s in %s", appname, c.Config.Namespace)
 	defer s.Stop()
 
-	response, err := c.API.AppDelete(c.Config.Org, appname)
+	response, err := c.API.AppDelete(c.Config.Namespace, appname)
 	if err != nil {
 		return err
 	}

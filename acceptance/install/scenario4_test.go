@@ -99,7 +99,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		// Now create the default org which we skipped because
+		// Now create the default namespace which we skipped because
 		// it would fail before patching.
 		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
 		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)

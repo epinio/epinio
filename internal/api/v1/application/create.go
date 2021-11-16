@@ -6,18 +6,18 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// Create handles the API endpoint POST /namespaces/:org/applications
+// Create handles the API endpoint POST /namespaces/:namespace/applications
 // It creates a new and empty application. I.e. without a workload.
 func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -25,13 +25,13 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
 	var createRequest models.ApplicationCreateRequest
@@ -40,7 +40,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.BadRequest(err)
 	}
 
-	appRef := models.NewAppRef(createRequest.Name, org)
+	appRef := models.NewAppRef(createRequest.Name, namespace)
 	found, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {
 		return apierror.InternalError(err, "failed to check for app resource")
@@ -63,7 +63,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	var theIssues []apierror.APIError
 
 	for _, serviceName := range createRequest.Configuration.Services {
-		_, err := services.Lookup(ctx, cluster, org, serviceName)
+		_, err := services.Lookup(ctx, cluster, namespace, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
 				theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))

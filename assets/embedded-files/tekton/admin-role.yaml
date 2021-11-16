@@ -17,7 +17,6 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: staging-triggers-admin
-  # TODO: Delete the orgs/namespaces on uninstallation
   namespace: tekton-staging
 rules:
 - apiGroups:

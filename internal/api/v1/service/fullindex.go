@@ -40,14 +40,14 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		// between services of the same name in different
 		// namespaces, with different binding states.
 
-		key := serviceKey(service.Name(), service.Org())
+		key := serviceKey(service.Name(), service.Namespace())
 		for _, app := range appsOf[key] {
 			appNames = append(appNames, app.Meta.Name)
 		}
 		responseData = append(responseData, models.ServiceResponse{
 			Meta: models.ServiceRef{
 				Name:      service.Name(),
-				Namespace: service.Org(),
+				Namespace: service.Namespace(),
 			},
 			BoundApps: appNames,
 		})

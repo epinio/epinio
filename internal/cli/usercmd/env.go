@@ -14,7 +14,7 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		Msg("Show Application Environment")
 
@@ -22,7 +22,7 @@ func (c *EpinioClient) EnvList(ctx context.Context, appName string) error {
 		return err
 	}
 
-	eVariables, err := c.API.EnvList(c.Config.Org, appName)
+	eVariables, err := c.API.EnvList(c.Config.Namespace, appName)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		WithStringValue("Variable", envName).
 		WithStringValue("Value", envValue).
@@ -58,7 +58,7 @@ func (c *EpinioClient) EnvSet(ctx context.Context, appName, envName, envValue st
 	request := models.EnvVariableMap{}
 	request[envName] = envValue
 
-	_, err := c.API.EnvSet(request, c.Config.Org, appName)
+	_, err := c.API.EnvSet(request, c.Config.Namespace, appName)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) err
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		WithStringValue("Variable", envName).
 		Msg("Show application environment variable")
@@ -84,7 +84,7 @@ func (c *EpinioClient) EnvShow(ctx context.Context, appName, envName string) err
 		return err
 	}
 
-	eVariable, err := c.API.EnvShow(c.Config.Org, appName, envName)
+	eVariable, err := c.API.EnvShow(c.Config.Namespace, appName, envName)
 	if err != nil {
 		return err
 	}
@@ -104,7 +104,7 @@ func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) er
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Org).
+		WithStringValue("Namespace", c.Config.Namespace).
 		WithStringValue("Application", appName).
 		WithStringValue("Variable", envName).
 		Msg("Remove from application environment")
@@ -113,7 +113,7 @@ func (c *EpinioClient) EnvUnset(ctx context.Context, appName, envName string) er
 		return err
 	}
 
-	_, err := c.API.EnvUnset(c.Config.Org, appName, envName)
+	_, err := c.API.EnvUnset(c.Config.Namespace, appName, envName)
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (c *EpinioClient) EnvMatching(ctx context.Context, appName, prefix string) 
 	log.Info("start")
 	defer log.Info("return")
 
-	resp, err := c.API.EnvMatch(c.Config.Org, appName, prefix)
+	resp, err := c.API.EnvMatch(c.Config.Namespace, appName, prefix)
 	if err != nil {
 		// TODO log that we dropped an error
 		return []string{}

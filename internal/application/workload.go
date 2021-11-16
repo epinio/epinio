@@ -186,7 +186,7 @@ func (a *Workload) BoundServicesChange(ctx context.Context, userName string, old
 		deployment.Spec.Template.Spec.Containers[0].VolumeMounts = newMounts
 
 		// ... and then the cluster.
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).Update(
 			ctx, deployment, metav1.UpdateOptions{})
 
 		return err
@@ -250,7 +250,7 @@ func (a *Workload) EnvironmentChange(ctx context.Context, varNames []string) err
 
 		deployment.Spec.Template.Spec.Containers[0].Env = newEnvironment
 
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).Update(
 			ctx, deployment, metav1.UpdateOptions{})
 
 		return err
@@ -270,7 +270,7 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 
 		deployment.Spec.Replicas = &instances
 
-		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Update(
+		_, err = a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).Update(
 			ctx, deployment, metav1.UpdateOptions{})
 
 		return err
@@ -279,7 +279,7 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 
 // Deployment is a helper, it returns the kube deployment resource of the workload.
 func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
-	return a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).Get(
+	return a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).Get(
 		ctx, a.app.Name, metav1.GetOptions{},
 	)
 }
@@ -297,7 +297,7 @@ func (a *Workload) Metrics(ctx context.Context) (int64, int64, error) {
 	}
 
 	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
-	podMetrics, err := mc.MetricsV1beta1().PodMetricses(a.app.Org).
+	podMetrics, err := mc.MetricsV1beta1().PodMetricses(a.app.Namespace).
 		List(ctx, metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return 0, 0, err
@@ -335,7 +335,7 @@ func (a *Workload) Restarts(ctx context.Context) (int32, error) {
 	}
 
 	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
-	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Org).List(ctx,
+	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).List(ctx,
 		metav1.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return 0, err
@@ -362,13 +362,13 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 
 	// Query application deployment for stageID and status (ready vs desired replicas)
 
-	deploymentSelector := fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s", a.app.Org, a.app.Name)
+	deploymentSelector := fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s", a.app.Namespace, a.app.Name)
 
 	deploymentListOptions := metav1.ListOptions{
 		LabelSelector: deploymentSelector,
 	}
 
-	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Org).List(ctx, deploymentListOptions)
+	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).List(ctx, deploymentListOptions)
 
 	desiredReplicas := int32(0)
 	readyReplicas := int32(0)

@@ -63,55 +63,55 @@ var Routes = routes.NamedRoutes{
 	// app controller files see application/*.go
 
 	"AllApps":         get("/applications", errorHandler(application.Controller{}.FullIndex)),
-	"Apps":            get("/namespaces/:org/applications", errorHandler(application.Controller{}.Index)),
-	"AppCreate":       post("/namespaces/:org/applications", errorHandler(application.Controller{}.Create)),
-	"AppShow":         get("/namespaces/:org/applications/:app", errorHandler(application.Controller{}.Show)),
-	"AppLogs":         get("/namespaces/:org/applications/:app/logs", application.Controller{}.Logs),
-	"StagingLogs":     get("/namespaces/:org/staging/:stage_id/logs", application.Controller{}.Logs),
-	"StagingComplete": get("/namespaces/:org/staging/:stage_id/complete", errorHandler(application.Controller{}.Staged)), // See stage.go
-	"AppDelete":       delete("/namespaces/:org/applications/:app", errorHandler(application.Controller{}.Delete)),
-	"AppUpload":       post("/namespaces/:org/applications/:app/store", errorHandler(application.Controller{}.Upload)), // See upload.go
-	"AppImportGit":    post("/namespaces/:org/applications/:app/import-git", errorHandler(application.Controller{}.ImportGit)),
-	"AppStage":        post("/namespaces/:org/applications/:app/stage", errorHandler(application.Controller{}.Stage)), // See stage.go
-	"AppDeploy":       post("/namespaces/:org/applications/:app/deploy", errorHandler(application.Controller{}.Deploy)),
-	"AppUpdate":       patch("/namespaces/:org/applications/:app", errorHandler(application.Controller{}.Update)),
-	"AppRunning":      get("/namespaces/:org/applications/:app/running", errorHandler(application.Controller{}.Running)),
+	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Index)),
+	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Create)),
+	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Show)),
+	"AppLogs":         get("/namespaces/:namespace/applications/:app/logs", application.Controller{}.Logs),
+	"StagingLogs":     get("/namespaces/:namespace/staging/:stage_id/logs", application.Controller{}.Logs),
+	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Controller{}.Staged)), // See stage.go
+	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Delete)),
+	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Controller{}.Upload)), // See upload.go
+	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.Controller{}.ImportGit)),
+	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Controller{}.Stage)), // See stage.go
+	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Controller{}.Deploy)),
+	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Update)),
+	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Controller{}.Running)),
 
 	// See env.go
-	"EnvList": get("/namespaces/:org/applications/:app/environment", errorHandler(env.Controller{}.Index)),
+	"EnvList": get("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Index)),
 
 	// Note, the second registration catches calls with an empty pattern!
-	"EnvMatch":  get("/namespaces/:org/applications/:app/environmentmatch/:pattern", errorHandler(env.Controller{}.Match)),
-	"EnvMatch0": get("/namespaces/:org/applications/:app/environmentmatch", errorHandler(env.Controller{}.Match)),
+	"EnvMatch":  get("/namespaces/:namespace/applications/:app/environmentmatch/:pattern", errorHandler(env.Controller{}.Match)),
+	"EnvMatch0": get("/namespaces/:namespace/applications/:app/environmentmatch", errorHandler(env.Controller{}.Match)),
 
-	"EnvSet":   post("/namespaces/:org/applications/:app/environment", errorHandler(env.Controller{}.Set)),
-	"EnvShow":  get("/namespaces/:org/applications/:app/environment/:env", errorHandler(env.Controller{}.Show)),
-	"EnvUnset": delete("/namespaces/:org/applications/:app/environment/:env", errorHandler(env.Controller{}.Unset)),
+	"EnvSet":   post("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Set)),
+	"EnvShow":  get("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Controller{}.Show)),
+	"EnvUnset": delete("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Controller{}.Unset)),
 
 	// Bind and unbind services to/from applications, by means of servicebindings in applications
-	"ServiceBindingCreate": post("/namespaces/:org/applications/:app/servicebindings",
+	"ServiceBindingCreate": post("/namespaces/:namespace/applications/:app/servicebindings",
 		errorHandler(servicebinding.Controller{}.Create)),
-	"ServiceBindingDelete": delete("/namespaces/:org/applications/:app/servicebindings/:service",
+	"ServiceBindingDelete": delete("/namespaces/:namespace/applications/:app/servicebindings/:service",
 		errorHandler(servicebinding.Controller{}.Delete)),
 
 	// List, create, show and delete namespaces
 	"Namespaces":      get("/namespaces", errorHandler(namespace.Controller{}.Index)),
 	"NamespaceCreate": post("/namespaces", errorHandler(namespace.Controller{}.Create)),
-	"NamespaceDelete": delete("/namespaces/:org", errorHandler(namespace.Controller{}.Delete)),
-	"NamespaceShow":   get("/namespaces/:org", errorHandler(namespace.Controller{}.Show)),
+	"NamespaceDelete": delete("/namespaces/:namespace", errorHandler(namespace.Controller{}.Delete)),
+	"NamespaceShow":   get("/namespaces/:namespace", errorHandler(namespace.Controller{}.Show)),
 
 	// Note, the second registration catches calls with an empty pattern!
 	"NamespacesMatch":  get("/namespacematches/:pattern", errorHandler(namespace.Controller{}.Match)),
 	"NamespacesMatch0": get("/namespacematches", errorHandler(namespace.Controller{}.Match)),
 
 	// List, show, create and delete services
-	"ServiceApps": get("/namespaces/:org/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
+	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
 	//
 	"AllServices":   get("/services", errorHandler(service.Controller{}.FullIndex)),
-	"Services":      get("/namespaces/:org/services", errorHandler(service.Controller{}.Index)),
-	"ServiceShow":   get("/namespaces/:org/services/:service", errorHandler(service.Controller{}.Show)),
-	"ServiceCreate": post("/namespaces/:org/services", errorHandler(service.Controller{}.Create)),
-	"ServiceDelete": delete("/namespaces/:org/services/:service", errorHandler(service.Controller{}.Delete)),
+	"Services":      get("/namespaces/:namespace/services", errorHandler(service.Controller{}.Index)),
+	"ServiceShow":   get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
+	"ServiceCreate": post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
+	"ServiceDelete": delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
 }
 
 // Lemon extends the specified router with the methods and urls

@@ -18,6 +18,6 @@ certs: |
   LJNVXzwXdushAmsHxJcyH6jDpw2y1y+IbqJxN19oC8UFDjR09qYE+A==
   -----END CERTIFICATE-----
 colors: true
-org: workspace
+namespace: workspace
 pass: 05ec82a894940780
 user: 996ee615fde2ceed

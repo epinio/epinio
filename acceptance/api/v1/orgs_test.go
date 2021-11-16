@@ -18,13 +18,13 @@ import (
 )
 
 var _ = Describe("Namespaces API Application Endpoints", func() {
-	var org string
+	var namespace string
 	const jsOK = `{"status":"ok"}`
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
-		org = catalog.NewOrgName()
-		env.SetupAndTargetOrg(org)
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
 
 		// Wait for server to be up and running
 		Eventually(func() error {
@@ -51,7 +51,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 
 				// See global BeforeEach for where this namespace is set up.
 				Expect(namespaces).Should(ContainElements(models.Namespace{
-					Name: org,
+					Name: namespace,
 				}))
 			})
 			When("basic auth credentials are not provided", func() {
@@ -176,11 +176,11 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 			})
 		})
 
-		Describe("GET /api/v1/namespaces/:org", func() {
+		Describe("GET /api/v1/namespaces/:namespace", func() {
 			It("lists the namespace data", func() {
 				response, err := env.Curl("GET",
 					fmt.Sprintf("%s%s/namespaces/%s",
-						serverURL, api.Root, org),
+						serverURL, api.Root, namespace),
 					strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -194,18 +194,18 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				err = json.Unmarshal(bodyBytes, &responseSpace)
 				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
 				Expect(responseSpace).To(Equal(models.Namespace{
-					Name:     org,
+					Name:     namespace,
 					Apps:     nil,
 					Services: nil,
 				}))
 			})
 		})
 
-		Describe("DELETE /api/v1/namespaces/:org", func() {
+		Describe("DELETE /api/v1/namespaces/:namespace", func() {
 			It("deletes an namespace", func() {
 				response, err := env.Curl("DELETE",
 					fmt.Sprintf("%s%s/namespaces/%s",
-						serverURL, api.Root, org),
+						serverURL, api.Root, namespace),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -215,7 +215,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(jsOK))
 
-				_, err = helpers.Kubectl("get", "namespace", org)
+				_, err = helpers.Kubectl("get", "namespace", namespace)
 				Expect(err).To(HaveOccurred())
 			})
 
@@ -224,10 +224,10 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				svc1 := catalog.NewServiceName()
 				env.MakeService(svc1)
-				env.BindAppService(app1, svc1, org)
+				env.BindAppService(app1, svc1, namespace)
 
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s",
-					serverURL, api.Root, org),
+					serverURL, api.Root, namespace),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -236,7 +236,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(bodyBytes)).To(Equal(jsOK))
 
-				env.VerifyOrgNotExist(org)
+				env.VerifyNamespaceNotExist(namespace)
 			})
 		})
 
@@ -257,7 +257,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				// See global BeforeEach for where this namespace is set up.
-				Expect(resp.Names).Should(ContainElements(org))
+				Expect(resp.Names).Should(ContainElements(namespace))
 			})
 			It("lists no namespaces matching the prefix", func() {
 				response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespacematches/bogus",

@@ -16,20 +16,20 @@ import (
 )
 
 var _ = Describe("Services API Application Endpoints, Mutations", func() {
-	var org string
+	var namespace string
 	const jsOK = `{"status":"ok"}`
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
-		org = catalog.NewOrgName()
-		env.SetupAndTargetOrg(org)
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
 	})
 
-	Describe("POST /api/v1/namespaces/:org/services/", func() {
+	Describe("POST /api/v1/namespaces/:namespace/services/", func() {
 		It("returns a 'bad request' for a non JSON body", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/services",
-					serverURL, api.Root, org),
+					serverURL, api.Root, namespace),
 				strings.NewReader(``))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -46,7 +46,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'bad request' for a non-object JSON body", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/services",
-					serverURL, api.Root, org),
+					serverURL, api.Root, namespace),
 				strings.NewReader(`[]`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -64,7 +64,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'bad request' for JSON object without `name` key", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/services",
-					serverURL, api.Root, org),
+					serverURL, api.Root, namespace),
 				strings.NewReader(`{}`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -82,7 +82,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'bad request' for JSON object empty `data` key", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/services",
-					serverURL, api.Root, org),
+					serverURL, api.Root, namespace),
 				strings.NewReader(`{
 				    "name": "meh"
 				}`))
@@ -99,7 +99,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Equal("Cannot create service without data"))
 		})
 
-		It("returns a 'not found' when the org does not exist", func() {
+		It("returns a 'not found' when the namespace does not exist", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/bogus/services",
 					serverURL, api.Root),
@@ -135,7 +135,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("returns a 'conflict'", func() {
 				response, err := env.Curl("POST",
 					fmt.Sprintf("%s%s/namespaces/%s/services",
-						serverURL, api.Root, org),
+						serverURL, api.Root, namespace),
 					strings.NewReader(fmt.Sprintf(`{
 					    "name": "%s",
 					    "data": {"host":"localhost", "port":"9999"}
@@ -168,7 +168,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("creates the service", func() {
 				response, err := env.Curl("POST",
 					fmt.Sprintf("%s%s/namespaces/%s/services",
-						serverURL, api.Root, org),
+						serverURL, api.Root, namespace),
 					strings.NewReader(fmt.Sprintf(`{
 					    "name": "%s",
 					    "data": {"host":"localhost", "port":"9999"}
@@ -185,7 +185,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		})
 	})
 
-	Describe("DELETE /api/v1/namespaces/:org/services/:service", func() {
+	Describe("DELETE /api/v1/namespaces/:namespace/services/:service", func() {
 		var service string
 
 		BeforeEach(func() {
@@ -227,7 +227,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Equal("json: cannot unmarshal array into Go value of type models.ServiceDeleteRequest"))
 		})
 
-		It("returns a 'not found' when the org does not exist", func() {
+		It("returns a 'not found' when the namespace does not exist", func() {
 			response, err := env.Curl("DELETE",
 				fmt.Sprintf("%s%s/namespaces/idontexist/services/%s",
 					serverURL, api.Root, service),
@@ -248,7 +248,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'not found' when the service does not exist", func() {
 			response, err := env.Curl("DELETE",
 				fmt.Sprintf("%s%s/namespaces/%s/services/bogus",
-					serverURL, api.Root, org),
+					serverURL, api.Root, namespace),
 				strings.NewReader(`{ "unbind": false }`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -273,7 +273,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				app = catalog.NewAppName()
 				env.MakeService(service)
 				env.MakeContainerImageApp(app, 1, containerImageURL)
-				env.BindAppService(app, service, org)
+				env.BindAppService(app, service, namespace)
 			})
 
 			AfterEach(func() {
@@ -284,7 +284,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("returns 'bad request'", func() {
 				response, err := env.Curl("DELETE",
 					fmt.Sprintf("%s%s/namespaces/%s/services/%s",
-						serverURL, api.Root, org, service),
+						serverURL, api.Root, namespace, service),
 					strings.NewReader(`{ "unbind": false }`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -302,7 +302,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("unbinds and removes the service, when former is requested", func() {
 				response, err := env.Curl("DELETE",
 					fmt.Sprintf("%s%s/namespaces/%s/services/%s",
-						serverURL, api.Root, org, service),
+						serverURL, api.Root, namespace, service),
 					strings.NewReader(`{ "unbind": true }`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -326,7 +326,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("removes the service", func() {
 				response, err := env.Curl("DELETE",
 					fmt.Sprintf("%s%s/namespaces/%s/services/%s",
-						serverURL, api.Root, org, service),
+						serverURL, api.Root, namespace, service),
 					strings.NewReader(`{ "unbind" : false }`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -340,7 +340,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		})
 	})
 
-	Describe("POST /api/v1/namespaces/:org/applications/:arg/servicebindings/", func() {
+	Describe("POST /api/v1/namespaces/:namespace/applications/:arg/servicebindings/", func() {
 		var app string
 
 		BeforeEach(func() {
@@ -350,7 +350,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'bad request' for a non JSON body", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings",
-					serverURL, api.Root, org, app),
+					serverURL, api.Root, namespace, app),
 				strings.NewReader(``))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -367,7 +367,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'bad request' for a non-object JSON body", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings",
-					serverURL, api.Root, org, app),
+					serverURL, api.Root, namespace, app),
 				strings.NewReader(`[]`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -385,7 +385,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'bad request' for JSON object without `name` key", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings",
-					serverURL, api.Root, org, app),
+					serverURL, api.Root, namespace, app),
 				strings.NewReader(`{}`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -400,7 +400,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				Equal("Cannot bind service without names"))
 		})
 
-		It("returns a 'not found' when the org does not exist", func() {
+		It("returns a 'not found' when the namespace does not exist", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/bogus/applications/_dummy_/servicebindings",
 					serverURL, api.Root),
@@ -421,7 +421,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'not found' when the application does not exist", func() {
 			response, err := env.Curl("POST",
 				fmt.Sprintf("%s%s/namespaces/%s/applications/bogus/servicebindings",
-					serverURL, api.Root, org),
+					serverURL, api.Root, namespace),
 				strings.NewReader(`{ "names": ["meh"] }`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -455,7 +455,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("returns a 'not found' when the service does not exist", func() {
 				response, err := env.Curl("POST",
 					fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings",
-						serverURL, api.Root, org, app),
+						serverURL, api.Root, namespace, app),
 					strings.NewReader(`{ "names": ["bogus"] }`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -472,13 +472,13 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 			Context("and already bound", func() {
 				BeforeEach(func() {
-					env.BindAppService(app, service, org)
+					env.BindAppService(app, service, namespace)
 				})
 
 				It("returns a note about being bound", func() {
 					response, err := env.Curl("POST",
 						fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings",
-							serverURL, api.Root, org, app),
+							serverURL, api.Root, namespace, app),
 						strings.NewReader(fmt.Sprintf(`{ "names": ["%s"] }`, service)))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response).ToNot(BeNil())
@@ -496,7 +496,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("binds the service", func() {
 				response, err := env.Curl("POST",
 					fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings",
-						serverURL, api.Root, org, app),
+						serverURL, api.Root, namespace, app),
 					strings.NewReader(fmt.Sprintf(`{ "names": ["%s"] }`, service)))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -510,7 +510,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		})
 	})
 
-	Describe("DELETE /api/v1/namespaces/:org/applications/:app/servicebindings/:service", func() {
+	Describe("DELETE /api/v1/namespaces/:namespace/applications/:app/servicebindings/:service", func() {
 		var app string
 		var service string
 
@@ -519,7 +519,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			app = catalog.NewAppName()
 		})
 
-		It("returns a 'not found' when the org does not exist", func() {
+		It("returns a 'not found' when the namespace does not exist", func() {
 			response, err := env.Curl("DELETE",
 				fmt.Sprintf("%s%s/namespaces/idontexist/applications/%s/servicebindings/%s",
 					serverURL, api.Root, app, service),
@@ -541,7 +541,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 		It("returns a 'not found' when the application does not exist", func() {
 			response, err := env.Curl("DELETE",
 				fmt.Sprintf("%s%s/namespaces/%s/applications/bogus/servicebindings/%s",
-					serverURL, api.Root, org, service),
+					serverURL, api.Root, namespace, service),
 				strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
@@ -571,7 +571,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 			It("returns a 'not found' when the service does not exist", func() {
 				response, err := env.Curl("DELETE",
 					fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings/bogus",
-						serverURL, api.Root, org, app),
+						serverURL, api.Root, namespace, app),
 					strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -600,13 +600,13 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 
 				Context("already bound", func() {
 					BeforeEach(func() {
-						env.BindAppService(app, service, org)
+						env.BindAppService(app, service, namespace)
 					})
 
 					It("unbinds the service", func() {
 						response, err := env.Curl("DELETE",
 							fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings/%s",
-								serverURL, api.Root, org, app, service),
+								serverURL, api.Root, namespace, app, service),
 							strings.NewReader(""))
 						Expect(err).ToNot(HaveOccurred())
 						Expect(response).ToNot(BeNil())
@@ -622,7 +622,7 @@ var _ = Describe("Services API Application Endpoints, Mutations", func() {
 				It("returns a 'ok' even when the service is not bound (idempotency)", func() {
 					response, err := env.Curl("DELETE",
 						fmt.Sprintf("%s%s/namespaces/%s/applications/%s/servicebindings/%s",
-							serverURL, api.Root, org, app, service),
+							serverURL, api.Root, namespace, app, service),
 						strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response).ToNot(BeNil())

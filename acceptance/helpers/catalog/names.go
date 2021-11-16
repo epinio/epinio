@@ -20,7 +20,7 @@ func NewTmpName(base string) string {
 	return base + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
-func NewOrgName() string {
+func NewNamespaceName() string {
 	return "namespace-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
@@ -36,6 +36,6 @@ func NewServiceName() string {
 	return "service-" + strconv.Itoa(int(time.Now().Nanosecond())) + strconv.Itoa(RandInt())
 }
 
-func GetServiceBindingName(orgName, serviceName, appName string) string {
-	return fmt.Sprintf("svc.org-%s.svc-%s.app-%s", orgName, serviceName, appName)
+func GetServiceBindingName(namespaceName, serviceName, appName string) string {
+	return fmt.Sprintf("svc.namespace-%s.svc-%s.app-%s", namespaceName, serviceName, appName)
 }

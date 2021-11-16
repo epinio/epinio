@@ -3,45 +3,45 @@ package namespace
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Show handles the API endpoint GET /namespaces/:org
+// Show handles the API endpoint GET /namespaces/:namespace
 // It returns the details of the specified namespace
 func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	appNames, err := namespaceApps(ctx, cluster, org)
+	appNames, err := namespaceApps(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	serviceNames, err := namespaceServices(ctx, cluster, org)
+	serviceNames, err := namespaceServices(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	response.OKReturn(c, models.Namespace{
-		Name:     org,
+		Name:     namespace,
 		Apps:     appNames,
 		Services: serviceNames,
 	})

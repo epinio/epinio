@@ -18,8 +18,8 @@ var _ = Describe("Namespaces", func() {
 
 	Describe("namespace create", func() {
 		It("creates and targets an namespace", func() {
-			namespaceName := catalog.NewOrgName()
-			env.SetupAndTargetOrg(namespaceName)
+			namespaceName := catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespaceName)
 
 			By("switching namespace back to default")
 			out, err := env.Epinio("", "target", "workspace")
@@ -27,8 +27,8 @@ var _ = Describe("Namespaces", func() {
 		})
 
 		It("rejects creating an existing namespace", func() {
-			namespaceName := catalog.NewOrgName()
-			env.SetupAndTargetOrg(namespaceName)
+			namespaceName := catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespaceName)
 
 			out, err := env.Epinio("", "namespace", "create", namespaceName)
 			Expect(err).To(HaveOccurred(), out)
@@ -43,8 +43,8 @@ var _ = Describe("Namespaces", func() {
 		var appName string
 
 		BeforeEach(func() {
-			namespaceName = catalog.NewOrgName()
-			env.SetupAndTargetOrg(namespaceName)
+			namespaceName = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespaceName)
 
 			serviceName = catalog.NewServiceName()
 			env.MakeService(serviceName)
@@ -77,8 +77,8 @@ var _ = Describe("Namespaces", func() {
 			var appName string
 
 			BeforeEach(func() {
-				namespaceName = catalog.NewOrgName()
-				env.SetupAndTargetOrg(namespaceName)
+				namespaceName = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespaceName)
 
 				serviceName = catalog.NewServiceName()
 				env.MakeService(serviceName)
@@ -102,8 +102,8 @@ var _ = Describe("Namespaces", func() {
 
 	Describe("namespace delete", func() {
 		It("deletes an namespace", func() {
-			namespaceName := catalog.NewOrgName()
-			env.SetupAndTargetOrg(namespaceName)
+			namespaceName := catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespaceName)
 
 			By("deleting namespace")
 			out, err := env.Epinio("", "namespace", "delete", "-f", namespaceName)

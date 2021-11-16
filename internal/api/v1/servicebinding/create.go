@@ -5,7 +5,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -19,11 +19,11 @@ import (
 // however always after it. IOW an internal error is always
 // the first element when reporting more than one error.
 
-// Create handles the API endpoint /orgs/:org/applications/:app/servicebindings (POST)
+// Create handles the API endpoint /namespaces/:namespace/applications/:app/servicebindings (POST)
 // It creates a binding between the specified service and application
 func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	username := requestctx.User(ctx)
 
@@ -50,15 +50,15 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -90,7 +90,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 			continue
 		}
 
-		_, err := services.Lookup(ctx, cluster, org, serviceName)
+		_, err := services.Lookup(ctx, cluster, namespace, serviceName)
 		if err != nil {
 			if err.Error() == "service not found" {
 				theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))

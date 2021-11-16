@@ -7,12 +7,12 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/internal/organizations"
+	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 )
 
-// Running handles the API endpoint GET /namespaces/:org/applications/:app/running
+// Running handles the API endpoint GET /namespaces/:namespace/applications/:app/running
 // It waits for the specified application to be running (i.e. its
 // deployment to be complete), before it returns. An exception is if
 // the application does not become running without
@@ -20,7 +20,7 @@ import (
 // returns with an error after that time.
 func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	org := c.Param("org")
+	namespace := c.Param("namespace")
 	appName := c.Param("app")
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -28,16 +28,16 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := organizations.Exists(ctx, cluster, org)
+	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if !exists {
-		return apierror.OrgIsNotKnown(org)
+		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	app, err := application.Lookup(ctx, cluster, org, appName)
+	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -53,7 +53,7 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 	}
 
 	err = cluster.WaitForDeploymentCompleted(
-		ctx, nil, org, appName, duration.ToAppBuilt())
+		ctx, nil, namespace, appName, duration.ToAppBuilt())
 	if err != nil {
 		return apierror.InternalError(err)
 	}

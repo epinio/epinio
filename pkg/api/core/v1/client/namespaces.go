@@ -27,7 +27,7 @@ func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Resp
 	var data []byte
 	err = retry.Do(
 		func() error {
-			details.Info("create org", "org", req.Name)
+			details.Info("create namespace", "namespace", req.Name)
 			data, err = c.post(api.Routes.Path("Namespaces"), string(b))
 			return err
 		},
@@ -63,10 +63,10 @@ func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Resp
 }
 
 // NamespaceDelete deletes a namespace
-func (c *Client) NamespaceDelete(org string) (models.Response, error) {
+func (c *Client) NamespaceDelete(namespace string) (models.Response, error) {
 	resp := models.Response{}
 
-	data, err := c.delete(api.Routes.Path("NamespaceDelete", org))
+	data, err := c.delete(api.Routes.Path("NamespaceDelete", namespace))
 	if err != nil {
 		return resp, err
 	}
@@ -81,10 +81,10 @@ func (c *Client) NamespaceDelete(org string) (models.Response, error) {
 }
 
 // NamespaceShow shows a namespace
-func (c *Client) NamespaceShow(org string) (models.Namespace, error) {
+func (c *Client) NamespaceShow(namespace string) (models.Namespace, error) {
 	resp := models.Namespace{}
 
-	data, err := c.get(api.Routes.Path("NamespaceShow", org))
+	data, err := c.get(api.Routes.Path("NamespaceShow", namespace))
 	if err != nil {
 		return resp, err
 	}

@@ -20,7 +20,7 @@ import (
 )
 
 // AppCreate creates an application resource
-func (c *Client) AppCreate(req models.ApplicationCreateRequest, org string) (models.Response, error) {
+func (c *Client) AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error) {
 	var resp models.Response
 
 	b, err := json.Marshal(req)
@@ -28,7 +28,7 @@ func (c *Client) AppCreate(req models.ApplicationCreateRequest, org string) (mod
 		return resp, nil
 	}
 
-	data, err := c.post(api.Routes.Path("AppCreate", org), string(b))
+	data, err := c.post(api.Routes.Path("AppCreate", namespace), string(b))
 	if err != nil {
 		return resp, err
 	}
@@ -42,11 +42,11 @@ func (c *Client) AppCreate(req models.ApplicationCreateRequest, org string) (mod
 	return resp, nil
 }
 
-// Apps returns a list of all apps in an org
-func (c *Client) Apps(org string) (models.AppList, error) {
+// Apps returns a list of all apps in an namespace
+func (c *Client) Apps(namespace string) (models.AppList, error) {
 	var resp models.AppList
 
-	data, err := c.get(api.Routes.Path("Apps", org))
+	data, err := c.get(api.Routes.Path("Apps", namespace))
 	if err != nil {
 		return resp, err
 	}
@@ -79,10 +79,10 @@ func (c *Client) AllApps() (models.AppList, error) {
 }
 
 // AppShow shows an app
-func (c *Client) AppShow(org string, appName string) (models.App, error) {
+func (c *Client) AppShow(namespace string, appName string) (models.App, error) {
 	var resp models.App
 
-	data, err := c.get(api.Routes.Path("AppShow", org, appName))
+	data, err := c.get(api.Routes.Path("AppShow", namespace, appName))
 	if err != nil {
 		return resp, err
 	}
@@ -97,7 +97,7 @@ func (c *Client) AppShow(org string, appName string) (models.App, error) {
 }
 
 // AppUpdate updates an app
-func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, org string, appName string) (models.Response, error) {
+func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error) {
 	var resp models.Response
 
 	b, err := json.Marshal(req)
@@ -105,7 +105,7 @@ func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, org string, appN
 		return resp, nil
 	}
 
-	data, err := c.patch(api.Routes.Path("AppUpdate", org, appName), string(b))
+	data, err := c.patch(api.Routes.Path("AppUpdate", namespace, appName), string(b))
 	if err != nil {
 		return resp, err
 	}
@@ -120,10 +120,10 @@ func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, org string, appN
 }
 
 // AppDelete deletes an app
-func (c *Client) AppDelete(org string, name string) (models.ApplicationDeleteResponse, error) {
+func (c *Client) AppDelete(namespace string, name string) (models.ApplicationDeleteResponse, error) {
 	resp := models.ApplicationDeleteResponse{}
 
-	data, err := c.delete(api.Routes.Path("AppDelete", org, name))
+	data, err := c.delete(api.Routes.Path("AppDelete", namespace, name))
 	if err != nil {
 		return resp, err
 	}
@@ -138,10 +138,10 @@ func (c *Client) AppDelete(org string, name string) (models.ApplicationDeleteRes
 }
 
 // AppUpload uploads a tarball for the named app, which is later used in staging
-func (c *Client) AppUpload(org string, name string, tarball string) (models.UploadResponse, error) {
+func (c *Client) AppUpload(namespace string, name string, tarball string) (models.UploadResponse, error) {
 	resp := models.UploadResponse{}
 
-	data, err := c.upload(api.Routes.Path("AppUpload", org, name), tarball)
+	data, err := c.upload(api.Routes.Path("AppUpload", namespace, name), tarball)
 	if err != nil {
 		return resp, errors.Wrap(err, "can't upload archive")
 	}
@@ -161,7 +161,7 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 	data.Set("giturl", gitRef.URL)
 	data.Set("gitrev", gitRef.Revision)
 
-	url := fmt.Sprintf("%s%s/%s", c.URL, api.Root, api.Routes.Path("AppImportGit", app.Org, app.Name))
+	url := fmt.Sprintf("%s%s/%s", c.URL, api.Root, api.Routes.Path("AppImportGit", app.Namespace, app.Name))
 	request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing the request")
@@ -202,7 +202,7 @@ func (c *Client) AppStage(req models.StageRequest) (*models.StageResponse, error
 		return nil, errors.Wrap(err, "can't marshal stage request")
 	}
 
-	b, err := c.post(api.Routes.Path("AppStage", req.App.Org, req.App.Name), string(out))
+	b, err := c.post(api.Routes.Path("AppStage", req.App.Namespace, req.App.Name), string(out))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't stage app")
 	}
@@ -225,7 +225,7 @@ func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, er
 		return nil, errors.Wrap(err, "can't marshal deploy request")
 	}
 
-	b, err := c.post(api.Routes.Path("AppDeploy", req.App.Org, req.App.Name), string(out))
+	b, err := c.post(api.Routes.Path("AppDeploy", req.App.Namespace, req.App.Name), string(out))
 	if err != nil {
 		return nil, errors.Wrap(err, "can't deploy app")
 	}
@@ -242,7 +242,7 @@ func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, er
 }
 
 // StagingComplete checks if the staging process is complete
-func (c *Client) StagingComplete(org string, id string) (models.Response, error) {
+func (c *Client) StagingComplete(namespace string, id string) (models.Response, error) {
 	resp := models.Response{}
 
 	details := c.log.V(1)
@@ -252,7 +252,7 @@ func (c *Client) StagingComplete(org string, id string) (models.Response, error)
 	)
 	err = retry.Do(
 		func() error {
-			data, err = c.get(api.Routes.Path("StagingComplete", org, id))
+			data, err = c.get(api.Routes.Path("StagingComplete", namespace, id))
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
@@ -297,7 +297,7 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	)
 	err = retry.Do(
 		func() error {
-			data, err = c.get(api.Routes.Path("AppRunning", app.Org, app.Name))
+			data, err = c.get(api.Routes.Path("AppRunning", app.Namespace, app.Name))
 			return err
 		},
 		retry.RetryIf(func(err error) bool {

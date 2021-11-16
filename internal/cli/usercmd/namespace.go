@@ -11,22 +11,22 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// CreateOrg creates an Org namespace
-func (c *EpinioClient) CreateOrg(org string) error {
-	log := c.Log.WithName("CreateNamespace").WithValues("Namespace", org)
+// CreateNamespace creates a namespace
+func (c *EpinioClient) CreateNamespace(namespace string) error {
+	log := c.Log.WithName("CreateNamespace").WithValues("Namespace", namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", org).
+		WithStringValue("Name", namespace).
 		Msg("Creating namespace...")
 
-	errorMsgs := validation.IsDNS1123Subdomain(org)
+	errorMsgs := validation.IsDNS1123Subdomain(namespace)
 	if len(errorMsgs) > 0 {
-		return fmt.Errorf("%s: %s", "org name incorrect", strings.Join(errorMsgs, "\n"))
+		return fmt.Errorf("%s: %s", "namespace name incorrect", strings.Join(errorMsgs, "\n"))
 	}
 
-	_, err := c.API.NamespaceCreate(models.NamespaceCreateRequest{Name: org})
+	_, err := c.API.NamespaceCreate(models.NamespaceCreateRequest{Name: namespace})
 	if err != nil {
 		return err
 	}
@@ -36,8 +36,8 @@ func (c *EpinioClient) CreateOrg(org string) error {
 	return nil
 }
 
-// OrgsMatching returns all Epinio orgs having the specified prefix in their name
-func (c *EpinioClient) OrgsMatching(prefix string) []string {
+// NamespacesMatching returns all Epinio namespaces having the specified prefix in their name
+func (c *EpinioClient) NamespacesMatching(prefix string) []string {
 	log := c.Log.WithName("NamespaceMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
@@ -55,7 +55,7 @@ func (c *EpinioClient) OrgsMatching(prefix string) []string {
 	return result
 }
 
-func (c *EpinioClient) Orgs() error {
+func (c *EpinioClient) Namespaces() error {
 	log := c.Log.WithName("Namespaces")
 	log.Info("start")
 	defer log.Info("return")
@@ -87,33 +87,27 @@ func (c *EpinioClient) Orgs() error {
 	return nil
 }
 
-// Target targets an org
-func (c *EpinioClient) Target(org string) error {
-	log := c.Log.WithName("Target").WithValues("Namespace", org)
+// Target targets a namespace
+func (c *EpinioClient) Target(namespace string) error {
+	log := c.Log.WithName("Target").WithValues("Namespace", namespace)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	if org == "" {
+	if namespace == "" {
 		details.Info("query config")
 		c.ui.Success().
-			WithStringValue("Currently targeted namespace", c.Config.Org).
+			WithStringValue("Currently targeted namespace", c.Config.Namespace).
 			Msg("")
 		return nil
 	}
 
 	c.ui.Note().
-		WithStringValue("Name", org).
+		WithStringValue("Name", namespace).
 		Msg("Targeting namespace...")
 
-	// TODO: Validation of the org name removed. Proper validation
-	// of the targeted org is done by all the other commands using
-	// it anyway. If we really want it here and now, implement an
-	// `namespace show` command and API, and then use that API for the
-	// validation.
-
 	details.Info("set config")
-	c.Config.Org = org
+	c.Config.Namespace = namespace
 	err := c.Config.Save()
 	if err != nil {
 		return errors.Wrap(err, "failed to save configuration")
@@ -125,23 +119,23 @@ func (c *EpinioClient) Target(org string) error {
 }
 
 func (c *EpinioClient) TargetOk() error {
-	if c.Config.Org == "" {
+	if c.Config.Namespace == "" {
 		return errors.New("Internal Error: No namespace targeted")
 	}
 	return nil
 }
 
-// DeleteOrg deletes an Org
-func (c *EpinioClient) DeleteOrg(org string) error {
-	log := c.Log.WithName("DeleteNamespace").WithValues("Namespace", org)
+// DeleteNamespace deletes a Namespace
+func (c *EpinioClient) DeleteNamespace(namespace string) error {
+	log := c.Log.WithName("DeleteNamespace").WithValues("Namespace", namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", org).
+		WithStringValue("Name", namespace).
 		Msg("Deleting namespace...")
 
-	_, err := c.API.NamespaceDelete(org)
+	_, err := c.API.NamespaceDelete(namespace)
 	if err != nil {
 		return err
 	}
@@ -151,17 +145,17 @@ func (c *EpinioClient) DeleteOrg(org string) error {
 	return nil
 }
 
-// ShowOrg shows an Org
-func (c *EpinioClient) ShowOrg(org string) error {
-	log := c.Log.WithName("ShowNamespace").WithValues("Namespace", org)
+// ShowNamepsace shows a Namespace
+func (c *EpinioClient) ShowNamespace(namespace string) error {
+	log := c.Log.WithName("ShowNamespace").WithValues("Namespace", namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", org).
+		WithStringValue("Name", namespace).
 		Msg("Showing namespace...")
 
-	space, err := c.API.NamespaceShow(org)
+	space, err := c.API.NamespaceShow(namespace)
 	if err != nil {
 		return err
 	}

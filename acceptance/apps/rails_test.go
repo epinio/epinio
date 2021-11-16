@@ -19,7 +19,7 @@ import (
 
 type RailsApp struct {
 	Name           string
-	Org            string
+	Namespace      string
 	Dir            string
 	SourceURL      string
 	CredentialsEnc string
@@ -71,12 +71,12 @@ var _ = Describe("RubyOnRails", func() {
 		// variable that follows.
 		rails = RailsApp{
 			Name:           catalog.NewAppName(),
-			Org:            catalog.NewOrgName(),
+			Namespace:      catalog.NewNamespaceName(),
 			SourceURL:      "https://github.com/epinio/example-rails/tarball/main",
 			CredentialsEnc: `uVPZWDUhuOVhjFhPhom5qL9dGAJqVOctoK8PZQpGp4i5rBnrcT7GiHFFAmPb3ZPSdAnW8sj00VlEECRem01LzI1pzfhg9TUGti6b2jyxiTxALVsDlmCg4V458jprpFfNJaAlK7RGRKp9oSNEI1DBliGX8aKTf6ye9wJV2AF+w4mdezj2xtsgN5lKhMN6YMFn8V/XNUC3cvmyEH6ot0Aj3N+BaiKXfTDJdaLqcr+awhMSNh0Es+vBLdYRvOgaMCGicKor/Oe0h8VkuVSIT0Ye08evYqoHkijKMH034T2M2rE5EhkKUzbK1YRhYPiPfHwoKYXviuarIuCZuR/q5WhVghc5YTRVUjFILWe5aLzrm9pCu0WweIDIDf4K7OGsQN07nY2a3974OR73qKEi1RCJGk+2dpn1c696f9ar--0GJc3grQhOubjNmy--+9a7S7qwSUi/ennPYg8XFg==`,
 			MasterKey:      "75a74503267d5869281389d73cf8b90b",
 		}
-		env.SetupAndTargetOrg(rails.Org)
+		env.SetupAndTargetNamespace(rails.Namespace)
 
 		err := rails.CreateDir()
 		Expect(err).ToNot(HaveOccurred())
@@ -99,7 +99,7 @@ var _ = Describe("RubyOnRails", func() {
 
 		serviceName = catalog.NewServiceName()
 		out, err = proc.Run("", false,
-			"helm", "install", serviceName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Org,
+			"helm", "install", serviceName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Namespace,
 			"--set", "postgresqlDatabase=production",
 			"--set", "postgresqlUsername=myuser",
 			"--set", "postgresqlPassword=mypassword",
@@ -109,7 +109,7 @@ var _ = Describe("RubyOnRails", func() {
 		out, err = env.Epinio("", "service", "create", serviceName,
 			"username", "myuser",
 			"password", "mypassword",
-			"host", fmt.Sprintf("%s-postgresql.%s.svc.cluster.local", serviceName, rails.Org),
+			"host", fmt.Sprintf("%s-postgresql.%s.svc.cluster.local", serviceName, rails.Namespace),
 			"port", "5432",
 		)
 		Expect(err).ToNot(HaveOccurred(), out)
@@ -121,7 +121,7 @@ var _ = Describe("RubyOnRails", func() {
 
 	AfterEach(func() {
 		env.DeleteServiceUnbind(serviceName)
-		out, err := proc.Run("", false, "helm", "delete", serviceName, "-n", rails.Org)
+		out, err := proc.Run("", false, "helm", "delete", serviceName, "-n", rails.Namespace)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		env.DeleteApp(rails.Name)
