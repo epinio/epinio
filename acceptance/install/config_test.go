@@ -40,7 +40,7 @@ var _ = Describe("Install with <ConfigFile> and push a PHP app", func() {
 
 		flags = []string{
 			"--config-file", configFile,
-			"--skip-default-namespace",
+			"--system-domain", "somedomain.org",
 			"--user", epinioUser,
 			"--password", epinioPassword,
 		}
@@ -62,6 +62,7 @@ var _ = Describe("Install with <ConfigFile> and push a PHP app", func() {
 			By("Checking the values in the stdout")
 			Expect(out).To(ContainSubstring("API Password: password"))
 			Expect(out).To(ContainSubstring("API User: epinio"))
+			Expect(out).To(ContainSubstring("System domain: somedomain.org"))
 
 			By("Checking for updated values in epinio config file")
 			data, err := ioutil.ReadFile(configFile)
@@ -73,6 +74,7 @@ var _ = Describe("Install with <ConfigFile> and push a PHP app", func() {
 			Expect(dataString).NotTo(ContainSubstring("user: 996ee615fde2ceed"))
 			Expect(dataString).To(ContainSubstring("pass: password"))
 			Expect(dataString).To(ContainSubstring("user: epinio"))
+			Expect(dataString).To(ContainSubstring("api: https://epinio.somedomain.org"))
 		})
 	})
 })
