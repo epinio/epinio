@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -165,6 +166,13 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 
 	installationWg.Wait()
 
+	s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+	if err := c.waitForTraefikIngressIP(ctx); err != nil {
+		s.Stop()
+		return err
+	}
+	s.Stop()
+
 	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
 	if err != nil {
 		return err
@@ -192,22 +200,9 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		WithStringValue("Traefik Ingress info", traefikServiceIngressInfo).
 		Msg("Epinio installed.")
 
-	return nil
-}
+	c.ui.Note().Msg("Please make sure your system-domain points to the IP address of Traefik before trying to use the Epinio cli.")
 
-func validateIngressIPDNSBind(systemDomain string, ingressIP string) (bool, error) {
-	ips, err := net.LookupIP(systemDomain)
-	if err != nil {
-		return false, err
-	}
-	for _, ip := range ips {
-		if ipv4 := ip.To4(); ipv4 != nil {
-			if ipv4.String() == ingressIP {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
+	return nil
 }
 
 // Uninstall removes epinio from the cluster.
@@ -319,6 +314,13 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 	}, details); err != nil {
 		return err
 	}
+
+	s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+	if err := c.waitForTraefikIngressIP(ctx); err != nil {
+		s.Stop()
+		return err
+	}
+	s.Stop()
 
 	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
 	if err != nil {
@@ -453,48 +455,38 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 	m.Msg("Configuration...")
 }
 
-// TODO: Use the waiting mechanism to print the IP in the end
-// func (c *InstallClient) fillInMissingSystemDomain(ctx context.Context, domain *kubernetes.InstallationOption) error {
-// 	if domain.Value.(string) == "" {
-// 		ip := ""
-// 		s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-// 		defer s.Stop()
-// 		err := helpers.RunToSuccessWithTimeout(
-// 			func() error {
-// 				return c.fetchIP(ctx, &ip)
-// 			}, duration.ToSystemDomain(), duration.PollInterval())
-// 		if err != nil {
-// 			if strings.Contains(err.Error(), "Timed out after") {
-// 				return errors.Wrap(err, deployments.MessageLoadbalancerIP)
-// 			}
-// 			return err
-// 		}
+func (c *InstallClient) waitForTraefikIngressIP(ctx context.Context) error {
+	err := helpers.RunToSuccessWithTimeout(
+		func() error {
+			_, err := c.fetchIP(ctx)
+			return err
+		}, duration.ToTraefikIP(), duration.PollInterval())
+	if err != nil {
+		if strings.Contains(err.Error(), "Timed out after") {
+			return errors.Wrap(err, deployments.MessageLoadbalancerIP)
+		}
+		return err
+	}
 
-// 		if ip != "" {
-// 			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
-// 		}
-// 	}
+	return nil
+}
 
-// 	return nil
-// }
-
-func (c *InstallClient) fetchIP(ctx context.Context, ip *string) error {
+func (c *InstallClient) fetchIP(ctx context.Context) (string, error) {
 	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(ctx, metav1.ListOptions{
 		FieldSelector: "metadata.name=traefik",
 	})
 	if len(serviceList.Items) == 0 {
-		return errors.New("couldn't find the traefik service")
+		return "", errors.New("couldn't find the traefik service")
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	ingress := serviceList.Items[0].Status.LoadBalancer.Ingress
 	if len(ingress) <= 0 {
-		return errors.New("ingress list is empty in traefik service")
+		return "", errors.New("ingress list is empty in traefik service")
 	}
-	*ip = ingress[0].IP
 
-	return nil
+	return ingress[0].IP, nil
 }
 
 func (c *InstallClient) traefikServiceIngressInfo(ctx context.Context) (string, error) {
@@ -633,21 +625,6 @@ func (c *InstallClient) validateSystemDomain() error {
 	} else {
 		c.ui.Success().Msg("Using system-domain: " + domain)
 	}
-
-	// TODO: Make that check in the end to prompt the user to fix it?
-	// ingressIP, err := c.options.GetString("loadbalancer-ip")
-	// if err != nil {
-	// 	return errors.Wrap(err, "could not read option --loadbalancer-ip")
-	// }
-	// if ingressIP != "" {
-	// 	bound, err := validateIngressIPDNSBind(domain, ingressIP)
-	// 	if err != nil {
-	// 		return errors.Wrapf(err, "could not map domain name and ingress service ip address")
-	// 	}
-	// 	if !bound {
-	// 		return errors.New("system domain name is not pointing to ingress service loadbalancer ip address")
-	// 	}
-	// }
 
 	return nil
 }

@@ -278,16 +278,14 @@ func install(cmd *cobra.Command, args []string) error {
 	ui := termui.NewUI()
 	ui.Success().Msg("Installation Complete.")
 
-	// Installation complete.
-	// Run `namespace create`, and `namespace target`.
-	// After `config update`.
-
 	adminCmd, err := admincmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing config cli")
 	}
 
-	adminCmd.CreateDefaultNamespace(cmd.Context())
+	if err := adminCmd.CreateDefaultNamespace(cmd.Context()); err != nil {
+		return errors.Wrap(err, "creating the default namespace")
+	}
 	ui.Success().Msgf("Default namespace \"%s\" created", admincmd.DefaultNamespace)
 
 	adminCmd.Log.Info("Initial config", "value", adminCmd.Config.String())
