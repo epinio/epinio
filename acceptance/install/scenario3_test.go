@@ -2,6 +2,7 @@ package install_test
 
 import (
 	"encoding/json"
+	"fmt"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -31,10 +32,16 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 		metallbURL = "https://raw.githubusercontent.com/google/metallb/v0.10.3/manifests/metallb.yaml"
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 
+		nodeIP, err := proc.RunW("kubectl", "get", "nodes",
+			"-o", `jsonpath={.items[*].status.addresses[?(@.type=="InternalIP")].address}`)
+		Expect(err).NotTo(HaveOccurred(), nodeIP)
+
 		flags = []string{
+			"--system-domain", fmt.Sprintf("%s.omg.howdoi.website", nodeIP),
 			"--skip-cert-manager",
 			"--tls-issuer=private-ca",
 		}
+
 	})
 
 	AfterEach(func() {
