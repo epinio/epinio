@@ -2,6 +2,8 @@ name: RKE-CI
 
 on:
   pull_request:
+    branches: [ main ]
+    types: [ ready_for_review ]
     paths:
       - 'acceptance/install/scenario3_test.go'
       - '.github/workflows/rke.yml'
@@ -20,7 +22,34 @@ env:
   FLAKE_ATTEMPTS: 1
 
 jobs:
+  linter:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+      - name: Install Tools
+        run: make tools-install
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Lint Epinio
+        run: make lint
+
   acceptance-scenario3:
+    needs:
+      - linter
     runs-on: self-hosted
 
     steps:
