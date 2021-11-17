@@ -1,0 +1,75 @@
+name: Release-pipeline
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Fetch Branch
+        id: branch
+        run: |
+          raw=$(git branch -r --contains ${{ github.ref }} | grep origin/0.2.0)
+          branch=${raw##*/}
+          echo "::set-output name=BRANCH_NAME::$branch"
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '^1.17.2'
+      - name: Build Epinio
+        if: steps.branch.outputs.BRANCH_NAME == '0.2.0'
+        run: |
+          make build-all-small
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
+      - name: Build Epinio images
+        if: steps.branch.outputs.BRANCH_NAME == '0.2.0'
+        run: |
+          make build-images
+      - name: Create CHECKSUMS
+        if: steps.branch.outputs.BRANCH_NAME == '0.2.0'
+        run: ( cd dist ; sha256sum -b epinio* > SHA256SUM.txt )
+      - name: Generate Changelog
+        uses: heinrichreimer/github-changelog-generator-action@v2.1.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: "true"
+          excludeLabels: "apparently external cause,chore,devops admin,duplicate,invalid,later,overcome by events,spike,wontfix,do not log,question,QA"
+          pullRequests: "false"
+          onlyLastTag: "true"
+          stripGeneratorNotice: "true"
+          issuesWoLabels: "true"
+          stripHeaders: "true"
+      - name: Release Epinio
+        uses: softprops/action-gh-release@v1
+        if: steps.branch.outputs.BRANCH_NAME == '0.2.0'
+        with:
+          files: ./dist/*
+          body_path: ./CHANGELOG.md
+          prerelease: "true"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Allow to release Epinio Helm chart automatically when we release Epinio.
+      # The latest tag is sent to the Helm chart repo.
+      - name: Get the last tag
+        id: last-tag
+        run: |
+          tag=$(git -P tag | tail -1)
+          echo '::set-output name=TAG::'$tag
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
+          repository: epinio/epinio-helm-chart
+          event-type: epinio-release
+          client-payload: '{"ref": "${{ steps.last-tag.outputs.TAG }}"}'
