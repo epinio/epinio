@@ -1,0 +1,35 @@
+repositories:
+- name: linkerd
+  url: https://helm.linkerd.io/stable
+- name: appscode 
+  url: https://charts.appscode.com/stable/
+- name: traefik
+  url: https://helm.traefik.io/traefik
+- name: appscode 
+  url: https://charts.appscode.com/stable/
+releases:
+- name: linkerd
+  namespace: linkerd
+  chart: linkerd/linkerd2
+  version: ~2.10.2
+  values:
+    - linkerd-values.yaml
+- name: traefik
+  namespace: traefik
+  chart: traefik/traefik
+  version: ~10.3.4
+  set:
+  - name: ports.web.redirectTo
+    value: websecure
+  needs:
+  - default/linkerd/linkerd
+- name: kubed
+  namespace: kubed
+  chart: appscode/kubed
+  version: ~0.12.0
+
+helmfiles:
+  - linkerd
+
+helmDefaults:
+  wait: true
