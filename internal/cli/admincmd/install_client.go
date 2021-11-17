@@ -166,14 +166,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 
 	installationWg.Wait()
 
-	s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-	if err := c.waitForTraefikIngressIP(ctx); err != nil {
-		s.Stop()
-		return err
-	}
-	s.Stop()
-
-	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
+	traefikServiceIngressInfo, err := c.getTraefikInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -315,14 +308,7 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 		return err
 	}
 
-	s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-	if err := c.waitForTraefikIngressIP(ctx); err != nil {
-		s.Stop()
-		return err
-	}
-	s.Stop()
-
-	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
+	traefikServiceIngressInfo, err := c.getTraefikInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -627,4 +613,14 @@ func (c *InstallClient) validateSystemDomain() error {
 	}
 
 	return nil
+}
+
+func (c *InstallClient) getTraefikInfo(ctx context.Context) (string, error) {
+	s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+	defer s.Stop()
+	if err := c.waitForTraefikIngressIP(ctx); err != nil {
+		return "", err
+	}
+
+	return c.traefikServiceIngressInfo(ctx)
 }
