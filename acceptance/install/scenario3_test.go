@@ -101,12 +101,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 			Expect(loadbalancer).ToNot(BeEmpty())
 		})
 
-		// Now create the default namespace which we skipped because
-		// it would fail before patching.
-		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
-		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
-		Expect(err).ToNot(HaveOccurred(), out)
-
 		By("Creating a service and pushing an app", func() {
 			out, err := epinioHelper.Run("service", "create", serviceName, "mariadb", "10-3-22")
 			Expect(err).NotTo(HaveOccurred(), out)

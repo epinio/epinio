@@ -100,19 +100,13 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		// Now create the default namespace which we skipped because
-		// it would fail before patching.
-		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
-		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
-		Expect(err).ToNot(HaveOccurred(), out)
-
 		Eventually(func() string {
 			out, _ := epinioHelper.Run("info")
 			return out
 		}).Should(ContainSubstring("Epinio Version: "))
 
 		By("Pushing an app", func() {
-			out, err = epinioHelper.Run("push",
+			out, err := epinioHelper.Run("push",
 				"--name", appName,
 				"--path", testenv.AssetPath("sample-app"))
 			Expect(err).NotTo(HaveOccurred(), out)
