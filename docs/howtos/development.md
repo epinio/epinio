@@ -43,8 +43,8 @@ specific instructions, there are some differences for dev environments.
 These differences are explained in the section [Behind the curtains](#curtain) at the end of this document.
 
 Since we use `k3d` in our CI tests we have created the make target `prepare_environment_k3d` to prepare
-such an environment. That script will use the value of the "EPINIO_SYSTEM_DOMAIN" environment variable
-for the `system-domain` installation argument. If that is not set, it will try to use a "magic" domain
+such an environment. That script uses the value of the "EPINIO_SYSTEM_DOMAIN" environment variable
+for the `system-domain` installation argument. If the variable is not set, it will try to use a "magic" domain
 in the form of "1.2.3.4.omg.howdoi.website" where `1.2.3.4` is the IP address of your k3d cluster and
 `omg.howdoi.website` is a mirror-dns service which resolves to the IP address in front of it (similar to nip.io, xip.io etc).
 
@@ -55,12 +55,12 @@ EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 ./dist/epinio-linux-amd64 install --system-dom
 make patch-epinio-deployment
 ```
 
-You should use a `system-domain` that points to the Traefik Service on your cluster.
+You have to use a `system-domain` that points to the Traefik Service on your cluster.
 Depending on the type of cluster you use, this IP address may be the one of your
 cluster's container (e.g. in k3d, kind etc) or one provided by a load balancer
 (e.g. in public cloud providers). In any case, if you don't know what that IP address
 is before the Epinio installation, it will be printed for you at the end of the
-installation. You can use it to set up your DNS.
+installation. You can then use it to set up your DNS after the fact.
 
 After making changes to the binary simply invoking `make patch-epinio-deployment` again
 will upload the changes into the running cluster.
