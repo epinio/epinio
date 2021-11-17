@@ -32,7 +32,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 
 		flags = []string{
-			"--skip-default-namespace",
 			"--skip-cert-manager",
 			"--tls-issuer=private-ca",
 		}

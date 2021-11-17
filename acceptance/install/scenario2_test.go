@@ -38,7 +38,6 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 		instancesNum = "0"
 
 		flags = []string{
-			"--skip-default-namespace",
 			"--system-domain=" + domain,
 			"--tls-issuer=letsencrypt-production",
 		}
