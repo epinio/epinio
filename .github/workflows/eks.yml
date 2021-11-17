@@ -2,6 +2,8 @@ name: EKS-CI
 
 on:
   pull_request:
+    branches: [ main ]
+    types: [ ready_for_review ]
     paths:
       - 'acceptance/install/scenario4_test.go'
       - '.github/workflows/eks.yml'
@@ -38,7 +40,34 @@ env:
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
 
 jobs:
+  linter:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+      - name: Install Tools
+        run: make tools-install
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+      - name: Lint Epinio
+        run: make lint
+
   acceptance-scenario4:
+    needs:
+      - linter
     runs-on: macos-latest
 
     steps:
