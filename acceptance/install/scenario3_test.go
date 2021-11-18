@@ -23,7 +23,8 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 		metallbURL   string
 		localpathURL string
 		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
-		env testenv.EpinioEnv
+		env      testenv.EpinioEnv
+		domainIP = "192.168.1.240" // Set it to an arbitrary private IP
 	)
 
 	BeforeEach(func() {
@@ -32,12 +33,8 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 		metallbURL = "https://raw.githubusercontent.com/google/metallb/v0.10.3/manifests/metallb.yaml"
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 
-		nodeIP, err := proc.RunW("kubectl", "get", "nodes",
-			"-o", `jsonpath={.items[*].status.addresses[?(@.type=="InternalIP")].address}`)
-		Expect(err).NotTo(HaveOccurred(), nodeIP)
-
 		flags = []string{
-			"--system-domain", fmt.Sprintf("%s.omg.howdoi.website", nodeIP),
+			"--system-domain", fmt.Sprintf("%s.omg.howdoi.website", domainIP),
 			"--skip-cert-manager",
 			"--tls-issuer=private-ca",
 		}
@@ -55,6 +52,9 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = proc.RunW("kubectl", "apply", "-f", metallbURL)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			out, err = proc.RunW("sed", "-i", fmt.Sprintf("s/myip/%s/g", domainIP), testenv.TestAssetPath("config-metallb-rke.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("config-metallb-rke.yml"))
