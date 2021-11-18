@@ -3,6 +3,8 @@ package admincmd
 import (
 	"fmt"
 	"io/ioutil"
+	"sync"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -58,7 +60,6 @@ func BuildPlan(components Components) (Components, error) {
 		}
 
 		graph[c.ID] = c.Needs
-
 	}
 
 	for _, c := range components {
@@ -89,6 +90,7 @@ func BuildPlan(components Components) (Components, error) {
 			//             insert m into S
 			if t == n.ID {
 				delete(graph, m)
+				// TODO other edges if needs is an array
 				noedge[m] = true
 			}
 		}
@@ -104,6 +106,72 @@ func BuildPlan(components Components) (Components, error) {
 	}
 
 	return plan, nil
+}
+
+func Runner(plan Components) error {
+	state := map[DeploymentID]bool{}
+	running := map[DeploymentID]bool{}
+	for _, c := range plan {
+		state[c.ID] = false
+		running[c.ID] = false
+	}
+
+	var lock = &sync.RWMutex{}
+	for !allDone(lock, state) {
+		for _, c := range plan {
+			c := c
+			lock.RLock()
+			if state[c.ID] {
+				//fmt.Printf("skip done: %s\n", c.ID)
+				lock.RUnlock()
+				continue
+			}
+			if running[c.ID] {
+				//fmt.Printf("skip running: %s\n", c.ID)
+				lock.RUnlock()
+				continue
+			}
+			if c.Needs != "" && !state[c.Needs] {
+				//fmt.Printf("skip '%s' for deps: %s (r:%v, d:%v)\n", c.ID, c.Needs, running[c.Needs], state[c.Needs])
+				lock.RUnlock()
+				continue
+			}
+			lock.RUnlock()
+
+			//fmt.Printf("did not skip: %s\n", c.ID)
+			lock.Lock()
+			running[c.ID] = true
+			lock.Unlock()
+
+			go func() {
+				fmt.Printf("starting %s\n", c.ID)
+
+				// TODO run the actual deployment
+				time.Sleep(3 * time.Second)
+
+				// TODO run the wait for
+
+				lock.Lock()
+				state[c.ID] = true
+				lock.Unlock()
+
+				fmt.Printf("finished %s\n", c.ID)
+			}()
+		}
+	}
+
+	return nil
+}
+
+func allDone(lock *sync.RWMutex, s map[DeploymentID]bool) bool {
+	lock.RLock()
+	defer lock.RUnlock()
+	for _, done := range s {
+		if !done {
+			return false
+		}
+	}
+	return true
 }
 
 type Manifest struct {
@@ -143,6 +211,14 @@ type Component struct {
 }
 
 type Components []Component
+
+func (cs Components) IDs() []DeploymentID {
+	ids := make([]DeploymentID, 0, len(cs))
+	for _, c := range cs {
+		ids = append(ids, c.ID)
+	}
+	return ids
+}
 
 type Check struct {
 	// Type is 'pod', 'loadbalancer' or 'crd', the check is implemented in code

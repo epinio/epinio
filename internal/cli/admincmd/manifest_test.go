@@ -1,8 +1,6 @@
 package admincmd_test
 
 import (
-	"fmt"
-
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -15,7 +13,7 @@ var _ = Describe("InstallManifest", func() {
 			m, err := admincmd.Load(assetPath("install-manifest.yml"))
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(m.Components).To(HaveLen(7))
+			Expect(m.Components).To(HaveLen(9))
 
 			traefik := m.Components[1]
 			Expect(traefik.Type).To(Equal(admincmd.Helm))
@@ -30,15 +28,16 @@ var _ = Describe("InstallManifest", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			plan, err := admincmd.BuildPlan(m.Components)
+			// Plan finds no cycles
 			Expect(err).ToNot(HaveOccurred())
 			Expect(plan).To(HaveLen(len(m.Components)))
 
-			for _, c := range plan {
-				fmt.Printf("installing %s with %s\n", c.ID, c.Type)
-				for _, chk := range c.WaitComplete {
-					fmt.Printf("waitComplete %s %#v\n", chk.Type, chk.Selector)
-				}
-			}
+			// Plan doesn't know about concurrency, though
+			Expect(plan.IDs()).To(Equal([]admincmd.DeploymentID{"linkerd", "traefik", "cert-manager", "cluster-issuers", "cluster-certificates", "tekton", "tekton-pipelines", "kubed", "epinio"}))
+
+			// Runner doesn't need plan
+			err = admincmd.Runner(m.Components)
+			Expect(err).ToNot(HaveOccurred())
 		})
 	})
 })
