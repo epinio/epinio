@@ -24,21 +24,20 @@ var _ = Describe("InstallManifest", func() {
 		})
 	})
 
-	// buildPlan finds a path through the dag
-	buildPlan := func(components []admincmd.Component) []admincmd.Component {
-		return components
-	}
-
 	Describe("Installing", func() {
 		It("Installs all components", func() {
 			m, err := admincmd.Load(assetPath("install-manifest.yml"))
 			Expect(err).ToNot(HaveOccurred())
 
-			plan := buildPlan(m.Components)
+			plan, err := admincmd.BuildPlan(m.Components)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(plan).To(HaveLen(len(m.Components)))
 
 			for _, c := range plan {
 				fmt.Printf("installing %s with %s\n", c.ID, c.Type)
-				fmt.Printf("waitComplete %#v\n", c.WaitComplete)
+				for _, chk := range c.WaitComplete {
+					fmt.Printf("waitComplete %s %#v\n", chk.Type, chk.Selector)
+				}
 			}
 		})
 	})
