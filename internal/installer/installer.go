@@ -7,10 +7,13 @@ import (
 	"sync"
 )
 
+type WorkloadFunc func() error
+
 type Component struct {
-	ID      string
-	Needs   []string
-	Running bool
+	ID       string
+	Needs    []string
+	Running  bool
+	Workload WorkloadFunc
 }
 type Components []*Component
 
@@ -18,9 +21,12 @@ type Manifest struct {
 	Components
 }
 
-type Workload func() error
-
 func (c *Component) Run() error {
+	if c.Workload != nil {
+		return c.Workload()
+	} else {
+		fmt.Println("dry run " + c.ID)
+	}
 	return nil
 }
 
@@ -50,10 +56,19 @@ func (components *Components) Delete(id string) {
 	}
 }
 
-// Validate does a dry run on the Manifest to check if it can be parsed.
-// If not, it returns an error. The tree (manifest) can't be parsed when there
-// are circular dependencies.
 func (m *Manifest) Validate() error {
+	dryRunManifest := *m
+	for _, c := range dryRunManifest.Components {
+		c.Workload = nil
+	}
+
+	return dryRunManifest.Install()
+}
+
+// Install runs the Manifest respecting dependencies.
+// If it cannot be fully parsed, it returns an error. The tree (manifest) can't be parsed when there
+// are circular dependencies.
+func (m *Manifest) Install() error {
 	componentsToRun := m.Components
 	doneChan := make(chan string)
 	errChan := make(chan error)
