@@ -11,12 +11,14 @@ var _ = Describe("Manifest", func() {
 	Describe("Validate", func() {
 		When("manifest has circular dependencies", func() {
 			BeforeEach(func() {
-				component1 := installer.Component{ID: "component1", Needs: []string{"component2"}}
-				component2 := installer.Component{ID: "component2", Needs: []string{"component3"}}
-				component3 := installer.Component{ID: "component3", Needs: []string{"component1"}}
+				components := installer.Components{
+					{ID: "component1", Needs: []string{"component2"}},
+					{ID: "component2", Needs: []string{"component3"}},
+					{ID: "component3", Needs: []string{"component1"}},
+				}
 
 				manifest = installer.Manifest{
-					Components: installer.Components{component1, component2, component3},
+					Components: components,
 				}
 			})
 

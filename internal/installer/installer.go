@@ -8,10 +8,11 @@ import (
 )
 
 type Component struct {
-	ID    string
-	Needs []string
+	ID      string
+	Needs   []string
+	Running bool
 }
-type Components []Component
+type Components []*Component
 
 type Manifest struct {
 	Components
@@ -19,28 +20,34 @@ type Manifest struct {
 
 type Workload func() error
 
-// Run  TODO
-func (c Component) Run() error {
+func (c *Component) Run() error {
 	return nil
 }
 
 // Delete removes a components from the tree. It is removed from components
 // and as a dependency of all other components.
-func (components Components) Delete(id string) Components {
-	newComponents := Components{}
-	for _, component := range components {
-		if component.ID != id { // Keepers
-			newNeeds := []string{}
-			for _, dependency := range component.Needs {
-				if dependency != id { // Keepers
-					newNeeds = append(newNeeds, dependency)
-				}
-			}
-			component.Needs = newNeeds
-			newComponents = append(newComponents, component)
+func (components *Components) Delete(id string) {
+	newComponents := *components
+	compLen := len(newComponents) // TODO should be in the loop?
+	for i, component := range newComponents {
+		if component.ID == id { // the component to delete (https://github.com/golang/go/wiki/SliceTricks#delete)
+			newComponents = append(newComponents[:i], newComponents[i+1:compLen]...)
+			newComponents = newComponents[:compLen-1]
+			*components = newComponents // assigning the new slice to the pointed value before returning
 		}
 	}
-	return newComponents
+	components = &newComponents
+
+	// Now remove it from dependencies
+	for _, component := range *components {
+		newNeeds := []string{}
+		for _, dependency := range component.Needs {
+			if dependency != id { // Keepers
+				newNeeds = append(newNeeds, dependency)
+			}
+		}
+		component.Needs = newNeeds
+	}
 }
 
 // Validate does a dry run on the Manifest to check if it can be parsed.
@@ -52,15 +59,14 @@ func (m *Manifest) Validate() error {
 	errChan := make(chan error)
 	var wg sync.WaitGroup
 
-	startedRoutines := m.Components.RunWhatPossible(doneChan, errChan, &wg)
+	componentsToRun.RunWhatPossible(doneChan, errChan, &wg)
 
-	for len(componentsToRun) > 0 && startedRoutines > 0 {
+	for len(componentsToRun) > 0 && componentsToRun.StillRunning() != 0 {
 		select {
 		case doneComponent := <-doneChan:
 			fmt.Printf("Component %s was done\n", doneComponent)
-			startedRoutines -= 1
-			componentsToRun = componentsToRun.Delete(doneComponent)
-			startedRoutines += componentsToRun.RunWhatPossible(doneChan, errChan, &wg)
+			componentsToRun.Delete(doneComponent)
+			componentsToRun.RunWhatPossible(doneChan, errChan, &wg)
 		case err := <-errChan:
 			// TODO: Receive the WaitGroup from the caller? The caller decided wether to wait or not
 			// for started routines to finish. We can simply return an error
@@ -80,16 +86,27 @@ func (m *Manifest) Validate() error {
 	return nil
 }
 
+// StillRunning returns the number of components with "Running" == true
+func (components *Components) StillRunning() int {
+	count := 0
+	for _, c := range *components {
+		if c.Running {
+			count += 1
+		}
+	}
+
+	return count
+}
+
 // RunWhatPossible spins up a go routine to run any component that doesn't have
-// pending dependencies. Returns the number of go routines started.
-func (components Components) RunWhatPossible(doneChan chan string, errChan chan error, wg *sync.WaitGroup) int {
-	started := 0
-	for _, c := range components {
-		if len(c.Needs) == 0 {
-			started += 1
+// pending dependencies.
+func (components *Components) RunWhatPossible(doneChan chan string, errChan chan error, wg *sync.WaitGroup) {
+	for _, c := range *components {
+		if len(c.Needs) == 0 && !c.Running {
 			wg.Add(1)
 			fmt.Println("Will run " + c.ID)
-			go func(comp Component) {
+			c.Running = true
+			go func(comp *Component) {
 				err := comp.Run()
 				if err != nil {
 					errChan <- err
@@ -98,5 +115,4 @@ func (components Components) RunWhatPossible(doneChan chan string, errChan chan 
 			}(c)
 		}
 	}
-	return started
 }
