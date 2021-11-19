@@ -30,8 +30,8 @@ func (c *Component) Run() error {
 	return nil
 }
 
-// Delete removes a components from the tree. It is removed from components
-// and as a dependency of all other components.
+// Delete removes a component from the tree. It is removed from components
+// and as a dependency from all other components.
 func (components *Components) Delete(id string) {
 	newComponents := *components
 	compLen := len(newComponents)
