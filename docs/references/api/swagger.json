@@ -1,8 +1,4 @@
-{
-  "info": {
-    "title": "Epinio",
-    "version": "1"
-  },
+{ "info": {"title": "Epinio", "version":"1"},
   "swagger": "2.0",
   "paths": {
     "/applications": {
@@ -943,6 +939,9 @@
         "meta": {
           "$ref": "#/definitions/AppRef"
         },
+        "origin": {
+          "$ref": "#/definitions/ApplicationOrigin"
+        },
         "status": {
           "$ref": "#/definitions/ApplicationStatus"
         },
@@ -1064,6 +1063,26 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ApplicationOrigin": {
+      "description": "ApplicationOrigin is the part of the manifest describing the origin of the application\n(sources). At most one of the fields may be specified / not empty.",
+      "type": "object",
+      "properties": {
+        "Container": {
+          "type": "string"
+        },
+        "Git": {
+          "$ref": "#/definitions/GitRef"
+        },
+        "Kind": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Path": {
+          "type": "string"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ApplicationStatus": {
       "type": "string",
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1126,7 +1145,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "DeployRequest": {
-      "description": "DeployRequest represents and contains the data needed to deploy an application\nNote that the overall application configuration (instances, services, EVs) is\nalready known server side, through AppCreate/AppUpdate requests.",
+      "description": "DeployRequest represents and contains the data needed to deploy an application\nNote that the overall application configuration (instances, services, EVs) is\nalready known server side, through AppCreate/AppUpdate requests.\nThis request not only comes with the image to deploy, but also the\ninformation where the sources of that image came from.",
       "type": "object",
       "properties": {
         "app": {
@@ -1135,6 +1154,9 @@
         "image": {
           "type": "string",
           "x-go-name": "ImageURL"
+        },
+        "origin": {
+          "$ref": "#/definitions/ApplicationOrigin"
         },
         "stage": {
           "$ref": "#/definitions/StageRef"
@@ -1190,6 +1212,20 @@
       "type": "object",
       "additionalProperties": {
         "type": "string"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "GitRef": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "string",
+          "x-go-name": "Revision"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },

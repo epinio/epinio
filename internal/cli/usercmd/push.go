@@ -196,7 +196,8 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	// AppDeploy
 	c.ui.Normal().Msg("Deploying application ...")
 	deployRequest := models.DeployRequest{
-		App: appRef,
+		App:    appRef,
+		Origin: params.Origin,
 	}
 	// If container param is specified, then we just take it into ImageURL
 	// If not, we take the one from the staging response

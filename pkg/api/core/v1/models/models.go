@@ -156,10 +156,13 @@ type StageResponse struct {
 // DeployRequest represents and contains the data needed to deploy an application
 // Note that the overall application configuration (instances, services, EVs) is
 // already known server side, through AppCreate/AppUpdate requests.
+// This request not only comes with the image to deploy, but also the
+// information where the sources of that image came from.
 type DeployRequest struct {
-	App      AppRef   `json:"app,omitempty"`
-	Stage    StageRef `json:"stage,omitempty"`
-	ImageURL string   `json:"image,omitempty"`
+	App      AppRef            `json:"app,omitempty"`
+	Stage    StageRef          `json:"stage,omitempty"`
+	ImageURL string            `json:"image,omitempty"`
+	Origin   ApplicationOrigin `json:"origin,omitempty"`
 }
 
 // DeployResponse represents the server's response to a successful app deployment
