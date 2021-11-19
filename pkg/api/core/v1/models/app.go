@@ -29,6 +29,7 @@ type GitRef struct {
 type App struct {
 	Meta          AppRef                   `json:"meta"`
 	Configuration ApplicationUpdateRequest `json:"configuration"`
+	Origin        ApplicationOrigin        `json:"origin"`
 	Workload      *AppDeployment           `json:"deployment,omitempty"`
 	Status        ApplicationStatus        `json:"status"`
 	StatusMessage string                   `json:"statusmessage"`

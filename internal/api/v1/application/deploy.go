@@ -169,6 +169,14 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
+	err = application.SetOrigin(ctx, cluster,
+		models.NewAppRef(name, namespace), req.Origin)
+	if err != nil {
+		return apierror.InternalError(err, "saving the app origin")
+	}
+
+	log.Info("saved app origin", "namespace", namespace, "app", name, "origin", req.Origin)
+
 	response.OKReturn(c, models.DeployResponse{
 		Routes: routes,
 	})

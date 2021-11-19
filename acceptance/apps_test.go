@@ -728,6 +728,7 @@ configuration:
 
 			Expect(out).To(MatchRegexp("Show application details"))
 			Expect(out).To(MatchRegexp("Application: " + appName))
+			Expect(out).To(MatchRegexp(`Origin .*\|.* ` + containerImageURL))
 			Expect(out).To(MatchRegexp(`Services .*\|.* ` + serviceName))
 			Expect(out).To(MatchRegexp("Routes .*\n|.* " + appName))
 

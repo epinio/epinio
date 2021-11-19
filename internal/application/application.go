@@ -41,6 +41,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	obj := &epinioappv1.App{
 		Spec: epinioappv1.AppSpec{
 			Routes: routes,
+			Origin: epinioappv1.AppOrigin{},
 		},
 	}
 
@@ -361,6 +362,11 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	origin, err := Origin(ctx, cluster, app.Meta)
+	if err != nil {
+		return err
+	}
+
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
 		return err
@@ -380,6 +386,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Services = services
 	app.Configuration.Environment = environment
 	app.Configuration.Routes = desiredRoutes
+	app.Origin = origin
 
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.

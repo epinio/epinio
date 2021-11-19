@@ -11,7 +11,7 @@ require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
-	github.com/epinio/application v0.0.0-20211102124051-0d8c19325c97
+	github.com/epinio/application v0.0.0-20211115104827-fcae19c324ac
 	github.com/fatih/color v1.12.0
 	github.com/gin-contrib/sessions v0.0.3
 	github.com/gin-gonic/gin v1.7.4
