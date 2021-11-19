@@ -846,6 +846,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 							ID: stageResponse.Stage.ID,
 						},
 						ImageURL: stageResponse.ImageURL,
+						Origin: models.ApplicationOrigin{
+							Kind: models.OriginPath,
+							Path: testenv.TestAssetPath("sample-app.tar"),
+						},
 					}
 
 					bodyBytes, err := json.Marshal(request)
@@ -894,6 +898,10 @@ var _ = Describe("Apps API Application Endpoints", func() {
 						Namespace: namespace,
 					},
 					ImageURL: "splatform/sample-app",
+					Origin: models.ApplicationOrigin{
+						Kind:      models.OriginContainer,
+						Container: "splatform/sample-app",
+					},
 				}
 
 				url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
