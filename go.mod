@@ -2,9 +2,6 @@ module github.com/epinio/epinio
 
 go 1.15
 
-// To avoid CVE-2021-29482
-replace github.com/ulikunitz/xz => github.com/ulikunitz/xz v0.5.8
-
 require (
 	github.com/Azure/go-autorest/autorest v0.11.17 // indirect
 	github.com/Azure/go-autorest/autorest/adal v0.9.10 // indirect
@@ -24,7 +21,7 @@ require (
 	github.com/mattn/go-colorable v0.1.8
 	github.com/mattn/go-isatty v0.0.12
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
-	github.com/mholt/archiver/v3 v3.5.0
+	github.com/mholt/archiver/v3 v3.5.1
 	github.com/minio/minio-go/v7 v7.0.13
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.4
