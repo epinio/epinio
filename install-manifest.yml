@@ -1,0 +1,88 @@
+# User specified values (could come from a file)
+values:
+  system-domain: "{{ .Values.domain }}"
+  loadbalancerIP: "{{ .Values.loadbalancerIP }}"
+
+generate:
+  - name: linkerdCerts
+    type: cert
+    tls:
+      ca: linkerdCA
+      crt: linkerdCrt
+      key: linkerdKey
+
+# The static part
+components:
+  - id: linkerd
+    type: yaml
+    source:
+      path: assets/linkerd.yaml
+
+  - id: traefik
+    needs: linkerd
+    linkerd-inject: true
+    type: helm
+    wait: true # tell helm to "--wait"
+    waitComplete:
+      - type: "pod"
+        selector: "app.kubernetes.io/name=traefik"
+      - type: "loadbalancer-has-service"
+    source:
+      url: https://...
+      name: traefik
+      chart: traefik/traefik
+      version: 1.2.3
+    values:
+      - name: globalArguments
+        value: ""
+      - name: "deployment.podAnnotations.linkerd\\.io/inject"
+        value: "enabled"
+      - name: "ports.web.redirectTo"
+        value": "websecure"
+      - name: "ingressClass.enabled"
+        value: "true"
+      - name: "ingressClass.isDefaultClass"
+        value: "true"
+      - name: "service.spec.loadBalancerIP"
+        value: "{{ .Values.loadbalancerIP }}"
+
+  - id: cert-manager
+    type: helm
+    needs: traefik
+    waitComplete:
+      - type: "pod"
+        selector: "app.kubernetes.io/name=webhook"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cainjector"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cert-manager"
+        namespace: "cert-manager"
+
+  - id: cluster-issuers
+    type: yaml
+    source:
+      path: assets/cluster-issuers.yaml
+    values: # Yes, flat yamls can be templates!
+      - name: emailAddress
+        value: "{{ .Values.emailAddress }}"
+    needs: cert-manager
+
+  - id: cluster-certificates
+    type: yaml
+    source:
+      path: assets/cluster-certificates.yaml
+    needs: cluster-issuers
+
+  - id: tekton-pipelines
+    needs: cert-manager
+    type: yaml # yaml types are retried by default if they fail to apply (so no specifal logic needed for retries)
+    source:
+      path: assets/tekton-pipelines.yaml # pipelines + aws task + the buildpack tasks etc
+
+  - id: kubed
+    needs: traefik
+
+  - id: epinio
+    needs: tekton-pipelines
