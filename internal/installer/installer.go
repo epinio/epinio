@@ -34,7 +34,7 @@ func (c *Component) Run() error {
 // and as a dependency of all other components.
 func (components *Components) Delete(id string) {
 	newComponents := *components
-	compLen := len(newComponents) // TODO should be in the loop?
+	compLen := len(newComponents)
 	for i, component := range newComponents {
 		if component.ID == id { // the component to delete (https://github.com/golang/go/wiki/SliceTricks#delete)
 			newComponents = append(newComponents[:i], newComponents[i+1:compLen]...)
