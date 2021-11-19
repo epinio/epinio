@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
 	"strings"
 	"sync"
@@ -120,39 +119,6 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		return err
 	}
 
-	// Try to give a omg.howdoi.website domain if the user didn't specify one
-	domain, err := c.options.GetOpt("system_domain", "")
-	if err != nil {
-		return err
-	}
-
-	details.Info("ensure system-domain")
-	err = c.fillInMissingSystemDomain(ctx, domain)
-	if err != nil {
-		return err
-	}
-	if domain.Value.(string) == "" {
-		return errors.New("You didn't provide a system_domain and we were unable to setup a omg.howdoi.website domain (couldn't find an ExternalIP)")
-	}
-
-	c.ui.Success().Msg("Using system_domain: " + domain.Value.(string))
-
-	// Validate if ingress svc IP belongs to system domain
-	// if it is specified by user
-	ingressIP, err := flags.GetString("loadbalancer-ip")
-	if err != nil {
-		return errors.Wrap(err, "could not read option --loadbalancer-ip")
-	}
-	if ingressIP != "" {
-		bound, err := validateIngressIPDNSBind(domain.Value.(string), ingressIP)
-		if err != nil {
-			return errors.Wrapf(err, "could not map domain name and ingress service ip address")
-		}
-		if !bound {
-			return errors.New("system domain name is not pointing to ingress service loadbalancer ip address")
-		}
-	}
-
 	s3ConnectionDetails, err := getS3ConnectionDetails(c.options)
 	if err != nil {
 		return err
@@ -200,7 +166,7 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 
 	installationWg.Wait()
 
-	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
+	traefikServiceIngressInfo, err := c.getTraefikInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -215,29 +181,21 @@ func (c *InstallClient) Install(ctx context.Context, flags *pflag.FlagSet) error
 		return err
 	}
 
+	domain, err := c.options.GetString("system-domain", "")
+	if err != nil {
+		return err
+	}
+
 	c.ui.Success().
-		WithStringValue("System domain", domain.Value.(string)).
+		WithStringValue("System domain", domain).
 		WithStringValue("API User", apiUser).
 		WithStringValue("API Password", apiPassword).
 		WithStringValue("Traefik Ingress info", traefikServiceIngressInfo).
 		Msg("Epinio installed.")
 
-	return nil
-}
+	c.ui.Note().Msg("Please make sure your system-domain points to the IP address of Traefik before trying to use the Epinio cli.")
 
-func validateIngressIPDNSBind(systemDomain string, ingressIP string) (bool, error) {
-	ips, err := net.LookupIP(systemDomain)
-	if err != nil {
-		return false, err
-	}
-	for _, ip := range ips {
-		if ipv4 := ip.To4(); ipv4 != nil {
-			if ipv4.String() == ingressIP {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
+	return nil
 }
 
 // Uninstall removes epinio from the cluster.
@@ -350,7 +308,7 @@ func (c *InstallClient) InstallIngress(cmd *cobra.Command) error {
 		return err
 	}
 
-	traefikServiceIngressInfo, err := c.traefikServiceIngressInfo(ctx)
+	traefikServiceIngressInfo, err := c.getTraefikInfo(ctx)
 	if err != nil {
 		return err
 	}
@@ -483,47 +441,38 @@ func (c *InstallClient) showInstallConfiguration(opts *kubernetes.InstallationOp
 	m.Msg("Configuration...")
 }
 
-func (c *InstallClient) fillInMissingSystemDomain(ctx context.Context, domain *kubernetes.InstallationOption) error {
-	if domain.Value.(string) == "" {
-		ip := ""
-		s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
-		defer s.Stop()
-		err := helpers.RunToSuccessWithTimeout(
-			func() error {
-				return c.fetchIP(ctx, &ip)
-			}, duration.ToSystemDomain(), duration.PollInterval())
-		if err != nil {
-			if strings.Contains(err.Error(), "Timed out after") {
-				return errors.Wrap(err, deployments.MessageLoadbalancerIP)
-			}
+func (c *InstallClient) waitForTraefikIngressIP(ctx context.Context) error {
+	err := helpers.RunToSuccessWithTimeout(
+		func() error {
+			_, err := c.fetchIP(ctx)
 			return err
+		}, duration.ToTraefikIP(), duration.PollInterval())
+	if err != nil {
+		if strings.Contains(err.Error(), "Timed out after") {
+			return errors.Wrap(err, deployments.MessageLoadbalancerIP)
 		}
-
-		if ip != "" {
-			domain.Value = fmt.Sprintf("%s.omg.howdoi.website", ip)
-		}
+		return err
 	}
 
 	return nil
 }
 
-func (c *InstallClient) fetchIP(ctx context.Context, ip *string) error {
+func (c *InstallClient) fetchIP(ctx context.Context) (string, error) {
 	serviceList, err := c.kubeClient.Kubectl.CoreV1().Services("").List(ctx, metav1.ListOptions{
 		FieldSelector: "metadata.name=traefik",
 	})
 	if len(serviceList.Items) == 0 {
-		return errors.New("couldn't find the traefik service")
+		return "", errors.New("couldn't find the traefik service")
 	}
 	if err != nil {
-		return err
+		return "", err
 	}
 	ingress := serviceList.Items[0].Status.LoadBalancer.Ingress
 	if len(ingress) <= 0 {
-		return errors.New("ingress list is empty in traefik service")
+		return "", errors.New("ingress list is empty in traefik service")
 	}
-	*ip = ingress[0].IP
 
-	return nil
+	return ingress[0].IP, nil
 }
 
 func (c *InstallClient) traefikServiceIngressInfo(ctx context.Context) (string, error) {
@@ -586,9 +535,9 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 	var registryDetails *registry.ConnectionDetails
 	// If no user provided setting, use internal registry ones
 	if url == "" {
-		domain, err := options.GetString("system_domain", "")
+		domain, err := options.GetString("system-domain", "")
 		if err != nil {
-			return nil, errors.Wrap(err, "Couldn't get system_domain option")
+			return nil, errors.Wrap(err, "Couldn't get system-domain option")
 		}
 
 		// Generate random credentials
@@ -633,6 +582,10 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 // performs early validation on installation options for incompatible configuration
 // Some issues result in an error, some others simply print a warning.
 func (c *InstallClient) validateInstallationOptions() error {
+	if err := c.validateSystemDomain(); err != nil {
+		return err
+	}
+
 	forceInternalTLS := c.options.GetBoolNG("force-kube-internal-registry-tls")
 	externalRegistryUsed := c.options.GetStringNG("external-registry-url") != ""
 
@@ -645,4 +598,29 @@ func (c *InstallClient) validateInstallationOptions() error {
 	}
 
 	return nil
+}
+
+func (c *InstallClient) validateSystemDomain() error {
+	// system-domain should be set
+	domain, err := c.options.GetString("system-domain", "")
+	if err != nil {
+		return errors.Wrap(err, "system-domain")
+	}
+	if domain == "" {
+		return errors.New("system-domain not set")
+	} else {
+		c.ui.Success().Msg("Using system-domain: " + domain)
+	}
+
+	return nil
+}
+
+func (c *InstallClient) getTraefikInfo(ctx context.Context) (string, error) {
+	s := c.ui.Progressf("Waiting for LoadBalancer IP on traefik service.")
+	defer s.Stop()
+	if err := c.waitForTraefikIngressIP(ctx); err != nil {
+		return "", err
+	}
+
+	return c.traefikServiceIngressInfo(ctx)
 }

@@ -38,7 +38,6 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 		instancesNum = "0"
 
 		flags = []string{
-			"--skip-default-namespace",
 			"--system-domain=" + domain,
 			"--tls-issuer=letsencrypt-production",
 		}
@@ -102,14 +101,8 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		// Now create the default namespace which we skipped because
-		// it would fail before patching.
-		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
-		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
-		Expect(err).ToNot(HaveOccurred(), out)
-
 		By("Pushing an app with zero instances", func() {
-			out, err = epinioHelper.Run("push",
+			out, err := epinioHelper.Run("push",
 				"--name", appName,
 				"--path", testenv.AssetPath("sample-app"),
 				"--instances", instancesNum)

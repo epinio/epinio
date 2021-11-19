@@ -2,6 +2,7 @@ package install_test
 
 import (
 	"encoding/json"
+	"fmt"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -22,7 +23,8 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 		metallbURL   string
 		localpathURL string
 		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
-		env testenv.EpinioEnv
+		env      testenv.EpinioEnv
+		domainIP = "192.168.1.240" // Set it to an arbitrary private IP
 	)
 
 	BeforeEach(func() {
@@ -32,10 +34,11 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 
 		flags = []string{
-			"--skip-default-namespace",
+			"--system-domain", fmt.Sprintf("%s.omg.howdoi.website", domainIP),
 			"--skip-cert-manager",
 			"--tls-issuer=private-ca",
 		}
+
 	})
 
 	AfterEach(func() {
@@ -49,6 +52,9 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = proc.RunW("kubectl", "apply", "-f", metallbURL)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			out, err = proc.RunW("sed", "-i", fmt.Sprintf("s/myip/%s/g", domainIP), testenv.TestAssetPath("config-metallb-rke.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("config-metallb-rke.yml"))
@@ -94,12 +100,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
 			Expect(loadbalancer).ToNot(BeEmpty())
 		})
-
-		// Now create the default namespace which we skipped because
-		// it would fail before patching.
-		testenv.EnsureDefaultWorkspace(testenv.EpinioBinaryPath())
-		out, err := epinioHelper.Run("target", testenv.DefaultWorkspace)
-		Expect(err).ToNot(HaveOccurred(), out)
 
 		By("Creating a service and pushing an app", func() {
 			out, err := epinioHelper.Run("service", "create", serviceName, "mariadb", "10-3-22")

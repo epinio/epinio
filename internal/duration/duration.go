@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	systemDomain        = 2 * time.Minute
+	traefikIP           = 2 * time.Minute
 	appReady            = 2 * time.Minute
 	deployment          = 10 * time.Minute
 	namespaceDeletion   = 5 * time.Minute
@@ -82,10 +82,10 @@ func ToWarmupJobReady() time.Duration {
 	return Multiplier() * warmupJobReady
 }
 
-// ToSystemDomain returns the duration to wait until giving on getting
-// the system domain
-func ToSystemDomain() time.Duration {
-	return Multiplier() * systemDomain
+// ToTraefikIP returns the duration to wait until the Traefik service gets
+// a LoadBalancer IP address.
+func ToTraefikIP() time.Duration {
+	return Multiplier() * traefikIP
 }
 
 // ToAppReady returns the duration to wait until the curl request

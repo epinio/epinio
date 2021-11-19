@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/namespaces"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -21,6 +22,7 @@ import (
 const (
 	epinioAPIProtocol = "https"
 	epinioWSProtocol  = "wss"
+	DefaultNamespace  = "workspace"
 )
 
 // Admin provides functionality for administering Epinio installations on
@@ -46,6 +48,32 @@ func New() (*Admin, error) {
 		Config: configConfig,
 		Log:    logger,
 	}, nil
+}
+
+func (a *Admin) CreateDefaultNamespace(ctx context.Context) error {
+	cluster, err := kubernetes.GetCluster(ctx)
+	if err != nil {
+		return errors.Wrap(err, "getting Kubernetes cluster")
+	}
+	exists, err := namespaces.Exists(ctx, cluster, DefaultNamespace)
+	if err != nil {
+		return errors.Wrap(err, "checking if namespace exists")
+	}
+	if exists {
+		a.ui.Note().Msgf("Namespace %s exists", DefaultNamespace)
+	} else {
+		err = namespaces.Create(ctx, cluster, DefaultNamespace)
+		if err != nil {
+			return errors.Wrap(err, "creating the namespace "+DefaultNamespace)
+		}
+
+		a.Config.Namespace = DefaultNamespace
+		err = a.Config.Save()
+		if err != nil {
+			return errors.Wrap(err, "saving the default namespace in config")
+		}
+	}
+	return nil
 }
 
 // ConfigUpdate updates the credentials stored in the config from the

@@ -157,9 +157,9 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 
 	log.Info("htpasswd from credentials", "htpasswd", htpasswd)
 
-	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	domain, err := options.GetString("system-domain", TektonDeploymentID)
 	if err != nil {
-		return errors.Wrap(err, "Couldn't get system_domain option")
+		return errors.Wrap(err, "Couldn't get system-domain option")
 	}
 
 	log.Info("system domain", "domain", domain)
@@ -241,9 +241,9 @@ func (k Registry) Deploy(ctx context.Context, c *kubernetes.Cluster, ui *termui.
 }
 
 func (k Registry) createCertificate(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions, ui *termui.UI, log logr.Logger) error {
-	domain, err := options.GetString("system_domain", TektonDeploymentID)
+	domain, err := options.GetString("system-domain", TektonDeploymentID)
 	if err != nil {
-		return errors.Wrap(err, "Couldn't get system_domain option")
+		return errors.Wrap(err, "Couldn't get system-domain option")
 	}
 
 	log.Info("create properly annotated secret")

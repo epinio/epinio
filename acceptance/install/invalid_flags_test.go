@@ -23,6 +23,7 @@ var _ = Describe("Install with <InvalidFlags>", func() {
 			flags = []string{
 				"--force-kube-internal-registry-tls",
 				"--external-registry-url=someregistry.com",
+				"--system-domain=mydomain.com",
 			}
 		})
 		It("returns an error", func() {

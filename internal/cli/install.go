@@ -56,8 +56,8 @@ var neededOptions = kubernetes.InstallationOptions{
 		Value:       false,
 	},
 	{
-		Name:        "system_domain",
-		Description: "The domain you are planning to use for Epinio. Should be pointing to the traefik public IP (Leave empty to use a omg.howdoi.website domain).",
+		Name:        "system-domain",
+		Description: "The domain you are planning to use for Epinio. Should be pointing to the traefik public IP.",
 		Type:        kubernetes.StringType,
 		Default:     "",
 		Value:       "",
@@ -194,16 +194,9 @@ var traefikOptions = kubernetes.InstallationOptions{skipLinkerdOption, ingressSe
 
 var certManagerOptions = kubernetes.InstallationOptions{emailOption}
 
-const (
-	DefaultNamespace = "workspace"
-)
-
 func init() {
 	CmdInstall.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
-	CmdInstall.Flags().BoolP("skip-default-namespace", "s", false, "Set this to skip the creation of a default namespace")
-
 	CmdInstallIngress.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
-
 	CmdInstallCertManager.Flags().BoolP("interactive", "i", false, "Whether to ask the user or not (default not)")
 
 	neededOptions.AsCobraFlagsFor(CmdInstall.Flags())
@@ -285,16 +278,17 @@ func install(cmd *cobra.Command, args []string) error {
 	ui := termui.NewUI()
 	ui.Success().Msg("Installation Complete.")
 
-	// Installation complete.
-	// Run `namespace create`, and `namespace target`.
-	// After `config update`.
-
-	cfgCmd, err := admincmd.New()
+	adminCmd, err := admincmd.New()
 	if err != nil {
 		return errors.Wrap(err, "error initializing config cli")
 	}
 
-	cfgCmd.Log.Info("Initial config", "value", cfgCmd.Config.String())
+	if err := adminCmd.CreateDefaultNamespace(cmd.Context()); err != nil {
+		return errors.Wrap(err, "creating the default namespace")
+	}
+	ui.Success().Msgf("Default namespace \"%s\" created", admincmd.DefaultNamespace)
+
+	adminCmd.Log.Info("Initial config", "value", adminCmd.Config.String())
 
 	// Post Installation Tasks:
 	// - Retrieve API certs and credentials, save to configuration
@@ -308,7 +302,7 @@ func install(cmd *cobra.Command, args []string) error {
 	// now invalid namespace from said previous install. This
 	// then breaks push and other commands in non-obvious ways.
 
-	err = cfgCmd.ConfigUpdate(cmd.Context())
+	err = adminCmd.ConfigUpdate(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error updating config")
 	}
@@ -323,26 +317,6 @@ func install(cmd *cobra.Command, args []string) error {
 	}
 
 	userCmd.Log.Info("Post update config", "value", userCmd.Config.String())
-
-	skipDefaultNamespace, err := cmd.Flags().GetBool("skip-default-namespace")
-	if err != nil {
-		return errors.Wrap(err, "error reading option --skip-default-namespace")
-	}
-
-	if !skipDefaultNamespace {
-		ui.Note().Msg("Now checking ability to use the API server. And setting up useful things at the same time")
-
-		err := userCmd.CreateNamespace(DefaultNamespace)
-
-		if err != nil {
-			return errors.Wrap(err, "error creating namespace")
-		}
-
-		err = userCmd.Target(DefaultNamespace)
-		if err != nil {
-			return errors.Wrap(err, "failed to set target")
-		}
-	}
 
 	return nil
 }
