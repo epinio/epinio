@@ -1,3 +1,9 @@
+// Package installer is a framework that can install a list of components
+// that depend on each other. It can check if the manifest is a DAG
+// (https://en.wikipedia.org/wiki/Directed_acyclic_graph), meaning it doesn't
+// have cicular dependencies, thus all components can be installed.
+// It can also install the manifest with as much parallelism as possible using
+// go routines.
 package installer
 
 import (
