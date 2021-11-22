@@ -101,8 +101,8 @@ jobs:
       - name: Installation Acceptance Tests
         env:
           REGEX: Scenario3
-          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
         run: |
           export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
           make test-acceptance-install
