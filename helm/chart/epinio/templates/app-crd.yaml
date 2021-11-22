@@ -1,0 +1,76 @@
+# Copied from here:
+# https://github.com/epinio/application/blob/main/config/crd/bases/application.epinio.io_apps.yaml
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: apps.application.epinio.io
+spec:
+  group: application.epinio.io
+  names:
+    kind: App
+    listKind: AppList
+    plural: apps
+    singular: app
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: App is the Schema for the apps API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: AppSpec defines the desired state of App
+            properties:
+              origin:
+                properties:
+                  container:
+                    type: string
+                  git:
+                    properties:
+                      repository:
+                        type: string
+                      revision:
+                        type: string
+                    required:
+                    - repository
+                    type: object
+                  path:
+                    type: string
+                type: object
+              routes:
+                items:
+                  type: string
+                type: array
+            required:
+            - origin
+            type: object
+          status:
+            description: AppStatus defines the observed state of App
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
