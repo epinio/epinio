@@ -1,0 +1,50 @@
+## Default values for Epinio Helm Chart.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+# The email address you are planning to use for getting notifications about your certificates.
+email: "epinio@suse.com"
+
+# The system domain that will be used to access the epinio API server
+systemDomain:
+
+server:
+  # Domain which serves the Rancher UI (to access the API)
+  accessControlAllowOrigin: ""
+
+  # increase this value to increase all timeouts by the same factor
+  timeoutMultiplier: 1
+
+  # Change this to a random string. Used for session cookies by the API server.
+  sessionKey: "12345"
+
+  # The name of the cluster issuer to use.
+  # Epinio creates three options: 'epinio-ca', 'letsencrypt-production', and 'selfsigned-issuer'.
+  tlsIssuer: "epinio-ca"
+
+  # Increase this value to instruct the API server to produce more debug output
+  traceLevel: 0
+
+certManagerNamespace:
+
+# Connection details for the S3 storage
+s3:
+  endpoint: s3.amazonaws.com
+  bucket:
+  region:
+  accessKeyID:
+  secretAccessKey:
+  useSSL: true
+
+# Connection details for the container registry
+registry:
+  url: registry.hub.docker.com
+  username:
+  password:
+  namespace:
+
+api:
+  # Default user username
+  username: admin
+  # Default user password
+  password: password

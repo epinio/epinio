@@ -1,0 +1,64 @@
+# TODO:
+# The epinio-ca issuer won't work because the certificate needs to be created
+# before the issuer is. Either move it to docs (how to use a custom issuer) or
+# create the certificate in a pre-install hook and wait until it's ready.
+---
+# Self-signed issuer
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+spec:
+  selfSigned: {}
+
+---
+# Let's encrypt production
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer      
+metadata:                        
+  name: letsencrypt-production
+spec:
+  acme:
+    email: {{ .Values.email }}
+    preferredChain: ""
+    privateKeySecretRef:
+      name: letsencrypt-production
+    server: https://acme-v02.api.letsencrypt.org/directory
+    solvers:
+    - http01:
+        ingress:
+          class: traefik
+          ingressTemplate:
+            metadata:
+              annotations:
+                traefik.ingress.kubernetes.io/router.entrypoints: websecure
+                traefik.ingress.kubernetes.io/router.tls: "true"
+
+
+# Private CA (epinio-ca) issuer
+---
+apiVersion: cert-manager.io/v1    
+kind: Certificate                  
+metadata:                            
+  name: epinio-ca
+  namespace: {{ .Values.certManagerNamespace }}
+spec:
+  commonName: epinio-ca
+  isCA: true
+  issuerRef:
+    kind: ClusterIssuer
+    name: selfsigned-issuer
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  secretName: epinio-ca-root
+
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: epinio-ca
+spec:
+  ca:
+    secretName: epinio-ca-root
+

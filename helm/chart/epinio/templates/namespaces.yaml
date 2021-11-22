@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tekton-staging
+  labels:
+    linkerd.io/inject: enabled
+  annotations:
+    # kubed annotation to copy the epinio-registry secret to all annotated namespaces
+    cert-manager-tls: epinio-registry

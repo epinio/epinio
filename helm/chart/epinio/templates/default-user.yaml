@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Secret
+type: BasicAuth
+metadata:
+  labels:
+    epinio.suse.org/api-user-credentials: "true"
+  name: default-epinio-user
+  namespace: epinio
+stringData:
+  password: {{ .Values.api.password }}
+  username: {{ .Values.api.username }}

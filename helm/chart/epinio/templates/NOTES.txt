@@ -1,0 +1,15 @@
+
+{{- if .Values.domain }}
+You can get the IP address of your Ingress controller by passing this command:
+`kubectl describe svc traefik --namespace traefik | grep Ingress | awk '{print $3}'`
+
+Make sure your domain points to the IP address of your Ingress controller (1.2.3.4).
+{{ end }}
+To interract with your Epinio installation, you have to download the latest epinio binary https://github.com/epinio/epinio/releases.
+
+Update the api location and credentials with:
+`epinio config update`
+
+Then, you have to run `epinio namespace create workspace`
+
+For more information about Epinio, feel free to checkout https://epinio.io/ and https://docs.epinio.io/.
