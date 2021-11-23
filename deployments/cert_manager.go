@@ -35,6 +35,7 @@ const (
 	SelfSignedIssuer        = "selfsigned-issuer"
 	LetsencryptIssuer       = "letsencrypt-production"
 	EpinioCAIssuer          = "epinio-ca"
+	RootCAName              = "epinio-ca-root"
 )
 
 // internalIssuer returns true if the given issuer is an issuer created by Epinio
@@ -270,7 +271,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 		"spec" : {
 			"isCA"       : true,
 			"commonName" : "epinio-ca",
-			"secretName" : "epinio-ca-root",
+			"secretName" : "%s",
 			"privateKey" : {
 				"algorithm" : "ECDSA",
 				"size"      : 256
@@ -280,7 +281,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 				"kind" : "ClusterIssuer"
 			}
 		}
-	}`, SelfSignedIssuer)
+	}`, RootCAName, SelfSignedIssuer)
 
 	cc, err := c.ClientCertificate()
 	if err != nil {
@@ -393,7 +394,7 @@ const clusterIssuerEpinio = `{
 	},
 	"spec" : {
 		"ca" : {
-			"secretName": "epinio-ca-root"
+			"secretName": "` + RootCAName + `"
 		}
 	}
 }`
