@@ -188,7 +188,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 // the secret in a specific format). It is used to construct the full url to
 // an application image in the form: registryURL/registryNamespace/appImage
 func (d *ConnectionDetails) Store(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (*corev1.Secret, error) {
-	dockerconfigjson, err := json.Marshal(d)
+	dockerconfigjson, err := json.Marshal(d.DockerConfigJSON)
 	if err != nil {
 		return nil, err
 	}
