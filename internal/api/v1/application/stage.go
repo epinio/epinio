@@ -134,6 +134,48 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequest("pipelinerun for image ID still running")
 	}
 
+	// Validate incoming blob id before attempting to stage
+
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+	if err != nil {
+		return apierror.InternalError(err, "failed to fetch the S3 connection details")
+	}
+
+	manager, err := s3manager.New(s3ConnectionDetails)
+	if err != nil {
+		return apierror.InternalError(err, "creating an S3 manager")
+	}
+
+	// Validate incoming blob id
+
+	blobMeta, err := manager.Meta(ctx, req.BlobUID)
+	if err != nil {
+		return apierror.InternalError(err, "querying blob id meta-data")
+	}
+
+	blobApp, ok := blobMeta["App"]
+	if !ok {
+		return apierror.NewInternalError("blob has no app name meta data")
+	}
+	if blobApp != req.App.Name {
+		return apierror.NewInternalError(
+			"blob app mismatch",
+			"expected: "+req.App.Name,
+			"found: "+blobApp)
+	}
+	blobNamespace, ok := blobMeta["Namespace"]
+	if !ok {
+		return apierror.NewInternalError("blob has no namespace meta data")
+	}
+	if blobNamespace != req.App.Namespace {
+		return apierror.NewInternalError(
+			"blob namespace mismatch",
+			"expected: "+req.App.Namespace,
+			"found: "+blobNamespace)
+	}
+
+	// Create uid identifying the staging pipeline to be
+
 	uid, err := randstr.Hex16()
 	if err != nil {
 		return apierror.InternalError(err, "failed to generate a uid")
@@ -149,11 +191,6 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		Kind:       app.GetKind(),
 		Name:       app.GetName(),
 		UID:        app.GetUID(),
-	}
-
-	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
-	if err != nil {
-		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
 	registryPublicURL, err := getRegistryURL(ctx, cluster)
