@@ -3,6 +3,7 @@ package install_test
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -13,15 +14,17 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
+var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", func() {
 	var (
-		flags        []string
-		epinioHelper epinio.Epinio
-		appName      = catalog.NewAppName()
-		serviceName  = catalog.NewServiceName()
-		loadbalancer string
-		metallbURL   string
-		localpathURL string
+		flags            []string
+		epinioHelper     epinio.Epinio
+		serviceName      = catalog.NewServiceName()
+		appName          string
+		loadbalancer     string
+		metallbURL       string
+		localpathURL     string
+		registryUsername string
+		registryPassword string
 		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
 		env      testenv.EpinioEnv
 		domainIP = "192.168.1.240" // Set it to an arbitrary private IP
@@ -32,11 +35,21 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service", func() {
 
 		metallbURL = "https://raw.githubusercontent.com/google/metallb/v0.10.3/manifests/metallb.yaml"
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
+		appName = "externalregtest"
 
+		registryUsername = os.Getenv("REGISTRY_USERNAME")
+		Expect(registryUsername).ToNot(BeEmpty())
+
+		registryPassword = os.Getenv("REGISTRY_PASSWORD")
+		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
 			"--system-domain", fmt.Sprintf("%s.omg.howdoi.website", domainIP),
 			"--skip-cert-manager",
 			"--tls-issuer=private-ca",
+			"--external-registry-url=registry.hub.docker.com",
+			"--external-registry-username=" + registryUsername,
+			"--external-registry-password=" + registryPassword,
+			"--external-registry-namespace=splatform",
 		}
 
 	})
