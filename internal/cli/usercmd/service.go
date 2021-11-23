@@ -60,7 +60,7 @@ func (c *EpinioClient) Services(all bool) error {
 			msg = msg.WithTableRow(
 				service.Meta.Namespace,
 				service.Meta.Name,
-				strings.Join(service.BoundApps, ", "))
+				strings.Join(service.Spec.BoundApps, ", "))
 		}
 	} else {
 		msg = msg.WithTable("Name", "Applications")
@@ -68,7 +68,7 @@ func (c *EpinioClient) Services(all bool) error {
 		for _, service := range services {
 			msg = msg.WithTableRow(
 				service.Meta.Name,
-				strings.Join(service.BoundApps, ", "))
+				strings.Join(service.Spec.BoundApps, ", "))
 		}
 	}
 
@@ -318,9 +318,13 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 		return err
 	}
 	serviceDetails := resp.Details
+	boundApps := resp.BoundApps
+
+	sort.Strings(boundApps)
 
 	c.ui.Note().
 		WithStringValue("User", resp.Username).
+		WithStringValue("Used-By", strings.Join(boundApps, ", ")).
 		Msg("")
 
 	msg := c.ui.Success()

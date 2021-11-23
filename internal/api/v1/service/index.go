@@ -42,17 +42,27 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 	var responseData models.ServiceResponseList
 
 	for _, service := range namespaceServices {
-		var appNames []string
 
+		serviceDetails, err := service.Details(ctx)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		var appNames []string
 		for _, app := range appsOf[service.Name()] {
 			appNames = append(appNames, app.Meta.Name)
 		}
+
 		responseData = append(responseData, models.ServiceResponse{
 			Meta: models.ServiceRef{
 				Name:      service.Name(),
 				Namespace: service.Namespace(),
 			},
-			BoundApps: appNames,
+			Spec: models.ServiceShowResponse{
+				Username:  service.User(),
+				Details:   serviceDetails,
+				BoundApps: appNames,
+			},
 		})
 	}
 

@@ -33,6 +33,12 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 	var responseData models.ServiceResponseList
 
 	for _, service := range allServices {
+
+		serviceDetails, err := service.Details(ctx)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
 		var appNames []string
 
 		// NOTE that `appsOf` is keyed here by service and
@@ -49,7 +55,11 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 				Name:      service.Name(),
 				Namespace: service.Namespace(),
 			},
-			BoundApps: appNames,
+			Spec: models.ServiceShowResponse{
+				Username:  service.User(),
+				Details:   serviceDetails,
+				BoundApps: appNames,
+			},
 		})
 	}
 

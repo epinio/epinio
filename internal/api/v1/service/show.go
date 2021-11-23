@@ -40,19 +40,25 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
+	appsOf, err := servicesToApps(ctx, cluster, namespace)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	serviceDetails, err := service.Details(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	responseData := map[string]string{}
-	for key, value := range serviceDetails {
-		responseData[key] = value
+	var appNames []string
+	for _, app := range appsOf[serviceName] {
+		appNames = append(appNames, app.Meta.Name)
 	}
 
 	response.OKReturn(c, models.ServiceShowResponse{
-		Username: service.User(),
-		Details:  responseData,
+		Username:  service.User(),
+		Details:   serviceDetails,
+		BoundApps: appNames,
 	})
 	return nil
 }
