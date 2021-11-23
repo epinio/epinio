@@ -1,0 +1,18 @@
+# openssl req -x509 -newkey rsa:4096 -sha256 -days 3650 -nodes -keyout example.key -out example.crt -subj "/CN=*.omg.howdoi.website"
+# kubectl create secret -n cert-manager tls private-ca-secret-test --cert=./example.crt --key=./example.key
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: epinio-ca
+  namespace: cert-manager
+spec:
+  commonName: epinio-ca
+  isCA: true
+  issuerRef:
+    kind: ClusterIssuer
+    name: selfsigned-issuer
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  secretName: epinio-ca-root

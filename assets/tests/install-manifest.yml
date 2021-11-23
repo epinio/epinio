@@ -1,0 +1,119 @@
+components:
+  - id: epinio-namespace
+    type: namespace
+    namespace: epinio
+    values:
+      - name: linkerd.io/inject
+        value: enabled
+        type: label
+
+  - id: linkerd
+    type: yaml
+    source:
+      path: assets/embedded-files/linkerd/linkerd.yaml
+
+  - id: traefik
+    needs: linkerd
+    namespace: traefik
+    type: helm
+    source:
+      name: traefik
+      url: https://helm.traefik.io/traefik/traefik-10.3.4.tgz
+    waitComplete:
+      - type: "pod"
+        selector: "app.kubernetes.io/name=traefik"
+      - type: "loadbalancer"
+        selector: "traefik"
+    values:
+      - name: globalArguments
+        value: ""
+      - name: "deployment.podAnnotations.linkerd\\.io/inject"
+        value: "enabled"
+      - name: "ports.web.redirectTo"
+        value": "websecure"
+      - name: "ingressClass.enabled"
+        value: "true"
+      - name: "ingressClass.isDefaultClass"
+        value: "true"
+      # - name: "service.spec.loadBalancerIP"
+      #   value: "{{ .Values.loadbalancerIP }}"
+
+  - id: cert-manager
+    needs: traefik
+    namespace: cert-manager
+    type: helm
+    source:
+      name: cert-manager
+      #url: https://charts.jetstack.io/charts/cert-manager-v1.6.1.tgz
+      path: assets/embedded-files/cert-manager-v1.5.4.tgz
+    values:
+      - name: "installCRDs"
+        value: "true"
+      - name: "extraArgs[0]"
+        value: "--enable-certificate-owner-ref=true"
+    waitComplete:
+      - type: "pod"
+        selector: "app.kubernetes.io/name=webhook"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cainjector"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cert-manager"
+        namespace: "cert-manager"
+
+  - id: cluster-issuers
+    needs: cert-manager
+    type: yaml
+    source:
+      path: assets/installer/cluster-issuers.yaml
+    values:
+      - name: email
+        value: "epinio@epinio.io"
+      - name: certManagerNamespace
+        value: "cert-manager"
+
+  - id: cluster-certificates
+    needs: cluster-issuers
+    type: yaml
+    source:
+      path: assets/installer/certificates.yaml
+    # waitComplete:
+    #   - type: "certificate"
+    #     selector: "app.kubernetes.io/name=webhook"
+    #     namespace: "cert-manager"
+
+  - id: tekton
+    needs: cert-manager
+    type: yaml
+    source:
+      path: assets/embedded-files/tekton/pipeline-v0.28.0.yaml
+    waitComplete:
+      - type: "pod"
+        selector: "app=tekton-pipelines-webhook"
+      - type: "crd"
+        selector: "clustertasks.tekton.dev"
+      - type: "crd"
+        selector: "conditions.tekton.dev"
+
+  - id: tekton-pipelines
+    needs: tekton
+    type: yaml
+    source:
+      path: assets/embedded-files/tekton/epinio-pipeline.yaml # pipelines + aws task + the buildpack tasks etc
+
+  - id: kubed
+    needs: traefik
+    namespace: kubed
+    type: helm
+    source:
+      name: kubed
+      path: assets/embedded-files/kubed-v0.12.0.tgz
+
+  - id: epinio
+    needs: tekton
+    namespace: epinio
+    type: helm
+    source:
+      name: epinio
+      path: assets/embedded-files/epinio-chart/

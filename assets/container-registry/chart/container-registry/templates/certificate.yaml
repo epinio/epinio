@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: epinio-registry
+  namespace: epinio-registry
+spec:
+  dnsNames:
+  - epinio-registry.{{ .Values.domain }}
+  issuerRef:
+    kind: ClusterIssuer
+    name: {{ .Values.tlsIssuer }}
+  secretName: epinio-registry-tls

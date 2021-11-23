@@ -1,0 +1,226 @@
+# epinio-compose.yaml
+components:
+  - id: linkerd
+    type: yaml
+    source:
+      path: assets/installer/linkerd-job.yaml
+    waitComplete:
+      - type: "job"
+        selector: "linkerd-install"
+        namespace: linkerd
+
+  # - id: traefik
+  #   needs: linkerd
+  #   namespace: traefik
+  #   type: helm
+  #   source:
+  #     name: traefik
+  #     url: https://helm.traefik.io/traefik/traefik-10.3.4.tgz
+  #   waitComplete:
+  #     - type: "pod"
+  #       selector: "app.kubernetes.io/name=traefik"
+  #     - type: "loadbalancer"
+  #       selector: "traefik"
+  #   values:
+  #     - name: globalArguments
+  #       value: ""
+  #     - name: "deployment.podAnnotations.linkerd\\.io/inject"
+  #       value: "enabled"
+  #     - name: "ports.web.redirectTo"
+  #       value": "websecure"
+  #     - name: "ingressClass.enabled"
+  #       value: "true"
+  #     - name: "ingressClass.isDefaultClass"
+  #       value: "true"
+  #     # - name: "service.spec.loadBalancerIP"
+  #     #   value: "{{ .Values.loadbalancerIP }}"
+
+  - id: kubed
+    namespace: kubed
+    type: helm
+    source:
+      name: kubed
+      path: assets/installer/kubed-v0.12.0.tgz
+
+  - id: cert-manager
+    namespace: cert-manager
+    type: helm
+    source:
+      name: cert-manager
+      path: assets/installer/cert-manager-v1.5.4.tgz
+    values:
+      - name: "installCRDs"
+        value: "true"
+      - name: "extraArgs[0]"
+        value: "--enable-certificate-owner-ref=true"
+    waitComplete:
+      - type: "pod"
+        selector: "app.kubernetes.io/name=webhook"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cainjector"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cert-manager"
+        namespace: "cert-manager"
+
+  - id: namespace-tekton
+    needs: linkerd
+    type: namespace
+    namespace: tekton
+    values:
+      - name: linkerd.io/inject
+        value: enabled
+        type: annotation
+
+  - id: tekton
+    needs: namespace-tekton
+    type: yaml
+    source:
+      path: assets/installer/pipeline-v0.28.0.yaml
+    waitComplete:
+      - type: "pod"
+        selector: "app=tekton-pipelines-webhook"
+        namespace: tekton-pipelines
+      - type: "crd"
+        selector: "clustertasks.tekton.dev"
+      - type: "crd"
+        selector: "conditions.tekton.dev"
+
+  - id: namespace-epinio
+    needs: linkerd
+    type: namespace
+    namespace: epinio
+    values:
+      - name: linkerd.io/inject
+        value: enabled
+        type: annotation
+
+  # - id: cluster-issuers
+  #   needs: cert-manager
+  #   type: yaml
+  #   source:
+  #     path: assets/installer/cluster-issuers.yaml
+  #   values:
+  #     - name: email
+  #       value: "epinio@epinio.io"
+  #     - name: certManagerNamespace
+  #       value: "cert-manager"
+
+  - id: epinio
+    needs: namespace-epinio
+    namespace: epinio
+    type: helm
+    source:
+      name: epinio
+      path: assets/installer/epinio-0.1.17.tgz
+    values:
+      - name: email
+        value: "epinio@epinio.io"
+      - name: "systemDomain"
+        value: 10.1.1.118.omg.howdoi.website
+      - name:  "certManagerNamespace"
+        value: cert-manager
+      - name: "server.sessionKey"
+        value: "abc12345"
+      - name: "server.accessControlAllowOrigin"
+        value: "*"
+      - name: "server.timeoutMultiplier"
+        value: "1"
+      - name: "server.traceLevel"
+        value: "0"
+
+      - name: "s3.endpoint"
+        value: "minio.minio-epinio.svc.cluster.local"
+      - name: "s3.bucket"
+        value: "epinio"
+      - name: "s3.accessKeyID"
+        value: "i-dont-know-yet"
+      - name: "s3.secretAccessKey"
+        value: "dont-know-yet"
+      - name: "s3.region"
+        value: ""
+      - name: "s3.useSSL"
+        value: "false"
+
+      - name: "registry.url[0]"
+        value: "epinio-registry.10.1.1.118.omg.howdoi.website"
+      - name: "registry.url[1]"
+        value: "localhost:30500"
+      - name: "registry.username"
+        value: "admin"
+      - name: "registry.password"
+        value: "$apr1$nx470yow$syAiXXk4bpNNVxDLFBxer1"
+      - name: "registry.namespace"
+        value: "epinio-registry"
+      - name: "server.forceKubeInternalRegistryTLS"
+        value: "false"
+    preDeploy:
+      - type: "pod"
+        selector: "app=tekton-pipelines-webhook"
+        namespace: tekton-pipelines
+      - type: "crd"
+        selector: "clustertasks.tekton.dev"
+      - type: "crd"
+        selector: "conditions.tekton.dev"
+
+
+  - id: namespace-registry
+    needs: linkerd
+    type: namespace
+    namespace: registry
+    values:
+      - name: linkerd.io/inject
+        value: enabled
+        type: annotation
+
+  - id: registry
+    needs: namespace-registry
+    namespace: registry
+    type: helm
+    source:
+      name: epinio-registry
+      path: assets/installer/container-registry-0.1.0.tgz
+    values:
+      - name: domain
+        value: 10.86.4.38.omg.howdoi.website
+      - name: tlsIssuer
+        value: epinio-ca
+      - name: "auth.htpasswd"
+        value: "admin:$apr1$nx470yow$syAiXXk4bpNNVxDLFBxer1"
+      - name: createNodePort
+        value: "true"
+
+
+  - id: namespace-minio
+    needs: linkerd
+    type: namespace
+    namespace: minio-epinio
+    values:
+      - name: linkerd.io/inject
+        value: enabled
+        type: annotation
+
+  - id: minio
+    needs: namespace-minio
+    type: yaml
+    source:
+      path: assets/installer/minio-operator.yaml
+    waitComplete:
+      - type: "crd"
+        selector: "tenants.minio.min.io"
+
+  - id: minio-tenant
+    needs: minio
+    type: yaml
+    source:
+      path: assets/installer/minio-tenant.yaml
+    values:
+      - name: accessKey
+        value: "i-dont-know-yet"
+      - name: secretKey
+        value: "dont-know-yet"
+    waitComplete:
+      - type: "pod"
+        selector: "statefulset.kubernetes.io/pod-name=tenant1-ss-0-0"
+        namespace: minio-epinio

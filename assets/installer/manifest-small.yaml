@@ -1,0 +1,92 @@
+components:
+  - id: ns-tekton-p
+    type: namespace
+    namespace: tekton-pipelines
+    values:
+      - name: linkerd.io/inject
+        value: enabled
+        type: annotation
+      - name: cert-manager-tls
+        value: epinio-registry
+        type: label
+      - name: epinio.suse.org/deployment
+        value: "true"
+        type: label
+
+  - id: ns-tekton-s
+    type: namespace
+    namespace: tekton-staging
+    values:
+      - name: linkerd.io/inject
+        value: enabled
+        type: annotation
+
+  - id: cert-manager
+    namespace: cert-manager
+    type: helm
+    source:
+      name: cert-manager
+      #url: https://charts.jetstack.io/charts/cert-manager-v1.6.1.tgz
+      path: assets/embedded-files/cert-manager-v1.5.4.tgz
+    values:
+      - name: "installCRDs"
+        value: "true"
+      - name: "extraArgs[0]"
+        value: "--enable-certificate-owner-ref=true"
+    waitComplete:
+      - type: "pod"
+        selector: "app.kubernetes.io/name=webhook"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cainjector"
+        namespace: "cert-manager"
+      - type: "pod"
+        selector: "app.kubernetes.io/name=cert-manager"
+        namespace: "cert-manager"
+
+  - id: cluster-issuers
+    needs: cert-manager
+    type: yaml
+    source:
+      path: assets/installer/cluster-issuers.yaml
+    values:
+      - name: email
+        value: "epinio@epinio.io"
+      - name: certManagerNamespace
+        value: "cert-manager"
+
+  - id: certificates
+    needs: cluster-issuers
+    type: yaml
+    source:
+      path: assets/installer/certificates.yaml
+    # waitComplete:
+    #   - type: "certificate"
+    #     selector: "app.kubernetes.io/name=webhook"
+    #     namespace: "cert-manager"
+
+  - id: tekton
+    needs: cluster-issuers
+    type: yaml
+    source:
+      path: assets/embedded-files/tekton/pipeline-v0.28.0.yaml
+    waitComplete:
+      - type: "pod"
+        selector: "app=tekton-pipelines-webhook"
+      - type: "crd"
+        selector: "clustertasks.tekton.dev"
+      - type: "crd"
+        selector: "conditions.tekton.dev"
+
+  - id: tekton-pipelines
+    needs: tekton
+    type: yaml # yaml types are retried by default if they fail to apply (so no specifal logic needed for retries)
+    source:
+      path: assets/embedded-files/tekton/stage-pipeline.yaml # pipelines + aws task + the buildpack tasks etc
+
+  - id: kubed
+    namespace: kubed
+    type: helm
+    source:
+      name: kubed
+      path: assets/embedded-files/kubed-v0.12.0.tgz

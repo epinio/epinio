@@ -1,0 +1,59 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  annotations:
+    operator.min.io/authors: MinIO, Inc.
+    operator.min.io/license: AGPLv3
+    operator.min.io/support: https://subnet.min.io
+  name: linkerd
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: linkerd-installer
+  namespace: linkerd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: linkerd-installer
+subjects:
+  - kind: ServiceAccount
+    name: linkerd-installer
+    namespace: linkerd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  labels:
+    job-name: linkerd-install
+  name: linkerd-install
+  namespace: linkerd
+spec:
+  backoffLimit: 1
+  completions: 1
+  parallelism: 1
+  template:
+    metadata:
+      labels:
+        job-name: linkerd-install
+    spec:
+      containers:
+      - args:
+        - linkerd install | kubectl apply -f - && linkerd check --wait 10m0s
+        command:
+        - /bin/sh
+        - -c
+        image: splatform/epinio-linkerd:2.10.2
+        imagePullPolicy: IfNotPresent
+        name: linkerd-install
+      dnsPolicy: ClusterFirst
+      restartPolicy: Never
+      serviceAccount: linkerd-installer
+      serviceAccountName: linkerd-installer
+      terminationGracePeriodSeconds: 30
