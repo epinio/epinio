@@ -14,7 +14,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -36,6 +35,7 @@ const (
 	SelfSignedIssuer        = "selfsigned-issuer"
 	LetsencryptIssuer       = "letsencrypt-production"
 	EpinioCAIssuer          = "epinio-ca"
+	RootCAName              = "epinio-ca-root"
 )
 
 // internalIssuer returns true if the given issuer is an issuer created by Epinio
@@ -262,32 +262,6 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 	// Epinio's private CA. Phase 1, the CA root certificate, signed by self
 	// signed.
 
-	// Create an empty secret that the cert manager will fill-in with values.
-	// We do that, because we want to put the "kubed.appscode.com/sync" annotation
-	// as per the docs:
-	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
-	rootCAName := "epinio-ca-root"
-
-	emptySecret := v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      rootCAName,
-			Namespace: CertManagerDeploymentID,
-			Annotations: map[string]string{
-				"kubed.appscode.com/sync": fmt.Sprintf("kubed-source-namespace=%s", CertManagerDeploymentID),
-			},
-		},
-		Type: v1.SecretTypeTLS,
-		Data: map[string][]byte{
-			"ca.crt":  nil,
-			"tls.crt": nil,
-			"tls.key": nil,
-		},
-	}
-	err = c.CreateSecret(ctx, CertManagerDeploymentID, emptySecret)
-	if err != nil {
-		return err
-	}
-
 	caCert := fmt.Sprintf(`{
 		"apiVersion" : "cert-manager.io/v1",
 		"kind"       : "Certificate",
@@ -307,7 +281,7 @@ func (cm CertManager) apply(ctx context.Context, c *kubernetes.Cluster, ui *term
 				"kind" : "ClusterIssuer"
 			}
 		}
-	}`, rootCAName, SelfSignedIssuer)
+	}`, RootCAName, SelfSignedIssuer)
 
 	cc, err := c.ClientCertificate()
 	if err != nil {
@@ -420,7 +394,7 @@ const clusterIssuerEpinio = `{
 	},
 	"spec" : {
 		"ca" : {
-			"secretName": "epinio-ca-root"
+			"secretName": "` + RootCAName + `"
 		}
 	}
 }`

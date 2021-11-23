@@ -224,7 +224,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 				strings.Contains(err.Error(), "EOF")
 		}),
 		retry.OnRetry(func(n uint, err error) {
-			ui.Note().Msgf("retrying to apply %s", tektonPipelineYamlPath)
+			ui.Note().Msgf("retrying to apply %s", tektonAWSYamlPath)
 		}),
 		retry.Delay(5*time.Second),
 	)
