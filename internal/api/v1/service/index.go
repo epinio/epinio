@@ -56,7 +56,7 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 				Name:      service.Name(),
 				Namespace: service.Namespace(),
 			},
-			Spec: models.ServiceShowResponse{
+			Configuration: models.ServiceShowResponse{
 				Username:  service.User(),
 				Details:   serviceDetails,
 				BoundApps: appNames,

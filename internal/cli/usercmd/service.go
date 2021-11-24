@@ -60,7 +60,7 @@ func (c *EpinioClient) Services(all bool) error {
 			msg = msg.WithTableRow(
 				service.Meta.Namespace,
 				service.Meta.Name,
-				strings.Join(service.Spec.BoundApps, ", "))
+				strings.Join(service.Configuration.BoundApps, ", "))
 		}
 	} else {
 		msg = msg.WithTable("Name", "Applications")
@@ -68,7 +68,7 @@ func (c *EpinioClient) Services(all bool) error {
 		for _, service := range services {
 			msg = msg.WithTableRow(
 				service.Meta.Name,
-				strings.Join(service.Spec.BoundApps, ", "))
+				strings.Join(service.Configuration.BoundApps, ", "))
 		}
 	}
 

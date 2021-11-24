@@ -24,8 +24,8 @@ type ServiceRef struct {
 
 // ServiceResponse represents the data of a single service instance
 type ServiceResponse struct {
-	Meta ServiceRef          `json:"meta"`
-	Spec ServiceShowResponse `json:"spec"`
+	Meta          ServiceRef          `json:"meta"`
+	Configuration ServiceShowResponse `json:"configuration"`
 }
 
 // ServiceResponseList represents a collection of service instance
