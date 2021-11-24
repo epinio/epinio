@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -25,7 +26,7 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	appsOf, err := servicesToApps(ctx, cluster, "")
+	appsOf, err := application.BoundAppsNames(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -39,17 +40,13 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 
-		var appNames []string
+		// NOTE that the `appsOf` map is keyed here by service and namespace, and
+		// not the service alone. This is done to distinguish between services of
+		// the same name in different namespaces, with different binding states.
 
-		// NOTE that `appsOf` is keyed here by service and
-		// namespace, not service alone. Done to distinguish
-		// between services of the same name in different
-		// namespaces, with different binding states.
+		key := application.ServiceKey(service.Name(), service.Namespace())
+		appNames := appsOf[key]
 
-		key := serviceKey(service.Name(), service.Namespace())
-		for _, app := range appsOf[key] {
-			appNames = append(appNames, app.Meta.Name)
-		}
 		responseData = append(responseData, models.ServiceResponse{
 			Meta: models.ServiceRef{
 				Name:      service.Name(),

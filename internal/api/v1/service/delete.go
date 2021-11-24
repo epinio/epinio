@@ -6,6 +6,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/servicebinding"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
@@ -53,22 +54,18 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	// If it is, and automatic unbind was requested, do that.
 	// Without automatic unbind such applications are reported as error.
 
-	boundAppNames := []string{}
-	appsOf, err := servicesToApps(ctx, cluster, namespace)
+	boundAppNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-	if boundApps, found := appsOf[service.Name()]; found {
-		for _, app := range boundApps {
-			boundAppNames = append(boundAppNames, app.Meta.Name)
-		}
 
+	if len(boundAppNames) > 0 {
 		if !deleteRequest.Unbind {
 			return apierror.NewBadRequest("bound applications exist", strings.Join(boundAppNames, ","))
 		}
 
-		for _, app := range boundApps {
-			apiErr := servicebinding.DeleteBinding(ctx, cluster, namespace, app.Meta.Name, serviceName, username)
+		for _, appName := range boundAppNames {
+			apiErr := servicebinding.DeleteBinding(ctx, cluster, namespace, appName, serviceName, username)
 			if apiErr != nil {
 				return apiErr
 			}

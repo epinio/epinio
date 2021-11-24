@@ -2,7 +2,9 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/services"
@@ -14,6 +16,173 @@ import (
 )
 
 type NameSet map[string]struct{}
+
+// BoundApps is an extension of BoundAppsNames after it, to retrieve a map of services to
+// the full data of the applications bound to them. It uses BoundAppsNames internally to
+// quickly determine the applications to fetch.
+
+func BoundApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]models.AppList, error) {
+
+	result := map[string]models.AppList{}
+
+	bindings, err := BoundAppsNames(ctx, cluster, namespace)
+	if err != nil {
+		return result, err
+	}
+
+	// Internal map of fetched applications.
+	fetched := map[string]*models.App{}
+
+	if namespace == "" {
+		// services are collected across all namespaces.
+		// Key the map by service and namespace!
+		// Because services of the same name can exist in different namespaces,
+		// and different binding states.
+		for key, appNames := range bindings {
+			serviceName, namespace := DecodeServiceKey(key)
+			for _, appName := range appNames {
+				app, ok := fetched[appName]
+				if !ok {
+					meta := models.NewAppRef(appName, namespace)
+					app := meta.App()
+					err := fetch(ctx, cluster, app)
+					if err != nil {
+						// Ignoring the error. Assumption is that
+						// the app got deleted as this function is
+						// collecting its information.
+						break
+					}
+					fetched[appName] = app
+				}
+				result[serviceName] = append(result[serviceName], *app)
+			}
+		}
+	} else {
+		for serviceName, appNames := range bindings {
+			for _, appName := range appNames {
+				app, ok := fetched[appName]
+				if !ok {
+					meta := models.NewAppRef(appName, namespace)
+					app := meta.App()
+					err := fetch(ctx, cluster, app)
+					if err != nil {
+						// Ignoring the error. Assumption is that
+						// the app got deleted as this function is
+						// collecting its information.
+						break
+					}
+					fetched[appName] = app
+				}
+				result[serviceName] = append(result[serviceName], *app)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// BoundAppsNamesFor is a specialization of BoundAppsNames after it, to retrieve the names
+// of the applications bound to a single service, specified by name.
+
+func BoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster, namespace, serviceName string) ([]string, error) {
+	result := []string{}
+
+	// locate service bindings managed by epinio applications
+	selector := EpinioApplicationAreaLabel + "=service"
+	selector += ",app.kubernetes.io/component=application"
+	selector += ",app.kubernetes.io/managed-by=epinio"
+
+	appBindings, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(ctx,
+		metav1.ListOptions{
+			LabelSelector: selector,
+		})
+	if err != nil {
+		return result, err
+	}
+
+	// Instead of building a full inverted map from service names to app names here we
+	// filter on the service name to generate just that slice of app names.
+
+	for _, binding := range appBindings.Items {
+		for boundServiceName := range binding.Data {
+			if boundServiceName == serviceName {
+				appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
+				result = append(result, appName)
+				break
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// BoundAppsNames returns a map from the service names of services in the specified namespace,
+// to the names of the applications they are bound to. For an empty namespace the map
+// contains the services in all namespaces, and the keys are a combination of namespace
+// name and service name, to distinguish same-named services in different namespaces (See
+// `ServiceKey` below). The application names never contain namespace information, as they
+// are always in the same namespace as the service referencing them.
+
+func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]string, error) {
+
+	result := map[string][]string{}
+
+	// locate service bindings managed by epinio applications.
+	selector := EpinioApplicationAreaLabel + "=service"
+	selector += ",app.kubernetes.io/component=application"
+	selector += ",app.kubernetes.io/managed-by=epinio"
+
+	appBindings, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(ctx,
+		metav1.ListOptions{
+			LabelSelector: selector,
+		})
+	if err != nil {
+		return result, err
+	}
+
+	if namespace == "" {
+		// services are collected across all namespaces.
+		// Key the map by service and namespace!
+		// Because services of the same name can exist in
+		// different namespaces, and different binding states.
+
+		for _, binding := range appBindings.Items {
+			appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
+			namespace := binding.ObjectMeta.Labels["app.kubernetes.io/part-of"]
+
+			for serviceName := range binding.Data {
+				key := ServiceKey(serviceName, namespace)
+				result[key] = append(result[key], appName)
+			}
+		}
+	} else {
+		for _, binding := range appBindings.Items {
+			appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
+
+			for serviceName := range binding.Data {
+				result[serviceName] = append(result[serviceName], appName)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+// ServiceKey constructs a single key string from service and namespace names, for the
+// `servicesToApps` map, when used for services and apps across all namespaces. It uses
+// ASCII NUL (\000) as the separator character. NUL is forbidden to occur in the names
+// themselves. This should make it impossible to construct two different pairs of
+// service/namespace names which map to the same key.
+func ServiceKey(name, namespace string) string {
+	return fmt.Sprintf("%s\000%s", name, namespace)
+}
+
+// DecodeServiceKey splits the given key back into name and namespace.
+// The name is the first result, the namespace the second.
+func DecodeServiceKey(key string) (string, string) {
+	parts := strings.Split(key, "\0000")
+	return parts[0], parts[1]
+}
 
 // BoundServices returns the set of services bound to the application. Ordered by name.
 func BoundServices(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (services.ServiceList, error) {
@@ -156,6 +325,7 @@ func svcLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 					"app.kubernetes.io/part-of":    appRef.Namespace,
 					"app.kubernetes.io/managed-by": "epinio",
 					"app.kubernetes.io/component":  "application",
+					EpinioApplicationAreaLabel:     "service",
 				},
 			},
 		}
