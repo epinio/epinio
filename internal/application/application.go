@@ -191,7 +191,9 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 		if err != nil {
 			return result, err
 		}
-		result = append(result, *app)
+		if app != nil {
+			result = append(result, *app)
+		}
 	}
 
 	return result, nil
