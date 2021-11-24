@@ -15,14 +15,16 @@ import (
 )
 
 // This test uses AWS route53 to update the system domain's records
-var _ = Describe("<Scenario4> EKS, epinio-ca", func() {
+var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 	var (
-		flags        []string
-		epinioHelper epinio.Epinio
-		appName      = catalog.NewAppName()
-		loadbalancer string
-		domain       string
-		zoneID       string
+		flags           []string
+		epinioHelper    epinio.Epinio
+		appName         = catalog.NewAppName()
+		loadbalancer    string
+		domain          string
+		zoneID          string
+		accessKeyID     string
+		secretAccessKey string
 	)
 
 	BeforeEach(func() {
@@ -34,8 +36,19 @@ var _ = Describe("<Scenario4> EKS, epinio-ca", func() {
 		zoneID = os.Getenv("AWS_ZONE_ID")
 		Expect(zoneID).ToNot(BeEmpty())
 
+		accessKeyID = os.Getenv("AWS_ACCESS_KEY_ID")
+		Expect(accessKeyID).ToNot(BeEmpty())
+
+		secretAccessKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
+		Expect(secretAccessKey).ToNot(BeEmpty())
+
 		flags = []string{
 			"--system-domain=" + domain,
+			"--s3-use-ssl",
+			"--s3-bucket=epinio-ci",
+			"--s3-endpoint=s3.amazonaws.com",
+			"--s3-access-key-id=" + accessKeyID,
+			"--s3-secret-access-key=" + secretAccessKey,
 		}
 	})
 
@@ -115,6 +128,12 @@ var _ = Describe("<Scenario4> EKS, epinio-ca", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}).Should(MatchRegexp("MYVAR"))
+		})
+
+		By("Delete an app", func() {
+			out, err := epinioHelper.Run("apps", "delete", appName)
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Or(ContainSubstring("Application deleted")))
 		})
 
 		By("Cleaning DNS Entries", func() {
