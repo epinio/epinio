@@ -6,7 +6,6 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,33 +30,9 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	var responseData models.ServiceResponseList
-
-	for _, service := range allServices {
-
-		serviceDetails, err := service.Details(ctx)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-
-		// NOTE that the `appsOf` map is keyed here by service and namespace, and
-		// not the service alone. This is done to distinguish between services of
-		// the same name in different namespaces, with different binding states.
-
-		key := application.ServiceKey(service.Name(), service.Namespace())
-		appNames := appsOf[key]
-
-		responseData = append(responseData, models.ServiceResponse{
-			Meta: models.ServiceRef{
-				Name:      service.Name(),
-				Namespace: service.Namespace(),
-			},
-			Configuration: models.ServiceShowResponse{
-				Username:  service.User(),
-				Details:   serviceDetails,
-				BoundApps: appNames,
-			},
-		})
+	responseData, err := makeResponse(ctx, appsOf, allServices)
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
 	response.OKReturn(c, responseData)

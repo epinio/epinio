@@ -33,48 +33,23 @@ func BoundApps(ctx context.Context, cluster *kubernetes.Cluster, namespace strin
 	// Internal map of fetched applications.
 	fetched := map[string]*models.App{}
 
-	if namespace == "" {
-		// services are collected across all namespaces.
-		// Key the map by service and namespace!
-		// Because services of the same name can exist in different namespaces,
-		// and different binding states.
-		for key, appNames := range bindings {
-			serviceName, namespace := DecodeServiceKey(key)
-			for _, appName := range appNames {
-				app, ok := fetched[appName]
-				if !ok {
-					meta := models.NewAppRef(appName, namespace)
-					app := meta.App()
-					err := fetch(ctx, cluster, app)
-					if err != nil {
-						// Ignoring the error. Assumption is that
-						// the app got deleted as this function is
-						// collecting its information.
-						break
-					}
-					fetched[appName] = app
+	for key, appNames := range bindings {
+		serviceName, namespace := DecodeServiceKey(key)
+		for _, appName := range appNames {
+			app, ok := fetched[appName]
+			if !ok {
+				meta := models.NewAppRef(appName, namespace)
+				app := meta.App()
+				err := fetch(ctx, cluster, app)
+				if err != nil {
+					// Ignoring the error. Assumption is that
+					// the app got deleted as this function is
+					// collecting its information.
+					break
 				}
-				result[serviceName] = append(result[serviceName], *app)
+				fetched[appName] = app
 			}
-		}
-	} else {
-		for serviceName, appNames := range bindings {
-			for _, appName := range appNames {
-				app, ok := fetched[appName]
-				if !ok {
-					meta := models.NewAppRef(appName, namespace)
-					app := meta.App()
-					err := fetch(ctx, cluster, app)
-					if err != nil {
-						// Ignoring the error. Assumption is that
-						// the app got deleted as this function is
-						// collecting its information.
-						break
-					}
-					fetched[appName] = app
-				}
-				result[serviceName] = append(result[serviceName], *app)
-			}
+			result[serviceName] = append(result[serviceName], *app)
 		}
 	}
 
@@ -140,28 +115,13 @@ func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 		return result, err
 	}
 
-	if namespace == "" {
-		// services are collected across all namespaces.
-		// Key the map by service and namespace!
-		// Because services of the same name can exist in
-		// different namespaces, and different binding states.
+	for _, binding := range appBindings.Items {
+		appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
+		namespace := binding.ObjectMeta.Labels["app.kubernetes.io/part-of"]
 
-		for _, binding := range appBindings.Items {
-			appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
-			namespace := binding.ObjectMeta.Labels["app.kubernetes.io/part-of"]
-
-			for serviceName := range binding.Data {
-				key := ServiceKey(serviceName, namespace)
-				result[key] = append(result[key], appName)
-			}
-		}
-	} else {
-		for _, binding := range appBindings.Items {
-			appName := binding.ObjectMeta.Labels["app.kubernetes.io/name"]
-
-			for serviceName := range binding.Data {
-				result[serviceName] = append(result[serviceName], appName)
-			}
+		for serviceName := range binding.Data {
+			key := ServiceKey(serviceName, namespace)
+			result[key] = append(result[key], appName)
 		}
 	}
 

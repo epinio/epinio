@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -40,18 +42,30 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	var responseData models.ServiceResponseList
+	responseData, err := makeResponse(ctx, appsOf, namespaceServices)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
 
-	for _, service := range namespaceServices {
+	response.OKReturn(c, responseData)
+	return nil
+}
+
+func makeResponse(ctx context.Context, appsOf map[string][]string, services services.ServiceList) (models.ServiceResponseList, error) {
+
+	response := models.ServiceResponseList{}
+
+	for _, service := range services {
 
 		serviceDetails, err := service.Details(ctx)
 		if err != nil {
-			return apierror.InternalError(err)
+			return models.ServiceResponseList{}, err
 		}
 
-		appNames := appsOf[service.Name()]
+		key := application.ServiceKey(service.Name(), service.Namespace())
+		appNames := appsOf[key]
 
-		responseData = append(responseData, models.ServiceResponse{
+		response = append(response, models.ServiceResponse{
 			Meta: models.ServiceRef{
 				Name:      service.Name(),
 				Namespace: service.Namespace(),
@@ -64,6 +78,5 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 		})
 	}
 
-	response.OKReturn(c, responseData)
-	return nil
+	return response, nil
 }
