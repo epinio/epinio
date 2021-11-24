@@ -28,6 +28,8 @@ import (
 	"k8s.io/apimachinery/pkg/selection"
 )
 
+const EpinioApplicationAreaLabel = "epinio.suse.org/area"
+
 // Create generates a new kube app resource in the namespace of the
 // namespace. Note that this is the passive resource holding the
 // app's configuration. It is not the active workload

@@ -135,6 +135,7 @@ func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 					"app.kubernetes.io/part-of":    appRef.Namespace,
 					"app.kubernetes.io/managed-by": "epinio",
 					"app.kubernetes.io/component":  "application",
+					EpinioApplicationAreaLabel:     "environment",
 				},
 			},
 		}

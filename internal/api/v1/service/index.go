@@ -1,8 +1,11 @@
 package service
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -34,28 +37,46 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	appsOf, err := servicesToApps(ctx, cluster, namespace)
+	appsOf, err := application.BoundAppsNames(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	var responseData models.ServiceResponseList
-
-	for _, service := range namespaceServices {
-		var appNames []string
-
-		for _, app := range appsOf[service.Name()] {
-			appNames = append(appNames, app.Meta.Name)
-		}
-		responseData = append(responseData, models.ServiceResponse{
-			Meta: models.ServiceRef{
-				Name:      service.Name(),
-				Namespace: service.Namespace(),
-			},
-			BoundApps: appNames,
-		})
+	responseData, err := makeResponse(ctx, appsOf, namespaceServices)
+	if err != nil {
+		return apierror.InternalError(err)
 	}
 
 	response.OKReturn(c, responseData)
 	return nil
+}
+
+func makeResponse(ctx context.Context, appsOf map[string][]string, services services.ServiceList) (models.ServiceResponseList, error) {
+
+	response := models.ServiceResponseList{}
+
+	for _, service := range services {
+
+		serviceDetails, err := service.Details(ctx)
+		if err != nil {
+			return models.ServiceResponseList{}, err
+		}
+
+		key := application.ServiceKey(service.Name(), service.Namespace())
+		appNames := appsOf[key]
+
+		response = append(response, models.ServiceResponse{
+			Meta: models.ServiceRef{
+				Name:      service.Name(),
+				Namespace: service.Namespace(),
+			},
+			Configuration: models.ServiceShowResponse{
+				Username:  service.User(),
+				Details:   serviceDetails,
+				BoundApps: appNames,
+			},
+		})
+	}
+
+	return response, nil
 }

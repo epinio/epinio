@@ -24,8 +24,8 @@ type ServiceRef struct {
 
 // ServiceResponse represents the data of a single service instance
 type ServiceResponse struct {
-	Meta      ServiceRef `json:"meta"`
-	BoundApps []string   `json:"boundapps"`
+	Meta          ServiceRef          `json:"meta"`
+	Configuration ServiceShowResponse `json:"configuration"`
 }
 
 // ServiceResponseList represents a collection of service instance
@@ -182,8 +182,9 @@ type EnvMatchResponse struct {
 
 // ServiceShowResponse contains details about a service
 type ServiceShowResponse struct {
-	Username string            `json:"user"`
-	Details  map[string]string `json:"details,omitempty"`
+	Username  string            `json:"user"`
+	Details   map[string]string `json:"details,omitempty"`
+	BoundApps []string          `json:"boundapps"`
 }
 
 // InfoResponse contains information about Epinio and its components

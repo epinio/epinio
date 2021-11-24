@@ -1377,15 +1377,11 @@
       "description": "ServiceResponse represents the data of a single service instance",
       "type": "object",
       "properties": {
-        "boundapps": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "BoundApps"
-        },
         "meta": {
           "$ref": "#/definitions/ServiceRef"
+        },
+        "spec": {
+          "$ref": "#/definitions/ServiceShowResponse"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1402,6 +1398,13 @@
       "description": "ServiceShowResponse contains details about a service",
       "type": "object",
       "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        },
         "details": {
           "type": "object",
           "additionalProperties": {

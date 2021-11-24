@@ -140,7 +140,7 @@ var _ = Describe("Services API Application Endpoints", func() {
 				serviceRefs = append(serviceRefs, []string{
 					s.Meta.Name,
 					s.Meta.Namespace,
-					strings.Join(s.BoundApps, ", "),
+					strings.Join(s.Configuration.BoundApps, ", "),
 				})
 			}
 			Expect(serviceRefs).To(ContainElements(

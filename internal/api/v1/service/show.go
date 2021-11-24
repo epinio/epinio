@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -40,19 +41,20 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
+	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	serviceDetails, err := service.Details(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	responseData := map[string]string{}
-	for key, value := range serviceDetails {
-		responseData[key] = value
-	}
-
 	response.OKReturn(c, models.ServiceShowResponse{
-		Username: service.User(),
-		Details:  responseData,
+		Username:  service.User(),
+		Details:   serviceDetails,
+		BoundApps: appNames,
 	})
 	return nil
 }
