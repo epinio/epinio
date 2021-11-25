@@ -160,10 +160,6 @@ region = %s
 
 // Meta retrieves the meta data for the blob specified by it blobUID.
 func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, error) {
-	if err := m.EnsureBucket(ctx); err != nil {
-		return map[string]string{}, errors.Wrap(err, "ensuring bucket")
-	}
-
 	blobInfo, err := m.minioClient.StatObject(ctx, m.connectionDetails.Bucket,
 		blobUID, minio.StatObjectOptions{})
 	if err != nil {

@@ -141,37 +141,9 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	manager, err := s3manager.New(s3ConnectionDetails)
-	if err != nil {
-		return apierror.InternalError(err, "creating an S3 manager")
-	}
-
-	// Validate incoming blob id
-
-	blobMeta, err := manager.Meta(ctx, req.BlobUID)
-	if err != nil {
-		return apierror.InternalError(err, "querying blob id meta-data")
-	}
-
-	blobApp, ok := blobMeta["App"]
-	if !ok {
-		return apierror.NewInternalError("blob has no app name meta data")
-	}
-	if blobApp != req.App.Name {
-		return apierror.NewInternalError(
-			"blob app mismatch",
-			"expected: "+req.App.Name,
-			"found: "+blobApp)
-	}
-	blobNamespace, ok := blobMeta["Namespace"]
-	if !ok {
-		return apierror.NewInternalError("blob has no namespace meta data")
-	}
-	if blobNamespace != req.App.Namespace {
-		return apierror.NewInternalError(
-			"blob namespace mismatch",
-			"expected: "+req.App.Namespace,
-			"found: "+blobNamespace)
+	apierr := validateBlob(ctx, req.BlobUID, req.App, s3ConnectionDetails)
+	if apierr != nil {
+		return apierr
 	}
 
 	// Create uid identifying the staging pipeline to be
@@ -295,6 +267,43 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 	}
 
 	response.OK(c)
+	return nil
+}
+
+func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3ConnectionDetails s3manager.ConnectionDetails) apierror.APIErrors {
+
+	manager, err := s3manager.New(s3ConnectionDetails)
+	if err != nil {
+		return apierror.InternalError(err, "creating an S3 manager")
+	}
+
+	blobMeta, err := manager.Meta(ctx, blobUID)
+	if err != nil {
+		return apierror.InternalError(err, "querying blob id meta-data")
+	}
+
+	blobApp, ok := blobMeta["App"]
+	if !ok {
+		return apierror.NewInternalError("blob has no app name meta data")
+	}
+	if blobApp != app.Name {
+		return apierror.NewInternalError(
+			"blob app mismatch",
+			"expected: "+app.Name,
+			"found: "+blobApp)
+	}
+
+	blobNamespace, ok := blobMeta["Namespace"]
+	if !ok {
+		return apierror.NewInternalError("blob has no namespace meta data")
+	}
+	if blobNamespace != app.Namespace {
+		return apierror.NewInternalError(
+			"blob namespace mismatch",
+			"expected: "+app.Namespace,
+			"found: "+blobNamespace)
+	}
+
 	return nil
 }
 
