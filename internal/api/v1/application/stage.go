@@ -287,7 +287,7 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 		return apierror.NewInternalError("blob has no app name meta data")
 	}
 	if blobApp != app.Name {
-		return apierror.NewInternalError(
+		return apierror.NewBadRequest(
 			"blob app mismatch",
 			"expected: "+app.Name,
 			"found: "+blobApp)
@@ -298,7 +298,7 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 		return apierror.NewInternalError("blob has no namespace meta data")
 	}
 	if blobNamespace != app.Namespace {
-		return apierror.NewInternalError(
+		return apierror.NewBadRequest(
 			"blob namespace mismatch",
 			"expected: "+app.Namespace,
 			"found: "+blobNamespace)
