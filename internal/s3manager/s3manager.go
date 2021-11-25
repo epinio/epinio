@@ -158,6 +158,17 @@ region = %s
 	return secret, err
 }
 
+// Meta retrieves the meta data for the blob specified by it blobUID.
+func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, error) {
+	blobInfo, err := m.minioClient.StatObject(ctx, m.connectionDetails.Bucket,
+		blobUID, minio.StatObjectOptions{})
+	if err != nil {
+		return map[string]string{}, errors.Wrap(err, "reading the object meta data")
+	}
+
+	return blobInfo.UserMetadata, nil
+}
+
 // Upload uploads the given file to the S3 endpoint and returns a blobUID which
 // can later be used to fetch the same file.
 func (m *Manager) Upload(ctx context.Context, filepath string, metadata map[string]string) (string, error) {
@@ -169,7 +180,10 @@ func (m *Manager) Upload(ctx context.Context, filepath string, metadata map[stri
 	contentType := "application/tar"
 
 	_, err := m.minioClient.FPutObject(ctx, m.connectionDetails.Bucket,
-		objectName, filepath, minio.PutObjectOptions{ContentType: contentType, UserMetadata: metadata})
+		objectName, filepath, minio.PutObjectOptions{
+			ContentType:  contentType,
+			UserMetadata: metadata,
+		})
 	if err != nil {
 		return "", errors.Wrap(err, "writing the new object")
 	}
