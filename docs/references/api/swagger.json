@@ -1377,11 +1377,11 @@
       "description": "ServiceResponse represents the data of a single service instance",
       "type": "object",
       "properties": {
+        "configuration": {
+          "$ref": "#/definitions/ServiceShowResponse"
+        },
         "meta": {
           "$ref": "#/definitions/ServiceRef"
-        },
-        "spec": {
-          "$ref": "#/definitions/ServiceShowResponse"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
