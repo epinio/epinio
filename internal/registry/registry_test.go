@@ -53,10 +53,8 @@ var _ = Describe("ConnectionDetails", func() {
 			BeforeEach(func() {
 				details = &registry.ConnectionDetails{
 					Namespace: "myorg",
-					DockerConfigJSON: &registry.DockerConfigJSON{
-						Auths: map[string]registry.ContainerRegistryAuth{
-							"http://127.0.0.1/": {},
-						},
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "http://127.0.0.1/"},
 					},
 				}
 			})
@@ -70,11 +68,9 @@ var _ = Describe("ConnectionDetails", func() {
 			BeforeEach(func() {
 				details = &registry.ConnectionDetails{
 					Namespace: "myorg",
-					DockerConfigJSON: &registry.DockerConfigJSON{
-						Auths: map[string]registry.ContainerRegistryAuth{
-							"http://127.0.0.1/":       {},
-							"registry.hub.docker.com": {},
-						},
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "http://127.0.0.1/"},
+						{URL: "registry.hub.docker.com"},
 					},
 				}
 			})
@@ -92,10 +88,8 @@ var _ = Describe("ConnectionDetails", func() {
 			BeforeEach(func() {
 				details = &registry.ConnectionDetails{
 					Namespace: "myorg",
-					DockerConfigJSON: &registry.DockerConfigJSON{
-						Auths: map[string]registry.ContainerRegistryAuth{
-							"registry.hub.docker.com": {},
-						},
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "registry.hub.docker.com"},
 					},
 				}
 			})
@@ -109,11 +103,9 @@ var _ = Describe("ConnectionDetails", func() {
 			BeforeEach(func() {
 				details = &registry.ConnectionDetails{
 					Namespace: "myorg",
-					DockerConfigJSON: &registry.DockerConfigJSON{
-						Auths: map[string]registry.ContainerRegistryAuth{
-							"http://127.0.0.1/":       {},
-							"registry.hub.docker.com": {},
-						},
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "http://127.0.0.1/"},
+						{URL: "registry.hub.docker.com"},
 					},
 				}
 			})
@@ -132,10 +124,8 @@ var _ = Describe("ConnectionDetails", func() {
 			BeforeEach(func() {
 				details = &registry.ConnectionDetails{
 					Namespace: "myorg",
-					DockerConfigJSON: &registry.DockerConfigJSON{
-						Auths: map[string]registry.ContainerRegistryAuth{
-							"registry.hub.docker.com": {},
-						},
+					RegistryCredentials: []registry.RegistryCredentials{
+						{URL: "registry.hub.docker.com"},
 					},
 				}
 				imageURL = "splatform/my-app"
@@ -155,11 +145,9 @@ var _ = Describe("ConnectionDetails", func() {
 				BeforeEach(func() {
 					details = &registry.ConnectionDetails{
 						Namespace: "myorg",
-						DockerConfigJSON: &registry.DockerConfigJSON{
-							Auths: map[string]registry.ContainerRegistryAuth{
-								publicRegistryURL: {},
-								"127.0.0.1:30500": {},
-							},
+						RegistryCredentials: []registry.RegistryCredentials{
+							{URL: publicRegistryURL},
+							{URL: "127.0.0.1:30500"},
 						},
 					}
 					imageURL = publicRegistryURL + "/apps/my-app"
@@ -174,11 +162,9 @@ var _ = Describe("ConnectionDetails", func() {
 				BeforeEach(func() {
 					details = &registry.ConnectionDetails{
 						Namespace: "myorg",
-						DockerConfigJSON: &registry.DockerConfigJSON{
-							Auths: map[string]registry.ContainerRegistryAuth{
-								"registry.hub.docker.com": {},
-								"127.0.0.1:30500":         {},
-							},
+						RegistryCredentials: []registry.RegistryCredentials{
+							{URL: "registry.hub.docker.com"},
+							{URL: "127.0.0.1:30500"},
 						},
 					}
 					imageURL = "otherregistry.com/apps/my-app"

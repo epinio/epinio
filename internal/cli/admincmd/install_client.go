@@ -519,11 +519,9 @@ func getS3ConnectionDetails(options *kubernetes.InstallationOptions) (*s3manager
 	return cd, nil
 }
 
-// getRegistryConnectionDetails returns the user provided registry connection
-// details or the internal registry details if user provided none.
-// This function also validates user provided input and returns an error if
-// something is wrong.
-func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*registry.ConnectionDetails, error) {
+// getExternalRegistryDetails returns registry details as provided in user
+// flags or nil if there are no user provided details.
+func getExternalRegistryDetails(options *kubernetes.InstallationOptions) (*registry.ConnectionDetails, error) {
 	url := options.GetStringNG("external-registry-url")
 	namespace := options.GetStringNG("external-registry-namespace")
 	username := options.GetStringNG("external-registry-username")
@@ -532,51 +530,81 @@ func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*reg
 		return nil, err
 	}
 
-	var registryDetails *registry.ConnectionDetails
-	// If no user provided setting, use internal registry ones
 	if url == "" {
-		domain, err := options.GetString("system-domain", "")
-		if err != nil {
-			return nil, errors.Wrap(err, "Couldn't get system-domain option")
-		}
+		return nil, nil
+	}
 
-		// Generate random credentials
-		registryAuth, err := deployments.RegistryInstallAuth()
-		if err != nil {
-			return nil, err
-		}
-		containerConfig, err := registry.NewDockerConfigJSON([]registry.RegistryCredentials{
-			{
-				URL:      "127.0.0.1:30500",
-				Username: registryAuth.Username,
-				Password: registryAuth.Password,
-			},
-			{
-				URL:      fmt.Sprintf("%s.%s", deployments.RegistryDeploymentID, domain),
-				Username: registryAuth.Username,
-				Password: registryAuth.Password,
-			},
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		registryDetails = registry.NewConnectionDetails(containerConfig, "apps")
-	} else {
-		containerConfig, err := registry.NewDockerConfigJSON([]registry.RegistryCredentials{
+	details := &registry.ConnectionDetails{
+		RegistryCredentials: []registry.RegistryCredentials{
 			{
 				URL:      url,
 				Username: username,
 				Password: password,
 			},
-		})
-		if err != nil {
-			return nil, err
-		}
-		registryDetails = registry.NewConnectionDetails(containerConfig, namespace)
+		},
+		Namespace: namespace,
 	}
 
-	return registryDetails, nil
+	return details, nil
+}
+
+func getInternalRegistryDetails(options *kubernetes.InstallationOptions) (*registry.ConnectionDetails, error) {
+	domain, err := options.GetString("system-domain", "")
+	if err != nil {
+		return nil, errors.Wrap(err, "Couldn't get system-domain option")
+	}
+
+	// Generate random credentials
+	registryAuth, err := deployments.RegistryInstallAuth()
+	if err != nil {
+		return nil, err
+	}
+
+	username := registryAuth.Username
+	password := registryAuth.Password
+
+	details := &registry.ConnectionDetails{
+		RegistryCredentials: []registry.RegistryCredentials{
+			{
+				URL:      fmt.Sprintf("%s.%s", deployments.RegistryDeploymentID, domain),
+				Username: username,
+				Password: password,
+			},
+		},
+		Namespace: "apps",
+	}
+
+	if !options.GetBoolNG("force-kube-internal-registry-tls") {
+		details.RegistryCredentials = append(details.RegistryCredentials, registry.RegistryCredentials{
+			URL:      "127.0.0.1:30500",
+			Username: username,
+			Password: password,
+		})
+	}
+
+	return details, nil
+}
+
+// getRegistryConnectionDetails returns the user provided registry connection
+// details or the internal registry details if user provided none.
+// This function also validates user provided input and returns an error if
+// something is wrong.
+func getRegistryConnectionDetails(options *kubernetes.InstallationOptions) (*registry.ConnectionDetails, error) {
+	externalRegistryDetails, err := getExternalRegistryDetails(options)
+	if err != nil {
+		return nil, err
+	}
+
+	if externalRegistryDetails != nil {
+		return externalRegistryDetails, nil
+	}
+
+	internalRegistryDetails, err := getInternalRegistryDetails(options)
+	if err != nil {
+		return nil, err
+	}
+
+	return internalRegistryDetails, nil
 }
 
 // performs early validation on installation options for incompatible configuration

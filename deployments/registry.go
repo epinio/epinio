@@ -178,6 +178,12 @@ func (k Registry) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 		`--set`, `auth.htpasswd=` + htpasswd,
 		`--set`, fmt.Sprintf("domain=%s.%s", RegistryDeploymentID, domain),
 		`--set`, fmt.Sprintf(`createNodePort=%v`, !options.GetBoolNG("force-kube-internal-registry-tls")),
+		// When force=true, registry doesn't get a node port service
+		// In this case install_client.go shouldn't write a localhost url in the connection details
+		// (because nothing listens there).
+		// Then deploy.go doesn't need to check the flag, only the "localURL" for existence. Because
+		// if there is a localhost url in the secret, it means the flag was false, the registry has
+		// a node port service and the user wants us to tell Kubernetes to use it.
 	}
 
 	log.Info("assembled helm command", "command", strings.Join(append([]string{`helm`}, helmArgs...), " "))

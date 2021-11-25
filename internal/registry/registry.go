@@ -39,14 +39,16 @@ type DockerConfigJSON struct {
 }
 
 type ConnectionDetails struct {
-	*DockerConfigJSON
-	Namespace string
+	RegistryCredentials []RegistryCredentials
+	Namespace           string
 }
 
-func NewDockerConfigJSON(registries []RegistryCredentials) (*DockerConfigJSON, error) {
+// DockerConfigJSON returns a DockerConfigJSON object from the connection
+// details. This object can be marshaled and stored into a Kubernetes secret.
+func (d *ConnectionDetails) DockerConfigJSON() (*DockerConfigJSON, error) {
 	result := DockerConfigJSON{Auths: map[string]ContainerRegistryAuth{}}
 
-	for _, r := range registries {
+	for _, r := range d.RegistryCredentials {
 		if r.URL == "" {
 			return nil, errors.New("url must be specified")
 		}
@@ -62,14 +64,7 @@ func NewDockerConfigJSON(registries []RegistryCredentials) (*DockerConfigJSON, e
 	return &result, nil
 }
 
-func NewConnectionDetails(config *DockerConfigJSON, namespace string) *ConnectionDetails {
-	return &ConnectionDetails{
-		DockerConfigJSON: config,
-		Namespace:        namespace,
-	}
-}
-
-// PublicRegistryURL returns the public registry URL from the dockerconfigjson
+// PublicRegistryURL returns the public registry URL from the connection details
 // object. Assumes to have only one non-local registry in the config. If there
 // are more, it will just return the first one found (no guaranteed order since
 // there should only be one)
@@ -78,9 +73,10 @@ func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for url := range d.DockerConfigJSON.Auths {
-		if !r.MatchString(url) {
-			return url, nil
+
+	for _, credentials := range d.RegistryCredentials {
+		if !r.MatchString(credentials.URL) {
+			return credentials.URL, nil
 		}
 	}
 
@@ -96,9 +92,9 @@ func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	for url := range d.DockerConfigJSON.Auths {
-		if r.MatchString(url) {
-			return url, nil
+	for _, credentials := range d.RegistryCredentials {
+		if r.MatchString(credentials.URL) {
+			return credentials.URL, nil
 		}
 	}
 
@@ -111,7 +107,7 @@ func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 //   registry, with the --container-image-url flag)
 // - there is a localhost URL defined on the ConnectionDetails (if we are using
 //   an external Epinio registry, there is no need to replace anything and there
-//   is no localhost URL defined either.
+//   is no localhost URL defined either).
 func (d *ConnectionDetails) ReplaceWithInternalRegistry(imageURL string) (string, error) {
 	privateURL, err := d.PrivateRegistryURL()
 	if err != nil {
@@ -165,7 +161,8 @@ func Validate(url, namespace, username, password string) error {
 
 // GetConnectionDetails retrieves registry connection details from a Kubernetes secret.
 func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (*ConnectionDetails, error) {
-	details := ConnectionDetails{}
+	details := ConnectionDetails{RegistryCredentials: []RegistryCredentials{}}
+
 	secret, err := cluster.GetSecret(ctx, secretNamespace, secretName)
 	if err != nil {
 		return nil, err
@@ -177,8 +174,15 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 		return nil, err
 	}
 
-	details.DockerConfigJSON = &dockerconfigjson
 	details.Namespace = secret.ObjectMeta.Annotations[RegistrySecretNamespaceAnnotationKey]
+
+	for url, auth := range dockerconfigjson.Auths {
+		details.RegistryCredentials = append(details.RegistryCredentials, RegistryCredentials{
+			URL:      url,
+			Username: auth.Username,
+			Password: auth.Password,
+		})
+	}
 
 	return &details, nil
 }
@@ -188,7 +192,12 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 // the secret in a specific format). It is used to construct the full url to
 // an application image in the form: registryURL/registryNamespace/appImage
 func (d *ConnectionDetails) Store(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (*corev1.Secret, error) {
-	dockerconfigjson, err := json.Marshal(d.DockerConfigJSON)
+	dockerconfigjson, err := d.DockerConfigJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	dockerconfigjsonStr, err := json.Marshal(dockerconfigjson)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +212,7 @@ func (d *ConnectionDetails) Store(ctx context.Context, cluster *kubernetes.Clust
 				},
 			},
 			StringData: map[string]string{
-				".dockerconfigjson": string(dockerconfigjson),
+				".dockerconfigjson": string(dockerconfigjsonStr),
 			},
 			Type: "kubernetes.io/dockerconfigjson",
 		}, metav1.CreateOptions{})

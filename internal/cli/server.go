@@ -23,10 +23,6 @@ func init() {
 	viper.BindPFlag("tls-issuer", flags.Lookup("tls-issuer"))
 	viper.BindEnv("tls-issuer", "TLS_ISSUER")
 
-	flags.Bool("force-kube-internal-registry-tls", false, "(FORCE_KUBE_INTERNAL_REGISTRY_TLS) Kubernetes accesses the internal registry over TLS")
-	viper.BindPFlag("force-kube-internal-registry-tls", flags.Lookup("force-kube-internal-registry-tls"))
-	viper.BindEnv("force-kube-internal-registry-tls", "FORCE_KUBE_INTERNAL_REGISTRY_TLS")
-
 	flags.String("access-control-allow-origin", "", "(ACCESS_CONTROL_ALLOW_ORIGIN) Domains allowed to use the API")
 	viper.BindPFlag("access-control-allow-origin", flags.Lookup("access-control-allow-origin"))
 	viper.BindEnv("access-control-allow-origin", "ACCESS_CONTROL_ALLOW_ORIGIN")
