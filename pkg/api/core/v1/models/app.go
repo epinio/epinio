@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	EpinioStageIDPrevious   = "epinio.suse.org/previous-stage-id"
 	EpinioStageIDLabel      = "epinio.suse.org/stage-id"
 	EpinioStageBlobUIDLabel = "epinio.suse.org/blob-uid"
 

@@ -346,6 +346,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 				"app.kubernetes.io/part-of":    app.Namespace,
 				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      app.Stage.ID,
+				models.EpinioStageIDPrevious:   app.PreviousStageID,
 				models.EpinioStageBlobUIDLabel: app.BlobUID,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
