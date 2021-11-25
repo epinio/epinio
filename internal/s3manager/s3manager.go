@@ -158,7 +158,7 @@ region = %s
 	return secret, err
 }
 
-// Stat retrieves the meta data for the blob specified by it blobUID.
+// Meta retrieves the meta data for the blob specified by it blobUID.
 func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, error) {
 	if err := m.EnsureBucket(ctx); err != nil {
 		return map[string]string{}, errors.Wrap(err, "ensuring bucket")
