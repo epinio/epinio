@@ -245,6 +245,27 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
+func PreviousStageId(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (string, error) {
+	wl := NewWorkload(cluster, appRef)
+
+	deployment, err := wl.Deployment(ctx)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return "", err
+		}
+		// App is inactive, no deployment, no workload, no id
+		return "", nil
+	}
+
+	workload := wl.Get(ctx, deployment)
+	if workload == nil {
+		// No workload. No id
+		return "", nil
+	}
+
+	return workload.StageID, nil
+}
+
 // Unstage removes staging resources. It deletes either all PipelineRuns of the
 // named application, or all but stageIDCurrent. It also deletes the staged
 // objects from the S3 storage.

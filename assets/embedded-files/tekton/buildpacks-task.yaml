@@ -26,6 +26,8 @@ spec:
   params:
     - name: APP_IMAGE
       description: The name of where to store the app image.
+    - name: PREVIOUS_IMAGE
+      description: The name of the previous app image. Currently active.
     - name: BUILDER_IMAGE
       description: The image on which builds will run (must include lifecycle and compatible buildpacks).
     - name: SOURCE_SUBPATH
@@ -135,7 +137,7 @@ spec:
         - "-report=/layers/report.toml"
         - "-process-type=$(params.PROCESS_TYPE)"
         - "-skip-restore=$(params.SKIP_RESTORE)"
-        - "-previous-image=$(params.APP_IMAGE)"
+        - "-previous-image=$(params.PREVIOUS_IMAGE)"
         - "-run-image=$(params.RUN_IMAGE)"
         - "$(params.APP_IMAGE)"
       volumeMounts:
