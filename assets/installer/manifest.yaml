@@ -9,31 +9,31 @@ components:
         selector: "linkerd-install"
         namespace: linkerd
 
-  # - id: traefik
-  #   needs: linkerd
-  #   namespace: traefik
-  #   type: helm
-  #   source:
-  #     name: traefik
-  #     url: https://helm.traefik.io/traefik/traefik-10.3.4.tgz
-  #   waitComplete:
-  #     - type: "pod"
-  #       selector: "app.kubernetes.io/name=traefik"
-  #     - type: "loadbalancer"
-  #       selector: "traefik"
-  #   values:
-  #     - name: globalArguments
-  #       value: ""
-  #     - name: "deployment.podAnnotations.linkerd\\.io/inject"
-  #       value: "enabled"
-  #     - name: "ports.web.redirectTo"
-  #       value": "websecure"
-  #     - name: "ingressClass.enabled"
-  #       value: "true"
-  #     - name: "ingressClass.isDefaultClass"
-  #       value: "true"
-  #     # - name: "service.spec.loadBalancerIP"
-  #     #   value: "{{ .Values.loadbalancerIP }}"
+  - id: traefik
+    needs: linkerd
+    namespace: traefik
+    type: helm
+    source:
+      name: traefik
+      url: https://helm.traefik.io/traefik/traefik-10.3.4.tgz
+    waitComplete:
+      - type: "pod"
+        selector: "app.kubernetes.io/name=traefik"
+      - type: "loadbalancer"
+        selector: "traefik"
+    values:
+      - name: globalArguments
+        value: ""
+      - name: "deployment.podAnnotations.linkerd\\.io/inject"
+        value: "enabled"
+      - name: "ports.web.redirectTo"
+        value": "websecure"
+      - name: "ingressClass.enabled"
+        value: "true"
+      - name: "ingressClass.isDefaultClass"
+        value: "true"
+      # - name: "service.spec.loadBalancerIP"
+      #   value: "{{ .Values.loadbalancerIP }}"
 
   - id: kubed
     namespace: kubed
@@ -96,29 +96,18 @@ components:
         value: enabled
         type: annotation
 
-  # - id: cluster-issuers
-  #   needs: cert-manager
-  #   type: yaml
-  #   source:
-  #     path: assets/installer/cluster-issuers.yaml
-  #   values:
-  #     - name: email
-  #       value: "epinio@epinio.io"
-  #     - name: certManagerNamespace
-  #       value: "cert-manager"
-
   - id: epinio
     needs: namespace-epinio
     namespace: epinio
     type: helm
     source:
       name: epinio
-      path: assets/installer/epinio-0.1.17.tgz
+      path: helm/chart/epinio/
     values:
       - name: email
         value: "epinio@epinio.io"
       - name: "systemDomain"
-        value: 10.1.1.118.omg.howdoi.website
+        value: "10.86.4.38.omg.howdoi.website"
       - name:  "certManagerNamespace"
         value: cert-manager
       - name: "server.sessionKey"
@@ -143,9 +132,9 @@ components:
       - name: "s3.useSSL"
         value: "false"
 
-      - name: "registry.url[0]"
-        value: "epinio-registry.10.1.1.118.omg.howdoi.website"
-      - name: "registry.url[1]"
+      - name: "registry.url"
+        value: "epinio-registry.10.86.4.38.omg.howdoi.website"
+      - name: "registry.localhostURL"
         value: "localhost:30500"
       - name: "registry.username"
         value: "admin"

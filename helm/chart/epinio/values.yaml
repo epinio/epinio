@@ -38,7 +38,8 @@ s3:
 
 # Connection details for the container registry
 registry:
-  url: registry.hub.docker.com
+  url:
+  localhostURL:
   username:
   password:
   namespace:
