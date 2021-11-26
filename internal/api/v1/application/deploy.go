@@ -20,7 +20,6 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -282,11 +281,26 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 }
 
 // replaceInternalRegistry replaces the registry part of ImageURL with the localhost
-// version of the internal Epinio registry.
-// That only happens if we are deploying an image from the Epinio registry
-// and that registry doesn't have a certificate signed by a well-known CA.
-// Otherwise leave the ImageURL as is because either:
-// - the Epinio registry is deployed on Kubernetes with a valid cert (e.g. letsencrypt)
+// version of the internal Epinio registry if one is found in the registry connection
+// details.
+// The registry is used by 2 consumers: Tekton staging pod and Kubernetes.
+// Tekton writes images to it and Kubernetes pulls those images to create the
+// application pods.
+// A localhost url for the registry only makes sense for Kubernetes because
+// for tekton it would mean the registry is running inside the tekton staging pod
+// (which makes no sense).
+// Kubernetes can see a registry on localhost if it is deployed on the cluster
+// itself and exposed over a NodePort service.
+// That's the trick we use, when we deploy the Epinio registry with the
+// "force-kube-internal-registry-tls" flag set to "false" in order to allow
+// Kubernetes to pull the images without TLS. Otherwise, when the tlsissuer
+// that created the registry cert (for the registry Ingress) is not a well
+// known one, the user would have to configure Kubernetes to trust that CA.
+// This is not a trivial process. For non-production deployments, pulling images
+// without TLS is fine.
+// When a localhost url doesn't exist, it means one of the following:
+// - the Epinio registry is deployed on Kubernetes with a valid cert (e.g. letsencrypt) and the
+//   "force-kube-internal-registry-tls" was set to "true" during deployment.
 // - the Epinio registry is an external one (if Epinio was deployed that way)
 // - a pre-existing image is being deployed (coming from an outer registry, not ours)
 func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
@@ -299,8 +313,8 @@ func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, i
 	if err != nil {
 		return imageURL, err
 	}
-	// If there is a local registry and kube is not supposed to access it through Ingress
-	if localURL != "" && !viper.GetBool("force-kube-internal-registry-tls") {
+
+	if localURL != "" {
 		return registryDetails.ReplaceWithInternalRegistry(imageURL)
 	}
 
