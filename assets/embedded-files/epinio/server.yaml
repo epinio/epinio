@@ -203,6 +203,8 @@ spec:
               value: ##tls_issuer##
             - name: TRACE_LEVEL
               value: "##trace_level##"
+            - name: REGISTRY_CA_SECRET
+              value: "##registry_ca_secret##"
           image: splatform/epinio-server:##current_epinio_version##
           livenessProbe:
             httpGet:

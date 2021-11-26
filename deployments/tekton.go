@@ -1,18 +1,11 @@
 package deployments
 
 import (
-	"context"
-	"crypto/sha1" // nolint:gosec // Required by subject hash specification
-	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/asn1"
-	"encoding/binary"
+	"context" // nolint:gosec // Required by subject hash specification
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -20,7 +13,6 @@ import (
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/go-logr/logr"
@@ -28,7 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	"github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	yaml2 "sigs.k8s.io/yaml"
 )
@@ -300,30 +291,6 @@ func (k Tekton) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	return k.apply(ctx, c, ui, options, true)
 }
 
-// The equivalent of:
-// kubectl get secret -n tekton-staging epinio-registry-tls -o json | jq -r '.["data"]["ca.crt"]' | base64 -d | openssl x509 -hash -noout
-// written in golang.
-func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster) (string, error) {
-	secret, err := c.Kubectl.CoreV1().Secrets(TektonStagingNamespace).
-		Get(ctx, RegistryCertSecret, metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	// cert-manager doesn't add the CA for ACME certificates:
-	// https://github.com/jetstack/cert-manager/issues/2111
-	if _, found := secret.Data["ca.crt"]; !found {
-		return "", nil
-	}
-
-	hash, err := GenerateHash(secret.Data["ca.crt"])
-	if err != nil {
-		return "", err
-	}
-
-	return hash, nil
-}
-
 func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions) error {
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
@@ -345,13 +312,6 @@ func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, o
 		return errors.Wrapf(err, "failed to unmarshal task %s", string(fileContents))
 	}
 
-	// Trust our own CA if the internal registry is used
-	if options.GetStringNG("external-registry-url") == "" {
-		if err := k.mountCA(ctx, c, tektonTask); err != nil {
-			return errors.Wrapf(err, "creating the volume mount for the registry CA")
-		}
-	}
-
 	clientSet, err := versioned.NewForConfig(c.RestConfig)
 	if err != nil {
 		return errors.Wrapf(err, "failed getting tekton Task clientSet")
@@ -365,211 +325,9 @@ func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, o
 	return nil
 }
 
-// -----------------------------------------------------------------------------------
-
-func GenerateHash(certRaw []byte) (string, error) {
-	cert, err := decodeOneCert(certRaw)
-	if err != nil {
-		return "", fmt.Errorf("failed to decode certificate\n%w", err)
-	}
-
-	hash, err := SubjectNameHash(cert)
-	if err != nil {
-		return "", fmt.Errorf("failed compute subject name hash for cert\n%w", err)
-	}
-
-	name := fmt.Sprintf("%08x", hash)
-	return name, nil
-}
-
-// -----------------------------------------------------------------------------------
-// See gh:paketo-buildpacks/ca-certificates (cacerts/certs.go) for the original code.
-
-func decodeOneCert(raw []byte) (*x509.Certificate, error) {
-	block, rest := pem.Decode(raw)
-	if block == nil {
-		return nil, errors.New("failed find PEM data")
-	}
-	extra, _ := pem.Decode(rest)
-	if extra != nil {
-		return nil, errors.New("found multiple PEM blocks, expected exactly one")
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse certficate\n%w", err)
-	}
-	return cert, nil
-}
-
-// SubjectNameHash is a reimplementation of the X509_subject_name_hash
-// in openssl. It computes the SHA-1 of the canonical encoding of the
-// certificate's subject name and returns the 32-bit integer
-// represented by the first four bytes of the hash using little-endian
-// byte order.
-func SubjectNameHash(cert *x509.Certificate) (uint32, error) {
-	name, err := CanonicalName(cert.RawSubject)
-	if err != nil {
-		return 0, fmt.Errorf("failed to compute canonical subject name\n%w", err)
-	}
-	hasher := sha1.New() // nolint:gosec // Required by subject hash specification
-	_, err = hasher.Write(name)
-	if err != nil {
-		return 0, fmt.Errorf("failed to compute sha1sum of canonical subject name\n%w", err)
-	}
-	sum := hasher.Sum(nil)
-	return binary.LittleEndian.Uint32(sum[:4]), nil
-}
-
-// canonicalSET holds a of canonicalATVs. Suffix SET ensures it is
-// marshaled as a set rather than a sequence by asn1.Marshal.
-type canonicalSET []canonicalATV
-
-// canonicalATV is similar to pkix.AttributeTypeAndValue but includes
-// tag to ensure all values are marshaled as ASN.1, UTF8String values
-type canonicalATV struct {
-	Type  asn1.ObjectIdentifier
-	Value string `asn1:"utf8"`
-}
-
-// CanonicalName accepts a DER encoded subject name and returns a
-// "Canonical Encoding" matching that returned by the x509_name_canon
-// function in openssl. All string values are transformed with
-// CanonicalString and UTF8 encoded and the leading SEQ header is
-// removed.
-//
-// For more information see
-// https://stackoverflow.com/questions/34095440/hash-algorithm-for-certificate-crl-directory.
-func CanonicalName(name []byte) ([]byte, error) {
-	var origSeq pkix.RDNSequence
-	_, err := asn1.Unmarshal(name, &origSeq)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse subject name\n%w", err)
-	}
-	var result []byte
-	for _, origSet := range origSeq {
-		var canonSet canonicalSET
-		for _, origATV := range origSet {
-			origVal, ok := origATV.Value.(string)
-			if !ok {
-				return nil, errors.New("got unexpected non-string value")
-			}
-			canonSet = append(canonSet, canonicalATV{
-				Type:  origATV.Type,
-				Value: CanonicalString(origVal),
-			})
-		}
-		setBytes, err := asn1.Marshal(canonSet)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal canonical name\n%w", err)
-		}
-		result = append(result, setBytes...)
-	}
-	return result, nil
-}
-
-// CanonicalString transforms the given string. All leading and
-// trailing whitespace is trimmed where whitespace is defined as a
-// space, formfeed, tab, newline, carriage return, or vertical tab
-// character. Any remaining sequence of one or more consecutive
-// whitespace characters in replaced with a single ' '.
-//
-// This is a reimplementation of the asn1_string_canon in openssl
-func CanonicalString(s string) string {
-	s = strings.TrimLeft(s, " \f\t\n\v")
-	s = strings.TrimRight(s, " \f\t\n\v")
-	s = strings.ToLower(s)
-	return string(regexp.MustCompile(`[[:space:]]+`).ReplaceAll([]byte(s), []byte(" ")))
-}
-
 // storeS3Settings stores the provides S3 settings in a Secret.
 func (k Tekton) storeS3Settings(ctx context.Context, cluster *kubernetes.Cluster) error {
 	_, err := s3manager.StoreConnectionDetails(ctx, cluster, TektonStagingNamespace, S3ConnectionDetailsSecret, *k.S3ConnectionDetails)
 
 	return err
-}
-
-// TODO this workaround is only needed for untrusted certs.
-//  Once we can reach Tekton via linkerd, blocked by
-//  https://github.com/tektoncd/catalog/issues/757, we can remove the workaround.
-func (k Tekton) mountCA(ctx context.Context, c *kubernetes.Cluster, tektonTask *v1beta1.Task) error {
-	var caHash string
-	var err error
-
-	k.Log.Info(fmt.Sprintf("Checking registry certificates in %s", TektonStagingNamespace))
-	if err := k.waitForRegistryCA(ctx, c); err != nil {
-		return errors.Wrap(err, "waiting for the registry CA")
-	}
-
-	// Add volume and volume mount of registry-certs for local deployment
-	// since tekton should trust the registry-certs.
-	retryErr := retry.Do(func() error {
-		caHash, err = getRegistryCAHash(ctx, c)
-		return err
-	},
-		retry.RetryIf(func(err error) bool {
-			return strings.Contains(err.Error(), "failed find PEM data")
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			k.Log.Info(fmt.Sprintf("Retrying fetching of CA hash from registry certificate secret (%d/%d)", n, duration.RetryMax))
-		}),
-		retry.Delay(5*time.Second),
-		retry.Attempts(duration.RetryMax),
-	)
-	if retryErr != nil {
-		return errors.Wrapf(err, "Failed to get registry CA from %s namespace", TektonStagingNamespace)
-	}
-
-	if caHash != "" {
-		volume := corev1.Volume{
-			Name: "registry-certs",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: RegistryCertSecret,
-				},
-			},
-		}
-		tektonTask.Spec.Volumes = append(tektonTask.Spec.Volumes, volume)
-
-		volumeMount := corev1.VolumeMount{
-			Name:      "registry-certs",
-			MountPath: fmt.Sprintf("%s/%s", "/etc/ssl/certs", caHash),
-			SubPath:   "ca.crt",
-			ReadOnly:  true,
-		}
-		for stepIndex, step := range tektonTask.Spec.Steps {
-			if step.Name == "create" {
-				tektonTask.Spec.Steps[stepIndex].VolumeMounts = append(tektonTask.Spec.Steps[stepIndex].VolumeMounts, volumeMount)
-				break
-			}
-		}
-	}
-	return nil
-}
-
-func (k Tekton) waitForRegistryCA(ctx context.Context, cluster *kubernetes.Cluster) error {
-	_, err := cluster.WaitForSecret(ctx, TektonStagingNamespace, RegistryCertSecret, duration.ToSecretCopied())
-	if err != nil {
-		return err
-	}
-
-	out, err := helpers.ExecToSuccessWithTimeout(
-		func() (string, error) {
-			out, err := helpers.Kubectl("get", "secret",
-				"--namespace", TektonStagingNamespace, RegistryCertSecret,
-				"-o", "jsonpath={.data.tls\\.crt}")
-			if err != nil {
-				return "", err
-			}
-
-			if out == "" {
-				return "", errors.New("secret is not filled")
-			}
-			return out, nil
-		}, k.Log, k.Timeout, duration.PollInterval())
-	if err != nil {
-		return errors.Wrapf(err, "waiting for registry ca failed:\n%s", out)
-	}
-
-	return nil
 }

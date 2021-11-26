@@ -293,8 +293,12 @@ func (k Epinio) applyEpinioConfigYaml(ctx context.Context, c *kubernetes.Cluster
 
 	re = regexp.MustCompile(`##trace_level##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(strconv.Itoa(viper.GetInt("trace-level"))))
+
 	re = regexp.MustCompile(`##epinio_timeout_multiplier##`)
 	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(strconv.Itoa(viper.GetInt("timeout-multiplier"))))
+
+	re = regexp.MustCompile(`##registry_ca_secret##`)
+	renderedFileContents = re.ReplaceAll(renderedFileContents, []byte(RegistryCertSecret))
 
 	tmpFilePath, err := helpers.CreateTmpFile(string(renderedFileContents))
 	if err != nil {

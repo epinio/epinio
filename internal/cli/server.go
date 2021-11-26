@@ -26,6 +26,10 @@ func init() {
 	flags.String("access-control-allow-origin", "", "(ACCESS_CONTROL_ALLOW_ORIGIN) Domains allowed to use the API")
 	viper.BindPFlag("access-control-allow-origin", flags.Lookup("access-control-allow-origin"))
 	viper.BindEnv("access-control-allow-origin", "ACCESS_CONTROL_ALLOW_ORIGIN")
+
+	flags.String("registry-ca-secret", "", "(REGISTRY_CA_SECRET) Secret for the registry's CA")
+	viper.BindPFlag("registry-ca-secret", flags.Lookup("registry-ca-secret"))
+	viper.BindEnv("registry-ca-secret", "REGISTRY_CA_SECRET")
 }
 
 // CmdServer implements the command: epinio server
