@@ -21,6 +21,9 @@
         },
         "traceLevel": {
           "type": "integer"
+        },
+        "registryCASecret": {
+          "type": "string"
         }
       }
     },

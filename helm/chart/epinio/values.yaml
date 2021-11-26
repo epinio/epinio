@@ -25,6 +25,10 @@ server:
   # Increase this value to instruct the API server to produce more debug output
   traceLevel: 0
 
+  # The secret which Tekton's buildpack task uses to validate the registry's
+  # certificate. Will be used when pushing images.
+  registryCASecret: "epinio-registry-tls"
+
 certManagerNamespace:
 
 # Connection details for the S3 storage

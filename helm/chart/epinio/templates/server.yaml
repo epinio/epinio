@@ -233,6 +233,8 @@ spec:
               value: "{{ .Values.server.tlsIssuer }}"
             - name: TRACE_LEVEL
               value: "{{ .Values.server.traceLevel }}"
+            - name: REGISTRY_CA_SECRET
+              value: "{{ .Values.server.registryCASecret }}"
           image: splatform/epinio-server:{{ .Chart.AppVersion }}
           livenessProbe:
             httpGet:

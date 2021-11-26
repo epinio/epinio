@@ -57,6 +57,12 @@ spec:
     - name: PLATFORM_DIR
       description: The name of the platform directory.
       default: empty-dir
+    - name: REGISTRY_CA_SECRET
+      description: The name of the secret for the registry CA
+      default: "epinio-registry-tls"
+    - name: REGISTRY_CA_HASH
+      description: The hash of the registry CA
+      default: ""
 
   results:
     - name: APP_IMAGE_DIGEST
@@ -144,6 +150,10 @@ spec:
           mountPath: /layers
         - name: $(params.PLATFORM_DIR)
           mountPath: /platform
+        - name: registry-certs
+          mountPath: /etc/ssl/certs/$(params.REGISTRY_CA_HASH)
+          readOnly: true
+          subPath: ca.crt
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -162,3 +172,6 @@ spec:
       emptyDir: {}
     - name: layers-dir
       emptyDir: {}
+    - name: registry-certs
+      secret:
+        secretName: "$(params.REGISTRY_CA_SECRET)"
