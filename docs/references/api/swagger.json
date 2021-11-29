@@ -851,6 +851,39 @@
             "$ref": "#/responses/ServiceDeleteResponse"
           }
         }
+      },
+      "patch": {
+        "description": "Update the named `Service` in the `Namespace` as per the instructions in the body",
+        "tags": [
+          "service"
+        ],
+        "operationId": "ServiceUpdate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceUpdateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceUpdateResponse"
+          }
+        }
       }
     },
     "/namespaces/{Namespace}/staging/{StageID}/complete": {
@@ -1419,6 +1452,27 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ServiceUpdateRequest": {
+      "description": "ServiceUpdateRequest represents and contains the data needed to\nupdate a service instance (add/change, and remove keys)",
+      "type": "object",
+      "properties": {
+        "edit": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Edit"
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Remove"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "StageRef": {
       "description": "StageRef references a tekton staging run by ID, currently randomly generated\nfor each POST to the staging endpoint",
       "type": "object",
@@ -1638,6 +1692,12 @@
       }
     },
     "ServiceUnbindReponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ServiceUpdateResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"

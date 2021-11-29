@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
@@ -13,12 +14,15 @@ func init() {
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
 	CmdService.AddCommand(CmdServiceShow)
 	CmdService.AddCommand(CmdServiceCreate)
+	CmdService.AddCommand(CmdServiceUpdate)
 	CmdService.AddCommand(CmdServiceDelete)
 	CmdService.AddCommand(CmdServiceBind)
 	CmdService.AddCommand(CmdServiceUnbind)
 	CmdService.AddCommand(CmdServiceList)
 
 	CmdServiceList.Flags().Bool("all", false, "list all services")
+
+	changeOptions(CmdServiceUpdate)
 }
 
 // CmdService implements the command: epinio service
@@ -76,6 +80,15 @@ var CmdServiceCreate = &cobra.Command{
 		return nil
 	},
 	RunE: ServiceCreate,
+}
+
+// CmdServiceUpdate implements the command: epinio service create
+var CmdServiceUpdate = &cobra.Command{
+	Use:   "update NAME",
+	Short: "Update a service",
+	Long:  `Update service by name and change instructions through flags.`,
+	Args:  cobra.ExactArgs(1),
+	RunE:  ServiceUpdate,
 }
 
 // CmdServiceDelete implements the command: epinio service delete
@@ -226,6 +239,44 @@ func ServiceCreate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// ServiceUpdate is the backend of command: epinio service update
+func ServiceUpdate(cmd *cobra.Command, args []string) error {
+	cmd.SilenceUsage = true
+
+	client, err := usercmd.New()
+	if err != nil {
+		return errors.Wrap(err, "error initializing cli")
+	}
+
+	// Process the --remove and --set options into operations (removals, assignments)
+
+	removedKeys, err := cmd.Flags().GetStringSlice("remove")
+	if err != nil {
+		return errors.Wrap(err, "failed to read option --remove")
+	}
+
+	kvAssignments, err := cmd.Flags().GetStringSlice("set")
+	if err != nil {
+		return errors.Wrap(err, "failed to read option --set")
+	}
+
+	assignments := map[string]string{}
+	for _, assignment := range kvAssignments {
+		pieces := strings.Split(assignment, "=")
+		if len(pieces) != 2 {
+			return errors.New("Bad --set assignment `" + assignment + "`, expected `name=value` as value")
+		}
+		assignments[pieces[0]] = pieces[1]
+	}
+
+	err = client.UpdateService(args[0], removedKeys, assignments)
+	if err != nil {
+		return errors.Wrap(err, "error creating service")
+	}
+
+	return nil
+}
+
 // ServiceDelete is the backend of command: epinio service delete
 func ServiceDelete(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
@@ -280,4 +331,15 @@ func ServiceUnbind(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// changeOptions initializes the --remove/-r and --set/-s options for
+// the provided command.
+func changeOptions(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("set", "s", []string{}, "service key/value assignments to add/modify")
+	cmd.Flags().StringSliceP("remove", "r", []string{}, "service keys to remove")
+
+	// Note: No completion functionality. This would require asking the service for
+	// its details so that the keys to remove can be matched. And add/modify cannot
+	// check anyway.
 }

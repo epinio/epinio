@@ -186,7 +186,7 @@ var _ = Describe("Services", func() {
 		})
 	})
 
-	Describe("service", func() {
+	Describe("service show", func() {
 		BeforeEach(func() {
 			env.MakeService(serviceName1)
 		})
@@ -199,6 +199,59 @@ var _ = Describe("Services", func() {
 		})
 
 		AfterEach(func() {
+			env.CleanupService(serviceName1)
+		})
+	})
+
+	Describe("service update", func() {
+		var appName string
+
+		BeforeEach(func() {
+			appName = catalog.NewAppName()
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
+			env.MakeService(serviceName1)
+			env.BindAppService(appName, serviceName1, namespace)
+
+			// Wait for the app restart from binding the service to settle
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName1))
+		})
+
+		It("it edits the service, and restarts the app", func() {
+			// edit the service ...
+
+			out, err := env.Epinio("", "service", "update", serviceName1,
+				"--remove", "username",
+				"--set", "user=ci/cd",
+			)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Update Service"))
+			Expect(out).To(MatchRegexp(`username .*\|.* remove`))
+			Expect(out).To(MatchRegexp(`user .*\|.* add/change .*\|.* ci/cd`))
+			Expect(out).To(MatchRegexp("Service Changes Saved"))
+
+			// Confirm the changes ...
+
+			out, err = env.Epinio("", "service", "show", serviceName1)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Service Details"))
+			Expect(out).To(MatchRegexp(`user .*\|.* ci/cd`))
+
+			// Wait for app to resettle ...
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName1))
+		})
+
+		AfterEach(func() {
+			env.TargetNamespace(namespace)
+			env.DeleteApp(appName)
 			env.CleanupService(serviceName1)
 		})
 	})

@@ -251,6 +251,56 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	return nil
 }
 
+// UpdateService updates a service specified by name and information about removed keys and changed assignments.
+// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
+func (c *EpinioClient) UpdateService(name string, removedKeys []string, assignments map[string]string) error {
+	log := c.Log.WithName("Update Service").
+		WithValues("Name", name, "Namespace", c.Config.Namespace)
+	log.Info("start")
+	defer log.Info("return")
+
+	msg := c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Namespace", c.Config.Namespace).
+		WithTable("Parameter", "Op", "Value")
+
+	for _, removed := range removedKeys {
+		msg = msg.WithTableRow(removed, "remove", "")
+	}
+
+	changed := []string{}
+	for key := range assignments {
+		changed = append(changed, key)
+	}
+	sort.Strings(changed)
+
+	for _, key := range changed {
+		msg = msg.WithTableRow(key, "add/change", assignments[key])
+	}
+	msg.Msg("Update Service")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	request := models.ServiceUpdateRequest{
+		Remove: removedKeys,
+		Edit:   assignments,
+	}
+
+	_, err := c.API.ServiceUpdate(request, c.Config.Namespace, name)
+	if err != nil {
+		return err
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		WithStringValue("Namespace", c.Config.Namespace).
+		Msg("Service Changes Saved.")
+
+	return nil
+}
+
 // CreateService creates a service specified by name and key/value dictionary
 // TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
 func (c *EpinioClient) CreateService(name string, dict []string) error {

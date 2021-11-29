@@ -18,6 +18,7 @@ import (
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
@@ -276,6 +277,25 @@ func (a *Workload) Scale(ctx context.Context, instances int32) error {
 
 		return err
 	})
+}
+
+// Restart triggers a restart of the deployed app. Forcing it to reload things from
+// external resources (like services).
+func (a *Workload) Restart(ctx context.Context) error {
+
+	path := "/spec/template/metadata/annotations/epinio.suse.org~1restart"
+	value := fmt.Sprintf("%d", time.Now().UnixNano())
+	patch := fmt.Sprintf(`[{"op": "replace", "path": "%s", "value": "%s"}]`,
+		path, value)
+
+	_, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).Patch(
+		ctx,
+		a.app.Name,
+		types.JSONPatchType,
+		[]byte(patch),
+		metav1.PatchOptions{})
+
+	return err
 }
 
 // Deployment is a helper, it returns the kube deployment resource of the workload.

@@ -112,6 +112,7 @@ var Routes = routes.NamedRoutes{
 	"ServiceShow":   get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
 	"ServiceCreate": post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
 	"ServiceDelete": delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
+	"ServiceUpdate": patch("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Update)),
 }
 
 // Lemon extends the specified router with the methods and urls
