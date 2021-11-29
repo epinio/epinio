@@ -139,8 +139,12 @@ components:
       - name: "registry.username"
         value: "admin"
       - name: "registry.password"
-        value: "$apr1$nx470yow$syAiXXk4bpNNVxDLFBxer1"
+        value: "password"
       - name: "registry.namespace"
+        value: "apps"
+      - name: "registry.certificateSecret"
+        value: "epinio-registry-tls"
+      - name: "registry.certificateSecretNamespace"
         value: "epinio-registry"
       - name: "server.forceKubeInternalRegistryTLS"
         value: "false"
@@ -157,7 +161,7 @@ components:
   - id: namespace-registry
     needs: linkerd
     type: namespace
-    namespace: registry
+    namespace: epinio-registry
     values:
       - name: linkerd.io/inject
         value: enabled
@@ -165,20 +169,20 @@ components:
 
   - id: registry
     needs: namespace-registry
-    namespace: registry
+    namespace: epinio-registry
     type: helm
     source:
       name: epinio-registry
-      path: assets/installer/container-registry-0.1.0.tgz
+      path: assets/container-registry/chart/container-registry/
     values:
       - name: domain
-        value: 10.86.4.38.omg.howdoi.website
-      - name: tlsIssuer
-        value: epinio-ca
+        value: epinio-registry.10.86.4.38.omg.howdoi.website
       - name: "auth.htpasswd"
         value: "admin:$apr1$nx470yow$syAiXXk4bpNNVxDLFBxer1"
       - name: createNodePort
         value: "true"
+      - name: tlsIssuer
+        value: "epinio-ca"
 
 
   - id: namespace-minio

@@ -27,6 +27,12 @@ spec:
     - name: ENV_VARS
       type: array
       description: "Build time environment variables"
+    {{- if .Values.registry.certificateSecret }}
+    - name: REGISTRY_CERTIFICATE_SECRET
+      description: The name of the secret for the registry CA
+    - name: REGISTRY_CERTIFICATE_HASH
+      description: The hash of the registry CA
+    {{- end }}
 
   tasks:
   - name: cleanup
@@ -72,6 +78,12 @@ spec:
       value: "$(params.APP_IMAGE)"
     - name: ENV_VARS
       value: ["$(params.ENV_VARS[*])"]
+    {{- if .Values.registry.certificateSecret }}
+    - name: REGISTRY_CERTIFICATE_SECRET
+      value: "$(params.REGISTRY_CERTIFICATE_SECRET)"
+    - name: REGISTRY_CERTIFICATE_HASH
+      value: "$(params.REGISTRY_CERTIFICATE_HASH)"
+    {{- end }}
     workspaces:
     - name: source
       workspace: source

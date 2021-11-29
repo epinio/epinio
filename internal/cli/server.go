@@ -27,9 +27,9 @@ func init() {
 	viper.BindPFlag("access-control-allow-origin", flags.Lookup("access-control-allow-origin"))
 	viper.BindEnv("access-control-allow-origin", "ACCESS_CONTROL_ALLOW_ORIGIN")
 
-	flags.String("registry-ca-secret", "", "(REGISTRY_CA_SECRET) Secret for the registry's CA")
-	viper.BindPFlag("registry-ca-secret", flags.Lookup("registry-ca-secret"))
-	viper.BindEnv("registry-ca-secret", "REGISTRY_CA_SECRET")
+	flags.String("registry-certificate-secret", "", "(REGISTRY_CERTIFICATE_SECRET) Secret for the registry's TLS certificate")
+	viper.BindPFlag("registry-certificate-secret", flags.Lookup("registry-certificate-secret"))
+	viper.BindEnv("registry-certificate-secret", "REGISTRY_CERTIFICATE_SECRET")
 }
 
 // CmdServer implements the command: epinio server

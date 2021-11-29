@@ -176,16 +176,14 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "getting the Epinio registry public URL")
 	}
 
-	registryCASecret := viper.GetString("registry-ca-secret")
-	registryCAHash := ""
-	if registryCASecret != "" {
-		registryCAHash, err = getRegistryCAHash(ctx, cluster, TektonStagingNamespace, registryCAHash)
+	registryCertificateSecret := viper.GetString("registry-certificate-secret")
+	registryCertificateHash := ""
+	if registryCertificateSecret != "" {
+		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, TektonStagingNamespace, registryCertificateSecret)
 		if err != nil {
-			return apierror.InternalError(err, "cannot calculate CA hash")
+			return apierror.InternalError(err, "cannot calculate Certificate hash")
 		}
 	}
-	// FIXME maybe an external registry is in use, but we need to mount some secret to the task.
-	// we cannot have conditionals in a Tekton task
 
 	params := stageParam{
 		AppRef:              req.App,
@@ -197,8 +195,8 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		S3ConnectionDetails: s3ConnectionDetails,
 		Stage:               models.NewStage(uid),
 		Username:            username,
-		RegistryCAHash:      registryCAHash,
-		RegistryCASecret:    registryCASecret,
+		RegistryCAHash:      registryCertificateHash,
+		RegistryCASecret:    registryCertificateSecret,
 	}
 
 	err = ensurePVC(ctx, cluster, req.App)
@@ -343,6 +341,28 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 		app.BlobUID,
 	}
 
+	params := []v1beta1.Param{
+		{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
+		{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
+		{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
+			Type:     v1beta1.ParamTypeArray,
+			ArrayVal: app.Environment.StagingEnvArray()},
+		},
+		{Name: "AWS_SCRIPT", Value: *str(awsScript)},
+		{Name: "AWS_ARGS", Value: v1beta1.ArrayOrString{
+			Type:     v1beta1.ParamTypeArray,
+			ArrayVal: awsArgs},
+		},
+	}
+
+	// If there is a certificate to trust
+	if app.RegistryCASecret != "" && app.RegistryCAHash != "" {
+		params = append(params, []v1beta1.Param{
+			{Name: "REGISTRY_CERTIFICATE_SECRET", Value: *str(app.RegistryCASecret)},
+			{Name: "REGISTRY_CERTIFICATE_HASH", Value: *str(app.RegistryCAHash)},
+		}...)
+	}
+
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: app.Stage.ID,
@@ -359,21 +379,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 		Spec: v1beta1.PipelineRunSpec{
 			ServiceAccountName: "staging-triggers-admin",
 			PipelineRef:        &v1beta1.PipelineRef{Name: "staging-pipeline"},
-			Params: []v1beta1.Param{
-				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
-				{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
-				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
-					Type:     v1beta1.ParamTypeArray,
-					ArrayVal: app.Environment.StagingEnvArray()},
-				},
-				{Name: "AWS_SCRIPT", Value: *str(awsScript)},
-				{Name: "AWS_ARGS", Value: v1beta1.ArrayOrString{
-					Type:     v1beta1.ParamTypeArray,
-					ArrayVal: awsArgs},
-				},
-				{Name: "REGISTRY_CA_SECRET", Value: *str(app.RegistryCASecret)},
-				{Name: "REGISTRY_CA_HASH", Value: *str(app.RegistryCAHash)},
-			},
+			Params:             params,
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
 					Name:    "cache",
@@ -425,7 +431,7 @@ func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, e
 // The equivalent of:
 // kubectl get secret -n tekton-staging epinio-registry-tls -o json | jq -r '.["data"]["ca.crt"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
-func getRegistryCAHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
+func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		return "", err

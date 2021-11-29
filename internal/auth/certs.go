@@ -51,11 +51,12 @@ func ExtendLocalTrust(certs string) {
 // CertParam describes the cert-manager certificate CRD. It's passed to
 // CreateCertificate to create the cert-manager certificate CR.
 type CertParam struct {
-	Name      string
-	Namespace string
-	Domain    string
-	Issuer    string
-	Labels    map[string]string
+	Name              string
+	Namespace         string
+	Domain            string
+	Issuer            string
+	Labels            map[string]string
+	SecretAnnotations map[string]string
 }
 
 // CreateCertificate creates a certificate resource, for the given
@@ -102,6 +103,11 @@ func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
 	for k, v := range cert.Labels {
 		quotedLabels = append(quotedLabels, fmt.Sprintf("%q: %q", k, v))
 	}
+
+	quotedSecretAnnotations := []string{}
+	for k, v := range cert.SecretAnnotations {
+		quotedSecretAnnotations = append(quotedSecretAnnotations, fmt.Sprintf("%q: %q", k, v))
+	}
 	data := fmt.Sprintf(`{
 		"apiVersion": "cert-manager.io/v1",
 		"kind": "Certificate",
@@ -117,9 +123,18 @@ func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
 			"issuerRef" : {
 				"name" : "%[3]s",
 				"kind" : "ClusterIssuer"
+			},
+			"secretTemplate": {
+				"annotations": {%[5]s}
 			}
 		}
-	}`, cert.Name, cert.Domain, cert.Issuer, strings.Join(quotedLabels, ","))
+	}`,
+		cert.Name,
+		cert.Domain,
+		cert.Issuer,
+		strings.Join(quotedLabels, ","),
+		strings.Join(quotedSecretAnnotations, ","),
+	)
 
 	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
 	obj := &unstructured.Unstructured{}

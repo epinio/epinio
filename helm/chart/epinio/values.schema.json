@@ -22,7 +22,7 @@
         "traceLevel": {
           "type": "integer"
         },
-        "registryCASecret": {
+        "registryCertificateSecret": {
           "type": "string"
         }
       }
@@ -74,6 +74,9 @@
           "type": "string"
         },
         "namespace": {
+          "type": "string"
+        },
+        "certificateSecret": {
           "type": "string"
         }
       },

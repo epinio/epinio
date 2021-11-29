@@ -141,7 +141,7 @@ func (k Tekton) apply(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI,
 
 	if err := c.CreateNamespace(ctx, TektonStagingNamespace, map[string]string{
 		kubernetes.EpinioDeploymentLabelKey: kubernetes.EpinioDeploymentLabelValue,
-		"cert-manager-tls":                  RegistryDeploymentID,
+		"kubed-registry-tls-from":           RegistryDeploymentID,
 	}, map[string]string{"linkerd.io/inject": "enabled"}); err != nil {
 		return err
 	}

@@ -25,10 +25,6 @@ server:
   # Increase this value to instruct the API server to produce more debug output
   traceLevel: 0
 
-  # The secret which Tekton's buildpack task uses to validate the registry's
-  # certificate. Will be used when pushing images.
-  registryCASecret: "epinio-registry-tls"
-
 certManagerNamespace:
 
 # Connection details for the S3 storage
@@ -46,7 +42,24 @@ registry:
   localhostURL:
   username:
   password:
+
+  # The registry namespace (aka org). Don't confuse this with Kubernetes
+  # namespaces. This one is just the part between the registry url and the
+  # image name (e.g. your username if you are using your account on Dockerhub).
   namespace:
+
+  # The secret which Tekton's buildpack task uses to validate the registry's
+  # certificate. If provided, it will be mounted inside the Tekton pod so that Tekton
+  # can trust it when pushing the generated image.
+  certificateSecret:
+
+  # The namespace in which the above secret is stored
+  # When set, the tekton-staging namespace will be annotated so that any secret
+  # annotated with: 
+  #    "kubed.appscode.com/sync": "kubed-registry-tls-from=the_value_below"
+  # will be copied there. The registry certificate should have such an annotation
+  # if you are deploying one on the cluster.
+  certificateSecretNamespace:
 
 api:
   # Default user username

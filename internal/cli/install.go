@@ -145,6 +145,14 @@ var neededOptions = kubernetes.InstallationOptions{
 		Default:     "",
 		Value:       "",
 	},
+	// TODO: Ignore this. We will delete this installer altogether.
+	{
+		Name:        "registry-certificate-secret",
+		Description: "The secret that holds the Registry's TLS certificate (it any)",
+		Type:        kubernetes.StringType,
+		Default:     "",
+		Value:       "",
+	},
 	ingressServiceIPOption,
 	{
 		Name:        "s3-access-key-id",

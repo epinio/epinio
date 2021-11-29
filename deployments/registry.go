@@ -16,7 +16,6 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -252,34 +251,6 @@ func (k Registry) createCertificate(ctx context.Context, c *kubernetes.Cluster, 
 		return errors.Wrap(err, "Couldn't get system-domain option")
 	}
 
-	log.Info("create properly annotated secret")
-
-	// We need the empty certificate secret with a specific annotation
-	// for it to be copied into `tekton-staging` namespace
-	// https://cert-manager.io/docs/faq/kubed/#syncing-arbitrary-secrets-across-namespaces-using-kubed
-	// TODO: We won't need to create an empty secret as soon as this is resolved:
-	// https://github.com/jetstack/cert-manager/issues/2576
-	// https://github.com/jetstack/cert-manager/pull/3828
-	emptySecret := v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      RegistryCertSecret,
-			Namespace: RegistryDeploymentID,
-			Annotations: map[string]string{
-				"kubed.appscode.com/sync": fmt.Sprintf("cert-manager-tls=%s", RegistryDeploymentID),
-			},
-		},
-		Type: v1.SecretTypeTLS,
-		Data: map[string][]byte{
-			"ca.crt":  nil,
-			"tls.crt": nil,
-			"tls.key": nil,
-		},
-	}
-	err = c.CreateSecret(ctx, RegistryDeploymentID, emptySecret)
-	if err != nil {
-		return err
-	}
-
 	// Wait for the cert manager to be present and active. It is required
 	log.Info("waiting for cert manager to be present and active")
 
@@ -298,6 +269,9 @@ func (k Registry) createCertificate(ctx context.Context, c *kubernetes.Cluster, 
 		Issuer:    issuer,
 		Domain:    fmt.Sprintf("%s.%s", RegistryDeploymentID, domain),
 		Labels:    map[string]string{},
+		SecretAnnotations: map[string]string{
+			"kubed.appscode.com/sync": "kubed-registry-tls-from=" + RegistryDeploymentID,
+		},
 	}
 	err = retry.Do(func() error {
 		return auth.CreateCertificate(ctx, c, cert, nil)

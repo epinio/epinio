@@ -5,6 +5,7 @@ metadata:
   name: tekton-staging
   labels:
     linkerd.io/inject: enabled
-  annotations:
-    # kubed annotation to copy the epinio-registry secret to all annotated namespaces
-    cert-manager-tls: epinio-registry
+    {{- if .Values.registry.certificateSecretNamespace }}
+    # kubed annotation to copy the epinio-registry secret to this namespace
+    kubed-registry-tls-from: {{ .Values.registry.certificateSecretNamespace }}
+    {{- end }}
