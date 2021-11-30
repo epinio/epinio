@@ -50,8 +50,14 @@ check_dependency kubectl helm
 # Create docker registry image pull secret
 create_docker_pull_secret
 
+make build-installer
+
+
+sed -i "s/10.86.4.38.omg.howdoi.website/$EPINIO_SYSTEM_DOMAIN/" assets/installer/manifest.yaml
+./dist/epinio-installer install -m assets/installer/manifest.yaml
+
 # Install Epinio
-EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 "${EPINIO_BINARY}" install --system-domain "${EPINIO_SYSTEM_DOMAIN}"
+#EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 "${EPINIO_BINARY}" install --system-domain "${EPINIO_SYSTEM_DOMAIN}"
 
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh

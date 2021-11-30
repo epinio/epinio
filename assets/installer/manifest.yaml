@@ -135,7 +135,7 @@ components:
       - name: "registry.url"
         value: "epinio-registry.10.86.4.38.omg.howdoi.website"
       - name: "registry.localhostURL"
-        value: "localhost:30500"
+        value: "127.0.0.1:30500"
       - name: "registry.username"
         value: "admin"
       - name: "registry.password"
@@ -178,7 +178,8 @@ components:
       - name: domain
         value: epinio-registry.10.86.4.38.omg.howdoi.website
       - name: "auth.htpasswd"
-        value: "admin:$apr1$nx470yow$syAiXXk4bpNNVxDLFBxer1"
+        # The only supported password format is bcrypt
+        value: "admin:$2y$10$7FaFTQueWyJMbaOvgQA9QODUhNcgKolDPbd1izKzdSuXjAITPDMUO"
       - name: createNodePort
         value: "true"
       - name: tlsIssuer
