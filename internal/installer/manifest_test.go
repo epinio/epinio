@@ -13,9 +13,9 @@ var _ = Describe("InstallManifest", func() {
 			m, err := installer.Load(assetPath("install-manifest.yml"))
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(m.Components).To(HaveLen(9))
+			Expect(m.Components).To(HaveLen(10))
 
-			traefik := m.Components[1]
+			traefik := m.Components[2]
 			Expect(traefik.Type).To(Equal(installer.Helm))
 			Expect(traefik.WaitComplete).To(HaveLen(2))
 			Expect(traefik.WaitComplete[0].Type).To(Equal(installer.Pod))

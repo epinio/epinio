@@ -35,10 +35,7 @@ var _ = Describe("InstallManifest", func() {
 			Expect(plan).To(HaveLen(len(m.Components)))
 
 			// Plan doesn't know about concurrency, though
-			Expect(plan.IDs()).To(Equal([]installer.DeploymentID{"linkerd", "traefik", "cert-manager", "cluster-issuers", "cluster-certificates", "tekton", "tekton-pipelines", "kubed", "epinio"}))
-
-			// Runner doesn't need plan
-			installer.Walk(context.TODO(), m.Components, &dummy{})
+			Expect(plan.IDs()).To(Equal([]installer.DeploymentID{"epinio-namespace", "linkerd", "traefik", "cert-manager", "cluster-issuers", "cluster-certificates", "tekton", "tekton-pipelines", "kubed", "epinio"}))
 		})
 	})
 })
