@@ -31,7 +31,9 @@ func (i Install) Apply(ctx context.Context, c Component) error {
 
 	for _, chk := range c.PreDeploy {
 		log.V(2).Info("pre deploy", "checkType", string(chk.Type))
-		i.ca.Run(ctx, c, chk)
+		if err := i.ca.Run(ctx, c, chk); err != nil {
+			return err
+		}
 	}
 
 	switch c.Type {
@@ -75,7 +77,10 @@ func (i Install) Apply(ctx context.Context, c Component) error {
 
 	for _, chk := range c.WaitComplete {
 		log.V(2).Info("wait complete", "checkType", string(chk.Type))
-		i.ca.Run(ctx, c, chk)
+
+		if err := i.ca.Run(ctx, c, chk); err != nil {
+			return err
+		}
 	}
 
 	return nil

@@ -96,7 +96,7 @@ type ComponentAction struct {
 	Namespace string     `json:"namespace" yaml:"namespace"`
 }
 
-// Source decribes the resource to be installed
+// Source describes the resource to be installed
 // Helm:
 // By `Path` to a packaged chart: helm install mynginx ./nginx-1.2.3.tgz
 // By `Path` to an unpacked chart directory: helm install mynginx ./nginx

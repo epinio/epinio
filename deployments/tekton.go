@@ -56,7 +56,7 @@ func (k Tekton) Describe() string {
 	return emoji.Sprintf(":cloud:Tekton pipeline: %s\n", tektonPipelineReleaseYamlPath)
 }
 
-func (k Tekton) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, options kubernetes.InstallationOptions) error {
+func (k Tekton) PreDeployCheck(ctx context.Context, c *kubernetes.Cluster, ui *termui.UI, _ kubernetes.InstallationOptions) error {
 	return nil
 }
 
@@ -291,7 +291,7 @@ func (k Tekton) Upgrade(ctx context.Context, c *kubernetes.Cluster, ui *termui.U
 	return k.apply(ctx, c, ui, options, true)
 }
 
-func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, options kubernetes.InstallationOptions) error {
+func (k Tekton) applyTektonStaging(ctx context.Context, c *kubernetes.Cluster, _ kubernetes.InstallationOptions) error {
 	yamlPathOnDisk, err := helpers.ExtractFile(tektonStagingYamlPath)
 	if err != nil {
 		return errors.New("Failed to extract embedded file: " + tektonStagingYamlPath + " - " + err.Error())

@@ -1,7 +1,7 @@
 package cahash
 
 import (
-	"crypto/sha1"
+	"crypto/sha1" // nolint:gosec // Required by subject hash specification
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
