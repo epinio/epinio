@@ -756,6 +756,31 @@ func (c *Cluster) CreateNamespace(ctx context.Context, name string, labels map[s
 	return err
 }
 
+func (c *Cluster) GetNamespace(ctx context.Context, name string) (*v1.Namespace, error) {
+	ns, err := c.Kubectl.CoreV1().Namespaces().Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	return ns, nil
+}
+
+func (c *Cluster) UpdateNamespace(ctx context.Context, name string, labels map[string]string, annotations map[string]string) error {
+	_, err := c.Kubectl.CoreV1().Namespaces().Update(
+		ctx,
+		&v1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        name,
+				Labels:      labels,
+				Annotations: annotations,
+			},
+		},
+		metav1.UpdateOptions{},
+	)
+
+	return err
+}
+
 // ClusterIssuerExists checks if the resource exists
 func (c *Cluster) ClusterIssuerExists(ctx context.Context, name string) (bool, error) {
 	client, err := c.ClientCertManager()

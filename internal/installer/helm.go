@@ -57,6 +57,8 @@ func helmUninstall(log logr.Logger, c Component) error {
 		return errors.Wrap(err, fmt.Sprintf("failed uninstalling %s, output:\n%s", c.ID, out))
 	}
 
+	// TODO we could delete the namespace if it was created by helm
+
 	log.V(1).Info("done")
 	return nil
 }

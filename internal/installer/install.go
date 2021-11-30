@@ -3,8 +3,6 @@ package installer
 import (
 	"context"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/go-logr/logr"
 )
@@ -53,25 +51,9 @@ func (i Install) Apply(ctx context.Context, c Component) error {
 
 	case Namespace:
 		{
-			labels := map[string]string{}
-			annotations := map[string]string{}
-			for _, val := range c.Values {
-				switch val.Type {
-				case Annotation:
-					annotations[val.Name] = val.Value
-				case Label:
-					labels[val.Name] = val.Value
-				}
-			}
-			if err := i.cluster.CreateNamespace(ctx, c.Namespace, labels, annotations); err != nil {
-				if apierrors.IsAlreadyExists(err) {
-					// TODO apply labels/annotations
-					return nil
-				}
+			if err := namespaceUpsert(ctx, i.cluster, c); err != nil {
 				return err
 			}
-			return nil
-
 		}
 	}
 
