@@ -27,7 +27,7 @@ components:
       - name: "deployment.podAnnotations.linkerd\\.io/inject"
         value: "enabled"
       - name: "ports.web.redirectTo"
-        value": "websecure"
+        value: "websecure"
       - name: "ingressClass.enabled"
         value: "true"
       - name: "ingressClass.isDefaultClass"
