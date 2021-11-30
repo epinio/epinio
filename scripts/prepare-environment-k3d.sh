@@ -52,7 +52,6 @@ create_docker_pull_secret
 
 make build-installer
 
-
 sed -i "s/10.86.4.38.omg.howdoi.website/$EPINIO_SYSTEM_DOMAIN/" assets/installer/manifest.yaml
 ./dist/epinio-installer install -m assets/installer/manifest.yaml
 
@@ -61,6 +60,8 @@ sed -i "s/10.86.4.38.omg.howdoi.website/$EPINIO_SYSTEM_DOMAIN/" assets/installer
 
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh
+
+"$EPINIO_BINARY" config update
 
 # Check Epinio Installation
 # Retry 5 times because sometimes it takes a while before epinio server
