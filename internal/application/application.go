@@ -315,14 +315,12 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	if stageID == "" {
 		selectors = [][]string{
 			{"app.kubernetes.io/component", "application"},
-			{"app.kubernetes.io/managed-by", "epinio"},
 			{"app.kubernetes.io/part-of", namespace},
 			{"app.kubernetes.io/name", app},
 		}
 	} else {
 		selectors = [][]string{
 			{"app.kubernetes.io/component", "staging"},
-			{"app.kubernetes.io/managed-by", "epinio"},
 			{models.EpinioStageIDLabel, stageID},
 			{"app.kubernetes.io/part-of", namespace},
 		}
