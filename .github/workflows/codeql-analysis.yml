@@ -42,8 +42,8 @@ jobs:
       run: |
         export PATH=$PATH:/home/runner/go/bin/
         make embed_files
-        rm -rf acceptance
-        rm $(find . -type f -name '*_test.go')
+        rm -rvf acceptance
+        rm -v $(find . -type f -name '*_test.go')
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
