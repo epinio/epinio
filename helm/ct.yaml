@@ -1,0 +1,7 @@
+# See https://github.com/helm/chart-testing#configuration
+remote: origin
+check-version-increment: false
+target-branch: main
+chart-dirs:
+  - chart
+helm-extra-args: --timeout 600s

@@ -1,0 +1,137 @@
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: staging-pipeline
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  - name: cache
+    optional: true
+  - name: s3secret
+  params:
+    - name: BUILDER_IMAGE
+      description: The image on which builds will run (must include lifecycle and compatible buildpacks).
+    - name: APP_IMAGE
+      type: string
+      description: "The image as built and pushed by Tekton (uses Kube internal service DNS)"
+    - name: PREVIOUS_IMAGE
+      type: string
+      description: "The image from the previous staging run"
+    - name: AWS_SCRIPT
+      type: string
+      # https://hub.tekton.dev/tekton/task/aws-cli
+      description: "The aws script that copies the application code object"
+    - name: AWS_ARGS
+      type: array
+      # https://hub.tekton.dev/tekton/task/aws-cli
+      description: "The aws cli task args"
+    - name: ENV_VARS
+      type: array
+      description: "Build time environment variables"
+    {{- if .Values.registry.certificateSecret }}
+    - name: REGISTRY_CERTIFICATE_SECRET
+      description: The name of the secret for the registry CA
+    - name: REGISTRY_CERTIFICATE_HASH
+      description: The hash of the registry CA
+    {{- end }}
+
+  tasks:
+  - name: cleanup
+    taskRef:
+      name: cleanup
+    workspaces:
+    - name: source
+      workspace: source
+  - name: fetch-sources
+    taskRef:
+      name: aws-cli
+    workspaces:
+    - name: source
+      workspace: source
+    - name: secrets
+      workspace: s3secret
+    runAfter:
+    - cleanup
+    params:
+    - name: ARGS
+      value: ["$(params.AWS_ARGS[*])"]
+    - name: SCRIPT
+      value: "$(params.AWS_SCRIPT)"
+  - name: extract
+    taskRef:
+      name: extract
+    workspaces:
+    - name: source
+      workspace: source
+    runAfter:
+    - fetch-sources
+  - name: stage
+    taskRef:
+      name: buildpacks
+    runAfter:
+    - extract
+    params:
+    - name: BUILDER_IMAGE
+      value: "$(params.BUILDER_IMAGE)"
+    - name: SOURCE_SUBPATH
+      value: app
+    - name: APP_IMAGE
+      value: "$(params.APP_IMAGE)"
+    - name: PREVIOUS_IMAGE
+      value: "$(params.PREVIOUS_IMAGE)"
+    - name: ENV_VARS
+      value: ["$(params.ENV_VARS[*])"]
+    {{- if .Values.registry.certificateSecret }}
+    - name: REGISTRY_CERTIFICATE_SECRET
+      value: "$(params.REGISTRY_CERTIFICATE_SECRET)"
+    - name: REGISTRY_CERTIFICATE_HASH
+      value: "$(params.REGISTRY_CERTIFICATE_HASH)"
+    {{- end }}
+    workspaces:
+    - name: source
+      workspace: source
+    - name: cache
+      workspace: cache
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cleanup
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: cleanup
+    image: lachlanevenson/k8s-kubectl:v1.22.2
+    workingDir: "/workspace/source"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        rm -rf *
+
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: extract
+  namespace: tekton-staging
+spec:
+  workspaces:
+  - name: source
+  steps:
+  - name: extract
+    image: lachlanevenson/k8s-kubectl:v1.22.2
+    workingDir: "/workspace/source"
+    command:
+      - sh
+    args:
+      - -c
+      - |
+        tarball=$(ls | head -n 1) && mkdir app && tar xf $tarball -C app
+        ls -la app

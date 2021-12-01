@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  labels:
+    app.kubernetes.io/name: epinio
+  name: epinio
+  namespace: epinio
+spec:
+  rules:
+  - host: "epinio.{{ .Values.systemDomain }}"
+    http:
+      paths:
+      - backend:
+          service:
+            name: epinio-server
+            port:
+              number: 80
+        path: /
+        pathType: ImplementationSpecific
+  tls:
+  - hosts:
+    - "epinio.{{ .Values.systemDomain }}"
+    secretName: epinio-tls
