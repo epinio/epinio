@@ -40,7 +40,7 @@ jobs:
         if: steps.branch.outputs.BRANCH_NAME == 'main'
         run: ( cd dist ; sha256sum -b epinio* > SHA256SUM.txt )
       - name: Generate Changelog
-        uses: heinrichreimer/github-changelog-generator-action@v2.1.1
+        uses: heinrichreimer/github-changelog-generator-action@v2.3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           verbose: "true"
