@@ -1,5 +1,8 @@
 name: "CodeQL"
 
+env:
+  SETUP_GO_VERSION: '^1.17.2'
+
 on:
   workflow_dispatch:
   push:
@@ -7,6 +10,13 @@ on:
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [main]
+    # Do not trigger if only files matching the patterns below changed
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.txt'
+      - 'docs/**'
+      - 'acceptance/**'
+
   schedule:
     - cron: '0 5 * * 0'
 
@@ -22,6 +32,18 @@ jobs:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.
         fetch-depth: 2
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.SETUP_GO_VERSION }}
+
+    - name: Generate Golang
+      run: |
+        export PATH=$PATH:/home/runner/go/bin/
+        make embed_files
+        rm -rvf acceptance
+        rm -v $(find . -type f -name '*_test.go')
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
