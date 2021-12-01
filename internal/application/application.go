@@ -245,6 +245,14 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
+// StageID returns the stage ID of the currently running build, if one exists. It returns an empty string otherwise.
+// This method relies on the presence of a workload to get the previous id. There is the case that staging has
+// happened, yet there is no workload. Ee.g. by calling the "staging" endpoint but not calling the "deploy"
+// endpoint. Since our client doesn't support that scenario, this method doesn't support it either.
+func StageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (string, error) {
+	return NewWorkload(cluster, appRef).GetStageID(ctx)
+}
+
 // Unstage removes staging resources. It deletes either all PipelineRuns of the
 // named application, or all but stageIDCurrent. It also deletes the staged
 // objects from the S3 storage.
@@ -395,20 +403,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.
 
-	wl := NewWorkload(cluster, app.Meta)
-
-	deployment, err := wl.Deployment(ctx)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		// App is inactive, no deployment, no workload
-		return nil
-	}
-
-	app.Workload = wl.Get(ctx, deployment)
-
-	return nil
+	app.Workload, err = NewWorkload(cluster, app.Meta).Get(ctx)
+	return err
 }
 
 // calculateStatus sets the Status field of the App object.

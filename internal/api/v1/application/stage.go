@@ -40,6 +40,7 @@ type stageParam struct {
 	S3ConnectionDetails s3manager.ConnectionDetails
 	Stage               models.StageRef
 	Username            string
+	PreviousStageID     string
 }
 
 // ImageURL returns the URL of the container image to be, using the
@@ -165,6 +166,16 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		UID:        app.GetUID(),
 	}
 
+	// Determine stage id of currently running deployment, fallback to itself when no such exists.
+	// From the view of the new build we are about to create this is the previous id.
+	previousID, err := application.StageID(ctx, cluster, req.App)
+	if err != nil {
+		return apierror.InternalError(err, "failed to determine active application stage id")
+	}
+	if previousID == "" {
+		previousID = uid
+	}
+
 	registryPublicURL, err := getRegistryURL(ctx, cluster)
 	if err != nil {
 		return apierror.InternalError(err, "getting the Epinio registry public URL")
@@ -178,6 +189,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		RegistryURL:         registryPublicURL,
 		S3ConnectionDetails: s3ConnectionDetails,
 		Stage:               models.NewStage(uid),
+		PreviousStageID:     previousID,
 		Username:            username,
 	}
 
@@ -323,6 +335,10 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 		app.BlobUID,
 	}
 
+	// fake stage params of the previous to pull the old image url from.
+	previous := app
+	previous.Stage = models.NewStage(app.PreviousStageID)
+
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: app.Stage.ID,
@@ -331,6 +347,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 				"app.kubernetes.io/part-of":    app.Namespace,
 				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      app.Stage.ID,
+				models.EpinioStageIDPrevious:   app.PreviousStageID,
 				models.EpinioStageBlobUIDLabel: app.BlobUID,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
@@ -341,6 +358,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 			PipelineRef:        &v1beta1.PipelineRef{Name: "staging-pipeline"},
 			Params: []v1beta1.Param{
 				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
+				{Name: "PREVIOUS_IMAGE", Value: *str(previous.ImageURL(previous.RegistryURL))},
 				{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
 				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
 					Type:     v1beta1.ParamTypeArray,

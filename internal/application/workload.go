@@ -14,6 +14,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -353,48 +354,44 @@ func (a *Workload) Restarts(ctx context.Context) (int32, error) {
 	return restarts, nil
 }
 
-// Get returns the state of the app deployment encoded in the workload.
-func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
-	active := false
-	stageID := ""
-	status := ""
-	username := ""
+// GetStageID is a specialization of Get coming after, to determine and deliver only the StageId of the workload.
+// Nothing else.
+func (a *Workload) GetStageID(ctx context.Context) (string, error) {
+	// Query application deployment for stageID
 
-	// Query application deployment for stageID and status (ready vs desired replicas)
-
-	deploymentSelector := fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s", a.app.Namespace, a.app.Name)
-
-	deploymentListOptions := metav1.ListOptions{
-		LabelSelector: deploymentSelector,
-	}
-
-	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).List(ctx, deploymentListOptions)
-
-	desiredReplicas := int32(0)
-	readyReplicas := int32(0)
-
-	var createdAt time.Time
-
+	deployment, err := a.Deployment(ctx)
 	if err != nil {
-		status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
-	} else if len(deployments.Items) < 1 {
-		status = "0/0"
-	} else {
-		desiredReplicas = deployments.Items[0].Status.Replicas
-		readyReplicas = deployments.Items[0].Status.ReadyReplicas
-
-		createdAt = deployments.Items[0].ObjectMeta.CreationTimestamp.Time
-
-		status = fmt.Sprintf("%d/%d",
-			deployments.Items[0].Status.ReadyReplicas,
-			deployments.Items[0].Status.Replicas)
-
-		stageID = deployments.Items[0].
-			Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
-		username = deployments.Items[0].Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
-
-		active = true
+		if !apierrors.IsNotFound(err) {
+			return "", err
+		}
+		// App is inactive, no deployment, no workload, no id
+		return "", nil
 	}
+
+	return deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"], nil
+}
+
+// Get returns the state of the app deployment encoded in the workload.
+func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
+
+	deployment, err := a.Deployment(ctx)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+		// App is inactive, no deployment, no workload
+		return nil, nil
+	}
+
+	desiredReplicas := deployment.Status.Replicas
+	readyReplicas := deployment.Status.ReadyReplicas
+
+	createdAt := deployment.ObjectMeta.CreationTimestamp.Time
+
+	status := fmt.Sprintf("%d/%d", deployment.Status.ReadyReplicas, deployment.Status.Replicas)
+
+	stageID := deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
+	username := deployment.Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 	routes, err := ListRoutes(ctx, a.cluster, a.app)
 	if err != nil {
@@ -412,7 +409,7 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	}
 
 	return &models.AppDeployment{
-		Active:          active,
+		Active:          true,
 		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
 		MilliCPUs:       cpu,
 		MemoryBytes:     mem,
@@ -423,5 +420,5 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		Routes:          routes,
 		DesiredReplicas: desiredReplicas,
 		ReadyReplicas:   readyReplicas,
-	}
+	}, nil
 }

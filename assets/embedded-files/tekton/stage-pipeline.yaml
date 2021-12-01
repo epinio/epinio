@@ -16,6 +16,9 @@ spec:
     - name: APP_IMAGE
       type: string
       description: "The image as built and pushed by Tekton (uses Kube internal service DNS)"
+    - name: PREVIOUS_IMAGE
+      type: string
+      description: "The image from the previous staging run"
     - name: AWS_SCRIPT
       type: string
       # https://hub.tekton.dev/tekton/task/aws-cli
@@ -70,6 +73,8 @@ spec:
       value: app
     - name: APP_IMAGE
       value: "$(params.APP_IMAGE)"
+    - name: PREVIOUS_IMAGE
+      value: "$(params.PREVIOUS_IMAGE)"
     - name: ENV_VARS
       value: ["$(params.ENV_VARS[*])"]
     workspaces:
