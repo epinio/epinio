@@ -7,6 +7,13 @@ on:
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [main]
+    # Do not trigger if only files matching the patterns below changed
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.txt'
+      - 'docs/**'
+      - 'acceptance/**'
+
   schedule:
     - cron: '0 5 * * 0'
 
