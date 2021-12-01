@@ -353,6 +353,14 @@ func (a *Workload) Restarts(ctx context.Context) (int32, error) {
 	return restarts, nil
 }
 
+// GetStageID is a specialization of Get coming after, to determine and deliver only the StageId of the workload.
+// Nothing else.
+func (a *Workload) GetStageID(ctx context.Context, deployment *appsv1.Deployment) string {
+	// Query application deployment for stageID
+
+	return deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
+}
+
 // Get returns the state of the app deployment encoded in the workload.
 func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
 

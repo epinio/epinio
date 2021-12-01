@@ -261,13 +261,7 @@ func PreviousStageID(ctx context.Context, cluster *kubernetes.Cluster, appRef mo
 		return "", nil
 	}
 
-	workload := wl.Get(ctx, deployment)
-	if workload == nil {
-		// No workload. No id
-		return "", nil
-	}
-
-	return workload.StageID, nil
+	return wl.GetStageID(ctx, deployment), nil
 }
 
 // Unstage removes staging resources. It deletes either all PipelineRuns of the
