@@ -16,7 +16,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
@@ -25,14 +24,13 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
-
-const TektonStagingNamespace = "tekton-staging"
 
 type stageParam struct {
 	models.AppRef
@@ -62,7 +60,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // "source" tekton workspace.
 // The same PVC stores the application's build cache (on a separate directory).
 func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
-	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
+	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.TektonStagingNamespace).
 		Get(ctx, ar.MakePVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
@@ -72,11 +70,11 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 	}
 
 	// From here on, only if the PVC is missing
-	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
+	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.TektonStagingNamespace).
 		Create(ctx, &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ar.MakePVCName(),
-				Namespace: deployments.TektonStagingNamespace,
+				Namespace: helmchart.TektonStagingNamespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -143,7 +141,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	// Validate incoming blob id before attempting to stage
 
-	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.TektonStagingNamespace, helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
@@ -190,7 +188,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	registryCertificateSecret := viper.GetString("registry-certificate-secret")
 	registryCertificateHash := ""
 	if registryCertificateSecret != "" {
-		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, TektonStagingNamespace, registryCertificateSecret)
+		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.TektonStagingNamespace, registryCertificateSecret)
 		if err != nil {
 			return apierror.InternalError(err, "cannot calculate Certificate hash")
 		}
@@ -220,7 +218,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "failed to get access to a tekton client")
 	}
-	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
+	client := tc.PipelineRuns(helmchart.TektonStagingNamespace)
 	pr := newPipelineRun(params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
@@ -265,7 +263,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+	client := cs.TektonV1beta1().PipelineRuns(helmchart.TektonStagingNamespace)
 
 	err = wait.PollImmediate(time.Second, duration.ToAppBuilt(),
 		func() (bool, error) {
@@ -418,7 +416,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 				{
 					Name: "s3secret",
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: deployments.S3ConnectionDetailsSecret,
+						SecretName: helmchart.S3ConnectionDetailsSecretName,
 						Items: []corev1.KeyToPath{
 							{Key: "config", Path: "config"},
 							{Key: "credentials", Path: "credentials"},
@@ -431,7 +429,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 }
 
 func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
-	cd, err := registry.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, registry.CredentialsSecretName)
+	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.TektonStagingNamespace, registry.CredentialsSecretName)
 	if err != nil {
 		return "", err
 	}

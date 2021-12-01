@@ -6,14 +6,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
-	"github.com/epinio/epinio/internal/namespaces"
+	"github.com/epinio/epinio/internal/helmchart"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -48,32 +47,6 @@ func New() (*Admin, error) {
 		Config: configConfig,
 		Log:    logger,
 	}, nil
-}
-
-func (a *Admin) CreateDefaultNamespace(ctx context.Context) error {
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return errors.Wrap(err, "getting Kubernetes cluster")
-	}
-	exists, err := namespaces.Exists(ctx, cluster, DefaultNamespace)
-	if err != nil {
-		return errors.Wrap(err, "checking if namespace exists")
-	}
-	if exists {
-		a.ui.Note().Msgf("Namespace %s exists", DefaultNamespace)
-	} else {
-		err = namespaces.Create(ctx, cluster, DefaultNamespace)
-		if err != nil {
-			return errors.Wrap(err, "creating the namespace "+DefaultNamespace)
-		}
-
-		a.Config.Namespace = DefaultNamespace
-		err = a.Config.Save()
-		if err != nil {
-			return errors.Wrap(err, "saving the default namespace in config")
-		}
-	}
-	return nil
 }
 
 // ConfigUpdate updates the credentials stored in the config from the
@@ -188,8 +161,8 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 	// name we are using here
 
 	secret, err := cluster.WaitForSecret(ctx,
-		deployments.EpinioDeploymentID,
-		deployments.EpinioDeploymentID+"-tls",
+		helmchart.EpinioNamespace,
+		helmchart.EpinioCertificateName+"-tls",
 		duration.ToServiceSecret(),
 	)
 
@@ -197,7 +170,7 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 		return "", errors.Wrap(err, "failed to get API CA cert secret")
 	}
 
-	log.Info("got secret", "secret", deployments.EpinioDeploymentID+"-tls")
+	log.Info("got secret", "secret", helmchart.EpinioCertificateName+"-tls")
 
 	return string(secret.Data["ca.crt"]), nil
 }
@@ -205,7 +178,7 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 // getEpinioURL finds the URL's for epinio from the cluster
 func getEpinioURL(ctx context.Context, cluster *kubernetes.Cluster) (string, string, error) {
 	// Get the ingress
-	ingresses, err := cluster.ListIngress(ctx, deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
+	ingresses, err := cluster.ListIngress(ctx, helmchart.EpinioNamespace, "app.kubernetes.io/name=epinio")
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to list ingresses for epinio api server")
 	}

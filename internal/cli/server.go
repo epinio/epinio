@@ -3,7 +3,6 @@ package cli
 import (
 	"sync"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
@@ -19,7 +18,7 @@ func init() {
 	viper.BindPFlag("port", flags.Lookup("port"))
 	viper.BindEnv("port", "PORT")
 
-	flags.String("tls-issuer", deployments.EpinioCAIssuer, "(TLS_ISSUER) The cluster issuer to use for workload certificates")
+	flags.String("tls-issuer", "", "(TLS_ISSUER) The cluster issuer to use for workload certificates")
 	viper.BindPFlag("tls-issuer", flags.Lookup("tls-issuer"))
 	viper.BindEnv("tls-issuer", "TLS_ISSUER")
 

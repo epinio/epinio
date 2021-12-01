@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/pkg/errors"
 )
 
@@ -43,7 +43,7 @@ func MainDomain(ctx context.Context) (string, error) {
 	}
 
 	// Get the epinio ingress
-	ingresses, err := cluster.ListIngress(ctx, deployments.EpinioDeploymentID, "app.kubernetes.io/name=epinio")
+	ingresses, err := cluster.ListIngress(ctx, helmchart.EpinioNamespace, "app.kubernetes.io/name=epinio")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list ingresses for epinio")
 	}

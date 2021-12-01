@@ -19,11 +19,11 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/routes"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -163,7 +163,7 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	waitForPipeline := func(stageID string) {
 		Eventually(func() string {
 			out, err := helpers.Kubectl("get", "pipelinerun",
-				"--namespace", deployments.TektonStagingNamespace,
+				"--namespace", helmchart.TektonStagingNamespace,
 				stageID,
 				"-o", "jsonpath={.status.conditions[0].status}")
 			Expect(err).NotTo(HaveOccurred())

@@ -8,11 +8,11 @@ import (
 	"regexp"
 	"sync"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -91,7 +91,7 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 	if err != nil {
 		return false, err
 	}
-	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
+	client := tc.PipelineRuns(helmchart.TektonStagingNamespace)
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
 	})
@@ -242,7 +242,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 // deleteStagePVC removes the kube PVC resource which was used to hold the application sources for Tekton, during staging.
 func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	return cluster.Kubectl.CoreV1().
-		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
+		PersistentVolumeClaims(helmchart.TektonStagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
 // StageID returns the stage ID of the currently running build, if one exists. It returns an empty string otherwise.
@@ -258,7 +258,7 @@ func StageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 // objects from the S3 storage.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
-		deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+		helmchart.TektonStagingNamespace, helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return errors.Wrap(err, "fetching the S3 connection details from the Kubernetes secret")
 	}
@@ -272,7 +272,7 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return err
 	}
 
-	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
+	client := tc.PipelineRuns(helmchart.TektonStagingNamespace)
 
 	l, err := client.List(ctx, metav1.ListOptions{
 		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
