@@ -355,46 +355,16 @@ func (a *Workload) Restarts(ctx context.Context) (int32, error) {
 
 // Get returns the state of the app deployment encoded in the workload.
 func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
-	active := false
-	stageID := ""
-	status := ""
-	username := ""
 
-	// Query application deployment for stageID and status (ready vs desired replicas)
+	desiredReplicas := deployment.Status.Replicas
+	readyReplicas := deployment.Status.ReadyReplicas
 
-	deploymentSelector := fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s", a.app.Namespace, a.app.Name)
+	createdAt := deployment.ObjectMeta.CreationTimestamp.Time
 
-	deploymentListOptions := metav1.ListOptions{
-		LabelSelector: deploymentSelector,
-	}
+	status := fmt.Sprintf("%d/%d", deployment.Status.ReadyReplicas, deployment.Status.Replicas)
 
-	deployments, err := a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).List(ctx, deploymentListOptions)
-
-	desiredReplicas := int32(0)
-	readyReplicas := int32(0)
-
-	var createdAt time.Time
-
-	if err != nil {
-		status = pkgerrors.Wrap(err, "failed to get Deployment status").Error()
-	} else if len(deployments.Items) < 1 {
-		status = "0/0"
-	} else {
-		desiredReplicas = deployments.Items[0].Status.Replicas
-		readyReplicas = deployments.Items[0].Status.ReadyReplicas
-
-		createdAt = deployments.Items[0].ObjectMeta.CreationTimestamp.Time
-
-		status = fmt.Sprintf("%d/%d",
-			deployments.Items[0].Status.ReadyReplicas,
-			deployments.Items[0].Status.Replicas)
-
-		stageID = deployments.Items[0].
-			Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
-		username = deployments.Items[0].Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
-
-		active = true
-	}
+	stageID := deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
+	username := deployment.Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 	routes, err := ListRoutes(ctx, a.cluster, a.app)
 	if err != nil {
@@ -412,7 +382,7 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 	}
 
 	return &models.AppDeployment{
-		Active:          active,
+		Active:          true,
 		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
 		MilliCPUs:       cpu,
 		MemoryBytes:     mem,
