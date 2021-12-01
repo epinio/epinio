@@ -14,6 +14,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -355,14 +356,32 @@ func (a *Workload) Restarts(ctx context.Context) (int32, error) {
 
 // GetStageID is a specialization of Get coming after, to determine and deliver only the StageId of the workload.
 // Nothing else.
-func (a *Workload) GetStageID(ctx context.Context, deployment *appsv1.Deployment) string {
+func (a *Workload) GetStageID(ctx context.Context) (string, error) {
 	// Query application deployment for stageID
 
-	return deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
+	deployment, err := a.Deployment(ctx)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return "", err
+		}
+		// App is inactive, no deployment, no workload, no id
+		return "", nil
+	}
+
+	return deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"], nil
 }
 
 // Get returns the state of the app deployment encoded in the workload.
-func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *models.AppDeployment {
+func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
+
+	deployment, err := a.Deployment(ctx)
+	if err != nil {
+		if !apierrors.IsNotFound(err) {
+			return nil, err
+		}
+		// App is inactive, no deployment, no workload
+		return nil, nil
+	}
 
 	desiredReplicas := deployment.Status.Replicas
 	readyReplicas := deployment.Status.ReadyReplicas
@@ -401,5 +420,5 @@ func (a *Workload) Get(ctx context.Context, deployment *appsv1.Deployment) *mode
 		Routes:          routes,
 		DesiredReplicas: desiredReplicas,
 		ReadyReplicas:   readyReplicas,
-	}
+	}, nil
 }

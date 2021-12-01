@@ -250,18 +250,7 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 // happened, yet there is no workload. Ee.g. by calling the "staging" endpoint but not calling the "deploy"
 // endpoint. Since our client doesn't support that scenario, this method doesn't support it either.
 func PreviousStageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (string, error) {
-	wl := NewWorkload(cluster, appRef)
-
-	deployment, err := wl.Deployment(ctx)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return "", err
-		}
-		// App is inactive, no deployment, no workload, no id
-		return "", nil
-	}
-
-	return wl.GetStageID(ctx, deployment), nil
+	return NewWorkload(cluster, appRef).GetStageID(ctx)
 }
 
 // Unstage removes staging resources. It deletes either all PipelineRuns of the
@@ -414,20 +403,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.
 
-	wl := NewWorkload(cluster, app.Meta)
-
-	deployment, err := wl.Deployment(ctx)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return err
-		}
-		// App is inactive, no deployment, no workload
-		return nil
-	}
-
-	app.Workload = wl.Get(ctx, deployment)
-
-	return nil
+	app.Workload, err = NewWorkload(cluster, app.Meta).Get(ctx)
+	return err
 }
 
 // calculateStatus sets the Status field of the App object.
