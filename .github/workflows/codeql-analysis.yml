@@ -1,5 +1,8 @@
 name: "CodeQL"
 
+env:
+  SETUP_GO_VERSION: '^1.17.2'
+
 on:
   workflow_dispatch:
   push:
@@ -29,6 +32,18 @@ jobs:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.
         fetch-depth: 2
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.SETUP_GO_VERSION }}
+
+    - name: Generate Golang
+      run: |
+        export PATH=$PATH:/home/runner/go/bin/
+        make embed_files
+        rm -rf acceptance
+        rm $(find . -type f -name '*_test.go')
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
