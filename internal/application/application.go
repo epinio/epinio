@@ -245,11 +245,11 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 		PersistentVolumeClaims(deployments.TektonStagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
-// PreviousStageID returns the stage ID of the previous build, if one exists. It returns an empty string otherwise.
+// StageID returns the stage ID of the currently running build, if one exists. It returns an empty string otherwise.
 // This method relies on the presence of a workload to get the previous id. There is the case that staging has
 // happened, yet there is no workload. Ee.g. by calling the "staging" endpoint but not calling the "deploy"
 // endpoint. Since our client doesn't support that scenario, this method doesn't support it either.
-func PreviousStageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (string, error) {
+func StageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (string, error) {
 	return NewWorkload(cluster, appRef).GetStageID(ctx)
 }
 

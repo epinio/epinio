@@ -167,7 +167,8 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	// Determine stage id of currently running deployment, fallback to itself when no such exists.
-	previousID, err := application.PreviousStageID(ctx, cluster, req.App)
+	// From the view of the new build we are about to create this is the previous id.
+	previousID, err := application.StageID(ctx, cluster, req.App)
 	if err != nil {
 		return apierror.InternalError(err, "failed to determine active application stage id")
 	}
