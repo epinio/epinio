@@ -3,10 +3,8 @@
 package cli
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"runtime"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
@@ -14,7 +12,6 @@ import (
 	pconfig "github.com/epinio/epinio/internal/cli/config"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
-	"github.com/kyokomi/emoji"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -93,31 +90,4 @@ var cmdVersion = &cobra.Command{
 		fmt.Printf("Epinio Version: %s\n", version.Version)
 		fmt.Printf("Go Version: %s\n", runtime.Version())
 	},
-}
-
-// checkDependencies is a helper which checks the client's environment
-// for the presence of a number of required supporting commands.
-func checkDependencies() error {
-	ok := true
-
-	dependencies := []struct {
-		CommandName string
-	}{
-		{CommandName: "kubectl"},
-		{CommandName: "helm"},
-	}
-
-	for _, dependency := range dependencies {
-		_, err := exec.LookPath(dependency.CommandName)
-		if err != nil {
-			fmt.Println(emoji.Sprintf(":fire:Not found: %s", dependency.CommandName))
-			ok = false
-		}
-	}
-
-	if ok {
-		return nil
-	}
-
-	return errors.New("Please check your PATH, some of our dependencies were not found")
 }

@@ -3,7 +3,6 @@ package registry_test
 import (
 	"fmt"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/internal/registry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -139,7 +138,7 @@ var _ = Describe("ConnectionDetails", func() {
 		When("there is a localhost registry url", func() {
 			var publicRegistryURL string
 			BeforeEach(func() {
-				publicRegistryURL = fmt.Sprintf("%s.%s", deployments.RegistryDeploymentID, "1.2.3.4.omg.howdoi.website")
+				publicRegistryURL = fmt.Sprintf("%s.%s", "epinio-registry", "1.2.3.4.omg.howdoi.website")
 			})
 			When("the image url matches the public registry URL", func() {
 				BeforeEach(func() {
