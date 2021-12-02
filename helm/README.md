@@ -4,11 +4,11 @@
 
 ## Usage
 
-The doc is centralized in a uniq place, checkout the [doc website](https://docs.epinio.io/installation/install_epinio_with_helm.html).
+The doc is centralized in a unique place, checkout the [doc website](https://docs.epinio.io/installation/install_epinio_with_helm.html).
 
 ## Helm chart repo
 
 This repo is also used as Helm chart repository by publishing the index.yaml through github-pages feature.
 https://epinio.github.io/epinio-helm-chart/index.yaml
 
-We are using the chart-releaser-action github action to automatically publish the new chart version when an epinio release is out.
+We are using the github action `chart-releaser-action` to automatically publish the new chart version when an epinio release is out.

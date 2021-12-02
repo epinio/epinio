@@ -1,7 +1,3 @@
-# TODO:
-# The epinio-ca issuer won't work because the certificate needs to be created
-# before the issuer is. Either move it to docs (how to use a custom issuer) or
-# create the certificate in a pre-install hook and wait until it's ready.
 ---
 # Self-signed issuer
 apiVersion: cert-manager.io/v1

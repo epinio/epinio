@@ -4,17 +4,17 @@ From app to URL in one command.
 
 ## Introduction
 
-This helm chart can be used to deploy Epinio on a cluster. It is an alternative
+This helm chart deploys Epinio on a cluster. It is an alternative
 to `epinio install` command.
 
 ## Prerequisites
 
-Epinio needs some external components to be running on your cluster in order to
+Epinio needs a number of external components to be running on your cluster in order to
 work. You may already have those deployed, otherwise follow the instructions here
 to deploy them.
 
 Important: Some of the namespaces of the components are hardcoded in the Epinio
-code and thus are important to be the same as describe here. In the future this
+code and thus are important to be the same as described here. In the future this
 may be configurable on the Epinio Helm chart.
 
 ### Linkerd
