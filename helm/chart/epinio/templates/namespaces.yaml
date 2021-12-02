@@ -1,0 +1,25 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tekton-staging
+  annotations:
+    linkerd.io/inject: enabled
+  {{- if .Values.registry.certificateSecretNamespace }}
+  labels:
+    # label so that kubed copies epinio-registry secret to this namespace
+    kubed-registry-tls-from: {{ .Values.registry.certificateSecretNamespace }}
+  {{- end }}
+
+---
+# Default namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: workspace
+  annotations:
+    linkerd.io/inject: enabled
+  labels:
+    # Instruct kubed to copy image pull secrets over.
+    kubed-sync: "registry-creds"
+    app.kubernetes.io/component: "epinio-namespace"

@@ -2,11 +2,12 @@ package application
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
 	corev1 "k8s.io/api/core/v1"
@@ -15,7 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/epinio/epinio/deployments"
+	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -23,6 +24,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
@@ -41,6 +43,8 @@ type stageParam struct {
 	Stage               models.StageRef
 	Username            string
 	PreviousStageID     string
+	RegistryCASecret    string
+	RegistryCAHash      string
 }
 
 // ImageURL returns the URL of the container image to be, using the
@@ -56,7 +60,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // "source" tekton workspace.
 // The same PVC stores the application's build cache (on a separate directory).
 func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
-	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
+	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.TektonStagingNamespace).
 		Get(ctx, ar.MakePVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
@@ -66,11 +70,11 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 	}
 
 	// From here on, only if the PVC is missing
-	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(deployments.TektonStagingNamespace).
+	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.TektonStagingNamespace).
 		Create(ctx, &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ar.MakePVCName(),
-				Namespace: deployments.TektonStagingNamespace,
+				Namespace: helmchart.TektonStagingNamespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -137,7 +141,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	// Validate incoming blob id before attempting to stage
 
-	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, deployments.S3ConnectionDetailsSecret)
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.TektonStagingNamespace, helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
@@ -180,6 +184,16 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "getting the Epinio registry public URL")
 	}
+
+	registryCertificateSecret := viper.GetString("registry-certificate-secret")
+	registryCertificateHash := ""
+	if registryCertificateSecret != "" {
+		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.TektonStagingNamespace, registryCertificateSecret)
+		if err != nil {
+			return apierror.InternalError(err, "cannot calculate Certificate hash")
+		}
+	}
+
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        req.BuilderImage,
@@ -191,6 +205,8 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		Stage:               models.NewStage(uid),
 		PreviousStageID:     previousID,
 		Username:            username,
+		RegistryCAHash:      registryCertificateHash,
+		RegistryCASecret:    registryCertificateSecret,
 	}
 
 	err = ensurePVC(ctx, cluster, req.App)
@@ -202,7 +218,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "failed to get access to a tekton client")
 	}
-	client := tc.PipelineRuns(deployments.TektonStagingNamespace)
+	client := tc.PipelineRuns(helmchart.TektonStagingNamespace)
 	pr := newPipelineRun(params)
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
@@ -247,7 +263,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	client := cs.TektonV1beta1().PipelineRuns(deployments.TektonStagingNamespace)
+	client := cs.TektonV1beta1().PipelineRuns(helmchart.TektonStagingNamespace)
 
 	err = wait.PollImmediate(time.Second, duration.ToAppBuilt(),
 		func() (bool, error) {
@@ -339,6 +355,29 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 	previous := app
 	previous.Stage = models.NewStage(app.PreviousStageID)
 
+	params := []v1beta1.Param{
+		{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
+		{Name: "PREVIOUS_IMAGE", Value: *str(previous.ImageURL(previous.RegistryURL))},
+		{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
+		{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
+			Type:     v1beta1.ParamTypeArray,
+			ArrayVal: app.Environment.StagingEnvArray()},
+		},
+		{Name: "AWS_SCRIPT", Value: *str(awsScript)},
+		{Name: "AWS_ARGS", Value: v1beta1.ArrayOrString{
+			Type:     v1beta1.ParamTypeArray,
+			ArrayVal: awsArgs},
+		},
+	}
+
+	// If there is a certificate to trust
+	if app.RegistryCASecret != "" && app.RegistryCAHash != "" {
+		params = append(params, []v1beta1.Param{
+			{Name: "REGISTRY_CERTIFICATE_SECRET", Value: *str(app.RegistryCASecret)},
+			{Name: "REGISTRY_CERTIFICATE_HASH", Value: *str(app.RegistryCAHash)},
+		}...)
+	}
+
 	return &v1beta1.PipelineRun{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: app.Stage.ID,
@@ -356,20 +395,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 		Spec: v1beta1.PipelineRunSpec{
 			ServiceAccountName: "staging-triggers-admin",
 			PipelineRef:        &v1beta1.PipelineRef{Name: "staging-pipeline"},
-			Params: []v1beta1.Param{
-				{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
-				{Name: "PREVIOUS_IMAGE", Value: *str(previous.ImageURL(previous.RegistryURL))},
-				{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
-				{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
-					Type:     v1beta1.ParamTypeArray,
-					ArrayVal: app.Environment.StagingEnvArray()},
-				},
-				{Name: "AWS_SCRIPT", Value: *str(awsScript)},
-				{Name: "AWS_ARGS", Value: v1beta1.ArrayOrString{
-					Type:     v1beta1.ParamTypeArray,
-					ArrayVal: awsArgs},
-				},
-			},
+			Params:             params,
 			Workspaces: []v1beta1.WorkspaceBinding{
 				{
 					Name:    "cache",
@@ -390,7 +416,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 				{
 					Name: "s3secret",
 					Secret: &corev1.SecretVolumeSource{
-						SecretName: deployments.S3ConnectionDetailsSecret,
+						SecretName: helmchart.S3ConnectionDetailsSecretName,
 						Items: []corev1.KeyToPath{
 							{Key: "config", Path: "config"},
 							{Key: "credentials", Path: "credentials"},
@@ -403,7 +429,7 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 }
 
 func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
-	cd, err := registry.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, registry.CredentialsSecretName)
+	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.TektonStagingNamespace, registry.CredentialsSecretName)
 	if err != nil {
 		return "", err
 	}
@@ -416,4 +442,27 @@ func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, e
 	}
 
 	return fmt.Sprintf("%s/%s", registryPublicURL, cd.Namespace), nil
+}
+
+// The equivalent of:
+// kubectl get secret -n tekton-staging epinio-registry-tls -o json | jq -r '.["data"]["ca.crt"]' | base64 -d | openssl x509 -hash -noout
+// written in golang.
+func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
+	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	// cert-manager doesn't add the CA for ACME certificates:
+	// https://github.com/jetstack/cert-manager/issues/2111
+	if _, found := secret.Data["ca.crt"]; !found {
+		return "", nil
+	}
+
+	hash, err := cahash.GenerateHash(secret.Data["ca.crt"])
+	if err != nil {
+		return "", err
+	}
+
+	return hash, nil
 }

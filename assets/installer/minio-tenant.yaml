@@ -1,0 +1,58 @@
+# Generated with:
+# ```
+# kubectl minio tenant create tenant1 --servers 1 --volumes 4 --capacity 10Gi --namespace minio-epinio -o
+# ```
+# Also changed `requestAutoCert` to "false" and removed all console related resources (we don't need the console)
+---
+apiVersion: minio.min.io/v2
+kind: Tenant
+metadata:
+  creationTimestamp: null
+  name: tenant1
+  namespace: minio-epinio
+scheduler:
+  name: ""
+spec:
+  certConfig: {}
+  credsSecret:
+    name: tenant-creds
+  image: minio/minio:RELEASE.2021-10-06T23-36-31Z
+  imagePullSecret: {}
+  mountPath: /export
+  pools:
+  - affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+            - key: v1.min.io/tenant
+              operator: In
+              values:
+              - tenant1
+          topologyKey: kubernetes.io/hostname
+    resources: {}
+    servers: 1
+    volumeClaimTemplate:
+      apiVersion: v1
+      kind: persistentvolumeclaims
+      metadata:
+        creationTimestamp: null
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+      status: {}
+    volumesPerServer: 4
+  requestAutoCert: false
+---
+apiVersion: v1
+kind: Secret
+type: Opaque
+metadata:
+  name: tenant-creds
+  namespace: minio-epinio
+stringData:
+  accesskey: {{ .Values.accessKey }}
+  secretkey: {{ .Values.secretKey }}

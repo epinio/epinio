@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "Values",
+  "type": "object",
+  "properties": {
+    "server": {
+      "description": "server configuration",
+      "type": "object",
+      "properties": {
+        "accessControlAllowOrigin": {
+          "type": "string"
+        },
+        "timeoutMultiplier": {
+          "type": "integer"
+        },
+        "sessionKey": {
+          "type": "string"
+        },
+        "tlsIssuer": {
+          "type": "string"
+        },
+        "traceLevel": {
+          "type": "integer"
+        },
+        "registryCertificateSecret": {
+          "type": "string"
+        }
+      }
+    },
+    "s3": {
+      "description": "s3 connection details",
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": "string"
+        },
+        "bucket": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "accessKeyID": {
+          "type": "string"
+        },
+        "secretAccessKey": {
+          "type": "string"
+        },
+        "useSSL": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "endpoint",
+        "bucket",
+        "accessKeyID",
+        "secretAccessKey"
+      ]
+    },
+    "registry": {
+      "description": "container registry connection details",
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "localhostURL": {
+          "type": "string"
+        },
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        },
+        "namespace": {
+          "type": "string"
+        },
+        "certificateSecret": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "username",
+        "password"
+      ]
+    },
+    "api": {
+      "description": "default api user credentials",
+      "type": "object",
+      "properties": {
+        "username": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "certManagerNamespace": {
+      "description": "the namespace there cert-manager controller is deployed",
+      "type": "string"
+    },
+    "systemDomain": {
+      "description": "the system domain that will be used to access the Epinio API",
+      "type": "string"
+    }
+  },
+  "required": [
+    "certManagerNamespace",
+    "s3",
+    "registry",
+    "systemDomain"
+  ]
+}

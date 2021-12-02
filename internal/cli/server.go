@@ -3,7 +3,6 @@ package cli
 import (
 	"sync"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
@@ -19,13 +18,17 @@ func init() {
 	viper.BindPFlag("port", flags.Lookup("port"))
 	viper.BindEnv("port", "PORT")
 
-	flags.String("tls-issuer", deployments.EpinioCAIssuer, "(TLS_ISSUER) The cluster issuer to use for workload certificates")
+	flags.String("tls-issuer", "", "(TLS_ISSUER) The cluster issuer to use for workload certificates")
 	viper.BindPFlag("tls-issuer", flags.Lookup("tls-issuer"))
 	viper.BindEnv("tls-issuer", "TLS_ISSUER")
 
 	flags.String("access-control-allow-origin", "", "(ACCESS_CONTROL_ALLOW_ORIGIN) Domains allowed to use the API")
 	viper.BindPFlag("access-control-allow-origin", flags.Lookup("access-control-allow-origin"))
 	viper.BindEnv("access-control-allow-origin", "ACCESS_CONTROL_ALLOW_ORIGIN")
+
+	flags.String("registry-certificate-secret", "", "(REGISTRY_CERTIFICATE_SECRET) Secret for the registry's TLS certificate")
+	viper.BindPFlag("registry-certificate-secret", flags.Lookup("registry-certificate-secret"))
+	viper.BindEnv("registry-certificate-secret", "REGISTRY_CERTIFICATE_SECRET")
 }
 
 // CmdServer implements the command: epinio server

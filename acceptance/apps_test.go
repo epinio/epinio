@@ -16,9 +16,9 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 
@@ -269,7 +269,7 @@ configuration:
 			By("checking if the staging is using custom builder image")
 			labels := fmt.Sprintf("app.kubernetes.io/name=%s,tekton.dev/pipelineTask=stage", appName)
 			imageList, err := helpers.Kubectl("get", "pod",
-				"--namespace", deployments.TektonStagingNamespace,
+				"--namespace", helmchart.TektonStagingNamespace,
 				"-l", labels,
 				"-o", "jsonpath={.items[0].spec.containers[*].image}")
 			Expect(err).NotTo(HaveOccurred())
@@ -363,7 +363,7 @@ configuration:
 
 			It("is using the cache PVC", func() {
 				out, err := helpers.Kubectl("get", "pvc", "--namespace",
-					deployments.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
+					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				out, err = push()
@@ -375,12 +375,12 @@ configuration:
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
 				out, err := helpers.Kubectl("get", "pvc", "--namespace",
-					deployments.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
+					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
 				out, err = helpers.Kubectl("get", "pvc", "--namespace",
-					deployments.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
+					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).To(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName))))
 			})

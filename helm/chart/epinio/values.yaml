@@ -1,0 +1,68 @@
+## Default values for Epinio Helm Chart.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+# The email address you are planning to use for getting notifications about your certificates.
+email: "epinio@suse.com"
+
+# The system domain that will be used to access the epinio API server
+systemDomain:
+
+server:
+  # Domain which serves the Rancher UI (to access the API)
+  accessControlAllowOrigin: ""
+
+  # increase this value to increase all timeouts by the same factor
+  timeoutMultiplier: 1
+
+  # Change this to a random string. Used for session cookies by the API server.
+  sessionKey: "12345"
+
+  # The name of the cluster issuer to use.
+  # Epinio creates three options: 'epinio-ca', 'letsencrypt-production', and 'selfsigned-issuer'.
+  tlsIssuer: "epinio-ca"
+
+  # Increase this value to instruct the API server to produce more debug output
+  traceLevel: 0
+
+certManagerNamespace:
+
+# Connection details for the S3 storage
+s3:
+  endpoint: s3.amazonaws.com
+  bucket:
+  region:
+  accessKeyID:
+  secretAccessKey:
+  useSSL: true
+
+# Connection details for the container registry
+registry:
+  url:
+  localhostURL:
+  username:
+  password:
+
+  # The registry namespace (aka org). Don't confuse this with Kubernetes
+  # namespaces. This one is just the part between the registry url and the
+  # image name (e.g. your username if you are using your account on Dockerhub).
+  namespace:
+
+  # The secret which Tekton's buildpack task uses to validate the registry's
+  # certificate. If provided, it will be mounted inside the Tekton pod so that Tekton
+  # can trust it when pushing the generated image.
+  certificateSecret:
+
+  # The namespace in which the above secret is stored
+  # When set, the tekton-staging namespace will be annotated so that any secret
+  # annotated with: 
+  #    "kubed.appscode.com/sync": "kubed-registry-tls-from=the_value_below"
+  # will be copied there. The registry certificate should have such an annotation
+  # if you are deploying one on the cluster.
+  certificateSecretNamespace:
+
+api:
+  # Default user username
+  username: admin
+  # Default user password
+  password: password

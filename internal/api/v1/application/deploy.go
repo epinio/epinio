@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	"github.com/epinio/epinio/deployments"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -304,7 +303,7 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 // - the Epinio registry is an external one (if Epinio was deployed that way)
 // - a pre-existing image is being deployed (coming from an outer registry, not ours)
 func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
-	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, deployments.TektonStagingNamespace, registry.CredentialsSecretName)
+	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, "tekton-staging", registry.CredentialsSecretName)
 	if err != nil {
 		return imageURL, err
 	}
