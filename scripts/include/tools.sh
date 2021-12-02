@@ -159,7 +159,7 @@ function tool_version {
         fi
 
         # Version number must have at least a single dot.
-        if [[ "${version}" =~ [0-9]+(\.[0-9]+)+ ]]; then
+        if [[ "${version}" =~ [0-9]+(\.[0-9]+)+(-[0-9]+)? ]]; then
             echo "${BASH_REMATCH[0]}"
         elif [ "${version}" = "missing" ]; then
             echo "${version}"

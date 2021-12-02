@@ -59,7 +59,7 @@ output/bin/epinio_installer install -m assets/installer/manifest.yaml
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh
 
-epinio config update
+"${EPINIO_BINARY}" config update
 
 # Check Epinio Installation
 # Retry 5 times because sometimes it takes a while before epinio server
