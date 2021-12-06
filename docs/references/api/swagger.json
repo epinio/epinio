@@ -1461,7 +1461,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "x-go-name": "Edit"
+          "x-go-name": "Set"
         },
         "remove": {
           "type": "array",

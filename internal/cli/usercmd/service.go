@@ -285,7 +285,7 @@ func (c *EpinioClient) UpdateService(name string, removedKeys []string, assignme
 
 	request := models.ServiceUpdateRequest{
 		Remove: removedKeys,
-		Edit:   assignments,
+		Set:    assignments,
 	}
 
 	_, err := c.API.ServiceUpdate(request, c.Config.Namespace, name)

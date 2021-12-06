@@ -42,7 +42,7 @@ type ServiceCreateRequest struct {
 // update a service instance (add/change, and remove keys)
 type ServiceUpdateRequest struct {
 	Remove []string          `json:"remove,omitempty"`
-	Edit   map[string]string `json:"edit,omitempty"`
+	Set    map[string]string `json:"edit,omitempty"`
 }
 
 // ServiceDeleteRequest represents and contains the data needed to delete a service

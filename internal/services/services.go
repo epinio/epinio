@@ -160,7 +160,7 @@ func UpdateService(ctx context.Context, cluster *kubernetes.Cluster, service *Se
 		for _, remove := range changes.Remove {
 			delete(serviceSecret.Data, remove)
 		}
-		for key, value := range changes.Edit {
+		for key, value := range changes.Set {
 			serviceSecret.Data[key] = []byte(value)
 		}
 
