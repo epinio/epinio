@@ -143,7 +143,6 @@ update_tekton:
 	wget https://github.com/tektoncd/dashboard/releases/download/v0.15.0/tekton-dashboard-release.yaml -O assets/embedded-files/tekton/dashboard-v0.15.0.yaml
 
 embed_files: getstatik
-	statik -m -f -src=./assets/embedded-files -dest assets
 	statik -m -f -src=./assets/embedded-web-files/views -ns webViews -p statikWebViews -dest assets
 	statik -m -f -src=./assets/embedded-web-files/assets -ns webAssets -p statikWebAssets -dest assets
 
@@ -186,3 +185,6 @@ minikube-delete:
 
 prepare_environment_k3d: embed_files build-linux-amd64
 	@./scripts/prepare-environment-k3d.sh
+
+unprepare_environment_k3d:
+	@./scripts/unprepare-environment-k3d.sh
