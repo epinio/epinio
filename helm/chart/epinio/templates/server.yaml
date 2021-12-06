@@ -87,6 +87,7 @@ rules:
   - get
   - list
   - update
+  - patch
 - apiGroups:
   - servicecatalog.k8s.io
   resources:

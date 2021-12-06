@@ -143,6 +143,33 @@ func (c *Client) ServiceCreate(req models.ServiceCreateRequest, namespace string
 	return resp, nil
 }
 
+// ServiceUpdate updates a service by invoking the associated API endpoint
+func (c *Client) ServiceUpdate(req models.ServiceUpdateRequest, namespace, name string) (models.Response, error) {
+	resp := models.Response{}
+
+	c.log.V(5).WithValues("request", req, "namespace", namespace, "service", name).Info("requesting ServiceUpdate")
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return resp, nil
+	}
+
+	data, err := c.patch(api.Routes.Path("ServiceUpdate", namespace, name), string(b))
+	if err != nil {
+		return resp, err
+	}
+
+	c.log.V(5).WithValues("response", req, "namespace", namespace, "service", name).Info("received ServiceUpdate")
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, errors.Wrap(err, "response body is not JSON")
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
+}
+
 // ServiceShow shows a service
 func (c *Client) ServiceShow(namespace string, name string) (models.ServiceShowResponse, error) {
 	var resp models.ServiceShowResponse

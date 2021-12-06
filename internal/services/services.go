@@ -9,10 +9,12 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/namespaces"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 type ServiceList []*Service
@@ -142,6 +144,30 @@ func CreateService(ctx context.Context, cluster *kubernetes.Cluster, name, names
 		Service:       name,
 		kubeClient:    cluster,
 	}, nil
+}
+
+// UpdateService modifies an existing service as per the instructions and writes
+// the result back to the resource.
+func UpdateService(ctx context.Context, cluster *kubernetes.Cluster, service *Service, changes models.ServiceUpdateRequest) error {
+	secretName := serviceResourceName(service.NamespaceName, service.Service)
+
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		serviceSecret, err := cluster.GetSecret(ctx, service.NamespaceName, secretName)
+		if err != nil {
+			return err
+		}
+
+		for _, remove := range changes.Remove {
+			delete(serviceSecret.Data, remove)
+		}
+		for key, value := range changes.Set {
+			serviceSecret.Data[key] = []byte(value)
+		}
+
+		_, err = cluster.Kubectl.CoreV1().Secrets(service.NamespaceName).Update(
+			ctx, serviceSecret, metav1.UpdateOptions{})
+		return err
+	})
 }
 
 // Name returns the service instance's name

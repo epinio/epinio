@@ -194,4 +194,70 @@ var _ = Describe("Services API Application Endpoints", func() {
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
 	})
+
+	Describe("PATCH /api/v1/namespaces/:namespace/services/:service", func() {
+		changeRequest := `{ "remove": ["username"], "edit": { "user" : "ci/cd", "host" : "up" } }`
+
+		It("edits the service", func() {
+			// perform the editing
+
+			response, err := env.Curl("PATCH", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
+				serverURL, api.Root, namespace, svc1), strings.NewReader(changeRequest))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+
+			var responseData models.Response
+			err = json.Unmarshal(bodyBytes, &responseData)
+			Expect(err).ToNot(HaveOccurred())
+
+			// then query the service and confirm the changes
+
+			responseGet, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
+				serverURL, api.Root, namespace, svc1), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(responseGet).ToNot(BeNil())
+			defer responseGet.Body.Close()
+			Expect(responseGet.StatusCode).To(Equal(http.StatusOK))
+			bodyBytesGet, err := ioutil.ReadAll(responseGet.Body)
+			Expect(err).ToNot(HaveOccurred())
+
+			var data models.ServiceShowResponse
+			err = json.Unmarshal(bodyBytesGet, &data)
+			service := data.Details
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(service["user"]).To(Equal("ci/cd"))
+			Expect(service["host"]).To(Equal("up"))
+			Expect(service).ToNot(HaveKey("username"))
+		})
+
+		It("returns a 404 when the namespace does not exist", func() {
+			response, err := env.Curl("PATCH", fmt.Sprintf("%s%s/namespaces/idontexist/services/%s",
+				serverURL, api.Root, svc1), strings.NewReader(changeRequest))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+		})
+
+		It("returns a 404 when the service does not exist", func() {
+			response, err := env.Curl("PATCH", fmt.Sprintf("%s%s/namespaces/%s/services/bogus",
+				serverURL, api.Root, namespace), strings.NewReader(changeRequest))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+		})
+	})
 })
