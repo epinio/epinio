@@ -9,7 +9,7 @@ RUN ./scripts/tools-install.sh helm
 RUN cp output/bin/helm /helm
 
 ################
-FROM golang:1.17.3 AS build
+FROM golang:1.17.4 AS build
 WORKDIR /go/src/github.com/epinio
 
 # for caching
