@@ -43,6 +43,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Get All Git Tags
         run: git fetch --force --prune --unshallow --tags
       - name: Setup Go
@@ -70,6 +72,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          submodules: recursive
 
       - name: Get All Git Tags
         run: git fetch --force --prune --unshallow --tags
