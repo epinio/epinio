@@ -1,0 +1,3 @@
+[submodule "epinio-helm-chart"]
+	path = epinio-helm-chart
+	url = git@github.com:epinio/epinio-helm-chart.git
