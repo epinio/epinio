@@ -22,7 +22,7 @@ function check_dependency {
 }
 
 function create_docker_pull_secret {
-	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != ""  ]] && ! $(kubectl get secret regcred 2>&1 > /dev/null);
+	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != "" && ! $(kubectl get secret regcred > /dev/null 2>&1) ]];
 	then
 		kubectl create secret docker-registry regcred \
 			--docker-server https://index.docker.io/v1/ \
