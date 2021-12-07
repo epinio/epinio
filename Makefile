@@ -20,11 +20,11 @@ VERSION ?= $(shell git describe --tags)$(VSUFFIX)
 CGO_ENABLED ?= 0
 export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION)
 
-build: embed_files build-amd64
+build: build-amd64
 
-build-win: embed_files build-windows
+build-win: build-windows
 
-build-all: embed_files build-amd64 build-arm64 build-arm32 build-windows build-darwin build-darwin-m1
+build-all: build-amd64 build-arm64 build-arm32 build-windows build-darwin build-darwin-m1
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
@@ -68,7 +68,7 @@ compress:
 	upx --brute -1 ./dist/epinio-darwin-amd64
 	upx --brute -1 ./dist/epinio-darwin-arm64
 
-test: embed_files
+test:
 	ginkgo -r -p -race -failOnPending helpers internal
 
 tag:
@@ -95,17 +95,16 @@ acceptance-cluster-setup:
 acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
 
-test-acceptance: showfocus embed_files
+test-acceptance: showfocus
 	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/. acceptance/api/v1/. acceptance/apps/.
 
-
-test-acceptance-api: showfocus embed_files
+test-acceptance-api: showfocus
 	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/api/v1/.
 
-test-acceptance-apps: showfocus embed_files
+test-acceptance-apps: showfocus
 	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/apps/.
 
-test-acceptance-cli: showfocus embed_files
+test-acceptance-cli: showfocus
 	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
 showfocus:
@@ -118,7 +117,7 @@ generate:
 generate-cli-docs:
 	@./scripts/cli-docs-generate.sh ../docs/src/references/cli
 
-lint: embed_files
+lint:
 	go vet ./...
 
 tidy:
@@ -132,24 +131,6 @@ check:
 
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
-
-getstatik:
-	( [ -x "$$(command -v statik)" ] || go install github.com/rakyll/statik@v0.1.7 )
-
-update_tekton:
-	mkdir -p assets/embedded-files/tekton
-	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.23.0/release.yaml -O assets/embedded-files/tekton/pipeline-v0.23.0.yaml
-	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.12.1/release.yaml -O assets/embedded-files/tekton/triggers-v0.12.1.yaml
-	wget https://github.com/tektoncd/dashboard/releases/download/v0.15.0/tekton-dashboard-release.yaml -O assets/embedded-files/tekton/dashboard-v0.15.0.yaml
-
-embed_files: getstatik
-	statik -m -f -src=./assets/embedded-web-files/views -ns webViews -p statikWebViews -dest assets
-	statik -m -f -src=./assets/embedded-web-files/assets -ns webAssets -p statikWebAssets -dest assets
-
-update-app-crd:
-	./scripts/update-app-crd.sh
-# The script in the previous line expects the environment variable REV
-# to be set to the desired revision.
 
 ########################################################################
 # Docs
@@ -183,7 +164,7 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
-prepare_environment_k3d: embed_files build-linux-amd64
+prepare_environment_k3d: build-linux-amd64
 	@./scripts/prepare-environment-k3d.sh
 
 unprepare_environment_k3d:
