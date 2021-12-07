@@ -136,17 +136,13 @@ patch-epinio-deployment:
 getstatik:
 	( [ -x "$$(command -v statik)" ] || go install github.com/rakyll/statik@v0.1.7 )
 
-wrap_registry_chart:
-	helm package ./assets/container-registry/chart/container-registry/ -d assets/embedded-files
-
 update_tekton:
 	mkdir -p assets/embedded-files/tekton
 	wget https://storage.googleapis.com/tekton-releases/pipeline/previous/v0.23.0/release.yaml -O assets/embedded-files/tekton/pipeline-v0.23.0.yaml
 	wget https://storage.googleapis.com/tekton-releases/triggers/previous/v0.12.1/release.yaml -O assets/embedded-files/tekton/triggers-v0.12.1.yaml
 	wget https://github.com/tektoncd/dashboard/releases/download/v0.15.0/tekton-dashboard-release.yaml -O assets/embedded-files/tekton/dashboard-v0.15.0.yaml
 
-embed_files: getstatik wrap_registry_chart
-	statik -m -f -src=./assets/embedded-files -dest assets
+embed_files: getstatik
 	statik -m -f -src=./assets/embedded-web-files/views -ns webViews -p statikWebViews -dest assets
 	statik -m -f -src=./assets/embedded-web-files/assets -ns webAssets -p statikWebAssets -dest assets
 
@@ -189,3 +185,6 @@ minikube-delete:
 
 prepare_environment_k3d: embed_files build-linux-amd64
 	@./scripts/prepare-environment-k3d.sh
+
+unprepare_environment_k3d:
+	@./scripts/unprepare-environment-k3d.sh

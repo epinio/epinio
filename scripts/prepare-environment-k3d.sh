@@ -8,6 +8,8 @@ UNAME="$(uname | tr "[:upper:]" "[:lower:]")"
 # EPINIO_BINARY is used to execute the installation commands
 EPINIO_BINARY="./dist/epinio-"${UNAME}"-amd64"
 
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
 function check_dependency {
 	for dep in "$@"
 	do
@@ -20,7 +22,7 @@ function check_dependency {
 }
 
 function create_docker_pull_secret {
-	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != ""  ]]; 
+	if [[ "$REGISTRY_USERNAME" != "" && "$REGISTRY_PASSWORD" != ""  ]] && ! $(kubectl get secret regcred 2>&1 > /dev/null);
 	then
 		kubectl create secret docker-registry regcred \
 			--docker-server https://index.docker.io/v1/ \
@@ -51,10 +53,23 @@ check_dependency kubectl helm
 create_docker_pull_secret
 
 echo "Preparing Epinio manifest"
-sed -i "s/10.86.4.38.omg.howdoi.website/$EPINIO_SYSTEM_DOMAIN/" assets/installer/manifest.yaml
+echo "Replacing the system domain"
+sed -i "s/10.86.4.38.omg.howdoi.website/$EPINIO_SYSTEM_DOMAIN/" installer/assets/examples/manifest.yaml
+
+epinio_chart=$(readlink -e ${SCRIPT_DIR}/../epinio-helm-chart/chart/epinio)
+registry_chart=$(readlink -e ${SCRIPT_DIR}/../epinio-helm-chart/chart/container-registry)
+
+echo "Pointing to the local epinio helm chart"
+sed -i "s|url: https://github.com/epinio/epinio-helm-chart/releases/download/epinio.*.tgz|path: ${epinio_chart}|" installer/assets/examples/manifest.yaml
+
+echo "Pointing to the local container registry helm chart"
+sed -i "s|path: assets/container-registry/chart/container-registry/|path: ${registry_chart}|" installer/assets/examples/manifest.yaml
+
 
 echo "Installing Epinio"
-output/bin/epinio_installer install -m assets/installer/manifest.yaml
+pushd "${SCRIPT_DIR}/../installer" > /dev/null
+../output/bin/epinio_installer install -m assets/examples/manifest.yaml
+popd
 
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh

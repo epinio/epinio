@@ -16,7 +16,5 @@ personal-setup
 /resources
 acceptance/acceptance.test
 .vscode
-assets/embedded-files/container-registry-0.1.0.tgz
-assets/statik/
 assets/statikWebAssets/
 assets/statikWebViews/
