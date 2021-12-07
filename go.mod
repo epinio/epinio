@@ -31,10 +31,10 @@ require (
 	github.com/smartystreets/assertions v1.0.1 // indirect
 	github.com/spf13/cobra v1.1.1
 	github.com/spf13/pflag v1.0.5
-	github.com/spf13/viper v1.7.1
+	github.com/spf13/viper v1.9.0
 	github.com/tektoncd/pipeline v0.28.0
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	gopkg.in/ini.v1 v1.57.0
+	gopkg.in/ini.v1 v1.63.2
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.4
 	k8s.io/apiextensions-apiserver v0.21.4
