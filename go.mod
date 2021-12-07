@@ -19,7 +19,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/mattn/go-colorable v0.1.8
-	github.com/mattn/go-isatty v0.0.12
+	github.com/mattn/go-isatty v0.0.14
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/minio/minio-go/v7 v7.0.13
