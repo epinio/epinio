@@ -71,7 +71,7 @@ func EpinioYAML() string {
 
 // BuildEpinio builds the epinio binaries for the server and if platforms are different also for the CLI
 func BuildEpinio() {
-	targets := []string{"embed_files", "build-linux-amd64"}
+	targets := []string{"build-linux-amd64"}
 	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
 		// we need a different binary to run locally
 		targets = append(targets, fmt.Sprintf("build-%s-%s", runtime.GOOS, runtime.GOARCH))

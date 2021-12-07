@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,8 +23,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/filesystem"
-	"github.com/epinio/epinio/internal/web"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	"github.com/gin-contrib/sessions"
@@ -40,14 +37,6 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	// Support colors on Windows also
 	gin.DefaultWriter = colorable.NewColorableStdout()
 
-	// Static files
-	var assetsDir http.FileSystem
-	if os.Getenv("LOCAL_FILESYSTEM") == "true" {
-		assetsDir = http.Dir(path.Join(".", "assets", "embedded-web-files", "assets"))
-	} else {
-		assetsDir = filesystem.Assets()
-	}
-
 	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
 	if err != nil {
 		return nil, "", err
@@ -60,9 +49,6 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	// | ---               | ---        | ----
 	// | <Root>/...        | API        | Via "<Root>" Group
 	// | /ready            | L/R Probes |
-	// | /assets           |            | Via "/assets" Group
-	// | /                 | Dashboard  | Via individual attachment, web.Lemon()
-	// | /info             | ditto      | ditto
 	// | /namespaces/target/:namespace | ditto      | ditto
 
 	router := gin.New()
@@ -102,11 +88,6 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 
 	ginLogger := gin.LoggerWithFormatter(Formatter)
 	authenticatedGroup := router.Group("", ginLogger, authMiddleware, sessionMiddleware)
-
-	web.Lemon(authenticatedGroup)
-
-	assets := authenticatedGroup.Group("/assets")
-	assets.StaticFS("/", assetsDir)
 
 	api := authenticatedGroup.Group(apiv1.Root)
 	apiv1.Lemon(api)

@@ -42,7 +42,6 @@ jobs:
     - name: Generate Golang
       run: |
         export PATH=$PATH:/home/runner/go/bin/
-        make embed_files
         rm -rvf acceptance
         rm -v $(find . -type f -name '*_test.go')
 
