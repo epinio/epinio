@@ -107,6 +107,10 @@ test-acceptance-apps: showfocus
 test-acceptance-cli: showfocus
 	ginkgo -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
+test-acceptance-install: showfocus
+	# TODO support for labels is coming in ginkgo v2
+	ginkgo -nodes ${GINKGO_NODES} -focus "${REGEX}" -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} acceptance/install/.
+
 showfocus:
 	@if test `cat acceptance/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/api/v1/*.go ; echo ; fi
 
