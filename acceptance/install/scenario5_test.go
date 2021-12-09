@@ -35,9 +35,9 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		Expect(zoneID).ToNot(BeEmpty())
 
 		flags = []string{
-			"--tls-issuer=letsencrypt-production",
-			"--force-kube-internal-registry-tls=true",
-			"--system-domain=" + domain,
+			"--set", "domain=" + domain,
+			"--set", "tlsIssuer=letsencrypt-production",
+			"--set", "forceKubeInternalRegistryTLS=true",
 		}
 	})
 
