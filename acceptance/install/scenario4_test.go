@@ -59,10 +59,13 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 	})
 
 	It("installs with loadbalancer IP, custom domain and pushes an app with env vars", func() {
-		By("Installing Traefik", func() {
-			out, err := epinioHelper.Run("install-ingress")
+		By("Installing Epinio", func() {
+			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Traefik deployed"), ContainSubstring("Traefik Ingress info")))
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
+
+			out, err = testenv.PatchEpinio()
+			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
 		By("Extracting Loadbalancer Name", func() {
@@ -101,15 +104,6 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 				}
 				return answer.RecordData[0]
 			}, "5m", "2s").Should(Equal(loadbalancer + ".")) // CNAME ends with a '.'
-		})
-
-		By("Installing Epinio", func() {
-			out, err := epinioHelper.Install(flags...)
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("STATUS: deployed"))
-
-			out, err = testenv.PatchEpinio()
-			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
 		By("Pushing an app with Env vars", func() {

@@ -46,11 +46,14 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs and passes scenario", func() {
-		By("Installing Traefik", func() {
-			out, err := epinioHelper.Run("install-ingress")
+	It("installs with letsencrypt prod cert and pushes an app", func() {
+		By("Installing Epinio", func() {
+			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Traefik deployed"), ContainSubstring("Traefik Ingress info")))
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
+
+			out, err = testenv.PatchEpinio()
+			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
 		By("Extracting AKS Loadbalancer IP", func() {
@@ -89,15 +92,6 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 				}
 				return answer.RecordData[0]
 			}, "5m", "2s").Should(Equal(loadbalancer))
-		})
-
-		By("Installing Epinio", func() {
-			out, err := epinioHelper.Install(flags...)
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("STATUS: deployed"))
-
-			out, err = testenv.PatchEpinio()
-			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
 		Eventually(func() string {

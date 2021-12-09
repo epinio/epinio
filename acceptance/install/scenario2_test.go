@@ -49,10 +49,12 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 	})
 
 	It("installs with letsencrypt prod cert, custom domain and pushes an app with 0 instances", func() {
-		By("Installing Traefik", func() {
-			out, err := epinioHelper.Run("install-ingress")
+		By("Installing Epinio", func() {
+			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Traefik deployed"), ContainSubstring("Traefik Ingress info")))
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
+			out, err = testenv.PatchEpinio()
+			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
 		By("Extracting Loadbalancer IP", func() {
@@ -91,14 +93,6 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 				}
 				return answer.RecordData[0]
 			}, "5m", "2s").Should(Equal(loadbalancer))
-		})
-
-		By("Installing Epinio", func() {
-			out, err := epinioHelper.Install(flags...)
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("STATUS: deployed"))
-			out, err = testenv.PatchEpinio()
-			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
 		By("Pushing an app with zero instances", func() {
