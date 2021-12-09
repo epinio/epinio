@@ -106,7 +106,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Epinio installed."))
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
 
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)

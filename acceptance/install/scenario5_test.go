@@ -94,7 +94,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Epinio installed."))
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
 
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)

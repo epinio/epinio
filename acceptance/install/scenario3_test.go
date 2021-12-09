@@ -104,7 +104,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Epinio installed."))
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
 
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)
