@@ -43,13 +43,13 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		registryPassword = os.Getenv("REGISTRY_PASSWORD")
 		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
-			"--system-domain", fmt.Sprintf("%s.omg.howdoi.website", domainIP),
-			"--skip-cert-manager",
-			"--tls-issuer=private-ca",
-			"--external-registry-url=registry.hub.docker.com",
-			"--external-registry-username=" + registryUsername,
-			"--external-registry-password=" + registryPassword,
-			"--external-registry-namespace=splatform",
+			"--set", "skipCertManager=true",
+			"--set", "domain=" + fmt.Sprintf("%s.omg.howdoi.website", domainIP),
+			"--set", "tlsIssuer=private-ca",
+			"--set", "externalRegistryURL=registry.hub.docker.com",
+			"--set", "externalRegistryUsername=" + registryUsername,
+			"--set", "externalRegistryPassword=" + registryPassword,
+			"--set", "externalRegistryNamespace=splatform",
 		}
 
 	})
@@ -84,9 +84,17 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		})
 
 		By("Installing CertManager", func() {
-			out, err := epinioHelper.Run("install-cert-manager")
+			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("CertManager deployed"))
+			out, err = proc.RunW("helm", "repo", "update")
+			Expect(err).NotTo(HaveOccurred(), out)
+			out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
+				"-n", "cert-manager",
+				"--create-namespace",
+				"--set", "installCRDs=true",
+				"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
+			)
+			Expect(err).NotTo(HaveOccurred(), out)
 
 			// Create certificate secret and cluster_issuer
 			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
