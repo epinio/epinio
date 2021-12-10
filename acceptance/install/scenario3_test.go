@@ -128,6 +128,12 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			Expect(loadbalancer).ToNot(BeEmpty())
 		})
 
+		By("Checking Epinio info command", func() {
+			out, err := epinioHelper.Run("info")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Epinio Version:"))
+		})
+
 		By("Creating a service and pushing an app", func() {
 			out, err := epinioHelper.Run("service", "create", serviceName, "mariadb", "10-3-22")
 			Expect(err).NotTo(HaveOccurred(), out)

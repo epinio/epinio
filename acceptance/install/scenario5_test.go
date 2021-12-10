@@ -3,6 +3,7 @@ package install_test
 import (
 	"encoding/json"
 	"os"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -100,10 +101,14 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 			}, "5m", "2s").Should(Equal(loadbalancer))
 		})
 
-		Eventually(func() string {
-			out, _ := epinioHelper.Run("info")
-			return out
-		}).Should(ContainSubstring("Epinio Version: "))
+		// Workaround to (try to!) ensure that the DNS is really propagated!
+		time.Sleep(3 * time.Minute)
+
+		By("Checking Epinio info command", func() {
+			out, err := epinioHelper.Run("info")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Epinio Version:"))
+		})
 
 		By("Pushing an app", func() {
 			out, err := epinioHelper.Run("push",
