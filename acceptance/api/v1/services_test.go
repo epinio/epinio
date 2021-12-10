@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -258,6 +259,128 @@ var _ = Describe("Services API Application Endpoints", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+		})
+	})
+
+	Describe("PUT /api/v1/namespaces/:namespace/services/:service", func() {
+		var changeRequest string
+		BeforeEach(func() {
+			changeRequest = `{ "put_key1" : "put_value" }`
+		})
+
+		It("replace the service", func() {
+			// perform the editing
+
+			response, err := env.Curl("PUT", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
+				serverURL, api.Root, namespace, svc1), strings.NewReader(changeRequest))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+
+			var responseData models.Response
+			err = json.Unmarshal(bodyBytes, &responseData)
+			Expect(err).ToNot(HaveOccurred())
+
+			// then query the service and confirm the changes
+
+			responseGet, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
+				serverURL, api.Root, namespace, svc1), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(responseGet).ToNot(BeNil())
+			defer responseGet.Body.Close()
+			Expect(responseGet.StatusCode).To(Equal(http.StatusOK))
+			bodyBytesGet, err := ioutil.ReadAll(responseGet.Body)
+			Expect(err).ToNot(HaveOccurred())
+
+			var data models.ServiceShowResponse
+			err = json.Unmarshal(bodyBytesGet, &data)
+			service := data.Details
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(service["put_key1"]).To(Equal("put_value"))
+			Expect(service).ToNot(HaveKey("username"))
+		})
+
+		It("returns a 404 when the namespace does not exist", func() {
+			response, err := env.Curl("PUT", fmt.Sprintf("%s%s/namespaces/idontexist/services/%s",
+				serverURL, api.Root, svc1), strings.NewReader(changeRequest))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+		})
+
+		It("returns a 404 when the service does not exist", func() {
+			response, err := env.Curl("PUT", fmt.Sprintf("%s%s/namespaces/%s/services/bogus",
+				serverURL, api.Root, namespace), strings.NewReader(changeRequest))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+		})
+
+		When("service is bound to an app", func() {
+			var app1 string
+			BeforeEach(func() {
+				app1 = catalog.NewAppName()
+
+				env.MakeContainerImageApp(app1, 1, containerImageURL)
+				env.BindAppService(app1, svc1, namespace)
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(app1)
+			})
+
+			Describe("workload restarts", func() {
+				It("only restarts the app if the service has changed", func() {
+					getPodName := func(namespace, app string) (string, error) {
+						return helpers.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+					}
+
+					oldPodName, err := getPodName(namespace, app1)
+					Expect(err).ToNot(HaveOccurred())
+
+					response, err := env.Curl("PUT", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
+						serverURL, api.Root, namespace, svc1), strings.NewReader(changeRequest))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+					var newPodName string
+
+					Eventually(func() string {
+						newPodName, err := getPodName(namespace, app1)
+						Expect(err).ToNot(HaveOccurred())
+						return newPodName
+					}).ShouldNot(Equal(oldPodName))
+
+					// Now try with no changes
+					oldPodName, err = getPodName(namespace, app1)
+					Expect(err).ToNot(HaveOccurred())
+
+					response, err = env.Curl("PUT", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
+						serverURL, api.Root, namespace, svc1), strings.NewReader(changeRequest))
+					Expect(err).ToNot(HaveOccurred())
+					Expect(response).ToNot(BeNil())
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+					newPodName, err = getPodName(namespace, app1)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(newPodName).To(Equal(oldPodName))
+				})
+			})
 		})
 	})
 })
