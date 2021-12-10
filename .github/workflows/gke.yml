@@ -25,7 +25,6 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   GKE_ZONE: 'europe-west1-b'
-  GKE_VERSION: '1.21.4-gke.2300'
   GKE_MACHINE_TYPE: 'n2-standard-4'
 
 jobs:
@@ -105,7 +104,6 @@ jobs:
           id=$RANDOM
           echo '::set-output name=ID::'$id
           gcloud container clusters create epinioci$id \
-          --cluster-version ${{ env.GKE_VERSION }} \
           --disk-size 100 \
           --num-nodes=1 \
           --machine-type ${{ env.GKE_MACHINE_TYPE }} \
