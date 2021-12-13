@@ -106,9 +106,10 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt, Zero instance", func() {
 		time.Sleep(3 * time.Minute)
 
 		By("Checking Epinio info command", func() {
-			out, err := epinioHelper.Run("info")
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Epinio Version:"))
+			Eventually(func() string {
+				out, _ := epinioHelper.Run("info")
+				return out
+			}, "2m", "2s").Should(ContainSubstring("Epinio Version:"))
 		})
 
 		By("Pushing an app with zero instances", func() {

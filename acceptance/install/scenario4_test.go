@@ -117,9 +117,10 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		time.Sleep(3 * time.Minute)
 
 		By("Checking Epinio info command", func() {
-			out, err := epinioHelper.Run("info")
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Epinio Version:"))
+			Eventually(func() string {
+				out, _ := epinioHelper.Run("info")
+				return out
+			}, "2m", "2s").Should(ContainSubstring("Epinio Version:"))
 		})
 
 		By("Pushing an app with Env vars", func() {
