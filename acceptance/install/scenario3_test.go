@@ -21,7 +21,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		serviceName      = catalog.NewServiceName()
 		appName          string
 		loadbalancer     string
-		metallbURL       string
 		localpathURL     string
 		registryUsername string
 		registryPassword string
@@ -33,7 +32,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 	BeforeEach(func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
-		metallbURL = "https://raw.githubusercontent.com/google/metallb/v0.10.3/manifests/metallb.yaml"
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 		appName = "externalregtest"
 
@@ -61,10 +59,10 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 
 	It("installs with private CA and pushes an app with service", func() {
 		By("Installing MetalLB", func() {
-			out, err := proc.RunW("kubectl", "create", "namespace", "metallb-system")
+			out, err := proc.RunW("helm", "repo", "add", "metallb", "https://metallb.github.io/metallb")
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			out, err = proc.RunW("kubectl", "apply", "-f", metallbURL)
+			out, err = proc.RunW("helm", "upgrade", "--install", "-n", "metallb-system", "--create-namespace", "metallb", "metallb/metallb")
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = proc.RunW("sed", "-i", fmt.Sprintf("s/myip/%s/g", domainIP), testenv.TestAssetPath("config-metallb-rke.yml"))
