@@ -68,7 +68,7 @@ sed -i "s|path: assets/container-registry/chart/container-registry/|path: ${regi
 
 echo "Installing Epinio"
 pushd "${SCRIPT_DIR}/../installer" > /dev/null
-../output/bin/epinio_installer install -m assets/examples/manifest.yaml
+../output/bin/epinio_installer --trace-level 10 install -m assets/examples/manifest.yaml
 popd
 
 # Patch Epinio
