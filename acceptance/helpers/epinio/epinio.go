@@ -24,7 +24,7 @@ func (e *Epinio) Run(cmd string, args ...string) (string, error) {
 
 func (e *Epinio) Install(args ...string) (string, error) {
 	// Add a repo for Epinio Helm Chart
-	out, err := proc.RunW("helm", "repo", "add", "epinio-helm-chart", "https://epinio.github.io/epinio-helm-chart")
+	out, err := proc.RunW("helm", "repo", "add", "epinio-helm-chart", "https://epinio.github.io/helm-charts")
 	if err != nil {
 		return out, err
 	}
