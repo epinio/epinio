@@ -1,0 +1,6 @@
+configInline:
+  address-pools:
+  - name: default
+    protocol: layer2
+    addresses:
+    - @IP_RANGE@
