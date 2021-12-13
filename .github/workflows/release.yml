@@ -71,6 +71,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
-          repository: epinio/epinio-helm-chart
+          repository: epinio/helm-charts
           event-type: epinio-release
           client-payload: '{"ref": "${{ steps.last-tag.outputs.TAG }}"}'

@@ -56,11 +56,11 @@ echo "Preparing Epinio manifest"
 echo "Replacing the system domain"
 sed -i "s/10.86.4.38.omg.howdoi.website/$EPINIO_SYSTEM_DOMAIN/" installer/assets/examples/manifest.yaml
 
-epinio_chart=$(readlink -e ${SCRIPT_DIR}/../epinio-helm-chart/chart/epinio)
-registry_chart=$(readlink -e ${SCRIPT_DIR}/../epinio-helm-chart/chart/container-registry)
+epinio_chart=$(readlink -e ${SCRIPT_DIR}/../helm-charts/chart/epinio)
+registry_chart=$(readlink -e ${SCRIPT_DIR}/../helm-charts/chart/container-registry)
 
 echo "Pointing to the local epinio helm chart"
-sed -i "s|url: https://github.com/epinio/epinio-helm-chart/releases/download/epinio.*.tgz|path: ${epinio_chart}|" installer/assets/examples/manifest.yaml
+sed -i "s|url: https://github.com/epinio/helm-charts/releases/download/epinio.*.tgz|path: ${epinio_chart}|" installer/assets/examples/manifest.yaml
 
 echo "Pointing to the local container registry helm chart"
 sed -i "s|path: assets/container-registry/chart/container-registry/|path: ${registry_chart}|" installer/assets/examples/manifest.yaml
