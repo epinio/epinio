@@ -34,6 +34,11 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 	BeforeEach(func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
+		// Clean previous installed helm repos
+		// Done at the beginning because we don't know the runner's state
+		out, err := proc.Run(testenv.Root(), false, "bash", "./scripts/remove-helm-repos.sh")
+		Expect(err).NotTo(HaveOccurred(), out)
+
 		// Get a free IP address on server's network
 		rangeIP, _ = proc.Run(testenv.Root(), false, "bash", "./scripts/get-free-ip.sh")
 		domainIP = strings.Split(rangeIP, "-")
