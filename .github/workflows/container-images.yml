@@ -16,6 +16,10 @@ jobs:
         with:
           username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
       - name: Build linkerd
         id: docker_build
         uses: docker/build-push-action@v2
