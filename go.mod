@@ -11,7 +11,7 @@ require (
 	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/logr v1.2.2
 	github.com/go-logr/stdr v0.4.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2
