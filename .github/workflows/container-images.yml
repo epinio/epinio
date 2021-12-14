@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
     - 'images/linkerd-Dockerfile'
+    - '.github/workflows/container-images.yml' # in case we change the versions below
 
 jobs:
   build:
