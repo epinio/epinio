@@ -23,7 +23,7 @@ jobs:
           file: images/linkerd-Dockerfile
           tags: splatform/epinio-linkerd:2.10.2
           build-args: |
-            LINKERD_VERSION=stable-2.10.2
-            LINKERD_CHECKSUM=7021232b50368b247e8d5226d381a654327f610c4f61d6719dc6fd6e46284035
-            KUBECTL_VERSION=v1.21.0
-            KUBECTL_CHECKSUM=9f74f2fa7ee32ad07e17211725992248470310ca1988214518806b39b1dad9f0
+            LINKERD_VERSION=stable-2.11.1
+            LINKERD_CHECKSUM=96c08570b6f6ad40ef1e6aa970959c9c5541e36c85477ee9843b85b8fdcc54ea
+            KUBECTL_VERSION=v1.23.0
+            KUBECTL_CHECKSUM=2d0f5ba6faa787878b642c151ccb2c3390ce4c1e6c8e2b59568b3869ba407c4f
