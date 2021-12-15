@@ -197,7 +197,10 @@ var _ = Describe("Services API Application Endpoints", func() {
 	})
 
 	Describe("PATCH /api/v1/namespaces/:namespace/services/:service", func() {
-		changeRequest := `{ "remove": ["username"], "edit": { "user" : "ci/cd", "host" : "up" } }`
+		var changeRequest string
+		BeforeEach(func() {
+			changeRequest = `{ "remove": ["username"], "edit": { "user" : "ci/cd", "host" : "up" } }`
+		})
 
 		It("edits the service", func() {
 			// perform the editing
