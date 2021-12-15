@@ -56,7 +56,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	router.Use(gin.Recovery())
 
 	// Do not set header if nothing is specified.
-	accessControlAllowOrigin := viper.GetString("access-control-allow-origin")
+	accessControlAllowOrigin := strings.TrimSuffix(viper.GetString("access-control-allow-origin"), "/")
 	if accessControlAllowOrigin != "" {
 		router.Use(func(ctx *gin.Context) {
 			ctx.Header("Access-Control-Allow-Origin", accessControlAllowOrigin)
