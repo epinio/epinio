@@ -38,6 +38,7 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 	if exists {
+		// TODO: Don't retry when this happens (on the cli)
 		return apierror.NamespaceAlreadyKnown(request.Name)
 	}
 
