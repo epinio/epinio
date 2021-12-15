@@ -16,6 +16,9 @@ import (
 func Info(c *gin.Context) APIErrors {
 	ctx := c.Request.Context()
 
+	eventsChan := c.Keys["eventsChan"].(chan map[string]string)
+	eventsChan <- map[string]string{"general": "called info"}
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return InternalError(err)

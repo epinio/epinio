@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/termui"
@@ -43,11 +44,27 @@ var CmdServer = &cobra.Command{
 		port := viper.GetInt("port")
 		ui := termui.NewUI()
 		logger := tracelog.NewLogger().WithName("EpinioServer")
-		_, listeningPort, err := server.Start(httpServerWg, port, ui, logger)
+		eventsChan := make(chan map[string]string)
+		_, listeningPort, err := server.Start(httpServerWg, port, ui, eventsChan, logger)
 		if err != nil {
 			return errors.Wrap(err, "failed to start server")
 		}
 		ui.Normal().Msg("listening on localhost on port " + listeningPort)
+
+		httpServerWg.Add(1)
+		go func(chan map[string]string) {
+			defer httpServerWg.Done()
+			for e := range eventsChan {
+				// TODO: Instead of just printing the event, we need some logic here
+				// that decides which subscribers should receive this event.
+				// We also need a way to add subscribers. This can be another channel
+				// over which subscribers wil be sent (from the "/subscribe" endpoint).
+				// Each subscriber should have a websocket connection to which we should
+				// send the event.
+				fmt.Println(e)
+			}
+		}(eventsChan)
+
 		httpServerWg.Wait()
 
 		return nil

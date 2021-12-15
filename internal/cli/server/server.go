@@ -33,7 +33,8 @@ import (
 )
 
 // Start is a helper which initializes and starts the API server
-func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*http.Server, string, error) {
+// TODO: Make the channel a "chan Event" with Event being a struct
+func Start(wg *sync.WaitGroup, port int, _ *termui.UI, eventsChan chan map[string]string, logger logr.Logger) (*http.Server, string, error) {
 	// Support colors on Windows also
 	gin.DefaultWriter = colorable.NewColorableStdout()
 
@@ -72,6 +73,13 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 			}
 		})
 	}
+
+	// Add a pub/sub channel to all routes
+	router.Use(func(ctx *gin.Context) {
+		ctx.Keys = map[string]interface{}{
+			"eventsChan": eventsChan,
+		}
+	})
 
 	// No authentication, no logging, no session. This is the healthcheck.
 	router.GET("/ready", func(c *gin.Context) {
