@@ -12,14 +12,12 @@ if [ -z "$GITHUB_RUNNER_TOKEN" ]; then
 fi
 
 # Install needed packages
+rpms="make gcc docker libicu wget fping"
 sudo zypper --gpg-auto-import-keys ref
-if [ $(cat /etc/os-release | grep SLES) ]; then
-   rpms="make gcc docker git-core libicu wget"
-   sudo zypper --non-interactive in -y $rpms
-  else
-   rpms="make gcc docker git libicu wget"
-   sudo zypper --non-interactive in -y $rpms
-fi
+grep SLES /etc/os-release \
+  && rpms+=" git-core"    \
+  || rpms+=" git"
+sudo zypper --non-interactive in -y $rpms
 
 # Enable docker service
 sudo systemctl enable docker
