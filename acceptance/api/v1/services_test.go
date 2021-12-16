@@ -360,13 +360,11 @@ var _ = Describe("Services API Application Endpoints", func() {
 					Expect(response).ToNot(BeNil())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					var newPodName string
-
 					Eventually(func() string {
 						newPodName, err := getPodName(namespace, app1)
 						Expect(err).ToNot(HaveOccurred())
 						return newPodName
-					}).ShouldNot(Equal(oldPodName))
+					}, "2m").ShouldNot(Equal(oldPodName))
 
 					// Now try with no changes
 					oldPodName, err = getPodName(namespace, app1)
@@ -378,10 +376,11 @@ var _ = Describe("Services API Application Endpoints", func() {
 					Expect(response).ToNot(BeNil())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					newPodName, err = getPodName(namespace, app1)
-					Expect(err).ToNot(HaveOccurred())
-
-					Expect(newPodName).To(Equal(oldPodName))
+					Consistently(func() string {
+						newPodName, err := getPodName(namespace, app1)
+						Expect(err).ToNot(HaveOccurred())
+						return newPodName
+					}, "30s").Should(Equal(oldPodName))
 				})
 			})
 		})

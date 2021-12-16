@@ -12,8 +12,7 @@ import (
 )
 
 // Replace handles the API endpoint PUT /namespaces/:namespace/services/:app
-// It replaces the specified service. Currently this is only the
-// number of instances to run.
+// It replaces the specified service.
 func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
@@ -54,15 +53,14 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 		return apierror.InternalError(err)
 	}
 
-	// Determine bound apps, as candidates for restart.
-
-	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	// Perform restart on the candidates which are actually running
 	if restart {
+		// Determine bound apps, as candidates for restart.
+		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
 		for _, appName := range appNames {
 			app, err := application.Lookup(ctx, cluster, namespace, appName)
 			if err != nil {
