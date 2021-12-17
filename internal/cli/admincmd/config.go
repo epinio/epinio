@@ -172,7 +172,7 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 
 	log.Info("got secret", "secret", helmchart.EpinioCertificateName+"-tls")
 
-	return string(secret.Data["ca.crt"]), nil
+	return string(secret.Data["tls.crt"]), nil
 }
 
 // getEpinioURL finds the URL's for epinio from the cluster
