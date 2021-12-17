@@ -16,5 +16,3 @@ personal-setup
 /resources
 acceptance/acceptance.test
 .vscode
-assets/statikWebAssets/
-assets/statikWebViews/
