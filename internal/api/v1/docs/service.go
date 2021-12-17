@@ -106,6 +106,21 @@ type ServiceUpdateParam struct {
 	Body models.ServiceUpdateRequest
 }
 
+// swagger:route PUT /namespaces/{Namespace}/services/{Service} service ServiceReplace
+// Replace the named `Service` in the `Namespace` as per the instructions in the body
+// responses:
+//   200: ServiceReplaceResponse
+
+// swagger:parameters ServiceReplace
+type ServiceReplaceParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Service string
+	// in: body
+	Body models.ServiceReplaceRequest
+}
+
 // swagger:response ServiceUpdateResponse
 type ServiceUpdateResponse struct {
 	// in: body

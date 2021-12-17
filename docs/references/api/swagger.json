@@ -826,6 +826,39 @@
           }
         }
       },
+      "put": {
+        "description": "Replace the named `Service` in the `Namespace` as per the instructions in the body",
+        "tags": [
+          "service"
+        ],
+        "operationId": "ServiceReplace",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceReplaceRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceReplaceResponse"
+          }
+        }
+      },
       "delete": {
         "tags": [
           "service"
@@ -1403,6 +1436,14 @@
           "type": "string",
           "x-go-name": "Namespace"
         }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceReplaceRequest": {
+      "description": "ServiceReplaceRequest represents and contains the data needed to\nreplace a service instance",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
