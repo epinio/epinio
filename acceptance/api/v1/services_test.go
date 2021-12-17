@@ -347,11 +347,12 @@ var _ = Describe("Services API Application Endpoints", func() {
 
 			Describe("workload restarts", func() {
 				It("only restarts the app if the service has changed", func() {
-					getPodName := func(namespace, app string) (string, error) {
-						return helpers.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+					getPodNames := func(namespace, app string) ([]string, error) {
+						podName, err := helpers.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+						return strings.Split(podName, " "), err
 					}
 
-					oldPodName, err := getPodName(namespace, app1)
+					oldPodNames, err := getPodNames(namespace, app1)
 					Expect(err).ToNot(HaveOccurred())
 
 					response, err := env.Curl("PUT", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
@@ -360,14 +361,17 @@ var _ = Describe("Services API Application Endpoints", func() {
 					Expect(response).ToNot(BeNil())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					Eventually(func() string {
-						newPodName, err := getPodName(namespace, app1)
+					var newPodNames []string
+					// Wait until only one pod exists (restart is finished)
+					Eventually(func() int {
+						newPodNames, err = getPodNames(namespace, app1)
 						Expect(err).ToNot(HaveOccurred())
-						return newPodName
-					}, "2m").ShouldNot(Equal(oldPodName))
+						return len(newPodNames)
+					}, "1m").Should(Equal(1))
+					Expect(newPodNames).NotTo(Equal(oldPodNames))
 
 					// Now try with no changes
-					oldPodName, err = getPodName(namespace, app1)
+					oldPodNames, err = getPodNames(namespace, app1)
 					Expect(err).ToNot(HaveOccurred())
 
 					response, err = env.Curl("PUT", fmt.Sprintf("%s%s/namespaces/%s/services/%s",
@@ -376,11 +380,11 @@ var _ = Describe("Services API Application Endpoints", func() {
 					Expect(response).ToNot(BeNil())
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					Consistently(func() string {
-						newPodName, err := getPodName(namespace, app1)
+					Consistently(func() []string {
+						newPodNames, err := getPodNames(namespace, app1)
 						Expect(err).ToNot(HaveOccurred())
-						return newPodName
-					}, "30s").Should(Equal(oldPodName))
+						return newPodNames
+					}, "10s").Should(Equal(oldPodNames))
 				})
 			})
 		})
