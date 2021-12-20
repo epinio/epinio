@@ -14,6 +14,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/epinio/epinio/helpers/cahash"
@@ -103,16 +104,11 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	if err := c.BindJSON(&req); err != nil {
 		return apierror.NewBadRequest("Failed to unmarshal app stage request", err.Error())
 	}
-
 	if name != req.App.Name {
 		return apierror.NewBadRequest("name parameter from URL does not match name param in body")
 	}
 	if namespace != req.App.Namespace {
 		return apierror.NewBadRequest("namespace parameter from URL does not match namespace param in body")
-	}
-
-	if req.BuilderImage == "" {
-		return apierror.NewBadRequest("builder image cannot be empty")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -129,6 +125,11 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
+	builderImage, builderErr := getBuilderImage(req, app)
+	if builderErr != nil {
+		return *builderErr
+	}
+
 	log.Info("staging app", "namespace", namespace, "app", req)
 
 	staging, err := application.CurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
@@ -139,16 +140,15 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequest("pipelinerun for image ID still running")
 	}
 
-	// Validate incoming blob id before attempting to stage
-
-	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.TektonStagingNamespace, helmchart.S3ConnectionDetailsSecretName)
+	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
+		helmchart.TektonStagingNamespace, helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
-	apierr := validateBlob(ctx, req.BlobUID, req.App, s3ConnectionDetails)
-	if apierr != nil {
-		return apierr
+	blobUID, blobErr := getBlobUID(ctx, s3ConnectionDetails, req, app)
+	if blobErr != nil {
+		return *blobErr
 	}
 
 	// Create uid identifying the staging pipeline to be
@@ -196,8 +196,8 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	params := stageParam{
 		AppRef:              req.App,
-		BuilderImage:        req.BuilderImage,
-		BlobUID:             req.BlobUID,
+		BuilderImage:        builderImage,
+		BlobUID:             blobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
 		RegistryURL:         registryPublicURL,
@@ -223,6 +223,10 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
 	if err != nil {
 		return apierror.InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
+	}
+
+	if err := updateApp(ctx, cluster, app, params); err != nil {
+		return apierror.InternalError(err, "updating application CR with staging information")
 	}
 
 	imageURL := params.ImageURL(params.RegistryURL)
@@ -465,4 +469,89 @@ func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, name
 	}
 
 	return hash, nil
+}
+
+// getBuilderImage returns the builder image defined on the request. If that
+// one is not defined, it tries to find the builder image previously used on the
+// Application CR. If one is not found, it returns an error.
+func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (string, *apierror.APIErrors) {
+	var returnErr apierror.APIErrors
+
+	if req.BuilderImage != "" {
+		return req.BuilderImage, nil
+	}
+
+	builderImage, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "builderimage")
+	if err != nil {
+		returnErr = apierror.InternalError(err, "builderimage should be a string!")
+		return "", &returnErr
+	}
+
+	if builderImage == "" {
+		returnErr = apierror.NewBadRequest("request didn't provide a builder image and a previous one doesn't exist")
+		return "", &returnErr
+	}
+
+	return builderImage, nil
+}
+
+func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDetails, req models.StageRequest, app *unstructured.Unstructured) (string, *apierror.APIErrors) {
+	var blobUID string
+	var err error
+	var returnErr apierror.APIErrors
+
+	if req.BlobUID != "" {
+		blobUID = req.BlobUID
+	} else {
+		blobUID, err = findPreviousBlobUID(app)
+		if err != nil {
+			returnErr = apierror.InternalError(err, "looking up the previous blod UID")
+			return "", &returnErr
+		}
+	}
+
+	if blobUID == "" {
+		returnErr = apierror.NewBadRequest("request didn't provide a blobUID and a previous one doesn't exist")
+		return "", &returnErr
+	}
+
+	// Validate incoming blob id before attempting to stage
+	apierr := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
+	if apierr != nil {
+		return "", &apierr
+	}
+
+	return blobUID, nil
+}
+
+func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
+	blobUID, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "blobuid")
+	if err != nil {
+		return "", errors.New("blobuid should be string")
+	}
+
+	return blobUID, nil
+}
+
+func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
+	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {
+		return err
+	}
+
+	client, err := cluster.ClientApp()
+	if err != nil {
+		return err
+	}
+
+	namespace, _, err := unstructured.NestedString(app.UnstructuredContent(), "metadata", "namespace")
+	if err != nil {
+		return err
+	}
+
+	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
+
+	return err
 }
