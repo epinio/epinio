@@ -57,7 +57,6 @@ jobs:
         with:
           files: ./dist/*
           body_path: ./CHANGELOG.md
-          prerelease: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Allow to release Epinio Helm chart automatically when we release Epinio.
