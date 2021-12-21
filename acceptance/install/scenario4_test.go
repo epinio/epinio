@@ -69,12 +69,6 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		By("Updating Epinio config", func() {
-			out, err := epinioHelper.Run("config", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Ok"))
-		})
-
 		By("Extracting Loadbalancer Name", func() {
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -115,6 +109,12 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 
 		// Workaround to (try to!) ensure that the DNS is really propagated!
 		time.Sleep(3 * time.Minute)
+
+		By("Updating Epinio config", func() {
+			out, err := epinioHelper.Run("config", "update")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Ok"))
+		})
 
 		By("Checking Epinio info command", func() {
 			Eventually(func() string {
