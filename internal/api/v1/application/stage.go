@@ -445,7 +445,7 @@ func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, e
 }
 
 // The equivalent of:
-// kubectl get secret -n tekton-staging epinio-registry-tls -o json | jq -r '.["data"]["ca.crt"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n tekton-staging epinio-registry-tls -o json | jq -r '.["data"]["tls.crt"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
 func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
@@ -455,11 +455,11 @@ func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, name
 
 	// cert-manager doesn't add the CA for ACME certificates:
 	// https://github.com/jetstack/cert-manager/issues/2111
-	if _, found := secret.Data["ca.crt"]; !found {
+	if _, found := secret.Data["tls.crt"]; !found {
 		return "", nil
 	}
 
-	hash, err := cahash.GenerateHash(secret.Data["ca.crt"])
+	hash, err := cahash.GenerateHash(secret.Data["tls.crt"])
 	if err != nil {
 		return "", err
 	}
