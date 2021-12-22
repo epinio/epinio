@@ -217,3 +217,21 @@ jobs:
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make prepare_environment_k3d
           make test-acceptance-apps
+
+      - name: Failure Logs
+        if: failure()
+        run: |
+          mkdir -p tmp
+          kubectl get -A pod,service,ingress -o json > tmp/cluster.json
+          kubectl get -A events > tmp/events.log
+          docker logs k3d-epinio-acceptance-server-0 &> tmp/k3s.log
+          docker exec k3d-epinio-acceptance-server-0 sh -c 'cd /var/log/containers; grep -r "." .' > tmp/containers.log
+
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: acceptance-logs-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            tmp/*.json
+            tmp/*.log
+          retention-days: 2
