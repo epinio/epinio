@@ -121,12 +121,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		By("Updating Epinio config", func() {
-			out, err := epinioHelper.Run("config", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Ok"))
-		})
-
 		By("Checking Loadbalancer IP", func() {
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -139,6 +133,12 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			Expect(loadbalancer).ToNot(BeEmpty())
 			// We need to be sure that the specified IP is really used
 			Expect(loadbalancer).To(Equal(domainIP[0]))
+		})
+
+		By("Updating Epinio config", func() {
+			out, err := epinioHelper.Run("config", "update")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Ok"))
 		})
 
 		By("Checking Epinio info command", func() {

@@ -15,7 +15,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
+var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 	var (
 		appName      = catalog.NewAppName()
 		domain       string
@@ -37,8 +37,9 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 
 		flags = []string{
 			"--set", "domain=" + domain,
-			"--set", "tlsIssuer=letsencrypt-production",
+			"--set", "tlsIssuer=letsencrypt-staging",
 			"--set", "forceKubeInternalRegistryTLS=true",
+			"--set", "skipCertManager=true",
 		}
 	})
 
@@ -48,6 +49,24 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 	})
 
 	It("installs with letsencrypt prod cert and pushes an app", func() {
+		By("Installing CertManager", func() {
+			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
+			Expect(err).NotTo(HaveOccurred(), out)
+			out, err = proc.RunW("helm", "repo", "update")
+			Expect(err).NotTo(HaveOccurred(), out)
+			out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
+				"-n", "cert-manager",
+				"--create-namespace",
+				"--set", "installCRDs=true",
+				"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
+			)
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			// Create certificate secret and cluster_issuer
+			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("letsencrypt-staging.yaml"))
+			Expect(err).NotTo(HaveOccurred(), out)
+		})
+
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -55,12 +74,6 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)
-		})
-
-		By("Updating Epinio config", func() {
-			out, err := epinioHelper.Run("config", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Ok"))
 		})
 
 		By("Extracting AKS Loadbalancer IP", func() {
@@ -104,6 +117,12 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 		// Workaround to (try to!) ensure that the DNS is really propagated!
 		time.Sleep(3 * time.Minute)
 
+		By("Updating Epinio config", func() {
+			out, err := epinioHelper.Run("config", "update")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Ok"))
+		})
+
 		By("Checking Epinio info command", func() {
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("info")
@@ -123,7 +142,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt", func() {
 				"--selector", "app.kubernetes.io/name="+appName,
 				"-o", "jsonpath='{.items[*].spec.issuerRef.name}'")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Equal("'letsencrypt-production'"))
+			Expect(out).To(Equal("'letsencrypt-staging'"))
 		})
 
 		By("Cleaning DNS Entries", func() {
