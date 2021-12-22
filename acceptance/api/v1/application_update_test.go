@@ -28,12 +28,6 @@ var _ = Describe("AppUpdate Endpoint", func() {
 		containerImageURL = "splatform/sample-app"
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
-
-		// Wait for server to be up and running
-		Eventually(func() error {
-			_, err := env.Curl("GET", serverURL+v1.Root+"/info", strings.NewReader(""))
-			return err
-		}, "1m").ShouldNot(HaveOccurred())
 	})
 	AfterEach(func() {
 		env.DeleteNamespace(namespace)

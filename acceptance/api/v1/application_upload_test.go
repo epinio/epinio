@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -15,10 +16,19 @@ import (
 
 var _ = Describe("AppUpload Endpoint", func() {
 	var (
-		url     string
-		path    string
-		request *http.Request
+		namespace string
+		url       string
+		path      string
+		request   *http.Request
 	)
+
+	BeforeEach(func() {
+		namespace = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace)
+	})
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
 
 	JustBeforeEach(func() {
 		url = serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", namespace, "testapp")
