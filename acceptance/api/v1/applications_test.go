@@ -1,18 +1,12 @@
 package v1_test
 
 import (
-	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"mime/multipart"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -20,15 +14,12 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/domain"
-	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/routes"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -39,213 +30,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		namespace string
 	)
 	containerImageURL := "splatform/sample-app"
-
-	uploadRequest := func(url, path string) (*http.Request, error) {
-		file, err := os.Open(path)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to open tarball")
-		}
-		defer file.Close()
-
-		// create multipart form
-		body := &bytes.Buffer{}
-		writer := multipart.NewWriter(body)
-		part, err := writer.CreateFormFile("file", filepath.Base(file.Name()))
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to create multiform part")
-		}
-
-		_, err = io.Copy(part, file)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to write to multiform part")
-		}
-
-		err = writer.Close()
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to close multiform")
-		}
-
-		// make the request
-		request, err := http.NewRequest("POST", url, body)
-		request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to build request")
-		}
-		request.Header.Add("Content-Type", writer.FormDataContentType())
-
-		return request, nil
-	}
-
-	appFromAPI := func(namespace, app string) models.App {
-		response, err := env.Curl("GET",
-			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-				serverURL, v1.Root, namespace, app),
-			strings.NewReader(""))
-
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-		ExpectWithOffset(1, response).ToNot(BeNil())
-		defer response.Body.Close()
-		ExpectWithOffset(1, response.StatusCode).To(Equal(http.StatusOK))
-		bodyBytes, err := ioutil.ReadAll(response.Body)
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-		var responseApp models.App
-		err = json.Unmarshal(bodyBytes, &responseApp)
-		ExpectWithOffset(1, err).ToNot(HaveOccurred(), string(bodyBytes))
-		ExpectWithOffset(1, responseApp.Meta.Name).To(Equal(app))
-		ExpectWithOffset(1, responseApp.Meta.Namespace).To(Equal(namespace))
-
-		return responseApp
-	}
-
-	updateAppInstances := func(namespace string, app string, instances int32) (int, []byte) {
-		desired := instances
-		data, err := json.Marshal(models.ApplicationUpdateRequest{
-			Instances: &desired,
-		})
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-		response, err := env.Curl("PATCH",
-			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-				serverURL, v1.Root, namespace, app),
-			strings.NewReader(string(data)))
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-		ExpectWithOffset(1, response).ToNot(BeNil())
-
-		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-		return response.StatusCode, bodyBytes
-	}
-
-	updateAppInstancesNAN := func(namespace string, app string) (int, []byte) {
-		desired := int32(314)
-		data, err := json.Marshal(models.ApplicationUpdateRequest{
-			Instances: &desired,
-		})
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-		// Hack to make the Instances value non-number
-		data = []byte(strings.Replace(string(data), "314", `"thisisnotanumber"`, 1))
-
-		response, err := env.Curl("PATCH",
-			fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-				serverURL, v1.Root, namespace, app),
-			strings.NewReader(string(data)))
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-		ExpectWithOffset(1, response).ToNot(BeNil())
-
-		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
-		ExpectWithOffset(1, err).ToNot(HaveOccurred())
-
-		return response.StatusCode, bodyBytes
-	}
-
-	createApplication := func(name string, namespace string, routes []string) (*http.Response, error) {
-		request := models.ApplicationCreateRequest{
-			Name: name,
-			Configuration: models.ApplicationUpdateRequest{
-				Routes: routes,
-			},
-		}
-		b, err := json.Marshal(request)
-		if err != nil {
-			return nil, err
-		}
-		body := string(b)
-
-		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", namespace)
-		return env.Curl("POST", url, strings.NewReader(body))
-	}
-
-	waitForPipeline := func(stageID string) {
-		Eventually(func() string {
-			out, err := helpers.Kubectl("get", "pipelinerun",
-				"--namespace", helmchart.TektonStagingNamespace,
-				stageID,
-				"-o", "jsonpath={.status.conditions[0].status}")
-			Expect(err).NotTo(HaveOccurred())
-			return out
-		}, "5m").Should(Equal("True"))
-	}
-
-	uploadApplication := func(appName string) *models.UploadResponse {
-		uploadURL := serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", namespace, appName)
-		uploadPath := testenv.TestAssetPath("sample-app.tar")
-		uploadRequest, err := uploadRequest(uploadURL, uploadPath)
-		Expect(err).ToNot(HaveOccurred())
-		resp, err := env.Client().Do(uploadRequest)
-		Expect(err).ToNot(HaveOccurred())
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
-		Expect(err).ToNot(HaveOccurred())
-
-		respObj := &models.UploadResponse{}
-		err = json.Unmarshal(bodyBytes, &respObj)
-		Expect(err).ToNot(HaveOccurred())
-
-		return respObj
-	}
-
-	// returns all the objects currently stored on the S3 storage
-	listS3Blobs := func() []string {
-		out, err := helpers.Kubectl("get", "secret",
-			"-n", "minio-epinio",
-			"tenant-creds", "-o", "jsonpath={.data.accesskey}")
-		Expect(err).ToNot(HaveOccurred(), out)
-		accessKey, err := base64.StdEncoding.DecodeString(string(out))
-		Expect(err).ToNot(HaveOccurred(), string(out))
-
-		out, err = helpers.Kubectl("get", "secret",
-			"-n", "minio-epinio",
-			"tenant-creds", "-o", "jsonpath={.data.secretkey}")
-		Expect(err).ToNot(HaveOccurred(), out)
-		secretKey, err := base64.StdEncoding.DecodeString(string(out))
-		Expect(err).ToNot(HaveOccurred(), string(out))
-
-		rand, err := randstr.Hex16()
-		Expect(err).ToNot(HaveOccurred(), out)
-		// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
-		// and list all objects in the bucket (the "mc --quiet ls" command)
-		out, err = helpers.Kubectl("run", "-it",
-			"--restart=Never", "miniocli"+rand, "--rm",
-			"--image=minio/mc", "--command", "--",
-			"/bin/bash", "-c",
-			fmt.Sprintf("mc alias set minio http://minio.minio-epinio.svc.cluster.local %s %s 2>&1 > /dev/null && mc --quiet ls minio/epinio", string(accessKey), string(secretKey)))
-		Expect(err).ToNot(HaveOccurred(), out)
-
-		return strings.Split(string(out), "\n")
-	}
-
-	stageApplication := func(appName, namespace string, uploadResponse *models.UploadResponse) *models.StageResponse {
-		request := models.StageRequest{
-			App: models.AppRef{
-				Name:      appName,
-				Namespace: namespace,
-			},
-			BlobUID:      uploadResponse.BlobUID,
-			BuilderImage: "paketobuildpacks/builder:full",
-		}
-		b, err := json.Marshal(request)
-		Expect(err).NotTo(HaveOccurred())
-		body := string(b)
-
-		url := serverURL + v1.Root + "/" + v1.Routes.Path("AppStage", namespace, appName)
-		response, err := env.Curl("POST", url, strings.NewReader(body))
-		Expect(err).NotTo(HaveOccurred())
-
-		b, err = ioutil.ReadAll(response.Body)
-		Expect(err).NotTo(HaveOccurred())
-
-		stage := &models.StageResponse{}
-		err = json.Unmarshal(b, stage)
-		Expect(err).NotTo(HaveOccurred())
-
-		waitForPipeline(stage.Stage.ID)
-
-		return stage
-	}
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
@@ -805,146 +589,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
-		})
-
-		Context("with staging", func() {
-			When("staging an app with the blob of a different app", func() {
-				var appName2 string
-				var uploadResponse2 *models.UploadResponse
-
-				BeforeEach(func() {
-					appName2 = catalog.NewAppName()
-
-					By("creating the other application resource first")
-					_, err := createApplication(appName2, namespace, []string{})
-					Expect(err).ToNot(HaveOccurred())
-
-					By("uploading the code of the other")
-					uploadResponse2 = uploadApplication(appName2)
-
-					By("uploading the code of itself")
-					_ = uploadApplication(appName)
-				})
-
-				AfterEach(func() {
-					env.DeleteApp(appName2)
-				})
-
-				It("fails to stage", func() {
-					// Inlined stageApplication() to check for the error.
-					// Note how appName and uploadResponse2 are mixed.
-
-					request := models.StageRequest{
-						App: models.AppRef{
-							Name:      appName, // App 1
-							Namespace: namespace,
-						},
-						BlobUID:      uploadResponse2.BlobUID, // Code 2
-						BuilderImage: "paketobuildpacks/builder:full",
-					}
-					b, err := json.Marshal(request)
-					Expect(err).NotTo(HaveOccurred())
-					body := string(b)
-
-					url := serverURL + v1.Root + "/" + v1.Routes.Path("AppStage", namespace, appName)
-					response, err := env.Curl("POST", url, strings.NewReader(body))
-					Expect(err).NotTo(HaveOccurred())
-
-					b, err = ioutil.ReadAll(response.Body)
-					Expect(err).NotTo(HaveOccurred())
-
-					Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(b))
-
-					errResponse := &apierrors.ErrorResponse{}
-					err = json.Unmarshal(b, errResponse)
-					Expect(err).NotTo(HaveOccurred())
-
-					Expect(errResponse.Errors).To(HaveLen(1))
-					Expect(errResponse.Errors[0].Title).To(Equal("blob app mismatch"))
-					Expect(errResponse.Errors[0].Details).To(Equal("expected: " + appName + ", found: " + appName2))
-				})
-			})
-
-			When("staging the same app with a new blob", func() {
-				It("cleans up old S3 objects", func() {
-					By("uploading the code")
-					uploadResponse := uploadApplication(appName)
-					oldBlob := uploadResponse.BlobUID
-					By("staging the application")
-					_ = stageApplication(appName, namespace, uploadResponse)
-					Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
-
-					By("uploading the code again")
-					uploadResponse = uploadApplication(appName)
-					newBlob := uploadResponse.BlobUID
-					By("staging the application again")
-					_ = stageApplication(appName, namespace, uploadResponse)
-
-					Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
-					Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
-				})
-			})
-
-			When("deploying a new app", func() {
-				It("returns a success", func() {
-					By("uploading the code")
-					uploadResponse := uploadApplication(appName)
-
-					By("staging the application")
-					stageResponse := stageApplication(appName, namespace, uploadResponse)
-
-					By("deploying the staged resource")
-					request = models.DeployRequest{
-						App: models.AppRef{
-							Name:      appName,
-							Namespace: namespace,
-						},
-						Stage: models.StageRef{
-							ID: stageResponse.Stage.ID,
-						},
-						ImageURL: stageResponse.ImageURL,
-						Origin: models.ApplicationOrigin{
-							Kind: models.OriginPath,
-							Path: testenv.TestAssetPath("sample-app.tar"),
-						},
-					}
-
-					bodyBytes, err := json.Marshal(request)
-					Expect(err).ToNot(HaveOccurred())
-					body = string(bodyBytes)
-
-					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
-
-					response, err := env.Curl("POST", url, strings.NewReader(body))
-					Expect(err).ToNot(HaveOccurred())
-					Expect(response).ToNot(BeNil())
-					defer response.Body.Close()
-
-					bodyBytes, err = ioutil.ReadAll(response.Body)
-					Expect(err).ToNot(HaveOccurred())
-					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-					deploy := &models.DeployResponse{}
-					err = json.Unmarshal(bodyBytes, deploy)
-					Expect(err).NotTo(HaveOccurred())
-					Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
-
-					By("waiting for the deployment to complete")
-
-					url = serverURL + v1.Root + "/" + v1.Routes.Path("AppRunning", namespace, appName)
-
-					response, err = env.Curl("GET", url, strings.NewReader(body))
-					Expect(err).ToNot(HaveOccurred())
-					Expect(response).ToNot(BeNil())
-					defer response.Body.Close()
-
-					By("confirming at highlevel")
-					// Highlevel check and confirmation
-					Eventually(func() string {
-						return appFromAPI(namespace, appName).Workload.Status
-					}, "5m").Should(Equal("1/1"))
-				})
-			})
 		})
 
 		Context("with non-staging using custom container image", func() {
