@@ -294,6 +294,8 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 			return err
 		}
 
+		// TODO: Only delete the blob if it's not the same as the one on the current
+		// PipelineRun (which can happen if Epinio restages with the same blob).
 		if err = s3m.DeleteObject(ctx, pr.ObjectMeta.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
 			return err
 		}
