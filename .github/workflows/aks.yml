@@ -101,23 +101,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Add letsencrypt-staging CA
-        # We need to use pwsh as a shell to add the certificates
-        shell: pwsh
-        run: |
-          $FILE_LIST = "letsencrypt-stg-int-r3.pem","letsencrypt-stg-int-e1.pem"
-          foreach ($CERT_FILE in $FILE_LIST)
-          {
-            Invoke-WebRequest -Uri https://letsencrypt.org/certs/staging/$CERT_FILE -OutFile $CERT_FILE
-            certutil –addstore -f CA $CERT_FILE
-          }
-          $FILE_LIST = "letsencrypt-stg-root-x1.pem","letsencrypt-stg-root-x2.pem"
-          foreach ($CERT_FILE in $FILE_LIST)
-          {
-            Invoke-WebRequest -Uri https://letsencrypt.org/certs/staging/$CERT_FILE -OutFile $CERT_FILE
-            certutil –addstore -f Root $CERT_FILE
-          }
-
       # Follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
       # az group create --name epinioCI --location westeurope
       # az ad sp create-for-rbac --name "epinioCI" --sdk-auth --role contributor \
