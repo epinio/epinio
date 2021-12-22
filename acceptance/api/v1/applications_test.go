@@ -40,61 +40,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 	})
 
 	Context("Apps", func() {
-		Describe("DELETE /api/v1/namespaces/:namespace/applications/:app", func() {
-			It("removes the application, unbinds bound services", func() {
-				app1 := catalog.NewAppName()
-				env.MakeContainerImageApp(app1, 1, containerImageURL)
-				service := catalog.NewServiceName()
-				env.MakeService(service)
-				env.BindAppService(app1, service, namespace)
-				defer env.CleanupService(service)
-
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
-					serverURL, v1.Root, namespace, app1), strings.NewReader(""))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				Expect(response.StatusCode).To(Equal(http.StatusOK))
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-
-				var resp map[string][]string
-				err = json.Unmarshal(bodyBytes, &resp)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp).To(HaveLen(1))
-				Expect(resp).To(HaveKey("unboundservices"))
-				Expect(resp["unboundservices"]).To(ContainElement(service))
-			})
-
-			It("returns a 404 when the namespace does not exist", func() {
-				app1 := catalog.NewAppName()
-				env.MakeContainerImageApp(app1, 1, containerImageURL)
-				defer env.DeleteApp(app1)
-
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/idontexist/applications/%s",
-					serverURL, v1.Root, app1), strings.NewReader(""))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-
-				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			})
-
-			It("returns a 404 when the app does not exist", func() {
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/applications/bogus",
-					serverURL, v1.Root, namespace), strings.NewReader(""))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-
-				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
-			})
-		})
-
 		Describe("GET /api/v1/applications", func() {
 			var namespace1 string
 			var namespace2 string
