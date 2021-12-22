@@ -38,45 +38,6 @@ var _ = Describe("Apps API Application Endpoints", func() {
 		env.DeleteNamespace(namespace)
 	})
 
-	Context("Uploading", func() {
-
-		var (
-			url     string
-			path    string
-			request *http.Request
-		)
-
-		JustBeforeEach(func() {
-			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppUpload", namespace, "testapp")
-			var err error
-			request, err = uploadRequest(url, path)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		When("uploading a new dir", func() {
-			BeforeEach(func() {
-				path = testenv.TestAssetPath("sample-app.tar")
-			})
-
-			It("returns the app response", func() {
-				resp, err := env.Client().Do(request)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp).ToNot(BeNil())
-				defer resp.Body.Close()
-
-				bodyBytes, err := ioutil.ReadAll(resp.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-				r := &models.UploadResponse{}
-				err = json.Unmarshal(bodyBytes, &r)
-				Expect(err).ToNot(HaveOccurred())
-
-				Expect(r.BlobUID).ToNot(BeEmpty())
-			})
-		})
-	})
-
 	Context("Deploying", func() {
 		var (
 			url     string
