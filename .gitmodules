@@ -1,6 +1,3 @@
-[submodule "installer"]
-	path = installer
-	url = git@github.com:epinio/installer.git
 [submodule "helm-charts"]
 	path = helm-charts
 	url = git@github.com:epinio/helm-charts
