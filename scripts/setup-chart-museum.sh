@@ -1,10 +1,14 @@
 #!/bin/bash
 
-set -ex
+set -e
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 source "${SCRIPT_DIR}/helpers.sh"
+
+function wait_for_museum_accessible {
+	timeout 1m bash -c "until curl http://chartmuseum.${EPINIO_SYSTEM_DOMAIN} > /dev/null 2>&1; do sleep 1; done"
+}
 
 prepare_system_domain
 
@@ -15,6 +19,9 @@ helm upgrade --install chartmuseum chartmuseum/chartmuseum  \
 	--set ingress.hosts[0].name="chartmuseum.${EPINIO_SYSTEM_DOMAIN}" \
 	--set env.open.DISABLE_API=false \
 	--wait
+
+echo "Waiting for chartmuseum to be accessible"
+wait_for_museum_accessible
 
 # We need the helm push plugin to automatically package and push chart to our repo
 helm plugin install https://github.com/chartmuseum/helm-push.git || true
