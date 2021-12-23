@@ -100,18 +100,83 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("uploading the code")
 			uploadResponse := uploadApplication(appName, namespace)
 			oldBlob := uploadResponse.BlobUID
+
+			stageRequest := models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BlobUID:      oldBlob,
+				BuilderImage: "paketobuildpacks/builder:full",
+			}
 			By("staging the application")
-			_ = stageApplication(appName, namespace, uploadResponse)
+			_ = stageApplication(appName, namespace, stageRequest)
 			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
 
 			By("uploading the code again")
 			uploadResponse = uploadApplication(appName, namespace)
 			newBlob := uploadResponse.BlobUID
+
+			stageRequest = models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BlobUID:      newBlob,
+				BuilderImage: "paketobuildpacks/builder:full",
+			}
 			By("staging the application again")
-			_ = stageApplication(appName, namespace, uploadResponse)
+			_ = stageApplication(appName, namespace, stageRequest)
 
 			Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
+
+			// TODO: This is wrong!!!! We delete on Deploy not on Stage
+			// This must have passed, when we got that TTY error (?), or some other random
+			// error from minio. Then the blob appeared as missing.
+			// TODO: Move this test to Deploy.
 			Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
+		})
+	})
+
+	When("staging the same app with the same blob", func() {
+		It("doesn't clean up the S3 object", func() {
+			By("uploading the code")
+			uploadResponse := uploadApplication(appName, namespace)
+			oldBlob := uploadResponse.BlobUID
+
+			stageRequest := models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BlobUID:      oldBlob,
+				BuilderImage: "paketobuildpacks/builder:full",
+			}
+
+			By("staging the application")
+			_ = stageApplication(appName, namespace, stageRequest)
+			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
+
+			By("staging the application again")
+			_ = stageApplication(appName, namespace, stageRequest)
+			Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(oldBlob)))
+		})
+	})
+
+	When("staging the same app with the no blob defined", func() {
+		It("doesn't clean up the S3 object", func() {
+			By("uploading the code")
+			uploadResponse := uploadApplication(appName, namespace)
+			oldBlob := uploadResponse.BlobUID
+
+			stageRequest := models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BlobUID:      oldBlob,
+				BuilderImage: "paketobuildpacks/builder:full",
+			}
+			By("staging the application")
+			_ = stageApplication(appName, namespace, stageRequest)
+			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
+
+			stageRequest = models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BuilderImage: "paketobuildpacks/builder:full",
+			}
+			By("staging the application again")
+			_ = stageApplication(appName, namespace, stageRequest)
+
+			Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(oldBlob)))
 		})
 	})
 
@@ -120,8 +185,14 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("uploading the code")
 			uploadResponse := uploadApplication(appName, namespace)
 
+			stageRequest := models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BlobUID:      uploadResponse.BlobUID,
+				BuilderImage: "paketobuildpacks/builder:full",
+			}
+
 			By("staging the application")
-			stageResponse := stageApplication(appName, namespace, uploadResponse)
+			stageResponse := stageApplication(appName, namespace, stageRequest)
 
 			By("deploying the staged resource")
 			request = models.DeployRequest{
