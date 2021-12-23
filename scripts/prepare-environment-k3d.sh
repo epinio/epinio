@@ -2,13 +2,15 @@
 
 set -e
 
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+
+source "${SCRIPT_DIR}/helpers.sh"
+
 # UNAME should be darwin or linux
 UNAME="$(uname | tr "[:upper:]" "[:lower:]")"
 
 # EPINIO_BINARY is used to execute the installation commands
 EPINIO_BINARY="./dist/epinio-"${UNAME}"-amd64"
-
-SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
 function check_dependency {
 	for dep in "$@"
@@ -31,20 +33,6 @@ function create_docker_pull_secret {
 	fi
 }
 
-function prepare_system_domain {
-  if [[ -z "${EPINIO_SYSTEM_DOMAIN}" ]]; then
-    echo -e "\e[32mEPINIO_SYSTEM_DOMAIN not set. Trying to use a magic domain...\e[0m"
-    EPINIO_CLUSTER_IP=$(docker inspect k3d-epinio-acceptance-server-0 | jq -r '.[0]["NetworkSettings"]["Networks"]["epinio-acceptance"]["IPAddress"]')
-    if [[ -z $EPINIO_CLUSTER_IP ]]; then
-      echo "Couldn't find the cluster's IP address"
-      exit 1
-    fi
-
-    export EPINIO_SYSTEM_DOMAIN="${EPINIO_CLUSTER_IP}.omg.howdoi.website"
-  fi
-  echo -e "Using \e[32m${EPINIO_SYSTEM_DOMAIN}\e[0m for --system-domain"
-}
-
 # Ensure we have a value for --system-domain
 prepare_system_domain
 # Check Dependencies
@@ -52,24 +40,15 @@ check_dependency kubectl helm
 # Create docker registry image pull secret
 create_docker_pull_secret
 
-echo "Preparing Epinio manifest"
-echo "Replacing the system domain"
-sed -i "s/10.86.4.38.omg.howdoi.website/$EPINIO_SYSTEM_DOMAIN/" installer/assets/examples/manifest.yaml
-
-epinio_chart=$(readlink -e ${SCRIPT_DIR}/../helm-charts/chart/epinio)
-registry_chart=$(readlink -e ${SCRIPT_DIR}/../helm-charts/chart/container-registry)
-
-echo "Pointing to the local epinio helm chart"
-sed -i "s|url: https://github.com/epinio/helm-charts/releases/download/epinio.*.tgz|path: ${epinio_chart}|" installer/assets/examples/manifest.yaml
-
-echo "Pointing to the local container registry helm chart"
-sed -i "s|path: assets/container-registry/chart/container-registry/|path: ${registry_chart}|" installer/assets/examples/manifest.yaml
-
-
 echo "Installing Epinio"
-pushd "${SCRIPT_DIR}/../installer" > /dev/null
-../output/bin/epinio_installer --trace-level 10 install -m assets/examples/manifest.yaml
-popd
+helm repo update
+helm upgrade --install \
+	--set domain="$EPINIO_SYSTEM_DOMAIN" \
+	--set skipTraefik=true \
+	--set containerRegistryChart="http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}/charts/container-registry-0.1.0.tgz" \
+	--set epinioChart="http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}/charts/epinio-0.1.0.tgz" \
+	epinio-installer epinio-chartmuseum/epinio-installer
+
 
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh

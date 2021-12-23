@@ -168,7 +168,10 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
-prepare_environment_k3d: build-linux-amd64
+setup_chart_museum:
+	@./scripts/setup-chart-museum.sh
+
+prepare_environment_k3d: build-linux-amd64 setup_chart_museum
 	@./scripts/prepare-environment-k3d.sh
 
 unprepare_environment_k3d:
