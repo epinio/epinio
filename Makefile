@@ -60,9 +60,6 @@ build-s390x:
 build-images:
 	@./scripts/build-images.sh
 
-build-installer:
-	@./scripts/build-installer.sh
-
 compress:
 	upx --brute -1 ./dist/epinio-linux-arm32
 	upx --brute -1 ./dist/epinio-linux-arm64
@@ -171,8 +168,11 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
-prepare_environment_k3d: build-linux-amd64 build-installer
+setup_chart_museum:
+	@./scripts/setup-chart-museum.sh
+
+prepare_environment_k3d: build-linux-amd64 setup_chart_museum
 	@./scripts/prepare-environment-k3d.sh
 
 unprepare_environment_k3d:
-	@./scripts/unprepare-environment-k3d.sh
+	helm uninstall epinio-installer
