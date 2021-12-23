@@ -96,6 +96,7 @@ func stageApplication(appName, namespace string, uploadResponse *models.UploadRe
 
 	b, err = ioutil.ReadAll(response.Body)
 	Expect(err).NotTo(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(200), string(b))
 
 	stage := &models.StageResponse{}
 	err = json.Unmarshal(b, stage)
