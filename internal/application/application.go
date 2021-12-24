@@ -20,6 +20,7 @@ import (
 
 	epinioappv1 "github.com/epinio/application/api/v1"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
+	tektonv1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -255,7 +256,7 @@ func StageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 
 // Unstage removes staging resources. It deletes either all PipelineRuns of the
 // named application, or all but stageIDCurrent. It also deletes the staged
-// objects from the S3 storage.
+// objects from the S3 storage except for the current one.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.TektonStagingNamespace, helmchart.S3ConnectionDetailsSecretName)
@@ -282,10 +283,12 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return err
 	}
 
-	for _, pr := range l.Items {
+	var currentPipelineRun *tektonv1beta1.PipelineRun
+	for i, pr := range l.Items {
 		id := pr.Labels[models.EpinioStageIDLabel]
 		// stageIDCurrent is either empty or the id to keep
 		if stageIDCurrent != "" && stageIDCurrent == id {
+			currentPipelineRun = &l.Items[i]
 			continue
 		}
 
@@ -293,9 +296,15 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		if err != nil {
 			return err
 		}
+	}
 
-		// TODO: Only delete the blob if it's not the same as the one on the current
-		// PipelineRun (which can happen if Epinio restages with the same blob).
+	// Cleanup s3 objects
+	for _, pr := range l.Items {
+		// skip prs with the same blob as the current one (including the current one)
+		if currentPipelineRun != nil && pr.Labels[models.EpinioStageBlobUIDLabel] == currentPipelineRun.Labels[models.EpinioStageBlobUIDLabel] {
+			continue
+		}
+
 		if err = s3m.DeleteObject(ctx, pr.ObjectMeta.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
 			return err
 		}
