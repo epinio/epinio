@@ -174,8 +174,6 @@ func createS3HelperPod() {
 
 // returns all the objects currently stored on the S3 storage
 func listS3Blobs() []string {
-	createS3HelperPod()
-
 	// list all objects in the bucket (the "mc --quiet ls" command)
 	out, err := helpers.Kubectl("exec", minioHelperPod, "--", "mc", "--quiet", "ls", "minio/epinio")
 	Expect(err).ToNot(HaveOccurred(), out)

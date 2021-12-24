@@ -51,6 +51,8 @@ var _ = BeforeSuite(func() {
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
 
+	createS3HelperPod()
+
 	serverURL = "https://" + out
 	websocketURL = "wss://" + out
 })
