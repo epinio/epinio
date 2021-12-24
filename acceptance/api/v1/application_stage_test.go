@@ -2,12 +2,14 @@ package v1_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/testenv"
+	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -95,8 +97,8 @@ var _ = Describe("AppStage Endpoint", func() {
 		})
 	})
 
-	When("staging the same app with a new blob", func() {
-		It("cleans up old S3 objects", func() {
+	When("staging the same app with no blob defined", func() {
+		It("stages with the previous blob", func() {
 			By("uploading the code")
 			uploadResponse := uploadApplication(appName, namespace)
 			oldBlob := uploadResponse.BlobUID
@@ -107,76 +109,29 @@ var _ = Describe("AppStage Endpoint", func() {
 				BuilderImage: "paketobuildpacks/builder:full",
 			}
 			By("staging the application")
-			_ = stageApplication(appName, namespace, stageRequest)
+			stageResponse := stageApplication(appName, namespace, stageRequest)
 			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
 
-			By("uploading the code again")
-			uploadResponse = uploadApplication(appName, namespace)
-			newBlob := uploadResponse.BlobUID
-
-			stageRequest = models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
-				BlobUID:      newBlob,
-				BuilderImage: "paketobuildpacks/builder:full",
-			}
-			By("staging the application again")
-			_ = stageApplication(appName, namespace, stageRequest)
-
-			Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
-
-			// TODO: This is wrong!!!! We delete on Deploy not on Stage
-			// This must have passed, when we got that TTY error (?), or some other random
-			// error from minio. Then the blob appeared as missing.
-			// TODO: Move this test to Deploy.
-			Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
-		})
-	})
-
-	When("staging the same app with the same blob", func() {
-		It("doesn't clean up the S3 object", func() {
-			By("uploading the code")
-			uploadResponse := uploadApplication(appName, namespace)
-			oldBlob := uploadResponse.BlobUID
-
-			stageRequest := models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
-				BlobUID:      oldBlob,
-				BuilderImage: "paketobuildpacks/builder:full",
-			}
-
-			By("staging the application")
-			_ = stageApplication(appName, namespace, stageRequest)
-			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
-
-			By("staging the application again")
-			_ = stageApplication(appName, namespace, stageRequest)
-			Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(oldBlob)))
-		})
-	})
-
-	When("staging the same app with the no blob defined", func() {
-		It("doesn't clean up the S3 object", func() {
-			By("uploading the code")
-			uploadResponse := uploadApplication(appName, namespace)
-			oldBlob := uploadResponse.BlobUID
-
-			stageRequest := models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
-				BlobUID:      oldBlob,
-				BuilderImage: "paketobuildpacks/builder:full",
-			}
-			By("staging the application")
-			_ = stageApplication(appName, namespace, stageRequest)
-			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
+			pipelineBlobUID, err := helpers.Kubectl("get", "PipelineRuns",
+				"--namespace", "tekton-staging",
+				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
+				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
+			Expect(err).NotTo(HaveOccurred(), pipelineBlobUID)
+			Expect(pipelineBlobUID).To(Equal(oldBlob))
 
 			stageRequest = models.StageRequest{
 				App:          models.AppRef{Name: appName, Namespace: namespace},
 				BuilderImage: "paketobuildpacks/builder:full",
 			}
 			By("staging the application again")
-			_ = stageApplication(appName, namespace, stageRequest)
+			stageResponse = stageApplication(appName, namespace, stageRequest)
 
-			Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(oldBlob)))
+			pipelineBlobUID, err = helpers.Kubectl("get", "PipelineRuns",
+				"--namespace", "tekton-staging",
+				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
+				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
+			Expect(err).NotTo(HaveOccurred(), pipelineBlobUID)
+			Expect(pipelineBlobUID).To(Equal(oldBlob))
 		})
 	})
 

@@ -100,6 +100,28 @@ func stageApplication(appName, namespace string, stageRequest models.StageReques
 	return stage
 }
 
+func deployApplication(appName, namespace string, request models.DeployRequest) models.DeployResponse {
+	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
+	bodyBytes, err := json.Marshal(request)
+	Expect(err).ToNot(HaveOccurred())
+	body := string(bodyBytes)
+
+	response, err := env.Curl("POST", url, strings.NewReader(body))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).ToNot(BeNil())
+	defer response.Body.Close()
+
+	bodyBytes, err = ioutil.ReadAll(response.Body)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+	deploy := &models.DeployResponse{}
+	err = json.Unmarshal(bodyBytes, deploy)
+	Expect(err).NotTo(HaveOccurred())
+
+	return *deploy
+}
+
 func waitForPipeline(stageID string) {
 	Eventually(func() string {
 		out, err := helpers.Kubectl("get", "pipelinerun",
@@ -137,7 +159,7 @@ func createS3HelperPod() {
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
 	// Start the pod
-	out, err = helpers.Kubectl("run", minioHelperPod, "--image=minio/mc", "--command", "--", "sleep", "1000")
+	out, err = helpers.Kubectl("run", minioHelperPod, "--image=minio/mc", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Wait until the pod is ready
