@@ -28,7 +28,12 @@ var (
 	env testenv.EpinioEnv
 )
 
-var _ = BeforeSuite(func() {
+var _ = SynchronizedBeforeSuite(func() []byte {
+	fmt.Println("Creating the minio helper pod")
+	createS3HelperPod()
+
+	return []byte{}
+}, func(_ []byte) {
 	fmt.Printf("Running tests on node %d\n", config.GinkgoConfig.ParallelNode)
 
 	testenv.SetRoot("../../..")
@@ -50,8 +55,6 @@ var _ = BeforeSuite(func() {
 		"--namespace", "epinio", "epinio",
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
-
-	createS3HelperPod()
 
 	serverURL = "https://" + out
 	websocketURL = "wss://" + out
