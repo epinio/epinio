@@ -135,6 +135,42 @@ var _ = Describe("AppStage Endpoint", func() {
 		})
 	})
 
+	When("staging the same app with no BuilderImage defined", func() {
+		It("stages with the previous builder image", func() {
+			By("uploading the code")
+			uploadResponse := uploadApplication(appName, namespace)
+			oldBlob := uploadResponse.BlobUID
+			builderImage := "paketobuildpacks/builder:full"
+
+			stageRequest := models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BlobUID:      oldBlob,
+				BuilderImage: builderImage,
+			}
+			By("staging the application")
+			stageResponse := stageApplication(appName, namespace, stageRequest)
+
+			pipelineBuilderImage, err := helpers.Kubectl("get", "PipelineRuns",
+				"--namespace", "tekton-staging",
+				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
+				"-o", "jsonpath={.items[*].spec.params[?(@.name=='BUILDER_IMAGE')].value}")
+			Expect(err).NotTo(HaveOccurred(), pipelineBuilderImage)
+			Expect(pipelineBuilderImage).To(Equal(builderImage))
+
+			stageRequest = models.StageRequest{
+				App: models.AppRef{Name: appName, Namespace: namespace},
+			}
+			By("staging the application again")
+			stageResponse = stageApplication(appName, namespace, stageRequest)
+
+			pipelineBuilderImage, err = helpers.Kubectl("get", "PipelineRuns",
+				"--namespace", "tekton-staging",
+				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
+				"-o", "jsonpath={.items[*].spec.params[?(@.name=='BUILDER_IMAGE')].value}")
+			Expect(err).NotTo(HaveOccurred(), pipelineBuilderImage)
+			Expect(pipelineBuilderImage).To(Equal(builderImage))
+		})
+	})
 	When("staging and deploying a new app", func() {
 		It("returns a success", func() {
 			By("uploading the code")
