@@ -48,7 +48,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with letsencrypt prod cert and pushes an app", func() {
+	It("installs with letsencrypt-staging cert and pushes an app", func() {
 		By("Installing CertManager", func() {
 			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
 			Expect(err).NotTo(HaveOccurred(), out)
