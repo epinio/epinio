@@ -15,7 +15,6 @@ import (
 
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/helpers/randstr"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -23,6 +22,8 @@ import (
 
 	. "github.com/onsi/gomega"
 )
+
+const minioHelperPod = "miniocli"
 
 func uploadRequest(url, path string) (*http.Request, error) {
 	file, err := os.Open(path)
@@ -77,16 +78,8 @@ func uploadApplication(appName, namespace string) *models.UploadResponse {
 	return respObj
 }
 
-func stageApplication(appName, namespace string, uploadResponse *models.UploadResponse) *models.StageResponse {
-	request := models.StageRequest{
-		App: models.AppRef{
-			Name:      appName,
-			Namespace: namespace,
-		},
-		BlobUID:      uploadResponse.BlobUID,
-		BuilderImage: "paketobuildpacks/builder:full",
-	}
-	b, err := json.Marshal(request)
+func stageApplication(appName, namespace string, stageRequest models.StageRequest) *models.StageResponse {
+	b, err := json.Marshal(stageRequest)
 	Expect(err).NotTo(HaveOccurred())
 	body := string(b)
 
@@ -96,6 +89,7 @@ func stageApplication(appName, namespace string, uploadResponse *models.UploadRe
 
 	b, err = ioutil.ReadAll(response.Body)
 	Expect(err).NotTo(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(200), string(b))
 
 	stage := &models.StageResponse{}
 	err = json.Unmarshal(b, stage)
@@ -104,6 +98,28 @@ func stageApplication(appName, namespace string, uploadResponse *models.UploadRe
 	waitForPipeline(stage.Stage.ID)
 
 	return stage
+}
+
+func deployApplication(appName, namespace string, request models.DeployRequest) models.DeployResponse {
+	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
+	bodyBytes, err := json.Marshal(request)
+	Expect(err).ToNot(HaveOccurred())
+	body := string(bodyBytes)
+
+	response, err := env.Curl("POST", url, strings.NewReader(body))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).ToNot(BeNil())
+	defer response.Body.Close()
+
+	bodyBytes, err = ioutil.ReadAll(response.Body)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+	deploy := &models.DeployResponse{}
+	err = json.Unmarshal(bodyBytes, deploy)
+	Expect(err).NotTo(HaveOccurred())
+
+	return *deploy
 }
 
 func waitForPipeline(stageID string) {
@@ -117,9 +133,18 @@ func waitForPipeline(stageID string) {
 	}, "5m").Should(Equal("True"))
 }
 
-// returns all the objects currently stored on the S3 storage
-func listS3Blobs() []string {
-	out, err := helpers.Kubectl("get", "secret",
+// Create the S3 helper pod if it doesn't exist yet
+func createS3HelperPod() {
+	out, err := helpers.Kubectl("get", "pod", "-o", "name", minioHelperPod)
+	if err != nil {
+		// Only fail if the error isn't about the pod missing
+		Expect(out).To(MatchRegexp("not found"))
+	}
+	if strings.TrimSpace(out) == "pod/"+minioHelperPod { // already exists
+		return
+	}
+
+	out, err = helpers.Kubectl("get", "secret",
 		"-n", "minio-epinio",
 		"tenant-creds", "-o", "jsonpath={.data.accesskey}")
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -133,15 +158,24 @@ func listS3Blobs() []string {
 	secretKey, err := base64.StdEncoding.DecodeString(string(out))
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
-	rand, err := randstr.Hex16()
+	// Start the pod
+	out, err = helpers.Kubectl("run", minioHelperPod, "--image=minio/mc", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
 	Expect(err).ToNot(HaveOccurred(), out)
+
+	// Wait until the pod is ready
+	out, err = helpers.Kubectl("wait", "--for=condition=ready", "pod", minioHelperPod)
+	Expect(err).ToNot(HaveOccurred(), out)
+
 	// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
-	// and list all objects in the bucket (the "mc --quiet ls" command)
-	out, err = helpers.Kubectl("run", "-it",
-		"--restart=Never", "miniocli"+rand, "--rm",
-		"--image=minio/mc", "--command", "--",
-		"/bin/bash", "-c",
-		fmt.Sprintf("mc alias set minio http://minio.minio-epinio.svc.cluster.local %s %s 2>&1 > /dev/null && mc --quiet ls minio/epinio", string(accessKey), string(secretKey)))
+	out, err = helpers.Kubectl("exec", minioHelperPod, "--", "mc", "alias", "set", "minio",
+		"http://minio.minio-epinio.svc.cluster.local", string(accessKey), string(secretKey))
+	Expect(err).ToNot(HaveOccurred(), out)
+}
+
+// returns all the objects currently stored on the S3 storage
+func listS3Blobs() []string {
+	// list all objects in the bucket (the "mc --quiet ls" command)
+	out, err := helpers.Kubectl("exec", minioHelperPod, "--", "mc", "--quiet", "ls", "minio/epinio")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return strings.Split(string(out), "\n")
