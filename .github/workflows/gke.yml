@@ -1,0 +1,137 @@
+name: GKE-CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ ready_for_review ]
+    paths:
+      - 'acceptance/install/scenario2_test.go'
+      - '.github/workflows/gke.yml'
+  schedule:
+    - cron:  '0 5 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
+      gke_domain:
+        description: "GKE_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+
+env:
+  SETUP_GO_VERSION: '^1.17.2'
+  GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
+  GKE_ZONE: 'europe-west1-b'
+  GKE_MACHINE_TYPE: 'n2-standard-4'
+
+jobs:
+  linter:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Lint Epinio
+        run: make lint
+
+  acceptance-scenario2:
+    needs:
+      - linter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      # The system domain is managed by route53, we need credentials to update
+      # it to the loadbalancer's IP
+      - name: Configure AWS credentials for Route53
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/ginkgo@v1.16.2
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@master
+        with:
+          service_account_key: ${{ secrets.EPCI_GKE_SA_KEY }}
+          project_id: ${{ secrets.EPCI_GKE_PROJECT }}
+
+      - name: Create GKE cluster
+        id: create-cluster
+        run: |
+          id=$RANDOM
+          echo '::set-output name=ID::'$id
+          gcloud container clusters create epinioci$id \
+          --disk-size 100 \
+          --num-nodes=1 \
+          --machine-type ${{ env.GKE_MACHINE_TYPE }} \
+          --no-enable-cloud-logging \
+          --no-enable-cloud-monitoring  \
+          --zone ${{ env.GKE_ZONE }}
+
+      - name: Get kubeconfig file from GKE
+        run: |
+          id="${{ steps.create-cluster.outputs.ID }}"
+          gcloud container clusters get-credentials epinioci$id --zone ${{ env.GKE_ZONE }} --project ${{ secrets.EPCI_GKE_PROJECT }}
+
+      - name: Installation Acceptance Tests
+        env:
+          REGEX: Scenario2
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          # Use a random host name, so we don't collide with our workflows on GKE
+          GKE_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.gke_domain || secrets.GKE_DOMAIN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+        run: |
+          echo "System Domain: $GKE_DOMAIN"
+          export KUBECONFIG=$HOME/.kube/config
+          make test-acceptance-install
+
+      - name: Delete GKE cluster
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        run: |
+          id="${{ steps.create-cluster.outputs.ID }}"
+          gcloud container clusters delete epinioci$id --zone ${{ env.GKE_ZONE }} --quiet
