@@ -18,22 +18,22 @@ import (
 var _ = Describe("AppRestart Endpoint", func() {
 	var (
 		namespace string
+		app1      string
 	)
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
+		app1 = catalog.NewAppName()
+		env.MakeContainerImageApp(app1, 1, containerImageURL)
 	})
 	AfterEach(func() {
+		env.DeleteApp(app1)
 		env.DeleteNamespace(namespace)
 	})
 
 	It("restarts the app", func() {
-		app1 := catalog.NewAppName()
-		env.MakeContainerImageApp(app1, 1, containerImageURL)
-		defer env.DeleteApp(app1)
-
 		getPodNames := func(namespace, app string) ([]string, error) {
 			podName, err := helpers.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
 			return strings.Split(podName, " "), err
@@ -59,10 +59,6 @@ var _ = Describe("AppRestart Endpoint", func() {
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {
-		app1 := catalog.NewAppName()
-		env.MakeContainerImageApp(app1, 1, containerImageURL)
-		defer env.DeleteApp(app1)
-
 		response, err := env.Curl("POST", fmt.Sprintf("%s%s/namespaces/idontexist/applications/%s/restart",
 			serverURL, v1.Root, app1), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
