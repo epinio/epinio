@@ -73,7 +73,7 @@ spec:
   containers:
     - name: copier
       image: busybox:stable
-      command: ["/bin/sh", "-ec", "while :; do printf '.'; sleep 5 ; done"]
+      command: ["/bin/sh", "-ec", "trap : TERM INT; sleep infinity & wait"]
       volumeMounts:
         - mountPath: "/epinio"
           name: epinio-binary
