@@ -34,21 +34,28 @@ func GenerateHash(certRaw []byte) (string, error) {
 // -----------------------------------------------------------------------------------
 // See gh:paketo-buildpacks/ca-certificates (cacerts/certs.go) for the original code.
 
+// Iterates over pem blocks until a non-CA certificate if found or no other PEM
+// blocks exist.
 func decodeOneCert(raw []byte) (*x509.Certificate, error) {
-	block, rest := pem.Decode(raw)
-	if block == nil {
-		return nil, errors.New("failed find PEM data")
-	}
-	extra, _ := pem.Decode(rest)
-	if extra != nil {
-		return nil, errors.New("found multiple PEM blocks, expected exactly one")
+	byteData := raw
+	for len(byteData) > 0 {
+		block, rest := pem.Decode(byteData)
+		if block == nil {
+			return nil, errors.New("failed find PEM data")
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			byteData = rest
+			continue // pem block is not a cert? (e.g. maybe it was a dh_params block)
+		}
+		if !cert.IsCA {
+			return cert, nil
+		}
+		byteData = rest
 	}
 
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse certficate\n%w", err)
-	}
-	return cert, nil
+	return nil, errors.New("failed find PEM data")
 }
 
 // SubjectNameHash is a reimplementation of the X509_subject_name_hash

@@ -23,7 +23,25 @@ func (e *Epinio) Run(cmd string, args ...string) (string, error) {
 }
 
 func (e *Epinio) Install(args ...string) (string, error) {
-	out, err := e.Run("install", args...)
+	// Add a repo for Epinio Helm Chart
+	out, err := proc.RunW("helm", "repo", "add", "epinio-charts", "https://epinio.github.io/helm-charts")
+	if err != nil {
+		return out, err
+	}
+
+	// Update helm repos
+	out, err = proc.RunW("helm", "repo", "update")
+	if err != nil {
+		return out, err
+	}
+
+	// Install Epinio
+	opts := []string{
+		"install",
+		"epinio-installer",
+		"epinio-charts/epinio-installer",
+	}
+	out, err = proc.RunW("helm", append(opts, args...)...)
 	if err != nil {
 		return out, err
 	}
@@ -31,7 +49,7 @@ func (e *Epinio) Install(args ...string) (string, error) {
 }
 
 func (e *Epinio) Uninstall() (string, error) {
-	out, err := e.Run("uninstall")
+	out, err := proc.RunW("helm", "uninstall", "epinio-installer")
 	if err != nil {
 		return out, err
 	}

@@ -57,7 +57,6 @@ jobs:
         with:
           files: ./dist/*
           body_path: ./CHANGELOG.md
-          prerelease: "true"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Allow to release Epinio Helm chart automatically when we release Epinio.
@@ -71,6 +70,6 @@ jobs:
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
-          repository: epinio/epinio-helm-chart
+          repository: epinio/helm-charts
           event-type: epinio-release
           client-payload: '{"ref": "${{ steps.last-tag.outputs.TAG }}"}'
