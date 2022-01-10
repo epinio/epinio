@@ -127,7 +127,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	builderImage, builderErr := getBuilderImage(req, app)
 	if builderErr != nil {
-		return *builderErr
+		return builderErr
 	}
 
 	log.Info("staging app", "namespace", namespace, "app", req)
@@ -148,7 +148,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	blobUID, blobErr := getBlobUID(ctx, s3ConnectionDetails, req, app)
 	if blobErr != nil {
-		return *blobErr
+		return blobErr
 	}
 
 	// Create uid identifying the staging pipeline to be
@@ -474,7 +474,7 @@ func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, name
 // getBuilderImage returns the builder image defined on the request. If that
 // one is not defined, it tries to find the builder image previously used on the
 // Application CR. If one is not found, it returns an error.
-func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (string, *apierror.APIErrors) {
+func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (string, apierror.APIErrors) {
 	var returnErr apierror.APIErrors
 
 	if req.BuilderImage != "" {
@@ -484,18 +484,18 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 	builderImage, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "builderimage")
 	if err != nil {
 		returnErr = apierror.InternalError(err, "builderimage should be a string!")
-		return "", &returnErr
+		return "", returnErr
 	}
 
 	if builderImage == "" {
 		returnErr = apierror.NewBadRequest("request didn't provide a builder image and a previous one doesn't exist")
-		return "", &returnErr
+		return "", returnErr
 	}
 
 	return builderImage, nil
 }
 
-func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDetails, req models.StageRequest, app *unstructured.Unstructured) (string, *apierror.APIErrors) {
+func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDetails, req models.StageRequest, app *unstructured.Unstructured) (string, apierror.APIErrors) {
 	var blobUID string
 	var err error
 	var returnErr apierror.APIErrors
@@ -506,19 +506,19 @@ func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDet
 		blobUID, err = findPreviousBlobUID(app)
 		if err != nil {
 			returnErr = apierror.InternalError(err, "looking up the previous blod UID")
-			return "", &returnErr
+			return "", returnErr
 		}
 	}
 
 	if blobUID == "" {
 		returnErr = apierror.NewBadRequest("request didn't provide a blobUID and a previous one doesn't exist")
-		return "", &returnErr
+		return "", returnErr
 	}
 
 	// Validate incoming blob id before attempting to stage
 	apierr := validateBlob(ctx, blobUID, req.App, s3ConnectionDetails)
 	if apierr != nil {
-		return "", &apierr
+		return "", apierr
 	}
 
 	return blobUID, nil
