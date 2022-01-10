@@ -50,7 +50,7 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with letsencrypt prod cert, custom domain and pushes an app with 0 instances", func() {
+	It("installs with letsencrypt-staging cert, custom domain and pushes an app with 0 instances", func() {
 		By("Installing CertManager", func() {
 			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
 			Expect(err).NotTo(HaveOccurred(), out)

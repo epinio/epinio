@@ -158,6 +158,25 @@ type AppUploadResponse struct {
 	Body models.UploadResponse
 }
 
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/restart application AppRestart
+// Restart the named `App` in the `Namespace`.
+// responses:
+//   200: AppRestartResponse
+
+// swagger:parameters AppRestart
+type AppRestartParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppRestartResponse
+type AppRestartResponse struct {
+	// in: body
+	Body models.Response
+}
+
 // swagger:route POST /namespaces/{Namespace}/applications/{App}/import-git application AppImportGit
 // Store the named `App` from a Git repo in the `Namespace`.
 // responses:

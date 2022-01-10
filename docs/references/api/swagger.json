@@ -568,6 +568,34 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/restart": {
+      "post": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Restart the named `App` in the `Namespace`.",
+        "operationId": "AppRestart",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppRestartResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}/running": {
       "get": {
         "tags": [
@@ -1597,6 +1625,12 @@
     "AppLogsResponse": {
       "description": ""
     },
+    "AppRestartResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
     "AppRunningResponse": {
       "description": "",
       "schema": {
@@ -1724,6 +1758,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/ServiceDeleteResponse"
+      }
+    },
+    "ServiceReplaceResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
       }
     },
     "ServiceShowResponse": {

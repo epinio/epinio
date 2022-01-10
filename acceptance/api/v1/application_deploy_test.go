@@ -1,15 +1,12 @@
 package v1_test
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/helpers"
-	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo"
@@ -19,8 +16,6 @@ import (
 var _ = Describe("AppDeploy Endpoint", func() {
 	var (
 		namespace string
-		url       string
-		body      string
 		appName   string
 		request   models.DeployRequest
 	)
@@ -39,6 +34,101 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		env.DeleteApp(appName)
 	})
 
+	Context("with staging", func() {
+		var deployRequest models.DeployRequest
+
+		BeforeEach(func() {
+			deployRequest = models.DeployRequest{
+				App: models.AppRef{
+					Name:      appName,
+					Namespace: namespace,
+				},
+				Origin: models.ApplicationOrigin{
+					Kind: models.OriginPath,
+					Path: testenv.TestAssetPath("sample-app.tar"),
+				},
+			}
+		})
+
+		When("staging no other pipelinerun for the same blob exists", func() {
+			It("cleans up old S3 objects", func() {
+				By("uploading the code")
+				uploadResponse := uploadApplication(appName, namespace)
+				oldBlob := uploadResponse.BlobUID
+
+				stageRequest := models.StageRequest{
+					App:          models.AppRef{Name: appName, Namespace: namespace},
+					BlobUID:      oldBlob,
+					BuilderImage: "paketobuildpacks/builder:full",
+				}
+				By("staging the application")
+				_ = stageApplication(appName, namespace, stageRequest)
+				Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
+
+				By("uploading the code again")
+				uploadResponse = uploadApplication(appName, namespace)
+				newBlob := uploadResponse.BlobUID
+
+				stageRequest = models.StageRequest{
+					App:          models.AppRef{Name: appName, Namespace: namespace},
+					BlobUID:      newBlob,
+					BuilderImage: "paketobuildpacks/builder:full",
+				}
+				By("staging the application again")
+				stageResponse := stageApplication(appName, namespace, stageRequest)
+
+				Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
+
+				deployRequest.ImageURL = stageResponse.ImageURL
+				deployRequest.Stage.ID = stageRequest.BlobUID
+				deployApplication(appName, namespace, deployRequest)
+
+				Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
+			})
+		})
+
+		When("an older pipeline run for the same blob exists", func() {
+			It("doesn't delete the S3 object", func() {
+				By("uploading the code")
+				uploadResponse := uploadApplication(appName, namespace)
+				theOnlyBlob := uploadResponse.BlobUID
+
+				stageRequest := models.StageRequest{
+					App:          models.AppRef{Name: appName, Namespace: namespace},
+					BlobUID:      theOnlyBlob,
+					BuilderImage: "paketobuildpacks/builder:full",
+				}
+
+				By("staging the application")
+				_ = stageApplication(appName, namespace, stageRequest)
+				Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(theOnlyBlob)))
+
+				By("staging the application again")
+				stageResponse := stageApplication(appName, namespace, stageRequest)
+
+				// sanity check
+				out, err := helpers.Kubectl("get", "PipelineRuns",
+					"--namespace", "tekton-staging",
+					"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				blobUIDs := strings.Split(out, " ")
+				count := 0
+				for _, b := range blobUIDs {
+					if b == theOnlyBlob {
+						count += 1
+					}
+				}
+				Expect(count).To(Equal(2))
+
+				deployRequest.ImageURL = stageResponse.ImageURL
+				deployRequest.Stage.ID = stageResponse.Stage.ID
+				deployApplication(appName, namespace, deployRequest)
+
+				Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(theOnlyBlob)))
+			})
+		})
+	})
+
 	Context("with non-staging using custom container image", func() {
 		BeforeEach(func() {
 			request = models.DeployRequest{
@@ -52,31 +142,13 @@ var _ = Describe("AppDeploy Endpoint", func() {
 					Container: "splatform/sample-app",
 				},
 			}
-
-			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
 		})
 
 		When("deploying a new app", func() {
-			BeforeEach(func() {
-				bodyBytes, err := json.Marshal(request)
-				Expect(err).ToNot(HaveOccurred())
-				body = string(bodyBytes)
-			})
-
 			It("returns a success", func() {
-				response, err := env.Curl("POST", url, strings.NewReader(body))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
+				deployResponse := deployApplication(appName, namespace, request)
 
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-				deploy := &models.DeployResponse{}
-				err = json.Unmarshal(bodyBytes, deploy)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
 
 				Eventually(func() string {
 					return appFromAPI(namespace, appName).Workload.Status
@@ -104,12 +176,8 @@ var _ = Describe("AppDeploy Endpoint", func() {
 			})
 
 			It("the app Ingress matches the specified route", func() {
-				bodyBytes, err := json.Marshal(request)
-				Expect(err).ToNot(HaveOccurred())
-				body = string(bodyBytes)
 				// call the deploy action. Deploy should respect the routes on the App CR.
-				_, err = env.Curl("POST", url, strings.NewReader(body))
-				Expect(err).ToNot(HaveOccurred())
+				deployApplication(appName, namespace, request)
 
 				out, err := helpers.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
