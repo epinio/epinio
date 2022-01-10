@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
@@ -168,6 +169,37 @@ func UpdateService(ctx context.Context, cluster *kubernetes.Cluster, service *Se
 			ctx, serviceSecret, metav1.UpdateOptions{})
 		return err
 	})
+}
+
+// ReplaceService replaces an existing service
+func ReplaceService(ctx context.Context, cluster *kubernetes.Cluster, service *Service, data map[string]string) (bool, error) {
+	secretName := serviceResourceName(service.NamespaceName, service.Service)
+
+	serviceSecret, err := cluster.GetSecret(ctx, service.NamespaceName, secretName)
+	if err != nil {
+		return false, err
+	}
+
+	oldData := serviceSecret.Data
+
+	serviceSecret.Data = map[string][]byte{}
+	for k, v := range data {
+		serviceSecret.Data[k] = []byte(v)
+	}
+	if reflect.DeepEqual(oldData, serviceSecret.Data) {
+		return false, nil
+	}
+
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		_, err = cluster.Kubectl.CoreV1().Secrets(service.NamespaceName).Update(
+			ctx, serviceSecret, metav1.UpdateOptions{})
+		return err
+	})
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // Name returns the service instance's name

@@ -91,6 +91,12 @@ type ServiceCreateParam struct {
 	Service models.ServiceCreateRequest
 }
 
+// swagger:response ServiceCreateResponse
+type ServiceCreateResponse struct {
+	// in: body
+	Body models.Response
+}
+
 // swagger:route PATCH /namespaces/{Namespace}/services/{Service} service ServiceUpdate
 // Update the named `Service` in the `Namespace` as per the instructions in the body
 // responses:
@@ -112,8 +118,23 @@ type ServiceUpdateResponse struct {
 	Body models.Response
 }
 
-// swagger:response ServiceCreateResponse
-type ServiceCreateResponse struct {
+// swagger:route PUT /namespaces/{Namespace}/services/{Service} service ServiceReplace
+// Replace the named `Service` in the `Namespace` as per the instructions in the body
+// responses:
+//   200: ServiceReplaceResponse
+
+// swagger:parameters ServiceReplace
+type ServiceReplaceParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Service string
+	// in: body
+	Body models.ServiceReplaceRequest
+}
+
+// swagger:response ServiceReplaceResponse
+type ServiceReplaceResponse struct {
 	// in: body
 	Body models.Response
 }

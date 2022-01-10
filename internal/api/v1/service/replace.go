@@ -11,10 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Update handles the API endpoint PATCH /namespaces/:namespace/services/:app
-// It modifies the specified service. Currently this is only the
-// number of instances to run.
-func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
+// Replace handles the API endpoint PUT /namespaces/:namespace/services/:app
+// It replaces the specified service.
+func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
@@ -43,48 +42,44 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		}
 	}
 
-	// Retrieve and validate update request ...
-
-	var updateRequest models.ServiceUpdateRequest
-	err = c.BindJSON(&updateRequest)
+	var replaceRequest models.ServiceReplaceRequest
+	err = c.BindJSON(&replaceRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
 	}
 
-	// Save changes to resource
-
-	err = services.UpdateService(ctx, cluster, service, updateRequest)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	// Determine bound apps, as candidates for restart.
-
-	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
+	restart, err := services.ReplaceService(ctx, cluster, service, replaceRequest)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	// Perform restart on the candidates which are actually running
-
-	for _, appName := range appNames {
-		app, err := application.Lookup(ctx, cluster, namespace, appName)
+	if restart {
+		// Determine bound apps, as candidates for restart.
+		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 
-		// Restart workload, if any
-		if app.Workload != nil {
-			// TODO :: This plain restart is different from all other restarts
-			// (scaling, ev change, bound services change) ... The deployment
-			// actually does not change, at all. A resource the deployment
-			// references/uses changed, i.e. the service. We still have to
-			// trigger the restart somehow, so that the pod mounting the
-			// service remounts it for the new/changed keys.
-
-			err = application.NewWorkload(cluster, app.Meta).Restart(ctx)
+		for _, appName := range appNames {
+			app, err := application.Lookup(ctx, cluster, namespace, appName)
 			if err != nil {
 				return apierror.InternalError(err)
+			}
+
+			// Restart workload, if any
+			if app.Workload != nil {
+				// TODO :: This plain restart is different from all other restarts
+				// (scaling, ev change, bound services change) ... The deployment
+				// actually does not change, at all. A resource the deployment
+				// references/uses changed, i.e. the service. We still have to
+				// trigger the restart somehow, so that the pod mounting the
+				// service remounts it for the new/changed keys.
+
+				err = application.NewWorkload(cluster, app.Meta).Restart(ctx)
+				if err != nil {
+					return apierror.InternalError(err)
+				}
 			}
 		}
 	}

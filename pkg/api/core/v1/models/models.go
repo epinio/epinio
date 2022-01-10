@@ -45,6 +45,10 @@ type ServiceUpdateRequest struct {
 	Set    map[string]string `json:"edit,omitempty"`
 }
 
+// ServiceReplaceRequest represents and contains the data needed to
+// replace a service instance
+type ServiceReplaceRequest map[string]string
+
 // ServiceDeleteRequest represents and contains the data needed to delete a service
 type ServiceDeleteRequest struct {
 	Unbind bool `json:"unbind"`
