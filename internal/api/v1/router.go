@@ -78,6 +78,7 @@ var Routes = routes.NamedRoutes{
 	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.Controller{}.ImportGit)),
 	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Controller{}.Stage)), // See stage.go
 	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Controller{}.Deploy)),
+	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Controller{}.Restart)),
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Update)),
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Controller{}.Running)),
 
