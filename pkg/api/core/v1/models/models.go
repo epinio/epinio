@@ -128,12 +128,6 @@ type ApplicationCreateRequest struct {
 	Configuration ApplicationUpdateRequest `json:"configuration" yaml:"configuration,omitempty"`
 }
 
-// ApplicationRestartRequest represents and contains the data needed to
-// restart an application
-type ApplicationRestartRequest struct {
-	Name string `json:"name"          yaml:"name"`
-}
-
 // ApplicationUpdateRequest represents and contains the data needed to update
 // an application. Specifically to modify the number of replicas to
 // run, and the services bound to it.
