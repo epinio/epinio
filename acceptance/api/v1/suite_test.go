@@ -28,7 +28,12 @@ var (
 	env testenv.EpinioEnv
 )
 
-var _ = BeforeSuite(func() {
+var _ = SynchronizedBeforeSuite(func() []byte {
+	fmt.Println("Creating the minio helper pod")
+	createS3HelperPod()
+
+	return []byte{}
+}, func(_ []byte) {
 	fmt.Printf("Running tests on node %d\n", config.GinkgoConfig.ParallelNode)
 
 	testenv.SetRoot("../../..")

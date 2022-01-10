@@ -57,6 +57,10 @@ func patch(path string, h gin.HandlerFunc) routes.Route {
 	return routes.NewRoute("PATCH", path, h)
 }
 
+func put(path string, h gin.HandlerFunc) routes.Route {
+	return routes.NewRoute("PUT", path, h)
+}
+
 var Routes = routes.NamedRoutes{
 	"Info": get("/info", errorHandler(Info)),
 
@@ -74,6 +78,7 @@ var Routes = routes.NamedRoutes{
 	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.Controller{}.ImportGit)),
 	"AppStage":        post("/namespaces/:namespace/applications/:app/stage", errorHandler(application.Controller{}.Stage)), // See stage.go
 	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Controller{}.Deploy)),
+	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Controller{}.Restart)),
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Update)),
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Controller{}.Running)),
 
@@ -107,12 +112,13 @@ var Routes = routes.NamedRoutes{
 	// List, show, create and delete services
 	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
 	//
-	"AllServices":   get("/services", errorHandler(service.Controller{}.FullIndex)),
-	"Services":      get("/namespaces/:namespace/services", errorHandler(service.Controller{}.Index)),
-	"ServiceShow":   get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
-	"ServiceCreate": post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
-	"ServiceDelete": delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
-	"ServiceUpdate": patch("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Update)),
+	"AllServices":    get("/services", errorHandler(service.Controller{}.FullIndex)),
+	"Services":       get("/namespaces/:namespace/services", errorHandler(service.Controller{}.Index)),
+	"ServiceShow":    get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
+	"ServiceCreate":  post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
+	"ServiceDelete":  delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
+	"ServiceUpdate":  patch("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Update)),
+	"ServiceReplace": put("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Replace)),
 }
 
 // Lemon extends the specified router with the methods and urls
