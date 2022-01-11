@@ -51,10 +51,16 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, models.ServiceShowResponse{
-		Username:  service.User(),
-		Details:   serviceDetails,
-		BoundApps: appNames,
+	response.OKReturn(c, models.ServiceResponse{
+		Meta: models.ServiceRef{
+			Name:      service.Name(),
+			Namespace: service.Namespace(),
+		},
+		Configuration: models.ServiceShowResponse{
+			Username:  service.User(),
+			Details:   serviceDetails,
+			BoundApps: appNames,
+		},
 	})
 	return nil
 }

@@ -1769,7 +1769,7 @@
     "ServiceShowResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceShowResponse"
+        "$ref": "#/definitions/ServiceResponse"
       }
     },
     "ServiceUnbindReponse": {

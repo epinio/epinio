@@ -164,9 +164,9 @@ var _ = Describe("Services API Application Endpoints", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 
-			var data models.ServiceShowResponse
+			var data models.ServiceResponse
 			err = json.Unmarshal(bodyBytes, &data)
-			service := data.Details
+			service := data.Configuration.Details
 			Expect(err).ToNot(HaveOccurred())
 			Expect(service["username"]).To(Equal("epinio-user"))
 		})
@@ -230,9 +230,9 @@ var _ = Describe("Services API Application Endpoints", func() {
 			bodyBytesGet, err := ioutil.ReadAll(responseGet.Body)
 			Expect(err).ToNot(HaveOccurred())
 
-			var data models.ServiceShowResponse
+			var data models.ServiceResponse
 			err = json.Unmarshal(bodyBytesGet, &data)
-			service := data.Details
+			service := data.Configuration.Details
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(service["user"]).To(Equal("ci/cd"))
@@ -299,9 +299,9 @@ var _ = Describe("Services API Application Endpoints", func() {
 			bodyBytesGet, err := ioutil.ReadAll(responseGet.Body)
 			Expect(err).ToNot(HaveOccurred())
 
-			var data models.ServiceShowResponse
+			var data models.ServiceResponse
 			err = json.Unmarshal(bodyBytesGet, &data)
-			service := data.Details
+			service := data.Configuration.Details
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(service["put_key1"]).To(Equal("put_value"))

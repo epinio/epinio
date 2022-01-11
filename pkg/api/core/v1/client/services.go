@@ -171,8 +171,8 @@ func (c *Client) ServiceUpdate(req models.ServiceUpdateRequest, namespace, name 
 }
 
 // ServiceShow shows a service
-func (c *Client) ServiceShow(namespace string, name string) (models.ServiceShowResponse, error) {
-	var resp models.ServiceShowResponse
+func (c *Client) ServiceShow(namespace string, name string) (models.ServiceResponse, error) {
+	var resp models.ServiceResponse
 
 	data, err := c.get(api.Routes.Path("ServiceShow", namespace, name))
 	if err != nil {

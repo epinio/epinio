@@ -367,13 +367,13 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 	if err != nil {
 		return err
 	}
-	serviceDetails := resp.Details
-	boundApps := resp.BoundApps
+	serviceDetails := resp.Configuration.Details
+	boundApps := resp.Configuration.BoundApps
 
 	sort.Strings(boundApps)
 
 	c.ui.Note().
-		WithStringValue("User", resp.Username).
+		WithStringValue("User", resp.Configuration.Username).
 		WithStringValue("Used-By", strings.Join(boundApps, ", ")).
 		Msg("")
 
