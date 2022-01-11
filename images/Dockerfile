@@ -1,7 +1,7 @@
 ARG BASE_IMAGE=splatform/epinio-base
 
 ################
-FROM ruby:3.0.3 AS tools
+FROM ruby:3.1.0 AS tools
 WORKDIR /workdir
 COPY . .
 RUN apt-get update && apt-get install -y python3-venv
