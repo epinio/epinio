@@ -11,7 +11,7 @@ require (
 	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/logr v1.2.0
 	github.com/go-logr/stdr v0.4.0
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2
@@ -24,7 +24,7 @@ require (
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.16.4
-	github.com/onsi/gomega v1.15.0
+	github.com/onsi/gomega v1.17.0
 	github.com/pkg/errors v0.9.1
 	github.com/smartystreets/assertions v1.0.1 // indirect
 	github.com/spf13/cobra v1.2.1
@@ -36,7 +36,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.4
 	k8s.io/apiextensions-apiserver v0.21.4
-	k8s.io/apimachinery v0.21.4
+	k8s.io/apimachinery v0.23.1
 	k8s.io/client-go v0.21.4
 	k8s.io/metrics v0.21.4
 )
