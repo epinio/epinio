@@ -7,7 +7,7 @@ require (
 	github.com/briandowns/spinner v1.12.0
 	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
 	github.com/epinio/application v0.0.0-20211220165956-754df54dce77
-	github.com/fatih/color v1.12.0
+	github.com/fatih/color v1.13.0
 	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.7.4
 	github.com/go-git/go-git/v5 v5.4.2
@@ -16,7 +16,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/kyokomi/emoji v2.2.4+incompatible
-	github.com/mattn/go-colorable v0.1.8
+	github.com/mattn/go-colorable v0.1.9
 	github.com/mattn/go-isatty v0.0.14
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.3.0
 	github.com/mholt/archiver/v3 v3.5.1
