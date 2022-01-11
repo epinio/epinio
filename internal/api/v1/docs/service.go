@@ -75,7 +75,7 @@ type ServiceShowParam struct {
 // swagger:response ServiceShowResponse
 type ServiceShowResponse struct {
 	// in: body
-	Body models.ServiceShowResponse
+	Body models.ServiceResponse
 }
 
 // swagger:route POST /namespaces/{Namespace}/services service ServiceCreate
