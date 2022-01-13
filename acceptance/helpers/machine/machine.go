@@ -7,6 +7,7 @@ import (
 	"crypto/tls"
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -79,7 +80,7 @@ func (m *Machine) VerifyNamespaceNotExist(namespace string) {
 	ExpectWithOffset(1, out).ToNot(MatchRegexp(namespace))
 }
 
-func (m *Machine) MakeWebSocketConnection(url string) *websocket.Conn {
+func (m *Machine) MakeWebSocketConnection(url string, subprotocols ...string) *websocket.Conn {
 	headers := http.Header{
 		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", m.user, m.password)))},
 	}
@@ -88,8 +89,17 @@ func (m *Machine) MakeWebSocketConnection(url string) *websocket.Conn {
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
 		InsecureSkipVerify: true, // nolint:gosec // tests using self signed certs
 	}
-	ws, response, err := websocket.DefaultDialer.Dial(url, headers)
-	Expect(err).NotTo(HaveOccurred())
+
+	dialer := websocket.DefaultDialer
+	dialer.Subprotocols = subprotocols
+	ws, response, err := dialer.Dial(url, headers)
+
+	var b []byte
+	if response != nil {
+		b, _ = ioutil.ReadAll(response.Body)
+	}
+
+	Expect(err).NotTo(HaveOccurred(), string(b))
 	Expect(response.StatusCode).To(Equal(http.StatusSwitchingProtocols))
 	return ws
 }

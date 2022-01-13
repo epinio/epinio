@@ -1,10 +1,8 @@
 package application
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httputil"
-	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -46,6 +44,12 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
+	// app exists but has no workload to connect to
+	if app.Workload == nil {
+		return apierror.NewAPIError("Cannot connect to application without workload",
+			"", http.StatusBadRequest)
+	}
+
 	// TODO: Do we need to cleanup anything?
 	// defer func() {
 	// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
@@ -55,16 +59,23 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 
 	// TODO: Find podName from application and params (e.g. instance number etc).
 	// The application may have more than one pods.
-	podName := "sample-77b87b5f5b-swfj9"
+	podNames, err := application.NewWorkload(cluster, app.Meta).PodNames(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if len(podNames) < 1 {
+		return apierror.NewAPIError("couldn't find any Pods to connect to",
+			"", http.StatusBadRequest)
+	}
 
-	proxyRequest(c.Writer, c.Request, podName, namespace, appName, cluster.Kubectl)
+	proxyRequest(c.Writer, c.Request, podNames[0], namespace, appName, cluster.Kubectl)
 
 	return nil
 }
 
 func proxyRequest(rw http.ResponseWriter, req *http.Request, podName, namespace, container string, client thekubernetes.Interface) {
 	attachURL := client.CoreV1().RESTClient().
-		Get().
+		Post(). // ? https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/exec/exec.go#L352
 		Namespace(namespace).
 		Resource("pods").
 		Name(podName).
@@ -75,10 +86,10 @@ func proxyRequest(rw http.ResponseWriter, req *http.Request, podName, namespace,
 			Stderr:    true,
 			TTY:       true,
 			Container: container,
-			Command:   []string{"/bin/bash"},
+			// TODO: https://github.com/rancher/dashboard/blob/master/components/nav/WindowManager/ContainerShell.vue#L22
+			// What if the container doesn't have bash?
+			Command: []string{"/bin/sh", "-c", "TERM=xterm-256color; export TERM; exec /bin/bash"},
 		}, scheme.ParameterCodec).URL()
-
-	fmt.Printf("attachURL = %+v\n", attachURL)
 
 	// TODO: Impersonate-* stuff. Remove?
 	httpClient := client.CoreV1().RESTClient().(*rest.RESTClient).Client
@@ -86,15 +97,15 @@ func proxyRequest(rw http.ResponseWriter, req *http.Request, podName, namespace,
 		Director: func(req *http.Request) {
 			req.URL = attachURL
 			req.Host = attachURL.Host
-			for key := range req.Header {
-				if strings.HasPrefix(key, "Impersonate-Extra-") {
-					delete(req.Header, key)
-				}
-			}
-			delete(req.Header, "Impersonate-Group")
-			delete(req.Header, "Impersonate-User")
-			delete(req.Header, "Authorization")
+			// for key := range req.Header {
+			// 	if strings.HasPrefix(key, "Impersonate-Extra-") {
+			// 		delete(req.Header, key)
+			// 	}
+			// }
+			// delete(req.Header, "Impersonate-Group")
+			// delete(req.Header, "Impersonate-User")
 			delete(req.Header, "Cookie")
+			delete(req.Header, "Authorization")
 		},
 		Transport:     httpClient.Transport,
 		FlushInterval: time.Millisecond * 100,

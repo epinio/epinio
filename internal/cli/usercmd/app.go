@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,12 +15,14 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v2"
+	"k8s.io/apiserver/pkg/util/wsstream"
 
 	"github.com/epinio/epinio/helpers/bytes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"golang.org/x/term"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -470,6 +473,115 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 			ContainerName: logLine.ContainerName,
 		}, c.ui.ProgressNote().Compact())
 	}
+}
+
+func (c *EpinioClient) AppExec(appName string, interrupt chan bool) error {
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Config.Namespace).
+		WithStringValue("Application", appName).
+		Msg("Executing a shell")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	headers := http.Header{
+		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Config.User, c.Config.Password)))},
+	}
+	endpoint := api.Routes.Path("AppExec", c.Config.Namespace, appName)
+
+	dialer := websocket.DefaultDialer
+	dialer.Subprotocols = []string{wsstream.Base64ChannelWebSocketProtocol}
+	webSocketConn, _, err := dialer.Dial(fmt.Sprintf("%s%s/%s", c.API.WsURL, api.Root, endpoint), headers)
+	if err != nil {
+		//defer resp.Body.Close()
+		// TODO : what to do with this error?
+		//bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		return errors.Wrap(err,
+			fmt.Sprintf(
+				"Failed to connect to websockets endpoint.\n"+
+					"Response was = %s\n"+
+					"The error is %+v\n", "", err))
+	}
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Add(1)
+	go func() { // Closes the connection on "interrupt" or just stops on "done"
+		defer wg.Done()
+		defer func() {
+			// Used by the caller of this method to stop everything. We simply close
+			// the connection here. This will make the loop below to stop and send us
+			// a signal on "done" above. That will stop this go routine too.
+			// nolint:errcheck // no place to pass any error to.
+			webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
+			webSocketConn.Close()
+		}()
+
+		for {
+			_, message, err := webSocketConn.ReadMessage()
+			if err != nil {
+				if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
+					fmt.Println("websocket closed")
+					webSocketConn.Close()
+					return
+				}
+				panic(err) // TODO:
+			}
+
+			// TODO: Only print stdout and stderr channels. Skip stdin
+			messageData := message[1:] // Skip the protocol byte
+			decoded, err := base64.StdEncoding.DecodeString(string(messageData))
+			if err != nil {
+				panic(err) // TODO:
+			}
+
+			fmt.Printf("%s", string(decoded))
+		}
+	}()
+
+	// TODO:
+	// - Terminate the process on Ctrl+C (when the client exists the bash shell keeps running on the container)
+	// - Handle the connection properly (when it closes terminate go routines etc)
+	//   E.g. When you type "exit" in the shell you get a panic because the connection was closed
+	// - Resize terminal? https://github.com/kubernetes-ui/container-terminal/blob/ba560d4f715f405beb0a64bab8fb29a21aac2671/container-terminal.js#L152
+	// - Does our "raw" terminal solution work in other OSes? Try it
+
+	wg.Add(1)
+	go func() {
+		// switch stdin into 'raw' mode
+		oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+		if err != nil {
+			panic(err)
+		}
+		defer term.Restore(int(os.Stdin.Fd()), oldState)
+
+		// TODO: Makbe buffer bigger? For every byte we send, we add the `0` in front
+		// to specify the channel. This doubles (?) the amount of data we send.
+		// We don't expect tons of input from the user though. Maybe that's ok.
+		b := make([]byte, 1)
+		for {
+			_, err = os.Stdin.Read(b)
+			if err != nil {
+				panic(errors.Wrap(err, "reading input"))
+			}
+
+			// See "Communication protocol" here: https://cloud.redhat.com/blog/executing-commands-in-pods-using-k8s-api
+			// TODO: Should it be base64 encoded? Others are also doing it:
+			// https://github.com/rancher/dashboard/blob/master/components/nav/WindowManager/ContainerShell.vue#L181
+			// https://github.com/kubernetes-ui/container-terminal/blob/master/container-terminal.js#L130
+			textBytes := append([]byte("0"), []byte(base64.URLEncoding.EncodeToString(b))...)
+			if err := webSocketConn.WriteMessage(websocket.TextMessage, textBytes); err != nil {
+				panic(err)
+			}
+		}
+	}()
+	return nil
 }
 
 // Delete removes the named application from the cluster

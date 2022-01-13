@@ -50,6 +50,7 @@ func init() {
 	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdAppLogs)
+	CmdApp.AddCommand(CmdAppExec)
 	CmdApp.AddCommand(CmdAppManifest)
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppUpdate)
@@ -170,6 +171,35 @@ var CmdAppLogs = &cobra.Command{
 		err = client.AppLogs(args[0], stageID, follow, nil)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error streaming application logs")
+	},
+}
+
+// CmdAppExec implements the command: epinio apps exec
+var CmdAppExec = &cobra.Command{
+	Use:   "exec NAME",
+	Short: "creates a shell to the application",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		// TODO: "--instance" ? to define the app instance (the pod)
+		// follow, err := cmd.Flags().GetBool("follow")
+		// if err != nil {
+		// 	return errors.Wrap(err, "error reading option --follow")
+		// }
+
+		// Interrupt channel?
+		err = client.AppExec(args[0], nil)
+		if err != nil {
+			return errors.Wrap(err, "error getting a shell to application")
+		}
+
+		return nil
 	},
 }
 

@@ -27,7 +27,7 @@ wait_for_museum_accessible
 helm plugin install https://github.com/chartmuseum/helm-push.git || true
 
 # Add our new ephemeral repo
-helm repo add epinio-chartmuseum "http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}"
+helm repo add --force-update epinio-chartmuseum "http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}"
 
 pushd ${SCRIPT_DIR}/../helm-charts/
 helm cm-push -f --version "0.1.0" chart/container-registry/ epinio-chartmuseum
