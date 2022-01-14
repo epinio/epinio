@@ -3,6 +3,7 @@ dist/
 docs/
 images/
 output/
+helm-charts/
 
 contrib/
 tmp/
