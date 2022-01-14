@@ -13,7 +13,7 @@ func (c *Client) NamespaceCreate(req models.NamespaceCreateRequest) (models.Resp
 
 	b, err := json.Marshal(req)
 	if err != nil {
-		return resp, nil
+		return resp, err
 	}
 
 	data, err := c.post(api.Routes.Path("Namespaces"), string(b))
