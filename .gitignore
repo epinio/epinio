@@ -16,3 +16,6 @@ personal-setup
 /resources
 acceptance/acceptance.test
 .vscode
+.ignore
+contrib/
+Session.vim
