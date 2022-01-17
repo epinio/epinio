@@ -1,0 +1,37 @@
+apiVersion: skaffold/v2beta26
+kind: Config
+build:
+  artifacts:
+    # dockerfile builder doesn't seem to work with debug:
+    # - image: splatform/epinio-server
+    #   context: .
+    #   docker:
+    #     dockerfile: images/Dockerfile
+
+    # ko builder needs modification in helmchart since binary will be in /ko-app dir
+    - image: splatform/epinio-server
+      ko:
+        env:
+          - Version=0.0.1-dev
+          - CGO_ENABLED=0
+  # works with rancher-desktop, don't push the image to a registry
+  local:
+    push: false
+
+deploy:
+  helm:
+    releases:
+      - name: epinio
+        chartPath: helm-charts/chart/epinio
+        artifactOverrides:
+          image.epinio: splatform/epinio-server
+        imageStrategy:
+          helm: {}
+        wait: true
+        namespace: epinio
+        createNamespace: true
+        # helm get values -n epinio epinio > skaffold-values.yaml
+        valuesFiles:
+          - skaffold-values.yaml
+        setValues:
+          epinioBinary: /ko-app/epinio

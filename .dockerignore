@@ -5,6 +5,8 @@ images/
 output/
 helm-charts/
 
+skaffold.yaml
+
 contrib/
 tmp/
 .envrc
