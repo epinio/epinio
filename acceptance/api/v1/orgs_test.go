@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -215,7 +215,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(jsOK))
 
-				_, err = helpers.Kubectl("get", "namespace", namespace)
+				_, err = proc.Kubectl("get", "namespace", namespace)
 				Expect(err).To(HaveOccurred())
 			})
 

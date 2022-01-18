@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/onsi/ginkgo/config"
 )
 
@@ -22,7 +22,7 @@ func RegistryPassword() string {
 func CreateRegistrySecret() {
 	if RegistryUsername() != "" && RegistryPassword() != "" {
 		fmt.Printf("Creating image pull secret for Dockerhub on node %d\n", config.GinkgoConfig.ParallelNode)
-		_, _ = helpers.Kubectl("create", "secret", "docker-registry", "regcred",
+		_, _ = proc.Kubectl("create", "secret", "docker-registry", "regcred",
 			"--docker-server", "https://index.docker.io/v1/",
 			"--docker-username", RegistryUsername(),
 			"--docker-password", RegistryPassword(),

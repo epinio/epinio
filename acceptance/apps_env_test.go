@@ -2,7 +2,7 @@ package acceptance_test
 
 import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -14,7 +14,7 @@ var _ = Describe("apps env", func() {
 	)
 
 	secret := func(ns, appname string) string {
-		n, err := helpers.Kubectl("get", "secret", "--namespace", ns, appname+"-env", "-o", "jsonpath={.metadata.name}")
+		n, err := proc.Kubectl("get", "secret", "--namespace", ns, appname+"-env", "-o", "jsonpath={.metadata.name}")
 		if err != nil {
 			return ""
 		}
@@ -22,7 +22,7 @@ var _ = Describe("apps env", func() {
 	}
 
 	deployedEnv := func(ns, app string) string {
-		out, err := helpers.Kubectl("get", "deployment", "--namespace", ns, app, "-o", "jsonpath={.spec.template.spec.containers[0].env}")
+		out, err := proc.Kubectl("get", "deployment", "--namespace", ns, app, "-o", "jsonpath={.spec.template.spec.containers[0].env}")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}

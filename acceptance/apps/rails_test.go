@@ -11,7 +11,6 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -34,23 +33,23 @@ func (r *RailsApp) CreateDir() error {
 		return err
 	}
 
-	if out, err := helpers.RunProc(tmpDir, false,
+	if out, err := proc.Run(tmpDir, false,
 		"wget", r.SourceURL, "-O", "rails.tar"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	if out, err := helpers.RunProc(tmpDir, false, "mkdir", "rails"); err != nil {
+	if out, err := proc.Run(tmpDir, false, "mkdir", "rails"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	if out, err := helpers.RunProc(tmpDir, false,
+	if out, err := proc.Run(tmpDir, false,
 		"tar", "xvf", "rails.tar", "-C", "rails", "--strip-components", "1"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
 	r.Dir = path.Join(tmpDir, "rails")
 
-	if out, err := helpers.RunProc(tmpDir, false, "rm", "rails.tar"); err != nil {
+	if out, err := proc.Run(tmpDir, false, "rm", "rails.tar"); err != nil {
 		return errors.Wrap(err, out)
 	}
 

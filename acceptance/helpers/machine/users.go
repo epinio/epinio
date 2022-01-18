@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
 
 // CreateEpinioUser creates a new "user" BasicAuth Secret labeled as an Epinio User.
@@ -31,7 +31,7 @@ type: BasicAuth
 	Expect(err).ToNot(HaveOccurred())
 	defer os.Remove(secretTmpFile)
 
-	out, err := helpers.Kubectl("apply", "-f", secretTmpFile)
+	out, err := proc.Kubectl("apply", "-f", secretTmpFile)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return user, password
@@ -39,7 +39,7 @@ type: BasicAuth
 
 // DeleteEpinioUser deletes the relevant Kubernetes secret if it exists.
 func (m *Machine) DeleteEpinioUser(username string) error {
-	out, err := helpers.Kubectl("delete", "secret", "-n", "epinio", "epinio-user-"+username, "--ignore-not-found")
+	out, err := proc.Kubectl("delete", "secret", "-n", "epinio", "epinio-user-"+username, "--ignore-not-found")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return nil

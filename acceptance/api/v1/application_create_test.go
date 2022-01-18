@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -46,7 +46,7 @@ var _ = Describe("AppCreate Endpoint", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
-			out, err := helpers.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.routes[*]}")
+			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.routes[*]}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			routes := strings.Split(out, " ")
 			Expect(len(routes)).To(Equal(1))

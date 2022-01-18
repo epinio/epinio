@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo"
@@ -107,7 +107,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				stageResponse := stageApplication(appName, namespace, stageRequest)
 
 				// sanity check
-				out, err := helpers.Kubectl("get", "PipelineRuns",
+				out, err := proc.Kubectl("get", "PipelineRuns",
 					"--namespace", "tekton-staging",
 					"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
 				Expect(err).NotTo(HaveOccurred(), out)
@@ -156,7 +156,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 
 				// Check if autoserviceaccounttoken is true
 				labels := fmt.Sprintf("app.kubernetes.io/name=%s", appName)
-				out, err := helpers.Kubectl("get", "pod",
+				out, err := proc.Kubectl("get", "pod",
 					"--namespace", namespace,
 					"-l", labels,
 					"-o", "jsonpath={.items[*].spec.automountServiceAccountToken}")
@@ -169,7 +169,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 			var routes []string
 			BeforeEach(func() {
 				routes = append(routes, "appdomain.org", "appdomain2.org")
-				out, err := helpers.Kubectl("patch", "apps", "--type", "json",
+				out, err := proc.Kubectl("patch", "apps", "--type", "json",
 					"-n", namespace, appName, "--patch",
 					fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))
 				Expect(err).NotTo(HaveOccurred(), out)
@@ -179,7 +179,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				// call the deploy action. Deploy should respect the routes on the App CR.
 				deployApplication(appName, namespace, request)
 
-				out, err := helpers.Kubectl("get", "ingress",
+				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
 				Expect(err).NotTo(HaveOccurred(), out)
 				Expect(strings.Split(out, " ")).To(Equal(routes))

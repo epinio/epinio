@@ -16,7 +16,6 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
@@ -232,21 +231,21 @@ configuration:
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 			routeObj := routes.FromString(route)
-			out, err := helpers.Kubectl("get", "ingress",
+			out, err := proc.Kubectl("get", "ingress",
 				"--namespace", namespace,
 				"--selector=app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.rules[0].host}")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(routeObj.Domain))
 
-			out, err = helpers.Kubectl("get", "ingress",
+			out, err = proc.Kubectl("get", "ingress",
 				"--namespace", namespace,
 				"--selector=app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.rules[0].http.paths[0].path}")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(routeObj.Path))
 
-			out, err = helpers.Kubectl("get", "app",
+			out, err = proc.Kubectl("get", "app",
 				"--namespace", namespace, appName,
 				"-o", "jsonpath={.spec.routes[0]}")
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -268,7 +267,7 @@ configuration:
 
 			By("checking if the staging is using custom builder image")
 			labels := fmt.Sprintf("app.kubernetes.io/name=%s,tekton.dev/pipelineTask=stage", appName)
-			imageList, err := helpers.Kubectl("get", "pod",
+			imageList, err := proc.Kubectl("get", "pod",
 				"--namespace", helmchart.TektonStagingNamespace,
 				"-l", labels,
 				"-o", "jsonpath={.items[0].spec.containers[*].image}")
@@ -290,7 +289,7 @@ configuration:
 		}
 
 		replicas := func(ns, name string) string {
-			n, err := helpers.Kubectl("get", "deployment",
+			n, err := proc.Kubectl("get", "deployment",
 				"--namespace", ns, name,
 				"-o", "jsonpath={.spec.replicas}")
 			if err != nil {
@@ -362,7 +361,7 @@ configuration:
 			})
 
 			It("is using the cache PVC", func() {
-				out, err := helpers.Kubectl("get", "pvc", "--namespace",
+				out, err := proc.Kubectl("get", "pvc", "--namespace",
 					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 
@@ -374,12 +373,12 @@ configuration:
 		})
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
-				out, err := helpers.Kubectl("get", "pvc", "--namespace",
+				out, err := proc.Kubectl("get", "pvc", "--namespace",
 					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
-				out, err = helpers.Kubectl("get", "pvc", "--namespace",
+				out, err = proc.Kubectl("get", "pvc", "--namespace",
 					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).To(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName))))
@@ -403,7 +402,7 @@ configuration:
 
 			By("checking for the application resource", func() {
 				Eventually(func() string {
-					out, _ := helpers.Kubectl("get", "app",
+					out, _ := proc.Kubectl("get", "app",
 						"--namespace", namespace, appName)
 					return out
 				}, "1m").Should(ContainSubstring("AGE")) // this checks for the table header from kubectl
@@ -424,7 +423,7 @@ configuration:
 
 			By("checking the application resource was removed", func() {
 				Eventually(func() string {
-					out, _ := helpers.Kubectl("get", "app",
+					out, _ := proc.Kubectl("get", "app",
 						"--namespace", namespace, appName)
 					return out
 				}, "1m").Should(ContainSubstring("NotFound"))
@@ -513,13 +512,13 @@ configuration:
 			env.DeleteApp(appName)
 
 			Eventually(func() string {
-				out, _ := helpers.Kubectl("get", "ingress",
+				out, _ := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, appName)
 				return out
 			}, "1m").Should(ContainSubstring("not found"))
 
 			Eventually(func() string {
-				out, _ := helpers.Kubectl("get", "service",
+				out, _ := proc.Kubectl("get", "service",
 					"--namespace", namespace, appName)
 				return out
 			}, "1m").Should(ContainSubstring("not found"))

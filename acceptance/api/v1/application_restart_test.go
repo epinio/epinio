@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
@@ -35,7 +35,7 @@ var _ = Describe("AppRestart Endpoint", func() {
 
 	It("restarts the app", func() {
 		getPodNames := func(namespace, app string) ([]string, error) {
-			podName, err := helpers.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+			podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
 			return strings.Split(podName, " "), err
 		}
 

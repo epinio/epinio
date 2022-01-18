@@ -1,12 +1,8 @@
 package helpers
 
 import (
-	"bytes"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"os"
-	"os/exec"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -18,46 +14,6 @@ import (
 type ExternalFuncWithString func() (output string, err error)
 
 type ExternalFunc func() (err error)
-
-func RunProc(dir string, toStdout bool, command string, args ...string) (string, error) {
-	if os.Getenv("DEBUG") == "true" {
-		fmt.Printf("Executing: %s %v (in: %s)\n", command, args, dir)
-	}
-	cmd := exec.Command(command, args...)
-
-	var b bytes.Buffer
-	if toStdout {
-		cmd.Stdout = io.MultiWriter(os.Stdout, &b)
-		cmd.Stderr = io.MultiWriter(os.Stderr, &b)
-	} else {
-		cmd.Stdout = &b
-		cmd.Stderr = &b
-	}
-
-	cmd.Dir = dir
-
-	return b.String(), cmd.Run()
-}
-
-func RunProcNoErr(dir string, toStdout bool, command string, args ...string) (string, error) {
-	if os.Getenv("DEBUG") == "true" {
-		fmt.Printf("Executing %s %v\n", command, args)
-	}
-	cmd := exec.Command(command, args...)
-
-	var b bytes.Buffer
-	if toStdout {
-		cmd.Stdout = io.MultiWriter(os.Stdout, &b)
-		cmd.Stderr = nil
-	} else {
-		cmd.Stdout = &b
-		cmd.Stderr = nil
-	}
-
-	cmd.Dir = dir
-
-	return b.String(), cmd.Run()
-}
 
 // CreateTmpFile creates a temporary file on the disk with the given contents
 // and returns the path to it and an error if something goes wrong.
@@ -74,22 +30,6 @@ func CreateTmpFile(contents string) (string, error) {
 	}
 
 	return tmpfile.Name(), nil
-}
-
-// Kubectl invokes the `kubectl` command in PATH, running the specified command.
-// It returns the command output and/or error.
-func Kubectl(command ...string) (string, error) {
-	_, err := exec.LookPath("kubectl")
-	if err != nil {
-		return "", errors.Wrap(err, "kubectl not in path")
-	}
-
-	currentdir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	return RunProc(currentdir, false, "kubectl", command...)
 }
 
 // WaitForCommandCompletion prints progress dots until the func completes

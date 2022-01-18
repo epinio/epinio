@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -32,7 +32,7 @@ func (w *WordpressApp) CreateDir() error {
 	if w.Dir, err = ioutil.TempDir("", "epinio-acceptance"); err != nil {
 		return err
 	}
-	if out, err := helpers.RunProc(w.Dir, false, "wget", w.SourceURL); err != nil {
+	if out, err := proc.Run(w.Dir, false, "wget", w.SourceURL); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -41,14 +41,14 @@ func (w *WordpressApp) CreateDir() error {
 		return err
 	}
 
-	if out, err := helpers.RunProc(w.Dir, false, "tar", append([]string{"xvf"}, tarPaths...)...); err != nil {
+	if out, err := proc.Run(w.Dir, false, "tar", append([]string{"xvf"}, tarPaths...)...); err != nil {
 		return errors.Wrap(err, out)
 	}
-	if out, err := helpers.RunProc(w.Dir, false, "mv", "wordpress", "htdocs"); err != nil {
+	if out, err := proc.Run(w.Dir, false, "mv", "wordpress", "htdocs"); err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	if out, err := helpers.RunProc("", false, "rm", tarPaths...); err != nil {
+	if out, err := proc.Run("", false, "rm", tarPaths...); err != nil {
 		return errors.Wrap(err, out)
 	}
 
@@ -82,7 +82,7 @@ extension=mysqli
 // If more than one route is specified for the app, it will return the first
 // one alphabetically.
 func (w *WordpressApp) AppURL() (string, error) {
-	out, err := helpers.Kubectl("get", "ingress",
+	out, err := proc.Kubectl("get", "ingress",
 		"--namespace", w.Namespace,
 		"--selector", "app.kubernetes.io/name="+w.Name,
 		"-o", "jsonpath={.items[*].spec.rules[*].host}")
