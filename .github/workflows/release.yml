@@ -5,71 +5,71 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      -
+        name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: recursive
           fetch-depth: 0
-      - name: Fetch Branch
-        id: branch
-        run: |
-          raw=$(git branch -r --contains ${{ github.ref }} | grep origin/main)
-          branch=${raw##*/}
-          echo "::set-output name=BRANCH_NAME::$branch"
-      - name: Setup Go
+      -
+        name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: '^1.17.2'
-      - name: Build Epinio
-        if: steps.branch.outputs.BRANCH_NAME == 'main'
-        run: |
-          make build-all-small
-      - name: Login to Docker Hub
+          go-version: '1.17'
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      -
+        name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
-      - name: Build Epinio images
-        if: steps.branch.outputs.BRANCH_NAME == 'main'
-        run: |
-          make build-images
-      - name: Create CHECKSUMS
-        if: steps.branch.outputs.BRANCH_NAME == 'main'
-        run: ( cd dist ; sha256sum -b epinio* > SHA256SUM.txt )
-      - name: Generate Changelog
-        uses: heinrichreimer/github-changelog-generator-action@v2.3
+      -
+        name: Login to GitHub Docker Registry
+        uses: docker/login-action@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          verbose: "true"
-          excludeLabels: "apparently external cause,chore,devops admin,duplicate,invalid,later,overcome by events,spike,wontfix,do not log,question,QA"
-          pullRequests: "false"
-          onlyLastTag: "true"
-          stripGeneratorNotice: "true"
-          issuesWoLabels: "true"
-          stripHeaders: "true"
-      - name: Release Epinio
-        uses: softprops/action-gh-release@v1
-        if: steps.branch.outputs.BRANCH_NAME == 'main'
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      -
+        name: Get current tag
+        id: get_tag
+        run: echo ::set-output name=TAG::${GITHUB_REF/refs\/heads\//}
+      -
+        uses: release-drafter/release-drafter@v5
         with:
-          files: ./dist/*
-          body_path: ./CHANGELOG.md
+          name: "${{ steps.get_tag.outputs.TAG }}"
+          tag: ${{ steps.get_tag.outputs.TAG }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v2
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --rm-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       # Allow to release Epinio Helm chart automatically when we release Epinio.
       # The latest tag is sent to the Helm chart repo.
-      - name: Get the last tag
-        id: last-tag
-        run: |
-          tag=$(git -P tag | tail -1)
-          echo '::set-output name=TAG::'$tag
-      - name: Repository Dispatch
+      -
+        name: Repository Dispatch
         uses: peter-evans/repository-dispatch@v1
         with:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
           repository: epinio/helm-charts
           event-type: epinio-release
-          client-payload: '{"ref": "${{ steps.last-tag.outputs.TAG }}"}'
+          client-payload: '{"ref": "${{ steps.get_tag.outputs.TAG }}"}'

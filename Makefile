@@ -57,7 +57,7 @@ build-linux-s390x: build-s390x
 build-s390x:
 	GOARCH="s390x" GOOS="linux" CGO_ENABLED=$(CGO_ENABLED) go build $(BUILD_ARGS) -ldflags '$(LDFLAGS)' -o dist/epinio-linux-s390x
 
-build-images:
+build-images: build-linux-amd64
 	@./scripts/build-images.sh
 
 compress:
