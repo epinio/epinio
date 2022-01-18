@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/codeskyblue/kexec"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 
@@ -24,7 +23,7 @@ func RunProc(dir string, toStdout bool, cmd string, args ...string) (string, err
 	if os.Getenv("DEBUG") == "true" {
 		fmt.Printf("Executing: %s %v (in: %s)\n", cmd, args, dir)
 	}
-	p := kexec.Command(cmd, args...)
+	p := exec.Command(cmd, args...)
 
 	var b bytes.Buffer
 	if toStdout {
@@ -49,7 +48,7 @@ func RunProcNoErr(dir string, toStdout bool, cmd string, args ...string) (string
 	if os.Getenv("DEBUG") == "true" {
 		fmt.Printf("Executing %s %v\n", cmd, args)
 	}
-	p := kexec.Command(cmd, args...)
+	p := exec.Command(cmd, args...)
 
 	var b bytes.Buffer
 	if toStdout {

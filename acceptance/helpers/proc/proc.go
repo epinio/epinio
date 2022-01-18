@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"io"
 	"os"
-
-	"github.com/codeskyblue/kexec"
+	"os/exec"
 )
 
-func Get(dir, command string, arg ...string) (*kexec.KCommand, error) {
+func Get(dir, command string, arg ...string) (*exec.Cmd, error) {
 	var commandDir string
 	var err error
 
@@ -21,7 +20,7 @@ func Get(dir, command string, arg ...string) (*kexec.KCommand, error) {
 		commandDir = dir
 	}
 
-	p := kexec.Command(command, arg...)
+	p := exec.Command(command, arg...)
 	p.Dir = commandDir
 
 	return p, nil
