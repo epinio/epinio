@@ -43,7 +43,8 @@ func Run(dir string, toStdout bool, command string, args ...string) (string, err
 
 	cmd.Dir = dir
 
-	return b.String(), cmd.Run()
+	err := cmd.Run()
+	return b.String(), err
 }
 
 // Kubectl invokes the `kubectl` command in PATH, running the specified command.

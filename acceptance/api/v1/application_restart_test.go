@@ -8,7 +8,6 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	api "github.com/epinio/epinio/internal/api/v1"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
 	. "github.com/onsi/ginkgo"
@@ -43,7 +42,7 @@ var _ = Describe("AppRestart Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		response, err := env.Curl("POST", fmt.Sprintf("%s%s/namespaces/%s/applications/%s/restart",
-			serverURL, api.Root, namespace, app1), strings.NewReader(""))
+			serverURL, v1.Root, namespace, app1), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 		Expect(response.StatusCode).To(Equal(http.StatusOK))
