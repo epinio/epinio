@@ -6,6 +6,7 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
+	"github.com/epinio/epinio/internal/version"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -47,6 +48,7 @@ var CmdServer = &cobra.Command{
 		if err != nil {
 			return errors.Wrap(err, "failed to start server")
 		}
+		ui.Normal().Msg("Epinio version: " + version.Version)
 		ui.Normal().Msg("listening on localhost on port " + listeningPort)
 		httpServerWg.Wait()
 
