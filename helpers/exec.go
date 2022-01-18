@@ -19,54 +19,44 @@ type ExternalFuncWithString func() (output string, err error)
 
 type ExternalFunc func() (err error)
 
-func RunProc(dir string, toStdout bool, cmd string, args ...string) (string, error) {
+func RunProc(dir string, toStdout bool, command string, args ...string) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
-		fmt.Printf("Executing: %s %v (in: %s)\n", cmd, args, dir)
+		fmt.Printf("Executing: %s %v (in: %s)\n", command, args, dir)
 	}
-	p := exec.Command(cmd, args...)
+	cmd := exec.Command(command, args...)
 
 	var b bytes.Buffer
 	if toStdout {
-		p.Stdout = io.MultiWriter(os.Stdout, &b)
-		p.Stderr = io.MultiWriter(os.Stderr, &b)
+		cmd.Stdout = io.MultiWriter(os.Stdout, &b)
+		cmd.Stderr = io.MultiWriter(os.Stderr, &b)
 	} else {
-		p.Stdout = &b
-		p.Stderr = &b
+		cmd.Stdout = &b
+		cmd.Stderr = &b
 	}
 
-	p.Dir = dir
+	cmd.Dir = dir
 
-	if err := p.Run(); err != nil {
-		return b.String(), err
-	}
-
-	err := p.Wait()
-	return b.String(), err
+	return b.String(), cmd.Run()
 }
 
-func RunProcNoErr(dir string, toStdout bool, cmd string, args ...string) (string, error) {
+func RunProcNoErr(dir string, toStdout bool, command string, args ...string) (string, error) {
 	if os.Getenv("DEBUG") == "true" {
-		fmt.Printf("Executing %s %v\n", cmd, args)
+		fmt.Printf("Executing %s %v\n", command, args)
 	}
-	p := exec.Command(cmd, args...)
+	cmd := exec.Command(command, args...)
 
 	var b bytes.Buffer
 	if toStdout {
-		p.Stdout = io.MultiWriter(os.Stdout, &b)
-		p.Stderr = nil
+		cmd.Stdout = io.MultiWriter(os.Stdout, &b)
+		cmd.Stderr = nil
 	} else {
-		p.Stdout = &b
-		p.Stderr = nil
+		cmd.Stdout = &b
+		cmd.Stderr = nil
 	}
 
-	p.Dir = dir
+	cmd.Dir = dir
 
-	if err := p.Run(); err != nil {
-		return b.String(), err
-	}
-
-	err := p.Wait()
-	return b.String(), err
+	return b.String(), cmd.Run()
 }
 
 // CreateTmpFile creates a temporary file on the disk with the given contents
