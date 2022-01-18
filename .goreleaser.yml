@@ -1,0 +1,94 @@
+---
+project_name: epinio
+
+archives:
+  - name_template: '{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}'
+    replacements:
+      amd64: x86_64
+    format: binary
+    format_overrides:
+      - goos: windows
+        format: zip
+
+before:
+  hooks:
+    - go mod download
+
+builds:
+  - id: epinio
+    main: ./main.go
+    binary: epinio
+    ldflags:
+      - -w -s
+      - -X "github.com/epinio/epinio/internal/version.Version={{ .Tag }}"
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+
+changelog:
+  ## Delegate Changelog to release-drafter
+  skip: true
+
+env:
+  - CGO_ENABLED=0
+
+snapshot:
+  name_template: "{{ .Tag }}-next"
+
+dockers:
+  -
+    # ID of the image, needed if you want to filter by it later on (e.g. on custom publishers).
+    id: epinio
+
+    # GOOS of the built binaries/packages that should be used.
+    goos: linux
+
+    # GOARCH of the built binaries/packages that should be used.
+    goarch: amd64
+
+    # IDs to filter the binaries/packages.
+    ids:
+    - epinio
+
+    # Templates of the Docker image names.
+    image_templates:
+    - "splatform/epinio-server:{{ .Tag }}"
+    - "splatform/epinio-server:latest"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}"
+    - "ghcr.io/epinio/epinio-server:latest"
+
+    # Skips the docker push.
+    #skip_push: "true"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: images/Dockerfile
+
+    use: docker
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--build-arg=DIST_BINARY=epinio"
+    - "--build-arg=BASE_IMAGE=gcr.io/distroless/static:nonroot"
+    - "--platform=linux/amd64"
+
+    # If your Dockerfile copies files other than binaries and packages,
+    # you should list them here as well.
+    # Note that GoReleaser will create the same structure inside a temporary
+    # folder, so if you add `foo/bar.json` here, on your Dockerfile you can
+    # `COPY foo/bar.json /whatever.json`.
+    # Also note that the paths here are relative to the folder in which
+    # GoReleaser is being run (usually the repository root folder).
+    # This field does not support wildcards, you can add an entire folder here
+    # and use wildcards when you `COPY`/`ADD` in your Dockerfile.
+    extra_files: []
