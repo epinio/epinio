@@ -11,7 +11,7 @@ RUN go mod download
 
 COPY . .
 
-RUN make LDFLAGS+="-s -w" build-linux-amd64
+RUN LDFLAGS="$LDFLAGS -s -w" make build-linux-amd64
 
 ################
 FROM $BASE_IMAGE
