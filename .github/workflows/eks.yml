@@ -130,10 +130,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
           # Use a random host name, so we don't collide with our workflows on EKS
           AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aws_domain || secrets.AWS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aws_domain || secrets.AWS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           echo "System Domain: $AWS_DOMAIN"
           export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
+          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete EKS cluster

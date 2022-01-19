@@ -115,6 +115,9 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
         run: |
           export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+          # Get a free IP address on server's network
+          export EPINIO_SYSTEM_DOMAIN="$(scripts/get-free-ip.sh | sed -e 's/-.*$//').omg.howdoi.website"
+          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete RKE cluster

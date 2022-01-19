@@ -29,7 +29,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
 		// use Route53
-		domain = os.Getenv("AKS_DOMAIN")
+		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
 		Expect(domain).ToNot(BeEmpty())
 
 		zoneID = os.Getenv("AWS_ZONE_ID")

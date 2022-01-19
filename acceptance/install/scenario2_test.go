@@ -30,7 +30,7 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 	BeforeEach(func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
-		domain = os.Getenv("GKE_DOMAIN")
+		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
 		Expect(domain).ToNot(BeEmpty())
 
 		zoneID = os.Getenv("AWS_ZONE_ID")

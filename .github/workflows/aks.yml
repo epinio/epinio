@@ -137,11 +137,13 @@ jobs:
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
           # Use a random host name, so we don't collide with our workflows on AKS
           AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         shell: bash
         run: |
           echo "System Domain: $AKS_DOMAIN"
           export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
+          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete AKS cluster

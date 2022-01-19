@@ -23,14 +23,8 @@ func (e *Epinio) Run(cmd string, args ...string) (string, error) {
 }
 
 func (e *Epinio) Install(args ...string) (string, error) {
-	// Add a repo for Epinio Helm Chart
-	out, err := proc.RunW("helm", "repo", "add", "epinio-charts", "https://epinio.github.io/helm-charts")
-	if err != nil {
-		return out, err
-	}
-
-	// Update helm repos
-	out, err = proc.RunW("helm", "repo", "update")
+	// Update helm repos -- Assumes existence of helm repository providing the helm charts
+	out, err := proc.RunW("helm", "repo", "update")
 	if err != nil {
 		return out, err
 	}
