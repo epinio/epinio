@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
-	api "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
 	. "github.com/onsi/ginkgo"
@@ -35,7 +34,7 @@ var _ = Describe("AppRestart Endpoint", func() {
 
 	It("restarts the app", func() {
 		getPodNames := func(namespace, app string) ([]string, error) {
-			podName, err := helpers.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
+			podName, err := proc.Kubectl("get", "pods", "-n", namespace, "-l", fmt.Sprintf("app.kubernetes.io/name=%s", app), "-o", "jsonpath='{.items[*].metadata.name}'")
 			return strings.Split(podName, " "), err
 		}
 
@@ -43,7 +42,7 @@ var _ = Describe("AppRestart Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		response, err := env.Curl("POST", fmt.Sprintf("%s%s/namespaces/%s/applications/%s/restart",
-			serverURL, api.Root, namespace, app1), strings.NewReader(""))
+			serverURL, v1.Root, namespace, app1), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 		Expect(response.StatusCode).To(Equal(http.StatusOK))

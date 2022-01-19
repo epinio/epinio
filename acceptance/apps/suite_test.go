@@ -73,7 +73,7 @@ func FailWithReport(message string, callerSkip ...int) {
 	// NOTE: Use something like the following if you need to debug failed tests
 	// fmt.Println("\nA test failed. You may find the following information useful for debugging:")
 	// fmt.Println("The cluster pods: ")
-	// out, err := helpers.Kubectl("get pods --all-namespaces")
+	// out, err := proc.Kubectl("get pods --all-namespaces")
 	// if err != nil {
 	// 	fmt.Print(err.Error())
 	// } else {

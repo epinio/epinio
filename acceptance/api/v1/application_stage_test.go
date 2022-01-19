@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -112,7 +112,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			stageResponse := stageApplication(appName, namespace, stageRequest)
 			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
 
-			pipelineBlobUID, err := helpers.Kubectl("get", "PipelineRuns",
+			pipelineBlobUID, err := proc.Kubectl("get", "PipelineRuns",
 				"--namespace", "tekton-staging",
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
@@ -126,7 +126,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
 
-			pipelineBlobUID, err = helpers.Kubectl("get", "PipelineRuns",
+			pipelineBlobUID, err = proc.Kubectl("get", "PipelineRuns",
 				"--namespace", "tekton-staging",
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
@@ -150,7 +150,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application")
 			stageResponse := stageApplication(appName, namespace, stageRequest)
 
-			pipelineBuilderImage, err := helpers.Kubectl("get", "PipelineRuns",
+			pipelineBuilderImage, err := proc.Kubectl("get", "PipelineRuns",
 				"--namespace", "tekton-staging",
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].spec.params[?(@.name=='BUILDER_IMAGE')].value}")
@@ -163,7 +163,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
 
-			pipelineBuilderImage, err = helpers.Kubectl("get", "PipelineRuns",
+			pipelineBuilderImage, err = proc.Kubectl("get", "PipelineRuns",
 				"--namespace", "tekton-staging",
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].spec.params[?(@.name=='BUILDER_IMAGE')].value}")

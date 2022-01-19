@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/routes"
@@ -101,7 +101,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 
 		checkCertificateDNSNames := func(appName, namespaceName string, routes ...string) {
 			Eventually(func() int {
-				out, err := helpers.Kubectl("get", "certificates",
+				out, err := proc.Kubectl("get", "certificates",
 					"-n", namespaceName,
 					"--selector", "app.kubernetes.io/name="+appName,
 					"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
@@ -109,7 +109,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 				return len(deleteEmpty(strings.Split(out, " ")))
 			}, "20s", "1s").Should(Equal(len(routes)))
 
-			out, err := helpers.Kubectl("get", "certificates",
+			out, err := proc.Kubectl("get", "certificates",
 				"-n", namespaceName,
 				"--selector", "app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.dnsNames[*]}")
@@ -126,7 +126,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			}
 
 			Eventually(func() int {
-				out, err := helpers.Kubectl("get", "ingresses",
+				out, err := proc.Kubectl("get", "ingresses",
 					"-n", namespaceName,
 					"--selector", "app.kubernetes.io/name="+appName,
 					"-o", "jsonpath={.items[*].spec.rules[*].host}")
@@ -134,7 +134,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 				return len(deleteEmpty(strings.Split(out, " ")))
 			}, "20s", "1s").Should(Equal(len(routeObjects)))
 
-			out, err := helpers.Kubectl("get", "ingresses",
+			out, err := proc.Kubectl("get", "ingresses",
 				"-n", namespaceName,
 				"--selector", "app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={range .items[*]}{@.spec.rules[0].host}{@.spec.rules[0].http.paths[0].path} ")
@@ -153,7 +153,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 		// certificates are created.
 		checkSecretsForCerts := func(appName, namespaceName string, routes ...string) {
 			Eventually(func() int {
-				out, err := helpers.Kubectl("get", "certificates",
+				out, err := proc.Kubectl("get", "certificates",
 					"-n", namespaceName,
 					"--selector", "app.kubernetes.io/name="+appName,
 					"-o", "jsonpath={.items[*].spec.secretName}")
@@ -162,7 +162,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 				return len(certSecrets)
 			}, "20s", "1s").Should(Equal(len(routes)))
 
-			out, err := helpers.Kubectl("get", "certificates",
+			out, err := proc.Kubectl("get", "certificates",
 				"-n", namespaceName,
 				"--selector", "app.kubernetes.io/name="+appName,
 				"-o", "jsonpath={.items[*].spec.secretName}")
@@ -170,7 +170,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			certSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
 
 			Eventually(func() []string {
-				out, err = helpers.Kubectl("get", "secrets", "-n", namespaceName, "-o", "jsonpath={.items[*].metadata.name}")
+				out, err = proc.Kubectl("get", "secrets", "-n", namespaceName, "-o", "jsonpath={.items[*].metadata.name}")
 				Expect(err).ToNot(HaveOccurred(), out)
 				existingSecrets := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
 				return existingSecrets
@@ -178,7 +178,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 		}
 
 		checkRoutesOnApp := func(appName, namespaceName string, routes ...string) {
-			out, err := helpers.Kubectl("get", "apps", "-n", namespaceName, appName, "-o", "jsonpath={.spec.routes[*]}")
+			out, err := proc.Kubectl("get", "apps", "-n", namespaceName, appName, "-o", "jsonpath={.spec.routes[*]}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			appRoutes := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
 			Expect(appRoutes).To(Equal(routes))

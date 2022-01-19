@@ -13,8 +13,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -124,7 +124,7 @@ func deployApplication(appName, namespace string, request models.DeployRequest) 
 
 func waitForPipeline(stageID string) {
 	Eventually(func() string {
-		out, err := helpers.Kubectl("get", "pipelinerun",
+		out, err := proc.Kubectl("get", "pipelinerun",
 			"--namespace", helmchart.TektonStagingNamespace,
 			stageID,
 			"-o", "jsonpath={.status.conditions[0].status}")
@@ -135,7 +135,7 @@ func waitForPipeline(stageID string) {
 
 // Create the S3 helper pod if it doesn't exist yet
 func createS3HelperPod() {
-	out, err := helpers.Kubectl("get", "pod", "-o", "name", minioHelperPod)
+	out, err := proc.Kubectl("get", "pod", "-o", "name", minioHelperPod)
 	if err != nil {
 		// Only fail if the error isn't about the pod missing
 		Expect(out).To(MatchRegexp("not found"))
@@ -144,14 +144,14 @@ func createS3HelperPod() {
 		return
 	}
 
-	out, err = helpers.Kubectl("get", "secret",
+	out, err = proc.Kubectl("get", "secret",
 		"-n", "minio-epinio",
 		"tenant-creds", "-o", "jsonpath={.data.accesskey}")
 	Expect(err).ToNot(HaveOccurred(), out)
 	accessKey, err := base64.StdEncoding.DecodeString(string(out))
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
-	out, err = helpers.Kubectl("get", "secret",
+	out, err = proc.Kubectl("get", "secret",
 		"-n", "minio-epinio",
 		"tenant-creds", "-o", "jsonpath={.data.secretkey}")
 	Expect(err).ToNot(HaveOccurred(), out)
@@ -159,15 +159,15 @@ func createS3HelperPod() {
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
 	// Start the pod
-	out, err = helpers.Kubectl("run", minioHelperPod, "--image=minio/mc", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
+	out, err = proc.Kubectl("run", minioHelperPod, "--image=minio/mc", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Wait until the pod is ready
-	out, err = helpers.Kubectl("wait", "--for=condition=ready", "pod", minioHelperPod)
+	out, err = proc.Kubectl("wait", "--for=condition=ready", "pod", minioHelperPod)
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
-	out, err = helpers.Kubectl("exec", minioHelperPod, "--", "mc", "alias", "set", "minio",
+	out, err = proc.Kubectl("exec", minioHelperPod, "--", "mc", "alias", "set", "minio",
 		"http://minio.minio-epinio.svc.cluster.local", string(accessKey), string(secretKey))
 	Expect(err).ToNot(HaveOccurred(), out)
 }
@@ -175,7 +175,7 @@ func createS3HelperPod() {
 // returns all the objects currently stored on the S3 storage
 func listS3Blobs() []string {
 	// list all objects in the bucket (the "mc --quiet ls" command)
-	out, err := helpers.Kubectl("exec", minioHelperPod, "--", "mc", "--quiet", "ls", "minio/epinio")
+	out, err := proc.Kubectl("exec", minioHelperPod, "--", "mc", "--quiet", "ls", "minio/epinio")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return strings.Split(string(out), "\n")

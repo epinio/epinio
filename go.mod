@@ -5,7 +5,6 @@ go 1.15
 require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.18.0
-	github.com/codeskyblue/kexec v0.0.0-20180119015717-5a4bed90d99a
 	github.com/epinio/application v0.0.0-20211220165956-754df54dce77
 	github.com/fatih/color v1.13.0
 	github.com/gin-contrib/sessions v0.0.4
@@ -27,7 +26,6 @@ require (
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
 	github.com/pkg/errors v0.9.1
-	github.com/smartystreets/assertions v1.0.1 // indirect
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.0

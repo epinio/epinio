@@ -3,9 +3,8 @@ package machine
 import (
 	"fmt"
 
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/gomega"
-
-	"github.com/epinio/epinio/helpers"
 )
 
 func (m *Machine) MakeService(serviceName string) {
@@ -28,13 +27,13 @@ func (m *Machine) BindAppService(appName, serviceName, namespace string) {
 }
 
 func (m *Machine) VerifyAppServiceBound(appName, serviceName, namespace string, offset int) {
-	out, err := helpers.Kubectl("get", "deployment",
+	out, err := proc.Kubectl("get", "deployment",
 		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.volumes}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).To(MatchRegexp(serviceName))
 
-	out, err = helpers.Kubectl("get", "deployment",
+	out, err = proc.Kubectl("get", "deployment",
 		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.containers[0].volumeMounts}")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
@@ -84,13 +83,13 @@ func (m *Machine) UnbindAppService(appName, serviceName, namespace string) {
 }
 
 func (m *Machine) VerifyAppServiceNotbound(appName, serviceName, namespace string, offset int) {
-	out, err := helpers.Kubectl("get", "deployment",
+	out, err := proc.Kubectl("get", "deployment",
 		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.volumes}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp(serviceName))
 
-	out, err = helpers.Kubectl("get", "deployment",
+	out, err = proc.Kubectl("get", "deployment",
 		"--namespace", namespace, appName,
 		"-o", "jsonpath={.spec.template.spec.containers[0].volumeMounts}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)

@@ -4,25 +4,22 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"os/exec"
 
-	"github.com/codeskyblue/kexec"
+	"github.com/pkg/errors"
 )
 
-func Get(dir, command string, arg ...string) (*kexec.KCommand, error) {
-	var commandDir string
+func Get(dir, command string, arg ...string) (*exec.Cmd, error) {
 	var err error
 
 	if dir == "" {
-		commandDir, err = os.Getwd()
-		if err != nil {
+		if dir, err = os.Getwd(); err != nil {
 			return nil, err
 		}
-	} else {
-		commandDir = dir
 	}
 
-	p := kexec.Command(command, arg...)
-	p.Dir = commandDir
+	p := exec.Command(command, arg...)
+	p.Dir = dir
 
 	return p, nil
 }
@@ -32,25 +29,36 @@ func RunW(cmd string, args ...string) (string, error) {
 	return Run("", false, cmd, args...)
 }
 
-func Run(dir string, toStdout bool, cmd string, arg ...string) (string, error) {
-	p, err := Get(dir, cmd, arg...)
+func Run(dir string, toStdout bool, command string, args ...string) (string, error) {
+	cmd := exec.Command(command, args...)
+
+	var b bytes.Buffer
+	if toStdout {
+		cmd.Stdout = io.MultiWriter(os.Stdout, &b)
+		cmd.Stderr = io.MultiWriter(os.Stderr, &b)
+	} else {
+		cmd.Stdout = &b
+		cmd.Stderr = &b
+	}
+
+	cmd.Dir = dir
+
+	err := cmd.Run()
+	return b.String(), err
+}
+
+// Kubectl invokes the `kubectl` command in PATH, running the specified command.
+// It returns the command output and/or error.
+func Kubectl(command ...string) (string, error) {
+	_, err := exec.LookPath("kubectl")
+	if err != nil {
+		return "", errors.Wrap(err, "kubectl not in path")
+	}
+
+	currentdir, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 
-	var b bytes.Buffer
-	if toStdout {
-		p.Stdout = io.MultiWriter(os.Stdout, &b)
-		p.Stderr = io.MultiWriter(os.Stderr, &b)
-	} else {
-		p.Stdout = &b
-		p.Stderr = &b
-	}
-
-	if err := p.Run(); err != nil {
-		return b.String(), err
-	}
-
-	err = p.Wait()
-	return b.String(), err
+	return Run(currentdir, false, "kubectl", command...)
 }

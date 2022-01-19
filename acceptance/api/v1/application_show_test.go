@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
 	. "github.com/onsi/ginkgo"
@@ -45,7 +45,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		Expect(appObj.Workload.DesiredReplicas).To(BeNumerically("==", 1))
 		Expect(appObj.Workload.ReadyReplicas).To(BeNumerically("==", 1))
 
-		out, err := helpers.Kubectl("get", "pods",
+		out, err := proc.Kubectl("get", "pods",
 			fmt.Sprintf("--selector=app.kubernetes.io/name=%s", app),
 			"--namespace", namespace, "--output", "name")
 		Expect(err).ToNot(HaveOccurred())
@@ -53,7 +53,7 @@ var _ = Describe("AppShow Endpoint", func() {
 
 		// Run `yes > /dev/null &` and expect at least 1000 millicpus
 		// https://winaero.com/how-to-create-100-cpu-load-in-linux/
-		out, err = helpers.Kubectl("exec",
+		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", app,
 			"--", "bin/sh", "-c", "yes > /dev/null 2> /dev/null &")
 		Expect(err).ToNot(HaveOccurred(), out)
@@ -62,13 +62,13 @@ var _ = Describe("AppShow Endpoint", func() {
 			return appObj.Workload.MilliCPUs
 		}, "240s", "1s").Should(BeNumerically(">=", 900))
 		// Kill the "yes" process to bring CPU down again
-		out, err = helpers.Kubectl("exec",
+		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", app,
 			"--", "killall", "-9", "yes")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Increase memory for 3 minutes to check memory metric
-		out, err = helpers.Kubectl("exec",
+		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", app,
 			"--", "bin/bash", "-c", "cat <( </dev/zero head -c 50m) <(sleep 180) | tail")
 		Expect(err).ToNot(HaveOccurred(), out)
@@ -78,7 +78,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		}, "240s", "1s").Should(BeNumerically(">=", 0))
 
 		// Kill a linkerd proxy container and see the count staying unchanged
-		out, err = helpers.Kubectl("exec",
+		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", "linkerd-proxy",
 			"--", "bin/sh", "-c", "kill 1")
 		Expect(err).ToNot(HaveOccurred(), out)
@@ -89,7 +89,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		}, "5s", "1s").Should(BeNumerically("==", 0))
 
 		// Kill an app container and see the count increasing
-		out, err = helpers.Kubectl("exec",
+		out, err = proc.Kubectl("exec",
 			"--namespace", namespace, podNames[0], "--container", app,
 			"--", "bin/sh", "-c", "kill 1")
 		Expect(err).ToNot(HaveOccurred(), out)

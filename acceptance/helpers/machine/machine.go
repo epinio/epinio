@@ -14,7 +14,6 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/cli/config"
 	"github.com/gorilla/websocket"
 )
@@ -97,7 +96,7 @@ func (m *Machine) MakeWebSocketConnection(url string) *websocket.Conn {
 
 func (m *Machine) GetPodNames(appName, namespaceName string) []string {
 	jsonPath := `{range .items[*]}{.metadata.name}{"\n"}{end}`
-	out, err := helpers.Kubectl("get", "pods",
+	out, err := proc.Kubectl("get", "pods",
 		"--namespace", namespaceName,
 		"--selector", fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/name=%s, app.kubernetes.io/part-of=%s", appName, namespaceName),
 		"-o", "jsonpath="+jsonPath)
