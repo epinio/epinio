@@ -92,11 +92,13 @@ jobs:
       - name: Setup Ginkgo Test Framework
         run: go install github.com/onsi/ginkgo/ginkgo@v1.16.2
 
-      - name: Setup gcloud
-        uses: google-github-actions/setup-gcloud@master
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0'
         with:
-          service_account_key: ${{ secrets.EPCI_GKE_SA_KEY }}
-          project_id: ${{ secrets.EPCI_GKE_PROJECT }}
+          credentials_json: '${{ secrets.EPCI_GCP_CREDENTIALS }}'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v0
 
       - name: Create GKE cluster
         id: create-cluster
