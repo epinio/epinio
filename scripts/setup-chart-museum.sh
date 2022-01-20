@@ -23,6 +23,10 @@ helm upgrade --install chartmuseum chartmuseum/chartmuseum  \
 	"$@" \
 	--wait
 
+sleep 5
+# look at the service config for debug
+kubectl get svc --namespace default chartmuseum -o json
+
 echo "Waiting for chartmuseum to be accessible"
 wait_for_museum_accessible
 
