@@ -8,7 +8,8 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/helpers.sh"
 
 function wait_for_museum_accessible {
-	timeout 1m bash -c "until curl http://chartmuseum.${EPINIO_SYSTEM_DOMAIN} > /dev/null 2>&1; do sleep 1; done"
+    timeout 1m bash -c "until curl http://chartmuseum.${EPINIO_SYSTEM_DOMAIN} ; do sleep 1; done"
+    echo "Waiting ended"
 }
 
 prepare_system_domain
