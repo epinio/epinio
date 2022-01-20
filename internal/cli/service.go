@@ -133,7 +133,7 @@ var CmdServiceBind = &cobra.Command{
 
 		if len(args) == 1 {
 			// #args == 1: app name.
-			matches := app.AppsMatching(context.Background(), toComplete)
+			matches := app.AppsMatching(toComplete)
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 
@@ -164,7 +164,7 @@ var CmdServiceUnbind = &cobra.Command{
 
 		if len(args) == 1 {
 			// #args == 1: app name.
-			matches := app.AppsMatching(context.Background(), toComplete)
+			matches := app.AppsMatching(toComplete)
 			return matches, cobra.ShellCompDirectiveNoFileComp
 		}
 

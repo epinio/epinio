@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
@@ -26,7 +25,7 @@ var CmdApp = &cobra.Command{
 		if err := cmd.Usage(); err != nil {
 			return err
 		}
-		return fmt.Errorf(`Unknown method "%s"`, args[0])
+		return fmt.Errorf(`unknown method "%s"`, args[0])
 	},
 }
 
@@ -78,19 +77,17 @@ var CmdAppList = &cobra.Command{
 		}
 
 		err = client.Apps(all)
-		if err != nil {
-			return errors.Wrap(err, "error listing apps")
-		}
-
-		return nil
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error listing apps")
 	},
 }
 
 // CmdAppCreate implements the command: epinio apps create
 var CmdAppCreate = &cobra.Command{
-	Use:   "create NAME",
-	Short: "Create just the app, without creating a workload",
-	Args:  cobra.ExactArgs(1),
+	Use:               "create NAME",
+	Short:             "Create just the app, without creating a workload",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -111,33 +108,17 @@ var CmdAppCreate = &cobra.Command{
 		}
 
 		err = client.AppCreate(args[0], m.Configuration)
-		if err != nil {
-			return errors.Wrap(err, "error creating app")
-		}
-
-		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.AppsMatching(context.Background(), toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error creating app")
 	},
 }
 
 // CmdAppShow implements the command: epinio apps show
 var CmdAppShow = &cobra.Command{
-	Use:   "show NAME",
-	Short: "Describe the named application",
-	Args:  cobra.ExactArgs(1),
+	Use:               "show NAME",
+	Short:             "Describe the named application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -148,25 +129,8 @@ var CmdAppShow = &cobra.Command{
 		}
 
 		err = client.AppShow(args[0])
-		if err != nil {
-			return errors.Wrap(err, "error showing app")
-		}
-
-		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.AppsMatching(context.Background(), toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error showing app")
 	},
 }
 
@@ -204,21 +168,19 @@ var CmdAppLogs = &cobra.Command{
 		}
 
 		err = client.AppLogs(args[0], stageID, follow, nil)
-		if err != nil {
-			return errors.Wrap(err, "error streaming application logs")
-		}
-
-		return nil
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error streaming application logs")
 	},
 }
 
 // CmdAppUpdate implements the command: epinio apps update
 // It scales the named app
 var CmdAppUpdate = &cobra.Command{
-	Use:   "update NAME",
-	Short: "Update the named application",
-	Long:  "Update the running application's attributes (e.g. instances)",
-	Args:  cobra.ExactArgs(1),
+	Use:               "update NAME",
+	Short:             "Update the named application",
+	Long:              "Update the running application's attributes (e.g. instances)",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -239,33 +201,17 @@ var CmdAppUpdate = &cobra.Command{
 		}
 
 		err = client.AppUpdate(args[0], m.Configuration)
-		if err != nil {
-			return errors.Wrap(err, "error updating the app")
-		}
-
-		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.AppsMatching(context.Background(), toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error updating the app")
 	},
 }
 
 // CmdAppManifest implements the command: epinio apps manifest
 var CmdAppManifest = &cobra.Command{
-	Use:   "manifest NAME MANIFESTPATH",
-	Short: "Save state of the named application as a manifest",
-	Args:  cobra.ExactArgs(2),
+	Use:               "manifest NAME MANIFESTPATH",
+	Short:             "Save state of the named application as a manifest",
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -276,24 +222,7 @@ var CmdAppManifest = &cobra.Command{
 		}
 
 		err = client.AppManifest(args[0], args[1])
-		if err != nil {
-			return errors.Wrap(err, "error getting app manifest")
-		}
-
-		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.AppsMatching(context.Background(), toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error getting app manifest")
 	},
 }
