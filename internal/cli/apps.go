@@ -77,6 +77,7 @@ var CmdAppList = &cobra.Command{
 		}
 
 		err = client.Apps(all)
+		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error listing apps")
 	},
 }
@@ -107,6 +108,7 @@ var CmdAppCreate = &cobra.Command{
 		}
 
 		err = client.AppCreate(args[0], m.Configuration)
+		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error creating app")
 	},
 }
@@ -127,6 +129,7 @@ var CmdAppShow = &cobra.Command{
 		}
 
 		err = client.AppShow(args[0])
+		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error showing app")
 	},
 }
@@ -165,6 +168,7 @@ var CmdAppLogs = &cobra.Command{
 		}
 
 		err = client.AppLogs(args[0], stageID, follow, nil)
+		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error streaming application logs")
 	},
 }
@@ -197,11 +201,8 @@ var CmdAppUpdate = &cobra.Command{
 		}
 
 		err = client.AppUpdate(args[0], m.Configuration)
-		if err != nil {
-			return errors.Wrap(err, "error updating the app")
-		}
-
-		return nil
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error updating the app")
 	},
 }
 
@@ -221,6 +222,7 @@ var CmdAppManifest = &cobra.Command{
 		}
 
 		err = client.AppManifest(args[0], args[1])
+		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error getting app manifest")
 	},
 }
