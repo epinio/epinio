@@ -104,7 +104,7 @@ jobs:
       - name: Create RKE cluster
         id: create-cluster
         run: |
-          curl -sfL https://get.rke2.io | sudo sh -
+          curl -sfL https://get.rke2.io | sudo INSTALL_RKE2_METHOD=tar sh -
           sudo sh -c "echo RKE2_KUBECONFIG_MODE=0644 > /etc/sysconfig/rke2-server"
           sudo systemctl enable --now rke2-server
 
