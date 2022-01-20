@@ -91,6 +91,8 @@ func proxyRequest(rw http.ResponseWriter, req *http.Request, podName, namespace,
 			Command: []string{"/bin/sh", "-c", "TERM=xterm-256color; export TERM; exec /bin/bash"},
 		}, scheme.ParameterCodec).URL()
 
+	//TODO: How do we authenticate against kube? Is it a token in the above url?
+
 	// TODO: Impersonate-* stuff. Remove?
 	httpClient := client.CoreV1().RESTClient().(*rest.RESTClient).Client
 	p := httputil.ReverseProxy{

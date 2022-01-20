@@ -12,11 +12,15 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
+	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/transport"
 
 	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
 
 // AppCreate creates an application resource
@@ -329,4 +333,41 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
+}
+
+func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) error {
+	endpoint := fmt.Sprintf("%s%s/%s",
+		c.URL, api.Root, api.Routes.Path("AppExec", namespace, appName))
+
+	upgradeRoundTripper := spdy.NewRoundTripperWithConfig(spdy.RoundTripperConfig{
+		TLS:                      http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		FollowRedirects:          true,
+		RequireSameHostRedirects: false,
+		PingPeriod:               time.Second * 5,
+	})
+	// TODO: No useful error is printed when the credentials are wrong!
+	wrapper := transport.NewBasicAuthRoundTripper(c.user, c.password, upgradeRoundTripper)
+
+	execURL, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+
+	exec, err := remotecommand.NewSPDYExecutorForTransports(wrapper, upgradeRoundTripper, "GET", execURL)
+	if err != nil {
+		return err
+	}
+
+	fn := func() error {
+		options := remotecommand.StreamOptions{
+			Stdin:             tty.In,
+			Stdout:            tty.Out,
+			Stderr:            tty.Out, // TODO ?
+			Tty:               tty.Raw,
+			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
+		}
+		return exec.Stream(options)
+	}
+
+	return tty.Safe(fn)
 }

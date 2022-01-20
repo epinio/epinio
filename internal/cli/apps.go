@@ -193,8 +193,7 @@ var CmdAppExec = &cobra.Command{
 		// 	return errors.Wrap(err, "error reading option --follow")
 		// }
 
-		// Interrupt channel?
-		err = client.AppExec(args[0], nil)
+		err = client.AppExec(cmd.Context(), args[0])
 		if err != nil {
 			return errors.Wrap(err, "error getting a shell to application")
 		}

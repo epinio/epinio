@@ -32,13 +32,13 @@ require (
 	github.com/tektoncd/pipeline v0.28.0
 	github.com/ugorji/go v1.2.6 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
-	gopkg.in/ini.v1 v1.63.2
+	gopkg.in/ini.v1 v1.66.2
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.4
 	k8s.io/apiextensions-apiserver v0.21.4
 	k8s.io/apimachinery v0.21.4
 	k8s.io/apiserver v0.21.4
 	k8s.io/client-go v0.21.4
+	k8s.io/kubectl v0.21.4
 	k8s.io/metrics v0.21.4
 )
