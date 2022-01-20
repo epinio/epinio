@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/epinio/epinio/internal/cli/usercmd"
+	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
@@ -41,4 +43,36 @@ func CreateKubeClient(configPath string) kubernetes.Interface {
 	ExitfIfError(err, "an unexpected error occurred")
 
 	return clientset
+}
+
+// matchingAppsFinder return a list of matching apps from the provided partial command
+func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	app, err := usercmd.New()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	matches := app.AppsMatching(toComplete)
+
+	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
+// matchingNamespaceFinder return a list of matching namespaces from the provided partial command
+func matchingNamespaceFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	app, err := usercmd.New()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	matches := app.NamespacesMatching(toComplete)
+
+	return matches, cobra.ShellCompDirectiveNoFileComp
 }

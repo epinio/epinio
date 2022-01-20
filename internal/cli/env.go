@@ -36,10 +36,11 @@ func init() {
 
 // CmdEnvList implements the command: epinio app env list
 var CmdEnvList = &cobra.Command{
-	Use:   "list APPNAME",
-	Short: "Lists application environment",
-	Long:  "Lists environment variables of named application",
-	Args:  cobra.ExactArgs(1),
+	Use:               "list APPNAME",
+	Short:             "Lists application environment",
+	Long:              "Lists environment variables of named application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -54,20 +55,6 @@ var CmdEnvList = &cobra.Command{
 		}
 
 		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.AppsMatching(context.Background(), toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }
 
@@ -106,7 +93,7 @@ var CmdEnvSet = &cobra.Command{
 		}
 
 		// #args == 0: application name.
-		matches := app.AppsMatching(context.Background(), toComplete)
+		matches := app.AppsMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -150,7 +137,7 @@ var CmdEnvShow = &cobra.Command{
 		}
 
 		// #args == 0: application name.
-		matches := app.AppsMatching(context.Background(), toComplete)
+		matches := app.AppsMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
@@ -158,10 +145,11 @@ var CmdEnvShow = &cobra.Command{
 
 // CmdEnvUnset implements the command: epinio app env unset
 var CmdEnvUnset = &cobra.Command{
-	Use:   "unset APPNAME NAME",
-	Short: "Shrink application environment",
-	Long:  "Remove environment variable from named application",
-	Args:  cobra.ExactArgs(2),
+	Use:               "unset APPNAME NAME",
+	Short:             "Shrink application environment",
+	Long:              "Remove environment variable from named application",
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -177,21 +165,5 @@ var CmdEnvUnset = &cobra.Command{
 		}
 
 		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		// TODO: match EV names for arg 1 completion
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.AppsMatching(context.Background(), toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }

@@ -88,9 +88,10 @@ var CmdNamespaceCreate = &cobra.Command{
 
 // CmdNamespaceDelete implements the command: epinio namespace delete
 var CmdNamespaceDelete = &cobra.Command{
-	Use:   "delete NAME",
-	Short: "Deletes an epinio-controlled namespace",
-	Args:  cobra.ExactArgs(1),
+	Use:               "delete NAME",
+	Short:             "Deletes an epinio-controlled namespace",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingNamespaceFinder,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
 		force, err := cmd.Flags().GetBool("force")
 		if err != nil {
@@ -120,27 +121,14 @@ var CmdNamespaceDelete = &cobra.Command{
 
 		return nil
 	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.NamespacesMatching(toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
-	},
 }
 
 // CmdNamespaceShow implements the command: epinio namespace show
 var CmdNamespaceShow = &cobra.Command{
-	Use:   "show NAME",
-	Short: "Shows the details of an epinio-controlled namespace",
-	Args:  cobra.ExactArgs(1),
+	Use:               "show NAME",
+	Short:             "Shows the details of an epinio-controlled namespace",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingNamespaceFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -155,20 +143,6 @@ var CmdNamespaceShow = &cobra.Command{
 		}
 
 		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.NamespacesMatching(toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }
 

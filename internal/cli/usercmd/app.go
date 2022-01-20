@@ -55,7 +55,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 
 // AppsMatching returns all Epinio apps having the specified prefix
 // in their name.
-func (c *EpinioClient) AppsMatching(ctx context.Context, prefix string) []string {
+func (c *EpinioClient) AppsMatching(prefix string) []string {
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")

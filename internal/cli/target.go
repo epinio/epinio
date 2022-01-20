@@ -10,9 +10,10 @@ var ()
 
 // CmdTarget implements the command: epinio target
 var CmdTarget = &cobra.Command{
-	Use:   "target [namespace]",
-	Short: "Targets an epinio-controlled namespace.",
-	Args:  cobra.MaximumNArgs(1),
+	Use:               "target [namespace]",
+	Short:             "Targets an epinio-controlled namespace.",
+	Args:              cobra.MaximumNArgs(1),
+	ValidArgsFunction: matchingNamespaceFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -32,19 +33,5 @@ var CmdTarget = &cobra.Command{
 		}
 
 		return nil
-	},
-	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		if len(args) != 0 {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		app, err := usercmd.New()
-		if err != nil {
-			return nil, cobra.ShellCompDirectiveNoFileComp
-		}
-
-		matches := app.NamespacesMatching(toComplete)
-
-		return matches, cobra.ShellCompDirectiveNoFileComp
 	},
 }
