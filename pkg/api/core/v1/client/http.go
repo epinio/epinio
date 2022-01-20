@@ -154,7 +154,12 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	// TODO why is != 200 an error? there are valid codes in the 2xx, 3xx range
 	if response.StatusCode != http.StatusOK {
 		err := formatError(bodyBytes, response)
+
+		if respLog.V(15).Enabled() {
+			respLog = respLog.WithValues("body", string(bodyBytes))
+		}
 		respLog.V(1).Error(err, "response is not StatusOK")
+
 		return bodyBytes, wrapResponseError(err, response.StatusCode)
 	}
 
@@ -212,7 +217,11 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	if response.StatusCode != http.StatusOK {
 		err := f(response, bodyBytes, formatError(bodyBytes, response))
 		if err != nil {
+			if respLog.V(15).Enabled() {
+				respLog = respLog.WithValues("body", string(bodyBytes))
+			}
 			respLog.V(1).Error(err, "response is not StatusOK after custom error handling")
+
 			return bodyBytes, wrapResponseError(err, response.StatusCode)
 		}
 		return bodyBytes, nil
