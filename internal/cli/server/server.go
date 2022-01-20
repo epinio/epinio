@@ -73,11 +73,6 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 		})
 	}
 
-	// No authentication, no logging, no session. This is the healthcheck.
-	router.GET("/ready", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{})
-	})
-
 	if os.Getenv("SESSION_KEY") == "" {
 		return nil, "", errors.New("SESSION_KEY environment variable not defined")
 	}
@@ -89,6 +84,13 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	ginLogger := gin.LoggerWithFormatter(Formatter)
 	authenticatedGroup := router.Group("", ginLogger, authMiddleware, sessionMiddleware)
 
+	// Register routes
+	// No authentication, no logging, no session. This is the healthcheck.
+	router.GET("/ready", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{})
+	})
+
+	// Register api routes
 	api := authenticatedGroup.Group(apiv1.Root)
 	apiv1.Lemon(api)
 
@@ -96,6 +98,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 		Handler: router,
 	}
 
+	// Start server
 	go func() {
 		defer wg.Done() // let caller know we are done cleaning up
 
