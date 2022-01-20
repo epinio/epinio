@@ -1,6 +1,7 @@
 #!/bin/bash
+# syntax: "$@" : additional arguments for the `helm upgrade` command, to customize installation.
 
-set -e
+set -ex
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
@@ -18,6 +19,7 @@ helm upgrade --install chartmuseum chartmuseum/chartmuseum  \
 	--set ingress.enabled=true \
 	--set ingress.hosts[0].name="chartmuseum.${EPINIO_SYSTEM_DOMAIN}" \
 	--set env.open.DISABLE_API=false \
+	"$@" \
 	--wait
 
 echo "Waiting for chartmuseum to be accessible"
