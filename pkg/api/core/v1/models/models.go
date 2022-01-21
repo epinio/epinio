@@ -209,6 +209,11 @@ type InfoResponse struct {
 	Platform    string `json:"platform,omitempty"`
 }
 
+// AuthTokenResponse contains an auth token
+type AuthTokenResponse struct {
+	Token string `json:"token,omitempty"`
+}
+
 // NamespaceCreateRequest contains the name of the namespace that should be created
 type NamespaceCreateRequest struct {
 	Name string `json:"name,omitempty"`

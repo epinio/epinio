@@ -15,9 +15,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/epinio/epinio/helpers/authtoken"
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/spf13/viper"
-
 	"github.com/epinio/epinio/helpers/tracelog"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -29,7 +28,9 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/mattn/go-colorable"
+	"github.com/spf13/viper"
 )
 
 // Start is a helper which initializes and starts the API server
@@ -82,7 +83,6 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	router.Use(sessions.Sessions("epinio-session", store))
 
 	ginLogger := gin.LoggerWithFormatter(Formatter)
-	authenticatedGroup := router.Group("", ginLogger, authMiddleware, sessionMiddleware)
 
 	// Register routes
 	// No authentication, no logging, no session. This is the healthcheck.
@@ -90,9 +90,26 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
+	// Register web socket routes
+	{
+		rg := router.Group("", ginLogger, tokenAuthMiddleware)
+		rg = rg.Group(apiv1.WsRoot)
+		apiv1.Spice(rg)
+	}
+
 	// Register api routes
-	api := authenticatedGroup.Group(apiv1.Root)
-	apiv1.Lemon(api)
+	{
+		rg := router.Group("", ginLogger, authMiddleware, sessionMiddleware)
+		rg = rg.Group(apiv1.Root)
+		apiv1.Lemon(rg)
+	}
+
+	// print all registered routes
+	if logger.V(15).Enabled() {
+		for _, h := range router.Routes() {
+			logger.V(15).Info(fmt.Sprintf("%-6s %-25s %s", h.Method, h.Path, h.Handler))
+		}
+	}
 
 	srv := &http.Server{
 		Handler: router,
@@ -217,6 +234,7 @@ func authMiddleware(ctx *gin.Context) {
 	ctx.Request = ctx.Request.WithContext(newCtx)
 }
 
+// sessionMiddleware creates a new session for a logged in user.
 // This middleware is not called when authentication fails. That's because
 // the authMiddleware calls "ctx.Abort()" in that case.
 // We only set the user in session upon successful authentication
@@ -244,4 +262,41 @@ func sessionMiddleware(ctx *gin.Context) {
 			return
 		}
 	}
+}
+
+// tokenAuthMiddleware is only used to establish websocket connections for authenticated users
+func tokenAuthMiddleware(ctx *gin.Context) {
+	logger := tracelog.NewLogger().WithName("TokenAuthMiddleware")
+	logger.V(1).Info("Authtoken authentication")
+
+	token := ctx.Query("authtoken")
+	claims, err := authtoken.Validate(token)
+	if err != nil {
+		apiErr := apierrors.NewAPIError("unknown token validation error", "", http.StatusUnauthorized)
+		if ve, ok := err.(*jwt.ValidationError); ok {
+			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
+				apiErr.Title = "malformed token format"
+
+			} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
+				apiErr.Title = "token expired"
+
+			} else {
+				apiErr.Title = "cannot handle token"
+			}
+		}
+
+		// detailed log message
+		logger.V(2).Info(apiErr.Title, "error", err.Error())
+		// not too specific log message for unauthorized client
+		response.Error(ctx, apiErr)
+		ctx.Abort()
+		return
+	}
+
+	// we don't check if the user exists, token lifetime is small enough
+	id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
+	newCtx := ctx.Request.Context()
+	newCtx = requestctx.ContextWithUser(newCtx, claims.Username)
+	newCtx = requestctx.ContextWithID(newCtx, id)
+	ctx.Request = ctx.Request.WithContext(newCtx)
 }

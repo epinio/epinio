@@ -18,6 +18,7 @@ import (
 func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
+
 	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)

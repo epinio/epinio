@@ -38,7 +38,9 @@ var _ = Describe("AppExec Endpoint", func() {
 		var wsConn *websocket.Conn
 
 		BeforeEach(func() {
-			wsURL := fmt.Sprintf("%s%s/%s", websocketURL, v1.Root, v1.Routes.Path("AppExec", namespace, appName))
+			token, err := authToken()
+			Expect(err).ToNot(HaveOccurred())
+			wsURL := fmt.Sprintf("%s%s/%s", websocketURL, v1.WsRoot, v1.WsRoutes.Path("AppExec", namespace, appName))
 
 			// Beware! When the "raw" protocol is used (wsstream.ChannelWebSocketProtocol)
 			// the channel is defined by the first byte.
@@ -47,7 +49,7 @@ var _ = Describe("AppExec Endpoint", func() {
 			// https://github.com/kubernetes/kubernetes/blob/46c5edbc58b81046ce799875dc611beaaf0ffb44/staging/src/k8s.io/apiserver/pkg/util/wsstream/conn.go#L261-L264
 			// base64: append([]byte("0"), []byte(base64.URLEncoding.EncodeToString([]byte(cmdStr)))...)
 			//    raw: append([]byte{0}, []byte(cmdStr)...)
-			wsConn = env.MakeWebSocketConnection(wsURL, wsstream.ChannelWebSocketProtocol)
+			wsConn = env.MakeWebSocketConnection(token, wsURL, wsstream.ChannelWebSocketProtocol)
 			wsConn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 			wsConn.SetReadDeadline(time.Now().Add(10 * time.Second))
 		})

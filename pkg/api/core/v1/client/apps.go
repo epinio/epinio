@@ -15,7 +15,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
 	"k8s.io/client-go/tools/remotecommand"
-	"k8s.io/client-go/transport"
 
 	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -368,7 +367,7 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 
 func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) error {
 	endpoint := fmt.Sprintf("%s%s/%s",
-		c.URL, api.Root, api.Routes.Path("AppExec", namespace, appName))
+		c.URL, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
 	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
 		TLS:                      http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
@@ -377,14 +376,21 @@ func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) 
 		PingPeriod:               time.Second * 5,
 	})
 
-	wrapper := transport.NewBasicAuthRoundTripper(c.user, c.password, upgradeRoundTripper)
+	token, err := c.AuthToken()
+	if err != nil {
+		return err
+	}
 
 	execURL, err := url.Parse(endpoint)
 	if err != nil {
 		return err
 	}
+	values := execURL.Query()
+	values.Add("authtoken", token)
+	execURL.RawQuery = values.Encode()
 
-	exec, err := remotecommand.NewSPDYExecutorForTransports(wrapper, upgradeRoundTripper, "GET", execURL)
+	// upgradeRoundTripper implements both interfaces, Roundtripper and Upgrader
+	exec, err := remotecommand.NewSPDYExecutorForTransports(upgradeRoundTripper, upgradeRoundTripper, "GET", execURL)
 	if err != nil {
 		return err
 	}

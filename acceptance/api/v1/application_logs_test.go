@@ -40,10 +40,13 @@ var _ = Describe("AppLogs Endpoint", func() {
 	})
 
 	readLogs := func(namespace, app string) string {
+		token, err := authToken()
+		Expect(err).ToNot(HaveOccurred())
+
 		var urlArgs = []string{}
 		urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
-		wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
-		wsConn := env.MakeWebSocketConnection(wsURL)
+		wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.WsRoot, v1.WsRoutes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
+		wsConn := env.MakeWebSocketConnection(token, wsURL)
 
 		By("read the logs")
 		var logs string
@@ -54,7 +57,7 @@ var _ = Describe("AppLogs Endpoint", func() {
 			return websocket.IsCloseError(err, websocket.CloseNormalClosure)
 		}, 30*time.Second, 1*time.Second).Should(BeTrue())
 
-		err := wsConn.Close()
+		err = wsConn.Close()
 		// With regular `ws` we could expect to not see any errors. With `wss`
 		// however, with a tls layer in the mix, we can expect to see a `broken
 		// pipe` issued. That is not a thing to act on, and is ignored.
@@ -80,10 +83,13 @@ var _ = Describe("AppLogs Endpoint", func() {
 		existingLogs := readLogs(namespace, app)
 		logLength := len(strings.Split(existingLogs, "\n"))
 
+		token, err := authToken()
+		Expect(err).ToNot(HaveOccurred())
+
 		var urlArgs = []string{}
 		urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
-		wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.Root, v1.Routes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
-		wsConn := env.MakeWebSocketConnection(wsURL)
+		wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.WsRoot, v1.WsRoutes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
+		wsConn := env.MakeWebSocketConnection(token, wsURL)
 
 		By("get to the end of logs")
 		for i := 0; i < logLength-1; i++ {
@@ -118,7 +124,7 @@ var _ = Describe("AppLogs Endpoint", func() {
 			return string(message)
 		}, "10s").Should(ContainSubstring("GET / HTTP/1.1"))
 
-		err := wsConn.Close()
+		err = wsConn.Close()
 		Expect(err).ToNot(HaveOccurred())
 	})
 })

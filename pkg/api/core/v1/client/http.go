@@ -15,6 +15,7 @@ import (
 
 	api "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -271,4 +272,15 @@ func formatError(bodyBytes []byte, response *http.Response) error {
 	}
 
 	return errors.Errorf("%s: %s", http.StatusText(response.StatusCode), t)
+}
+
+func (c *Client) AuthToken() (string, error) {
+	data, err := c.get(api.Routes.Path("AuthToken"))
+	if err != nil {
+		return "", err
+	}
+
+	tr := &models.AuthTokenResponse{}
+	err = json.Unmarshal(data, &tr)
+	return tr.Token, err
 }

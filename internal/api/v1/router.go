@@ -20,8 +20,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Root is the url path prefix for all API endpoints.
-const Root = "/api/v1"
+const (
+	// Root is the url path prefix for all API endpoints.
+	Root   = "/api/v1"
+	WsRoot = "/wapi/v1"
+)
 
 // APIActionFunc is matched by all actions. Actions can return a list of errors.
 // The "Status" of the first error in the list becomes the response Status Code.
@@ -62,7 +65,8 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 }
 
 var Routes = routes.NamedRoutes{
-	"Info": get("/info", errorHandler(Info)),
+	"Info":      get("/info", errorHandler(Info)),
+	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
 
 	// app controller files see application/*.go
 
@@ -70,8 +74,6 @@ var Routes = routes.NamedRoutes{
 	"Apps":            get("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Index)),
 	"AppCreate":       post("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Create)),
 	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Show)),
-	"AppLogs":         get("/namespaces/:namespace/applications/:app/logs", application.Controller{}.Logs),
-	"StagingLogs":     get("/namespaces/:namespace/staging/:stage_id/logs", application.Controller{}.Logs),
 	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Controller{}.Staged)), // See stage.go
 	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Delete)),
 	"AppUpload":       post("/namespaces/:namespace/applications/:app/store", errorHandler(application.Controller{}.Upload)), // See upload.go
@@ -81,7 +83,6 @@ var Routes = routes.NamedRoutes{
 	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Controller{}.Restart)),
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Update)),
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Controller{}.Running)),
-	"AppExec":         get("/namespaces/:namespace/applications/:app/exec", errorHandler(application.Controller{}.Exec)),
 
 	// See env.go
 	"EnvList": get("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Index)),
@@ -122,10 +123,24 @@ var Routes = routes.NamedRoutes{
 	"ServiceReplace": put("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Replace)),
 }
 
+var WsRoutes = routes.NamedRoutes{
+	"AppExec":     get("/namespaces/:namespace/applications/:app/exec", errorHandler(application.Controller{}.Exec)),
+	"AppLogs":     get("/namespaces/:namespace/applications/:app/logs", application.Controller{}.Logs),
+	"StagingLogs": get("/namespaces/:namespace/staging/:stage_id/logs", application.Controller{}.Logs),
+}
+
 // Lemon extends the specified router with the methods and urls
 // handling the API endpoints
 func Lemon(router *gin.RouterGroup) {
 	for _, r := range Routes {
+		router.Handle(r.Method, r.Path, r.Handler)
+	}
+}
+
+// Spice extends the specified router with the methods and urls
+// handling the API endpoints
+func Spice(router *gin.RouterGroup) {
+	for _, r := range WsRoutes {
 		router.Handle(r.Method, r.Path, r.Handler)
 	}
 }

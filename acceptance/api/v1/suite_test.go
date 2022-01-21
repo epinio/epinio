@@ -1,14 +1,18 @@
 package v1_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	epinioConfig "github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/onsi/ginkgo/config"
 
@@ -84,4 +88,22 @@ func FailWithReport(message string, callerSkip ...int) {
 
 	// Ensures the correct line numbers are reported
 	Fail(message, callerSkip[0]+1)
+}
+
+func authToken() (string, error) {
+	authURL := fmt.Sprintf("%s%s/%s", serverURL, v1.Root, v1.Routes.Path("AuthToken"))
+	response, err := env.Curl("GET", authURL, strings.NewReader(""))
+	if err != nil {
+		return "", err
+	}
+	defer response.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return "", err
+	}
+	tr := &models.AuthTokenResponse{}
+	err = json.Unmarshal(bodyBytes, &tr)
+
+	return tr.Token, err
 }
