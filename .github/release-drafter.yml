@@ -15,7 +15,6 @@ categories:
 
 exclude-labels:
   - apparently external cause
-  - chore
   - devops admin
   - duplicate
   - invalid

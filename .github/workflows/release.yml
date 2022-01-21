@@ -49,8 +49,9 @@ jobs:
       -
         uses: release-drafter/release-drafter@v5
         with:
-          name: "${{ steps.get_tag.outputs.TAG }}"
+          name: ${{ steps.get_tag.outputs.TAG }}
           tag: ${{ steps.get_tag.outputs.TAG }}
+          publish: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       -
