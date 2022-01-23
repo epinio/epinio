@@ -2,7 +2,7 @@ package helmchart
 
 const (
 	S3ConnectionDetailsSecretName = "epinio-s3-connection-details" // nolint:gosec // Not credentials
-	TektonStagingNamespace        = "tekton-staging"
+	StagingNamespace              = "epinio-staging"
 	EpinioNamespace               = "epinio"
 	EpinioCertificateName         = "epinio"
 )

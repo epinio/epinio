@@ -698,7 +698,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Create a Tekton PipelineRun resource to stage the named `App` in the `Namespace`.",
+        "summary": "Create the resources needed to stage the named `App` in the `Namespace`.",
         "operationId": "AppStage",
         "parameters": [
           {
@@ -952,7 +952,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Waits for the completion of the Tekton PipelineRun resource identified by `StageID` in the `Namespace`.",
+        "summary": "Waits for the completion of the staging process identified by `StageID` in the `Namespace`.",
         "operationId": "StagingComplete",
         "parameters": [
           {
@@ -1161,18 +1161,21 @@
       "description": "ApplicationOrigin is the part of the manifest describing the origin of the application\n(sources). At most one of the fields may be specified / not empty.",
       "type": "object",
       "properties": {
-        "Container": {
-          "type": "string"
-        },
-        "Git": {
-          "$ref": "#/definitions/GitRef"
-        },
         "Kind": {
+          "description": "Hidden from yaml. Type tag to simplify struct usage.\nNote: we cannot hide this property from the JSON since it's used to unmarshal correctly the result of the Apps endpoint\n@see failling test here: https://github.com/epinio/epinio/runs/4935898437?check_suite_focus=true\nWe should probably expose a more meaningful value instead of this \"Kind\" int",
           "type": "integer",
           "format": "int64"
         },
-        "Path": {
-          "type": "string"
+        "container": {
+          "type": "string",
+          "x-go-name": "Container"
+        },
+        "git": {
+          "$ref": "#/definitions/GitRef"
+        },
+        "path": {
+          "type": "string",
+          "x-go-name": "Path"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1312,13 +1315,13 @@
     "GitRef": {
       "type": "object",
       "properties": {
+        "repository": {
+          "type": "string",
+          "x-go-name": "URL"
+        },
         "revision": {
           "type": "string",
           "x-go-name": "Revision"
-        },
-        "url": {
-          "type": "string",
-          "x-go-name": "URL"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1543,7 +1546,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "StageRef": {
-      "description": "StageRef references a tekton staging run by ID, currently randomly generated\nfor each POST to the staging endpoint",
+      "description": "StageRef references a staging run by ID, currently randomly generated\nfor each POST to the staging endpoint",
       "type": "object",
       "properties": {
         "id": {

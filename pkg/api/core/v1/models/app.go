@@ -48,7 +48,7 @@ type AppDeployment struct {
 	DesiredReplicas int32    `json:"desiredreplicas"`
 	ReadyReplicas   int32    `json:"readyreplicas"`
 	Username        string   `json:"username,omitempty"` // app creator
-	StageID         string   `json:"stage_id,omitempty"` // tekton staging id
+	StageID         string   `json:"stage_id,omitempty"` // staging id
 	Status          string   `json:"status,omitempty"`   // app replica status
 	Routes          []string `json:"routes,omitempty"`   // app routes
 }
@@ -135,7 +135,7 @@ func (ar *AppRef) MakePVCName() string {
 	return names.GenerateResourceName(ar.Namespace, ar.Name)
 }
 
-// StageRef references a tekton staging run by ID, currently randomly generated
+// StageRef references a staging run by ID, currently randomly generated
 // for each POST to the staging endpoint
 type StageRef struct {
 	ID string `json:"id,omitempty"`

@@ -130,6 +130,7 @@ var _ = Describe("RubyOnRails", func() {
 		out, err := env.Epinio(rails.Dir, "apps", "push",
 			"--name", rails.Name,
 			"--bind", serviceName)
+		env.OnStageFailureShowStagingLogs(err, out, rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		route := testenv.AppRouteFromOutput(out)
