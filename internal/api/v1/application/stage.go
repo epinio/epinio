@@ -256,7 +256,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = cluster.WaitForJobCompleted(ctx, namespace, id, duration.ToAppBuilt())
+	err = cluster.WaitForJobCompleted(ctx, helmchart.TektonStagingNamespace, id, duration.ToAppBuilt())
 
 	if err != nil {
 		return apierror.InternalError(err)
@@ -321,20 +321,7 @@ func newJobRun(app stageParam) *batchv1.Job {
 
 	unpackScript := fmt.Sprintf("mkdir /workspace/source/app; tar -xvf /workspace/source/%s -C /workspace/source/app/; rm /workspace/source/%s; chown -R 1000:1000 /workspace", app.BlobUID, app.BlobUID)
 
-	buildpackScript := fmt.Sprintf(`/cnb/lifecycle/creator 
-	app=/workspace/source/app 
-	-cache-dir=/workspace/cache 
-	-uid=1000 
-	-gid=1000 
-	-layers=/layers 
-	-platform=/platform 
-	-report=/layers/report.toml 
-	-process-type=web 
-	-skip-restore=false 
-	-previous-image=%s 
-	%s
-	; 
-	curl -X POST http://localhost:4191/shutdown`, previous.ImageURL(previous.RegistryURL), app.ImageURL(app.RegistryURL))
+	buildpackScript := fmt.Sprintf("/cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s && curl -X POST http://localhost:4191/shutdown", previous.ImageURL(previous.RegistryURL), app.ImageURL(app.RegistryURL))
 
 
 
@@ -376,7 +363,7 @@ func newJobRun(app stageParam) *batchv1.Job {
 		{
 			Name: "source",
 			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: cacheClaim,
+				EmptyDir: &corev1.EmptyDirVolumeSource{ },
 			},
 		},
 		{
@@ -469,7 +456,7 @@ func newJobRun(app stageParam) *batchv1.Job {
 							Name: "unpack-blob",
 							Image: "bash", //TODO: remove hardcode
 							VolumeMounts: volumeMounts,
-							Command: []string{"/bin/bash"},
+							Command: []string{"bash"},
 							Args: []string{
 								"-c",
 								unpackScript,
