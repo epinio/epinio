@@ -18,8 +18,6 @@ import (
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
 	"github.com/epinio/epinio/helpers/termui"
 
-	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	tektonv1beta1 "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -181,14 +179,6 @@ func (c *Cluster) ClientCertificate() (dynamic.NamespaceableResourceInterface, e
 	return dynamicClient.Resource(gvr), nil
 }
 
-// ClientTekton returns a dynamic namespaced client for the tekton resources
-func (c *Cluster) ClientTekton() (tektonv1beta1.TektonV1beta1Interface, error) {
-	cs, err := tekton.NewForConfig(c.RestConfig)
-	if err != nil {
-		return nil, err
-	}
-	return cs.TektonV1beta1(), nil
-}
 
 // IsPodRunning returns a condition function that indicates whether the given pod is
 // currently running
@@ -391,6 +381,37 @@ func (c *Cluster) ListPods(ctx context.Context, namespace, selector string) (*v1
 		return nil, err
 	}
 	return podList, nil
+}
+
+// ListJobs returns the list of currently scheduled or running Jobs in `namespace` with the given selector
+func (c *Cluster) ListJobs(ctx context.Context, namespace, selector string) (*apibatchv1.JobList, error) {
+	listOptions := metav1.ListOptions{}
+	if len(selector) > 0 {
+		listOptions.LabelSelector = selector
+	}
+	jobList, err := c.Kubectl.BatchV1().Jobs(namespace).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return jobList, nil
+}
+
+func (c *Cluster) CreateJob(ctx context.Context, namespace string, job *apibatchv1.Job) error {
+	_, err := c.Kubectl.BatchV1().Jobs(namespace).Create(
+		ctx,
+		job,
+		metav1.CreateOptions{},
+	)
+	return err
+}
+
+// DeleteNamespace deletes the namepace
+func (c *Cluster) DeleteJob(ctx context.Context, namespace string, name string) error {
+	err := c.Kubectl.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Wait up to timeout for Namespace to be removed.

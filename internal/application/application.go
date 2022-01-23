@@ -20,7 +20,7 @@ import (
 
 	epinioappv1 "github.com/epinio/application/api/v1"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
-	tektonv1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
+	apibatchv1 "k8s.io/api/batch/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -85,22 +85,18 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
-// CurrentlyStaging returns true if there is an active (not completed) PipelineRun
+// CurrentlyStaging returns true if there is an active (not completed) Job
 // for this application.
 func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (bool, error) {
-	tc, err := cluster.ClientTekton()
-	if err != nil {
-		return false, err
-	}
-	client := tc.PipelineRuns(helmchart.TektonStagingNamespace)
-	l, err := client.List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
-	})
+
+	l, err := cluster.ListJobs(ctx, helmchart.TektonStagingNamespace, fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace))
+
+
 	if err != nil {
 		return false, err
 	}
 
-	// assume that completed pipelineruns are from the past and have a CompletionTime
+	// assume that completed jobs are from the past and have a CompletionTime
 	for _, pr := range l.Items {
 		if pr.Status.CompletionTime == nil {
 			return true, nil
@@ -254,7 +250,7 @@ func StageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	return NewWorkload(cluster, appRef).GetStageID(ctx)
 }
 
-// Unstage removes staging resources. It deletes either all PipelineRuns of the
+// Unstage removes staging resources. It deletes either all Jobs of the
 // named application, or all but stageIDCurrent. It also deletes the staged
 // objects from the S3 storage except for the current one.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
@@ -268,44 +264,36 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return errors.Wrap(err, "creating an S3 manager")
 	}
 
-	tc, err := cluster.ClientTekton()
+	l, err := cluster.ListJobs(ctx, helmchart.TektonStagingNamespace, fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
+			appRef.Name, appRef.Namespace))
+
 	if err != nil {
 		return err
 	}
 
-	client := tc.PipelineRuns(helmchart.TektonStagingNamespace)
-
-	l, err := client.List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
-			appRef.Name, appRef.Namespace),
-	})
-	if err != nil {
-		return err
-	}
-
-	var currentPipelineRun *tektonv1beta1.PipelineRun
-	for i, pr := range l.Items {
-		id := pr.Labels[models.EpinioStageIDLabel]
+	var currentJob *apibatchv1.Job
+	for i, job := range l.Items {
+		id := job.Labels[models.EpinioStageIDLabel]
 		// stageIDCurrent is either empty or the id to keep
 		if stageIDCurrent != "" && stageIDCurrent == id {
-			currentPipelineRun = &l.Items[i]
+			currentJob = &l.Items[i]
 			continue
 		}
 
-		err := client.Delete(ctx, pr.ObjectMeta.Name, metav1.DeleteOptions{})
+		err := cluster.DeleteJob(ctx, job.ObjectMeta.Namespace, job.ObjectMeta.Name)
 		if err != nil {
 			return err
 		}
 	}
 
 	// Cleanup s3 objects
-	for _, pr := range l.Items {
+	for _, job := range l.Items {
 		// skip prs with the same blob as the current one (including the current one)
-		if currentPipelineRun != nil && pr.Labels[models.EpinioStageBlobUIDLabel] == currentPipelineRun.Labels[models.EpinioStageBlobUIDLabel] {
+		if currentJob != nil && job.Labels[models.EpinioStageBlobUIDLabel] == currentJob.Labels[models.EpinioStageBlobUIDLabel] {
 			continue
 		}
 
-		if err = s3m.DeleteObject(ctx, pr.ObjectMeta.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
+		if err = s3m.DeleteObject(ctx, job.ObjectMeta.Labels[models.EpinioStageBlobUIDLabel]); err != nil {
 			return err
 		}
 	}

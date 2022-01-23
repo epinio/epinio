@@ -40,4 +40,5 @@ require (
 	k8s.io/apimachinery v0.21.4
 	k8s.io/client-go v0.21.4
 	k8s.io/metrics v0.21.4
+	k8s.io/utils v0.0.0-20211208161948-7d6a63dca704 // indirect
 )
