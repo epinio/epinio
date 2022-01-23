@@ -124,8 +124,8 @@ func deployApplication(appName, namespace string, request models.DeployRequest) 
 
 func waitForPipeline(stageID string) {
 	Eventually(func() string {
-		out, err := proc.Kubectl("get", "pipelinerun",
-			"--namespace", helmchart.TektonStagingNamespace,
+		out, err := proc.Kubectl("get", "job",
+			"--namespace", helmchart.StagingNamespace,
 			stageID,
 			"-o", "jsonpath={.status.conditions[0].status}")
 		Expect(err).NotTo(HaveOccurred())

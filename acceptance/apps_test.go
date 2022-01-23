@@ -268,9 +268,9 @@ configuration:
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			By("checking if the staging is using custom builder image")
-			labels := fmt.Sprintf("app.kubernetes.io/name=%s,tekton.dev/pipelineTask=stage", appName)
+			labels := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/component=staging", appName)
 			imageList, err := proc.Kubectl("get", "pod",
-				"--namespace", helmchart.TektonStagingNamespace,
+				"--namespace", helmchart.StagingNamespace,
 				"-l", labels,
 				"-o", "jsonpath={.items[0].spec.containers[*].image}")
 			Expect(err).NotTo(HaveOccurred())
@@ -364,7 +364,7 @@ configuration:
 
 			It("is using the cache PVC", func() {
 				out, err := proc.Kubectl("get", "pvc", "--namespace",
-					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
+					helmchart.StagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				out, err = push()
@@ -376,12 +376,12 @@ configuration:
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
 				out, err := proc.Kubectl("get", "pvc", "--namespace",
-					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
+					helmchart.StagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
 				out, err = proc.Kubectl("get", "pvc", "--namespace",
-					helmchart.TektonStagingNamespace, names.GenerateResourceName(namespace, appName))
+					helmchart.StagingNamespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).To(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName))))
 			})
@@ -393,8 +393,8 @@ configuration:
 			By("pushing the app")
 			out := env.MakeApp(appName, 1, true)
 
-			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
-			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
+			Expect(out).To(MatchRegexp(`.*Configuring PHP Application.*`))
+			Expect(out).To(MatchRegexp(`.*Using feature -- PHP.*`))
 			// Doesn't include linkerd sidecar logs
 			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
 		})
@@ -833,8 +833,8 @@ configuration:
 			out, err := env.Epinio("", "app", "logs", "--staging", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp(`.*step-create.*Configuring PHP Application.*`))
-			Expect(out).To(MatchRegexp(`.*step-create.*Using feature -- PHP.*`))
+			Expect(out).To(MatchRegexp(`.*Configuring PHP Application.*`))
+			Expect(out).To(MatchRegexp(`.*Using feature -- PHP.*`))
 			// Doesn't include linkerd sidecar logs
 			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
 		})

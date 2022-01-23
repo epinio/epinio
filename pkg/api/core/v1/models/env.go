@@ -1,7 +1,6 @@
 package models
 
 import (
-	"fmt"
 	"sort"
 
 	v1 "k8s.io/api/core/v1"
@@ -89,13 +88,16 @@ func (evl EnvVariableList) ToEnvVarArray(appRef AppRef) []v1.EnvVar {
 }
 
 // StagingEnvArray returns the collection of environment variables and
-// their values in a form suitable for injection into the Tekton
+// their values in a form suitable for injection into the Job-based
 // staging of an application.
-func (evl EnvVariableList) StagingEnvArray() []string {
-	stagingVariables := []string{}
+func (evl EnvVariableList) StagingEnvArray() []v1.EnvVar {
+	stagingVariables := []v1.EnvVar{}
 
 	for _, ev := range evl {
-		stagingVariables = append(stagingVariables, fmt.Sprintf("%s=%s", ev.Name, ev.Value))
+		stagingVariables = append(stagingVariables, v1.EnvVar{
+			Name:  ev.Name,
+			Value: ev.Value,
+		})
 	}
 
 	return stagingVariables

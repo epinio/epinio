@@ -127,7 +127,7 @@ func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, na
 
 	wg.Add(1)
 	go func(outerWg *sync.WaitGroup) {
-		logger.Info("create backend")
+		logger.Info("create backend", "follow", follow, "app", appName, "stage", stageID, "namespace", namespaceName)
 		defer func() {
 			logger.Info("backend ends")
 		}()
@@ -137,6 +137,8 @@ func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, na
 		if err != nil {
 			logger.Error(err, "setting up log routines failed")
 		}
+
+		logger.Info("wait for backend completion", "follow", follow, "app", appName, "stage", stageID, "namespace", namespaceName)
 		tailWg.Wait()  // Wait until all child routines are stopped
 		close(logChan) // Close the channel so the loop below can stop
 		outerWg.Done() // Let the outer method know we are done

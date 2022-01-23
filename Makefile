@@ -112,7 +112,7 @@ test-acceptance-install: showfocus
 	ginkgo -v --debug -nodes ${GINKGO_NODES} -focus "${REGEX}" -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} acceptance/install/.
 
 showfocus:
-	@if test `cat acceptance/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/api/v1/*.go ; echo ; fi
+	@if test `cat acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go ; echo ; fi
 
 generate:
 	go generate ./...

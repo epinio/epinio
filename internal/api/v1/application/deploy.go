@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -282,11 +283,11 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 // replaceInternalRegistry replaces the registry part of ImageURL with the localhost
 // version of the internal Epinio registry if one is found in the registry connection
 // details.
-// The registry is used by 2 consumers: Tekton staging pod and Kubernetes.
-// Tekton writes images to it and Kubernetes pulls those images to create the
+// The registry is used by 2 consumers: The staging pod and Kubernetes.
+// Staging writes images to it and Kubernetes pulls those images to create the
 // application pods.
 // A localhost url for the registry only makes sense for Kubernetes because
-// for tekton it would mean the registry is running inside the tekton staging pod
+// for staging it would mean the registry is running inside the staging pod
 // (which makes no sense).
 // Kubernetes can see a registry on localhost if it is deployed on the cluster
 // itself and exposed over a NodePort service.
@@ -303,7 +304,7 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 // - the Epinio registry is an external one (if Epinio was deployed that way)
 // - a pre-existing image is being deployed (coming from an outer registry, not ours)
 func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
-	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, "tekton-staging", registry.CredentialsSecretName)
+	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, helmchart.StagingNamespace, registry.CredentialsSecretName)
 	if err != nil {
 		return imageURL, err
 	}

@@ -18,8 +18,6 @@ import (
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
 	"github.com/epinio/epinio/helpers/termui"
 
-	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
-	tektonv1beta1 "github.com/tektoncd/pipeline/pkg/client/clientset/versioned/typed/pipeline/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -181,15 +179,6 @@ func (c *Cluster) ClientCertificate() (dynamic.NamespaceableResourceInterface, e
 	return dynamicClient.Resource(gvr), nil
 }
 
-// ClientTekton returns a dynamic namespaced client for the tekton resources
-func (c *Cluster) ClientTekton() (tektonv1beta1.TektonV1beta1Interface, error) {
-	cs, err := tekton.NewForConfig(c.RestConfig)
-	if err != nil {
-		return nil, err
-	}
-	return cs.TektonV1beta1(), nil
-}
-
 // IsPodRunning returns a condition function that indicates whether the given pod is
 // currently running
 func (c *Cluster) IsPodRunning(ctx context.Context, podName, namespace string) wait.ConditionFunc {
@@ -206,6 +195,44 @@ func (c *Cluster) IsPodRunning(ctx context.Context, podName, namespace string) w
 		}
 		return false, nil
 	}
+}
+
+// IsPodDone returns a condition function that indicates whether the given pod has
+// terminated in some way or not. Use this for oneshot pods, i.e. pods launched by a Job
+// and expected to terminate.  The pod is considered terminated if __at least one__ of its
+// container is terminated. This condition takes into account that even a one-shot job may
+// contain a non-terminating container (linkerd!)
+
+func (c *Cluster) IsPodDone(ctx context.Context, podName, namespace string) wait.ConditionFunc {
+	return func() (bool, error) {
+		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		for _, cstatus := range pod.Status.ContainerStatuses {
+			if cstatus.State.Terminated != nil {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+}
+
+// IsPodFailed determines whether the given and terminated pod has failed. Use this for
+// oneshot pods, i.e. pods launched by a Job and expected to terminate. It is considered
+// failed if at least one of the terminated container reports "Error" as reason for the
+// termination.
+func (c *Cluster) IsPodFailed(ctx context.Context, podName, namespace string) (bool, error) {
+	pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+	for _, cstatus := range pod.Status.ContainerStatuses {
+		if cstatus.State.Terminated != nil && cstatus.State.Terminated.Reason == "Error" {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // IsJobCompleted returns a condition function that indicates whether the given
@@ -338,10 +365,15 @@ func (c *Cluster) WaitForSecret(ctx context.Context, namespace, secretName strin
 	return secret, waitErr
 }
 
-// Poll up to timeout for pod to enter running state.
-// Returns an error if the pod never enters the running state.
+// Poll up to timeout for pod to enter running state.  Returns an error if the pod never
+// enters the running state.
 func (c *Cluster) WaitForPodRunning(ctx context.Context, namespace, podName string, timeout time.Duration) error {
 	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(ctx, podName, namespace))
+}
+
+// Poll up to timeout for pod to terminate. Returns an error if the pod never terminates.
+func (c *Cluster) WaitForPodDone(ctx context.Context, namespace, podName string, timeout time.Duration) error {
+	return wait.PollImmediate(time.Second, timeout, c.IsPodDone(ctx, podName, namespace))
 }
 
 func (c *Cluster) WaitForJobCompleted(ctx context.Context, namespace, jobName string, timeout time.Duration) error {
@@ -391,6 +423,40 @@ func (c *Cluster) ListPods(ctx context.Context, namespace, selector string) (*v1
 		return nil, err
 	}
 	return podList, nil
+}
+
+// ListJobs returns the list of currently scheduled or running Jobs in `namespace` with the given selector
+func (c *Cluster) ListJobs(ctx context.Context, namespace, selector string) (*apibatchv1.JobList, error) {
+	listOptions := metav1.ListOptions{}
+	if len(selector) > 0 {
+		listOptions.LabelSelector = selector
+	}
+	jobList, err := c.Kubectl.BatchV1().Jobs(namespace).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+	return jobList, nil
+}
+
+func (c *Cluster) CreateJob(ctx context.Context, namespace string, job *apibatchv1.Job) error {
+	_, err := c.Kubectl.BatchV1().Jobs(namespace).Create(
+		ctx,
+		job,
+		metav1.CreateOptions{},
+	)
+	return err
+}
+
+// DeleteJob deletes the namepace
+func (c *Cluster) DeleteJob(ctx context.Context, namespace string, name string) error {
+	policy := metav1.DeletePropagationBackground
+	err := c.Kubectl.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
+		PropagationPolicy: &policy,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Wait up to timeout for Namespace to be removed.
@@ -457,18 +523,42 @@ func (c *Cluster) WaitUntilServiceHasLoadBalancer(ctx context.Context, ui *termu
 // Wait up to timeout for all pods in 'namespace' with given 'selector' to enter running state.
 // Returns an error if no pods are found or not all discovered pods enter running state.
 func (c *Cluster) WaitUntilPodBySelectorExist(ctx context.Context, ui *termui.UI, namespace, selector string, timeout time.Duration) error {
-	s := ui.Progressf("Creating %s in %s", selector, namespace)
-	defer s.Stop()
-
+	if ui != nil {
+		s := ui.Progressf("Creating %s in %s", selector, namespace)
+		defer s.Stop()
+	}
 	return wait.PollImmediate(time.Second, timeout, c.PodExists(ctx, namespace, selector))
+}
+
+// WaitForPodBySelectorDone waits timeout for all pods in 'namespace' with given
+// 'selector' to terminate. Returns an error if no pods are found or never terminate.
+func (c *Cluster) WaitForPodBySelectorDone(ctx context.Context, namespace, selector string, timeout time.Duration) error {
+	podList, err := c.ListPods(ctx, namespace, selector)
+	if err != nil {
+		return errors.Wrapf(err, "failed listingpods with selector %s", selector)
+	}
+
+	if len(podList.Items) == 0 {
+		return fmt.Errorf("no pods in %s with selector %s", namespace, selector)
+	}
+
+	for _, pod := range podList.Items {
+		if err := c.WaitForPodDone(ctx, namespace, pod.Name, timeout); err != nil {
+			return fmt.Errorf("Failed waiting for %s: %s\n", pod.Name, err.Error())
+		}
+	}
+	return nil
 }
 
 // WaitForPodBySelectorRunning waits timeout for all pods in 'namespace'
 // with given 'selector' to enter running state. Returns an error if no pods are
 // found or not all discovered pods enter running state.
 func (c *Cluster) WaitForPodBySelectorRunning(ctx context.Context, ui *termui.UI, namespace, selector string, timeout time.Duration) error {
-	s := ui.Progressf("Starting %s in %s", selector, namespace)
-	defer s.Stop()
+	var s termui.Progress
+	if ui != nil {
+		s = ui.Progressf("Starting %s in %s", selector, namespace)
+		defer s.Stop()
+	}
 
 	podList, err := c.ListPods(ctx, namespace, selector)
 	if err != nil {
@@ -480,7 +570,9 @@ func (c *Cluster) WaitForPodBySelectorRunning(ctx context.Context, ui *termui.UI
 	}
 
 	for _, pod := range podList.Items {
-		s.ChangeMessagef("  Starting pod %s in %s", pod.Name, namespace)
+		if ui != nil {
+			s.ChangeMessagef("  Starting pod %s in %s", pod.Name, namespace)
+		}
 		if err := c.WaitForPodRunning(ctx, namespace, pod.Name, timeout); err != nil {
 			events, err2 := c.GetPodEvents(ctx, namespace, pod.Name)
 			if err2 != nil {

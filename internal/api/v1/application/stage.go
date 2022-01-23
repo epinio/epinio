@@ -3,19 +3,18 @@ package application
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
-	v1beta1 "github.com/tektoncd/pipeline/pkg/apis/pipeline/v1beta1"
-	tekton "github.com/tektoncd/pipeline/pkg/client/clientset/versioned"
+	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/utils/pointer"
+
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -58,10 +57,10 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // ensurePVC creates a PVC for the application if one doesn't already exist.
 // This PVC is used to store the application source blobs (as they are uploaded
 // on the "upload" endpoint). It's also mounted in the staging task pod as the
-// "source" tekton workspace.
+// "source" workspace.
 // The same PVC stores the application's build cache (on a separate directory).
 func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
-	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.TektonStagingNamespace).
+	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.StagingNamespace).
 		Get(ctx, ar.MakePVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
@@ -71,11 +70,11 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 	}
 
 	// From here on, only if the PVC is missing
-	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.TektonStagingNamespace).
+	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.StagingNamespace).
 		Create(ctx, &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ar.MakePVCName(),
-				Namespace: helmchart.TektonStagingNamespace,
+				Namespace: helmchart.StagingNamespace,
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -91,7 +90,7 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 }
 
 // Stage handles the API endpoint /namespaces/:namespace/applications/:app/stage
-// It creates a Tekton PipelineRun resource to stage the app
+// It creates a Job resource to stage the app
 func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := tracelog.Logger(ctx)
@@ -141,7 +140,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
-		helmchart.TektonStagingNamespace, helmchart.S3ConnectionDetailsSecretName)
+		helmchart.StagingNamespace, helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
@@ -188,7 +187,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	registryCertificateSecret := viper.GetString("registry-certificate-secret")
 	registryCertificateHash := ""
 	if registryCertificateSecret != "" {
-		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.TektonStagingNamespace, registryCertificateSecret)
+		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.StagingNamespace, registryCertificateSecret)
 		if err != nil {
 			return apierror.InternalError(err, "cannot calculate Certificate hash")
 		}
@@ -214,15 +213,17 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}
 
-	tc, err := cluster.ClientTekton()
+	job, jobenv := newJobRun(params)
+
+	// Note: The secret is deleted with the job in function `Unstage()`.
+	err = cluster.CreateSecret(ctx, helmchart.StagingNamespace, *jobenv)
 	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a tekton client")
+		return apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
 	}
-	client := tc.PipelineRuns(helmchart.TektonStagingNamespace)
-	pr := newPipelineRun(params)
-	o, err := client.Create(ctx, pr, metav1.CreateOptions{})
+
+	err = cluster.CreateJob(ctx, helmchart.StagingNamespace, job)
 	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create pipeline run: %#v", o))
+		return apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
 	}
 
 	if err := updateApp(ctx, cluster, app, params); err != nil {
@@ -231,7 +232,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	imageURL := params.ImageURL(params.RegistryURL)
 
-	log.Info("staged app", "namespace", namespace, "app", params.AppRef, "uid", uid, "image", imageURL)
+	log.Info("staged app", "namespace", helmchart.StagingNamespace, "app", params.AppRef, "uid", uid, "image", imageURL)
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
@@ -241,7 +242,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 }
 
 // Staged handles the API endpoint /namespaces/:namespace/staging/:stage_id/complete
-// It waits for the Tekton PipelineRun resource staging the app to complete
+// It waits for the Job resource staging the app to complete
 func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
@@ -262,40 +263,40 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	cs, err := tekton.NewForConfig(cluster.RestConfig)
+	// Wait for the staging POD to complete, or fail.
+	// We cannot really wait for the Job to complete.
+	// Because when the pod fails the Job simply is not marked completed. Nor failed.
+	// Operation:
+	// 1. Wait for pod to terminate
+	// 2. Check if termination was due to a failure
+
+	selector := fmt.Sprintf("app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.suse.org/stage-id=%s",
+		namespace, id)
+
+	// 1. Termination waiter
+	err = cluster.WaitForPodBySelectorDone(ctx, helmchart.StagingNamespace, selector, duration.ToAppBuilt())
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	client := cs.TektonV1beta1().PipelineRuns(helmchart.TektonStagingNamespace)
-
-	err = wait.PollImmediate(time.Second, duration.ToAppBuilt(),
-		func() (bool, error) {
-			l, err := client.List(ctx, metav1.ListOptions{LabelSelector: models.EpinioStageIDLabel + "=" + id})
-			if err != nil {
-				return false, err
-			}
-			if len(l.Items) == 0 {
-				return false, nil
-			}
-			for _, pr := range l.Items {
-				// any failed conditions, throw an error so we can exit early
-				for _, c := range pr.Status.Conditions {
-					if c.IsFalse() {
-						return false, errors.New(c.Message)
-					}
-				}
-				// it worked
-				if pr.Status.CompletionTime != nil {
-					return true, nil
-				}
-			}
-			// pr exists, but still running
-			return false, nil
-		})
-
+	// 2. Failure check
+	podList, err := cluster.ListPods(ctx, helmchart.StagingNamespace, selector)
 	if err != nil {
 		return apierror.InternalError(err)
+	}
+	if len(podList.Items) == 0 {
+		return apierror.InternalError(fmt.Errorf("no pods in %s with selector %s", namespace, selector))
+	}
+
+	for _, pod := range podList.Items {
+		failed, err := cluster.IsPodFailed(ctx, pod.Name, helmchart.StagingNamespace)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		if failed {
+			return apierror.NewInternalError("Failed to stage",
+				fmt.Sprintf("stage-id = %s", id))
+		}
 	}
 
 	response.OK(c)
@@ -339,50 +340,153 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 	return nil
 }
 
-// newPipelineRun is a helper which creates a Tekton pipeline run
-// resource from the given staging params
-func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
-	str := v1beta1.NewArrayOrString
-
-	protocol := "http"
-	if app.S3ConnectionDetails.UseSSL {
-		protocol = "https"
-	}
-	awsScript := fmt.Sprintf("aws --endpoint-url %s://$1 s3 cp s3://$2/$3 $(workspaces.source.path)/$3", protocol)
-	awsArgs := []string{
-		app.S3ConnectionDetails.Endpoint,
-		app.S3ConnectionDetails.Bucket,
-		app.BlobUID,
-	}
+// newJobRun is a helper which creates the Job related resources from
+// the given staging params. That is the job itself, and a secret
+// holding the job's environment. Which is a copy of the app
+// environment + standard variables.
+func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	// fake stage params of the previous to pull the old image url from.
 	previous := app
 	previous.Stage = models.NewStage(app.PreviousStageID)
 
-	params := []v1beta1.Param{
-		{Name: "APP_IMAGE", Value: *str(app.ImageURL(app.RegistryURL))},
-		{Name: "PREVIOUS_IMAGE", Value: *str(previous.ImageURL(previous.RegistryURL))},
-		{Name: "BUILDER_IMAGE", Value: *str(app.BuilderImage)},
-		{Name: "ENV_VARS", Value: v1beta1.ArrayOrString{
-			Type:     v1beta1.ParamTypeArray,
-			ArrayVal: app.Environment.StagingEnvArray()},
+	protocol := "http"
+	if app.S3ConnectionDetails.UseSSL {
+		protocol = "https"
+	}
+
+	awsScript := fmt.Sprintf("echo Extracting _ _ __ ___ _____ $(whoami) ; aws --endpoint-url %s://%s s3 cp s3://%s/%s /workspace/source/%s ; echo _ _ __ ___ _____ Extracted",
+		protocol, app.S3ConnectionDetails.Endpoint, app.S3ConnectionDetails.Bucket,
+		app.BlobUID, app.BlobUID)
+
+	unpackScript := fmt.Sprintf("echo Unpacking _ _ __ ___ _____ $(whoami) ; mkdir /workspace/source/app ; tar -xvf /workspace/source/%s -C /workspace/source/app/; rm /workspace/source/%s; chown -R 1000:1000 /workspace ; cp -vL /platform/appenv/* /platform/env/ ; ls -la /platform/env ; echo _ _ __ ___ _____ Unpacked", app.BlobUID, app.BlobUID)
+
+	buildpackScript := fmt.Sprintf("echo Creating _ _ __ ___ _____ $(whoami) ; ls -la /platform/env ; /cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s && curl -X POST http://localhost:4191/shutdown",
+		previous.ImageURL(previous.RegistryURL), app.ImageURL(app.RegistryURL))
+
+	volumeMounts := []corev1.VolumeMount{
+		{
+			Name:      "s3-creds",
+			MountPath: "/root/.aws",
+			ReadOnly:  true,
 		},
-		{Name: "AWS_SCRIPT", Value: *str(awsScript)},
-		{Name: "AWS_ARGS", Value: v1beta1.ArrayOrString{
-			Type:     v1beta1.ParamTypeArray,
-			ArrayVal: awsArgs},
+		{
+			Name:      "source",
+			SubPath:   "source",
+			MountPath: "/workspace/source",
+		},
+		{
+			Name:      "cache",
+			SubPath:   "cache",
+			MountPath: "/workspace/cache",
+		},
+		{
+			Name:      "registry-creds",
+			MountPath: "/home/cnb/.docker/",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "app-environment",
+			MountPath: "/platform/appenv",
+			ReadOnly:  true,
+		},
+		{
+			Name:      "job-environment",
+			MountPath: "/platform/env",
+		},
+	}
+
+	cacheClaim := &corev1.PersistentVolumeClaimVolumeSource{
+		ClaimName: app.MakePVCName(),
+		ReadOnly:  false,
+	}
+
+	volumes := []corev1.Volume{
+		{
+			// See `jobenv` for the Secret providing the information.
+			Name: "app-environment",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  app.Stage.ID,
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		},
+		{
+			Name: "job-environment",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: "cache",
+			VolumeSource: corev1.VolumeSource{
+				PersistentVolumeClaim: cacheClaim,
+			},
+		},
+		{
+			Name: "source",
+			VolumeSource: corev1.VolumeSource{
+				EmptyDir: &corev1.EmptyDirVolumeSource{},
+			},
+		},
+		{
+			Name: "s3-creds",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  helmchart.S3ConnectionDetailsSecretName,
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		},
+		{
+			Name: "registry-creds",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  "registry-creds",
+					DefaultMode: pointer.Int32(420),
+					Items: []corev1.KeyToPath{
+						{
+							Key:  ".dockerconfigjson",
+							Path: "config.json",
+						},
+					},
+				},
+			},
 		},
 	}
 
 	// If there is a certificate to trust
 	if app.RegistryCASecret != "" && app.RegistryCAHash != "" {
-		params = append(params, []v1beta1.Param{
-			{Name: "REGISTRY_CERTIFICATE_SECRET", Value: *str(app.RegistryCASecret)},
-			{Name: "REGISTRY_CERTIFICATE_HASH", Value: *str(app.RegistryCAHash)},
-		}...)
+
+		volumes = append(volumes, corev1.Volume{
+			Name: "registry-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  app.RegistryCASecret,
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		})
+
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "registry-certs",
+			MountPath: fmt.Sprintf("/etc/ssl/certs/%s", app.RegistryCAHash),
+			SubPath:   "ca.crt",
+			ReadOnly:  true,
+		})
 	}
 
-	return &v1beta1.PipelineRun{
+	// Create job environment as a copy of the app environment, plus standard variable.
+	env := make(map[string][]byte)
+
+	env["CNB_PLATFORM_API"] = []byte("0.4")
+	for _, ev := range app.Environment {
+		env[ev.Name] = []byte(ev.Value)
+	}
+
+	jobenv := &corev1.Secret{
+		Data: env,
 		ObjectMeta: metav1.ObjectMeta{
 			Name: app.Stage.ID,
 			Labels: map[string]string{
@@ -396,44 +500,88 @@ func newPipelineRun(app stageParam) *v1beta1.PipelineRun {
 				"app.kubernetes.io/component":  "staging",
 			},
 		},
-		Spec: v1beta1.PipelineRunSpec{
-			ServiceAccountName: "staging-triggers-admin",
-			PipelineRef:        &v1beta1.PipelineRef{Name: "staging-pipeline"},
-			Params:             params,
-			Workspaces: []v1beta1.WorkspaceBinding{
-				{
-					Name:    "cache",
-					SubPath: "cache",
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: app.MakePVCName(),
-						ReadOnly:  false,
+	}
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: app.Stage.ID,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       app.Name,
+				"app.kubernetes.io/part-of":    app.Namespace,
+				"app.kubernetes.io/created-by": app.Username,
+				models.EpinioStageIDLabel:      app.Stage.ID,
+				models.EpinioStageIDPrevious:   app.PreviousStageID,
+				models.EpinioStageBlobUIDLabel: app.BlobUID,
+				"app.kubernetes.io/managed-by": "epinio",
+				"app.kubernetes.io/component":  "staging",
+			},
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit: pointer.Int32(0),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app.kubernetes.io/name":       app.Name,
+						"app.kubernetes.io/part-of":    app.Namespace,
+						"app.kubernetes.io/created-by": app.Username,
+						models.EpinioStageIDLabel:      app.Stage.ID,
+						models.EpinioStageIDPrevious:   app.PreviousStageID,
+						models.EpinioStageBlobUIDLabel: app.BlobUID,
+						"app.kubernetes.io/managed-by": "epinio",
+						"app.kubernetes.io/component":  "staging",
 					},
 				},
-				{
-					Name:    "source",
-					SubPath: "source",
-					PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-						ClaimName: app.MakePVCName(),
-						ReadOnly:  false,
-					},
-				},
-				{
-					Name: "s3secret",
-					Secret: &corev1.SecretVolumeSource{
-						SecretName: helmchart.S3ConnectionDetailsSecretName,
-						Items: []corev1.KeyToPath{
-							{Key: "config", Path: "config"},
-							{Key: "credentials", Path: "credentials"},
+				Spec: corev1.PodSpec{
+					InitContainers: []corev1.Container{
+						{
+							Name:         "download-s3-blob",
+							Image:        "amazon/aws-cli:2.0.52", //TODO: remove hardcode
+							VolumeMounts: volumeMounts,
+							Command:      []string{"/bin/bash"},
+							Args: []string{
+								"-c",
+								awsScript,
+							},
+						},
+						{
+							Name:         "unpack-blob",
+							Image:        "bash", //TODO: remove hardcode
+							VolumeMounts: volumeMounts,
+							Command:      []string{"bash"},
+							Args: []string{
+								"-c",
+								unpackScript,
+							},
 						},
 					},
+					Containers: []corev1.Container{
+						{
+							Name:    "buildpack",
+							Image:   app.BuilderImage,
+							Command: []string{"/bin/bash"},
+							Args: []string{
+								"-c",
+								buildpackScript,
+							},
+							VolumeMounts: volumeMounts,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:  pointer.Int64(1000),
+								RunAsGroup: pointer.Int64(1000),
+							},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+					Volumes:       volumes,
 				},
 			},
 		},
 	}
+
+	return job, jobenv
 }
 
 func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
-	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.TektonStagingNamespace, registry.CredentialsSecretName)
+	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.StagingNamespace, registry.CredentialsSecretName)
 	if err != nil {
 		return "", err
 	}
@@ -449,7 +597,7 @@ func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, e
 }
 
 // The equivalent of:
-// kubectl get secret -n tekton-staging epinio-registry-tls -o json | jq -r '.["data"]["tls.crt"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n (helmchart.StagingNamespace) epinio-registry-tls -o json | jq -r '.["data"]["tls.crt"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
 func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})

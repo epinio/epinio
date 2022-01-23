@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/helmchart"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -112,8 +113,8 @@ var _ = Describe("AppStage Endpoint", func() {
 			stageResponse := stageApplication(appName, namespace, stageRequest)
 			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
 
-			pipelineBlobUID, err := proc.Kubectl("get", "PipelineRuns",
-				"--namespace", "tekton-staging",
+			pipelineBlobUID, err := proc.Kubectl("get", "Jobs",
+				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
 			Expect(err).NotTo(HaveOccurred(), pipelineBlobUID)
@@ -126,8 +127,8 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
 
-			pipelineBlobUID, err = proc.Kubectl("get", "PipelineRuns",
-				"--namespace", "tekton-staging",
+			pipelineBlobUID, err = proc.Kubectl("get", "Jobs",
+				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
 			Expect(err).NotTo(HaveOccurred(), pipelineBlobUID)
@@ -150,10 +151,10 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application")
 			stageResponse := stageApplication(appName, namespace, stageRequest)
 
-			pipelineBuilderImage, err := proc.Kubectl("get", "PipelineRuns",
-				"--namespace", "tekton-staging",
+			pipelineBuilderImage, err := proc.Kubectl("get", "Pods",
+				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
-				"-o", "jsonpath={.items[*].spec.params[?(@.name=='BUILDER_IMAGE')].value}")
+				"-o", "jsonpath={.items[*].spec.containers[0].image}")
 			Expect(err).NotTo(HaveOccurred(), pipelineBuilderImage)
 			Expect(pipelineBuilderImage).To(Equal(builderImage))
 
@@ -163,10 +164,10 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
 
-			pipelineBuilderImage, err = proc.Kubectl("get", "PipelineRuns",
-				"--namespace", "tekton-staging",
+			pipelineBuilderImage, err = proc.Kubectl("get", "Pods",
+				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
-				"-o", "jsonpath={.items[*].spec.params[?(@.name=='BUILDER_IMAGE')].value}")
+				"-o", "jsonpath={.items[*].spec.containers[0].image}")
 			Expect(err).NotTo(HaveOccurred(), pipelineBuilderImage)
 			Expect(pipelineBuilderImage).To(Equal(builderImage))
 		})

@@ -264,7 +264,7 @@ func (c *EpinioClient) stageLogs(details logr.Logger, appRef models.AppRef, stag
 		}
 	}()
 
-	details.Info("wait for pipelinerun", "StageID", stageID)
+	details.Info("wait for job", "StageID", stageID)
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
 	_, err := c.API.StagingComplete(appRef.Namespace, stageID)

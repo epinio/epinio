@@ -7,6 +7,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo"
@@ -107,8 +108,8 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				stageResponse := stageApplication(appName, namespace, stageRequest)
 
 				// sanity check
-				out, err := proc.Kubectl("get", "PipelineRuns",
-					"--namespace", "tekton-staging",
+				out, err := proc.Kubectl("get", "Jobs",
+					"--namespace", helmchart.StagingNamespace,
 					"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
 				Expect(err).NotTo(HaveOccurred(), out)
 				blobUIDs := strings.Split(out, " ")
