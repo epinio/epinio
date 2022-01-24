@@ -1,11 +1,6 @@
 package application
 
 import (
-	"io"
-	"io/ioutil"
-	"os"
-	"path"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -31,29 +26,11 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	log.V(2).Info("parsing multipart form")
 
-	file, _, err := c.Request.FormFile("file")
+	file, fileheader, err := c.Request.FormFile("file")
 	if err != nil {
 		return apierror.BadRequest(err, "can't read multipart file input")
 	}
 	defer file.Close()
-
-	tmpDir, err := ioutil.TempDir("", "epinio-app")
-	if err != nil {
-		return apierror.InternalError(err, "can't create temp directory")
-	}
-	defer os.RemoveAll(tmpDir)
-
-	blob := path.Join(tmpDir, "blob.tar")
-	f, err := os.OpenFile(blob, os.O_WRONLY|os.O_CREATE, 0666)
-	if err != nil {
-		return apierror.InternalError(err, "failed create file for writing app sources to temp location")
-	}
-	defer f.Close()
-
-	_, err = io.Copy(f, file)
-	if err != nil {
-		return apierror.InternalError(err, "failed to copy app sources to temp location")
-	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -70,7 +47,7 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 	}
 
 	username := requestctx.User(ctx)
-	blobUID, err := manager.Upload(ctx, blob, map[string]string{
+	blobUID, err := manager.UploadStream(ctx, file, fileheader.Size, map[string]string{
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {

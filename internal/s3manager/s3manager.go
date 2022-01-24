@@ -5,6 +5,7 @@ package s3manager
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -167,6 +168,28 @@ func (m *Manager) Meta(ctx context.Context, blobUID string) (map[string]string, 
 	}
 
 	return blobInfo.UserMetadata, nil
+}
+
+// UploadStream uploads the given Reader to the S3 endpoint and returns a blobUID which
+// can later be used to fetch the same file.
+func (m *Manager) UploadStream(ctx context.Context, file io.Reader, size int64, metadata map[string]string) (string, error) {
+	if err := m.EnsureBucket(ctx); err != nil {
+		return "", errors.Wrap(err, "ensuring bucket")
+	}
+
+	objectName := uuid.New().String()
+	contentType := "application/tar"
+
+	_, err := m.minioClient.PutObject(ctx, m.connectionDetails.Bucket,
+		objectName, file, size, minio.PutObjectOptions{
+			ContentType:  contentType,
+			UserMetadata: metadata,
+		})
+	if err != nil {
+		return "", errors.Wrap(err, "writing the new object")
+	}
+
+	return objectName, nil
 }
 
 // Upload uploads the given file to the S3 endpoint and returns a blobUID which
