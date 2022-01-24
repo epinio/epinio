@@ -128,43 +128,17 @@ func SetOrigin(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 }
 
 func buildBodyPatch(origin models.ApplicationOrigin) ([]byte, error) {
-	patchOpValue := ApplicationOrigin{}
-
-	switch origin.Kind {
-	case models.OriginNone: // do nothing (keeping here for reference)
-	case models.OriginPath:
-		patchOpValue.Path = origin.Path
-	case models.OriginContainer:
-		patchOpValue.Container = origin.Container
-	case models.OriginGit:
-		patchOpValue.GitOrigin = &GitOrigin{Repository: origin.Git.URL}
-		if origin.Git.Revision != "" {
-			patchOpValue.GitOrigin.Revision = origin.Git.Revision
-		}
-	}
-
 	operations := []PatchOperation{{
 		Op:    "replace",
 		Path:  "/spec/origin",
-		Value: patchOpValue,
+		Value: origin,
 	}}
 
 	return json.Marshal(operations)
 }
 
 type PatchOperation struct {
-	Op    string            `json:"op"`
-	Path  string            `json:"path"`
-	Value ApplicationOrigin `json:"value"`
-}
-
-type ApplicationOrigin struct {
-	Path      string     `json:"path,omitempty"`
-	Container string     `json:"container,omitempty"`
-	GitOrigin *GitOrigin `json:"git,omitempty"`
-}
-
-type GitOrigin struct {
-	Repository string `json:"repository"`
-	Revision   string `json:"revision,omitempty"`
+	Op    string                   `json:"op"`
+	Path  string                   `json:"path"`
+	Value models.ApplicationOrigin `json:"value"`
 }

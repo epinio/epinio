@@ -90,10 +90,10 @@ type ApplicationStage struct {
 // ApplicationOrigin is the part of the manifest describing the origin of the application
 // (sources). At most one of the fields may be specified / not empty.
 type ApplicationOrigin struct {
-	Kind      int    `yaml:"-"` // Hidden from yaml. Type tag to simplify struct usage.
-	Container string `yaml:"container,omitempty"`
-	Git       GitRef `yaml:"git,omitempty"`
-	Path      string `yaml:"path,omitempty"`
+	Kind      int     `json:"-"                   yaml:"-" ` // Hidden from json and yaml. Type tag to simplify struct usage.
+	Container string  `json:"container,omitempty" yaml:"container,omitempty" `
+	Git       *GitRef `json:"git,omitempty"       yaml:"git,omitempty" `
+	Path      string  `json:"path,omitempty"      yaml:"path,omitempty" `
 }
 
 // manifest origin codes for `Kind`.
