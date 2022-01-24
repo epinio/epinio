@@ -125,7 +125,7 @@ PATCH=$(cat <<EOF
         ],
         "containers": [{
           "name": "epinio-server",
-          "image": "splatform/epinio-base:v0.3.3",
+          "image": "splatform/epinio-base:${EPINIO_BINARY_TAG}",
           "command": [
             "/epinio-binary/epinio",
             "server"
