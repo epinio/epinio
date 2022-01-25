@@ -12,6 +12,7 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
 	"k8s.io/client-go/tools/remotecommand"
 	"k8s.io/client-go/transport"
@@ -22,6 +23,36 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
+
+// Upgrader implements the spdy.Upgrader interface. It delegates to spdy.SpdyRoundTripper
+// but handles Epinio errors (like 404) first. The upstream upgrader would simply
+// ignore 404 in cases when app or namespace is not found.
+// Here: https://github.com/kubernetes/apimachinery/blob/v0.21.4/pkg/util/httpstream/spdy/roundtripper.go#L343
+type Upgrader struct {
+	upstreamUpgr *spdy.SpdyRoundTripper
+}
+
+func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		b, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.New("failed to read response body")
+		}
+
+		return nil, errors.New(string(b))
+	}
+
+	return upgr.upstreamUpgr.NewConnection(resp)
+}
+
+func (upgr *Upgrader) RoundTrip(req *http.Request) (*http.Response, error) {
+	return upgr.upstreamUpgr.RoundTrip(req)
+}
+
+func NewUpgrader(cfg spdy.RoundTripperConfig) *Upgrader {
+	return &Upgrader{upstreamUpgr: spdy.NewRoundTripperWithConfig(cfg)}
+}
 
 // AppCreate creates an application resource
 func (c *Client) AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error) {
@@ -339,13 +370,13 @@ func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) 
 	endpoint := fmt.Sprintf("%s%s/%s",
 		c.URL, api.Root, api.Routes.Path("AppExec", namespace, appName))
 
-	upgradeRoundTripper := spdy.NewRoundTripperWithConfig(spdy.RoundTripperConfig{
+	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
 		TLS:                      http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
 		FollowRedirects:          true,
 		RequireSameHostRedirects: false,
 		PingPeriod:               time.Second * 5,
 	})
-	// TODO: No useful error is printed when the credentials are wrong!
+
 	wrapper := transport.NewBasicAuthRoundTripper(c.user, c.password, upgradeRoundTripper)
 
 	execURL, err := url.Parse(endpoint)
@@ -362,10 +393,11 @@ func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) 
 		options := remotecommand.StreamOptions{
 			Stdin:             tty.In,
 			Stdout:            tty.Out,
-			Stderr:            tty.Out, // TODO ?
+			Stderr:            tty.Out, // TODO ? Check `exec.Stream` docs. Not used when tty
 			Tty:               tty.Raw,
 			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
 		}
+
 		return exec.Stream(options)
 	}
 

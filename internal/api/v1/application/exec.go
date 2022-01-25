@@ -50,13 +50,6 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 			"", http.StatusBadRequest)
 	}
 
-	// TODO: Do we need to cleanup anything?
-	// defer func() {
-	// 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	// 	defer cancel()
-	// 	_ = client.CoreV1().Pods(pod.Namespace).Delete(ctx, pod.Name, metav1.DeleteOptions{})
-	// }()
-
 	// TODO: Find podName from application and params (e.g. instance number etc).
 	// The application may have more than one pods.
 	podNames, err := application.NewWorkload(cluster, app.Meta).PodNames(ctx)
