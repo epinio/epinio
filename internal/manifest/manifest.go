@@ -219,20 +219,8 @@ func UpdateISE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 // memory. Note that a missing file is not an error. It simply maps to
 // an empty manifest.
 func Get(manifestPath string) (models.ApplicationManifest, error) {
-
 	// Empty manifest, for errors
 	empty := models.ApplicationManifest{}
-
-	manifestPath, err := filepath.Abs(manifestPath)
-	if err != nil {
-		return empty, errors.Wrapf(err, "filesystem error")
-	}
-
-	manifestExists, err := fileExists(manifestPath)
-	if err != nil {
-		return empty, errors.Wrapf(err, "filesystem error")
-	}
-
 	defaultOrigin := models.ApplicationOrigin{
 		Kind: models.OriginPath,
 		Path: filepath.Dir(manifestPath),
@@ -247,32 +235,28 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 		},
 	}
 
-	if !manifestExists {
+	yamlContent, err := readManifestFile(manifestPath)
+	if err != nil {
 		// Without manifest we simply provide the defaults for app sources and
 		// builder.
-
-		return manifest, nil
-	}
-
-	yamlFile, err := ioutil.ReadFile(manifestPath)
-	if err != nil {
-		return empty, errors.Wrapf(err, "filesystem error")
+		if errors.As(err, &ErrManifestNotExists{}) {
+			return manifest, nil
+		}
+		return empty, err
 	}
 
 	// Modified manifest 2. Remove default origin - would clash with the unmarshalled
 	// data. Will be added back later if no origin was specified by the manifest
 	// itself.
 	manifest.Origin = models.ApplicationOrigin{}
-
-	err = yaml.Unmarshal(yamlFile, &manifest)
+	err = yaml.Unmarshal(yamlContent, &manifest)
 	if err != nil {
 		return empty, errors.Wrapf(err, "bad yaml")
 	}
 
-	// Verify that origin information is one-of only.
-
 	manifest.Self = manifestPath
 
+	// Verify that origin information is one-of only.
 	origins := 0
 	if manifest.Origin.Path != "" {
 		manifest.Origin.Kind = models.OriginPath
@@ -307,6 +291,29 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 	}
 
 	return manifest, nil
+}
+
+type ErrManifestNotExists struct{}
+
+func (e ErrManifestNotExists) Error() string {
+	return "manifest not found"
+}
+
+func readManifestFile(manifestPath string) ([]byte, error) {
+	manifestPath, err := filepath.Abs(manifestPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "filesystem error")
+	}
+
+	manifestExists, err := fileExists(manifestPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "filesystem error")
+	}
+	if !manifestExists {
+		return nil, ErrManifestNotExists{}
+	}
+
+	return ioutil.ReadFile(manifestPath)
 }
 
 // instances checks if the user provided an instance count. If they didn't, then we'll
