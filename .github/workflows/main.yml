@@ -105,6 +105,7 @@ jobs:
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make prepare_environment_k3d
           make test-acceptance-cli
+          make acceptance-cluster-delete
 
   acceptance-api:
     needs:
@@ -161,6 +162,7 @@ jobs:
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make prepare_environment_k3d
           make test-acceptance-api
+          make acceptance-cluster-delete
 
   acceptance-apps:
     needs:
@@ -235,3 +237,6 @@ jobs:
             tmp/*.json
             tmp/*.log
           retention-days: 2
+        
+      - name: Cleanup k3d cluster
+        run: make acceptance-cluster-delete
