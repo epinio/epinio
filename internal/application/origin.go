@@ -18,7 +18,9 @@ import (
 // constructed from the stored information on the Application Custom
 // Resource.
 func Origin(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.ApplicationOrigin, error) {
-	result := models.ApplicationOrigin{}
+	result := models.ApplicationOrigin{
+		Git: &models.GitRef{},
+	}
 
 	applicationCR, err := Get(ctx, cluster, appRef)
 	if err != nil {

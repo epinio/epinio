@@ -284,7 +284,7 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 		origins++
 	}
 
-	if manifest.Origin.Git.URL != "" {
+	if manifest.Origin.Git != nil && manifest.Origin.Git.URL != "" {
 		manifest.Origin.Kind = models.OriginGit
 		origins++
 	}
