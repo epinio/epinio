@@ -495,7 +495,6 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName string) error {
 		TryDev: true,
 	}
 
-	//cmdutil.CheckErr(c.API.AppExec(c.Config.Namespace, appName, tty))
 	return c.API.AppExec(c.Config.Namespace, appName, tty)
 }
 

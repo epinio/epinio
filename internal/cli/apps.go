@@ -187,18 +187,9 @@ var CmdAppExec = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		// TODO: "--instance" ? to define the app instance (the pod)
-		// follow, err := cmd.Flags().GetBool("follow")
-		// if err != nil {
-		// 	return errors.Wrap(err, "error reading option --follow")
-		// }
-
 		err = client.AppExec(cmd.Context(), args[0])
-		if err != nil {
-			return errors.Wrap(err, "error getting a shell to application")
-		}
-
-		return nil
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error getting a shell to application")
 	},
 }
 

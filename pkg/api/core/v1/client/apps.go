@@ -393,7 +393,7 @@ func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) 
 		options := remotecommand.StreamOptions{
 			Stdin:             tty.In,
 			Stdout:            tty.Out,
-			Stderr:            tty.Out, // TODO ? Check `exec.Stream` docs. Not used when tty
+			Stderr:            tty.Out, // Not used when tty. Check `exec.Stream` docs.
 			Tty:               tty.Raw,
 			TerminalSizeQueue: tty.MonitorSize(tty.GetSize()),
 		}

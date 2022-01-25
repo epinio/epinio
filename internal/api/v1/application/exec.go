@@ -67,8 +67,9 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 }
 
 func proxyRequest(rw http.ResponseWriter, req *http.Request, podName, namespace, container string, client thekubernetes.Interface) {
+	// https://github.com/kubernetes/kubectl/blob/2acffc93b61e483bd26020df72b9aef64541bd56/pkg/cmd/exec/exec.go#L352
 	attachURL := client.CoreV1().RESTClient().
-		Post(). // ? https://github.com/kubernetes/kubectl/blob/master/pkg/cmd/exec/exec.go#L352
+		Post().
 		Namespace(namespace).
 		Resource("pods").
 		Name(podName).
@@ -79,26 +80,16 @@ func proxyRequest(rw http.ResponseWriter, req *http.Request, podName, namespace,
 			Stderr:    true,
 			TTY:       true,
 			Container: container,
-			// TODO: https://github.com/rancher/dashboard/blob/master/components/nav/WindowManager/ContainerShell.vue#L22
-			// What if the container doesn't have bash?
+			// https://github.com/rancher/dashboard/blob/37f40d7213ff32096bfefd02de77be6a0e7f40ab/components/nav/WindowManager/ContainerShell.vue#L22
 			Command: []string{"/bin/sh", "-c", "TERM=xterm-256color; export TERM; exec /bin/bash"},
 		}, scheme.ParameterCodec).URL()
 
-	//TODO: How do we authenticate against kube? Is it a token in the above url?
-
-	// TODO: Impersonate-* stuff. Remove?
 	httpClient := client.CoreV1().RESTClient().(*rest.RESTClient).Client
 	p := httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 			req.URL = attachURL
 			req.Host = attachURL.Host
-			// for key := range req.Header {
-			// 	if strings.HasPrefix(key, "Impersonate-Extra-") {
-			// 		delete(req.Header, key)
-			// 	}
-			// }
-			// delete(req.Header, "Impersonate-Group")
-			// delete(req.Header, "Impersonate-User")
+			// let kube authentication work
 			delete(req.Header, "Cookie")
 			delete(req.Header, "Authorization")
 		},
