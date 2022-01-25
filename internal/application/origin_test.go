@@ -22,7 +22,7 @@ var _ = Describe("Build body for SetOrigin PATCH", func() {
 				body, err := buildBodyPatch(origin)
 
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{}}]`))
+				Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"Kind":0}}]`))
 			})
 		})
 
@@ -38,7 +38,7 @@ var _ = Describe("Build body for SetOrigin PATCH", func() {
 				body, err := buildBodyPatch(origin)
 
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"path":"C:\\Documents\\app"}}]`))
+				Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"Kind":1,"path":"C:\\Documents\\app"}}]`))
 			})
 		})
 
@@ -54,7 +54,7 @@ var _ = Describe("Build body for SetOrigin PATCH", func() {
 				body, err := buildBodyPatch(origin)
 
 				Expect(err).ToNot(HaveOccurred())
-				Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"container":"my-container"}}]`))
+				Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"Kind":3,"container":"my-container"}}]`))
 			})
 		})
 
@@ -83,7 +83,7 @@ var _ = Describe("Build body for SetOrigin PATCH", func() {
 					body, err := buildBodyPatch(gitOrigin)
 
 					Expect(err).ToNot(HaveOccurred())
-					Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"git":{"repository":"git@repo"}}}]`))
+					Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"Kind":2,"git":{"repository":"git@repo"}}}]`))
 				})
 			})
 
@@ -92,7 +92,7 @@ var _ = Describe("Build body for SetOrigin PATCH", func() {
 					body, err := buildBodyPatch(gitOriginRev)
 
 					Expect(err).ToNot(HaveOccurred())
-					Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"git":{"repository":"git@repo","revision":"revision_1"}}}]`))
+					Expect(string(body)).To(MatchJSON(`[{"op":"replace","path":"/spec/origin","value":{"Kind":2,"git":{"repository":"git@repo","revision":"revision_1"}}}]`))
 				})
 			})
 		})
