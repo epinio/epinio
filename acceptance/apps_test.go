@@ -2,10 +2,12 @@ package acceptance_test
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -872,6 +874,48 @@ configuration:
 			By("checking the latest log")
 			scanner.Scan()
 			Expect(scanner.Text()).To(ContainSubstring("GET / HTTP/1.1"))
+		})
+	})
+
+	Describe("exec", func() {
+		BeforeEach(func() {
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("executes a command in the application's container (one of the pods)", func() {
+			var out bytes.Buffer
+			containerCmd := bytes.NewReader([]byte("echo testthis > /workspace/testfile && exit\r"))
+
+			cmd := exec.Command(testenv.EpinioBinaryPath(), "apps", "exec", appName)
+			cmd.Stdin = containerCmd
+			cmd.Stdout = &out
+			cmd.Stderr = &out
+
+			err := cmd.Run()
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(out.String()).To(MatchRegexp("Executing a shell"))
+
+			podName, err := proc.Kubectl("get", "pods",
+				"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
+				"-n", namespace, "-o", "name")
+			Expect(err).ToNot(HaveOccurred())
+
+			remoteOut, err := proc.Kubectl("exec",
+				strings.TrimSpace(podName), "-n", namespace, "-c", appName,
+				"--", "cat", "/workspace/testfile")
+			Expect(err).ToNot(HaveOccurred())
+
+			// The command we run should have effects
+			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"))
 		})
 	})
 })
