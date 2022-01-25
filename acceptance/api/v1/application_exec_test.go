@@ -74,28 +74,25 @@ var _ = Describe("AppExec Endpoint", func() {
 				messageBytes = append(messageBytes, newBytes[1:]...) // Skip the "channel" byte
 			}
 
-			messageBytes = []byte{} // Reset
-
 			// Run the command
-			cmdStr := "echo testing-epinio > /workspace/test-echo && exit\r"
+			cmdStr := "echo testing-epinio > /workspace/test-echo"
 			command := append([]byte{0}, []byte(cmdStr)...)
 			err = wsConn.WriteMessage(websocket.TextMessage, command)
 			Expect(err).ToNot(HaveOccurred())
 
-			for {
-				_, newBytes, err := wsConn.ReadMessage()
-				if err != nil {
-					if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-						break // This is the expected error. Al good.
-					}
-					Expect(err).ToNot(HaveOccurred())
-				}
-				messageBytes = append(messageBytes, newBytes[1:]...)
-			}
+			_, messageBytes, err = wsConn.ReadMessage()
+			Expect(err).ToNot(HaveOccurred())
 
 			// It prints command to stdout
 			Expect(string(messageBytes)).To(ContainSubstring(cmdStr))
 
+			// Exit the terminal
+			cmdStr = "\nexit\n"
+			command = append([]byte{0}, []byte(cmdStr)...)
+			err = wsConn.WriteMessage(websocket.TextMessage, command)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Check the effects of the command we run
 			out, err := proc.Kubectl("get", "pods",
 				"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
 				"-n", namespace, "-o", "name")
@@ -106,7 +103,6 @@ var _ = Describe("AppExec Endpoint", func() {
 				"--", "cat", "/workspace/test-echo")
 			Expect(err).ToNot(HaveOccurred())
 
-			// The command we run should have effects
 			Expect(strings.TrimSpace(out)).To(Equal("testing-epinio"))
 		})
 	})
