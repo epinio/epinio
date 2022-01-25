@@ -47,14 +47,12 @@ var _ = Describe("AppRestart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 		Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-		var newPodNames []string
-		// Wait until only one pod exists (restart is finished)
-		Eventually(func() int {
-			newPodNames, err = getPodNames(namespace, app1)
+		// Wait until pod changes name (restart is finished)
+		Eventually(func() []string {
+			names, err := getPodNames(namespace, app1)
 			Expect(err).ToNot(HaveOccurred())
-			return len(newPodNames)
-		}, "1m").Should(Equal(1))
-		Expect(newPodNames).NotTo(Equal(oldPodNames))
+			return names
+		}, "1m").ShouldNot(Equal(oldPodNames))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {
