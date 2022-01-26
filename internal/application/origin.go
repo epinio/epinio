@@ -2,11 +2,12 @@ package application
 
 import (
 	"context"
-	"fmt"
+	"encoding/json"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/pkg/errors"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -17,7 +18,9 @@ import (
 // constructed from the stored information on the Application Custom
 // Resource.
 func Origin(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.ApplicationOrigin, error) {
-	result := models.ApplicationOrigin{}
+	result := models.ApplicationOrigin{
+		Git: &models.GitRef{},
+	}
 
 	applicationCR, err := Get(ctx, cluster, appRef)
 	if err != nil {
@@ -50,8 +53,9 @@ func Origin(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 			return result, err
 		}
 		if path == "" {
-			return result, apierror.InternalError(err, "Bad path origin, empty string")
+			return result, errors.New("bad path origin, empty string")
 		}
+
 		result.Kind = models.OriginPath
 		result.Path = path
 		return result, nil
@@ -63,8 +67,9 @@ func Origin(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 			return result, err
 		}
 		if container == "" {
-			return result, apierror.InternalError(err, "Bad container origin, empty string")
+			return result, errors.New("bad container origin, empty string")
 		}
+
 		result.Kind = models.OriginContainer
 		result.Container = container
 		return result, nil
@@ -76,10 +81,8 @@ func Origin(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 			return result, err
 		}
 		if repository == "" {
-			return result, apierror.InternalError(err, "Bad git origin, url is empty string")
+			return result, errors.New("bad git origin, url is empty string")
 		}
-		result.Kind = models.OriginGit
-		result.Git.URL = repository
 
 		// For git check for the optional revision as well.
 		revision, found, err := unstructured.NestedString(origin, "git", "revision")
@@ -88,11 +91,13 @@ func Origin(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 				return result, err
 			}
 			if revision == "" {
-				return result, apierror.InternalError(err, "Bad git origin, revision is empty string")
+				return result, errors.New("bad git origin, revision is empty string")
 			}
 			result.Git.Revision = revision
 		}
 
+		result.Kind = models.OriginGit
+		result.Git.URL = repository
 		return result, nil
 	}
 
@@ -110,31 +115,32 @@ func SetOrigin(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		return err
 	}
 
-	// Assemble new origin json
-	var value string
-	switch origin.Kind {
-	case models.OriginNone:
-		value = ""
-	case models.OriginPath:
-		value = fmt.Sprintf(`"path": "%s"`, origin.Path)
-	case models.OriginContainer:
-		value = fmt.Sprintf(`"container": "%s"`, origin.Container)
-	case models.OriginGit:
-		value = fmt.Sprintf(`"repository": "%s"`, origin.Git.URL)
-		if origin.Git.Revision != "" {
-			value = fmt.Sprintf(`%s, "revision": "%s"`, value, origin.Git.Revision)
-		}
-		value = fmt.Sprintf(`"git": {%s}`, value)
+	patch, err := buildBodyPatch(origin)
+	if err != nil {
+		return errors.Wrap(err, "error building body patch")
 	}
-
-	// And enter into the app
-	patch := fmt.Sprintf(`[{"op": "replace", "path": "/spec/origin", "value": {%s}}]`, value)
 
 	_, err = client.Namespace(app.Namespace).Patch(ctx,
 		app.Name,
 		types.JSONPatchType,
-		[]byte(patch),
+		patch,
 		metav1.PatchOptions{})
 
 	return err
+}
+
+func buildBodyPatch(origin models.ApplicationOrigin) ([]byte, error) {
+	operations := []PatchOperation{{
+		Op:    "replace",
+		Path:  "/spec/origin",
+		Value: origin,
+	}}
+
+	return json.Marshal(operations)
+}
+
+type PatchOperation struct {
+	Op    string                   `json:"op"`
+	Path  string                   `json:"path"`
+	Value models.ApplicationOrigin `json:"value"`
 }

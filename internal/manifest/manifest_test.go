@@ -35,7 +35,6 @@ var _ = Describe("Manifest", func() {
 						Kind:      models.OriginPath,
 						Path:      workdir,
 						Container: "",
-						Git:       models.GitRef{},
 					},
 					Staging: models.ApplicationStage{
 						Builder: manifest.DefaultBuilder,
@@ -132,7 +131,7 @@ configuration:
 						Kind:      models.OriginGit,
 						Path:      "",
 						Container: "",
-						Git: models.GitRef{
+						Git: &models.GitRef{
 							Revision: "off",
 							URL:      "kilter",
 						},

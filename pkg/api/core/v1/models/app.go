@@ -18,8 +18,8 @@ const (
 type ApplicationStatus string
 
 type GitRef struct {
-	Revision string `json:"revision" yaml:"revision,omitempty"`
-	URL      string `json:"url"      yaml:"url"`
+	Revision string `json:"revision,omitempty" yaml:"revision,omitempty"`
+	URL      string `json:"repository"         yaml:"url"`
 }
 
 // App has all the application's properties, for at rest (Configuration), and active (Workload).

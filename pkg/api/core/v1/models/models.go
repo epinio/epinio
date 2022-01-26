@@ -90,10 +90,14 @@ type ApplicationStage struct {
 // ApplicationOrigin is the part of the manifest describing the origin of the application
 // (sources). At most one of the fields may be specified / not empty.
 type ApplicationOrigin struct {
-	Kind      int    `yaml:"-"` // Hidden from yaml. Type tag to simplify struct usage.
-	Container string `yaml:"container,omitempty"`
-	Git       GitRef `yaml:"git,omitempty"`
-	Path      string `yaml:"path,omitempty"`
+	// Hidden from yaml. Type tag to simplify struct usage.
+	// Note: we cannot hide this property from the JSON since it's used to unmarshal correctly the result of the Apps endpoint
+	// @see failling test here: https://github.com/epinio/epinio/runs/4935898437?check_suite_focus=true
+	// We should probably expose a more meaningful value instead of this "Kind" int
+	Kind      int     `yaml:"-"`
+	Container string  `yaml:"container,omitempty" json:"container,omitempty"`
+	Git       *GitRef `yaml:"git,omitempty"       json:"git,omitempty"`
+	Path      string  `yaml:"path,omitempty"      json:"path,omitempty"`
 }
 
 // manifest origin codes for `Kind`.

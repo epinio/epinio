@@ -76,7 +76,7 @@ func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 		origins++
 	}
 
-	gitRef := models.GitRef{}
+	gitRef := &models.GitRef{}
 	if git != "" {
 		kind = models.OriginGit
 		origins++
@@ -284,7 +284,7 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 		origins++
 	}
 
-	if manifest.Origin.Git.URL != "" {
+	if manifest.Origin.Git != nil && manifest.Origin.Git.URL != "" {
 		manifest.Origin.Kind = models.OriginGit
 		origins++
 	}

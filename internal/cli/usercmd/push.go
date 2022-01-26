@@ -156,7 +156,12 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	case models.OriginGit:
 		c.ui.Normal().Msg("Importing the application sources from Git ...")
 
-		response, err := c.API.AppImportGit(appRef, params.Origin.Git)
+		gitOrigin := params.Origin.Git
+		if gitOrigin == nil {
+			return errors.New("git origin is nil")
+		}
+
+		response, err := c.API.AppImportGit(appRef, *gitOrigin)
 		if err != nil {
 			return errors.Wrap(err, "importing git remote")
 		}
