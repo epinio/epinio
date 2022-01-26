@@ -12,8 +12,7 @@ import (
 )
 
 // Update handles the API endpoint PATCH /namespaces/:namespace/services/:app
-// It modifies the specified service. Currently this is only the
-// number of instances to run.
+// It modifies the keys and values of the specified service.
 func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
