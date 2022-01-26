@@ -31,13 +31,15 @@ require (
 	github.com/spf13/viper v1.10.0
 	github.com/tektoncd/pipeline v0.28.0
 	github.com/ugorji/go v1.2.6 // indirect
-	golang.org/x/crypto v0.0.0-20211215153901-e495a2d5b3d3
-	golang.org/x/sys v0.0.0-20220111092808-5a964db01320 // indirect
+	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
+	golang.org/x/tools v0.1.8 // indirect
 	gopkg.in/ini.v1 v1.66.2
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.21.4
 	k8s.io/apiextensions-apiserver v0.21.4
 	k8s.io/apimachinery v0.21.4
+	k8s.io/apiserver v0.21.4
 	k8s.io/client-go v0.21.4
+	k8s.io/kubectl v0.21.4
 	k8s.io/metrics v0.21.4
 )

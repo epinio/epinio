@@ -305,6 +305,33 @@ func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	)
 }
 
+// Pods is a helper, it returns the Pods belonging to the Deployment of the workload.
+func (a *Workload) Pods(ctx context.Context) (*corev1.PodList, error) {
+	return a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).List(
+		ctx, metav1.ListOptions{
+			LabelSelector: labels.Set(map[string]string{
+				"app.kubernetes.io/component": "application",
+				"app.kubernetes.io/name":      a.app.Name,
+				"app.kubernetes.io/part-of":   a.app.Namespace,
+			}).String(),
+		},
+	)
+}
+
+func (a *Workload) PodNames(ctx context.Context) ([]string, error) {
+	podList, err := a.Pods(ctx)
+	if err != nil {
+		return []string{}, err
+	}
+
+	result := []string{}
+	for _, p := range podList.Items {
+		result = append(result, p.Name)
+	}
+
+	return result, nil
+}
+
 // Metrics returns CPU and Memory usage or and error if one occurs
 func (a *Workload) Metrics(ctx context.Context) (int64, int64, error) {
 	mc, err := metrics.NewForConfig(a.cluster.RestConfig)

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,7 @@ import (
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	kubectlterm "k8s.io/kubectl/pkg/util/term"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -470,6 +472,30 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 			ContainerName: logLine.ContainerName,
 		}, c.ui.ProgressNote().Compact())
 	}
+}
+
+func (c *EpinioClient) AppExec(ctx context.Context, appName string) error {
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Config.Namespace).
+		WithStringValue("Application", appName).
+		Msg("Executing a shell")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	tty := kubectlterm.TTY{
+		In:     os.Stdin,
+		Out:    os.Stdout,
+		Raw:    true,
+		TryDev: true,
+	}
+
+	return c.API.AppExec(c.Config.Namespace, appName, tty)
 }
 
 // Delete removes the named application from the cluster
