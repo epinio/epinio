@@ -111,12 +111,14 @@ jobs:
       - name: Installation Acceptance Tests
         env:
           REGEX: Scenario3
+          PUBLIC_CLOUD: 1
+          KUBECONFIG: /etc/rancher/rke2/rke2.yaml
           REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
         run: |
-          export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
           # Get a free IP address on server's network
-          export EPINIO_SYSTEM_DOMAIN="$(scripts/get-free-ip.sh | sed -e 's/-.*$//').omg.howdoi.website"
+          export RANGE_IP="$(scripts/get-free-ip.sh)"
+          export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
           make setup_chart_museum
           make test-acceptance-install
 

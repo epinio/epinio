@@ -13,6 +13,6 @@ function prepare_system_domain {
 
     export EPINIO_SYSTEM_DOMAIN="${EPINIO_CLUSTER_IP}.omg.howdoi.website"
   fi
-  echo -e "Using \e[32m${EPINIO_SYSTEM_DOMAIN}\e[0m for --system-domain"
+  echo -e "Using \e[32m${EPINIO_SYSTEM_DOMAIN}\e[0m for Epinio domain"
 }
 

@@ -67,12 +67,16 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		out, err := epinioHelper.Uninstall()
 		Expect(err).NotTo(HaveOccurred(), out)
 
+		out, err = proc.RunW("helm", "uninstall", "-n", "cert-manager", "cert-manager")
+		Expect(err).NotTo(HaveOccurred(), out)
+
 		out, err = proc.RunW("helm", "uninstall", "-n", "metallb", "metallb")
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
 	It("installs with private CA and pushes an app with service", func() {
 		By("Installing MetalLB", func() {
+			rangeIP = os.Getenv("RANGE_IP")
 			out, err := proc.RunW("sed", "-i", fmt.Sprintf("s/@IP_RANGE@/%s/", rangeIP),
 				testenv.TestAssetPath("values-metallb-rke.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)

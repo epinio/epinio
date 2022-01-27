@@ -2,6 +2,7 @@ package epinio
 
 import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/testenv"
 )
 
 type Epinio struct {
@@ -29,12 +30,22 @@ func (e *Epinio) Install(args ...string) (string, error) {
 		return out, err
 	}
 
+	// Get runner IP for local chartmuseum
+	out, err = proc.Run(testenv.Root(), false, "bash", "./scripts/get-runner-ip.sh")
+	if err != nil {
+		return out, err
+	}
+
 	// Install Epinio
 	opts := []string{
-		"install",
+		"upgrade",
+		"--install",
+		"--set", "containerRegistryChart=http://"+out+":8080/charts/container-registry-0.1.0.tgz",
+		"--set", "epinioChart=http://"+out+":8080/charts/epinio-0.1.0.tgz",
 		"epinio-installer",
-		"epinio-charts/epinio-installer",
+		"epinio-chartmuseum/epinio-installer",
 	}
+
 	out, err = proc.RunW("helm", append(opts, args...)...)
 	if err != nil {
 		return out, err
