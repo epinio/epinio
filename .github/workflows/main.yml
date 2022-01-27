@@ -110,6 +110,13 @@ jobs:
           make test-acceptance-cli
           make acceptance-cluster-delete
 
+      - uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ginkgo debug logs
+          path: "**/ginkgo-node-*.log"
+          retention-days: 2
+
   acceptance-api:
     needs:
       - linter

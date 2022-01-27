@@ -96,20 +96,20 @@ acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
 
 test-acceptance: showfocus
-	ginkgo -v -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/. acceptance/api/v1/. acceptance/apps/.
+	ginkgo -v --debug -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/. acceptance/api/v1/. acceptance/apps/.
 
 test-acceptance-api: showfocus
-	ginkgo -v -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/api/v1/.
+	ginkgo -v --debug -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/api/v1/.
 
 test-acceptance-apps: showfocus
-	ginkgo -v -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/apps/.
+	ginkgo -v --debug -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/apps/.
 
 test-acceptance-cli: showfocus
-	ginkgo -v -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
+	ginkgo -v --debug -nodes ${GINKGO_NODES} -stream -slowSpecThreshold ${GINKGO_SLOW_TRESHOLD} -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} -failOnPending acceptance/.
 
 # TODO support for labels is coming in ginkgo v2
 test-acceptance-install: showfocus
-	ginkgo -v -nodes ${GINKGO_NODES} -focus "${REGEX}" -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} acceptance/install/.
+	ginkgo -v --debug -nodes ${GINKGO_NODES} -focus "${REGEX}" -stream -randomizeAllSpecs --flakeAttempts=${FLAKE_ATTEMPTS} acceptance/install/.
 
 showfocus:
 	@if test `cat acceptance/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/api/v1/*.go ; echo ; fi
