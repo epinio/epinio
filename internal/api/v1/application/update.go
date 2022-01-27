@@ -18,8 +18,6 @@ import (
 )
 
 // Update handles the API endpoint PATCH /namespaces/:namespace/applications/:app
-// It modifies the specified application. Currently this is only the
-// number of instances to run.
 func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
