@@ -55,7 +55,7 @@ func (w *WordpressApp) CreateDir() error {
 	buildpackYaml := []byte(`
 ---
 php:
-  version: 7.3.x
+  version: 7.4.x
   script: index.php
   webserver: nginx
   webdirectory: htdocs
