@@ -32,6 +32,7 @@ env:
   SETUP_GO_VERSION: '^1.17.2'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
   AWS_REGION: 'us-east-2'
   AKS_MACHINE_TYPE: 'Standard_D3_v2'

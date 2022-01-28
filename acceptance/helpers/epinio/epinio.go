@@ -1,6 +1,8 @@
 package epinio
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 )
@@ -30,23 +32,26 @@ func (e *Epinio) Install(args ...string) (string, error) {
 		return out, err
 	}
 
-	// Get runner IP for local chartmuseum
-	out, err = proc.Run(testenv.Root(), false, "bash", "./scripts/get-runner-ip.sh")
+	// Get chartmuseum service IP for local chartmuseum
+	out, err = proc.RunW("kubectl", "get", "svc",
+		"--selector", "app.kubernetes.io/name=chartmuseum",
+		"-o", "jsonpath='{.items[0].spec.clusterIP}'")
 	if err != nil {
 		return out, err
 	}
+	internal_ip := strings.ReplaceAll(out, "'", "")
 
 	// Install Epinio
 	opts := []string{
 		"upgrade",
 		"--install",
-		"--set", "containerRegistryChart=http://"+out+":8080/charts/container-registry-0.1.0.tgz",
-		"--set", "epinioChart=http://"+out+":8080/charts/epinio-0.1.0.tgz",
+		"--set", "containerRegistryChart=http://" + internal_ip + ":8080/charts/container-registry-0.1.0.tgz",
+		"--set", "epinioChart=http://" + internal_ip + ":8080/charts/epinio-0.1.0.tgz",
 		"epinio-installer",
-		"epinio-chartmuseum/epinio-installer",
+		"helm-charts/chart/epinio-installer",
 	}
 
-	out, err = proc.RunW("helm", append(opts, args...)...)
+	out, err = proc.Run(testenv.Root(), false, "helm", append(opts, args...)...)
 	if err != nil {
 		return out, err
 	}

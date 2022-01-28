@@ -24,6 +24,7 @@ env:
   SETUP_GO_VERSION: '^1.17.2'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
   GKE_ZONE: 'europe-west1-b'
   GKE_MACHINE_TYPE: 'n2-standard-4'
 

@@ -12,11 +12,10 @@ function wait_for_museum_accessible {
   echo "Waiting ended"
 }
 
-# Set chartmuseum URL
+# Set chartmuseum URL and installation options
 if (( PUBLIC_CLOUD == 1)); then
-  HOST_IP=$(./scripts/get-runner-ip.sh)
   CHARTMUSEUM_PORT="8080"
-  CHARTMUSEUM_URL="http://${HOST_IP}:${CHARTMUSEUM_PORT}"
+  CHARTMUSEUM_URL="http://localhost:${CHARTMUSEUM_PORT}"
   INSTALL_OPTS="--set ingress.enabled=false"
 else
   prepare_system_domain
@@ -40,7 +39,8 @@ kubectl get svc --namespace default chartmuseum -o json
 # Configured the port forwarding if needed
 if (( PUBLIC_CLOUD == 1)); then
   POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=chartmuseum" -o jsonpath="{.items[0].metadata.name}")
-  setsid -f kubectl port-forward --namespace default --address ${HOST_IP} ${POD_NAME} ${CHARTMUSEUM_PORT}:${CHARTMUSEUM_PORT} >/dev/null 2>&1
+  kubectl port-forward --namespace default ${POD_NAME} ${CHARTMUSEUM_PORT}:${CHARTMUSEUM_PORT} >/dev/null 2>&1 &
+  FORWARDER_PID=$!
 fi
 
 echo "Waiting for chartmuseum to be accessible"
@@ -57,3 +57,9 @@ helm cm-push -f --version "0.1.0" chart/container-registry/ epinio-chartmuseum
 helm cm-push -f --version "0.1.0" chart/epinio/ epinio-chartmuseum
 helm cm-push -f --version "0.1.0" chart/epinio-installer/ epinio-chartmuseum
 popd
+
+# Kill the port forwarder process if needed
+(( FORWARDER_PID )) && kill ${FORWARDER_PID}
+
+# Clean exit at the step, to not confuse the make process
+exit 0
