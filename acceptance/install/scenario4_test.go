@@ -59,7 +59,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with loadbalancer IP, custom domain and pushes an app with env vars", func() {
+	It("Installs with loadbalancer IP, custom domain and pushes an app with env vars", func() {
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)

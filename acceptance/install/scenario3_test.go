@@ -68,7 +68,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with private CA and pushes an app with service", func() {
+	It("Installs with private CA and pushes an app with service", func() {
 		By("Installing MetalLB", func() {
 			rangeIP = os.Getenv("RANGE_IP")
 			out, err := proc.RunW("sed", "-i", fmt.Sprintf("s/@IP_RANGE@/%s/", rangeIP),

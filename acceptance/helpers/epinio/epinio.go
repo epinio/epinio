@@ -41,7 +41,7 @@ func (e *Epinio) Install(args ...string) (string, error) {
 	}
 	internal_ip := strings.ReplaceAll(out, "'", "")
 
-	// Install Epinio
+	// Install Epinio - Use the epinio-install chart repo directly
 	opts := []string{
 		"upgrade",
 		"--install",

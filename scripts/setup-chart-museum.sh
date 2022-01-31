@@ -12,7 +12,7 @@ function wait_for_museum_accessible {
 }
 
 # Set chartmuseum URL and installation options
-if (( PUBLIC_CLOUD == 1)); then
+if (( PUBLIC_CLOUD )); then
   CHARTMUSEUM_PORT="8080"
   CHARTMUSEUM_URL="http://localhost:${CHARTMUSEUM_PORT}"
   INSTALL_OPTS="--set ingress.enabled=false"
@@ -32,7 +32,7 @@ helm upgrade --install chartmuseum chartmuseum/chartmuseum  \
 	--wait
 
 # Configured the port forwarding if needed
-if (( PUBLIC_CLOUD == 1)); then
+if (( PUBLIC_CLOUD )); then
   POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=chartmuseum" -o jsonpath="{.items[0].metadata.name}")
   kubectl port-forward --namespace default ${POD_NAME} ${CHARTMUSEUM_PORT}:${CHARTMUSEUM_PORT} >/dev/null 2>&1 &
   FORWARDER_PID=$!
