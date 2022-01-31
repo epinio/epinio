@@ -53,6 +53,9 @@ jobs:
       - name: Lint Epinio
         run: make lint
 
+      - name: Unit Tests
+        run: make test
+
   acceptance-cli:
     needs:
       - linter
@@ -148,9 +151,6 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: Unit Tests
-        run: make test
-
       - name: API Acceptance Tests
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -205,9 +205,6 @@ jobs:
         run: |
           echo "`pwd`/output/bin" >> $GITHUB_PATH
 
-      - name: Unit Tests
-        run: make test
-
       - name: API Acceptance Tests
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -237,6 +234,6 @@ jobs:
             tmp/*.json
             tmp/*.log
           retention-days: 2
-        
+
       - name: Cleanup k3d cluster
         run: make acceptance-cluster-delete
