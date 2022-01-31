@@ -8,8 +8,7 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${SCRIPT_DIR}/helpers.sh"
 
 function wait_for_museum_accessible {
-  timeout 1m bash -c "until curl ${CHARTMUSEUM_URL} ; do sleep 1; done"
-  echo "Waiting ended"
+  timeout 1m bash -c "until curl ${CHARTMUSEUM_URL} > /dev/null 2>&1; do sleep 1; done"
 }
 
 # Set chartmuseum URL and installation options
@@ -31,10 +30,6 @@ helm upgrade --install chartmuseum chartmuseum/chartmuseum  \
 	--set env.open.DISABLE_API=false \
 	"$@" \
 	--wait
-
-sleep 5
-# look at the service config for debug
-kubectl get svc --namespace default chartmuseum -o json
 
 # Configured the port forwarding if needed
 if (( PUBLIC_CLOUD == 1)); then

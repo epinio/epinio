@@ -132,7 +132,7 @@ jobs:
         run: |
           echo "System Domain: $GKE_DOMAIN"
           export KUBECONFIG=$HOME/.kube/config
-          scripts/setup-chart-museum.sh --set "service.type=LoadBalancer"
+          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete GKE cluster
