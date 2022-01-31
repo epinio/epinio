@@ -66,12 +66,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 	AfterEach(func() {
 		out, err := epinioHelper.Uninstall()
 		Expect(err).NotTo(HaveOccurred(), out)
-
-		out, err = proc.RunW("helm", "uninstall", "-n", "cert-manager", "cert-manager")
-		Expect(err).NotTo(HaveOccurred(), out)
-
-		out, err = proc.RunW("helm", "uninstall", "-n", "metallb", "metallb")
-		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
 	It("installs with private CA and pushes an app with service", func() {
