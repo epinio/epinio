@@ -143,6 +143,7 @@ configuration:
 				appDir := "../assets/sample-app"
 				out, err := env.Epinio(appDir, "app", "push",
 					"--name", appName)
+				env.OnStageFailureShowStagingLogs(err, out, appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("App is online"))
 			})
@@ -155,6 +156,7 @@ configuration:
 			pushLog, err := env.Epinio("", "apps", "push",
 				"--name", appName,
 				"--git", wordpress+",main")
+			env.OnStageFailureShowStagingLogs(err, pushLog, appName)
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			Eventually(func() string {
@@ -173,6 +175,7 @@ configuration:
 				pushLog, err := env.Epinio("", "apps", "push",
 					"--name", appName,
 					"--git", wordpress+",main")
+				env.OnStageFailureShowStagingLogs(err, pushLog, appName)
 				Expect(err).ToNot(HaveOccurred(), pushLog)
 
 				Eventually(func() string {
@@ -230,6 +233,7 @@ configuration:
 				"--container-image-url", containerImageURL,
 				"--route", route,
 			)
+			env.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 			routeObj := routes.FromString(route)
@@ -265,6 +269,7 @@ configuration:
 			pushLog, err := env.Epinio(appDir, "apps", "push",
 				"--name", appName,
 				"--builder-image", "paketobuildpacks/builder:tiny")
+			env.OnStageFailureShowStagingLogs(err, pushLog, appName)
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			By("checking if the staging is using custom builder image")
@@ -286,8 +291,10 @@ configuration:
 
 		act := func(name string, arg ...string) (string, error) {
 			appDir := "../assets/sample-app"
-			return env.Epinio(appDir, "app", append([]string{"push",
+			out, err := env.Epinio(appDir, "app", append([]string{"push",
 				"--name", name}, arg...)...)
+			env.OnStageFailureShowStagingLogs(err, out, name)
+			return out, err
 		}
 
 		replicas := func(ns, name string) string {
@@ -349,8 +356,10 @@ configuration:
 	Describe("build cache", func() {
 		push := func(arg ...string) (string, error) {
 			appDir := "../assets/sample-app"
-			return env.Epinio(appDir, "app", append([]string{"push",
+			out, err := env.Epinio(appDir, "app", append([]string{"push",
 				"--name", appName}, arg...)...)
+			env.OnStageFailureShowStagingLogs(err, out, appName)
+			return out, err
 		}
 		BeforeEach(func() {
 			out, err := push()
@@ -490,6 +499,7 @@ configuration:
 				By("pushing the app specified in the manifest")
 
 				out, err := env.Epinio("", "apps", "push", manifestPath)
+				env.OnStageFailureShowStagingLogs(err, out, appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(`Manifest: ` + absManifestPath))
 
@@ -577,6 +587,7 @@ configuration:
 					"apps", "push",
 					"--name", appName,
 					"--bind", serviceName)
+				env.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
@@ -625,6 +636,7 @@ configuration:
 					"apps", "push",
 					"--name", appName,
 					"--env", "MYVAR=myvalue")
+				env.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
@@ -883,6 +895,7 @@ configuration:
 				"--name", appName,
 				"--container-image-url", containerImageURL,
 			)
+			env.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 

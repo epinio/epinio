@@ -70,6 +70,7 @@ var _ = Describe("apps env", func() {
 				appDir := "../assets/sample-app"
 				out, err := env.Epinio(appDir, "apps", "push",
 					"--name", appName)
+				env.OnStageFailureShowStagingLogs(err, out, appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(namespace, appName)).ToNot(MatchRegexp("MYVAR"))
@@ -105,6 +106,7 @@ var _ = Describe("apps env", func() {
 				appDir := "../assets/sample-app"
 				out, err := env.Epinio(appDir, "apps", "push",
 					"--name", appName)
+				env.OnStageFailureShowStagingLogs(err, out, appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(namespace, appName)).To(MatchRegexp("MYVAR"))
@@ -117,6 +119,7 @@ var _ = Describe("apps env", func() {
 			appDir := "../assets/sample-app"
 			out, err := env.Epinio(appDir, "apps", "push",
 				"--name", appName)
+			env.OnStageFailureShowStagingLogs(err, out, appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
