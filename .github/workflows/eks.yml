@@ -99,7 +99,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install kubernetes-cli eksctl
+          brew install kubernetes-cli eksctl coreutils
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
