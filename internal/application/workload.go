@@ -20,7 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
-	podutils "k8s.io/kubectl/pkg/util/podutils"
+	"k8s.io/kubectl/pkg/util/podutils"
+	metricsv1beta1 "k8s.io/metrics/pkg/apis/metrics/v1beta1"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
@@ -349,140 +350,25 @@ func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, er
 	if err != nil {
 		return result, err
 	}
-
-	metricsClient, err := metrics.NewForConfig(a.cluster.RestConfig)
-	if err != nil {
-		return result, err
-	}
-	podClient := a.cluster.Kubectl.CoreV1()
-
 	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
-	pods, err := podClient.Pods(a.app.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
+
+	pods, err := a.getPods(ctx, selector)
+	if err != nil {
+		return result, err
+	}
+	podMetrics, err := a.getPodMetrics(ctx, selector)
 	if err != nil {
 		return result, err
 	}
 
-	podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(a.app.Namespace).
-		List(ctx, metav1.ListOptions{LabelSelector: selector})
+	result, err = a.generatePodInfo(pods)
 	if err != nil {
 		return result, err
 	}
 
-	// Calculate restarts
-	for _, pod := range pods.Items {
-		restarts := int32(0)
-		for _, cs := range pod.Status.ContainerStatuses {
-			if cs.Name == a.app.Name {
-				restarts += cs.RestartCount
-			}
-		}
-
-		result[pod.Name] = &models.PodInfo{
-			Name:      pod.Name,
-			Restarts:  restarts,
-			Ready:     podutils.IsPodReady(&pod),
-			CreatedAt: pod.ObjectMeta.CreationTimestamp.Time.Format(time.RFC3339), // ISO 8601
-		}
-	}
-
-	// Calculate metrics
-	for _, podMetric := range podMetrics.Items {
-		if _, podExists := result[podMetric.Name]; !podExists {
-			continue // should not happen but just making sure metrics match pods
-		}
-
-		cpuUsage := resource.NewQuantity(0, resource.DecimalSI)
-		memUsage := resource.NewQuantity(0, resource.BinarySI)
-
-		podContainers := podMetric.Containers
-		for _, container := range podContainers {
-			cpuUsage.Add(*container.Usage.Cpu())
-			memUsage.Add(*container.Usage.Memory())
-		}
-
-		// cpu * 1000 -> milliCPUs (rounded)
-		milliCPUs := int64(math.Round(cpuUsage.ToDec().AsApproximateFloat64() * 1000))
-
-		mem, ok := memUsage.AsInt64()
-		if !ok {
-			// TODO: What if not ok? Don't just print things
-			fmt.Printf("memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
-		}
-
-		result[podMetric.Name].MemoryBytes = mem
-		result[podMetric.Name].MilliCPUs = milliCPUs
-	}
+	a.populatePodMetrics(result, podMetrics)
 
 	return result, nil
-}
-
-// Metrics returns CPU and Memory usage or and error if one occurs
-func (a *Workload) Metrics(ctx context.Context) (int64, int64, error) {
-	mc, err := metrics.NewForConfig(a.cluster.RestConfig)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	deployment, err := a.Deployment(ctx)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
-	podMetrics, err := mc.MetricsV1beta1().PodMetricses(a.app.Namespace).
-		List(ctx, metav1.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return 0, 0, err
-	}
-
-	cpuUsage := resource.NewQuantity(0, resource.DecimalSI)
-	memUsage := resource.NewQuantity(0, resource.BinarySI)
-
-	for _, podMetric := range podMetrics.Items {
-		podContainers := podMetric.Containers
-		for _, container := range podContainers {
-			// TODO: Filter only application containers?
-			cpuUsage.Add(*container.Usage.Cpu())
-			memUsage.Add(*container.Usage.Memory())
-		}
-	}
-
-	// cpu * 1000 -> milliCPUs (rounded)
-	milliCPUs := int64(math.Round(cpuUsage.ToDec().AsApproximateFloat64() * 1000))
-
-	mem, ok := memUsage.AsInt64()
-	if !ok {
-		fmt.Printf("memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
-	}
-
-	return milliCPUs, mem, nil
-}
-
-// Restarts returns the number of restarts the application currently has
-// The pod's restarts is the sum of restarts of each and every container in that Pod
-func (a *Workload) Restarts(ctx context.Context) (int32, error) {
-	deployment, err := a.Deployment(ctx)
-	if err != nil {
-		return 0, err
-	}
-
-	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
-	pods, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).List(ctx,
-		metav1.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return 0, err
-	}
-
-	restarts := int32(0)
-	for _, p := range pods.Items {
-		for _, cs := range p.Status.ContainerStatuses {
-			if cs.Name == a.app.Name {
-				restarts += cs.RestartCount
-			}
-		}
-	}
-
-	return restarts, nil
 }
 
 // GetStageID is a specialization of Get coming after, to determine and deliver only the StageId of the workload.
@@ -545,4 +431,83 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		DesiredReplicas: desiredReplicas,
 		ReadyReplicas:   readyReplicas,
 	}, nil
+}
+
+func (a *Workload) getPods(ctx context.Context, selector string) ([]corev1.Pod, error) {
+	podList, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).
+		List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return []corev1.Pod{}, err
+	}
+
+	return podList.Items, nil
+}
+
+func (a *Workload) getPodMetrics(ctx context.Context, selector string) ([]metricsv1beta1.PodMetrics, error) {
+	result := []metricsv1beta1.PodMetrics{}
+
+	metricsClient, err := metrics.NewForConfig(a.cluster.RestConfig)
+	if err != nil {
+		return result, err
+	}
+
+	podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(a.app.Namespace).
+		List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return result, err
+	}
+
+	return podMetrics.Items, nil
+}
+
+func (a *Workload) generatePodInfo(pods []corev1.Pod) (map[string]*models.PodInfo, error) {
+	result := map[string]*models.PodInfo{}
+
+	for _, pod := range pods {
+		restarts := int32(0)
+		for _, cs := range pod.Status.ContainerStatuses {
+			if cs.Name == a.app.Name {
+				restarts += cs.RestartCount
+			}
+		}
+
+		result[pod.Name] = &models.PodInfo{
+			Name:      pod.Name,
+			Restarts:  restarts,
+			Ready:     podutils.IsPodReady(&pod),
+			CreatedAt: pod.ObjectMeta.CreationTimestamp.Time.Format(time.RFC3339), // ISO 8601
+		}
+	}
+
+	return result, nil
+}
+
+func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMetrics []metricsv1beta1.PodMetrics) {
+	// Calculate metrics
+	for _, podMetric := range podMetrics {
+		if _, podExists := podInfos[podMetric.Name]; !podExists {
+			continue // should not happen but just making sure metrics match pods
+		}
+
+		cpuUsage := resource.NewQuantity(0, resource.DecimalSI)
+		memUsage := resource.NewQuantity(0, resource.BinarySI)
+
+		podContainers := podMetric.Containers
+		for _, container := range podContainers {
+			cpuUsage.Add(*container.Usage.Cpu())
+			memUsage.Add(*container.Usage.Memory())
+		}
+
+		// cpu * 1000 -> milliCPUs (rounded)
+		milliCPUs := int64(math.Round(cpuUsage.ToDec().AsApproximateFloat64() * 1000))
+
+		mem, ok := memUsage.AsInt64()
+		if !ok {
+			// TODO: What if not ok? Don't just print things
+			fmt.Printf("memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
+		}
+
+		podInfos[podMetric.Name].MemoryBytes = mem
+		podInfos[podMetric.Name].MilliCPUs = milliCPUs
+	}
 }
