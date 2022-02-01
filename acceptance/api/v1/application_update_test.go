@@ -327,5 +327,38 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			serviceBindings = readServiceBindings(namespace, app)
 			Expect(serviceBindings).To(Equal([]string{}))
 		})
+
+		It("fails on non existing service bindings and does not touch any existing service config", func() {
+			env.BindAppService(app, service, namespace)
+
+			serviceBindings := readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal(sortStrings([]string{service})))
+
+			newServiceBinding := []string{"does_not_exist"}
+			data, err := json.Marshal(models.ApplicationUpdateRequest{
+				Services: newServiceBinding,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			response, err := env.Curl("PATCH",
+				fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+					serverURL, v1.Root, namespace, app),
+				strings.NewReader(string(data)))
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+
+			var errorResponse apierrors.ErrorResponse
+			err = json.Unmarshal(bodyBytes, &errorResponse)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusNotFound))
+			Expect(errorResponse.Errors[0].Title).To(Equal("Service 'does_not_exist' does not exist"))
+
+			serviceBindings = readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal([]string{service}))
+		})
 	})
 })
