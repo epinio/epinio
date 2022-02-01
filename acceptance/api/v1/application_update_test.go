@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -217,6 +219,146 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			checkIngresses(app, namespace, newRoutes...)
 			checkCertificateDNSNames(app, namespace, newRoutes...)
 			checkSecretsForCerts(app, namespace, newRoutes...)
+		})
+	})
+	Describe("service bindings", func() {
+		var (
+			app               string
+			service, service2 string
+		)
+
+		BeforeEach(func() {
+			app = catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+			service = catalog.NewServiceName()
+			env.MakeService(service)
+			service2 = catalog.NewServiceName()
+			env.MakeService(service2)
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(app)
+			env.DeleteService(service)
+			env.DeleteService(service2)
+		})
+
+		// helper function to allow deterministic string comparison
+		sortStrings := func(strings []string) []string {
+			sort.Strings(strings)
+			return strings
+		}
+
+		readServiceBindings := func(namespace, app string) []string {
+			response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+				serverURL, v1.Root, namespace, app), strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			var data models.App
+			err = json.Unmarshal(bodyBytes, &data)
+			Expect(err).ToNot(HaveOccurred())
+			return data.Configuration.Services
+		}
+
+		It("binds a service to an app", func() {
+			serviceBindings := readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal([]string{}))
+
+			newServiceBinding := []string{service}
+			data, err := json.Marshal(models.ApplicationUpdateRequest{
+				Services: newServiceBinding,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			response, err := env.Curl("PATCH",
+				fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+					serverURL, v1.Root, namespace, app),
+				strings.NewReader(string(data)))
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+			serviceBindings = readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal([]string{service}))
+		})
+
+		It("unbinds a service from an app", func() {
+			env.BindAppService(app, service, namespace)
+			env.BindAppService(app, service2, namespace)
+
+			serviceBindings := readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal(sortStrings([]string{service, service2})))
+
+			// delete a single service by only providing one of the two bound services
+			newServiceBinding := []string{service2}
+			data, err := json.Marshal(models.ApplicationUpdateRequest{
+				Services: newServiceBinding,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			response, err := env.Curl("PATCH",
+				fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+					serverURL, v1.Root, namespace, app),
+				strings.NewReader(string(data)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			serviceBindings = readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal([]string{service2}))
+
+			// delete all services by providing an empty array
+			env.BindAppService(app, service, namespace)
+			serviceBindings = readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal(sortStrings([]string{service, service2})))
+
+			newServiceBinding = []string{}
+			data, err = json.Marshal(models.ApplicationUpdateRequest{
+				Services: newServiceBinding,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			response, err = env.Curl("PATCH",
+				fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+					serverURL, v1.Root, namespace, app),
+				strings.NewReader(string(data)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			serviceBindings = readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal([]string{}))
+		})
+
+		It("fails on non existing service bindings and does not touch any existing service config", func() {
+			env.BindAppService(app, service, namespace)
+
+			serviceBindings := readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal(sortStrings([]string{service})))
+
+			newServiceBinding := []string{"does_not_exist"}
+			data, err := json.Marshal(models.ApplicationUpdateRequest{
+				Services: newServiceBinding,
+			})
+			Expect(err).ToNot(HaveOccurred())
+			response, err := env.Curl("PATCH",
+				fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+					serverURL, v1.Root, namespace, app),
+				strings.NewReader(string(data)))
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+
+			var errorResponse apierrors.ErrorResponse
+			err = json.Unmarshal(bodyBytes, &errorResponse)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusNotFound))
+			Expect(errorResponse.Errors[0].Title).To(Equal("Service 'does_not_exist' does not exist"))
+
+			serviceBindings = readServiceBindings(namespace, app)
+			Expect(serviceBindings).To(Equal([]string{service}))
 		})
 	})
 })
