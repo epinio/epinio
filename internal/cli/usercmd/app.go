@@ -546,6 +546,10 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 }
 
 func (c *EpinioClient) printReplicaDetails(app models.App) error {
+	if app.Workload == nil {
+		return nil
+	}
+
 	if len(app.Workload.Replicas) > 0 {
 		msg := c.ui.Success().WithTable("Name", "Ready", "Memory", "MilliCPUs", "Restarts", "Age")
 		for _, r := range app.Workload.Replicas {

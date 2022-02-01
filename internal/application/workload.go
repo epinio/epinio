@@ -481,7 +481,6 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo
 }
 
 func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMetrics []metricsv1beta1.PodMetrics) error {
-	// Calculate metrics
 	for _, podMetric := range podMetrics {
 		if _, podExists := podInfos[podMetric.Name]; !podExists {
 			continue // should not happen but just making sure metrics match pods

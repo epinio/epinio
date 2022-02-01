@@ -511,6 +511,7 @@ configuration:
 				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
 				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
 				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
+				Expect(out).To(MatchRegexp(fmt.Sprintf(" %s-.*|\\s+true\\s+|.*|.*|.*|.*|", appName)))
 
 				By("deleting the app")
 				env.DeleteApp(appName)
