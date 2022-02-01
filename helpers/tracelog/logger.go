@@ -39,7 +39,7 @@ func TraceLevel() int {
 // LoggerFlags adds to viper flags
 func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	// trace-level 0 prints nothing, well technically it would print NewLogger().V(-1)
-	pf.IntP("trace-level", "", 0, "Only print trace messages at or above this level (0 to 5, default 0, print nothing)")
+	pf.IntP("trace-level", "", 0, "Only print trace messages at or above this level (0 to 255, default 0, print nothing)")
 	viper.BindPFlag("trace-level", pf.Lookup("trace-level"))
 	argToEnv["trace-level"] = "TRACE_LEVEL"
 }

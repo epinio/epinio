@@ -2,7 +2,6 @@ package usercmd
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -378,7 +377,6 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 // 5. The main thread returns
 // When the connection is closed (e.g. from the server side), the process is the
 // same but starts from #2 above.
-// TODO move into transport package
 func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
@@ -396,22 +394,24 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 
 	details.Info("application logs")
 
+	token, err := c.API.AuthToken()
+	if err != nil {
+		return err
+	}
+
 	var urlArgs = []string{}
 	urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", follow))
 	urlArgs = append(urlArgs, fmt.Sprintf("stage_id=%s", stageID))
-
-	headers := http.Header{
-		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", c.Config.User, c.Config.Password)))},
-	}
+	urlArgs = append(urlArgs, fmt.Sprintf("authtoken=%s", token))
 
 	var endpoint string
 	if stageID == "" {
-		endpoint = api.Routes.Path("AppLogs", c.Config.Namespace, appName)
+		endpoint = api.WsRoutes.Path("AppLogs", c.Config.Namespace, appName)
 	} else {
-		endpoint = api.Routes.Path("StagingLogs", c.Config.Namespace, stageID)
+		endpoint = api.WsRoutes.Path("StagingLogs", c.Config.Namespace, stageID)
 	}
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(
-		fmt.Sprintf("%s%s/%s?%s", c.API.WsURL, api.Root, endpoint, strings.Join(urlArgs, "&")), headers)
+		fmt.Sprintf("%s%s/%s?%s", c.API.WsURL, api.WsRoot, endpoint, strings.Join(urlArgs, "&")), http.Header{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}

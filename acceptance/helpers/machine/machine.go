@@ -5,10 +5,10 @@ package machine
 
 import (
 	"crypto/tls"
-	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	urlpkg "net/url"
 	"strings"
 
 	. "github.com/onsi/ginkgo"
@@ -80,10 +80,12 @@ func (m *Machine) VerifyNamespaceNotExist(namespace string) {
 	ExpectWithOffset(1, out).ToNot(MatchRegexp(namespace))
 }
 
-func (m *Machine) MakeWebSocketConnection(url string, subprotocols ...string) *websocket.Conn {
-	headers := http.Header{
-		"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%s", m.user, m.password)))},
-	}
+func (m *Machine) MakeWebSocketConnection(authToken string, url string, subprotocols ...string) *websocket.Conn {
+	u, err := urlpkg.Parse(url)
+	Expect(err).NotTo(HaveOccurred(), url)
+	values := u.Query()
+	values.Add("authtoken", authToken)
+	u.RawQuery = values.Encode()
 
 	// disable tls cert verification for web socket connections - See also `Curl` above
 	websocket.DefaultDialer.TLSClientConfig = &tls.Config{
@@ -92,7 +94,7 @@ func (m *Machine) MakeWebSocketConnection(url string, subprotocols ...string) *w
 
 	dialer := websocket.DefaultDialer
 	dialer.Subprotocols = subprotocols
-	ws, response, err := dialer.Dial(url, headers)
+	ws, response, err := dialer.Dial(u.String(), http.Header{})
 
 	var b []byte
 	if response != nil {
