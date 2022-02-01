@@ -10,9 +10,7 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
-	"github.com/pkg/errors"
 	pkgerrors "github.com/pkg/errors"
-
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -362,10 +360,7 @@ func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, er
 		return result, err
 	}
 
-	result, err = a.generatePodInfo(pods)
-	if err != nil {
-		return result, err
-	}
+	result = a.generatePodInfo(pods)
 
 	if err = a.populatePodMetrics(result, podMetrics); err != nil {
 		return result, err
@@ -463,10 +458,10 @@ func (a *Workload) getPodMetrics(ctx context.Context, selector string) ([]metric
 	return podMetrics.Items, nil
 }
 
-func (a *Workload) generatePodInfo(pods []corev1.Pod) (map[string]*models.PodInfo, error) {
+func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo {
 	result := map[string]*models.PodInfo{}
 
-	for _, pod := range pods {
+	for i, pod := range pods {
 		restarts := int32(0)
 		for _, cs := range pod.Status.ContainerStatuses {
 			if cs.Name == a.app.Name {
@@ -477,12 +472,12 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) (map[string]*models.PodInf
 		result[pod.Name] = &models.PodInfo{
 			Name:      pod.Name,
 			Restarts:  restarts,
-			Ready:     podutils.IsPodReady(&pod),
+			Ready:     podutils.IsPodReady(&pods[i]),
 			CreatedAt: pod.ObjectMeta.CreationTimestamp.Time.Format(time.RFC3339), // ISO 8601
 		}
 	}
 
-	return result, nil
+	return result
 }
 
 func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMetrics []metricsv1beta1.PodMetrics) error {
@@ -506,7 +501,7 @@ func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMe
 
 		mem, ok := memUsage.AsInt64()
 		if !ok {
-			return errors.Errorf("couldn't get memory usage as an integer, memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
+			return pkgerrors.Errorf("couldn't get memory usage as an integer, memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
 		}
 
 		podInfos[podMetric.Name].MemoryBytes = mem
