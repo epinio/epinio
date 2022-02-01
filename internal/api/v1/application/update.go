@@ -108,7 +108,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		}
 	}
 
-	if len(updateRequest.Services) > 0 {
+	if updateRequest.Services != nil {
 		// Take old state
 		oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
 		if err != nil {
@@ -118,25 +118,33 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		var theIssues []apierror.APIError
 		var okToBind []string
 
-		for _, serviceName := range updateRequest.Services {
-			_, err := services.Lookup(ctx, cluster, namespace, serviceName)
-			if err != nil {
-				if err.Error() == "service not found" {
-					theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
-					continue
+		if len(updateRequest.Services) > 0 {
+			for _, serviceName := range updateRequest.Services {
+				_, err := services.Lookup(ctx, cluster, namespace, serviceName)
+				if err != nil {
+					if err.Error() == "service not found" {
+						theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
+						continue
+					}
+
+					theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+					return apierror.NewMultiError(theIssues)
 				}
 
+				okToBind = append(okToBind, serviceName)
+			}
+
+			err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, true)
+			if err != nil {
 				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
 				return apierror.NewMultiError(theIssues)
 			}
-
-			okToBind = append(okToBind, serviceName)
-		}
-
-		err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, true)
-		if err != nil {
-			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-			return apierror.NewMultiError(theIssues)
+		} else {
+			// remove all bound services
+			err = application.BoundServicesSet(ctx, cluster, app.Meta, []string{}, true)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
 		}
 
 		// Restart workload, if any
