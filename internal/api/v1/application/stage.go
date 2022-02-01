@@ -26,7 +26,6 @@ import (
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
-	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -260,13 +259,8 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := namespaces.Exists(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	if !exists {
-		return apierror.InternalError(err)
+	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
+		return err
 	}
 
 	// Wait for the staging to be done, then check if it ended in failure.

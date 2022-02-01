@@ -7,7 +7,6 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	v1 "k8s.io/api/core/v1"
@@ -27,13 +26,8 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := namespaces.Exists(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	if !exists {
-		return apierror.NamespaceIsNotKnown(namespace)
+	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
+		return err
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)

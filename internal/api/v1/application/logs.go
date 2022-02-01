@@ -12,7 +12,6 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 
@@ -40,14 +39,8 @@ func (hc Controller) Logs(c *gin.Context) {
 	}
 
 	log.Info("validate namespace", "name", namespace)
-	exists, err := namespaces.Exists(ctx, cluster, namespace)
-	if err != nil {
-		response.Error(c, apierror.InternalError(err))
-		return
-	}
-
-	if !exists {
-		response.Error(c, apierror.NamespaceIsNotKnown(namespace))
+	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
+		response.Error(c, err)
 		return
 	}
 
