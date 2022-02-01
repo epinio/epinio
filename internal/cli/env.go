@@ -2,29 +2,17 @@ package cli
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-var ()
-
 // CmdAppEnv implements the command: epinio app env
 var CmdAppEnv = &cobra.Command{
-	Use:           "env",
-	Short:         "Epinio application configuration",
-	Long:          `Manage epinio application environment variables`,
-	SilenceErrors: true,
-	SilenceUsage:  true,
-	Args:          cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := cmd.Usage(); err != nil {
-			return err
-		}
-		return fmt.Errorf(`Unknown method "%s"`, args[0])
-	},
+	Use:   "env",
+	Short: "Epinio application configuration",
+	Long:  `Manage epinio application environment variables`,
 }
 
 func init() {

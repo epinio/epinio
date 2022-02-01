@@ -84,6 +84,8 @@ var Routes = routes.NamedRoutes{
 	"AppRestart":      post("/namespaces/:namespace/applications/:app/restart", errorHandler(application.Controller{}.Restart)),
 	"AppUpdate":       patch("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Update)),
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Controller{}.Running)),
+	"AppExec":         get("/namespaces/:namespace/applications/:app/exec", errorHandler(application.Controller{}.Exec)),
+	"AppPortForward":  get("/namespaces/:namespace/applications/:app/portforward", errorHandler(application.Controller{}.PortForward)),
 
 	// See env.go
 	"EnvList": get("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Index)),

@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/cli/logprinter"
+	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 
@@ -457,6 +458,24 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 	}
 
 	return c.API.AppExec(c.Config.Namespace, appName, instance, tty)
+}
+
+func (c *EpinioClient) AppPortForward(ctx context.Context, appName string, address, ports []string) error {
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Config.Namespace).
+		WithStringValue("Application", appName).
+		Msg("Executing port forwarding")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	opts := client.NewPortForwardOpts(address, ports)
+	return c.API.AppPortForward(c.Config.Namespace, appName, opts)
 }
 
 // Delete removes the named application from the cluster
