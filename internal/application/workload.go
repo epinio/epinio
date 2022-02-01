@@ -34,8 +34,9 @@ type AppServiceBindList []AppServiceBind
 // Workload manages applications that are deployed. It provides workload
 // (deployments) specific actions for the application model.
 type Workload struct {
-	app     models.AppRef
-	cluster *kubernetes.Cluster
+	deployment *appsv1.Deployment // memoization
+	app        models.AppRef
+	cluster    *kubernetes.Cluster
 }
 
 // NewWorkload constructs and returns a workload representation from an application reference.
@@ -300,10 +301,16 @@ func (a *Workload) Restart(ctx context.Context) error {
 }
 
 // Deployment is a helper, it returns the kube deployment resource of the workload.
+// The result is memoized so that subsequent calls to this method, don't call
+// the kubernetes api.
 func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
-	return a.cluster.Kubectl.AppsV1().Deployments(a.app.Namespace).Get(
-		ctx, a.app.Name, metav1.GetOptions{},
-	)
+	var err error
+	if a.deployment == nil {
+		a.deployment, err = a.cluster.Kubectl.AppsV1().
+			Deployments(a.app.Namespace).Get(ctx, a.app.Name, metav1.GetOptions{})
+	}
+
+	return a.deployment, err
 }
 
 // Pods is a helper, it returns the Pods belonging to the Deployment of the workload.
