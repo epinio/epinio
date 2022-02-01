@@ -109,26 +109,24 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	}
 
 	if updateRequest.Services != nil {
+		var okToBind []string
+
 		// Take old state
 		oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 
-		var theIssues []apierror.APIError
-		var okToBind []string
-
 		if len(updateRequest.Services) > 0 {
 			for _, serviceName := range updateRequest.Services {
 				_, err := services.Lookup(ctx, cluster, namespace, serviceName)
 				if err != nil {
+					// do not change existing service bindings if there is an issue
 					if err.Error() == "service not found" {
-						theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
-						continue
+						return apierror.ServiceIsNotKnown(serviceName)
 					}
 
-					theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-					return apierror.NewMultiError(theIssues)
+					return apierror.InternalError(err)
 				}
 
 				okToBind = append(okToBind, serviceName)
@@ -136,8 +134,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 			err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, true)
 			if err != nil {
-				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-				return apierror.NewMultiError(theIssues)
+				return apierror.InternalError(err)
 			}
 		} else {
 			// remove all bound services
@@ -153,20 +150,14 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 			// as full service structures
 			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
 			if err != nil {
-				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-				return apierror.NewMultiError(theIssues)
+				return apierror.InternalError(err)
 			}
 
 			err = application.NewWorkload(cluster, app.Meta).
 				BoundServicesChange(ctx, username, oldBound, newBound)
 			if err != nil {
-				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-				return apierror.NewMultiError(theIssues)
+				return apierror.InternalError(err)
 			}
-		}
-
-		if len(theIssues) > 0 {
-			return apierror.NewMultiError(theIssues)
 		}
 	}
 
