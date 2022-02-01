@@ -10,7 +10,7 @@ require (
 	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-logr/logr v0.4.0
+	github.com/go-logr/logr v1.2.0
 	github.com/go-logr/stdr v0.4.0
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0
@@ -38,9 +38,9 @@ require (
 	golang.org/x/tools v0.1.8 // indirect
 	gopkg.in/ini.v1 v1.66.2
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.21.4
+	k8s.io/api v0.23.3
 	k8s.io/apiextensions-apiserver v0.21.4
-	k8s.io/apimachinery v0.21.4
+	k8s.io/apimachinery v0.23.3
 	k8s.io/apiserver v0.21.4
 	k8s.io/client-go v0.21.4
 	k8s.io/kubectl v0.21.4
