@@ -22,7 +22,8 @@ import (
 
 const (
 	// Root is the url path prefix for all API endpoints.
-	Root   = "/api/v1"
+	Root = "/api/v1"
+	// WsRoot is the url path prefix for all websocket API endpoints.
 	WsRoot = "/wapi/v1"
 )
 
@@ -138,7 +139,7 @@ func Lemon(router *gin.RouterGroup) {
 }
 
 // Spice extends the specified router with the methods and urls
-// handling the API endpoints
+// handling the websocket API endpoints
 func Spice(router *gin.RouterGroup) {
 	for _, r := range WsRoutes {
 		router.Handle(r.Method, r.Path, r.Handler)
