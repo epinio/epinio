@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
+	podutils "k8s.io/kubectl/pkg/util/podutils"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
@@ -332,6 +333,82 @@ func (a *Workload) PodNames(ctx context.Context) ([]string, error) {
 	return result, nil
 }
 
+// Replicas returns a slice of models.PodInfo. Each PodInfo matches a Pod belonging to
+// the application Deployment (workload).
+func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, error) {
+	result := map[string]*models.PodInfo{}
+
+	deployment, err := a.Deployment(ctx)
+	if err != nil {
+		return result, err
+	}
+
+	metricsClient, err := metrics.NewForConfig(a.cluster.RestConfig)
+	if err != nil {
+		return result, err
+	}
+	podClient := a.cluster.Kubectl.CoreV1()
+
+	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
+	pods, err := podClient.Pods(a.app.Namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return result, err
+	}
+
+	podMetrics, err := metricsClient.MetricsV1beta1().PodMetricses(a.app.Namespace).
+		List(ctx, metav1.ListOptions{LabelSelector: selector})
+	if err != nil {
+		return result, err
+	}
+
+	// Calculate restarts
+	for _, pod := range pods.Items {
+		restarts := int32(0)
+		for _, cs := range pod.Status.ContainerStatuses {
+			if cs.Name == a.app.Name {
+				restarts += cs.RestartCount
+			}
+		}
+
+		result[pod.Name] = &models.PodInfo{
+			Name:      pod.Name,
+			Restarts:  restarts,
+			Ready:     podutils.IsPodReady(&pod),
+			CreatedAt: pod.ObjectMeta.CreationTimestamp.Time.Format(time.RFC3339), // ISO 8601
+		}
+	}
+
+	// Calculate metrics
+	for _, podMetric := range podMetrics.Items {
+		if _, podExists := result[podMetric.Name]; !podExists {
+			continue // should not happen but just making sure metrics match pods
+		}
+
+		cpuUsage := resource.NewQuantity(0, resource.DecimalSI)
+		memUsage := resource.NewQuantity(0, resource.BinarySI)
+
+		podContainers := podMetric.Containers
+		for _, container := range podContainers {
+			cpuUsage.Add(*container.Usage.Cpu())
+			memUsage.Add(*container.Usage.Memory())
+		}
+
+		// cpu * 1000 -> milliCPUs (rounded)
+		milliCPUs := int64(math.Round(cpuUsage.ToDec().AsApproximateFloat64() * 1000))
+
+		mem, ok := memUsage.AsInt64()
+		if !ok {
+			// TODO: What if not ok? Don't just print things
+			fmt.Printf("memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
+		}
+
+		result[podMetric.Name].MemoryBytes = mem
+		result[podMetric.Name].MilliCPUs = milliCPUs
+	}
+
+	return result, nil
+}
+
 // Metrics returns CPU and Memory usage or and error if one occurs
 func (a *Workload) Metrics(ctx context.Context) (int64, int64, error) {
 	mc, err := metrics.NewForConfig(a.cluster.RestConfig)
@@ -445,22 +522,15 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		routes = []string{err.Error()}
 	}
 
-	restarts, err := a.Restarts(ctx)
+	replicas, err := a.Replicas(ctx)
 	if err != nil {
-		status = pkgerrors.Wrap(err, "failed to calculate application restarts").Error()
-	}
-
-	cpu, mem, err := a.Metrics(ctx)
-	if err != nil {
-		status = pkgerrors.Wrap(err, "failed to calculate resource usage").Error()
+		status = pkgerrors.Wrap(err, "failed to get replica details").Error()
 	}
 
 	return &models.AppDeployment{
 		Active:          true,
 		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
-		MilliCPUs:       cpu,
-		MemoryBytes:     mem,
-		Restarts:        restarts,
+		Replicas:        replicas,
 		Username:        username,
 		StageID:         stageID,
 		Status:          status,

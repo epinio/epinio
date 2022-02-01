@@ -202,55 +202,11 @@ func (c *EpinioClient) AppShow(appName string) error {
 		return err
 	}
 
-	msg := c.ui.Success().WithTable("Key", "Value").
-		WithTableRow("Origin", app.Origin.String())
-
-	var createdAt time.Time
-	if app.Workload != nil {
-		createdAt, err = time.Parse(time.RFC3339, app.Workload.CreatedAt)
-		if err != nil {
-			return err
-		}
-		msg = msg.WithTableRow("Status", app.Workload.Status).
-			WithTableRow("Username", app.Workload.Username).
-			WithTableRow("StageId", app.Workload.StageID).
-			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
-			WithTableRow("Restarts", strconv.Itoa(int(app.Workload.Restarts))).
-			WithTableRow("milliCPUs", strconv.Itoa(int(app.Workload.MilliCPUs))).
-			WithTableRow("Memory", bytes.ByteCountIEC(app.Workload.MemoryBytes)).
-			WithTableRow("Active Routes", "")
-
-		if len(app.Workload.Routes) > 0 {
-			sort.Strings(app.Workload.Routes)
-			for _, r := range app.Workload.Routes {
-				msg = msg.WithTableRow("", r)
-			}
-		}
-	} else {
-		msg = msg.WithTableRow("Status", "not deployed")
-		msg = msg.WithTableRow("Desired Routes", "")
-
-		if len(app.Configuration.Routes) > 0 {
-			for _, route := range app.Configuration.Routes {
-				msg = msg.WithTableRow("", route)
-			}
-		}
+	if err := c.printAppDetails(app); err != nil {
+		return err
 	}
 
-	msg = msg.
-		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
-		WithTableRow("Bound Services", strings.Join(app.Configuration.Services, ", ")).
-		WithTableRow("Environment", "")
-
-	if len(app.Configuration.Environment) > 0 {
-		for _, ev := range app.Configuration.Environment.List() {
-			msg = msg.WithTableRow("  - "+ev.Name, ev.Value)
-		}
-	}
-
-	msg.Msg("Details:")
-
-	return nil
+	return c.printReplicaDetails(app)
 }
 
 // AppManifest saves the information of the named app, in the targeted namespace, into a manifest file
@@ -535,6 +491,79 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 	}
 
 	c.ui.Success().Msg("Application deleted.")
+
+	return nil
+}
+
+func (c *EpinioClient) printAppDetails(app models.App) error {
+	msg := c.ui.Success().WithTable("Key", "Value").
+		WithTableRow("Origin", app.Origin.String())
+
+	var createdAt time.Time
+	var err error
+	if app.Workload != nil {
+		createdAt, err = time.Parse(time.RFC3339, app.Workload.CreatedAt)
+		if err != nil {
+			return err
+		}
+		msg = msg.WithTableRow("Status", app.Workload.Status).
+			WithTableRow("Username", app.Workload.Username).
+			WithTableRow("StageId", app.Workload.StageID).
+			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
+			WithTableRow("Active Routes", "")
+
+		if len(app.Workload.Routes) > 0 {
+			sort.Strings(app.Workload.Routes)
+			for _, r := range app.Workload.Routes {
+				msg = msg.WithTableRow("", r)
+			}
+		}
+	} else {
+		msg = msg.WithTableRow("Status", "not deployed")
+		msg = msg.WithTableRow("Desired Routes", "")
+
+		if len(app.Configuration.Routes) > 0 {
+			for _, route := range app.Configuration.Routes {
+				msg = msg.WithTableRow("", route)
+			}
+		}
+	}
+
+	msg = msg.
+		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
+		WithTableRow("Bound Services", strings.Join(app.Configuration.Services, ", ")).
+		WithTableRow("Environment", "")
+
+	if len(app.Configuration.Environment) > 0 {
+		for _, ev := range app.Configuration.Environment.List() {
+			msg = msg.WithTableRow("  - "+ev.Name, ev.Value)
+		}
+	}
+
+	msg.Msg("Details:")
+
+	return nil
+}
+
+func (c *EpinioClient) printReplicaDetails(app models.App) error {
+	if len(app.Workload.Replicas) > 0 {
+		msg := c.ui.Success().WithTable("Name", "Ready", "Memory", "MilliCPUs", "Restarts", "Age")
+		for _, r := range app.Workload.Replicas {
+			createdAt, err := time.Parse(time.RFC3339, r.CreatedAt)
+			if err != nil {
+				return err
+			}
+			msg = msg.WithTableRow(
+				r.Name,
+				strconv.FormatBool(r.Ready),
+				bytes.ByteCountIEC(r.MemoryBytes),
+				strconv.Itoa(int(r.MilliCPUs)),
+				strconv.Itoa(int(r.Restarts)),
+				time.Since(createdAt).Round(time.Second).String(),
+			)
+		}
+		msg.Msg("Instances: ")
+	}
 
 	return nil
 }
