@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
+	"github.com/pkg/errors"
 	pkgerrors "github.com/pkg/errors"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -366,7 +367,9 @@ func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, er
 		return result, err
 	}
 
-	a.populatePodMetrics(result, podMetrics)
+	if err = a.populatePodMetrics(result, podMetrics); err != nil {
+		return result, err
+	}
 
 	return result, nil
 }
@@ -482,7 +485,7 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) (map[string]*models.PodInf
 	return result, nil
 }
 
-func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMetrics []metricsv1beta1.PodMetrics) {
+func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMetrics []metricsv1beta1.PodMetrics) error {
 	// Calculate metrics
 	for _, podMetric := range podMetrics {
 		if _, podExists := podInfos[podMetric.Name]; !podExists {
@@ -503,11 +506,12 @@ func (a *Workload) populatePodMetrics(podInfos map[string]*models.PodInfo, podMe
 
 		mem, ok := memUsage.AsInt64()
 		if !ok {
-			// TODO: What if not ok? Don't just print things
-			fmt.Printf("memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
+			return errors.Errorf("couldn't get memory usage as an integer, memUsage.AsDec = %T %+v\n", memUsage.AsDec(), memUsage.AsDec())
 		}
 
 		podInfos[podMetric.Name].MemoryBytes = mem
 		podInfos[podMetric.Name].MilliCPUs = milliCPUs
 	}
+
+	return nil
 }
