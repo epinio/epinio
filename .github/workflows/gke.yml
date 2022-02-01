@@ -24,6 +24,7 @@ env:
   SETUP_GO_VERSION: '^1.17.2'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
   GKE_ZONE: 'europe-west1-b'
   GKE_MACHINE_TYPE: 'n2-standard-4'
 
@@ -126,10 +127,12 @@ jobs:
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
           # Use a random host name, so we don't collide with our workflows on GKE
           GKE_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.gke_domain || secrets.GKE_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.gke_domain || secrets.GKE_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           echo "System Domain: $GKE_DOMAIN"
           export KUBECONFIG=$HOME/.kube/config
+          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete GKE cluster

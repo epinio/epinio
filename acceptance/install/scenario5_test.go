@@ -29,7 +29,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
 		// use Route53
-		domain = os.Getenv("AKS_DOMAIN")
+		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
 		Expect(domain).ToNot(BeEmpty())
 
 		zoneID = os.Getenv("AWS_ZONE_ID")
@@ -48,7 +48,7 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with letsencrypt-staging cert and pushes an app", func() {
+	It("Installs with letsencrypt-staging cert and pushes an app", func() {
 		By("Installing CertManager", func() {
 			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
 			Expect(err).NotTo(HaveOccurred(), out)

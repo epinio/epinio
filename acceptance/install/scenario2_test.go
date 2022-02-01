@@ -30,7 +30,7 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 	BeforeEach(func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
-		domain = os.Getenv("GKE_DOMAIN")
+		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
 		Expect(domain).ToNot(BeEmpty())
 
 		zoneID = os.Getenv("AWS_ZONE_ID")
@@ -50,7 +50,7 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with letsencrypt-staging cert, custom domain and pushes an app with 0 instances", func() {
+	It("Installs with letsencrypt-staging cert, custom domain and pushes an app with 0 instances", func() {
 		By("Installing CertManager", func() {
 			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
 			Expect(err).NotTo(HaveOccurred(), out)

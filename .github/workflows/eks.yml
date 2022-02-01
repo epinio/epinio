@@ -36,6 +36,7 @@ env:
   SETUP_GO_VERSION: '^1.17.2'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
   AWS_REGION: 'us-east-2'
   AWS_MACHINE_TYPE: 't3.xlarge'
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
@@ -98,7 +99,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install kubernetes-cli eksctl
+          brew install kubernetes-cli eksctl coreutils
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
@@ -130,10 +131,12 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
           # Use a random host name, so we don't collide with our workflows on EKS
           AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aws_domain || secrets.AWS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aws_domain || secrets.AWS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
           echo "System Domain: $AWS_DOMAIN"
           export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
+          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete EKS cluster

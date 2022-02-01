@@ -25,7 +25,8 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		registryUsername string
 		registryPassword string
 		rangeIP          string
-		domainIP         []string
+		domain           string
+		domainIP         string
 		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
 		env          testenv.EpinioEnv
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
@@ -39,9 +40,9 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		out, err := proc.Run(testenv.Root(), false, "bash", "./scripts/remove-helm-repos.sh")
 		Expect(err).NotTo(HaveOccurred(), out)
 
-		// Get a free IP address on server's network
-		rangeIP, _ = proc.Run(testenv.Root(), false, "bash", "./scripts/get-free-ip.sh")
-		domainIP = strings.Split(rangeIP, "-")
+		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
+		Expect(domain).ToNot(BeEmpty())
+		domainIP = strings.TrimSuffix(domain, ".omg.howdoi.website")
 
 		appName = "externalregtest"
 
@@ -52,7 +53,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
 			"--set", "skipCertManager=true",
-			"--set", "domain=" + fmt.Sprintf("%s.omg.howdoi.website", domainIP[0]),
+			"--set", "domain=" + domain,
 			"--set", "tlsIssuer=private-ca",
 			"--set", "externalRegistryURL=registry.hub.docker.com",
 			"--set", "externalRegistryUsername=" + registryUsername,
@@ -65,13 +66,11 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 	AfterEach(func() {
 		out, err := epinioHelper.Uninstall()
 		Expect(err).NotTo(HaveOccurred(), out)
-
-		out, err = proc.RunW("helm", "uninstall", "-n", "metallb", "metallb")
-		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("installs with private CA and pushes an app with service", func() {
+	It("Installs with private CA and pushes an app with service", func() {
 		By("Installing MetalLB", func() {
+			rangeIP = os.Getenv("RANGE_IP")
 			out, err := proc.RunW("sed", "-i", fmt.Sprintf("s/@IP_RANGE@/%s/", rangeIP),
 				testenv.TestAssetPath("values-metallb-rke.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -132,7 +131,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
 			Expect(loadbalancer).ToNot(BeEmpty())
 			// We need to be sure that the specified IP is really used
-			Expect(loadbalancer).To(Equal(domainIP[0]))
+			Expect(loadbalancer).To(Equal(domainIP))
 		})
 
 		By("Updating Epinio config", func() {
