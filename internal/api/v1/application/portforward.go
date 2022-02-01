@@ -53,12 +53,12 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 			"", http.StatusBadRequest)
 	}
 
-	forwardRequest(c.Writer, c.Request, podNames[0], namespace, appName, cluster.Kubectl)
+	forwardRequest(c.Writer, c.Request, podNames[0], namespace, cluster.Kubectl)
 
 	return nil
 }
 
-func forwardRequest(rw http.ResponseWriter, req *http.Request, podName, namespace, container string, client thekubernetes.Interface) {
+func forwardRequest(rw http.ResponseWriter, req *http.Request, podName, namespace string, client thekubernetes.Interface) {
 	// https://github.com/kubernetes/kubectl/blob/2acffc93b61e483bd26020df72b9aef64541bd56/pkg/cmd/portforward/portforward.go#L409
 	forwardURL := client.CoreV1().RESTClient().
 		Post().
