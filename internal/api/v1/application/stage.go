@@ -530,6 +530,9 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 						"app.kubernetes.io/managed-by": "epinio",
 						"app.kubernetes.io/component":  "staging",
 					},
+					Annotations: map[string]string{
+						"config.linkerd.io/skip-outbound-ports": "443",
+					},
 				},
 				Spec: corev1.PodSpec{
 					InitContainers: []corev1.Container{
