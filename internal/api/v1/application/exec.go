@@ -20,6 +20,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
+	instanceName := c.Query("instance")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -50,18 +51,34 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 			"", http.StatusBadRequest)
 	}
 
-	// TODO: Find podName from application and params (e.g. instance number etc).
-	// The application may have more than one pods.
 	podNames, err := application.NewWorkload(cluster, app.Meta).PodNames(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+
 	if len(podNames) < 1 {
-		return apierror.NewAPIError("couldn't find any Pods to connect to",
+		return apierror.NewAPIError("couldn't find any Instances to connect to",
 			"", http.StatusBadRequest)
 	}
 
-	proxyRequest(c.Writer, c.Request, podNames[0], namespace, appName, cluster.Kubectl)
+	podToConnect := ""
+	if instanceName != "" {
+		for _, podName := range podNames {
+			if podName == instanceName {
+				podToConnect = podName
+				break
+			}
+		}
+
+		if podToConnect == "" {
+			return apierror.NewAPIError("specified instances doesn't exist",
+				"", http.StatusBadRequest)
+		}
+	} else {
+		podToConnect = podNames[0]
+	}
+
+	proxyRequest(c.Writer, c.Request, podToConnect, namespace, appName, cluster.Kubectl)
 
 	return nil
 }

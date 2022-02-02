@@ -43,6 +43,8 @@ func init() {
 	instancesOption(CmdAppCreate)
 	instancesOption(CmdAppUpdate)
 
+	CmdAppExec.Flags().StringP("instance", "i", "", "The name of the instance to shell to")
+
 	flags = CmdAppList.Flags()
 	flags.Bool("all", false, "list all applications")
 
@@ -187,7 +189,13 @@ var CmdAppExec = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.AppExec(cmd.Context(), args[0])
+		instance, err := cmd.Flags().GetString("instance")
+		if err != nil {
+			cmd.SilenceUsage = false
+			return errors.Wrap(err, "could not read instance parameter")
+		}
+
+		err = client.AppExec(cmd.Context(), args[0], instance)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error getting a shell to application")
 	},
