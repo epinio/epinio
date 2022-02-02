@@ -56,7 +56,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 
 // ensurePVC creates a PVC for the application if one doesn't already exist.
 // This PVC is used to store the application source blobs (as they are uploaded
-// on the "upload" endpoint). It's also mounted in the staging task pod as the
+// on the "upload" endpoint). It is also mounted in the staging pod, as the
 // "source" workspace.
 // The same PVC stores the application's build cache (on a separate directory).
 func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
@@ -136,7 +136,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 	if staging {
-		return apierror.NewBadRequest("pipelinerun for image ID still running")
+		return apierror.NewBadRequest("Staging job for image ID still running")
 	}
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
@@ -150,7 +150,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return blobErr
 	}
 
-	// Create uid identifying the staging pipeline to be
+	// Create uid identifying the staging job to be
 
 	uid, err := randstr.Hex16()
 	if err != nil {

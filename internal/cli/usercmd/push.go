@@ -28,7 +28,7 @@ type PushParams struct {
 // * upload
 // * stage
 // * (tail logs)
-// * wait for pipelinerun
+// * wait for staging to be done (complete or fail)
 // * deploy
 // * wait for app
 func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // nolint: gocyclo // Many ifs for view purposes

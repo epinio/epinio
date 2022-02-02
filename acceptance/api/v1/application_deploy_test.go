@@ -51,7 +51,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 			}
 		})
 
-		When("staging no other pipelinerun for the same blob exists", func() {
+		When("staging, no other job for the same blob exists", func() {
 			It("cleans up old S3 objects", func() {
 				By("uploading the code")
 				uploadResponse := uploadApplication(appName, namespace)
@@ -88,7 +88,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 			})
 		})
 
-		When("an older pipeline run for the same blob exists", func() {
+		When("an older staging job for the same blob exists", func() {
 			It("doesn't delete the S3 object", func() {
 				By("uploading the code")
 				uploadResponse := uploadApplication(appName, namespace)

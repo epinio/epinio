@@ -161,7 +161,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "syncing application Ingresses")
 	}
 
-	// Delete previous pipelineruns except for the current one
+	// Delete previous staging jobs except for the current one
 	if req.Stage.ID != "" {
 		if err := application.Unstage(ctx, cluster, req.App, req.Stage.ID); err != nil {
 			return apierror.InternalError(err)

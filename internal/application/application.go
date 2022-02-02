@@ -196,7 +196,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 }
 
 // Delete removes the named application, its workload (if active), bindings (if any),
-// the stored application sources, and any pipelineruns from when the application was
+// the stored application sources, and any staging jobs from when the application was
 // staged (if active). Waits for the application's deployment's pods to disappear
 // (if active).
 func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
@@ -413,9 +413,9 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 // calculateStatus sets the Status field of the App object.
 // To decide what the status value should be, it combines various pieces of information.
 //- If Status is ApplicationError, leave it as it (it was set by "Lookup")
-//- If there is a pipelinerun, app is: ApplicationStaging
-//- If there is no workload and no pipeline run, app is: ApplicationCreated
-//- If there is no pipelinerun and there is a workload, app is: ApplicationRunning
+//- If there is a staging job, app is: ApplicationStaging --- TODO FIX -- Job done (complete or fail) => Not staging
+//- If there is no workload and no stagging job, app is: ApplicationCreated
+//- If there is no staging job and there is a workload, app is: ApplicationRunning -- TODO FIX -- allow completed job
 func calculateStatus(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
 	if app.Status == models.ApplicationError {
 		return nil

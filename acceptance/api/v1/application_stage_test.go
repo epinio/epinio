@@ -113,12 +113,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			stageResponse := stageApplication(appName, namespace, stageRequest)
 			Eventually(listS3Blobs, "1m").Should(ContainElement(ContainSubstring(oldBlob)))
 
-			pipelineBlobUID, err := proc.Kubectl("get", "Jobs",
+			stagingBlobUID, err := proc.Kubectl("get", "Jobs",
 				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
-			Expect(err).NotTo(HaveOccurred(), pipelineBlobUID)
-			Expect(pipelineBlobUID).To(Equal(oldBlob))
+			Expect(err).NotTo(HaveOccurred(), stagingBlobUID)
+			Expect(stagingBlobUID).To(Equal(oldBlob))
 
 			stageRequest = models.StageRequest{
 				App:          models.AppRef{Name: appName, Namespace: namespace},
@@ -127,12 +127,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
 
-			pipelineBlobUID, err = proc.Kubectl("get", "Jobs",
+			stagingBlobUID, err = proc.Kubectl("get", "Jobs",
 				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
-			Expect(err).NotTo(HaveOccurred(), pipelineBlobUID)
-			Expect(pipelineBlobUID).To(Equal(oldBlob))
+			Expect(err).NotTo(HaveOccurred(), stagingBlobUID)
+			Expect(stagingBlobUID).To(Equal(oldBlob))
 		})
 	})
 
@@ -151,12 +151,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application")
 			stageResponse := stageApplication(appName, namespace, stageRequest)
 
-			pipelineBuilderImage, err := proc.Kubectl("get", "Pods",
+			stagingBuilderImage, err := proc.Kubectl("get", "Pods",
 				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].spec.containers[0].image}")
-			Expect(err).NotTo(HaveOccurred(), pipelineBuilderImage)
-			Expect(pipelineBuilderImage).To(Equal(builderImage))
+			Expect(err).NotTo(HaveOccurred(), stagingBuilderImage)
+			Expect(stagingBuilderImage).To(Equal(builderImage))
 
 			stageRequest = models.StageRequest{
 				App: models.AppRef{Name: appName, Namespace: namespace},
@@ -164,12 +164,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
 
-			pipelineBuilderImage, err = proc.Kubectl("get", "Pods",
+			stagingBuilderImage, err = proc.Kubectl("get", "Pods",
 				"--namespace", helmchart.StagingNamespace,
 				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].spec.containers[0].image}")
-			Expect(err).NotTo(HaveOccurred(), pipelineBuilderImage)
-			Expect(pipelineBuilderImage).To(Equal(builderImage))
+			Expect(err).NotTo(HaveOccurred(), stagingBuilderImage)
+			Expect(stagingBuilderImage).To(Equal(builderImage))
 		})
 	})
 	When("staging and deploying a new app", func() {

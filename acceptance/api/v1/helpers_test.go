@@ -95,7 +95,7 @@ func stageApplication(appName, namespace string, stageRequest models.StageReques
 	err = json.Unmarshal(b, stage)
 	Expect(err).NotTo(HaveOccurred())
 
-	waitForPipeline(stage.Stage.ID)
+	waitForStaging(stage.Stage.ID)
 
 	return stage
 }
@@ -122,7 +122,7 @@ func deployApplication(appName, namespace string, request models.DeployRequest) 
 	return *deploy
 }
 
-func waitForPipeline(stageID string) {
+func waitForStaging(stageID string) {
 	Eventually(func() string {
 		out, err := proc.Kubectl("get", "job",
 			"--namespace", helmchart.StagingNamespace,
