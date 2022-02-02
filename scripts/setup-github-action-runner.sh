@@ -12,18 +12,13 @@
 
 set -e
 
-if [ -z "$GITHUB_REPOSITORY_URL" ]; then
-  echo "The variable GITHUB_REPOSITORY_URL is empty. Exiting"
+if [ -z "$GITHUB_REPOSITORY_URL" ] || [ -z "$GITHUB_RUNNER_TOKEN" ]; then
+  echo "Script requires GITHUB_REPOSITORY_URL and GITHUB_RUNNER_TOKEN to be set. Exiting"
   exit 1
 fi
 
-if [ -z "$GITHUB_RUNNER_TOKEN" ]; then
-  echo "The variable GITHUB_RUNNER_TOKEN is empty. Exiting"
-  exit 1
-fi
-
-REPOSITORY_NAME=$(echo $GITHUB_REPOSITORY_URL | cut -d '/' -f 4- | sed -e 's|/$||g' -e 's|/|-|g')
-ACTIONS_RUNNER_SERVICE=actions.runner.$REPOSITORY_NAME.`hostname`.service
+REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY_URL" | cut -d '/' -f 4- | sed -e 's|/$||g' -e 's|/|-|g')
+ACTIONS_RUNNER_SERVICE=actions.runner."$REPOSITORY_NAME".`hostname`.service
 
 # Install needed packages
 rpms="make gcc docker libicu wget fping"
@@ -52,12 +47,12 @@ tar xzf ./actions-runner-linux-x64-2.278.0.tar.gz
 
 # Make non-interactive
 sed -i 's/Runner.Listener configure/Runner.Listener configure --unattended/' config.sh
-./config.sh --url $GITHUB_REPOSITORY_URL --token $GITHUB_RUNNER_TOKEN
+./config.sh --url "$GITHUB_REPOSITORY_URL" --token "$GITHUB_RUNNER_TOKEN"
 
 # Configure and enable Service
 sudo ./svc.sh install
-sudo sed -i '/^\[Service\]/a RestartSec=5s' /etc/systemd/system/$ACTIONS_RUNNER_SERVICE
-sudo sed -i '/^\[Service\]/a Restart=always' /etc/systemd/system/$ACTIONS_RUNNER_SERVICE
+sudo sed -i '/^\[Service\]/a RestartSec=5s' /etc/systemd/system/"$ACTIONS_RUNNER_SERVICE"
+sudo sed -i '/^\[Service\]/a Restart=always' /etc/systemd/system/"$ACTIONS_RUNNER_SERVICE"
 sudo systemctl daemon-reload
-sudo systemctl enable $ACTIONS_RUNNER_SERVICE
-sudo systemctl start $ACTIONS_RUNNER_SERVICE
+sudo systemctl enable "$ACTIONS_RUNNER_SERVICE"
+sudo systemctl start "$ACTIONS_RUNNER_SERVICE"
