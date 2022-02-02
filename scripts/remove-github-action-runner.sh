@@ -2,7 +2,7 @@
 
 # This script can be used to remove a Github Action Runner on an openSUSE or SLE
 # distro. It will unconfigure the service and unregister the runner.
-# Copy the scritpt to runner:/home/<user> and run it as <user>.
+# Copy the script to runner:/home/<user> and run it as <user>.
 # It requires GITHUB_REPOSITORY_URL (https) and GITHUB_RUNNER_TOKEN to be set
 # e.g. export GITHUB_REPOSITORY_URL=https://github.com/epinio/epinio
 # and  export GITHUB_RUNNER_TOKEN=<current token from github settings/actions/runners/new>
