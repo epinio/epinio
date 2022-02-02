@@ -45,6 +45,7 @@ func init() {
 
 	CmdApp.AddCommand(CmdAppPortForward)
 	CmdAppPortForward.Flags().StringSliceVar(&portForwardAddress, "address", []string{"localhost"}, "Addresses to listen on (comma separated). Only accepts IP addresses or localhost as a value. When localhost is supplied, kubectl will try to bind on both 127.0.0.1 and ::1 and will fail if neither of these addresses are available to bind.")
+	CmdAppPortForward.Flags().StringVarP(&portForwardInstance, "instance", "i", "", "The name of the instance to shell to")
 
 	CmdApp.AddCommand(CmdAppManifest)
 	CmdApp.AddCommand(CmdAppShow)
@@ -195,7 +196,8 @@ var CmdAppExec = &cobra.Command{
 }
 
 var (
-	portForwardAddress []string
+	portForwardAddress  []string
+	portForwardInstance string
 )
 
 // CmdAppExec implements the command: epinio apps exec
@@ -214,7 +216,7 @@ var CmdAppPortForward = &cobra.Command{
 		appName := args[0]
 		ports := args[1:]
 
-		err = client.AppPortForward(cmd.Context(), appName, portForwardAddress, ports)
+		err = client.AppPortForward(cmd.Context(), appName, portForwardInstance, portForwardAddress, ports)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error port forwarding to application")
 	},

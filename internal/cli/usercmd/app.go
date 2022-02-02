@@ -460,22 +460,27 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) er
 	return c.API.AppExec(c.Config.Namespace, appName, instance, tty)
 }
 
-func (c *EpinioClient) AppPortForward(ctx context.Context, appName string, address, ports []string) error {
+func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance string, address, ports []string) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().
+	msg := c.ui.Note().
 		WithStringValue("Namespace", c.Config.Namespace).
-		WithStringValue("Application", appName).
-		Msg("Executing port forwarding")
+		WithStringValue("Application", appName)
+
+	if instance != "" {
+		msg = msg.WithStringValue("Instance", instance)
+	}
+
+	msg.Msg("Executing port forwarding")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
 	opts := client.NewPortForwardOpts(address, ports)
-	return c.API.AppPortForward(c.Config.Namespace, appName, opts)
+	return c.API.AppPortForward(c.Config.Namespace, appName, instance, opts)
 }
 
 // Delete removes the named application from the cluster
