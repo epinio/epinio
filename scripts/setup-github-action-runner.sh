@@ -3,7 +3,7 @@
 # This script can be used to create a Github Action Runner on an openSUSE or SLE
 # distro. It installs all the needed dependencies to run the acceptance tests
 # and sets up docker and the runner as a service itself.
-# Copy the scritpt to runner:/home/<user> and run it as <user>.
+# Copy the script to runner:/home/<user> and run it as <user>.
 # It requires GITHUB_REPOSITORY_URL (https) and GITHUB_RUNNER_TOKEN to be set
 # e.g. export GITHUB_REPOSITORY_URL=https://github.com/epinio/epinio
 # and  export GITHUB_RUNNER_TOKEN=<current token from github settings/actions/runners/new>
