@@ -252,6 +252,48 @@ func (c *Cluster) IsJobCompleted(ctx context.Context, client *typedbatchv1.Batch
 	}
 }
 
+// IsJobFailed is a condition function that indicates whether the
+// given Job is in Failed state or not.
+func (c *Cluster) IsJobFailed(ctx context.Context, jobName, namespace string) (bool, error) {
+
+	client, err := typedbatchv1.NewForConfig(c.RestConfig)
+	if err != nil {
+		return false, err
+	}
+
+	job, err := client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+	if err != nil {
+		return false, err
+	}
+
+	for _, condition := range job.Status.Conditions {
+		if condition.Type == apibatchv1.JobFailed && condition.Status == v1.ConditionTrue {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// IsJobDone returns a condition function that indicates whether the given
+// Job is done (Completed or Failed)
+func (c *Cluster) IsJobDone(ctx context.Context, client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
+	return func() (bool, error) {
+		job, err := client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+
+		for _, condition := range job.Status.Conditions {
+			if condition.Status == v1.ConditionTrue &&
+				(condition.Type == apibatchv1.JobFailed ||
+					condition.Type == apibatchv1.JobComplete) {
+				return true, nil
+			}
+		}
+		return false, nil
+	}
+}
+
 func (c *Cluster) PodExists(ctx context.Context, namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
 		podList, err := c.ListPods(ctx, namespace, selector)
@@ -381,6 +423,14 @@ func (c *Cluster) WaitForJobCompleted(ctx context.Context, namespace, jobName st
 		return err
 	}
 	return wait.PollImmediate(time.Second, timeout, c.IsJobCompleted(ctx, client, jobName, namespace))
+}
+
+func (c *Cluster) WaitForJobDone(ctx context.Context, namespace, jobName string, timeout time.Duration) error {
+	client, err := typedbatchv1.NewForConfig(c.RestConfig)
+	if err != nil {
+		return err
+	}
+	return wait.PollImmediate(time.Second, timeout, c.IsJobDone(ctx, client, jobName, namespace))
 }
 
 // IsDeploymentCompleted returns a condition function that indicates whether the given

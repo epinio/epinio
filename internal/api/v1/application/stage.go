@@ -268,33 +268,27 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	// Wait for the staging POD to complete, or fail.
-	// We cannot really wait for the Job to complete.
-	// Because when the pod fails the Job simply is not marked completed. Nor failed.
-	// Operation:
-	// 1. Wait for pod to terminate
-	// 2. Check if termination was due to a failure
+	// Wait for the staging to be done, then check if it ended in failure.
 
 	selector := fmt.Sprintf("app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.suse.org/stage-id=%s",
 		namespace, id)
 
-	// 1. Termination waiter
-	err = cluster.WaitForPodBySelectorDone(ctx, helmchart.StagingNamespace, selector, duration.ToAppBuilt())
+	jobList, err := cluster.ListJobs(ctx, helmchart.StagingNamespace, selector)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-
-	// 2. Failure check
-	podList, err := cluster.ListPods(ctx, helmchart.StagingNamespace, selector)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if len(podList.Items) == 0 {
-		return apierror.InternalError(fmt.Errorf("no pods in %s with selector %s", namespace, selector))
+	if len(jobList.Items) == 0 {
+		return apierror.InternalError(fmt.Errorf("no jobs in %s with selector %s", namespace, selector))
 	}
 
-	for _, pod := range podList.Items {
-		failed, err := cluster.IsPodFailed(ctx, pod.Name, helmchart.StagingNamespace)
+	for _, job := range jobList.Items {
+		// Wait for job to be done
+		err = cluster.WaitForJobDone(ctx, helmchart.StagingNamespace, job.Name, duration.ToAppBuilt())
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		// Check job for failure
+		failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.StagingNamespace)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
