@@ -197,61 +197,6 @@ func (c *Cluster) IsPodRunning(ctx context.Context, podName, namespace string) w
 	}
 }
 
-// IsPodDone returns a condition function that indicates whether the given pod has
-// terminated in some way or not. Use this for oneshot pods, i.e. pods launched by a Job
-// and expected to terminate.  The pod is considered terminated if __at least one__ of its
-// container is terminated. This condition takes into account that even a one-shot job may
-// contain a non-terminating container (linkerd!)
-func (c *Cluster) IsPodDone(ctx context.Context, podName, namespace string) wait.ConditionFunc {
-	return func() (bool, error) {
-		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-		for _, cstatus := range pod.Status.ContainerStatuses {
-			if cstatus.State.Terminated != nil {
-				return true, nil
-			}
-		}
-		return false, nil
-	}
-}
-
-// IsPodFailed determines whether the given and terminated pod has failed. Use this for
-// oneshot pods, i.e. pods launched by a Job and expected to terminate. It is considered
-// failed if at least one of the terminated container reports "Error" as reason for the
-// termination.
-func (c *Cluster) IsPodFailed(ctx context.Context, podName, namespace string) (bool, error) {
-	pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
-	if err != nil {
-		return false, err
-	}
-	for _, cstatus := range pod.Status.ContainerStatuses {
-		if cstatus.State.Terminated != nil && cstatus.State.Terminated.Reason == "Error" {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// IsJobCompleted returns a condition function that indicates whether the given
-// Job is in Completed state.
-func (c *Cluster) IsJobCompleted(ctx context.Context, client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
-	return func() (bool, error) {
-		job, err := client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-
-		for _, condition := range job.Status.Conditions {
-			if condition.Type == apibatchv1.JobComplete && condition.Status == v1.ConditionTrue {
-				return true, nil
-			}
-		}
-		return false, nil
-	}
-}
-
 // IsJobFailed is a condition function that indicates whether the
 // given Job is in Failed state or not.
 func (c *Cluster) IsJobFailed(ctx context.Context, jobName, namespace string) (bool, error) {
@@ -422,19 +367,6 @@ func (c *Cluster) WaitForPodRunning(ctx context.Context, namespace, podName stri
 	return wait.PollImmediate(time.Second, timeout, c.IsPodRunning(ctx, podName, namespace))
 }
 
-// Poll up to timeout for pod to terminate. Returns an error if the pod never terminates.
-func (c *Cluster) WaitForPodDone(ctx context.Context, namespace, podName string, timeout time.Duration) error {
-	return wait.PollImmediate(time.Second, timeout, c.IsPodDone(ctx, podName, namespace))
-}
-
-func (c *Cluster) WaitForJobCompleted(ctx context.Context, namespace, jobName string, timeout time.Duration) error {
-	client, err := typedbatchv1.NewForConfig(c.RestConfig)
-	if err != nil {
-		return err
-	}
-	return wait.PollImmediate(time.Second, timeout, c.IsJobCompleted(ctx, client, jobName, namespace))
-}
-
 func (c *Cluster) WaitForJobDone(ctx context.Context, namespace, jobName string, timeout time.Duration) error {
 	client, err := typedbatchv1.NewForConfig(c.RestConfig)
 	if err != nil {
@@ -583,26 +515,6 @@ func (c *Cluster) WaitUntilPodBySelectorExist(ctx context.Context, ui *termui.UI
 		defer s.Stop()
 	}
 	return wait.PollImmediate(time.Second, timeout, c.PodExists(ctx, namespace, selector))
-}
-
-// WaitForPodBySelectorDone waits timeout for all pods in 'namespace' with given
-// 'selector' to terminate. Returns an error if no pods are found or never terminate.
-func (c *Cluster) WaitForPodBySelectorDone(ctx context.Context, namespace, selector string, timeout time.Duration) error {
-	podList, err := c.ListPods(ctx, namespace, selector)
-	if err != nil {
-		return errors.Wrapf(err, "failed listingpods with selector %s", selector)
-	}
-
-	if len(podList.Items) == 0 {
-		return fmt.Errorf("no pods in %s with selector %s", namespace, selector)
-	}
-
-	for _, pod := range podList.Items {
-		if err := c.WaitForPodDone(ctx, namespace, pod.Name, timeout); err != nil {
-			return fmt.Errorf("Failed waiting for %s: %s\n", pod.Name, err.Error())
-		}
-	}
-	return nil
 }
 
 // WaitForPodBySelectorRunning waits timeout for all pods in 'namespace'
