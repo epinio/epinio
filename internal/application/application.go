@@ -85,19 +85,23 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 	return true, nil
 }
 
-// CurrentlyStaging returns true if there is an active (not completed) Job
-// for this application.
+// CurrentlyStaging returns true if there is an active Job for this application.
 func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (bool, error) {
 
-	l, err := cluster.ListJobs(ctx, helmchart.StagingNamespace, fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace))
+	selector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
+		appName, namespace)
 
+	jobList, err := cluster.ListJobs(ctx, helmchart.StagingNamespace, selector)
 	if err != nil {
 		return false, err
 	}
 
-	// assume that completed jobs are from the past and have a CompletionTime
-	for _, pr := range l.Items {
-		if pr.Status.CompletionTime == nil {
+	for _, job := range jobList.Items {
+		done, err := cluster.IsJobDone(ctx, job.Name, helmchart.StagingNamespace)
+		if err != nil {
+			return false, err
+		}
+		if !done {
 			return true, nil
 		}
 	}
@@ -411,16 +415,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 }
 
 // calculateStatus sets the Status field of the App object.
-// To decide what the status value should be, it combines various pieces of information.
+// To decide what the status value should be, it combines various
+// pieces of information, i.e. status of possible staging, presence of
+// a workload, etc.
 //- If Status is ApplicationError, leave it as it (it was set by "Lookup")
-//- If there is a staging job, app is: ApplicationStaging
-//- If there is no workload and no stagging job, app is: ApplicationCreated
-//- If there is no staging job and there is a workload, app is: ApplicationRunning
+//- If there is an active staging job, app is: ApplicationStaging
+//- If there is no active staging job and no workload, app is: ApplicationCreated
+//- If there is no active staging job and a workload, app is: ApplicationRunning
 func calculateStatus(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
-	// TODO: See https://github.com/epinio/epinio/issues/1179
-	// The current logic fails for the new Job-based stager, and
-	// prevents re-staging when staging failed.
-
 	if app.Status == models.ApplicationError {
 		return nil
 	}

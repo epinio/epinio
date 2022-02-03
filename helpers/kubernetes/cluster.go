@@ -255,7 +255,6 @@ func (c *Cluster) IsJobCompleted(ctx context.Context, client *typedbatchv1.Batch
 // IsJobFailed is a condition function that indicates whether the
 // given Job is in Failed state or not.
 func (c *Cluster) IsJobFailed(ctx context.Context, jobName, namespace string) (bool, error) {
-
 	client, err := typedbatchv1.NewForConfig(c.RestConfig)
 	if err != nil {
 		return false, err
@@ -274,9 +273,20 @@ func (c *Cluster) IsJobFailed(ctx context.Context, jobName, namespace string) (b
 	return false, nil
 }
 
-// IsJobDone returns a condition function that indicates whether the given
-// Job is done (Completed or Failed)
-func (c *Cluster) IsJobDone(ctx context.Context, client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
+// IsJobDone is a condition function that indicates whether the given
+// Job is done (Completed or Failed), or not
+func (c *Cluster) IsJobDone(ctx context.Context, jobName, namespace string) (bool, error) {
+	client, err := typedbatchv1.NewForConfig(c.RestConfig)
+	if err != nil {
+		return false, err
+	}
+
+	return c.isJobDone(ctx, client, jobName, namespace)()
+}
+
+// isJobDone returns a condition function that indicates whether the given
+// Job is done (Completed or Failed), or not
+func (c *Cluster) isJobDone(ctx context.Context, client *typedbatchv1.BatchV1Client, jobName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
 		job, err := client.Jobs(namespace).Get(ctx, jobName, metav1.GetOptions{})
 		if err != nil {
@@ -430,7 +440,7 @@ func (c *Cluster) WaitForJobDone(ctx context.Context, namespace, jobName string,
 	if err != nil {
 		return err
 	}
-	return wait.PollImmediate(time.Second, timeout, c.IsJobDone(ctx, client, jobName, namespace))
+	return wait.PollImmediate(time.Second, timeout, c.isJobDone(ctx, client, jobName, namespace))
 }
 
 // IsDeploymentCompleted returns a condition function that indicates whether the given
