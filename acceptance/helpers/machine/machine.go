@@ -40,7 +40,7 @@ func (m *Machine) OnStageFailureShowStagingLogs(err error, out, app string) {
 }
 
 func (m *Machine) ShowStagingLogs(app string) {
-	namespace := m.GetNamespace()
+	namespace := m.getNamespace()
 	_, _ = proc.Run("", true, "bash", "-c", fmt.Sprintf(`
 app="%s"
 namespace="%s"
@@ -94,7 +94,7 @@ func (m *Machine) SetupAndTargetNamespace(namespace string) {
 	m.TargetNamespace(namespace)
 }
 
-func (m *Machine) GetNamespace() string {
+func (m *Machine) getNamespace() string {
 	out, err := m.Epinio(m.nodeTmpDir, "target")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 

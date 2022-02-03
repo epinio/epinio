@@ -32,6 +32,11 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
+const (
+	AWSCLIImage = "amazon/aws-cli:2.0.52"
+	BashImage   = "bash"
+)
+
 type stageParam struct {
 	models.AppRef
 	BlobUID             string
@@ -355,6 +360,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		protocol = "https"
 	}
 
+	// TODO: Extract scripts to config map -- https://github.com/epinio/epinio/issues/1175
+
 	awsScript := fmt.Sprintf("echo Extracting _ _ __ ___ _____ $(whoami) ; aws --endpoint-url %s://%s s3 cp s3://%s/%s /workspace/source/%s ; echo _ _ __ ___ _____ Extracted",
 		protocol, app.S3ConnectionDetails.Endpoint, app.S3ConnectionDetails.Bucket,
 		app.BlobUID, app.BlobUID)
@@ -363,6 +370,9 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	buildpackScript := fmt.Sprintf("echo Creating _ _ __ ___ _____ $(whoami) ; ls -la /platform/env ; /cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s && ( curl -X POST http://localhost:4191/shutdown || true )",
 		previous.ImageURL(previous.RegistryURL), app.ImageURL(app.RegistryURL))
+	// ATTENTION: The `curl localhost:4191` command is used to
+	// stop the linkerd proxy container gracefully. We use `||
+	// true` in case linkerd is not deployed
 
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -531,6 +541,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 						"app.kubernetes.io/component":  "staging",
 					},
 					Annotations: map[string]string{
+						// Allow communication with the Registry even before the proxy is ready
 						"config.linkerd.io/skip-outbound-ports": "443",
 					},
 				},
@@ -538,7 +549,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					InitContainers: []corev1.Container{
 						{
 							Name:         "download-s3-blob",
-							Image:        "amazon/aws-cli:2.0.52", //TODO: remove hardcode
+							Image:        AWSCLIImage,
 							VolumeMounts: volumeMounts,
 							Command:      []string{"/bin/bash"},
 							Args: []string{
@@ -548,7 +559,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 						},
 						{
 							Name:         "unpack-blob",
-							Image:        "bash", //TODO: remove hardcode
+							Image:        BashImage,
 							VolumeMounts: volumeMounts,
 							Command:      []string{"bash"},
 							Args: []string{

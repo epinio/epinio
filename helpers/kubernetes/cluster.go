@@ -202,7 +202,6 @@ func (c *Cluster) IsPodRunning(ctx context.Context, podName, namespace string) w
 // and expected to terminate.  The pod is considered terminated if __at least one__ of its
 // container is terminated. This condition takes into account that even a one-shot job may
 // contain a non-terminating container (linkerd!)
-
 func (c *Cluster) IsPodDone(ctx context.Context, podName, namespace string) wait.ConditionFunc {
 	return func() (bool, error) {
 		pod, err := c.Kubectl.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
@@ -450,13 +449,9 @@ func (c *Cluster) CreateJob(ctx context.Context, namespace string, job *apibatch
 // DeleteJob deletes the namepace
 func (c *Cluster) DeleteJob(ctx context.Context, namespace string, name string) error {
 	policy := metav1.DeletePropagationBackground
-	err := c.Kubectl.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
+	return c.Kubectl.BatchV1().Jobs(namespace).Delete(ctx, name, metav1.DeleteOptions{
 		PropagationPolicy: &policy,
 	})
-	if err != nil {
-		return err
-	}
-	return nil
 }
 
 // Wait up to timeout for Namespace to be removed.
