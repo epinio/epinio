@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -40,10 +41,16 @@ var _ = Describe("AppShow Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(createdAt.Unix()).To(BeNumerically("<", time.Now().Unix()))
 
-		Expect(appObj.Workload.Restarts).To(BeNumerically("==", 0))
-
 		Expect(appObj.Workload.DesiredReplicas).To(BeNumerically("==", 1))
 		Expect(appObj.Workload.ReadyReplicas).To(BeNumerically("==", 1))
+
+		Expect(len(appObj.Workload.Replicas)).To(Equal(1))
+		var replica *models.PodInfo
+		for _, v := range appObj.Workload.Replicas {
+			replica = v
+			break
+		}
+		Expect(replica.Restarts).To(BeNumerically("==", 0))
 
 		out, err := proc.Kubectl("get", "pods",
 			fmt.Sprintf("--selector=app.kubernetes.io/name=%s", app),
@@ -59,7 +66,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 		Eventually(func() int64 {
 			appObj := appFromAPI(namespace, app)
-			return appObj.Workload.MilliCPUs
+			return appObj.Workload.Replicas[replica.Name].MilliCPUs
 		}, "240s", "1s").Should(BeNumerically(">=", 900))
 		// Kill the "yes" process to bring CPU down again
 		out, err = proc.Kubectl("exec",
@@ -74,7 +81,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 		Eventually(func() int64 {
 			appObj := appFromAPI(namespace, app)
-			return appObj.Workload.MemoryBytes
+			return appObj.Workload.Replicas[replica.Name].MemoryBytes
 		}, "240s", "1s").Should(BeNumerically(">=", 0))
 
 		// Kill a linkerd proxy container and see the count staying unchanged
@@ -85,8 +92,8 @@ var _ = Describe("AppShow Endpoint", func() {
 
 		Consistently(func() int32 {
 			appObj := appFromAPI(namespace, app)
-			return appObj.Workload.Restarts
-		}, "5s", "1s").Should(BeNumerically("==", 0))
+			return appObj.Workload.Replicas[replica.Name].Restarts
+		}, "10s", "1s").Should(BeNumerically("==", 0))
 
 		// Kill an app container and see the count increasing
 		out, err = proc.Kubectl("exec",
@@ -96,8 +103,8 @@ var _ = Describe("AppShow Endpoint", func() {
 
 		Eventually(func() int32 {
 			appObj := appFromAPI(namespace, app)
-			return appObj.Workload.Restarts
-		}, "4s", "1s").Should(BeNumerically("==", 1))
+			return appObj.Workload.Replicas[replica.Name].Restarts
+		}, "15s", "1s").Should(BeNumerically("==", 1))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

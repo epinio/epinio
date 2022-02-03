@@ -36,21 +36,28 @@ type App struct {
 	StatusMessage string                   `json:"statusmessage"`
 }
 
+type PodInfo struct {
+	Name        string `json:"name"`
+	MemoryBytes int64  `json:"memoryBytes"`
+	MilliCPUs   int64  `json:"millicpus"`
+	CreatedAt   string `json:"createdAt,omitempty"`
+	Restarts    int32  `json:"restarts"`
+	Ready       bool   `json:"ready"`
+}
+
 // AppDeployment contains all the information specific to an active
 // application, i.e. one with a deployment in the cluster.
 type AppDeployment struct {
 	// TODO: Readiness and Liveness fields?
-	Active          bool     `json:"active,omitempty"` // app is > 0 replicas
-	CreatedAt       string   `json:"createdAt,omitempty"`
-	Restarts        int32    `json:"restarts"`
-	MemoryBytes     int64    `json:"memoryBytes"`
-	MilliCPUs       int64    `json:"millicpus"`
-	DesiredReplicas int32    `json:"desiredreplicas"`
-	ReadyReplicas   int32    `json:"readyreplicas"`
-	Username        string   `json:"username,omitempty"` // app creator
-	StageID         string   `json:"stage_id,omitempty"` // staging id
-	Status          string   `json:"status,omitempty"`   // app replica status
-	Routes          []string `json:"routes,omitempty"`   // app routes
+	Active          bool                `json:"active,omitempty"` // app is > 0 replicas
+	CreatedAt       string              `json:"createdAt,omitempty"`
+	DesiredReplicas int32               `json:"desiredreplicas"`
+	ReadyReplicas   int32               `json:"readyreplicas"`
+	Replicas        map[string]*PodInfo `json:"replicas"`
+	Username        string              `json:"username,omitempty"` // app creator
+	StageID         string              `json:"stage_id,omitempty"` // staging id
+	Status          string              `json:"status,omitempty"`   // app replica status
+	Routes          []string            `json:"routes,omitempty"`   // app routes
 }
 
 // NewApp returns a new app for name and namespace
