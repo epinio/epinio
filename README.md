@@ -74,11 +74,11 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
 
 Buildpacks convert your application source code into container images in which the buildpack provides the framework, dependencies and runtime support for your app based on it's programming language.
 
-Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through tekton pipelines to convert your source code into container images. 
+Epinio uses [Paketo Buildpacks](https://paketo.io/docs/) through kubernetes jobs to convert your source code into container images. 
 
-[Tekton Buildpack Pipeline](https://github.com/tektoncd/catalog/blob/main/task/buildpacks/0.3/buildpacks.yaml) - Epinio uses this tekton pipeline with the Paketo's full [Builder Image](https://paketo.io/docs/concepts/builders/).
+Epinio uses the Paketo's full [Builder Image](https://paketo.io/docs/concepts/builders/) by default.
 
-[Using Custom Buildpack](./docs/developer/howtos/custom-python-builder.md) - Steps to create and use a custom builder image that includes a buildpack for Python (The paketo  full [Builder Image](https://paketo.io/docs/concepts/builders/) doesn't support python apps yet).
+[Using Custom Buildpack](./docs/developer/howtos/custom-python-builder.md) - Steps to create and use a custom builder image that includes a buildpack for Python (The paketo full [Builder Image](https://paketo.io/docs/concepts/builders/) doesn't support python apps yet).
 
 ### Example apps
 

@@ -123,6 +123,7 @@ var _ = Describe("Wordpress", func() {
 	It("can deploy Wordpress", func() {
 		out, err := env.Epinio(wordpress.Dir, "apps", "push",
 			"--name", wordpress.Name)
+		env.OnStageFailureShowStagingLogs(err, out, wordpress.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		out, err = env.Epinio("", "app", "list")

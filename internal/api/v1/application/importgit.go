@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/s3manager"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -70,7 +71,7 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
-	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, "tekton-staging", "epinio-s3-connection-details")
+	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.StagingNamespace, "epinio-s3-connection-details")
 	if err != nil {
 		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
 	}

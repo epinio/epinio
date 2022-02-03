@@ -22,6 +22,7 @@ func (m *Machine) MakeContainerImageApp(appName string, instances int, container
 		"--name", appName,
 		"--container-image-url", containerImageURL,
 		"--instances", strconv.Itoa(instances))
+	m.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	EventuallyWithOffset(1, func() string {
@@ -60,6 +61,8 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 			"--instances", strconv.Itoa(instances))
 	}
 
+	m.OnStageFailureShowStagingLogs(err, pushOutput, appName)
+
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
@@ -88,6 +91,8 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 			"--name", appName,
 			"--path", appDir)
 	}
+
+	m.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 

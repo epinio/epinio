@@ -290,6 +290,10 @@ func (c *Client) StagingComplete(namespace string, id string) (models.Response, 
 			return err
 		},
 		retry.RetryIf(func(err error) bool {
+			// Bail out early when staging failed - Do not retry
+			if strings.Contains(err.Error(), "Failed to stage") {
+				return false
+			}
 			if r, ok := err.(interface{ StatusCode() int }); ok {
 				return helpers.RetryableCode(r.StatusCode())
 			}

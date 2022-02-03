@@ -28,7 +28,7 @@ type PushParams struct {
 // * upload
 // * stage
 // * (tail logs)
-// * wait for pipelinerun
+// * wait for staging to be done (complete or fail)
 // * deploy
 // * wait for app
 func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // nolint: gocyclo // Many ifs for view purposes
@@ -264,7 +264,7 @@ func (c *EpinioClient) stageLogs(details logr.Logger, appRef models.AppRef, stag
 		}
 	}()
 
-	details.Info("wait for pipelinerun", "StageID", stageID)
+	details.Info("wait for job", "StageID", stageID)
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
 
 	_, err := c.API.StagingComplete(appRef.Namespace, stageID)

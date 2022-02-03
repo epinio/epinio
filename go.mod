@@ -14,6 +14,7 @@ require (
 	github.com/go-logr/stdr v0.4.0
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0
+	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/kyokomi/emoji v2.2.4+incompatible
@@ -30,11 +31,8 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.0
-	github.com/tektoncd/pipeline v0.28.0
 	github.com/ugorji/go v1.2.6 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
-	golang.org/x/net v0.0.0-20220121210141-e204ce36a2ba // indirect
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
 	golang.org/x/tools v0.1.8 // indirect
 	gopkg.in/ini.v1 v1.66.2
 	gopkg.in/yaml.v2 v2.4.0
@@ -45,4 +43,5 @@ require (
 	k8s.io/client-go v0.21.4
 	k8s.io/kubectl v0.21.4
 	k8s.io/metrics v0.21.4
+	k8s.io/utils v0.0.0-20211208161948-7d6a63dca704
 )
