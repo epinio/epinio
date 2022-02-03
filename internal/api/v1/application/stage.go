@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
@@ -345,6 +346,8 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 // environment + standard variables.
 func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
+	jobName := names.GenerateResourceName("stage", app.Namespace, app.Name, app.Stage.ID)
+
 	// fake stage params of the previous to pull the old image url from.
 	previous := app
 	previous.Stage = models.NewStage(app.PreviousStageID)
@@ -414,7 +417,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			Name: "app-environment",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName:  app.Stage.ID,
+					SecretName:  jobName,
 					DefaultMode: pointer.Int32(420),
 				},
 			},
@@ -495,7 +498,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	jobenv := &corev1.Secret{
 		Data: env,
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Stage.ID,
+			Name: jobName,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
@@ -511,7 +514,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Stage.ID,
+			Name: jobName,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
