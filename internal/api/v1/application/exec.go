@@ -71,7 +71,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		}
 
 		if podToConnect == "" {
-			return apierror.NewAPIError("specified instances doesn't exist",
+			return apierror.NewAPIError("specified instance doesn't exist",
 				"", http.StatusBadRequest)
 		}
 	} else {
