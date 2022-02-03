@@ -93,7 +93,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		Consistently(func() int32 {
 			appObj := appFromAPI(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].Restarts
-		}, "5s", "1s").Should(BeNumerically("==", 0))
+		}, "10s", "1s").Should(BeNumerically("==", 0))
 
 		// Kill an app container and see the count increasing
 		out, err = proc.Kubectl("exec",
@@ -104,7 +104,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		Eventually(func() int32 {
 			appObj := appFromAPI(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].Restarts
-		}, "4s", "1s").Should(BeNumerically("==", 1))
+		}, "15s", "1s").Should(BeNumerically("==", 1))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {
