@@ -361,6 +361,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	}
 
 	// TODO: Extract scripts to config map -- https://github.com/epinio/epinio/issues/1175
+	// TODO: Simplify env setup -- https://github.com/epinio/epinio/issues/1176
 
 	awsScript := fmt.Sprintf("echo Extracting _ _ __ ___ _____ $(whoami) ; aws --endpoint-url %s://%s s3 cp s3://%s/%s /workspace/source/%s ; echo _ _ __ ___ _____ Extracted",
 		protocol, app.S3ConnectionDetails.Endpoint, app.S3ConnectionDetails.Bucket,

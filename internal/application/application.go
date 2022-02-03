@@ -413,10 +413,14 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 // calculateStatus sets the Status field of the App object.
 // To decide what the status value should be, it combines various pieces of information.
 //- If Status is ApplicationError, leave it as it (it was set by "Lookup")
-//- If there is a staging job, app is: ApplicationStaging --- TODO FIX -- Job done (complete or fail) => Not staging
+//- If there is a staging job, app is: ApplicationStaging
 //- If there is no workload and no stagging job, app is: ApplicationCreated
-//- If there is no staging job and there is a workload, app is: ApplicationRunning -- TODO FIX -- allow completed job
+//- If there is no staging job and there is a workload, app is: ApplicationRunning
 func calculateStatus(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
+	// TODO: See https://github.com/epinio/epinio/issues/1179
+	// The current logic fails for the new Job-based stager, and
+	// prevents re-staging when staging failed.
+
 	if app.Status == models.ApplicationError {
 		return nil
 	}
