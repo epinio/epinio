@@ -369,11 +369,13 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	unpackScript := fmt.Sprintf("echo Unpacking _ _ __ ___ _____ $(whoami) ; mkdir /workspace/source/app ; tar -xvf /workspace/source/%s -C /workspace/source/app/; rm /workspace/source/%s; chown -R 1000:1000 /workspace ; cp -vL /platform/appenv/* /platform/env/ ; ls -la /platform/env ; echo _ _ __ ___ _____ Unpacked", app.BlobUID, app.BlobUID)
 
-	buildpackScript := fmt.Sprintf("echo Creating _ _ __ ___ _____ $(whoami) ; ls -la /platform/env ; /cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s && ( curl -X POST http://localhost:4191/shutdown || true )",
+	buildpackScript := fmt.Sprintf(`trap "curl -X POST http://localhost:4191/shutdown || true" EXIT ; echo Creating _ _ __ ___ _____ $(whoami) ; ls -la /platform/env ; /cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s`,
 		previous.ImageURL(previous.RegistryURL), app.ImageURL(app.RegistryURL))
 	// ATTENTION: The `curl localhost:4191` command is used to
 	// stop the linkerd proxy container gracefully. We use `||
-	// true` in case linkerd is not deployed
+	// true` in case linkerd is not deployed.
+	// Further, it is placed into a trap to ensure that it will
+	// always run, even for a staging failure.
 
 	volumeMounts := []corev1.VolumeMount{
 		{
