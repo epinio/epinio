@@ -1,7 +1,16 @@
 package cli
 
 import (
-	"sync"
+	"context"
+	"fmt"
+	"log"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -39,19 +48,54 @@ var CmdServer = &cobra.Command{
 	Long:  "This command starts the Epinio server. `epinio install` ensures the server is running inside your cluster. Normally you don't need to run this command manually.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		httpServerWg := &sync.WaitGroup{}
-		httpServerWg.Add(1)
-		port := viper.GetInt("port")
-		ui := termui.NewUI()
-		logger := tracelog.NewLogger().WithName("EpinioServer")
-		_, listeningPort, err := server.Start(httpServerWg, port, ui, logger)
-		if err != nil {
-			return errors.Wrap(err, "failed to start server")
-		}
-		ui.Normal().Msg("Epinio version: " + version.Version)
-		ui.Normal().Msg("listening on localhost on port " + listeningPort)
-		httpServerWg.Wait()
 
-		return nil
+		logger := tracelog.NewLogger().WithName("EpinioServer")
+		handler, err := server.NewHandler(logger)
+		if err != nil {
+			return errors.Wrap(err, "error creating handler")
+		}
+
+		port := viper.GetInt("port")
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+		if err != nil {
+			return errors.Wrap(err, "error creating listener")
+		}
+
+		ui := termui.NewUI()
+		ui.Normal().Msg("Epinio version: " + version.Version)
+		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+		ui.Normal().Msg("listening on localhost on port " + listeningPort)
+
+		return startServerGracefully(listener, handler)
 	},
+}
+
+// startServerGracefully will start the server and will wait for a graceful shutdown
+func startServerGracefully(listener net.Listener, handler http.Handler) error {
+	srv := &http.Server{
+		Handler: handler,
+	}
+
+	go func() {
+		if err := srv.Serve(listener); err != nil && errors.Is(err, http.ErrServerClosed) {
+			log.Printf("listen: %s\n", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatal("Server forced to shutdown:", err)
+		return err
+	}
+
+	log.Println("Server exiting")
+	return nil
 }
