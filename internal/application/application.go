@@ -98,19 +98,37 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 		return false, err
 	}
 
-	staging := false
-	for _, job := range jobList.Items {
+	completed := func(condition apibatchv1.JobCondition) bool {
+		return condition.Status == v1.ConditionTrue && condition.Type == apibatchv1.JobComplete
+	}
+
+	failed := func(condition apibatchv1.JobCondition) bool {
+		return condition.Status == v1.ConditionTrue && condition.Type == apibatchv1.JobFailed
+	}
+
+	done := func(condition apibatchv1.JobCondition) bool {
+		return completed(condition) || failed(condition)
+	}
+
+	jobStaging := func(job apibatchv1.Job) bool {
 		for _, condition := range job.Status.Conditions {
-			if !(condition.Status == v1.ConditionTrue &&
-				(condition.Type == apibatchv1.JobFailed ||
-					condition.Type == apibatchv1.JobComplete)) {
-				staging = true
-				break
+			if done(condition) {
+				// Terminal, not staging
+				return false
 			}
+		}
+		// No terminal condition found on the job, it is actively staging
+		return true
+	}
+
+	for _, job := range jobList.Items {
+		if jobStaging(job) {
+			return true, nil
 		}
 	}
 
-	return staging, nil
+	// No staging jobs found
+	return false, nil
 }
 
 // Lookup locates the named application (and namespace).
