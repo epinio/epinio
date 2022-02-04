@@ -101,9 +101,9 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 	staging := false
 	for _, job := range jobList.Items {
 		for _, condition := range job.Status.Conditions {
-			if condition.Status == v1.ConditionTrue &&
+			if !(condition.Status == v1.ConditionTrue &&
 				(condition.Type == apibatchv1.JobFailed ||
-					condition.Type == apibatchv1.JobComplete) {
+					condition.Type == apibatchv1.JobComplete)) {
 				staging = true
 			}
 		}
