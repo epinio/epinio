@@ -17,6 +17,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 
@@ -95,8 +96,8 @@ func stageApplication(appName, namespace string, stageRequest models.StageReques
 	err = json.Unmarshal(b, stage)
 	Expect(err).NotTo(HaveOccurred())
 
-	waitForStaging(stage.Stage.ID)
-
+	jobName := names.GenerateResourceName("stage", namespace, appName, stage.Stage.ID)
+	waitForStaging(jobName)
 	return stage
 }
 
@@ -122,11 +123,11 @@ func deployApplication(appName, namespace string, request models.DeployRequest) 
 	return *deploy
 }
 
-func waitForStaging(stageID string) {
+func waitForStaging(jobName string) {
 	Eventually(func() string {
 		out, err := proc.Kubectl("get", "job",
 			"--namespace", helmchart.StagingNamespace,
-			stageID,
+			jobName,
 			"-o", "jsonpath={.status.conditions[0].status}")
 		Expect(err).NotTo(HaveOccurred(), out)
 		return out

@@ -25,6 +25,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/registry"
 	"github.com/epinio/epinio/internal/s3manager"
@@ -268,33 +269,27 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	// Wait for the staging POD to complete, or fail.
-	// We cannot really wait for the Job to complete.
-	// Because when the pod fails the Job simply is not marked completed. Nor failed.
-	// Operation:
-	// 1. Wait for pod to terminate
-	// 2. Check if termination was due to a failure
-
+	// Wait for the staging to be done, then check if it ended in failure.
+	// Select the job for this stage `id`.
 	selector := fmt.Sprintf("app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.suse.org/stage-id=%s",
 		namespace, id)
 
-	// 1. Termination waiter
-	err = cluster.WaitForPodBySelectorDone(ctx, helmchart.StagingNamespace, selector, duration.ToAppBuilt())
+	jobList, err := cluster.ListJobs(ctx, helmchart.StagingNamespace, selector)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
-
-	// 2. Failure check
-	podList, err := cluster.ListPods(ctx, helmchart.StagingNamespace, selector)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if len(podList.Items) == 0 {
-		return apierror.InternalError(fmt.Errorf("no pods in %s with selector %s", namespace, selector))
+	if len(jobList.Items) == 0 {
+		return apierror.InternalError(fmt.Errorf("no jobs in %s with selector %s", namespace, selector))
 	}
 
-	for _, pod := range podList.Items {
-		failed, err := cluster.IsPodFailed(ctx, pod.Name, helmchart.StagingNamespace)
+	for _, job := range jobList.Items {
+		// Wait for job to be done
+		err = cluster.WaitForJobDone(ctx, helmchart.StagingNamespace, job.Name, duration.ToAppBuilt())
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		// Check job for failure
+		failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.StagingNamespace)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -351,6 +346,8 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 // environment + standard variables.
 func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
+	jobName := names.GenerateResourceName("stage", app.Namespace, app.Name, app.Stage.ID)
+
 	// fake stage params of the previous to pull the old image url from.
 	previous := app
 	previous.Stage = models.NewStage(app.PreviousStageID)
@@ -369,11 +366,13 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	unpackScript := fmt.Sprintf("echo Unpacking _ _ __ ___ _____ $(whoami) ; mkdir /workspace/source/app ; tar -xvf /workspace/source/%s -C /workspace/source/app/; rm /workspace/source/%s; chown -R 1000:1000 /workspace ; cp -vL /platform/appenv/* /platform/env/ ; ls -la /platform/env ; echo _ _ __ ___ _____ Unpacked", app.BlobUID, app.BlobUID)
 
-	buildpackScript := fmt.Sprintf("echo Creating _ _ __ ___ _____ $(whoami) ; ls -la /platform/env ; /cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s && ( curl -X POST http://localhost:4191/shutdown || true )",
+	buildpackScript := fmt.Sprintf(`trap "curl -X POST http://localhost:4191/shutdown || true" EXIT ; echo Creating _ _ __ ___ _____ $(whoami) ; ls -la /platform/env ; /cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s`,
 		previous.ImageURL(previous.RegistryURL), app.ImageURL(app.RegistryURL))
 	// ATTENTION: The `curl localhost:4191` command is used to
 	// stop the linkerd proxy container gracefully. We use `||
-	// true` in case linkerd is not deployed
+	// true` in case linkerd is not deployed.
+	// Further, it is placed into a trap to ensure that it will
+	// always run, even for a staging failure.
 
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -418,7 +417,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			Name: "app-environment",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName:  app.Stage.ID,
+					SecretName:  jobName,
 					DefaultMode: pointer.Int32(420),
 				},
 			},
@@ -499,7 +498,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	jobenv := &corev1.Secret{
 		Data: env,
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Stage.ID,
+			Name: jobName,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
@@ -515,7 +514,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: app.Stage.ID,
+			Name: jobName,
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
