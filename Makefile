@@ -24,7 +24,7 @@ build: build-amd64
 
 build-win: build-windows
 
-build-all: build-amd64 build-arm64 build-arm32 build-windows build-darwin build-darwin-m1
+build-all: build-amd64 build-arm64 build-arm32 build-windows build-darwin build-darwin-m1 build-s390x
 
 build-all-small:
 	@$(MAKE) LDFLAGS+="-s -w" build-all
@@ -64,6 +64,7 @@ compress:
 	upx --brute -1 ./dist/epinio-linux-arm32
 	upx --brute -1 ./dist/epinio-linux-arm64
 	upx --brute -1 ./dist/epinio-linux-amd64
+	upx --brute -1 ./dist/epinio-linux-s390x
 	upx --brute -1 ./dist/epinio-windows-amd64.exe
 	upx --brute -1 ./dist/epinio-darwin-amd64
 	upx --brute -1 ./dist/epinio-darwin-arm64
