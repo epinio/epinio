@@ -105,6 +105,7 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 				(condition.Type == apibatchv1.JobFailed ||
 					condition.Type == apibatchv1.JobComplete)) {
 				staging = true
+				break
 			}
 		}
 	}
