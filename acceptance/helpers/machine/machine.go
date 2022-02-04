@@ -13,6 +13,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/internal/cli/config"
@@ -138,9 +139,12 @@ func (m *Machine) VerifyNamespaceNotExist(namespace string) {
 	ExpectWithOffset(1, out).ToNot(MatchRegexp(namespace))
 }
 
-func (m *Machine) MakeWebSocketConnection(authToken string, url string, subprotocols ...string) *websocket.Conn {
+func (m *Machine) MakeWebSocketConnection(authToken string, url string, subprotocols ...string) (*websocket.Conn, error) {
 	u, err := urlpkg.Parse(url)
-	Expect(err).NotTo(HaveOccurred(), url)
+	if err != nil {
+		return nil, errors.Wrapf(err, "parsing url: %s", url)
+	}
+
 	values := u.Query()
 	values.Add("authtoken", authToken)
 	u.RawQuery = values.Encode()
@@ -158,10 +162,13 @@ func (m *Machine) MakeWebSocketConnection(authToken string, url string, subproto
 	if response != nil {
 		b, _ = ioutil.ReadAll(response.Body)
 	}
+	if err != nil {
+		return nil, errors.Wrapf(err, "Dialing endpoint. Response: %s", string(b))
+	}
 
-	Expect(err).NotTo(HaveOccurred(), string(b))
 	Expect(response.StatusCode).To(Equal(http.StatusSwitchingProtocols))
-	return ws
+
+	return ws, nil
 }
 
 func (m *Machine) GetPodNames(appName, namespaceName string) []string {

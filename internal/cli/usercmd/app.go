@@ -430,15 +430,20 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 	}
 }
 
-func (c *EpinioClient) AppExec(ctx context.Context, appName string) error {
+func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().
+	msg := c.ui.Note().
 		WithStringValue("Namespace", c.Config.Namespace).
-		WithStringValue("Application", appName).
-		Msg("Executing a shell")
+		WithStringValue("Application", appName)
+
+	if instance != "" {
+		msg = msg.WithStringValue("Instance", instance)
+	}
+
+	msg.Msg("Executing a shell")
 
 	if err := c.TargetOk(); err != nil {
 		return err
@@ -451,7 +456,7 @@ func (c *EpinioClient) AppExec(ctx context.Context, appName string) error {
 		TryDev: true,
 	}
 
-	return c.API.AppExec(c.Config.Namespace, appName, tty)
+	return c.API.AppExec(c.Config.Namespace, appName, instance, tty)
 }
 
 // Delete removes the named application from the cluster

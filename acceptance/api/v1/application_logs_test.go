@@ -46,7 +46,8 @@ var _ = Describe("AppLogs Endpoint", func() {
 		var urlArgs = []string{}
 		urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", false))
 		wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.WsRoot, v1.WsRoutes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
-		wsConn := env.MakeWebSocketConnection(token, wsURL)
+		wsConn, err := env.MakeWebSocketConnection(token, wsURL)
+		Expect(err).ToNot(HaveOccurred())
 
 		By("read the logs")
 		var logs string
@@ -89,7 +90,8 @@ var _ = Describe("AppLogs Endpoint", func() {
 		var urlArgs = []string{}
 		urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", true))
 		wsURL := fmt.Sprintf("%s%s/%s?%s", websocketURL, v1.WsRoot, v1.WsRoutes.Path("AppLogs", namespace, app), strings.Join(urlArgs, "&"))
-		wsConn := env.MakeWebSocketConnection(token, wsURL)
+		wsConn, err := env.MakeWebSocketConnection(token, wsURL)
+		Expect(err).ToNot(HaveOccurred())
 
 		By("get to the end of logs")
 		for i := 0; i < logLength-1; i++ {

@@ -82,6 +82,10 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
+	if _, err := kubeClient.WaitForSecret(ctx, namespace, "registry-creds", duration.ToSecretCopied()); err != nil {
+		return errors.Wrap(err, "timed out while waiting for registry-creds secret to be copied to the new namespace")
+	}
+
 	return nil
 }
 

@@ -85,6 +85,24 @@ type AppLogsParam struct {
 // swagger:response AppLogsResponse
 type AppLogsResponse struct{}
 
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/exec application AppExec
+// Get a shell to the `App` in the `Namespace`.
+// responses:
+//   200: AppExecResponse
+
+// swagger:parameters AppExec
+type AppExecParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: query
+	Instance string
+}
+
+// swagger:response AppExecResponse
+type AppExecResponse struct{}
+
 // swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs application StagingLogs
 // Return logs of the named `StageID` in the `Namespace` streamed over a websocket.
 // responses:

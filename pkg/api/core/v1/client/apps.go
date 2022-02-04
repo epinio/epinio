@@ -369,7 +369,7 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 	return resp, nil
 }
 
-func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) error {
+func (c *Client) AppExec(namespace string, appName, instance string, tty kubectlterm.TTY) error {
 	endpoint := fmt.Sprintf("%s%s/%s",
 		c.URL, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
@@ -391,6 +391,9 @@ func (c *Client) AppExec(namespace string, appName string, tty kubectlterm.TTY) 
 	}
 	values := execURL.Query()
 	values.Add("authtoken", token)
+	if instance != "" {
+		values.Add("instance", instance)
+	}
 	execURL.RawQuery = values.Encode()
 
 	// upgradeRoundTripper implements both interfaces, Roundtripper and Upgrader
