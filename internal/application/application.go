@@ -21,6 +21,7 @@ import (
 	epinioappv1 "github.com/epinio/application/api/v1"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	apibatchv1 "k8s.io/api/batch/v1"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -88,6 +89,7 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef)
 // CurrentlyStaging returns true if there is an active Job for this application.
 func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName string) (bool, error) {
 
+	// Check all jobs for the app for activity.
 	selector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
 		appName, namespace)
 
@@ -96,17 +98,18 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 		return false, err
 	}
 
+	staging := false
 	for _, job := range jobList.Items {
-		done, err := cluster.IsJobDone(ctx, job.Name, helmchart.StagingNamespace)
-		if err != nil {
-			return false, err
-		}
-		if !done {
-			return true, nil
+		for _, condition := range job.Status.Conditions {
+			if condition.Status == v1.ConditionTrue &&
+				(condition.Type == apibatchv1.JobFailed ||
+					condition.Type == apibatchv1.JobComplete) {
+				staging = true
+			}
 		}
 	}
 
-	return false, nil
+	return staging, nil
 }
 
 // Lookup locates the named application (and namespace).
