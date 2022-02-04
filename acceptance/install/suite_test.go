@@ -6,9 +6,8 @@ import (
 	"testing"
 
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/onsi/ginkgo/config"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -27,7 +26,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	testenv.SetRoot("../..")
 	testenv.SetupEnv()
 
-	fmt.Printf("Compiling Epinio on node %d\n", config.GinkgoConfig.ParallelNode)
+	fmt.Printf("Compiling Epinio on node %d\n", GinkgoParallelProcess())
 	testenv.BuildEpinio()
 
 	testenv.CreateRegistrySecret()

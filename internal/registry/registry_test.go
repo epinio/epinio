@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/internal/registry"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 

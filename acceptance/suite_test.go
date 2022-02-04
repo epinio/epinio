@@ -10,9 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 	epinioConfig "github.com/epinio/epinio/internal/cli/config"
 
-	"github.com/onsi/ginkgo/config"
-
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -29,12 +27,12 @@ var (
 )
 
 var _ = BeforeSuite(func() {
-	fmt.Printf("Running tests on node %d\n", config.GinkgoConfig.ParallelNode)
+	fmt.Printf("Running tests on node %d\n", GinkgoParallelProcess())
 
 	testenv.SetRoot("..")
 	testenv.SetupEnv()
 
-	nodeSuffix = fmt.Sprintf("%d", config.GinkgoConfig.ParallelNode)
+	nodeSuffix = fmt.Sprintf("%d", GinkgoParallelProcess())
 	nodeTmpDir, err := ioutil.TempDir("", "epinio-"+nodeSuffix)
 	Expect(err).NotTo(HaveOccurred())
 
@@ -57,7 +55,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	if !testenv.SkipCleanup() {
-		fmt.Printf("Deleting tmpdir on node %d\n", config.GinkgoConfig.ParallelNode)
+		fmt.Printf("Deleting tmpdir on node %d\n", GinkgoParallelProcess())
 		testenv.DeleteTmpDir(nodeTmpDir)
 	}
 })

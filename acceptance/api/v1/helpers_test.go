@@ -128,7 +128,7 @@ func waitForStaging(stageID string) {
 			"--namespace", helmchart.StagingNamespace,
 			stageID,
 			"-o", "jsonpath={.status.conditions[0].status}")
-		Expect(err).NotTo(HaveOccurred())
+		Expect(err).NotTo(HaveOccurred(), out)
 		return out
 	}, "5m").Should(Equal("True"))
 }
