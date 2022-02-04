@@ -502,6 +502,39 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/exec": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Get a shell to the `App` in the `Namespace`.",
+        "operationId": "AppExec",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Instance",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppExecResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}/import-git": {
       "post": {
         "tags": [
@@ -1064,25 +1097,17 @@
           "format": "int32",
           "x-go-name": "DesiredReplicas"
         },
-        "memoryBytes": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "MemoryBytes"
-        },
-        "millicpus": {
-          "type": "integer",
-          "format": "int64",
-          "x-go-name": "MilliCPUs"
-        },
         "readyreplicas": {
           "type": "integer",
           "format": "int32",
           "x-go-name": "ReadyReplicas"
         },
-        "restarts": {
-          "type": "integer",
-          "format": "int32",
-          "x-go-name": "Restarts"
+        "replicas": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PodInfo"
+          },
+          "x-go-name": "Replicas"
         },
         "routes": {
           "type": "array",
@@ -1413,6 +1438,39 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "PodInfo": {
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "x-go-name": "CreatedAt"
+        },
+        "memoryBytes": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MemoryBytes"
+        },
+        "millicpus": {
+          "type": "integer",
+          "format": "int64",
+          "x-go-name": "MilliCPUs"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "ready": {
+          "type": "boolean",
+          "x-go-name": "Ready"
+        },
+        "restarts": {
+          "type": "integer",
+          "format": "int32",
+          "x-go-name": "Restarts"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "Response": {
       "type": "object",
       "properties": {
@@ -1618,6 +1676,9 @@
       "schema": {
         "$ref": "#/definitions/DeployResponse"
       }
+    },
+    "AppExecResponse": {
+      "description": ""
     },
     "AppImportGitResponse": {
       "description": "",
