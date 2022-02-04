@@ -5,18 +5,13 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/epinio/epinio/helpers/authtoken"
-	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -33,15 +28,10 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Start is a helper which initializes and starts the API server
-func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*http.Server, string, error) {
+// NewHandler creates and setup the gin router
+func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// Support colors on Windows also
 	gin.DefaultWriter = colorable.NewColorableStdout()
-
-	listener, err := net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
-	if err != nil {
-		return nil, "", err
-	}
 
 	gin.SetMode(gin.ReleaseMode)
 
@@ -75,7 +65,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 	}
 
 	if os.Getenv("SESSION_KEY") == "" {
-		return nil, "", errors.New("SESSION_KEY environment variable not defined")
+		return nil, errors.New("SESSION_KEY environment variable not defined")
 	}
 
 	store := cookie.NewStore([]byte(os.Getenv("SESSION_KEY")))
@@ -111,26 +101,7 @@ func Start(wg *sync.WaitGroup, port int, _ *termui.UI, logger logr.Logger) (*htt
 		}
 	}
 
-	srv := &http.Server{
-		Handler: router,
-	}
-
-	// Start server
-	go func() {
-		defer wg.Done() // let caller know we are done cleaning up
-
-		// always returns error. ErrServerClosed on graceful close
-		if err := srv.Serve(listener); err != http.ErrServerClosed {
-			log.Fatalf("Epinio server failed to start: %v", err)
-		}
-	}()
-
-	// report actual port back to user
-
-	elements := strings.Split(listener.Addr().String(), ":")
-	listeningPort := elements[len(elements)-1]
-
-	return srv, listeningPort, nil
+	return router, nil
 }
 
 func Formatter(params gin.LogFormatterParams) string {
