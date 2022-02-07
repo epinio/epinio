@@ -391,7 +391,7 @@ func (c *Client) AppExec(namespace string, appName, instance string, tty kubectl
 		return err
 	}
 
-	if err := c.addAuthTokenToUrl(execURL); err != nil {
+	if err := c.addAuthTokenToURL(execURL); err != nil {
 		return err
 	}
 
@@ -463,7 +463,7 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 		return err
 	}
 
-	if err := c.addAuthTokenToUrl(portForwardURL); err != nil {
+	if err := c.addAuthTokenToURL(portForwardURL); err != nil {
 		return err
 	}
 
@@ -491,7 +491,7 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 	return fw.ForwardPorts()
 }
 
-func (c *Client) addAuthTokenToUrl(url *url.URL) error {
+func (c *Client) addAuthTokenToURL(url *url.URL) error {
 	token, err := c.AuthToken()
 	if err != nil {
 		return err
