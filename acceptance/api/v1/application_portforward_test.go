@@ -49,7 +49,7 @@ var _ = Describe("AppPortForward Endpoint", func() {
 			var connErr error
 
 			BeforeEach(func() {
-				conn, connErr = setupConnection(namespace, appName, "nonexisting")
+				conn, connErr = setupConnection(namespace, appName, "")
 			})
 
 			AfterEach(func() {

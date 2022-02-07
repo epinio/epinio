@@ -19,9 +19,12 @@ var CmdApp = &cobra.Command{
 }
 
 func init() {
-	flags := CmdAppLogs.Flags()
-	flags.Bool("follow", false, "follow the logs of the application")
-	flags.Bool("staging", false, "show the staging logs of the application")
+	CmdAppList.Flags().Bool("all", false, "list all applications")
+	CmdAppLogs.Flags().Bool("follow", false, "follow the logs of the application")
+	CmdAppLogs.Flags().Bool("staging", false, "show the staging logs of the application")
+	CmdAppExec.Flags().StringP("instance", "i", "", "The name of the instance to shell to")
+	CmdAppPortForward.Flags().StringSliceVar(&portForwardAddress, "address", []string{"localhost"}, "Addresses to listen on (comma separated). Only accepts IP addresses or localhost as a value. When localhost is supplied, kubectl will try to bind on both 127.0.0.1 and ::1 and will fail if neither of these addresses are available to bind.")
+	CmdAppPortForward.Flags().StringVarP(&portForwardInstance, "instance", "i", "", "The name of the instance to shell to")
 
 	routeOption(CmdAppCreate)
 	routeOption(CmdAppUpdate)
@@ -32,20 +35,12 @@ func init() {
 	instancesOption(CmdAppCreate)
 	instancesOption(CmdAppUpdate)
 
-	CmdAppExec.Flags().StringP("instance", "i", "", "The name of the instance to shell to")
-
-	flags = CmdAppList.Flags()
-	flags.Bool("all", false, "list all applications")
-
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdAppLogs)
 	CmdApp.AddCommand(CmdAppExec)
-
 	CmdApp.AddCommand(CmdAppPortForward)
-	CmdAppPortForward.Flags().StringSliceVar(&portForwardAddress, "address", []string{"localhost"}, "Addresses to listen on (comma separated). Only accepts IP addresses or localhost as a value. When localhost is supplied, kubectl will try to bind on both 127.0.0.1 and ::1 and will fail if neither of these addresses are available to bind.")
-	CmdAppPortForward.Flags().StringVarP(&portForwardInstance, "instance", "i", "", "The name of the instance to shell to")
 
 	CmdApp.AddCommand(CmdAppManifest)
 	CmdApp.AddCommand(CmdAppShow)
@@ -200,7 +195,7 @@ var (
 	portForwardInstance string
 )
 
-// CmdAppExec implements the command: epinio apps exec
+// CmdAppPortForward implements the command: epinio apps port-forward
 var CmdAppPortForward = &cobra.Command{
 	Use:   "port-forward NAME [LOCAL_PORT:]REMOTE_PORT [...[LOCAL_PORT_N:]REMOTE_PORT_N]",
 	Short: "creates a shell to the application",
