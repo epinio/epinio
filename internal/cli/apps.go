@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	"github.com/epinio/epinio/internal/manifest"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -10,29 +8,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var ()
-
 // CmdApp implements the  command: epinio app
 var CmdApp = &cobra.Command{
 	Use:           "app",
 	Aliases:       []string{"apps"},
 	Short:         "Epinio application features",
 	Long:          `Manage epinio application`,
-	SilenceErrors: true,
-	SilenceUsage:  true,
+	SilenceErrors: false,
 	Args:          cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if err := cmd.Usage(); err != nil {
-			return err
-		}
-		return fmt.Errorf(`unknown method "%s"`, args[0])
-	},
 }
 
 func init() {
-	flags := CmdAppLogs.Flags()
-	flags.Bool("follow", false, "follow the logs of the application")
-	flags.Bool("staging", false, "show the staging logs of the application")
+	CmdAppList.Flags().Bool("all", false, "list all applications")
+	CmdAppLogs.Flags().Bool("follow", false, "follow the logs of the application")
+	CmdAppLogs.Flags().Bool("staging", false, "show the staging logs of the application")
+	CmdAppExec.Flags().StringP("instance", "i", "", "The name of the instance to shell to")
+	CmdAppPortForward.Flags().StringSliceVar(&portForwardAddress, "address", []string{"localhost"}, "Addresses to listen on (comma separated). Only accepts IP addresses or localhost as a value. When localhost is supplied, kubectl will try to bind on both 127.0.0.1 and ::1 and will fail if neither of these addresses are available to bind.")
+	CmdAppPortForward.Flags().StringVarP(&portForwardInstance, "instance", "i", "", "The name of the instance to shell to")
 
 	routeOption(CmdAppCreate)
 	routeOption(CmdAppUpdate)
@@ -43,16 +35,13 @@ func init() {
 	instancesOption(CmdAppCreate)
 	instancesOption(CmdAppUpdate)
 
-	CmdAppExec.Flags().StringP("instance", "i", "", "The name of the instance to shell to")
-
-	flags = CmdAppList.Flags()
-	flags.Bool("all", false, "list all applications")
-
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdAppLogs)
 	CmdApp.AddCommand(CmdAppExec)
+	CmdApp.AddCommand(CmdAppPortForward)
+
 	CmdApp.AddCommand(CmdAppManifest)
 	CmdApp.AddCommand(CmdAppShow)
 	CmdApp.AddCommand(CmdAppUpdate)
@@ -198,6 +187,33 @@ var CmdAppExec = &cobra.Command{
 		err = client.AppExec(cmd.Context(), args[0], instance)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error getting a shell to application")
+	},
+}
+
+var (
+	portForwardAddress  []string
+	portForwardInstance string
+)
+
+// CmdAppPortForward implements the command: epinio apps port-forward
+var CmdAppPortForward = &cobra.Command{
+	Use:   "port-forward NAME [LOCAL_PORT:]REMOTE_PORT [...[LOCAL_PORT_N:]REMOTE_PORT_N]",
+	Short: "creates a shell to the application",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		appName := args[0]
+		ports := args[1:]
+
+		err = client.AppPortForward(cmd.Context(), appName, portForwardInstance, portForwardAddress, ports)
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error port forwarding to application")
 	},
 }
 

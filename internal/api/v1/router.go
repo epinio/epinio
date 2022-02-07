@@ -125,9 +125,10 @@ var Routes = routes.NamedRoutes{
 }
 
 var WsRoutes = routes.NamedRoutes{
-	"AppExec":     get("/namespaces/:namespace/applications/:app/exec", errorHandler(application.Controller{}.Exec)),
-	"AppLogs":     get("/namespaces/:namespace/applications/:app/logs", application.Controller{}.Logs),
-	"StagingLogs": get("/namespaces/:namespace/staging/:stage_id/logs", application.Controller{}.Logs),
+	"AppExec":        get("/namespaces/:namespace/applications/:app/exec", errorHandler(application.Controller{}.Exec)),
+	"AppPortForward": get("/namespaces/:namespace/applications/:app/portforward", errorHandler(application.Controller{}.PortForward)),
+	"AppLogs":        get("/namespaces/:namespace/applications/:app/logs", application.Controller{}.Logs),
+	"StagingLogs":    get("/namespaces/:namespace/staging/:stage_id/logs", application.Controller{}.Logs),
 }
 
 // Lemon extends the specified router with the methods and urls

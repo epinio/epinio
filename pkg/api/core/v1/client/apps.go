@@ -3,9 +3,12 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -14,7 +17,10 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
+	"k8s.io/client-go/tools/portforward"
 	"k8s.io/client-go/tools/remotecommand"
+	"k8s.io/client-go/transport"
+	gospdy "k8s.io/client-go/transport/spdy"
 
 	"github.com/epinio/epinio/helpers"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -380,21 +386,20 @@ func (c *Client) AppExec(namespace string, appName, instance string, tty kubectl
 		PingPeriod:               time.Second * 5,
 	})
 
-	token, err := c.AuthToken()
-	if err != nil {
-		return err
-	}
-
 	execURL, err := url.Parse(endpoint)
 	if err != nil {
 		return err
 	}
-	values := execURL.Query()
-	values.Add("authtoken", token)
-	if instance != "" {
-		values.Add("instance", instance)
+
+	if err := c.addAuthTokenToURL(execURL); err != nil {
+		return err
 	}
-	execURL.RawQuery = values.Encode()
+
+	if instance != "" {
+		values := execURL.Query()
+		values.Add("instance", instance)
+		execURL.RawQuery = values.Encode()
+	}
 
 	// upgradeRoundTripper implements both interfaces, Roundtripper and Upgrader
 	exec, err := remotecommand.NewSPDYExecutorForTransports(upgradeRoundTripper, upgradeRoundTripper, "GET", execURL)
@@ -415,4 +420,86 @@ func (c *Client) AppExec(namespace string, appName, instance string, tty kubectl
 	}
 
 	return tty.Safe(fn)
+}
+
+type PortForwardOpts struct {
+	Address      []string
+	Ports        []string
+	StopChannel  chan struct{}
+	ReadyChannel chan struct{}
+	Out          io.Writer
+	ErrOut       io.Writer
+}
+
+func NewPortForwardOpts(address, ports []string) *PortForwardOpts {
+	opts := &PortForwardOpts{
+		Address:      address,
+		Ports:        ports,
+		StopChannel:  make(chan struct{}),
+		ReadyChannel: make(chan struct{}),
+		Out:          os.Stdin,
+		ErrOut:       os.Stderr,
+	}
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+	defer signal.Stop(signals)
+
+	go func() {
+		<-signals
+		if opts.StopChannel != nil {
+			close(opts.StopChannel)
+		}
+	}()
+
+	return opts
+}
+
+// AppPortForward will forward the local traffic to a remote app
+func (c *Client) AppPortForward(namespace string, appName, instance string, opts *PortForwardOpts) error {
+	endpoint := fmt.Sprintf("%s%s/%s", c.URL, api.WsRoot, api.WsRoutes.Path("AppPortForward", namespace, appName))
+	portForwardURL, err := url.Parse(endpoint)
+	if err != nil {
+		return err
+	}
+
+	if err := c.addAuthTokenToURL(portForwardURL); err != nil {
+		return err
+	}
+
+	if instance != "" {
+		values := portForwardURL.Query()
+		values.Add("instance", instance)
+		portForwardURL.RawQuery = values.Encode()
+	}
+
+	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
+		TLS:                      http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		FollowRedirects:          true,
+		RequireSameHostRedirects: false,
+		PingPeriod:               time.Second * 5,
+	})
+
+	wrapper := transport.NewBasicAuthRoundTripper(c.user, c.password, upgradeRoundTripper)
+
+	dialer := gospdy.NewDialer(upgradeRoundTripper, &http.Client{Transport: wrapper}, "GET", portForwardURL)
+	fw, err := portforward.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, opts.Out, opts.ErrOut)
+	if err != nil {
+		return err
+	}
+
+	return fw.ForwardPorts()
+}
+
+func (c *Client) addAuthTokenToURL(url *url.URL) error {
+	token, err := c.AuthToken()
+	if err != nil {
+		return err
+	}
+
+	values := url.Query()
+	values.Add("authtoken", token)
+	url.RawQuery = values.Encode()
+
+	return nil
 }
