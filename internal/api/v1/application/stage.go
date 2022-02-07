@@ -360,14 +360,44 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	// TODO: Extract scripts to config map -- https://github.com/epinio/epinio/issues/1175
 	// TODO: Simplify env setup -- https://github.com/epinio/epinio/issues/1176
 
-	awsScript := fmt.Sprintf("echo Extracting _ _ __ ___ _____ $(whoami) ; aws --endpoint-url %s://%s s3 cp s3://%s/%s /workspace/source/%s ; echo _ _ __ ___ _____ Extracted",
-		protocol, app.S3ConnectionDetails.Endpoint, app.S3ConnectionDetails.Bucket,
-		app.BlobUID, app.BlobUID)
+	// runtime: AWSCLIImage
+	awsScript := fmt.Sprintf(`echo Extracting _ _ __ ___ _____ $(whoami)
+aws --endpoint-url %s://%s s3 cp s3://%s/%[4]s /workspace/source/%[4]s
+echo _ _ __ ___ _____ Extracted`,
+		protocol,
+		app.S3ConnectionDetails.Endpoint,
+		app.S3ConnectionDetails.Bucket,
+		app.BlobUID)
 
-	unpackScript := fmt.Sprintf("echo Unpacking _ _ __ ___ _____ $(whoami) ; mkdir /workspace/source/app ; tar -xvf /workspace/source/%s -C /workspace/source/app/; rm /workspace/source/%s; chown -R 1000:1000 /workspace ; cp -vL /platform/appenv/* /platform/env/ ; ls -la /platform/env ; echo _ _ __ ___ _____ Unpacked", app.BlobUID, app.BlobUID)
+	// runtime: BashImage
+	unpackScript := fmt.Sprintf(`echo Unpacking _ _ __ ___ _____ $(whoami)
+mkdir /workspace/source/app
+tar -xvf /workspace/source/%[1]s -C /workspace/source/app/
+rm /workspace/source/%[1]s
+chown -R 1000:1000 /workspace
+cp -vL /platform/appenv/* /platform/env/
+ls -la /platform/env
+echo _ _ __ ___ _____ Unpacked`,
+		app.BlobUID)
 
-	buildpackScript := fmt.Sprintf(`trap "curl -X POST http://localhost:4191/shutdown || true" EXIT ; echo Creating _ _ __ ___ _____ $(whoami) ; ls -la /platform/env ; /cnb/lifecycle/creator -app=/workspace/source/app -cache-dir=/workspace/cache -uid=1000 -gid=1000 -layers=/layers -platform=/platform -report=/layers/report.toml -process-type=web -skip-restore=false -previous-image=%s %s`,
-		previous.ImageURL(previous.RegistryURL), app.ImageURL(app.RegistryURL))
+	// runtime: app.BuilderImage
+	buildpackScript := fmt.Sprintf(`trap "curl -X POST http://localhost:4191/shutdown || true" EXIT
+echo Creating _ _ __ ___ _____ $(whoami)
+ls -la /platform/env
+/cnb/lifecycle/creator \
+	-app=/workspace/source/app \
+	-cache-dir=/workspace/cache \
+	-uid=1000 -gid=1000 \
+	-layers=/layers \
+	-platform=/platform \
+	-report=/layers/report.toml \
+	-process-type=web \
+	-skip-restore=false \
+	-previous-image=%s \
+	%s
+echo _ _ __ ___ _____ Created`,
+		previous.ImageURL(previous.RegistryURL),
+		app.ImageURL(app.RegistryURL))
 	// ATTENTION: The `curl localhost:4191` command is used to
 	// stop the linkerd proxy container gracefully. We use `||
 	// true` in case linkerd is not deployed.
