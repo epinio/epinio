@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("AppPortForward Endpoint", func() {
+var _ = Describe("AppPortForward Endpoint", func() {
 	var (
 		appName   string
 		namespace string
