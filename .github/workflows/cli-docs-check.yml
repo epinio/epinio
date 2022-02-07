@@ -1,0 +1,55 @@
+name: "CodeQL"
+
+env:
+  SETUP_GO_VERSION: '^1.17.2'
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [cli-docs-check]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [main]
+    # Do not trigger if only files matching the patterns below changed
+    paths-ignore:
+      - '**/*.md'
+      - '**/*.txt'
+      - 'docs/**'
+      - 'acceptance/**'
+
+jobs:
+  cli-docs:
+    name: cli docs check
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        # We must fetch at least the immediate parents so that if this is
+        # a pull request then we can checkout the head.
+        fetch-depth: 2
+        submodules: recursive
+    
+    - name: Checkout docs repo
+      uses: actions/checkout@v2
+      with:
+        repository: epinio/docs
+        path: docs
+
+    - name: Setup Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: ${{ env.SETUP_GO_VERSION }}
+
+    - name: Generate Golang
+      run: |
+        export PATH=$PATH:/home/runner/go/bin/
+        rm -rvf acceptance
+        rm -v $(find . -type f -name '*_test.go')
+
+    - name: Generate cli docs
+      run: make generate-cli-docs
+    
+    - name: Check if docs are updated
+      run: if [[ -n $(git status --porcelain) ]] then exit 1; else exit 0; fi;
