@@ -23,7 +23,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppPortForward Endpoint", func() {
+var _ = FDescribe("AppPortForward Endpoint", func() {
 	var (
 		appName   string
 		namespace string
@@ -81,15 +81,10 @@ var _ = Describe("AppPortForward Endpoint", func() {
 		})
 
 		When("you specify a non existing instance", func() {
-			var conn httpstream.Connection
 			var connErr error
 
 			BeforeEach(func() {
-				conn, connErr = setupConnection(namespace, appName, "nonexisting")
-			})
-
-			AfterEach(func() {
-				conn.Close()
+				_, connErr = setupConnection(namespace, appName, "nonexisting")
 			})
 
 			It("fails with a 400 bad request", func() {
