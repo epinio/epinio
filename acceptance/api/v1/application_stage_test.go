@@ -173,7 +173,7 @@ var _ = Describe("AppStage Endpoint", func() {
 		})
 	})
 	When("staging and deploying a new app", func() {
-		It("returns a success", func() {
+		It("returns a success for a tarball", func() {
 			By("uploading the code")
 			uploadResponse := uploadApplication(appName, namespace)
 
@@ -199,6 +199,71 @@ var _ = Describe("AppStage Endpoint", func() {
 				Origin: models.ApplicationOrigin{
 					Kind: models.OriginPath,
 					Path: testenv.TestAssetPath("sample-app.tar"),
+				},
+			}
+
+			bodyBytes, err := json.Marshal(request)
+			Expect(err).ToNot(HaveOccurred())
+			body = string(bodyBytes)
+
+			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
+
+			response, err := env.Curl("POST", url, strings.NewReader(body))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+
+			bodyBytes, err = ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			deploy := &models.DeployResponse{}
+			err = json.Unmarshal(bodyBytes, deploy)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(deploy.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+
+			By("waiting for the deployment to complete")
+
+			url = serverURL + v1.Root + "/" + v1.Routes.Path("AppRunning", namespace, appName)
+
+			response, err = env.Curl("GET", url, strings.NewReader(body))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+
+			By("confirming at highlevel")
+			// Highlevel check and confirmation
+			Eventually(func() string {
+				return appFromAPI(namespace, appName).Workload.Status
+			}, "5m").Should(Equal("1/1"))
+		})
+
+		It("returns a success for a zip archive", func() {
+			By("uploading the code")
+			uploadResponse := uploadApplication(appName, namespace)
+
+			stageRequest := models.StageRequest{
+				App:          models.AppRef{Name: appName, Namespace: namespace},
+				BlobUID:      uploadResponse.BlobUID,
+				BuilderImage: "paketobuildpacks/builder:full",
+			}
+
+			By("staging the application")
+			stageResponse := stageApplication(appName, namespace, stageRequest)
+
+			By("deploying the staged resource")
+			request = models.DeployRequest{
+				App: models.AppRef{
+					Name:      appName,
+					Namespace: namespace,
+				},
+				Stage: models.StageRef{
+					ID: stageResponse.Stage.ID,
+				},
+				ImageURL: stageResponse.ImageURL,
+				Origin: models.ApplicationOrigin{
+					Kind: models.OriginPath,
+					Path: testenv.TestAssetPath("sample-app.zip"),
 				},
 			}
 

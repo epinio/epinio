@@ -361,28 +361,49 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	// TODO: Simplify env setup -- https://github.com/epinio/epinio/issues/1176
 
 	// runtime: AWSCLIImage
-	awsScript := fmt.Sprintf(`echo Extracting _ _ __ ___ _____ $(whoami)
+	awsScript := fmt.Sprintf(`echo By _ _ __ ___ _____ $(whoami)
 aws --endpoint-url %s://%s s3 cp s3://%s/%[4]s /workspace/source/%[4]s
-echo _ _ __ ___ _____ Extracted`,
+echo _ _ __ ___ _____ Done`,
 		protocol,
 		app.S3ConnectionDetails.Endpoint,
 		app.S3ConnectionDetails.Bucket,
 		app.BlobUID)
 
 	// runtime: BashImage
-	unpackScript := fmt.Sprintf(`echo Unpacking _ _ __ ___ _____ $(whoami)
+	// Attempting to unpack the sources as, in order:
+	//    .tar	- epinio cli
+	//    .zip	- epinio UI
+	// -z .tar.gz
+	// -j .tar.bz2
+	// -J .tar.xz
+	//
+	// __Note__: While it would have been nicer, IMNSHO, to use
+	// `file` to determine the type of the file and then directly
+	// dispatch to the proper unpacker, the `file` command is not
+	// available in the `bash` image. The code as written now
+	// relies on each unpacker to recognize/reject input properly.
+
+	unpackScript := fmt.Sprintf(`echo By _ _ __ ___ _____ $(whoami)
 mkdir /workspace/source/app
-tar -xvf /workspace/source/%[1]s -C /workspace/source/app/
+(  cd /workspace/source/app
+   ( echo Tar? ; tar -xvf  ../%[1]s | sed -e 's/^/Tar: /' ) || \
+   ( echo Zip? ; unzip     ../%[1]s | sed -e 's/^/Zip: /' ) || \
+   ( echo Tgz? ; tar -xvzf ../%[1]s | sed -e 's/^/Tgz: /' ) || \
+   ( echo Tbz? ; tar -xvjf ../%[1]s | sed -e 's/^/Tbz: /' ) || \
+   ( echo Txz? ; tar -xvJf ../%[1]s | sed -e 's/^/Txz: /' ) || \
+   ( echo "Unable to unpack. No supported archive file format found" ; exit 1 )
+  echo OK
+)
 rm /workspace/source/%[1]s
 chown -R 1000:1000 /workspace
 cp -vL /platform/appenv/* /platform/env/
 ls -la /platform/env
-echo _ _ __ ___ _____ Unpacked`,
+echo _ _ __ ___ _____ Done`,
 		app.BlobUID)
 
 	// runtime: app.BuilderImage
 	buildpackScript := fmt.Sprintf(`trap "curl -X POST http://localhost:4191/shutdown || true" EXIT
-echo Creating _ _ __ ___ _____ $(whoami)
+echo By _ _ __ ___ _____ $(whoami)
 ls -la /platform/env
 /cnb/lifecycle/creator \
 	-app=/workspace/source/app \
@@ -395,7 +416,7 @@ ls -la /platform/env
 	-skip-restore=false \
 	-previous-image=%s \
 	%s
-echo _ _ __ ___ _____ Created`,
+echo _ _ __ ___ _____ Done`,
 		previous.ImageURL(previous.RegistryURL),
 		app.ImageURL(app.RegistryURL))
 	// ATTENTION: The `curl localhost:4191` command is used to
