@@ -1,0 +1,162 @@
+name: AKS-BASIC-CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ ready_for_review ]
+    paths:
+      - 'acceptance/install/scenario6_test.go'
+      - '.github/workflows/aks-basic.yml'
+  schedule:
+    - cron:  '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      azure_credentials:
+        description: "AZURE_CREDENTIALS"
+        required: false
+        default: ""
+      aks_domain:
+        description: "AKS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+      aws_zone_id:
+        description: "AWS_ZONE_ID"
+        required: false
+        default: ""
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
+
+env:
+  SETUP_GO_VERSION: '^1.17.2'
+  GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+  AWS_REGION: 'us-east-2'
+  AKS_MACHINE_TYPE: 'Standard_D3_v2'
+
+jobs:
+  linter:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Cache Tools
+        uses: actions/cache@v2
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Lint Epinio
+        run: make lint
+
+  acceptance-scenario6:
+    needs:
+      - linter
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Get All Git Tags
+        run: git fetch --force --prune --unshallow --tags
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
+
+      # The system domain is managed by route53, we need credentials to update
+      # it to the loadbalancer's IP
+      - name: Configure AWS credentials for Route53
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
+      # az group create --name epinioCI --location westeurope
+      # az ad sp create-for-rbac --name "epinioCI" --sdk-auth --role contributor \
+      #   --scopes /subscriptions/{id}/resourceGroups/epinioC
+      - uses: azure/login@v1
+        with:
+          creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
+
+      - name: Create AKS cluster
+        id: create-cluster
+        # We need to specify bash as a shell when a job is running on windows runner
+        shell: bash
+        run: |
+          id=$RANDOM
+          echo '::set-output name=ID::'$id
+          az aks create --resource-group epinioCI \
+          --node-vm-size ${{ env.AKS_MACHINE_TYPE }} \
+          --name epinioCI$id \
+          --node-count 2 \
+          --generate-ssh-keys
+
+          az aks get-credentials --resource-group epinioCI \
+          --name epinioCI$id \
+          --file ${{ env.KUBECONFIG_NAME }}
+
+          # List existing clusters
+          az aks list | jq '.[] | .name + " " + (.powerState|tostring)'
+
+      - name: Installation Acceptance Tests
+        env:
+          REGEX: Scenario6
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
+          # Use a random host name, so we don't collide with our workflows on AKS
+          AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+        shell: bash
+        run: |
+          echo "System Domain: $AKS_DOMAIN"
+          export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
+          # 'make' command tries to use the WSL2 version of 'bash', but on Windows runner the
+          # available version is the one provided by GitHub. So calling a bash script from a
+          # Makefile lead to this error: 'Windows Subsystem for Linux has no installed distributions.'
+          # The workaround is to execute the bash script directly
+          ./scripts/setup-chart-museum.sh
+          make test-acceptance-install
+
+      - name: Delete AKS cluster
+        # We always tear down the cluster, to avoid costs. Except when running
+        # manually and keep_cluster was set to a non-empty string, like "yes"
+        # TODO this was not called, when scheduled and tests failed
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        shell: bash
+        run: |
+          id="${{ steps.create-cluster.outputs.ID }}"
+          az aks delete --resource-group epinioCI --name epinioCI$id --yes
