@@ -376,15 +376,19 @@ echo _ _ __ ___ _____ Done`,
 	// dispatch to the proper unpacker, the `file` command is not
 	// available in the `bash` image. The code as written now
 	// relies on each unpacker to recognize/reject input properly.
+	//
+	// The `sed` command add format indicators to the output from
+	// the unarchivers, making the detected format more explicit
+	// in the output.
 
 	unpackScript := fmt.Sprintf(`echo By _ _ __ ___ _____ $(whoami)
 mkdir /workspace/source/app
 (  cd /workspace/source/app
-   ( echo Tar? ; tar -xvf  ../%[1]s | sed -e 's/^/Tar: /' ) || \
-   ( echo Zip? ; unzip     ../%[1]s | sed -e 's/^/Zip: /' ) || \
-   ( echo Tgz? ; tar -xvzf ../%[1]s | sed -e 's/^/Tgz: /' ) || \
-   ( echo Tbz? ; tar -xvjf ../%[1]s | sed -e 's/^/Tbz: /' ) || \
-   ( echo Txz? ; tar -xvJf ../%[1]s | sed -e 's/^/Txz: /' ) || \
+   ( echo Tar? ; tar -xvf  ../%[1]s 2>&1 | sed -e 's/^/Tar: /' ) || \
+   ( echo Zip? ; unzip     ../%[1]s 2>&1 | sed -e 's/^/Zip: /' ) || \
+   ( echo Tgz? ; tar -xvzf ../%[1]s 2>&1 | sed -e 's/^/Tgz: /' ) || \
+   ( echo Tbz? ; tar -xvjf ../%[1]s 2>&1 | sed -e 's/^/Tbz: /' ) || \
+   ( echo Txz? ; tar -xvJf ../%[1]s 2>&1 | sed -e 's/^/Txz: /' ) || \
    ( echo "Unable to unpack. No supported archive file format found" ; exit 1 )
   echo OK
 )
