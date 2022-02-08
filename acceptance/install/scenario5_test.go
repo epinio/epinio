@@ -145,6 +145,12 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 			Expect(out).To(Equal("'letsencrypt-staging'"))
 		})
 
+		By("Delete an app", func() {
+			out, err := epinioHelper.Run("apps", "delete", appName)
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Or(ContainSubstring("Application deleted")))
+		})
+
 		By("Cleaning DNS Entries", func() {
 			change := route53.A(domain, loadbalancer, "DELETE")
 			out, err := route53.Update(zoneID, change, nodeTmpDir)

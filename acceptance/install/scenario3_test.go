@@ -167,5 +167,11 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal("'private-ca'"))
 		})
+
+		By("Delete an app", func() {
+			out, err := epinioHelper.Run("apps", "delete", appName)
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Or(ContainSubstring("Application deleted")))
+		})
 	})
 })
