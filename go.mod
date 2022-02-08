@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.18.0
+	github.com/containerd/containerd v1.5.9
 	github.com/epinio/application v0.0.0-20211220165956-754df54dce77
 	github.com/fatih/color v1.13.0
 	github.com/gin-contrib/sessions v0.0.4
@@ -32,7 +33,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.0
 	github.com/ugorji/go v1.2.6 // indirect
-	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
 	golang.org/x/tools v0.1.8 // indirect
@@ -46,4 +47,5 @@ require (
 	k8s.io/kubectl v0.21.4
 	k8s.io/metrics v0.21.4
 	k8s.io/utils v0.0.0-20211208161948-7d6a63dca704
+	oras.land/oras-go v1.1.0
 )
