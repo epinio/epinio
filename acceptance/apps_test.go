@@ -261,8 +261,8 @@ configuration:
 			By("Pushing a golang app")
 			appDir := "../assets/golang-sample-app"
 			pushLog, err := env.EpinioPush(appDir,
-				"--name", appName,
 				appName,
+				"--name", appName,
 				"--builder-image", "paketobuildpacks/builder:tiny")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
