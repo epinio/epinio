@@ -22,7 +22,6 @@ func (m *Machine) MakeContainerImageApp(appName string, instances int, container
 		"--name", appName,
 		"--container-image-url", containerImageURL,
 		"--instances", strconv.Itoa(instances))
-	m.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	EventuallyWithOffset(1, func() string {
@@ -49,19 +48,19 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
-		pushOutput, err = m.Epinio(appDir, "apps", "push",
+		pushOutput, err = m.EpinioPush(appDir,
+			appName,
 			"--name", appName,
 			"--instances", strconv.Itoa(instances))
 	} else {
 		// Note: appDir is handed as second argument to the epinio cli.
 		// This means that the command gets the sources from that directory instead of CWD.
-		pushOutput, err = m.Epinio("", "apps", "push",
+		pushOutput, err = m.EpinioPush("",
+			appName,
 			"--name", appName,
 			"--path", appDir,
 			"--instances", strconv.Itoa(instances))
 	}
-
-	m.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
@@ -82,17 +81,12 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 	if deployFromCurrentDir {
 		// Note: appDir is handed to the working dir argument of Epinio().
 		// This means that the command runs with it as the CWD.
-		pushOutput, err = m.Epinio(appDir, "apps", "push",
-			"--name", appName)
+		pushOutput, err = m.EpinioPush(appDir, appName, "--name", appName)
 	} else {
 		// Note: appDir is handed as second argument to the epinio cli.
 		// This means that the command gets the sources from that directory instead of CWD.
-		pushOutput, err = m.Epinio("", "apps", "push",
-			"--name", appName,
-			"--path", appDir)
+		pushOutput, err = m.EpinioPush("", appName, "--name", appName, "--path", appDir)
 	}
-
-	m.OnStageFailureShowStagingLogs(err, pushOutput, appName)
 
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
