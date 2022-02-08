@@ -601,6 +601,39 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/portforward": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Get a shell to the `App` in the `Namespace`.",
+        "operationId": "AppPortForward",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Instance",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppPortForwardResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}/restart": {
       "post": {
         "tags": [
@@ -1687,6 +1720,9 @@
       }
     },
     "AppLogsResponse": {
+      "description": ""
+    },
+    "AppPortForwardResponse": {
       "description": ""
     },
     "AppRestartResponse": {

@@ -103,6 +103,24 @@ type AppExecParam struct {
 // swagger:response AppExecResponse
 type AppExecResponse struct{}
 
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/portforward application AppPortForward
+// Get a shell to the `App` in the `Namespace`.
+// responses:
+//   200: AppPortForwardResponse
+
+// swagger:parameters AppPortForward
+type AppPortForwardParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: query
+	Instance string
+}
+
+// swagger:response AppPortForwardResponse
+type AppPortForwardResponse struct{}
+
 // swagger:route GET /namespaces/{Namespace}/staging/{StageID}/logs application StagingLogs
 // Return logs of the named `StageID` in the `Namespace` streamed over a websocket.
 // responses:
