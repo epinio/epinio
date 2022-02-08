@@ -127,10 +127,9 @@ var _ = Describe("RubyOnRails", func() {
 	})
 
 	It("can deploy Rails", func() {
-		out, err := env.Epinio(rails.Dir, "apps", "push",
+		out, err := env.EpinioPush(rails.Dir, rails.Name,
 			"--name", rails.Name,
 			"--bind", serviceName)
-		env.OnStageFailureShowStagingLogs(err, out, rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		route := testenv.AppRouteFromOutput(out)

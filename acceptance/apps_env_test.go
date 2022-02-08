@@ -68,9 +68,7 @@ var _ = Describe("apps env", func() {
 
 			It("is not present in the pushed workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(appDir, "apps", "push",
-					"--name", appName)
-				env.OnStageFailureShowStagingLogs(err, out, appName)
+				out, err := env.EpinioPush(appDir, appName, "--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(namespace, appName)).ToNot(MatchRegexp("MYVAR"))
@@ -104,9 +102,7 @@ var _ = Describe("apps env", func() {
 
 			It("is injected into the pushed workload", func() {
 				appDir := "../assets/sample-app"
-				out, err := env.Epinio(appDir, "apps", "push",
-					"--name", appName)
-				env.OnStageFailureShowStagingLogs(err, out, appName)
+				out, err := env.EpinioPush(appDir, appName, "--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(deployedEnv(namespace, appName)).To(MatchRegexp("MYVAR"))
@@ -117,9 +113,7 @@ var _ = Describe("apps env", func() {
 	Describe("deployed app", func() {
 		BeforeEach(func() {
 			appDir := "../assets/sample-app"
-			out, err := env.Epinio(appDir, "apps", "push",
-				"--name", appName)
-			env.OnStageFailureShowStagingLogs(err, out, appName)
+			out, err := env.EpinioPush(appDir, appName, "--name", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 

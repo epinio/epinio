@@ -32,14 +32,6 @@ func New(dir string, user string, password string, root string, epinioBinaryPath
 	return Machine{dir, user, password, root, epinioBinaryPath}
 }
 
-func (m *Machine) OnStageFailureShowStagingLogs(err error, out, app string) {
-	if err == nil || !strings.Contains(out, "Failed to stage") {
-		return
-	}
-
-	m.ShowStagingLogs(app)
-}
-
 func (m *Machine) ShowStagingLogs(app string) {
 	namespace := m.getNamespace()
 	_, _ = proc.Run("", true, "bash", "-c", fmt.Sprintf(`
@@ -80,6 +72,19 @@ echo ""
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
 	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
+}
+
+const stagingError = "Failed to stage"
+
+// EpinioPush shows the staging log if the error indicates that staging
+// failed
+func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, error) {
+	out, err := proc.Run(dir, false, m.epinioBinaryPath, append([]string{"apps", "push"}, arg...)...)
+	if err != nil && strings.Contains(out, stagingError) {
+		m.ShowStagingLogs(name)
+	}
+
+	return out, err
 }
 
 func (m *Machine) SetupAndTargetNamespace(namespace string) {
