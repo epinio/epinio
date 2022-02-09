@@ -351,77 +351,46 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		protocol = "https"
 	}
 
-	// TODO: Extract scripts to config map -- https://github.com/epinio/epinio/issues/1175
 	// TODO: Simplify env setup -- https://github.com/epinio/epinio/issues/1176
 
+	// Note: `source` is required because the mounted files are not executable.
+
 	// runtime: AWSCLIImage
-	awsScript := fmt.Sprintf(`echo By _ _ __ ___ _____ $(whoami)
-aws --endpoint-url %s://%s s3 cp s3://%s/%[4]s /workspace/source/%[4]s
-echo _ _ __ ___ _____ Done`,
-		protocol,
-		app.S3ConnectionDetails.Endpoint,
-		app.S3ConnectionDetails.Bucket,
-		app.BlobUID)
+	awsScript := fmt.Sprintf("source /stage-support/%s", helmchart.EpinioStageDownload)
 
 	// runtime: BashImage
-	// Attempting to unpack the sources as, in order:
-	//    .tar	- epinio cli
-	//    .zip	- epinio UI
-	// -z .tar.gz
-	// -j .tar.bz2
-	// -J .tar.xz
-	//
-	// __Note__: While it would have been nicer, IMNSHO, to use
-	// `file` to determine the type of the file and then directly
-	// dispatch to the proper unpacker, the `file` command is not
-	// available in the `bash` image. The code as written now
-	// relies on each unpacker to recognize/reject input properly.
-	//
-	// The `sed` command add format indicators to the output from
-	// the unarchivers, making the detected format more explicit
-	// in the output.
-
-	unpackScript := fmt.Sprintf(`echo By _ _ __ ___ _____ $(whoami)
-mkdir /workspace/source/app
-(  cd /workspace/source/app
-   ( echo Tar? ; tar -xvf  ../%[1]s 2>&1 | sed -e 's/^/Tar: /' ) || \
-   ( echo Zip? ; unzip     ../%[1]s 2>&1 | sed -e 's/^/Zip: /' ) || \
-   ( echo Tgz? ; tar -xvzf ../%[1]s 2>&1 | sed -e 's/^/Tgz: /' ) || \
-   ( echo Tbz? ; tar -xvjf ../%[1]s 2>&1 | sed -e 's/^/Tbz: /' ) || \
-   ( echo Txz? ; tar -xvJf ../%[1]s 2>&1 | sed -e 's/^/Txz: /' ) || \
-   ( echo "Unable to unpack. No supported archive file format found" ; exit 1 )
-  echo OK
-)
-rm /workspace/source/%[1]s
-chown -R 1000:1000 /workspace
-cp -vL /platform/appenv/* /platform/env/
-ls -la /platform/env
-echo _ _ __ ___ _____ Done`,
-		app.BlobUID)
+	unpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageUnpack)
 
 	// runtime: app.BuilderImage
-	buildpackScript := fmt.Sprintf(`trap "curl -X POST http://localhost:4191/shutdown || true" EXIT
-echo By _ _ __ ___ _____ $(whoami)
-ls -la /platform/env
-/cnb/lifecycle/creator \
-	-app=/workspace/source/app \
-	-cache-dir=/workspace/cache \
-	-uid=1000 -gid=1000 \
-	-layers=/layers \
-	-platform=/platform \
-	-report=/layers/report.toml \
-	-process-type=web \
-	-skip-restore=false \
-	-previous-image=%s \
-	%s
-echo _ _ __ ___ _____ Done`,
-		previous.ImageURL(previous.RegistryURL),
-		app.ImageURL(app.RegistryURL))
-	// ATTENTION: The `curl localhost:4191` command is used to
-	// stop the linkerd proxy container gracefully. We use `||
-	// true` in case linkerd is not deployed.
-	// Further, it is placed into a trap to ensure that it will
-	// always run, even for a staging failure.
+	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
+
+	// build configuration
+	stageEnv := []corev1.EnvVar{
+		{
+			Name:  "PROTOCOL",
+			Value: protocol,
+		},
+		{
+			Name:  "ENDPOINT",
+			Value: app.S3ConnectionDetails.Endpoint,
+		},
+		{
+			Name:  "BUCKET",
+			Value: app.S3ConnectionDetails.Bucket,
+		},
+		{
+			Name:  "BLOBID",
+			Value: app.BlobUID,
+		},
+		{
+			Name:  "PREIMAGE",
+			Value: previous.ImageURL(previous.RegistryURL),
+		},
+		{
+			Name:  "APPIMAGE",
+			Value: app.ImageURL(app.RegistryURL),
+		},
+	}
 
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -445,6 +414,10 @@ echo _ _ __ ___ _____ Done`,
 			ReadOnly:  true,
 		},
 		{
+			Name:      "staging",
+			MountPath: "/stage-support",
+		},
+		{
 			Name:      "app-environment",
 			MountPath: "/platform/appenv",
 			ReadOnly:  true,
@@ -461,6 +434,17 @@ echo _ _ __ ___ _____ Done`,
 	}
 
 	volumes := []corev1.Volume{
+		{
+			Name: "staging",
+			VolumeSource: corev1.VolumeSource{
+				ConfigMap: &corev1.ConfigMapVolumeSource{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: helmchart.EpinioStageScriptsName,
+					},
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		},
 		{
 			// See `jobenv` for the Secret providing the information.
 			Name: "app-environment",
@@ -605,6 +589,7 @@ echo _ _ __ ___ _____ Done`,
 								"-c",
 								awsScript,
 							},
+							Env: stageEnv,
 						},
 						{
 							Name:         "unpack-blob",
@@ -615,6 +600,7 @@ echo _ _ __ ___ _____ Done`,
 								"-c",
 								unpackScript,
 							},
+							Env: stageEnv,
 						},
 					},
 					Containers: []corev1.Container{
@@ -626,6 +612,7 @@ echo _ _ __ ___ _____ Done`,
 								"-c",
 								buildpackScript,
 							},
+							Env:          stageEnv,
 							VolumeMounts: volumeMounts,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser:  pointer.Int64(1000),

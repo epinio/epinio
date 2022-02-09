@@ -5,4 +5,8 @@ const (
 	StagingNamespace              = "epinio-staging"
 	EpinioNamespace               = "epinio"
 	EpinioCertificateName         = "epinio"
+	EpinioStageScriptsName        = "epinio-stage-scripts"
+	EpinioStageDownload           = "download"
+	EpinioStageUnpack             = "unpack"
+	EpinioStageBuild              = "build"
 )
