@@ -353,29 +353,44 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	// TODO: Simplify env setup -- https://github.com/epinio/epinio/issues/1176
 
+	// Note: `source` is required because the mounted files are not executable.
+
 	// runtime: AWSCLIImage
-	awsScript := fmt.Sprintf(`PROTOCOL="%s"
-ENDPOINT="%s"
-BUCKET="%s"
-BLOBID="%s"
-source "/stage-support/%s"
-`,
-		protocol, app.S3ConnectionDetails.Endpoint, app.S3ConnectionDetails.Bucket,
-		app.BlobUID, helmchart.EpinioStageDownload)
+	awsScript := fmt.Sprintf("source /stage-support/%s", helmchart.EpinioStageDownload)
 
 	// runtime: BashImage
-	unpackScript := fmt.Sprintf(`BLOBID="%s"
-source "/stage-support/%s"
-`,
-		app.BlobUID, helmchart.EpinioStageUnpack)
+	unpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageUnpack)
 
 	// runtime: app.BuilderImage
-	buildpackScript := fmt.Sprintf(`PREIMAGE="%s"
-APPIMAGE="%s"
-source "/stage-support/%s"`,
-		previous.ImageURL(previous.RegistryURL),
-		app.ImageURL(app.RegistryURL),
-		helmchart.EpinioStageBuild)
+	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
+
+	// build configuration
+	stageEnv := []corev1.EnvVar{
+		{
+			Name:  "PROTOCOL",
+			Value: protocol,
+		},
+		{
+			Name:  "ENDPOINT",
+			Value: app.S3ConnectionDetails.Endpoint,
+		},
+		{
+			Name:  "BUCKET",
+			Value: app.S3ConnectionDetails.Bucket,
+		},
+		{
+			Name:  "BLOBID",
+			Value: app.BlobUID,
+		},
+		{
+			Name:  "PREIMAGE",
+			Value: previous.ImageURL(previous.RegistryURL),
+		},
+		{
+			Name:  "APPIMAGE",
+			Value: app.ImageURL(app.RegistryURL),
+		},
+	}
 
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -574,6 +589,7 @@ source "/stage-support/%s"`,
 								"-c",
 								awsScript,
 							},
+							Env: stageEnv,
 						},
 						{
 							Name:         "unpack-blob",
@@ -584,6 +600,7 @@ source "/stage-support/%s"`,
 								"-c",
 								unpackScript,
 							},
+							Env: stageEnv,
 						},
 					},
 					Containers: []corev1.Container{
@@ -595,6 +612,7 @@ source "/stage-support/%s"`,
 								"-c",
 								buildpackScript,
 							},
+							Env:          stageEnv,
 							VolumeMounts: volumeMounts,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsUser:  pointer.Int64(1000),
