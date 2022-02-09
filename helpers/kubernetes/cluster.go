@@ -51,6 +51,8 @@ var (
 	EpinioNamespaceLabelValue  = "epinio-namespace"
 	EpinioAPISecretLabelKey    = fmt.Sprintf("%s/%s", APISGroupName, "api-user-credentials")
 	EpinioAPISecretLabelValue  = "true"
+	EpinioPVCLabelKey          = fmt.Sprintf("%s/%s", APISGroupName, "source-code-pvc")
+	EpinioPVCLabelValue        = "true"
 )
 
 // Memoization of GetCluster
