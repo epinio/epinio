@@ -250,7 +250,6 @@ func newAppService(app models.AppRef, username string) *v1.Service {
 			Name:      names.ServiceName(app.Name),
 			Namespace: app.Namespace,
 			Annotations: map[string]string{
-				"kubernetes.io/ingress.class":                      "traefik",
 				"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
 				"traefik.ingress.kubernetes.io/router.tls":         "true",
 			},
