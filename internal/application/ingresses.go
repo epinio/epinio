@@ -185,10 +185,12 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 // completeIngress takes an Ingress as created by the routes#ToIngress
 // method and fills in more data needed for Epinio.
 func completeIngress(ingress *networkingv1.Ingress, appRef models.AppRef, username string) *networkingv1.Ingress {
+	t := "traefik"
+	ingress.Spec.IngressClassName = &t
+
 	ingress.ObjectMeta.Annotations = map[string]string{
 		"traefik.ingress.kubernetes.io/router.entrypoints": "websecure",
 		"traefik.ingress.kubernetes.io/router.tls":         "true",
-		"kubernetes.io/ingress.class":                      "traefik",
 	}
 
 	ingress.ObjectMeta.Labels = map[string]string{
