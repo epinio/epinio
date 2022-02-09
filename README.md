@@ -4,8 +4,10 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 
 [![godoc](https://pkg.go.dev/badge/epinio/epinio)](https://pkg.go.dev/github.com/epinio/epinio/internal/api/v1)
 [![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=event%3Aschedule)
+[![AKS-BASIC-CI](https://github.com/epinio/epinio/actions/workflows/aks-basic.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks-basic.yml)
 [![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks.yml)
 [![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/eks.yml)
+[![GKE-BASIC-CI](https://github.com/epinio/epinio/actions/workflows/gke-basic.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke-basic.yml)
 [![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke.yml)
 [![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/rke.yml)
 [![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml)

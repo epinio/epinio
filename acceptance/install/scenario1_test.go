@@ -16,7 +16,7 @@ import (
 )
 
 // This test uses AWS route53 to update the system domain's records
-var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
+var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 	var (
 		flags        []string
 		epinioHelper epinio.Epinio
@@ -24,7 +24,6 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 		loadbalancer string
 		domain       string
 		zoneID       string
-		instancesNum string
 	)
 
 	BeforeEach(func() {
@@ -36,12 +35,8 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 		zoneID = os.Getenv("AWS_ZONE_ID")
 		Expect(zoneID).ToNot(BeEmpty())
 
-		instancesNum = "0"
-
 		flags = []string{
 			"--set", "domain=" + domain,
-			"--set", "tlsIssuer=letsencrypt-staging",
-			"--set", "skipCertManager=true",
 		}
 	})
 
@@ -50,25 +45,7 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("Installs with letsencrypt-staging cert, custom domain and pushes an app with 0 instances", func() {
-		By("Installing CertManager", func() {
-			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "repo", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
-				"-n", "cert-manager",
-				"--create-namespace",
-				"--set", "installCRDs=true",
-				"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
-			)
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			// Create certificate secret and cluster_issuer
-			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("letsencrypt-staging.yaml"))
-			Expect(err).NotTo(HaveOccurred(), out)
-		})
-
+	It("Installs with loadbalancer IP, custom domain and pushes an app", func() {
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -132,18 +109,11 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 			}, "2m", "2s").Should(ContainSubstring("Epinio Version:"))
 		})
 
-		By("Pushing an app with zero instances", func() {
+		By("Pushing an app", func() {
 			out, err := epinioHelper.Run("push",
 				"--name", appName,
-				"--path", testenv.AssetPath("sample-app"),
-				"--instances", instancesNum)
+				"--path", testenv.AssetPath("sample-app"))
 			Expect(err).ToNot(HaveOccurred(), out)
-
-			Eventually(func() string {
-				out, err := proc.RunW("kubectl", "get", "deployment", "--namespace", testenv.DefaultWorkspace, appName, "-o", "jsonpath={.spec.replicas}")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "30s", "1s").Should(Equal("0"))
 
 			// Verify cluster_issuer is used
 			out, err = proc.RunW("kubectl", "get", "certificate",
@@ -151,7 +121,13 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 				"--selector", "app.kubernetes.io/name="+appName,
 				"-o", "jsonpath='{.items[*].spec.issuerRef.name}'")
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Equal("'letsencrypt-staging'"))
+			Expect(out).To(Equal("'epinio-ca'"))
+		})
+
+		By("Delete an app", func() {
+			out, err := epinioHelper.Run("apps", "delete", appName)
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Or(ContainSubstring("Application deleted")))
 		})
 
 		By("Cleaning DNS Entries", func() {
