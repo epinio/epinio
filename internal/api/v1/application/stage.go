@@ -419,12 +419,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		},
 		{
 			Name:      "app-environment",
-			MountPath: "/platform/appenv",
+			MountPath: "/workspace/source/appenv",
 			ReadOnly:  true,
-		},
-		{
-			Name:      "job-environment",
-			MountPath: "/platform/env",
 		},
 	}
 
@@ -453,12 +449,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					SecretName:  jobName,
 					DefaultMode: pointer.Int32(420),
 				},
-			},
-		},
-		{
-			Name: "job-environment",
-			VolumeSource: corev1.VolumeSource{
-				EmptyDir: &corev1.EmptyDirVolumeSource{},
 			},
 		},
 		{
