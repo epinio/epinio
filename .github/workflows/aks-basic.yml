@@ -103,10 +103,11 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # Follow https://github.com/marketplace/actions/azure-login#configure-deployment-credentials
-      # az group create --name epinioCI --location westeurope
+      # az group create --name epinioCI --location eastus2
       # az ad sp create-for-rbac --name "epinioCI" --sdk-auth --role contributor \
-      #   --scopes /subscriptions/{id}/resourceGroups/epinioC
-      - uses: azure/login@v1
+      #   --scopes /subscriptions/{id}/resourceGroups/epinioCI
+      - name: Login to Azure
+        uses: azure/login@v1
         with:
           creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
 
