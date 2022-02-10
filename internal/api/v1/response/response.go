@@ -44,6 +44,15 @@ func Error(c *gin.Context, responseErrors errors.APIErrors) {
 		"origin", c.Request.URL.String(),
 		"error", responseErrors)
 
+	// add errors to the Gin context
+	for _, err := range responseErrors.Errors() {
+		if ginErr := c.Error(err); ginErr != nil {
+			tracelog.Logger(c.Request.Context()).Error(ginErr, "ERROR",
+				"origin", c.Request.URL.String(),
+				"error", ginErr)
+		}
+	}
+
 	c.Header("X-Content-Type-Options", "nosniff")
 	c.JSON(responseErrors.FirstStatus(), errors.ErrorResponse{
 		Errors: responseErrors.Errors(),
