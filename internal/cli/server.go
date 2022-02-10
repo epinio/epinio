@@ -44,6 +44,10 @@ func init() {
 	flags.String("output", "text", "(OUTPUT) logs output format [text,json]")
 	viper.BindPFlag("output", flags.Lookup("output"))
 	viper.BindEnv("output", "OUTPUT")
+
+	flags.String("ingress-class-name", "", "(INGRESS_CLASS_NAME) Name of the ingress class to use for apps. Leave empty to add no ingressClassName to the ingress.")
+	viper.BindPFlag("ingress-class-name", flags.Lookup("ingress-class-name"))
+	viper.BindEnv("ingress-class-name", "INGRESS_CLASS_NAME")
 }
 
 // CmdServer implements the command: epinio server
