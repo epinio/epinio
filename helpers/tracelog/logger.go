@@ -3,7 +3,6 @@
 package tracelog
 
 import (
-	"context"
 	"log"
 	"os"
 
@@ -12,24 +11,6 @@ import (
 	flag "github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
-
-type CtxLoggerKey struct{}
-
-// Logger returns the logger from the context, the server injects a logger into
-// each request.
-func Logger(ctx context.Context) logr.Logger {
-	log, ok := ctx.Value(CtxLoggerKey{}).(logr.Logger)
-	if !ok {
-		// this should not happen, but let's be cautious
-		return NewLogger().WithName("fallback")
-	}
-	return log
-}
-
-// WithLogger returns a copy of the context with the given logger
-func WithLogger(ctx context.Context, log logr.Logger) context.Context {
-	return context.WithValue(ctx, CtxLoggerKey{}, log)
-}
 
 // TraceLevel returns the trace-level argument
 func TraceLevel() int {

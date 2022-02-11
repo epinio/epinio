@@ -19,7 +19,6 @@ import (
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -98,7 +97,7 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 // It creates a Job resource to stage the app
 func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := tracelog.Logger(ctx)
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")

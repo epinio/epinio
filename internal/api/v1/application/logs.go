@@ -9,9 +9,9 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 
@@ -26,10 +26,11 @@ import (
 // either regular logs, or the app's staging logs.
 func (hc Controller) Logs(c *gin.Context) {
 	ctx := c.Request.Context()
+	log := requestctx.Logger(ctx)
+
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	stageID := c.Param("stage_id")
-	log := tracelog.Logger(ctx)
 
 	log.Info("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -113,7 +114,7 @@ func (hc Controller) Logs(c *gin.Context) {
 // all the children go routines described above and then will wait for their parent
 // go routine to stop too (using another WaitGroup).
 func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, namespaceName, appName, stageID string, cluster *kubernetes.Cluster, follow bool) error {
-	logger := tracelog.NewLogger().WithName("streamer-to-websockets").V(1)
+	logger := requestctx.Logger(ctx).WithName("streamer-to-websockets").V(1)
 	logChan := make(chan tailer.ContainerLogLine)
 	logCtx, logCancelFunc := context.WithCancel(ctx)
 	var wg sync.WaitGroup

@@ -6,18 +6,17 @@ import (
 	"reflect"
 	"runtime"
 
-	"github.com/epinio/epinio/helpers/routes"
-	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/gin-gonic/gin"
 
+	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/env"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
-
 	"github.com/epinio/epinio/internal/api/v1/service"
 	"github.com/epinio/epinio/internal/api/v1/servicebinding"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -38,8 +37,11 @@ func funcName(i interface{}) string {
 func errorHandler(action APIActionFunc) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if errors := action(c); errors != nil {
-			tracelog.Logger(c.Request.Context()).V(1).
-				Info("responding with json error response", "action", funcName(action), "errors", errors)
+			requestctx.Logger(c.Request.Context()).Info(
+				"responding with json error response",
+				"action", funcName(action),
+				"errors", errors,
+			)
 			response.Error(c, errors)
 		}
 	}

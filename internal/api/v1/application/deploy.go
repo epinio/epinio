@@ -10,7 +10,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -42,7 +41,7 @@ type deployParam struct {
 // It creates the deployment, service and ingress (kube) resources for the app
 func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := tracelog.Logger(ctx)
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
