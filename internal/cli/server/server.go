@@ -17,6 +17,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
+	"github.com/alron/ginlogr"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -70,7 +71,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	store := cookie.NewStore([]byte(os.Getenv("SESSION_KEY")))
 	store.Options(sessions.Options{MaxAge: 60 * 60 * 24}) // expire in a day
 
-	ginLogger := gin.LoggerWithFormatter(Formatter)
+	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
+	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
 
 	// Register routes
 	// No authentication, no logging, no session. This is the healthcheck.
@@ -82,7 +84,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router.Use(
 		sessions.Sessions("epinio-session", store),
 		ginLogger,
-		loggingMiddleware(logger),
+		ginRecoveryLogger,
+		initContextMiddleware(logger),
 	)
 
 	// Register api routes
@@ -107,13 +110,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	return router, nil
 }
 
-func Formatter(params gin.LogFormatterParams) string {
-	user := requestctx.User(params.Request.Context())
-	return fmt.Sprintf("Method: %s | Path: %s | User: %s | IP: %s | Timestamp: %s | Latency: %s | Status: %d | Message: %s \n",
-		params.Method, params.Path, user, params.ClientIP, params.TimeStamp.Format(time.RFC3339), params.Latency, params.StatusCode, params.ErrorMessage)
-}
-
-func loggingMiddleware(logger logr.Logger) gin.HandlerFunc {
+// initContextMiddleware initialize the Request Context injecting the logger and the requestID
+func initContextMiddleware(logger logr.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		reqCtx := ctx.Request.Context()
 

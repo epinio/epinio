@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
 	"github.com/epinio/epinio/internal/version"
+	"github.com/go-logr/logr"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -39,6 +40,10 @@ func init() {
 	flags.String("registry-certificate-secret", "", "(REGISTRY_CERTIFICATE_SECRET) Secret for the registry's TLS certificate")
 	viper.BindPFlag("registry-certificate-secret", flags.Lookup("registry-certificate-secret"))
 	viper.BindEnv("registry-certificate-secret", "REGISTRY_CERTIFICATE_SECRET")
+
+	flags.String("output", "text", "(OUTPUT) logs output format [text,json]")
+	viper.BindPFlag("output", flags.Lookup("output"))
+	viper.BindEnv("output", "OUTPUT")
 }
 
 // CmdServer implements the command: epinio server
@@ -49,7 +54,15 @@ var CmdServer = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		logger := tracelog.NewLogger().WithName("EpinioServer")
+		// init logger
+		var logger logr.Logger
+		if viper.GetString("output") == "json" {
+			logger = tracelog.NewZapLogger()
+		} else {
+			logger = tracelog.NewLogger()
+		}
+		logger = logger.WithName("EpinioServer")
+
 		handler, err := server.NewHandler(logger)
 		if err != nil {
 			return errors.Wrap(err, "error creating handler")

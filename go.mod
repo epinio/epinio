@@ -3,6 +3,7 @@ module github.com/epinio/epinio
 go 1.15
 
 require (
+	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.18.0
 	github.com/epinio/application v0.0.0-20211220165956-754df54dce77
@@ -10,8 +11,9 @@ require (
 	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.7.7
 	github.com/go-git/go-git/v5 v5.4.2
-	github.com/go-logr/logr v1.2.0
+	github.com/go-logr/logr v1.2.2
 	github.com/go-logr/stdr v1.2.0
+	github.com/go-logr/zapr v1.2.2
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.2.0
 	github.com/google/gofuzz v1.2.0 // indirect
@@ -32,6 +34,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.10.0
 	github.com/ugorji/go v1.2.6 // indirect
+	go.uber.org/zap v1.19.0
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
