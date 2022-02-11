@@ -511,17 +511,12 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			},
 		})
 
-		// `epinio-ca` needs `ca.crt` file, but letsencrypt needs `tls.crt`
-		// TODO: Remove this one day? -- https://github.com/jetstack/cert-manager/issues/2111
-		fileList := []string{"ca.crt", "tls.crt"}
-		for i, fileName := range fileList {
-			volumeMounts = append(volumeMounts, corev1.VolumeMount{
-				Name:      "registry-certs",
-				MountPath: fmt.Sprintf("/etc/ssl/certs/%s.%d", app.RegistryCAHash, i),
-				SubPath:   fileName,
-				ReadOnly:  true,
-			})
-		}
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "registry-certs",
+			MountPath: fmt.Sprintf("/etc/ssl/certs/%s", app.RegistryCAHash),
+			SubPath:   "tls.crt",
+			ReadOnly:  true,
+		})
 	}
 
 	// Create job environment as a copy of the app environment, plus standard variable.
