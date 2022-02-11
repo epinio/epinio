@@ -90,7 +90,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// Register api routes
 	{
-		apiRoutesGroup := router.Group(apiv1.Root, authMiddleware, sessionMiddlewaress)
+		apiRoutesGroup := router.Group(apiv1.Root, authMiddleware, sessionMiddleware)
 		apiv1.Lemon(apiRoutesGroup)
 	}
 
@@ -223,7 +223,7 @@ func authMiddleware(ctx *gin.Context) {
 // the authMiddleware calls "ctx.Abort()" in that case.
 // We only set the user in session upon successful authentication
 // (either basic auth or cookie based).
-func sessionMiddlewaress(ctx *gin.Context) {
+func sessionMiddleware(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 	requestContext := ctx.Request.Context()
 	user := requestctx.User(requestContext)
