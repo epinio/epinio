@@ -501,7 +501,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	// If there is a certificate to trust
 	if app.RegistryCASecret != "" && app.RegistryCAHash != "" {
-
 		volumes = append(volumes, corev1.Volume{
 			Name: "registry-certs",
 			VolumeSource: corev1.VolumeSource{
@@ -515,7 +514,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		volumeMounts = append(volumeMounts, corev1.VolumeMount{
 			Name:      "registry-certs",
 			MountPath: fmt.Sprintf("/etc/ssl/certs/%s", app.RegistryCAHash),
-			SubPath:   "ca.crt",
+			SubPath:   "tls.crt",
 			ReadOnly:  true,
 		})
 	}
