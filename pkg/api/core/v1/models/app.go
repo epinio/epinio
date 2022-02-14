@@ -34,6 +34,7 @@ type App struct {
 	Workload      *AppDeployment           `json:"deployment,omitempty"`
 	Status        ApplicationStatus        `json:"status"`
 	StatusMessage string                   `json:"statusmessage"`
+	StageID       string                   `json:"stage_id,omitempty"` // staging id
 }
 
 type PodInfo struct {
@@ -55,7 +56,6 @@ type AppDeployment struct {
 	ReadyReplicas   int32               `json:"readyreplicas"`
 	Replicas        map[string]*PodInfo `json:"replicas"`
 	Username        string              `json:"username,omitempty"` // app creator
-	StageID         string              `json:"stage_id,omitempty"` // staging id
 	Status          string              `json:"status,omitempty"`   // app replica status
 	Routes          []string            `json:"routes,omitempty"`   // app routes
 }

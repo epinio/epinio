@@ -369,23 +369,6 @@ func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, er
 	return result, nil
 }
 
-// GetStageID is a specialization of Get coming after, to determine and deliver only the StageId of the workload.
-// Nothing else.
-func (a *Workload) GetStageID(ctx context.Context) (string, error) {
-	// Query application deployment for stageID
-
-	deployment, err := a.Deployment(ctx)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return "", err
-		}
-		// App is inactive, no deployment, no workload, no id
-		return "", nil
-	}
-
-	return deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"], nil
-}
-
 // Get returns the state of the app deployment encoded in the workload.
 func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 
@@ -405,7 +388,6 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 
 	status := fmt.Sprintf("%d/%d", deployment.Status.ReadyReplicas, deployment.Status.Replicas)
 
-	stageID := deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
 	username := deployment.Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 	routes, err := ListRoutes(ctx, a.cluster, a.app)
@@ -423,7 +405,6 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
 		Replicas:        replicas,
 		Username:        username,
-		StageID:         stageID,
 		Status:          status,
 		Routes:          routes,
 		DesiredReplicas: desiredReplicas,

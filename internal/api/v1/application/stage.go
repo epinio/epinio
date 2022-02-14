@@ -174,11 +174,11 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		UID:        app.GetUID(),
 	}
 
-	// Determine stage id of currently running deployment, fallback to itself when no such exists.
+	// Determine stage id of currently running deployment. Fallback to itself when no such exists.
 	// From the view of the new build we are about to create this is the previous id.
-	previousID, err := application.StageID(ctx, cluster, req.App)
+	previousID, err := application.StageID(app)
 	if err != nil {
-		return apierror.InternalError(err, "failed to determine active application stage id")
+		return apierror.InternalError(err, "failed to determine application stage id")
 	}
 	if previousID == "" {
 		previousID = uid
@@ -722,6 +722,9 @@ func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
 	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
+		return err
+	}
+	if err := unstructured.SetNestedField(app.Object, params.Stage.ID, "spec", "stageid"); err != nil {
 		return err
 	}
 	if err := unstructured.SetNestedField(app.Object, params.BuilderImage, "spec", "builderimage"); err != nil {

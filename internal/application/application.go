@@ -20,6 +20,7 @@ import (
 
 	epinioappv1 "github.com/epinio/application/api/v1"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
+	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -271,8 +272,13 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 // This method relies on the presence of a workload to get the previous id. There is the case that staging has
 // happened, yet there is no workload. Ee.g. by calling the "staging" endpoint but not calling the "deploy"
 // endpoint. Since our client doesn't support that scenario, this method doesn't support it either.
-func StageID(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (string, error) {
-	return NewWorkload(cluster, appRef).GetStageID(ctx)
+func StageID(app *unstructured.Unstructured) (string, error) {
+	stageID, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "stageid")
+	if err != nil {
+		return "", errors.New("stageid should be string")
+	}
+
+	return stageID, nil
 }
 
 // Unstage removes staging resources. It deletes either all Jobs of the
@@ -398,12 +404,23 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	// See sibling files scale.go, env.go, services.go, ingresses.go.
 	// Defered at the moment, the PR is big enough already.
 
+	// TODO: Check which of the called functions retrieve the CR
+	// also. Pass them the CR loaded here to avoid superfluous kube
+	// api calls.
+	applicationCR, err := Get(ctx, cluster, app.Meta)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return apierror.AppIsNotKnown("application resource is missing")
+		}
+		return apierror.InternalError(err, "failed to get the application resource")
+	}
+
 	desiredRoutes, err := DesiredRoutes(ctx, cluster, app.Meta)
 	if err != nil {
 		return err
 	}
 
-	origin, err := Origin(ctx, cluster, app.Meta)
+	origin, err := Origin(applicationCR)
 	if err != nil {
 		return err
 	}
@@ -423,11 +440,17 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	stageID, err := StageID(applicationCR)
+	if err != nil {
+		return err
+	}
+
 	app.Configuration.Instances = &instances
 	app.Configuration.Services = services
 	app.Configuration.Environment = environment
 	app.Configuration.Routes = desiredRoutes
 	app.Origin = origin
+	app.StageID = stageID
 
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.

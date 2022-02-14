@@ -269,7 +269,7 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 		return "", errors.New("Application has no workload")
 	}
 
-	return app.Workload.StageID, nil
+	return app.StageID, nil
 }
 
 // AppUpdate updates the specified running application's attributes (e.g. instances)
@@ -537,7 +537,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		}
 		msg = msg.WithTableRow("Status", app.Workload.Status).
 			WithTableRow("Username", app.Workload.Username).
-			WithTableRow("StageId", app.Workload.StageID).
+			WithTableRow("StageId", app.StageID).
 			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
 			WithTableRow("Active Routes", "")
 
@@ -548,7 +548,12 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 			}
 		}
 	} else {
-		msg = msg.WithTableRow("Status", "not deployed")
+		if app.StageID == "" {
+			msg = msg.WithTableRow("Status", "not deployed")
+		} else {
+			msg = msg.WithTableRow("Status", "not deployed, staging failed")
+			msg = msg.WithTableRow("StageId", app.StageID)
+		}
 		msg = msg.WithTableRow("Desired Routes", "")
 
 		if len(app.Configuration.Routes) > 0 {

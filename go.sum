@@ -203,8 +203,8 @@ github.com/envoyproxy/go-control-plane v0.9.10-0.20210907150352-cf90f659a021/go.
 github.com/envoyproxy/go-control-plane v0.10.1/go.mod h1:AY7fTTXNdv/aJ2O5jwpxAPOWUZ7hQAEvzN5Pf27BkQQ=
 github.com/envoyproxy/protoc-gen-validate v0.1.0/go.mod h1:iSmxcyjqTsJpI2R4NaDN7+kN2VEUnK/pcBlmesArF7c=
 github.com/envoyproxy/protoc-gen-validate v0.6.2/go.mod h1:2t7qjJNvHPx8IjnBOzl9E9/baC+qXE/TeeyBRzgJDws=
-github.com/epinio/application v0.0.0-20211220165956-754df54dce77 h1:McI7is/x87nyQrf1rzU5D82k2szRAO12B5uVAIMXnwg=
-github.com/epinio/application v0.0.0-20211220165956-754df54dce77/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
+github.com/epinio/application v0.0.0-20220214113001-c4ef8b29d446 h1:uCDYMnD0SwSxWwgxkINvXjTxmEEYvZBs5nJb8S8uCnU=
+github.com/epinio/application v0.0.0-20220214113001-c4ef8b29d446/go.mod h1:TsOLExnVfT4RDqLnOv6UHQ6ri26dDNG8RkQTyVqCU14=
 github.com/evanphx/json-patch v0.5.2/go.mod h1:ZWS5hhDbVDyob71nXKNL0+PWn6ToqBHMikGIFbs31qQ=
 github.com/evanphx/json-patch v4.5.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch v4.9.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=

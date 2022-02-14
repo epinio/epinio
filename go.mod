@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.18.0
-	github.com/epinio/application v0.0.0-20211220165956-754df54dce77
+	github.com/epinio/application v0.0.0-20220214113001-c4ef8b29d446
 	github.com/fatih/color v1.13.0
 	github.com/gin-contrib/sessions v0.0.4
 	github.com/gin-gonic/gin v1.7.7

@@ -33,37 +33,7 @@ func New(dir string, user string, password string, root string, epinioBinaryPath
 }
 
 func (m *Machine) ShowStagingLogs(app string) {
-	namespace := m.getNamespace()
-	_, _ = proc.Run("", true, "bash", "-c", fmt.Sprintf(`
-app="%s"
-namespace="%s"
-sns=epinio-staging
-
-echo ""
-echo ___ XXXX APP "($app)" SPACE "($namespace)" ___
-echo ___ LOGS _ _ __ ___ _____ ________ _____________
-for pod in $(kubectl get pods -n "${sns}" -l "app.kubernetes.io/component=staging,app.kubernetes.io/part-of=${namespace},app.kubernetes.io/name=${app}" -o 'jsonpath={.items[*].metadata.name}')
-do
-    for container in $(kubectl get pods -n "${sns}" "${pod}" -o jsonpath='{.spec.initContainers[*].name}')
-    do
-	case ${container} in
-	    *linkerd*) continue ;;
-	esac
-	echo ___ INIT POD "($pod)" C "($container)" _ _ __ ___ _____ ________ _____________
-	kubectl logs -n "${sns}" -c "${container}" "${pod}"
-    done
-    for container in $(kubectl get pods -n "${sns}" "${pod}" -o jsonpath='{.spec.containers[*].name}')
-    do
-	case ${container} in
-	    *linkerd*) continue ;;
-	esac
-	echo ___ RUNC POD "($pod)" C "($container)" _ _ __ ___ _____ ________ _____________
-	kubectl logs -n "${sns}" -c "${container}" "${pod}"
-    done
-done
-echo ___ LOGS _ _ __ ___ _____ ________ _____________
-echo ""
-`, app, namespace))
+	_, _ = m.Epinio("", app, "app", "logs", "--staging", app)
 }
 
 // Epinio invokes the `epinio` binary, running the specified command.
