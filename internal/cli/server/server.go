@@ -5,25 +5,25 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/authtoken"
-	"github.com/epinio/epinio/helpers/tracelog"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
+	"github.com/alron/ginlogr"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/google/uuid"
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/viper"
 )
@@ -70,9 +70,9 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	store := cookie.NewStore([]byte(os.Getenv("SESSION_KEY")))
 	store.Options(sessions.Options{MaxAge: 60 * 60 * 24}) // expire in a day
-	router.Use(sessions.Sessions("epinio-session", store))
 
-	ginLogger := gin.LoggerWithFormatter(Formatter)
+	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
+	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
 
 	// Register routes
 	// No authentication, no logging, no session. This is the healthcheck.
@@ -80,18 +80,24 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
-	// Register web socket routes
-	{
-		rg := router.Group("", ginLogger, tokenAuthMiddleware)
-		rg = rg.Group(apiv1.WsRoot)
-		apiv1.Spice(rg)
-	}
+	// add common middlewares to all the routes
+	router.Use(
+		sessions.Sessions("epinio-session", store),
+		ginLogger,
+		ginRecoveryLogger,
+		initContextMiddleware(logger),
+	)
 
 	// Register api routes
 	{
-		rg := router.Group("", ginLogger, authMiddleware, sessionMiddleware)
-		rg = rg.Group(apiv1.Root)
-		apiv1.Lemon(rg)
+		apiRoutesGroup := router.Group(apiv1.Root, authMiddleware, sessionMiddleware)
+		apiv1.Lemon(apiRoutesGroup)
+	}
+
+	// Register web socket routes
+	{
+		wapiRoutesGroup := router.Group(apiv1.WsRoot, tokenAuthMiddleware)
+		apiv1.Spice(wapiRoutesGroup)
 	}
 
 	// print all registered routes
@@ -104,16 +110,25 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	return router, nil
 }
 
-func Formatter(params gin.LogFormatterParams) string {
-	user := requestctx.User(params.Request.Context())
-	return fmt.Sprintf("Method: %s | Path: %s | User: %s | IP: %s | Timestamp: %s | Latency: %s | Status: %d | Message: %s \n",
-		params.Method, params.Path, user, params.ClientIP, params.TimeStamp.Format(time.RFC3339), params.Latency, params.StatusCode, params.ErrorMessage)
+// initContextMiddleware initialize the Request Context injecting the logger and the requestID
+func initContextMiddleware(logger logr.Logger) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		reqCtx := ctx.Request.Context()
+
+		requestID := uuid.NewString()
+		baseLogger := logger.WithValues("requestId", requestID)
+
+		reqCtx = requestctx.WithID(reqCtx, requestID)
+		reqCtx = requestctx.WithLogger(reqCtx, baseLogger)
+		ctx.Request = ctx.Request.WithContext(reqCtx)
+	}
 }
 
 // authMiddleware authenticates the user either using the session or if one
 // doesn't exist, it authenticates with basic auth.
 func authMiddleware(ctx *gin.Context) {
-	logger := tracelog.NewLogger().WithName("AuthMiddleware")
+	reqCtx := ctx.Request.Context()
+	logger := requestctx.Logger(reqCtx).WithName("AuthMiddleware")
 
 	// First get the available users
 	accounts, err := auth.GetUserAccounts(ctx)
@@ -198,10 +213,8 @@ func authMiddleware(ctx *gin.Context) {
 
 	// Write the user info in the context. It's needed by the next middleware
 	// to write it into the session.
-	id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
 	newCtx := ctx.Request.Context()
-	newCtx = requestctx.ContextWithUser(newCtx, user)
-	newCtx = requestctx.ContextWithID(newCtx, id)
+	newCtx = requestctx.WithUser(newCtx, user)
 	ctx.Request = ctx.Request.WithContext(newCtx)
 }
 
@@ -237,7 +250,7 @@ func sessionMiddleware(ctx *gin.Context) {
 
 // tokenAuthMiddleware is only used to establish websocket connections for authenticated users
 func tokenAuthMiddleware(ctx *gin.Context) {
-	logger := tracelog.NewLogger().WithName("TokenAuthMiddleware")
+	logger := requestctx.Logger(ctx.Request.Context()).WithName("TokenAuthMiddleware")
 	logger.V(1).Info("Authtoken authentication")
 
 	token := ctx.Query("authtoken")
@@ -265,9 +278,7 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 	}
 
 	// we don't check if the user exists, token lifetime is small enough
-	id := fmt.Sprintf("%d", rand.Intn(10000)) // nolint:gosec // Non-crypto use
 	newCtx := ctx.Request.Context()
-	newCtx = requestctx.ContextWithUser(newCtx, claims.Username)
-	newCtx = requestctx.ContextWithID(newCtx, id)
+	newCtx = requestctx.WithUser(newCtx, claims.Username)
 	ctx.Request = ctx.Request.WithContext(newCtx)
 }

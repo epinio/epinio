@@ -11,7 +11,6 @@ import (
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -25,7 +24,7 @@ import (
 // of the repo and puts it on S3.
 func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := tracelog.Logger(ctx)
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")

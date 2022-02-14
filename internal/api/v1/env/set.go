@@ -2,9 +2,9 @@ package env
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -16,7 +16,7 @@ import (
 // and add/modifies the variable in the  application's environment.
 func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := tracelog.Logger(ctx)
+	log := requestctx.Logger(ctx)
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")

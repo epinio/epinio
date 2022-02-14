@@ -10,7 +10,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/namespaces"
@@ -339,7 +339,7 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 // When stageID is an empty string, no staging logs are returned. If it is set,
 // then only logs from that staging process are returned.
 func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, namespace string) error {
-	logger := tracelog.NewLogger().WithName("logs-backend").V(2)
+	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
 	selector := labels.NewSelector()
 
 	var selectors [][]string

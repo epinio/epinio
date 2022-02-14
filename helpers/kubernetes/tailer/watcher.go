@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,7 +34,7 @@ func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp,
 	containerFilter *regexp.Regexp, containerExcludeFilter *regexp.Regexp,
 	containerState ContainerState, labelSelector labels.Selector) (chan *Target, chan *Target, error) {
 
-	logger := tracelog.NewLogger().WithName("pod-watch").V(4)
+	logger := requestctx.Logger(ctx).WithName("pod-watch").V(4)
 
 	logger.Info("create")
 	watcher, err := i.Watch(ctx, metav1.ListOptions{Watch: true, LabelSelector: labelSelector.String()})

@@ -2,7 +2,6 @@ package application
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -17,7 +16,7 @@ import (
 // it creates the k8s resources needed for staging
 func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	log := tracelog.Logger(ctx)
+	log := requestctx.Logger(ctx)
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")

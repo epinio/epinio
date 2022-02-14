@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -113,7 +113,7 @@ func SyncIngresses(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 	}
 
 	// Ensure desired routes
-	log := tracelog.Logger(ctx)
+	log := requestctx.Logger(ctx)
 	desiredRoutesMap := map[string]bool{}
 	for _, desiredRoute := range desiredRoutes {
 		desiredRoutesMap[desiredRoute] = true
