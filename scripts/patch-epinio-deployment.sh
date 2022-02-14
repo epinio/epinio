@@ -121,6 +121,10 @@ PATCH=$(cat <<EOF
             "persistentVolumeClaim": {
               "claimName": "epinio-binary"
             }
+          },
+          {
+            "name": "tmp-volume",
+            "emptyDir": {}
           }
         ],
         "containers": [{
@@ -134,6 +138,10 @@ PATCH=$(cat <<EOF
             {
               "name": "epinio-binary",
               "mountPath": "/epinio-binary"
+            },
+            {
+              "mountPath": "/tmp",
+              "name": "tmp-volume"
             }
           ]
         }]
