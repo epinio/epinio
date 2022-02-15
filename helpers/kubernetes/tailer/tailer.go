@@ -52,9 +52,9 @@ func (t *Tail) Start(ctx context.Context, logChan chan ContainerLogLine, follow 
 	t.logger.Info("starting the tail for pod " + t.PodName)
 	var m string
 	if t.Options.Namespace {
-		m = fmt.Sprintf("Now tracking %s %s › %s ", t.Namespace, t.PodName, t.ContainerName)
+		m = fmt.Sprintf("now tracking %s %s › %s ", t.Namespace, t.PodName, t.ContainerName)
 	} else {
-		m = fmt.Sprintf("Now tracking %s › %s ", t.PodName, t.ContainerName)
+		m = fmt.Sprintf("now tracking %s › %s ", t.PodName, t.ContainerName)
 	}
 	t.logger.Info(m)
 

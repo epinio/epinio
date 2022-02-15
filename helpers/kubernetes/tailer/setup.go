@@ -32,6 +32,7 @@ type Config struct {
 	LabelSelector         labels.Selector
 	TailLines             *int64
 	Template              *template.Template // Template to apply to log entries for formatting
+	Ordered               bool               // Featch/stream logs in container order, synchronously
 }
 
 // ContainerLogLine is an object that represents a line from the logs of a container.
@@ -54,6 +55,7 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 		return errors.New("no namespace set for tailing logs")
 	}
 
+	logger.Info("list pods")
 	podList, err := cluster.Kubectl.CoreV1().Pods(namespace).List(
 		ctx, metav1.ListOptions{LabelSelector: config.LabelSelector.String()})
 	if err != nil {
@@ -86,22 +88,45 @@ func FetchLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wait
 		return true
 	}
 
+	logger.Info("filter pods, containers")
+
 	for _, pod := range podList.Items {
-		for _, c := range pod.Spec.Containers {
-			if !acceptable(c) {
-				continue
-			}
-			tails = append(tails, newTail(pod, c))
-		}
 		for _, c := range pod.Spec.InitContainers {
 			if !acceptable(c) {
 				continue
 			}
 			tails = append(tails, newTail(pod, c))
+
+			logger.Info("have", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
+		}
+		for _, c := range pod.Spec.Containers {
+			if !acceptable(c) {
+				continue
+			}
+			tails = append(tails, newTail(pod, c))
+
+			logger.Info("have", "namespace", pod.Namespace, "pod", pod.Name, "container", c.Name)
 		}
 	}
 
+	if config.Ordered {
+		logger.Info("fetch in order")
+
+		for _, t := range tails {
+			logger.Info("tail", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
+
+			err := t.Start(ctx, logChan, false)
+			if err != nil {
+				logger.Error(err, "failed to start a Tail")
+			}
+		}
+
+		return nil
+	}
+
 	for _, t := range tails {
+		logger.Info("tail", "namespace", t.Namespace, "pod", t.PodName, "container", t.ContainerName)
+
 		wg.Add(1)
 		go func(tail *Tail) {
 			err := tail.Start(ctx, logChan, false)
