@@ -146,15 +146,15 @@ func createS3HelperPod() {
 	}
 
 	out, err = proc.Kubectl("get", "secret",
-		"-n", "minio-epinio",
-		"tenant-creds", "-o", "jsonpath={.data.accesskey}")
+		"-n", "epinio",
+		"minio-creds", "-o", "jsonpath={.data.accesskey}")
 	Expect(err).ToNot(HaveOccurred(), out)
 	accessKey, err := base64.StdEncoding.DecodeString(string(out))
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
 	out, err = proc.Kubectl("get", "secret",
-		"-n", "minio-epinio",
-		"tenant-creds", "-o", "jsonpath={.data.secretkey}")
+		"-n", "epinio",
+		"minio-creds", "-o", "jsonpath={.data.secretkey}")
 	Expect(err).ToNot(HaveOccurred(), out)
 	secretKey, err := base64.StdEncoding.DecodeString(string(out))
 	Expect(err).ToNot(HaveOccurred(), string(out))
@@ -169,7 +169,7 @@ func createS3HelperPod() {
 
 	// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
 	out, err = proc.Kubectl("exec", minioHelperPod, "--", "mc", "alias", "set", "minio",
-		"http://minio.minio-epinio.svc.cluster.local", string(accessKey), string(secretKey))
+		"http://epinio-minio.epinio.svc.cluster.local:9000", string(accessKey), string(secretKey))
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 
