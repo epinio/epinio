@@ -254,7 +254,7 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 	return nil
 }
 
-// AppStageID returns the stage id of the named app, in the targeted namespace
+// AppStageID returns the last stage id of the named app, in the targeted namespace
 func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)
 	log.Info("start")
@@ -265,11 +265,7 @@ func (c *EpinioClient) AppStageID(appName string) (string, error) {
 		return "", err
 	}
 
-	if app.Workload == nil {
-		return "", errors.New("Application has no workload")
-	}
-
-	return app.Workload.StageID, nil
+	return app.StageID, nil
 }
 
 // AppUpdate updates the specified running application's attributes (e.g. instances)
@@ -537,7 +533,8 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		}
 		msg = msg.WithTableRow("Status", app.Workload.Status).
 			WithTableRow("Username", app.Workload.Username).
-			WithTableRow("StageId", app.Workload.StageID).
+			WithTableRow("Running StageId", app.Workload.StageID).
+			WithTableRow("Last StageId", app.StageID).
 			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
 			WithTableRow("Active Routes", "")
 
@@ -548,7 +545,12 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 			}
 		}
 	} else {
-		msg = msg.WithTableRow("Status", "not deployed")
+		if app.StageID == "" {
+			msg = msg.WithTableRow("Status", "not deployed")
+		} else {
+			msg = msg.WithTableRow("Status", "not deployed, staging failed")
+			msg = msg.WithTableRow("Last StageId", app.StageID)
+		}
 		msg = msg.WithTableRow("Desired Routes", "")
 
 		if len(app.Configuration.Routes) > 0 {

@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/types"
@@ -17,20 +15,12 @@ import (
 // Origin returns the origin of the specified application. The data is
 // constructed from the stored information on the Application Custom
 // Resource.
-func Origin(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (models.ApplicationOrigin, error) {
+func Origin(app *unstructured.Unstructured) (models.ApplicationOrigin, error) {
 	result := models.ApplicationOrigin{
 		Git: &models.GitRef{},
 	}
 
-	applicationCR, err := Get(ctx, cluster, appRef)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return result, apierror.AppIsNotKnown("application resource is missing")
-		}
-		return result, apierror.InternalError(err, "failed to get the application resource")
-	}
-
-	origin, found, err := unstructured.NestedMap(applicationCR.Object, "spec", "origin")
+	origin, found, err := unstructured.NestedMap(app.Object, "spec", "origin")
 
 	if !found {
 		return result, nil

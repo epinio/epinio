@@ -33,37 +33,7 @@ func New(dir string, user string, password string, root string, epinioBinaryPath
 }
 
 func (m *Machine) ShowStagingLogs(app string) {
-	namespace := m.getNamespace()
-	_, _ = proc.Run("", true, "bash", "-c", fmt.Sprintf(`
-app="%s"
-namespace="%s"
-sns=epinio-staging
-
-echo ""
-echo ___ XXXX APP "($app)" SPACE "($namespace)" ___
-echo ___ LOGS _ _ __ ___ _____ ________ _____________
-for pod in $(kubectl get pods -n "${sns}" -l "app.kubernetes.io/component=staging,app.kubernetes.io/part-of=${namespace},app.kubernetes.io/name=${app}" -o 'jsonpath={.items[*].metadata.name}')
-do
-    for container in $(kubectl get pods -n "${sns}" "${pod}" -o jsonpath='{.spec.initContainers[*].name}')
-    do
-	case ${container} in
-	    *linkerd*) continue ;;
-	esac
-	echo ___ INIT POD "($pod)" C "($container)" _ _ __ ___ _____ ________ _____________
-	kubectl logs -n "${sns}" -c "${container}" "${pod}"
-    done
-    for container in $(kubectl get pods -n "${sns}" "${pod}" -o jsonpath='{.spec.containers[*].name}')
-    do
-	case ${container} in
-	    *linkerd*) continue ;;
-	esac
-	echo ___ RUNC POD "($pod)" C "($container)" _ _ __ ___ _____ ________ _____________
-	kubectl logs -n "${sns}" -c "${container}" "${pod}"
-    done
-done
-echo ___ LOGS _ _ __ ___ _____ ________ _____________
-echo ""
-`, app, namespace))
+	_, _ = m.Epinio("", app, "app", "logs", "--staging", app)
 }
 
 // Epinio invokes the `epinio` binary, running the specified command.
@@ -98,22 +68,6 @@ func (m *Machine) SetupAndTargetNamespace(namespace string) {
 	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
 
 	m.TargetNamespace(namespace)
-}
-
-func (m *Machine) getNamespace() string {
-	out, err := m.Epinio(m.nodeTmpDir, "target")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-	out, err = m.Epinio(m.nodeTmpDir, "target")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-	// Extract namespace from command response.
-	// Brittle. Only way we have at the moment.
-	// Will also become superfluous when staging logs can be extracted directly.
-	// Note: len-2 because the last line (len-1) is empty.
-	lines := strings.Split(out, "\n")
-	space := strings.TrimPrefix(lines[len(lines)-2], "Currently targeted namespace: ")
-	return space
 }
 
 func (m *Machine) TargetNamespace(namespace string) {
