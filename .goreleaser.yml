@@ -43,31 +43,6 @@ snapshot:
 dockers:
   -
     # ID of the image, needed if you want to filter by it later on (e.g. on custom publishers).
-    id: epinio-base
-
-    # Templates of the Docker image names.
-    image_templates:
-    - "splatform/epinio-base:{{ .Tag }}"
-    - "splatform/epinio-base:latest"
-    - "ghcr.io/epinio/epinio-base:{{ .Tag }}"
-    - "ghcr.io/epinio/epinio-base:latest"
-
-    # Path to the Dockerfile (from the project root).
-    dockerfile: images/baseimage-Dockerfile
-
-    use: docker
-
-    # Template of the docker build flags.
-    build_flag_templates:
-    - "--pull"
-    - "--label=org.opencontainers.image.created={{.Date}}"
-    - "--label=org.opencontainers.image.title={{.ProjectName}}-base"
-    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
-    - "--label=org.opencontainers.image.version={{.Version}}"
-    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
-    - "--platform=linux/amd64"
-  -
-    # ID of the image, needed if you want to filter by it later on (e.g. on custom publishers).
     id: epinio
 
     # GOOS of the built binaries/packages that should be used.
