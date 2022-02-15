@@ -70,22 +70,6 @@ func (m *Machine) SetupAndTargetNamespace(namespace string) {
 	m.TargetNamespace(namespace)
 }
 
-func (m *Machine) getNamespace() string {
-	out, err := m.Epinio(m.nodeTmpDir, "target")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-	out, err = m.Epinio(m.nodeTmpDir, "target")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-	// Extract namespace from command response.
-	// Brittle. Only way we have at the moment.
-	// Will also become superfluous when staging logs can be extracted directly.
-	// Note: len-2 because the last line (len-1) is empty.
-	lines := strings.Split(out, "\n")
-	space := strings.TrimPrefix(lines[len(lines)-2], "Currently targeted namespace: ")
-	return space
-}
-
 func (m *Machine) TargetNamespace(namespace string) {
 	By("targeting a namespace")
 
