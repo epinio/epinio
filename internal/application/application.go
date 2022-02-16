@@ -386,6 +386,10 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 		PodQuery:              regexp.MustCompile(".*"),
 	}
 
+	if stageID != "" {
+		config.Ordered = true
+	}
+
 	if follow {
 		logger.Info("stream")
 		return tailer.StreamLogs(ctx, logChan, wg, config, cluster)
