@@ -3,7 +3,7 @@
 set -e
 
 version="$(git describe --tags)"
-image="splatform/epinio-server"
+image="ghcr.io/epinio/epinio-server"
 
 # Build image
 docker build -t "${image}:${version}" -t "${image}:latest" -f images/Dockerfile .

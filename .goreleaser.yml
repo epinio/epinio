@@ -57,8 +57,6 @@ dockers:
 
     # Templates of the Docker image names.
     image_templates:
-    - "splatform/epinio-server:{{ .Tag }}"
-    - "splatform/epinio-server:latest"
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}"
     - "ghcr.io/epinio/epinio-server:latest"
 
