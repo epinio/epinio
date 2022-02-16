@@ -1102,6 +1102,10 @@
         "origin": {
           "$ref": "#/definitions/ApplicationOrigin"
         },
+        "stage_id": {
+          "type": "string",
+          "x-go-name": "StageID"
+        },
         "status": {
           "$ref": "#/definitions/ApplicationStatus"
         },
