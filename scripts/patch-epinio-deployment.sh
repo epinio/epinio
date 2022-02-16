@@ -21,7 +21,7 @@ timeout=480s
 # and the correct binary is in place.
 
 export EPINIO_BINARY_PATH="${EPINIO_BINARY_PATH:-dist/epinio-linux-amd64}"
-export EPINIO_BINARY_TAG="${EPINIO_BINARY_TAG:-$(git describe --tags --abbrev=0)}"
+export EPINIO_BINARY_TAG="${EPINIO_BINARY_TAG:-$(git describe --tags)}"
 
 echo
 echo Configuration
@@ -129,7 +129,7 @@ PATCH=$(cat <<EOF
         ],
         "containers": [{
           "name": "epinio-server",
-          "image": "splatform/epinio-server:${EPINIO_BINARY_TAG}",
+          "image": "splatform/epinio-server:latest",
           "command": [
             "/epinio-binary/epinio",
             "server"

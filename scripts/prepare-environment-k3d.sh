@@ -50,6 +50,9 @@ helm upgrade --install \
 	epinio-installer epinio-chartmuseum/epinio-installer \
 	--wait
 
+echo "Importing locally built epinio server image"
+k3d image import -c epinio-acceptance splatform/epinio-server:latest
+
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh
 
