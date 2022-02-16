@@ -17,16 +17,16 @@ if [ -z "$GITHUB_REPOSITORY_URL" ] || [ -z "$GITHUB_RUNNER_TOKEN" ]; then
   exit 1
 fi
 
-REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY_URL" | cut -d '/' -f 4- | sed -e 's|/$||g' -e 's|/|-|g')
+REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY_URL" | cut -d '/' -f 4- | sed -e 's|/$||' -e 's|/|-|g')
 ACTIONS_RUNNER_SERVICE=actions.runner."$REPOSITORY_NAME".`hostname`.service
 
 # Install needed packages
 rpms="make gcc docker libicu wget fping"
-sudo zypper --gpg-auto-import-keys ref
+sudo ZYPP_LOCK_TIMEOUT=300 zypper --gpg-auto-import-keys ref
 grep SLES /etc/os-release \
   && rpms+=" git-core"    \
   || rpms+=" git"
-sudo zypper --non-interactive in -y $rpms
+sudo ZYPP_LOCK_TIMEOUT=300 zypper --non-interactive in -y $rpms
 
 # Enable docker service
 sudo systemctl enable docker
