@@ -16,7 +16,7 @@ if [ -z "$GITHUB_REPOSITORY_URL" ] || [ -z "$GITHUB_RUNNER_TOKEN" ]; then
   exit 1
 fi
 
-REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY_URL" | cut -d '/' -f 4- | sed -e 's|/$||g' -e 's|/|-|g')
+REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY_URL" | cut -d '/' -f 4- | sed -e 's|/$||' -e 's|/|-|g')
 ACTIONS_RUNNER_SERVICE=actions.runner."$REPOSITORY_NAME".`hostname`.service
 
 cd actions-runner
