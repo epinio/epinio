@@ -58,21 +58,9 @@ PATCH=$(cat <<EOF
         }
       },
       "spec": {
-        "volumes": [
-          {
-            "name": "tmp-volume",
-            "emptyDir": {}
-          }
-        ],
         "containers": [{
           "name": "epinio-server",
-          "image": "ghcr.io/epinio/epinio-server:${EPINIO_BINARY_TAG}",
-          "volumeMounts": [
-            {
-              "mountPath": "/tmp",
-              "name": "tmp-volume"
-            }
-          ]
+          "image": "ghcr.io/epinio/epinio-server:${EPINIO_BINARY_TAG}"
         }]
       }
     }
