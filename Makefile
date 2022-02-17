@@ -133,7 +133,7 @@ fmt:
 check:
 	golangci-lint run
 
-patch-epinio-deployment:
+patch-epinio-deployment: build-images
 	@./scripts/patch-epinio-deployment.sh
 
 ########################################################################

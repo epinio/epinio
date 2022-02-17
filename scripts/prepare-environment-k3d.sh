@@ -51,6 +51,7 @@ helm upgrade --install \
 	--wait
 
 # Patch Epinio
+./scripts/build-images.sh
 ./scripts/patch-epinio-deployment.sh
 
 "${EPINIO_BINARY}" config update
