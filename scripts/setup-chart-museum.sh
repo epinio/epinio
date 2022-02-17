@@ -48,7 +48,6 @@ helm plugin install https://github.com/chartmuseum/helm-push.git || true
 helm repo add --force-update epinio-chartmuseum ${CHARTMUSEUM_URL}
 
 pushd ${SCRIPT_DIR}/../helm-charts/
-helm cm-push -f --version "0.1.0" chart/container-registry/ epinio-chartmuseum
 helm cm-push -f --version "0.1.0" chart/epinio/ epinio-chartmuseum
 helm cm-push -f --version "0.1.0" chart/epinio-installer/ epinio-chartmuseum
 popd

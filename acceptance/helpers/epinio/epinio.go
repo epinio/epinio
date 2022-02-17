@@ -45,7 +45,6 @@ func (e *Epinio) Install(args ...string) (string, error) {
 	opts := []string{
 		"upgrade",
 		"--install",
-		"--set", "containerRegistryChart=http://" + internal_ip + ":8080/charts/container-registry-0.1.0.tgz",
 		"--set", "epinioChart=http://" + internal_ip + ":8080/charts/epinio-0.1.0.tgz",
 		"epinio-installer",
 		"helm-charts/chart/epinio-installer",
