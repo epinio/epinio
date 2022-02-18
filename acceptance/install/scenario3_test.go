@@ -144,7 +144,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("info")
 				return out
-			}, "2m", "2s").Should(ContainSubstring("Epinio Version:"))
+			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
 		})
 
 		By("Creating a service and pushing an app", func() {

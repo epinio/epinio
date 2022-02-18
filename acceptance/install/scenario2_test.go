@@ -129,7 +129,7 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("info")
 				return out
-			}, "2m", "2s").Should(ContainSubstring("Epinio Version:"))
+			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
 		})
 
 		By("Pushing an app with zero instances", func() {

@@ -106,7 +106,7 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("info")
 				return out
-			}, "2m", "2s").Should(ContainSubstring("Epinio Version:"))
+			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
 		})
 
 		By("Pushing an app", func() {
