@@ -1,14 +1,14 @@
-name: GKE-BASIC-CI
+name: GKE-LETSENCRYPT-CI
 
 on:
   pull_request:
     branches: [ main ]
     types: [ ready_for_review ]
     paths:
-      - 'acceptance/install/scenario1_test.go'
-      - '.github/workflows/gke-basic.yml'
+      - 'acceptance/install/scenario2_test.go'
+      - '.github/workflows/gke-letsencrypt.yml'
   schedule:
-    - cron:  '0 1 * * *'
+    - cron:  '0 5 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:
@@ -62,7 +62,7 @@ jobs:
       - name: Lint Epinio
         run: make lint
 
-  acceptance-scenario1:
+  acceptance-scenario2:
     needs:
       - linter
     runs-on: ubuntu-latest
@@ -121,7 +121,7 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
-          REGEX: Scenario1
+          REGEX: Scenario2
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
