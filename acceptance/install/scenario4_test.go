@@ -120,7 +120,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("info")
 				return out
-			}, "2m", "2s").Should(ContainSubstring("Epinio Version:"))
+			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
 		})
 
 		By("Pushing an app with Env vars", func() {
