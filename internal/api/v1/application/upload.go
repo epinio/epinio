@@ -9,6 +9,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 )
 
 // Upload handles the API endpoint /namespaces/:namespace/applications/:app/store.
@@ -40,6 +41,12 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
 	}
+
+	tlsIssuer := viper.GetString("tls-issuer")
+	if tlsIssuer == "epinio-ca" || tlsIssuer == "selfsigned-issuer" {
+		connectionDetails.SkipSSLVerification = true
+	}
+
 	manager, err := s3manager.New(connectionDetails)
 	if err != nil {
 		return apierror.InternalError(err, "creating an S3 manager")

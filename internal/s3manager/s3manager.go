@@ -4,8 +4,10 @@ package s3manager
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -29,11 +31,12 @@ type ConnectionDetails struct {
 	// our own thing, linkerd will take care of this and we set UseSSL to
 	// false.
 	// External S3 implementations should use SSL.
-	UseSSL          bool
-	AccessKeyID     string
-	SecretAccessKey string
-	Bucket          string
-	Location        string
+	UseSSL              bool
+	SkipSSLVerification bool
+	AccessKeyID         string
+	SecretAccessKey     string
+	Bucket              string
+	Location            string
 }
 
 func NewConnectionDetails(endpoint, key, secret, bucket, location string, useSSL bool) *ConnectionDetails {
@@ -79,12 +82,19 @@ func (details *ConnectionDetails) Validate() error {
 func New(connectionDetails ConnectionDetails) (*Manager, error) {
 	useSSL := connectionDetails.UseSSL
 
+	transport := http.DefaultTransport.(*http.Transport)
+	if connectionDetails.SkipSSLVerification {
+		transport = transport.Clone()
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // nolint:gosec // Fix later (?)
+	}
+
 	minioClient, err := minio.New(
 		connectionDetails.Endpoint,
 		&minio.Options{
-			Creds:  credentials.NewStaticV4(connectionDetails.AccessKeyID, connectionDetails.SecretAccessKey, ""),
-			Secure: useSSL,
-			Region: connectionDetails.Location,
+			Creds:     credentials.NewStaticV4(connectionDetails.AccessKeyID, connectionDetails.SecretAccessKey, ""),
+			Secure:    useSSL,
+			Transport: transport,
+			Region:    connectionDetails.Location,
 		})
 	if err != nil {
 		return nil, err
@@ -218,7 +228,7 @@ func (m *Manager) Upload(ctx context.Context, filepath string, metadata map[stri
 func (m *Manager) EnsureBucket(ctx context.Context) error {
 	exists, err := m.minioClient.BucketExists(ctx, m.connectionDetails.Bucket)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "checking bucket %s exists", m.connectionDetails.Bucket)
 	}
 	if exists {
 		return nil

@@ -49,10 +49,7 @@ func decodeOneCert(raw []byte) (*x509.Certificate, error) {
 			byteData = rest
 			continue // pem block is not a cert? (e.g. maybe it was a dh_params block)
 		}
-		if !cert.IsCA {
-			return cert, nil
-		}
-		byteData = rest
+		return cert, nil
 	}
 
 	return nil, errors.New("failed find PEM data")

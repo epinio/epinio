@@ -49,6 +49,8 @@ type stageParam struct {
 	PreviousStageID     string
 	RegistryCASecret    string
 	RegistryCAHash      string
+	S3CAHash            string
+	S3CASecret          string
 }
 
 // ImageURL returns the URL of the container image to be, using the
@@ -149,6 +151,11 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
 
+	tlsIssuer := viper.GetString("tls-issuer")
+	if tlsIssuer == "epinio-ca" || tlsIssuer == "selfsigned-issuer" {
+		s3ConnectionDetails.SkipSSLVerification = true
+	}
+
 	blobUID, blobErr := getBlobUID(ctx, s3ConnectionDetails, req, app)
 	if blobErr != nil {
 		return blobErr
@@ -197,6 +204,15 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
+	s3CertificateSecret := viper.GetString("s3-certificate-secret")
+	s3CertificateHash := ""
+	if s3CertificateSecret != "" {
+		s3CertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.EpinioNamespace, s3CertificateSecret)
+		if err != nil {
+			return apierror.InternalError(err, "cannot calculate Certificate hash")
+		}
+	}
+
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
@@ -210,6 +226,8 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		Username:            username,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
+		S3CAHash:            s3CertificateHash,
+		S3CASecret:          s3CertificateSecret,
 	}
 
 	err = ensurePVC(ctx, cluster, req.App)
@@ -507,6 +525,27 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			ReadOnly:  true,
 		})
 	}
+
+	if app.S3CASecret != "" && app.S3CAHash != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "s3-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  app.S3CASecret,
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		})
+
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "s3-certs",
+			MountPath: fmt.Sprintf("/etc/ssl/certs/%s.0", app.S3CAHash),
+			SubPath:   "tls.crt",
+			ReadOnly:  true,
+		})
+	}
+
+	fmt.Printf("VOLUMEN MOUNTS: \n%+v\n\n", volumeMounts)
 
 	// Create job environment as a copy of the app environment, plus standard variable.
 	env := make(map[string][]byte)

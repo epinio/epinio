@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -87,7 +88,14 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 	request.SetBasicAuth(c.user, c.password)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 
-	response, err := (&http.Client{}).Do(request)
+	// tlsIssuer := viper.GetString("tls-issuer")
+	// if tlsIssuer == "epinio-ca" || tlsIssuer == "selfsigned-issuer" {
+	// 	connectionDetails.SkipSSLVerification = true
+	// }
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // nolint:gosec // Fix later (?)
+
+	response, err := (&http.Client{Transport: transport}).Do(request)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to POST to upload")
 	}

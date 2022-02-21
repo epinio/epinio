@@ -41,6 +41,10 @@ func init() {
 	viper.BindPFlag("registry-certificate-secret", flags.Lookup("registry-certificate-secret"))
 	viper.BindEnv("registry-certificate-secret", "REGISTRY_CERTIFICATE_SECRET")
 
+	flags.String("s3-certificate-secret", "", "(S3_CERTIFICATE_SECRET) Secret for the s3's TLS certificate")
+	viper.BindPFlag("s3-certificate-secret", flags.Lookup("s3-certificate-secret"))
+	viper.BindEnv("s3-certificate-secret", "S3_CERTIFICATE_SECRET")
+
 	flags.String("output", "text", "(OUTPUT) logs output format [text,json]")
 	viper.BindPFlag("output", flags.Lookup("output"))
 	viper.BindEnv("output", "OUTPUT")

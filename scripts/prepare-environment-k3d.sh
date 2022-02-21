@@ -45,6 +45,7 @@ helm repo update
 helm upgrade --install \
 	--set domain="$EPINIO_SYSTEM_DOMAIN" \
 	--set skipTraefik=true \
+	--set skipLinkerd=true \
 	--set epinioChart="http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}/charts/epinio-0.1.0.tgz" \
 	epinio-installer epinio-chartmuseum/epinio-installer \
 	--wait
