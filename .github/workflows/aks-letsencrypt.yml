@@ -47,9 +47,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Get All Git Tags
-        run: git fetch --force --prune --unshallow --tags
-
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
@@ -71,6 +68,10 @@ jobs:
       - name: Lint Epinio
         run: make lint
 
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
+
   acceptance-scenario5:
     needs:
       - linter
@@ -81,9 +82,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      - name: Get All Git Tags
-        run: git fetch --force --prune --unshallow --tags
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v2
