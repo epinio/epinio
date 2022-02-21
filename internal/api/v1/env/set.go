@@ -2,6 +2,7 @@ package env
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -17,6 +18,7 @@ import (
 func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
+	username := requestctx.User(ctx)
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
@@ -58,14 +60,9 @@ func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 	}
 
 	if app.Workload != nil {
-		varNames, err := application.EnvironmentNames(ctx, cluster, app.Meta)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-
-		err = application.NewWorkload(cluster, app.Meta).EnvironmentChange(ctx, varNames)
-		if err != nil {
-			return apierror.InternalError(err)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+		if apierr != nil {
+			return apierr
 		}
 	}
 

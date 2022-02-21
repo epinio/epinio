@@ -1,9 +1,8 @@
 package models
 
 import (
+	"fmt"
 	"sort"
-
-	v1 "k8s.io/api/core/v1"
 )
 
 // This subsection of models provides structures related to the
@@ -58,47 +57,13 @@ func (evl EnvVariableList) Less(i, j int) bool {
 	return evl[i].Name < evl[j].Name
 }
 
-// ToEnvVarArray converts the collection of environment variables for
-// the referenced application, as a combination of standard variables
-// and the user-specified variables. The result is used to make the
-// application's environment available to the initial deployment
-func (evl EnvVariableList) ToEnvVarArray(appRef AppRef) []v1.EnvVar {
-	deploymentEnvironment := []v1.EnvVar{
-		{
-			Name:  "PORT",
-			Value: "8080",
-		},
-	}
+func (evl EnvVariableList) Assignments() []string {
+	assignments := []string{}
 
 	for _, ev := range evl {
-		deploymentEnvironment = append(deploymentEnvironment, v1.EnvVar{
-			Name: ev.Name,
-			ValueFrom: &v1.EnvVarSource{
-				SecretKeyRef: &v1.SecretKeySelector{
-					Key: ev.Name,
-					LocalObjectReference: v1.LocalObjectReference{
-						Name: appRef.MakeEnvSecretName(),
-					},
-				},
-			},
-		})
+		assignments = append(assignments, fmt.Sprintf(`{"name":"%s","value":"%s"}`,
+			ev.Name, ev.Value))
 	}
 
-	return deploymentEnvironment
-}
-
-// StagingEnvArray returns the collection of environment variables and
-// their values in a form suitable for injection into the Job-based
-// staging of an application.
-func (evl EnvVariableList) StagingEnvArray() []v1.EnvVar {
-	stagingVariables := []v1.EnvVar{}
-
-	for _, ev := range evl {
-		stagingVariables = append(stagingVariables, v1.EnvVar{
-			Name:  ev.Name,
-			Value: ev.Value,
-		})
-	}
-
-	return stagingVariables
+	return assignments
 }

@@ -43,6 +43,6 @@ var _ = Describe("Token", func() {
 
 		_, err := authtoken.Validate(token)
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(ContainSubstring("token is expired by"))
+		Expect(err.Error()).To(ContainSubstring("token is expired"))
 	})
 })

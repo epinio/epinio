@@ -6,12 +6,14 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/s3manager"
@@ -232,8 +234,20 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 		return err
 	}
 
-	// delete application resource, will cascade and delete deployment,
-	// ingress, service and certificate, environment variables, bindings
+	log := requestctx.Logger(ctx)
+
+	// Ignore `not found` errors - App exists, without workload.
+	err = helm.Remove(cluster, log, appRef)
+	if err != nil && !strings.Contains(err.Error(), "release: not found") {
+		return err
+	}
+
+	// Keep existing code to remove the CRD and everything it
+	// owns.  Only the workload resources needed their own removal
+	// to ensure that helm information stays consistent.
+
+	// delete application resource, will cascade and delete
+	// dependents like environment variables, bindings, etc.
 	err = client.Namespace(appRef.Namespace).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
@@ -268,10 +282,10 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 		PersistentVolumeClaims(helmchart.StagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
-// StageID returns the stage ID of the currently running build, if one exists. It returns an empty string otherwise.
-// This method relies on the presence of a workload to get the previous id. There is the case that staging has
-// happened, yet there is no workload. Ee.g. by calling the "staging" endpoint but not calling the "deploy"
-// endpoint. Since our client doesn't support that scenario, this method doesn't support it either.
+// StageID returns the stage ID of the last attempt at staging, if one exists. It returns
+// an empty string otherwise. The information is pulled out of the app resource itself,
+// saved there by the staging endpoint. Note that success/failure of staging is immaterial
+// to this.
 func StageID(app *unstructured.Unstructured) (string, error) {
 	stageID, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "stageid")
 	if err != nil {
@@ -279,6 +293,18 @@ func StageID(app *unstructured.Unstructured) (string, error) {
 	}
 
 	return stageID, nil
+}
+
+// ImageURL returns the image url of the currently running build, if one exists. It
+// returns an empty string otherwise. The information is pulled out of the app resource
+// itself, saved there by the deploy endpoint.
+func ImageURL(app *unstructured.Unstructured) (string, error) {
+	imageURL, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "imageurl")
+	if err != nil {
+		return "", errors.New("imageurl should be string")
+	}
+
+	return imageURL, nil
 }
 
 // Unstage removes staging resources. It deletes either all Jobs of the
@@ -449,12 +475,18 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	imageURL, err := ImageURL(applicationCR)
+	if err != nil {
+		return err
+	}
+
 	app.Configuration.Instances = &instances
 	app.Configuration.Services = services
 	app.Configuration.Environment = environment
 	app.Configuration.Routes = desiredRoutes
 	app.Origin = origin
 	app.StageID = stageID
+	app.ImageURL = imageURL
 
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.

@@ -169,7 +169,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		When("deploying an app with custom routes", func() {
 			var routes []string
 			BeforeEach(func() {
-				routes = append(routes, "appdomain.org", "appdomain2.org")
+				routes = []string{"appdomain.org", "appdomain2.org"}
 				out, err := proc.Kubectl("patch", "apps", "--type", "json",
 					"-n", namespace, appName, "--patch",
 					fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))

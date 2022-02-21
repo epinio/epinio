@@ -35,6 +35,7 @@ type App struct {
 	Status        ApplicationStatus        `json:"status"`
 	StatusMessage string                   `json:"statusmessage"`
 	StageID       string                   `json:"stage_id,omitempty"` // staging id, last run
+	ImageURL      string                   `json:"image_url"`
 }
 
 type PodInfo struct {

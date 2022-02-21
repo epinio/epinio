@@ -2,10 +2,13 @@ package application
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 )
@@ -15,6 +18,7 @@ func (hc Controller) Restart(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
+	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -39,9 +43,10 @@ func (hc Controller) Restart(c *gin.Context) apierror.APIErrors {
 			"", http.StatusBadRequest)
 	}
 
-	err = application.NewWorkload(cluster, app.Meta).Restart(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
+	nano := time.Now().UnixNano()
+	_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
+	if apierr != nil {
+		return apierr
 	}
 
 	response.OK(c)
