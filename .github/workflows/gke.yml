@@ -5,10 +5,10 @@ on:
     branches: [ main ]
     types: [ ready_for_review ]
     paths:
-      - 'acceptance/install/scenario2_test.go'
+      - 'acceptance/install/scenario1_test.go'
       - '.github/workflows/gke.yml'
   schedule:
-    - cron:  '0 5 * * *'
+    - cron:  '0 1 * * *'
   workflow_dispatch:
     inputs:
       keep_cluster:
@@ -62,7 +62,7 @@ jobs:
       - name: Lint Epinio
         run: make lint
 
-  acceptance-scenario2:
+  acceptance-scenario1:
     needs:
       - linter
     runs-on: ubuntu-latest
@@ -121,7 +121,7 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
-          REGEX: Scenario2
+          REGEX: Scenario1
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}

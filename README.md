@@ -4,13 +4,15 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 
 [![godoc](https://pkg.go.dev/badge/epinio/epinio)](https://pkg.go.dev/github.com/epinio/epinio/internal/api/v1)
 [![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=event%3Aschedule)
-[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks-basic.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks-basic.yml)
-[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks.yml)
-[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/eks.yml)
-[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke-basic.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke-basic.yml)
-[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke.yml)
-[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/rke.yml)
-[![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml)
+[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks.yml?query=event%3Aschedule)
+[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml?query=event%3Aschedule)
+[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/eks.yml?query=event%3Aschedule)
+[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke.yml?query=event%3Aschedule)
+[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml?query=event%3Aschedule)
+[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/rke.yml?query=event%3Aschedule)
+[![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml?query=event%3Aschedule)
+[![UI-SCENARIO-1-CHROME](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_cypress_chrome.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_cypress_chrome.yml?query=event%3Aschedule)
+[![UI-SCENARIO-2-FIREFOX](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_cypress_firefox.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_cypress_firefox.yml?query=event%3Aschedule)
 
 <img src="./docs/epinio.png" align="right" width="200" height="50%">
 

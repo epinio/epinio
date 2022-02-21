@@ -1,14 +1,14 @@
-name: AKS-BASIC-CI
+name: AKS-LETSENCRYPT-CI
 
 on:
   pull_request:
     branches: [ main ]
     types: [ ready_for_review ]
     paths:
-      - 'acceptance/install/scenario6_test.go'
-      - '.github/workflows/aks-basic.yml'
+      - 'acceptance/install/scenario5_test.go'
+      - '.github/workflows/aks-letsencrypt.yml'
   schedule:
-    - cron:  '0 0 * * *'
+    - cron:  '0 3 * * *'
   workflow_dispatch:
     inputs:
       azure_credentials:
@@ -71,7 +71,7 @@ jobs:
       - name: Lint Epinio
         run: make lint
 
-  acceptance-scenario6:
+  acceptance-scenario5:
     needs:
       - linter
     runs-on: windows-latest
@@ -133,7 +133,7 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
-          REGEX: Scenario6
+          REGEX: Scenario5
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
