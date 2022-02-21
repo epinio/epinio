@@ -421,6 +421,11 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			MountPath: "/workspace/source/appenv",
 			ReadOnly:  true,
 		},
+		{
+			Name:      "s3-certs",
+			MountPath: "/certs",
+			ReadOnly:  true,
+		},
 	}
 
 	cacheClaim := &corev1.PersistentVolumeClaimVolumeSource{
@@ -467,6 +472,15 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName:  helmchart.S3ConnectionDetailsSecretName,
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		},
+		{
+			Name: "s3-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  "minio-tls",
 					DefaultMode: pointer.Int32(420),
 				},
 			},

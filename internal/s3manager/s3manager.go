@@ -4,8 +4,11 @@ package s3manager
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -29,23 +32,25 @@ type ConnectionDetails struct {
 	// our own thing, linkerd will take care of this and we set UseSSL to
 	// false.
 	// External S3 implementations should use SSL.
-	UseSSL          bool
-	AccessKeyID     string
-	SecretAccessKey string
-	Bucket          string
-	Location        string
+	UseSSL              bool
+	SkipSSLVerification bool
+	AccessKeyID         string
+	SecretAccessKey     string
+	Bucket              string
+	Location            string
+	CA                  []byte
 }
 
-func NewConnectionDetails(endpoint, key, secret, bucket, location string, useSSL bool) *ConnectionDetails {
-	return &ConnectionDetails{
-		Endpoint:        endpoint,
-		UseSSL:          useSSL,
-		AccessKeyID:     key,
-		SecretAccessKey: secret,
-		Bucket:          bucket,
-		Location:        location,
-	}
-}
+// func NewConnectionDetails(endpoint, key, secret, bucket, location string, useSSL bool) *ConnectionDetails {
+//         return &ConnectionDetails{
+//                 Endpoint:        endpoint,
+//                 UseSSL:          useSSL,
+//                 AccessKeyID:     key,
+//                 SecretAccessKey: secret,
+//                 Bucket:          bucket,
+//                 Location:        location,
+//         }
+// }
 
 // Validate makes sure the provided S3 settings are valid
 // The user should provide all the mandatory settings or no settings at all.
@@ -79,13 +84,31 @@ func (details *ConnectionDetails) Validate() error {
 func New(connectionDetails ConnectionDetails) (*Manager, error) {
 	useSSL := connectionDetails.UseSSL
 
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if len(connectionDetails.CA) > 0 {
+		rootCAs := x509.NewCertPool()
+		if ok := rootCAs.AppendCertsFromPEM(connectionDetails.CA); !ok {
+			return nil, errors.New("cannot append minio ca from connection details to client")
+		}
+
+		transport.TLSClientConfig = &tls.Config{RootCAs: rootCAs}
+	}
+
+	opts := &minio.Options{
+		Creds:     credentials.NewStaticV4(connectionDetails.AccessKeyID, connectionDetails.SecretAccessKey, ""),
+		Secure:    useSSL,
+		Transport: transport,
+		Region:    connectionDetails.Location,
+	}
+
+	if len(connectionDetails.CA) > 0 {
+		opts.Transport = transport
+	}
+
 	minioClient, err := minio.New(
 		connectionDetails.Endpoint,
-		&minio.Options{
-			Creds:  credentials.NewStaticV4(connectionDetails.AccessKeyID, connectionDetails.SecretAccessKey, ""),
-			Secure: useSSL,
-			Region: connectionDetails.Location,
-		})
+		opts,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -125,6 +148,14 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 		details.UseSSL = true
 	}
 	details.Bucket = string(secret.Data["bucket"])
+
+	// load ca cert from minio-tls
+	secret, err = cluster.GetSecret(ctx, "epinio", "minio-tls")
+	if err != nil {
+		return details, err
+	}
+
+	details.CA = secret.Data["ca.crt"]
 
 	return details, nil
 }
@@ -218,7 +249,7 @@ func (m *Manager) Upload(ctx context.Context, filepath string, metadata map[stri
 func (m *Manager) EnsureBucket(ctx context.Context) error {
 	exists, err := m.minioClient.BucketExists(ctx, m.connectionDetails.Bucket)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "checking bucket %s exists", m.connectionDetails.Bucket)
 	}
 	if exists {
 		return nil
