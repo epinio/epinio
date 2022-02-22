@@ -168,15 +168,15 @@ func createS3HelperPod() {
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
-	out, err = proc.Kubectl("exec", minioHelperPod, "--", "mc", "alias", "set", "minio",
-		"http://epinio-minio.epinio.svc.cluster.local:9000", string(accessKey), string(secretKey))
+	out, err = proc.Kubectl("exec", minioHelperPod, "--", "mc", "--insecure", "alias", "set", "minio",
+		"https://epinio-minio.epinio.svc.cluster.local:9000", string(accessKey), string(secretKey))
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 
 // returns all the objects currently stored on the S3 storage
 func listS3Blobs() []string {
 	// list all objects in the bucket (the "mc --quiet ls" command)
-	out, err := proc.Kubectl("exec", minioHelperPod, "--", "mc", "--quiet", "ls", "minio/epinio")
+	out, err := proc.Kubectl("exec", minioHelperPod, "--", "mc", "--insecure", "--quiet", "ls", "minio/epinio")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return strings.Split(string(out), "\n")
