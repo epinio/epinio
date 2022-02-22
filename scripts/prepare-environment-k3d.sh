@@ -40,15 +40,20 @@ check_dependency kubectl helm
 # Create docker registry image pull secret
 create_docker_pull_secret
 
-echo "Installing Epinio"
+helm repo add cert-manager https://charts.jetstack.io
 helm repo update
-helm upgrade --install \
-	--set domain="$EPINIO_SYSTEM_DOMAIN" \
-	--set skipTraefik=true \
-	--set skipLinkerd=true \
-	--set epinioChart="http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}/charts/epinio-0.1.0.tgz" \
-	epinio-installer epinio-chartmuseum/epinio-installer \
+
+echo "Installing Cert Manager"
+helm upgrade --install cert-manager --create-namespace -n cert-manager \
+  --set installCRDs=true \
+	--set enable-certificate-owner-ref=true \
+	cert-manager/cert-manager --version 1.7.1 \
 	--wait
+
+echo "Installing Epinio"
+helm upgrade --install --create-namespace -n epinio \
+	--set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+	epinio helm-charts/chart/epinio --wait
 
 echo "Importing locally built epinio server image"
 k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest

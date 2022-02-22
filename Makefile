@@ -168,12 +168,10 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
-setup_chart_museum:
-	@./scripts/setup-chart-museum.sh
-
-prepare_environment_k3d: build-linux-amd64 build-images setup_chart_museum
+prepare_environment_k3d: build-linux-amd64 build-images
 	@./scripts/prepare-environment-k3d.sh
 
 unprepare_environment_k3d:
 	kubectl delete --ignore-not-found=true secret regcred
-	helm uninstall epinio-installer
+	helm uninstall cert-manager -n cert-manager || true
+	helm uninstall epinio -n epinio || true
