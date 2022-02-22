@@ -40,16 +40,6 @@ check_dependency kubectl helm
 # Create docker registry image pull secret
 create_docker_pull_secret
 
-helm repo add cert-manager https://charts.jetstack.io
-helm repo update
-
-echo "Installing Cert Manager"
-helm upgrade --install cert-manager --create-namespace -n cert-manager \
-  --set installCRDs=true \
-	--set enable-certificate-owner-ref=true \
-	cert-manager/cert-manager --version 1.7.1 \
-	--wait
-
 echo "Installing Epinio"
 helm upgrade --install --create-namespace -n epinio \
 	--set global.domain="$EPINIO_SYSTEM_DOMAIN" \

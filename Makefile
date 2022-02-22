@@ -168,10 +168,19 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
+install-cert-manager:
+	helm repo add cert-manager https://charts.jetstack.io
+	helm repo update
+	echo "Installing Cert Manager"
+	helm upgrade --install cert-manager --create-namespace -n cert-manager \
+		--set installCRDs=true \
+		--set enable-certificate-owner-ref=true \
+		cert-manager/cert-manager --version 1.7.1 \
+		--wait
+
 prepare_environment_k3d: build-linux-amd64 build-images
 	@./scripts/prepare-environment-k3d.sh
 
 unprepare_environment_k3d:
 	kubectl delete --ignore-not-found=true secret regcred
-	helm uninstall cert-manager -n cert-manager || true
-	helm uninstall epinio -n epinio || true
+	helm uninstall epinio -n epinio --wait || true

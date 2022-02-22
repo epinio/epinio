@@ -65,6 +65,7 @@ jobs:
         run: |
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
           make prepare_environment_k3d
           # Run *ALL* test-acceptance-* tests
           make test-acceptance
