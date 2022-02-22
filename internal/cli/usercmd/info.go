@@ -20,7 +20,7 @@ func (c *EpinioClient) Info() error {
 		WithStringValue("Kubernetes Version", v.KubeVersion).
 		WithStringValue("Epinio Server Version", v.Version).
 		WithStringValue("Epinio Client Version", version.Version).
-		Msg("Epinio Environment")
+		Msg("Epinio Environment - I AM AN EVIL CONTRIBUTOR!")
 
 	return nil
 }
