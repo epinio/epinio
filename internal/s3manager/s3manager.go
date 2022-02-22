@@ -27,18 +27,13 @@ type Manager struct {
 }
 
 type ConnectionDetails struct {
-	Endpoint string
-	// UseSSL toggles the use of SSL for the s3 connection. If we deploy
-	// our own thing, linkerd will take care of this and we set UseSSL to
-	// false.
-	// External S3 implementations should use SSL.
-	UseSSL              bool
-	SkipSSLVerification bool
-	AccessKeyID         string
-	SecretAccessKey     string
-	Bucket              string
-	Location            string
-	CA                  []byte
+	Endpoint        string
+	UseSSL          bool
+	AccessKeyID     string
+	SecretAccessKey string
+	Bucket          string
+	Location        string
+	CA              []byte
 }
 
 // Validate makes sure the provided S3 settings are valid
