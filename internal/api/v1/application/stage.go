@@ -421,11 +421,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			MountPath: "/workspace/source/appenv",
 			ReadOnly:  true,
 		},
-		{
-			Name:      "s3-certs",
-			MountPath: "/certs",
-			ReadOnly:  true,
-		},
 	}
 
 	cacheClaim := &corev1.PersistentVolumeClaimVolumeSource{
@@ -477,15 +472,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			},
 		},
 		{
-			Name: "s3-certs",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  "minio-tls",
-					DefaultMode: pointer.Int32(420),
-				},
-			},
-		},
-		{
 			Name: "registry-creds",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
@@ -502,25 +488,8 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		},
 	}
 
-	// If there is a certificate to trust
-	if app.RegistryCASecret != "" && app.RegistryCAHash != "" {
-		volumes = append(volumes, corev1.Volume{
-			Name: "registry-certs",
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName:  app.RegistryCASecret,
-					DefaultMode: pointer.Int32(420),
-				},
-			},
-		})
-
-		volumeMounts = append(volumeMounts, corev1.VolumeMount{
-			Name:      "registry-certs",
-			MountPath: fmt.Sprintf("/etc/ssl/certs/%s", app.RegistryCAHash),
-			SubPath:   "tls.crt",
-			ReadOnly:  true,
-		})
-	}
+	volumes, volumeMounts = mountS3Certs(volumes, volumeMounts)
+	volumes, volumeMounts = mountRegistryCerts(app, volumes, volumeMounts)
 
 	// Create job environment as a copy of the app environment, plus standard variable.
 	env := make(map[string][]byte)
@@ -757,4 +726,50 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
 
 	return err
+}
+
+func mountS3Certs(volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
+	if s3CertificateSecret := viper.GetString("s3-certificate-secret"); s3CertificateSecret != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "s3-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  s3CertificateSecret,
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		})
+
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "s3-certs",
+			MountPath: "/certs",
+			ReadOnly:  true,
+		})
+	}
+
+	return volumes, volumeMounts
+}
+
+func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []corev1.VolumeMount) ([]corev1.Volume, []corev1.VolumeMount) {
+	// If there is a certificate to trust
+	if app.RegistryCASecret != "" && app.RegistryCAHash != "" {
+		volumes = append(volumes, corev1.Volume{
+			Name: "registry-certs",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName:  app.RegistryCASecret,
+					DefaultMode: pointer.Int32(420),
+				},
+			},
+		})
+
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "registry-certs",
+			MountPath: fmt.Sprintf("/etc/ssl/certs/%s", app.RegistryCAHash),
+			SubPath:   "tls.crt",
+			ReadOnly:  true,
+		})
+	}
+
+	return volumes, volumeMounts
 }

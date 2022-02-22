@@ -11,11 +11,12 @@ import (
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/google/uuid"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"gopkg.in/ini.v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -109,8 +110,6 @@ func New(connectionDetails ConnectionDetails) (*Manager, error) {
 // TODO: Enrico: we removed the NewXXX constructor since it was not used, but this Get was used instead.
 // Probably it would be clearer to refactor this part.
 func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (ConnectionDetails, error) {
-	logger := requestctx.Logger(ctx).WithName("GetConnectionDetails")
-
 	details := ConnectionDetails{}
 	secret, err := cluster.GetSecret(ctx, secretNamespace, secretName)
 	if err != nil {
@@ -135,13 +134,18 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	}
 	details.Bucket = string(secret.Data["bucket"])
 
-	// load ca cert from minio-tls
-	// if secret is missing just log and skip
-	secret, err = cluster.GetSecret(ctx, "epinio", "minio-tls")
-	if err != nil {
-		logger.Error(err, "error while getting minio-tls secret. Cannot add CA")
-	} else {
-		details.CA = secret.Data["ca.crt"]
+	// load the certificate for S3 if defined
+	s3CertificateSecret := viper.GetString("s3-certificate-secret")
+	if s3CertificateSecret != "" {
+		secret, err = cluster.GetSecret(ctx, helmchart.EpinioNamespace, s3CertificateSecret)
+		if err != nil {
+			return details, errors.Wrapf(err, "getting s3 certificate secret %s", s3CertificateSecret)
+		}
+
+		details.CA = secret.Data["tls.crt"]
+		if ca, ok := secret.Data["ca.crt"]; ok {
+			details.CA = append(details.CA, ca...)
+		}
 	}
 
 	return details, nil
