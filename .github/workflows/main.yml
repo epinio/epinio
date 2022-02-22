@@ -16,7 +16,7 @@ on:
     - cron:  '0 0 * * *'
 
 env:
-  SETUP_GO_VERSION: '1.17'
+  SETUP_GO_VERSION: '^1.17.2'
   GINKGO_NODES: 8
 
 jobs:
@@ -28,9 +28,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      - name: Get All Git Tags
-        run: git fetch --force --prune --unshallow --tags
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v2
@@ -56,6 +54,10 @@ jobs:
       - name: Unit Tests
         run: make test
 
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
+
   acceptance-cli:
     needs:
       - linter
@@ -66,9 +68,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      - name: Get All Git Tags
-        run: git fetch --force --prune --unshallow --tags
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v2
@@ -103,12 +103,18 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make prepare_environment_k3d
           make test-acceptance-cli
-          make acceptance-cluster-delete
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
 
   acceptance-api:
     needs:
@@ -120,9 +126,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      - name: Get All Git Tags
-        run: git fetch --force --prune --unshallow --tags
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v2
@@ -157,12 +161,18 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make prepare_environment_k3d
           make test-acceptance-api
-          make acceptance-cluster-delete
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
 
   acceptance-apps:
     needs:
@@ -174,9 +184,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: recursive
-
-      - name: Get All Git Tags
-        run: git fetch --force --prune --unshallow --tags
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v2
@@ -211,7 +219,6 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 5
         run: |
-          make acceptance-cluster-delete
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make prepare_environment_k3d
@@ -237,4 +244,9 @@ jobs:
           retention-days: 2
 
       - name: Cleanup k3d cluster
+        if: always()
         run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1

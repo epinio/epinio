@@ -23,4 +23,3 @@ jobs:
         run: pack build splatform/sample-app:latest --builder paketobuildpacks/builder:full --path ./assets/sample-app
       - name: Docker push image
         run: docker push splatform/sample-app:latest
-      
