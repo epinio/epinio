@@ -4,7 +4,6 @@ package s3manager
 
 import (
 	"context"
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io"
@@ -12,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/google/uuid"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -40,17 +40,6 @@ type ConnectionDetails struct {
 	Location            string
 	CA                  []byte
 }
-
-// func NewConnectionDetails(endpoint, key, secret, bucket, location string, useSSL bool) *ConnectionDetails {
-//         return &ConnectionDetails{
-//                 Endpoint:        endpoint,
-//                 UseSSL:          useSSL,
-//                 AccessKeyID:     key,
-//                 SecretAccessKey: secret,
-//                 Bucket:          bucket,
-//                 Location:        location,
-//         }
-// }
 
 // Validate makes sure the provided S3 settings are valid
 // The user should provide all the mandatory settings or no settings at all.
@@ -82,27 +71,25 @@ func (details *ConnectionDetails) Validate() error {
 
 // New returns an instance of an s3 manager
 func New(connectionDetails ConnectionDetails) (*Manager, error) {
-	useSSL := connectionDetails.UseSSL
-
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+
+	opts := &minio.Options{
+		Creds:     credentials.NewStaticV4(connectionDetails.AccessKeyID, connectionDetails.SecretAccessKey, ""),
+		Secure:    connectionDetails.UseSSL,
+		Transport: transport,
+		Region:    connectionDetails.Location,
+	}
+
 	if len(connectionDetails.CA) > 0 {
 		rootCAs := x509.NewCertPool()
 		if ok := rootCAs.AppendCertsFromPEM(connectionDetails.CA); !ok {
 			return nil, errors.New("cannot append minio ca from connection details to client")
 		}
 
-		transport.TLSClientConfig = &tls.Config{RootCAs: rootCAs}
-	}
+		tlsConfig := transport.TLSClientConfig.Clone()
+		tlsConfig.RootCAs = rootCAs
 
-	opts := &minio.Options{
-		Creds:     credentials.NewStaticV4(connectionDetails.AccessKeyID, connectionDetails.SecretAccessKey, ""),
-		Secure:    useSSL,
-		Transport: transport,
-		Region:    connectionDetails.Location,
-	}
-
-	if len(connectionDetails.CA) > 0 {
-		opts.Transport = transport
+		opts.Transport.(*http.Transport).TLSClientConfig = tlsConfig
 	}
 
 	minioClient, err := minio.New(
@@ -124,7 +111,11 @@ func New(connectionDetails ConnectionDetails) (*Manager, error) {
 // GetConnectionDetails retrieves s3 details from an ini file stored in a
 // secret.
 // Note: The CLI tool in the staging job will use the ini file directly.
+// TODO: Enrico: we removed the NewXXX constructor since it was not used, but this Get was used instead.
+// Probably it would be clearer to refactor this part.
 func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (ConnectionDetails, error) {
+	logger := requestctx.Logger(ctx).WithName("GetConnectionDetails")
+
 	details := ConnectionDetails{}
 	secret, err := cluster.GetSecret(ctx, secretNamespace, secretName)
 	if err != nil {
@@ -150,12 +141,13 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	details.Bucket = string(secret.Data["bucket"])
 
 	// load ca cert from minio-tls
+	// if secret is missing just log and skip
 	secret, err = cluster.GetSecret(ctx, "epinio", "minio-tls")
 	if err != nil {
-		return details, err
+		logger.Error(err, "error while getting minio-tls secret. Cannot add CA")
+	} else {
+		details.CA = secret.Data["ca.crt"]
 	}
-
-	details.CA = secret.Data["ca.crt"]
 
 	return details, nil
 }
