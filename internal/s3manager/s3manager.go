@@ -107,8 +107,6 @@ func New(connectionDetails ConnectionDetails) (*Manager, error) {
 // GetConnectionDetails retrieves s3 details from an ini file stored in a
 // secret.
 // Note: The CLI tool in the staging job will use the ini file directly.
-// TODO: Enrico: we removed the NewXXX constructor since it was not used, but this Get was used instead.
-// Probably it would be clearer to refactor this part.
 func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (ConnectionDetails, error) {
 	details := ConnectionDetails{}
 	secret, err := cluster.GetSecret(ctx, secretNamespace, secretName)
