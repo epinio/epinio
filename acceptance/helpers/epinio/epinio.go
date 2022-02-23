@@ -1,8 +1,6 @@
 package epinio
 
 import (
-	"strings"
-
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 )
@@ -32,22 +30,14 @@ func (e *Epinio) Install(args ...string) (string, error) {
 		return out, err
 	}
 
-	// Get chartmuseum service IP for local chartmuseum
-	out, err = proc.RunW("kubectl", "get", "svc",
-		"--selector", "app.kubernetes.io/name=chartmuseum",
-		"-o", "jsonpath='{.items[0].spec.clusterIP}'")
-	if err != nil {
-		return out, err
-	}
-	internal_ip := strings.ReplaceAll(out, "'", "")
-
-	// Install Epinio - Use the epinio-install chart repo directly
 	opts := []string{
 		"upgrade",
 		"--install",
-		"--set", "epinioChart=http://" + internal_ip + ":8080/charts/epinio-0.1.0.tgz",
-		"epinio-installer",
-		"helm-charts/chart/epinio-installer",
+		"-n",
+		"epinio",
+		"--create-namespace",
+		"epinio",
+		"helm-charts/chart/epinio",
 	}
 
 	out, err = proc.Run(testenv.Root(), false, "helm", append(opts, args...)...)

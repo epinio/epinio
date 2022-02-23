@@ -52,13 +52,12 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		registryPassword = os.Getenv("REGISTRY_PASSWORD")
 		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
-			"--set", "skipCertManager=true",
-			"--set", "domain=" + domain,
-			"--set", "tlsIssuer=private-ca",
-			"--set", "externalRegistryURL=registry.hub.docker.com",
-			"--set", "externalRegistryUsername=" + registryUsername,
-			"--set", "externalRegistryPassword=" + registryPassword,
-			"--set", "externalRegistryNamespace=splatform",
+			"--set", "global.domain=" + domain,
+			"--set", "global.tlsIssuer=private-ca",
+			"--set", "registry.url=registry.hub.docker.com",
+			"--set", "registry.username=" + registryUsername,
+			"--set", "registry.password=" + registryPassword,
+			"--set", "registry.namespace=splatform",
 		}
 
 	})

@@ -44,13 +44,13 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		Expect(secretAccessKey).ToNot(BeEmpty())
 
 		flags = []string{
-			"--set", "domain=" + domain,
-			"--set", "useS3Storage=true",
-			"--set", "s3UseSSL=true",
-			"--set", "s3Bucket=epinio-ci",
-			"--set", "s3Endpoint=s3.amazonaws.com",
-			"--set", "s3AccessKeyId=" + accessKeyID,
-			"--set", "s3SecretAccessKey=" + secretAccessKey,
+			"--set", "global.domain=" + domain,
+			"--set", "minio.enabled=false",
+			"--set", "s3.useSSL=true",
+			"--set", "s3.bucket=epinio-ci",
+			"--set", "s3.endpoint=s3.amazonaws.com",
+			"--set", "s3.accessKeyID=" + accessKeyID,
+			"--set", "s3.secretAccessKey=" + secretAccessKey,
 		}
 	})
 
