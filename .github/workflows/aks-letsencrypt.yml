@@ -144,10 +144,6 @@ jobs:
         run: |
           echo "System Domain: $AKS_DOMAIN"
           export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
-          # 'make' command tries to use the WSL2 version of 'bash', but on Windows runner the
-          # available version is the one provided by GitHub. So calling a bash script from a
-          # Makefile lead to this error: 'Windows Subsystem for Linux has no installed distributions.'
-          # The workaround is to execute the bash script directly
           make test-acceptance-install
 
       - name: Delete AKS cluster
