@@ -41,14 +41,9 @@ check_dependency kubectl helm
 create_docker_pull_secret
 
 echo "Installing Epinio"
-helm repo update
-helm upgrade --install \
-	--set domain="$EPINIO_SYSTEM_DOMAIN" \
-	--set skipTraefik=true \
-	--set containerRegistryChart="http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}/charts/container-registry-0.1.0.tgz" \
-	--set epinioChart="http://chartmuseum.${EPINIO_SYSTEM_DOMAIN}/charts/epinio-0.1.0.tgz" \
-	epinio-installer epinio-chartmuseum/epinio-installer \
-	--wait
+helm upgrade --install --create-namespace -n epinio \
+	--set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+	epinio helm-charts/chart/epinio --wait
 
 echo "Importing locally built epinio server image"
 k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest
