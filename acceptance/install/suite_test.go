@@ -35,10 +35,6 @@ func InstallCertManager() {
 	Expect(err).NotTo(HaveOccurred(), out)
 }
 
-var _ = BeforeSuite(func() {
-	InstallCertManager()
-})
-
 var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
 
@@ -49,6 +45,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	testenv.BuildEpinio()
 
 	testenv.CreateRegistrySecret()
+
+	InstallCertManager()
 
 	return []byte{}
 }, func(_ []byte) {
