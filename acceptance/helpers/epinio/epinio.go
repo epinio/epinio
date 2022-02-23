@@ -48,7 +48,7 @@ func (e *Epinio) Install(args ...string) (string, error) {
 }
 
 func (e *Epinio) Uninstall() (string, error) {
-	out, err := proc.RunW("helm", "uninstall", "epinio-installer")
+	out, err := proc.RunW("helm", "uninstall", "-n", "epinio", "epinio")
 	if err != nil {
 		return out, err
 	}
