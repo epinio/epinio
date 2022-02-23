@@ -174,7 +174,7 @@ install-cert-manager:
 	echo "Installing Cert Manager"
 	helm upgrade --install cert-manager --create-namespace -n cert-manager \
 		--set installCRDs=true \
-		--set enable-certificate-owner-ref=true \
+		--set extraArgs[0]=--enable-certificate-owner-ref=true \
 		cert-manager/cert-manager --version 1.7.1 \
 		--wait
 
