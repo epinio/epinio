@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -19,6 +20,24 @@ func TestAcceptance(t *testing.T) {
 var (
 	nodeTmpDir string
 )
+
+func InstallCertManager() {
+	out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "repo", "update")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
+		"-n", "cert-manager",
+		"--create-namespace",
+		"--set", "installCRDs=true",
+		"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
+	)
+	Expect(err).NotTo(HaveOccurred(), out)
+}
+
+var _ = BeforeSuite(func() {
+	InstallCertManager()
+})
 
 var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))

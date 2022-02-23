@@ -46,20 +46,6 @@ var _ = Describe("<Scenario6> Azure, epinio-ca", func() {
 	})
 
 	It("Installs with loadbalancer IP, custom domain and pushes an app", func() {
-		By("Installing CertManager", func() {
-			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "repo", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
-				"-n", "cert-manager",
-				"--create-namespace",
-				"--set", "installCRDs=true",
-				"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
-			)
-			Expect(err).NotTo(HaveOccurred(), out)
-		})
-
 		By("Installing Epinio", func() {
 			out, err := epinioHelper.Install(flags...)
 			Expect(err).NotTo(HaveOccurred(), out)
