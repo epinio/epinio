@@ -35,6 +35,21 @@ func InstallCertManager() {
 	Expect(err).NotTo(HaveOccurred(), out)
 }
 
+func InstallTraefik() {
+	out, err := proc.RunW("helm", "repo", "add", "traefik", "https://helm.traefik.io/traefik")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "repo", "update")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "upgrade", "--install", "traefik", "traefik/traefik",
+		"-n", "traefik",
+		"--create-namespace",
+		"--set", "ports.web.redirectTo=websecure",
+		"--set", "ingressClass.enabled=true",
+		"--set", "ingressClass.isDefaultClass=true",
+	)
+	Expect(err).NotTo(HaveOccurred(), out)
+}
+
 var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
 
@@ -44,9 +59,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Compiling Epinio on node %d\n", GinkgoParallelProcess())
 	testenv.BuildEpinio()
 
+	// Install and configure the prerequisites
 	testenv.CreateRegistrySecret()
-
 	InstallCertManager()
+	InstallTraefik()
 
 	return []byte{}
 }, func(_ []byte) {
