@@ -131,7 +131,6 @@ jobs:
         run: |
           echo "System Domain: $GKE_DOMAIN"
           export KUBECONFIG=$HOME/.kube/config
-          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete GKE cluster

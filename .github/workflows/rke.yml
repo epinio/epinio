@@ -113,7 +113,6 @@ jobs:
           # Get a free IP address on server's network
           export RANGE_IP="$(scripts/get-free-ip.sh)"
           export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"
-          make setup_chart_museum
           make test-acceptance-install
 
       - name: Delete RKE cluster
