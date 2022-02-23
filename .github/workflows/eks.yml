@@ -135,7 +135,7 @@ jobs:
         run: |
           echo "System Domain: $AWS_DOMAIN"
           export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
-          make setup_chart_museum
+          make install-cert-manager
           make test-acceptance-install
 
       - name: Delete EKS cluster
