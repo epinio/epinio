@@ -11,6 +11,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Index handles the API end point /namespaces/:namespace/services
@@ -56,10 +57,13 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, services serv
 	response := models.ServiceResponseList{}
 
 	for _, service := range services {
-
 		serviceDetails, err := service.Details(ctx)
 		if err != nil {
-			return models.ServiceResponseList{}, err
+			if apierrors.IsNotFound(err) {
+				continue // Service was deleted, ignore it
+			} else {
+				return models.ServiceResponseList{}, err
+			}
 		}
 
 		key := application.ServiceKey(service.Name(), service.Namespace())
