@@ -156,7 +156,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	if response.StatusCode != http.StatusOK {
 		err := formatError(bodyBytes, response)
 
-		if respLog.V(15).Enabled() {
+		if respLog.V(5).Enabled() {
 			respLog = respLog.WithValues("body", string(bodyBytes))
 		}
 		respLog.V(1).Error(err, "response is not StatusOK")
@@ -218,7 +218,7 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	if response.StatusCode != http.StatusOK {
 		err := f(response, bodyBytes, formatError(bodyBytes, response))
 		if err != nil {
-			if respLog.V(15).Enabled() {
+			if respLog.V(5).Enabled() {
 				respLog = respLog.WithValues("body", string(bodyBytes))
 			}
 			respLog.V(1).Error(err, "response is not StatusOK after custom error handling")
@@ -239,7 +239,7 @@ func requestLogger(l logr.Logger, method string, uri string, body string) logr.L
 			"uri", uri,
 		)
 	}
-	if log.V(15).Enabled() {
+	if log.V(5).Enabled() {
 		log = log.WithValues("body", body)
 	}
 	return log
@@ -247,7 +247,7 @@ func requestLogger(l logr.Logger, method string, uri string, body string) logr.L
 
 func responseLogger(l logr.Logger, response *http.Response) logr.Logger {
 	log := l.WithValues("status", response.StatusCode)
-	if log.V(15).Enabled() {
+	if log.V(5).Enabled() {
 		log = log.WithValues("header", response.Header)
 		if response.TLS != nil {
 			log = log.WithValues("TLSServerName", response.TLS.ServerName)

@@ -16,7 +16,6 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
 	"github.com/epinio/epinio/internal/version"
-	"github.com/go-logr/logr"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -45,9 +44,9 @@ func init() {
 	viper.BindPFlag("s3-certificate-secret", flags.Lookup("s3-certificate-secret"))
 	viper.BindEnv("s3-certificate-secret", "S3_CERTIFICATE_SECRET")
 
-	flags.String("output", "text", "(OUTPUT) logs output format [text,json]")
-	viper.BindPFlag("output", flags.Lookup("output"))
-	viper.BindEnv("output", "OUTPUT")
+	flags.String("trace-output", "text", "(TRACE_OUTPUT) logs output format [text,json]")
+	viper.BindPFlag("trace-output", flags.Lookup("trace-output"))
+	viper.BindEnv("trace-output", "TRACE_OUTPUT")
 
 	flags.String("ingress-class-name", "", "(INGRESS_CLASS_NAME) Name of the ingress class to use for apps. Leave empty to add no ingressClassName to the ingress.")
 	viper.BindPFlag("ingress-class-name", flags.Lookup("ingress-class-name"))
@@ -61,15 +60,7 @@ var CmdServer = &cobra.Command{
 	Long:  "This command starts the Epinio server. `epinio install` ensures the server is running inside your cluster. Normally you don't need to run this command manually.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-
-		// init logger
-		var logger logr.Logger
-		if viper.GetString("output") == "json" {
-			logger = tracelog.NewZapLogger()
-		} else {
-			logger = tracelog.NewLogger()
-		}
-		logger = logger.WithName("EpinioServer")
+		logger := tracelog.NewLogger().WithName("EpinioServer")
 
 		handler, err := server.NewHandler(logger)
 		if err != nil {

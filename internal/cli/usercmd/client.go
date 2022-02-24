@@ -23,28 +23,28 @@ type EpinioClient struct {
 }
 
 func New() (*EpinioClient, error) {
-	configConfig, err := config.Load()
+	cfg, err := config.Load()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error loading config")
 	}
 
-	uiUI := termui.NewUI()
-	apiClient, err := getEpinioAPIClient()
+	ui := termui.NewUI()
+	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
+
+	apiClient, err := getEpinioAPIClient(logger)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error getting Epinio API client")
 	}
 	serverURL := apiClient.URL
 
-	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
-
 	log := logger.WithName("New")
 	log.Info("Ingress API", "url", serverURL)
-	log.Info("Config API", "url", configConfig.API)
+	log.Info("Config API", "url", cfg.API)
 
 	epinioClient := &EpinioClient{
 		API:    apiClient,
-		ui:     uiUI,
-		Config: configConfig,
+		ui:     ui,
+		Config: cfg,
 		Log:    logger,
 	}
 	return epinioClient, nil
@@ -56,8 +56,8 @@ func ClearMemoization() {
 	epinioClientMemo = nil
 }
 
-func getEpinioAPIClient() (*epinioapi.Client, error) {
-	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
+func getEpinioAPIClient(logger logr.Logger) (*epinioapi.Client, error) {
+	log := logger.WithName("EpinioApiClient")
 	defer func() {
 		if epinioClientMemo != nil {
 			log.Info("return", "api", epinioClientMemo.URL, "wss", epinioClientMemo.WsURL)

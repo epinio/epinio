@@ -101,9 +101,9 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	}
 
 	// print all registered routes
-	if logger.V(15).Enabled() {
+	if logger.V(3).Enabled() {
 		for _, h := range router.Routes() {
-			logger.V(15).Info(fmt.Sprintf("%-6s %-25s %s", h.Method, h.Path, h.Handler))
+			logger.V(3).Info(fmt.Sprintf("%-6s %s", h.Method, h.Path))
 		}
 	}
 
