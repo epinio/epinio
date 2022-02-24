@@ -77,7 +77,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			out, err = proc.RunW("helm", "repo", "add", "metallb", "https://metallb.github.io/metallb")
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			out, err = proc.RunW("helm", "upgrade", "--install", "-n", "metallb",
+			out, err = proc.RunW("helm", "upgrade", "--install", "--wait", "-n", "metallb",
 				"--create-namespace", "metallb", "metallb/metallb", "-f",
 				testenv.TestAssetPath("values-metallb-rke.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
