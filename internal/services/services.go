@@ -244,9 +244,6 @@ func (s *Service) Delete(ctx context.Context) error {
 func (s *Service) Details(ctx context.Context) (map[string]string, error) {
 	serviceSecret, err := s.kubeClient.GetSecret(ctx, s.NamespaceName, s.SecretName)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, errors.New("service does not exist")
-		}
 		return nil, err
 	}
 
