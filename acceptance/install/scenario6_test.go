@@ -36,7 +36,7 @@ var _ = Describe("<Scenario6> Azure, epinio-ca", func() {
 		Expect(zoneID).ToNot(BeEmpty())
 
 		flags = []string{
-			"--set", "domain=" + domain,
+			"--set", "global.domain=" + domain,
 		}
 	})
 
