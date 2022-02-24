@@ -6,7 +6,6 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -100,51 +99,5 @@ func envUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 // application's environment. If necessary it creates that secret.
 func envLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeEnvSecretName()
-
-	evSecret, err := cluster.GetSecret(ctx, appRef.Namespace, secretName)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-
-		// Error is `Not Found`. Create the secret.
-
-		app, err := Get(ctx, cluster, appRef)
-		if err != nil {
-			// Should not happen. Application was validated to exist
-			// already somewhere by callers.
-			return nil, err
-		}
-
-		owner := metav1.OwnerReference{
-			APIVersion: app.GetAPIVersion(),
-			Kind:       app.GetKind(),
-			Name:       app.GetName(),
-			UID:        app.GetUID(),
-		}
-
-		evSecret = &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: appRef.Namespace,
-				OwnerReferences: []metav1.OwnerReference{
-					owner,
-				},
-				Labels: map[string]string{
-					"app.kubernetes.io/name":       appRef.Name,
-					"app.kubernetes.io/part-of":    appRef.Namespace,
-					"app.kubernetes.io/managed-by": "epinio",
-					"app.kubernetes.io/component":  "application",
-					EpinioApplicationAreaLabel:     "environment",
-				},
-			},
-		}
-		err = cluster.CreateSecret(ctx, appRef.Namespace, *evSecret)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return evSecret, nil
+	return loadOrCreateSecret(ctx, cluster, appRef, secretName, "environment")
 }
