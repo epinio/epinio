@@ -10,7 +10,6 @@ import (
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/retry"
 )
@@ -250,51 +249,5 @@ func svcUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 // names. If necessary it creates that secret.
 func svcLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeServiceSecretName()
-
-	svcSecret, err := cluster.GetSecret(ctx, appRef.Namespace, secretName)
-	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-
-		// Error is `Not Found`. Create the secret.
-
-		app, err := Get(ctx, cluster, appRef)
-		if err != nil {
-			// Should not happen. The application was validated to exist already somewhere
-			// by this function's callers.
-			return nil, err
-		}
-
-		owner := metav1.OwnerReference{
-			APIVersion: app.GetAPIVersion(),
-			Kind:       app.GetKind(),
-			Name:       app.GetName(),
-			UID:        app.GetUID(),
-		}
-
-		svcSecret = &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: appRef.Namespace,
-				OwnerReferences: []metav1.OwnerReference{
-					owner,
-				},
-				Labels: map[string]string{
-					"app.kubernetes.io/name":       appRef.Name,
-					"app.kubernetes.io/part-of":    appRef.Namespace,
-					"app.kubernetes.io/managed-by": "epinio",
-					"app.kubernetes.io/component":  "application",
-					EpinioApplicationAreaLabel:     "service",
-				},
-			},
-		}
-		err = cluster.CreateSecret(ctx, appRef.Namespace, *svcSecret)
-
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return svcSecret, nil
+	return loadOrCreateSecret(ctx, cluster, appRef, secretName, "service")
 }

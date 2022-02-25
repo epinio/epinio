@@ -12,15 +12,17 @@ run:
   - "fake_.*.go$"
 
 linters-settings:
-  dupl:
-    # duplication warning after 400 tokens, increased from 150
-    threshold: 400
   revive:
     rules:
     - name: blank-imports
       severity: warning
     - name: unexported-return
       severity: warning
+  funlen:
+    # Checks the number of lines in a function. Default: 60
+    lines: 270
+    # Checks the number of statements in a function. Default: 40
+    statements: 110
 
 issues:
   exclude-rules:
@@ -60,3 +62,4 @@ linters:
   - gosimple
   - typecheck
   - unused
+  - funlen
