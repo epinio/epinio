@@ -3,16 +3,16 @@
 Opinionated platform that runs on Kubernetes to take you from Code to URL in one step.
 
 [![godoc](https://pkg.go.dev/badge/epinio/epinio)](https://pkg.go.dev/github.com/epinio/epinio/internal/api/v1)
-[![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=event%3Aschedule)
-[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks.yml?query=event%3Aschedule)
-[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml?query=event%3Aschedule)
-[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/eks.yml?query=event%3Aschedule)
-[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke.yml?query=event%3Aschedule)
-[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml?query=event%3Aschedule)
-[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/rke.yml?query=event%3Aschedule)
-[![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml?query=event%3Aschedule)
-[![UI-SCENARIO-1-CHROME](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_cypress_chrome.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_cypress_chrome.yml?query=event%3Aschedule)
-[![UI-SCENARIO-2-FIREFOX](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_cypress_firefox.yml/badge.svg?event=schedule)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_cypress_firefox.yml?query=event%3Aschedule)
+[![CI](https://github.com/epinio/epinio/workflows/CI/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/main.yml?query=branch%3Amain)
+[![AKS-CI](https://github.com/epinio/epinio/actions/workflows/aks.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/aks.yml?query=branch%3Amain)
+[![AKS-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/aks-letsencrypt.yml?query=branch%3Amain)
+[![EKS-CI](https://github.com/epinio/epinio/actions/workflows/eks.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/eks.yml?query=branch%3Amain)
+[![GKE-CI](https://github.com/epinio/epinio/actions/workflows/gke.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/gke.yml??query=branch%3Amain)
+[![GKE-LETSENCRYPT-CI](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/gke-letsencrypt.yml?query=branch%3Amain)
+[![RKE-CI](https://github.com/epinio/epinio/actions/workflows/rke.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/rke.yml?query=branch%3Amain)
+[![golangci-lint](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml/badge.svg?branch=main)](https://github.com/epinio/epinio/actions/workflows/golangci-lint.yml?query=branch%3Amain)
+[![UI-SCENARIO-1-CHROME](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_cypress_chrome.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_1_cypress_chrome.yml?query=branch%3Amain)
+[![UI-SCENARIO-2-FIREFOX](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_cypress_firefox.yml/badge.svg?branch=main)](https://github.com/epinio/epinio-end-to-end-tests/actions/workflows/scenario_2_cypress_firefox.yml?query=branch%3Amain)
 
 <img src="./docs/epinio.png" align="right" width="200" height="50%">
 
@@ -20,11 +20,12 @@ Opinionated platform that runs on Kubernetes to take you from Code to URL in one
 
 - [Epinio](#epinio)
   - [Contents](#contents)
-  - [What problem does Epinio solve](#what-problem-does-epinio-solve)
+  - [What problem does Epinio solve?](#what-problem-does-epinio-solve)
   - [Documentation](#documentation)
   - [Features](#features)
   - [Usage](#usage)
   - [Buildpacks](#buildpacks)
+  - [Example apps](#example-apps)
   - [Reach Us](#reach-us)
   - [Contributing](#contributing)
   - [License](#license)
