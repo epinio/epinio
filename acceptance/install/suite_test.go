@@ -47,7 +47,6 @@ func InstallTraefik() {
 		"--set", "ports.web.redirectTo=websecure",
 		"--set", "ingressClass.enabled=true",
 		"--set", "ingressClass.isDefaultClass=true",
-		"--wait",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 }

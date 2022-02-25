@@ -57,19 +57,18 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
-		By("Installing Epinio", func() {
-			out, err := epinioHelper.Install(flags...)
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("STATUS: deployed"))
+		By("Checking LoadBalancer IP", func() {
+			// Ensure that Traefik LB is not in Pending state anymore, could take time
+			Eventually(func() string {
+				out, err := proc.RunW("kubectl", "get", "svc", "-n", "traefik", "traefik", "--no-headers")
+				Expect(err).NotTo(HaveOccurred(), out)
+				return out
+			}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
 
-			out, err = testenv.PatchEpinio()
-			Expect(err).ToNot(HaveOccurred(), out)
-		})
-
-		By("Extracting Loadbalancer IP", func() {
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
 
+			// Check that an IP address for LB is configured
 			status := &testenv.LoadBalancerHostname{}
 			err = json.Unmarshal([]byte(out), status)
 			Expect(err).NotTo(HaveOccurred())
@@ -106,6 +105,15 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 
 		// Workaround to (try to!) ensure that the DNS is really propagated!
 		time.Sleep(3 * time.Minute)
+
+		By("Installing Epinio", func() {
+			out, err := epinioHelper.Install(flags...)
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
+
+			out, err = testenv.PatchEpinio()
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
 
 		By("Updating Epinio config", func() {
 			out, err := epinioHelper.Run("config", "update")

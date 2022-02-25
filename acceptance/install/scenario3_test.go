@@ -83,6 +83,29 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
+		By("Checking LoadBalancer IP", func() {
+			// Ensure that Traefik LB is not in Pending state anymore, could take time
+			Eventually(func() string {
+				out, err := proc.RunW("kubectl", "get", "svc", "-n", "traefik", "traefik", "--no-headers")
+				Expect(err).NotTo(HaveOccurred(), out)
+				return out
+			}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
+
+			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			// Check that an IP address for LB is configured
+			status := &testenv.LoadBalancerHostname{}
+			err = json.Unmarshal([]byte(out), status)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
+			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
+			Expect(loadbalancer).ToNot(BeEmpty())
+
+			// We need to be sure that the specified IP is really used
+			Expect(loadbalancer).To(Equal(domainIP))
+		})
+
 		By("Configuring local-path storage", func() {
 			out, err := proc.RunW("kubectl", "apply", "-f", localpathURL)
 			Expect(err).NotTo(HaveOccurred(), out)
@@ -105,20 +128,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)
-		})
-
-		By("Checking Loadbalancer IP", func() {
-			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			status := &testenv.LoadBalancerHostname{}
-			err = json.Unmarshal([]byte(out), status)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
-			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
-			Expect(loadbalancer).ToNot(BeEmpty())
-			// We need to be sure that the specified IP is really used
-			Expect(loadbalancer).To(Equal(domainIP))
 		})
 
 		By("Updating Epinio config", func() {
