@@ -38,6 +38,7 @@ func (e *Epinio) Install(args ...string) (string, error) {
 		"--create-namespace",
 		"epinio",
 		"helm-charts/chart/epinio",
+		"--wait",
 	}
 
 	out, err = proc.Run(testenv.Root(), false, "helm", append(opts, args...)...)

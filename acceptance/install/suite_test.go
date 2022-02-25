@@ -31,6 +31,7 @@ func InstallCertManager() {
 		"--create-namespace",
 		"--set", "installCRDs=true",
 		"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
+		"--wait",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 }
