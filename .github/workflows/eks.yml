@@ -98,7 +98,15 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          brew install kubernetes-cli eksctl coreutils
+          brew install kubernetes-cli coreutils
+
+      - name: Install EKSCTL
+        run: |
+          # Better to always use the latest eksctl binary to avoid API version issue
+          EKSCTL_GH=https://github.com/weaveworks/eksctl/releases/latest/download
+          curl --location ${EKSCTL_GH}/eksctl_$(uname -s)_amd64.tar.gz | tar xz -C .
+          chmod +x eksctl
+          sudo mv eksctl /usr/local/bin
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
