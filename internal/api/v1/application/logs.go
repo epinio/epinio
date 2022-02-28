@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 
 	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
@@ -77,7 +79,7 @@ func (hc Controller) Logs(c *gin.Context) {
 
 	log.Info("upgrade to web socket")
 
-	var upgrader = websocket.Upgrader{}
+	var upgrader = newUpgrader()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		response.Error(c, apierror.InternalError(err))
@@ -189,4 +191,37 @@ func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, na
 	}
 
 	return conn.Close()
+}
+
+// https://pkg.go.dev/github.com/gorilla/websocket#hdr-Origin_Considerations
+// Regarding matching accessControlAllowOrigin and origin header:
+// https: //developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
+func newUpgrader() websocket.Upgrader {
+	allowedOrigins := viper.GetStringSlice("access-control-allow-origin")
+	return websocket.Upgrader{
+		CheckOrigin: CheckOriginFunc(allowedOrigins),
+	}
+}
+
+func CheckOriginFunc(allowedOrigins []string) func(r *http.Request) bool {
+	return func(r *http.Request) bool {
+		originHeader := r.Header.Get("Origin")
+
+		if originHeader == "" {
+			return true
+		}
+
+		if len(allowedOrigins) == 0 {
+			return true
+		}
+
+		for _, allowedOrigin := range allowedOrigins {
+			trimmedOrigin := strings.TrimSuffix(allowedOrigin, "/")
+			if trimmedOrigin == "*" || trimmedOrigin == originHeader {
+				return true
+			}
+		}
+
+		return false
+	}
 }
