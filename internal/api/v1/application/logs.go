@@ -197,15 +197,31 @@ func (hc Controller) streamPodLogs(ctx context.Context, conn *websocket.Conn, na
 // Regarding matching accessControlAllowOrigin and origin header:
 // https: //developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Access-Control-Allow-Origin
 func newUpgrader() websocket.Upgrader {
+	allowedOrigins := viper.GetStringSlice("access-control-allow-origin")
 	return websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool {
-			accessControlAllowOrigin := strings.TrimSuffix(viper.GetString("access-control-allow-origin"), "/")
-			originHeader := r.Header.Get("Origin")
+		CheckOrigin: CheckOriginFunc(allowedOrigins),
+	}
+}
 
-			return accessControlAllowOrigin == "" ||
-				accessControlAllowOrigin == "*" ||
-				originHeader == "" ||
-				accessControlAllowOrigin == originHeader
-		},
+func CheckOriginFunc(allowedOrigins []string) func(r *http.Request) bool {
+	return func(r *http.Request) bool {
+		originHeader := r.Header.Get("Origin")
+
+		if originHeader == "" {
+			return true
+		}
+
+		if len(allowedOrigins) == 0 {
+			return true
+		}
+
+		for _, allowedOrigin := range allowedOrigins {
+			trimmedOrigin := strings.TrimSuffix(allowedOrigin, "/")
+			if trimmedOrigin == "*" || trimmedOrigin == originHeader {
+				return true
+			}
+		}
+
+		return false
 	}
 }
