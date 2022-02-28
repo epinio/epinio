@@ -20,6 +20,11 @@ func TraceLevel() int {
 	return viper.GetInt("trace-level")
 }
 
+// TraceOutput returns the trace-output argument
+func TraceOutput() string {
+	return viper.GetString("trace-output")
+}
+
 // LoggerFlags adds to viper flags
 func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	// trace-level 0 prints nothing, well technically it would print NewLogger().V(-1)
@@ -28,12 +33,16 @@ func LoggerFlags(pf *flag.FlagSet, argToEnv map[string]string) {
 	argToEnv["trace-level"] = "TRACE_LEVEL"
 }
 
-// NewLogger creates a new logger with our setup. It only prints messages below
-// TraceLevel().  The starting point for derived loggers is 1. So in the
-// default configuration, TRACE_LEVEL=0, V(1), nothing is printed.
-// TRACE_LEVEL=1 shows simple log statements, everything above like `details`,
-// or V(3) needs a higher TRACE_LEVEL.
+// NewLogger returns a logger based on the trace-output configuration
 func NewLogger() logr.Logger {
+	if TraceOutput() == "json" {
+		return NewZapLogger()
+	}
+	return NewStdrLogger()
+}
+
+// NewStdrLogger returns a stdr logger
+func NewStdrLogger() logr.Logger {
 	stdr.SetVerbosity(TraceLevel())
 	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
 }
@@ -45,11 +54,18 @@ func NewLogger() logr.Logger {
 //
 // https://github.com/go-logr/zapr#increasing-verbosity
 func NewZapLogger() logr.Logger {
+	var logger logr.Logger
+
 	zc := zap.NewProductionConfig()
 	zc.Level = zap.NewAtomicLevelAt(zapcore.Level(TraceLevel() * -1))
+
 	z, err := zc.Build()
 	if err != nil {
-		return NewLogger()
+		logger = NewStdrLogger()
+		logger.Error(err, "error building zap config, using stdr logger as fallback")
+	} else {
+		logger = zapr.NewLogger(z)
 	}
-	return zapr.NewLogger(z)
+
+	return logger
 }
