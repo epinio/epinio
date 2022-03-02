@@ -178,6 +178,9 @@ install-cert-manager:
 		cert-manager/cert-manager --version 1.7.1 \
 		--wait
 
+install-epinio-ui:
+	@./scripts/install-epinio-ui.sh
+
 prepare_environment_k3d: build-linux-amd64 build-images
 	@./scripts/prepare-environment-k3d.sh
 
