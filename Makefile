@@ -69,7 +69,7 @@ compress:
 	upx --brute -1 ./dist/epinio-darwin-arm64
 
 test:
-	ginkgo -nodes ${GINKGO_NODES} -r -p -race --fail-on-pending helpers internal
+	ginkgo --nodes ${GINKGO_NODES} -r -p -race --fail-on-pending helpers internal
 
 tag:
 	@git describe --tags --abbrev=0
@@ -96,20 +96,20 @@ acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
 
 test-acceptance: showfocus
-	ginkgo -nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s -randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/. acceptance/api/v1/. acceptance/apps/.
+	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/. acceptance/api/v1/. acceptance/apps/.
 
 test-acceptance-api: showfocus
-	ginkgo -nodes ${GINKGO_NODES} -slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s -randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
+	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
 
 test-acceptance-apps: showfocus
-	ginkgo -nodes ${GINKGO_NODES} -slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s -randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/apps/.
+	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/apps/.
 
 test-acceptance-cli: showfocus
-	ginkgo -nodes ${GINKGO_NODES} -slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s -randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/.
+	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/.
 
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
-	ginkgo -nodes ${GINKGO_NODES} -focus "${REGEX}" -randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
+	ginkgo --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
 
 showfocus:
 	@if test `cat acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go ; echo ; fi
@@ -168,12 +168,22 @@ minikube-start:
 minikube-delete:
 	@./scripts/minikube-delete.sh
 
-setup_chart_museum:
-	@./scripts/setup-chart-museum.sh
+install-cert-manager:
+	helm repo add cert-manager https://charts.jetstack.io
+	helm repo update
+	echo "Installing Cert Manager"
+	helm upgrade --install cert-manager --create-namespace -n cert-manager \
+		--set installCRDs=true \
+		--set extraArgs[0]=--enable-certificate-owner-ref=true \
+		cert-manager/cert-manager --version 1.7.1 \
+		--wait
 
-prepare_environment_k3d: build-linux-amd64 build-images setup_chart_museum
+install-epinio-ui:
+	@./scripts/install-epinio-ui.sh
+
+prepare_environment_k3d: build-linux-amd64 build-images
 	@./scripts/prepare-environment-k3d.sh
 
 unprepare_environment_k3d:
 	kubectl delete --ignore-not-found=true secret regcred
-	helm uninstall epinio-installer
+	helm uninstall epinio -n epinio --wait || true

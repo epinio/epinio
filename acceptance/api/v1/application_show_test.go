@@ -84,12 +84,6 @@ var _ = Describe("AppShow Endpoint", func() {
 			return appObj.Workload.Replicas[replica.Name].MemoryBytes
 		}, "240s", "1s").Should(BeNumerically(">=", 0))
 
-		// Kill a linkerd proxy container and see the count staying unchanged
-		out, err = proc.Kubectl("exec",
-			"--namespace", namespace, podNames[0], "--container", "linkerd-proxy",
-			"--", "bin/sh", "-c", "kill 1")
-		Expect(err).ToNot(HaveOccurred(), out)
-
 		Consistently(func() int32 {
 			appObj := appFromAPI(namespace, app)
 			return appObj.Workload.Replicas[replica.Name].Restarts

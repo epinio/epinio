@@ -52,13 +52,12 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		registryPassword = os.Getenv("REGISTRY_PASSWORD")
 		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
-			"--set", "skipCertManager=true",
-			"--set", "domain=" + domain,
-			"--set", "tlsIssuer=private-ca",
-			"--set", "externalRegistryURL=registry.hub.docker.com",
-			"--set", "externalRegistryUsername=" + registryUsername,
-			"--set", "externalRegistryPassword=" + registryPassword,
-			"--set", "externalRegistryNamespace=splatform",
+			"--set", "global.domain=" + domain,
+			"--set", "global.tlsIssuer=private-ca",
+			"--set", "registry.url=registry.hub.docker.com",
+			"--set", "registry.username=" + registryUsername,
+			"--set", "registry.password=" + registryPassword,
+			"--set", "registry.namespace=splatform",
 		}
 
 	})
@@ -78,10 +77,33 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			out, err = proc.RunW("helm", "repo", "add", "metallb", "https://metallb.github.io/metallb")
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			out, err = proc.RunW("helm", "upgrade", "--install", "-n", "metallb",
+			out, err = proc.RunW("helm", "upgrade", "--install", "--wait", "-n", "metallb",
 				"--create-namespace", "metallb", "metallb/metallb", "-f",
 				testenv.TestAssetPath("values-metallb-rke.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
+		})
+
+		By("Checking LoadBalancer IP", func() {
+			// Ensure that Traefik LB is not in Pending state anymore, could take time
+			Eventually(func() string {
+				out, err := proc.RunW("kubectl", "get", "svc", "-n", "traefik", "traefik", "--no-headers")
+				Expect(err).NotTo(HaveOccurred(), out)
+				return out
+			}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
+
+			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			// Check that an IP address for LB is configured
+			status := &testenv.LoadBalancerHostname{}
+			err = json.Unmarshal([]byte(out), status)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
+			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
+			Expect(loadbalancer).ToNot(BeEmpty())
+
+			// We need to be sure that the specified IP is really used
+			Expect(loadbalancer).To(Equal(domainIP))
 		})
 
 		By("Configuring local-path storage", func() {
@@ -93,21 +115,9 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
-		By("Installing CertManager", func() {
-			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "repo", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
-				"-n", "cert-manager",
-				"--create-namespace",
-				"--set", "installCRDs=true",
-				"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
-			)
-			Expect(err).NotTo(HaveOccurred(), out)
-
+		By("Creating private CA issuer", func() {
 			// Create certificate secret and cluster_issuer
-			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
+			out, err := proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("cluster-issuer-private-ca.yml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
@@ -118,20 +128,6 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)
-		})
-
-		By("Checking Loadbalancer IP", func() {
-			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
-			Expect(err).NotTo(HaveOccurred(), out)
-
-			status := &testenv.LoadBalancerHostname{}
-			err = json.Unmarshal([]byte(out), status)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
-			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
-			Expect(loadbalancer).ToNot(BeEmpty())
-			// We need to be sure that the specified IP is really used
-			Expect(loadbalancer).To(Equal(domainIP))
 		})
 
 		By("Updating Epinio config", func() {

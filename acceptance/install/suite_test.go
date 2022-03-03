@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -20,6 +21,36 @@ var (
 	nodeTmpDir string
 )
 
+func InstallCertManager() {
+	out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "repo", "update")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
+		"-n", "cert-manager",
+		"--create-namespace",
+		"--set", "installCRDs=true",
+		"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
+		"--wait",
+	)
+	Expect(err).NotTo(HaveOccurred(), out)
+}
+
+func InstallTraefik() {
+	out, err := proc.RunW("helm", "repo", "add", "traefik", "https://helm.traefik.io/traefik")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "repo", "update")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "upgrade", "--install", "traefik", "traefik/traefik",
+		"-n", "traefik",
+		"--create-namespace",
+		"--set", "ports.web.redirectTo=websecure",
+		"--set", "ingressClass.enabled=true",
+		"--set", "ingressClass.isDefaultClass=true",
+	)
+	Expect(err).NotTo(HaveOccurred(), out)
+}
+
 var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
 
@@ -29,7 +60,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Printf("Compiling Epinio on node %d\n", GinkgoParallelProcess())
 	testenv.BuildEpinio()
 
+	// Install and configure the prerequisites
 	testenv.CreateRegistrySecret()
+	InstallCertManager()
+	InstallTraefik()
 
 	return []byte{}
 }, func(_ []byte) {

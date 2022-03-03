@@ -12,15 +12,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
-          password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
       - id: setup-pack
         uses: buildpacks/github-actions/setup-pack@v4.5.0
       - name: Pack Remote Build
         run: pack build splatform/sample-app:latest --builder paketobuildpacks/builder:full --path ./assets/sample-app
       - name: Docker push image
         run: docker push splatform/sample-app:latest
-      

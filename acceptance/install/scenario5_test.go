@@ -36,10 +36,8 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 		Expect(zoneID).ToNot(BeEmpty())
 
 		flags = []string{
-			"--set", "domain=" + domain,
-			"--set", "tlsIssuer=letsencrypt-staging",
-			"--set", "forceKubeInternalRegistryTLS=true",
-			"--set", "skipCertManager=true",
+			"--set", "global.domain=" + domain,
+			"--set", "global.tlsIssuer=letsencrypt-staging",
 		}
 	})
 
@@ -49,43 +47,30 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 	})
 
 	It("Installs with letsencrypt-staging cert and pushes an app", func() {
-		By("Installing CertManager", func() {
-			out, err := proc.RunW("helm", "repo", "add", "jetstack", "https://charts.jetstack.io")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "repo", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			out, err = proc.RunW("helm", "upgrade", "--install", "cert-manager", "jetstack/cert-manager",
-				"-n", "cert-manager",
-				"--create-namespace",
-				"--set", "installCRDs=true",
-				"--set", "extraArgs[0]=--enable-certificate-owner-ref=true",
-			)
-			Expect(err).NotTo(HaveOccurred(), out)
-
+		By("Creating letsencrypt issuer", func() {
 			// Create certificate secret and cluster_issuer
-			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("letsencrypt-staging.yaml"))
+			out, err := proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("letsencrypt-staging.yaml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
-		By("Installing Epinio", func() {
-			out, err := epinioHelper.Install(flags...)
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("STATUS: deployed"))
+		By("Checking LoadBalancer IP", func() {
+			// Ensure that Traefik LB is not in Pending state anymore, could take time
+			Eventually(func() string {
+				out, err := proc.RunW("kubectl", "get", "svc", "-n", "traefik", "traefik", "--no-headers")
+				Expect(err).NotTo(HaveOccurred(), out)
+				return out
+			}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
 
-			out, err = testenv.PatchEpinio()
-			Expect(err).ToNot(HaveOccurred(), out)
-		})
-
-		By("Extracting AKS Loadbalancer IP", func() {
 			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
 
+			// Check that an IP address for LB is configured
 			status := &testenv.LoadBalancerHostname{}
 			err = json.Unmarshal([]byte(out), status)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
 			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
-			Expect(loadbalancer).ToNot(BeEmpty(), out)
+			Expect(loadbalancer).ToNot(BeEmpty())
 		})
 
 		By("Updating DNS Entries", func() {
@@ -116,6 +101,15 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 
 		// Workaround to (try to!) ensure that the DNS is really propagated!
 		time.Sleep(3 * time.Minute)
+
+		By("Installing Epinio", func() {
+			out, err := epinioHelper.Install(flags...)
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("STATUS: deployed"))
+
+			out, err = testenv.PatchEpinio()
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
 
 		By("Updating Epinio config", func() {
 			out, err := epinioHelper.Run("config", "update")
