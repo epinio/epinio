@@ -54,10 +54,11 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		flags = []string{
 			"--set", "global.domain=" + domain,
 			"--set", "global.tlsIssuer=private-ca",
-			"--set", "registry.url=registry.hub.docker.com",
-			"--set", "registry.username=" + registryUsername,
-			"--set", "registry.password=" + registryPassword,
-			"--set", "registry.namespace=splatform",
+			"--set", "containerregistry.enabled=false",
+			"--set", "global.registryURL=registry.hub.docker.com",
+			"--set", "global.registryUsername=" + registryUsername,
+			"--set", "global.registryPassword=" + registryPassword,
+			"--set", "global.registryNamespace=splatform",
 		}
 
 	})
