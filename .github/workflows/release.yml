@@ -1,9 +1,8 @@
 name: Release-pipeline
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -42,6 +41,10 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get current tag
+        id: get_tag
+        run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
 
       # Allow to release Epinio Helm chart automatically when we release Epinio.
       # The latest tag is sent to the Helm chart repo.
