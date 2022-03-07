@@ -254,6 +254,26 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 	return nil
 }
 
+// AppRestart restarts an application
+func (c *EpinioClient) AppRestart(appName string) error {
+	log := c.Log.WithName("AppRestart").WithValues("Namespace", c.Config.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Config.Namespace).
+		WithStringValue("Application", appName).
+		Msg("Restarting application")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	log.V(1).Info("restarting application")
+
+	return c.API.AppRestart(c.Config.Namespace, appName)
+}
+
 // AppStageID returns the last stage id of the named app, in the targeted namespace
 func (c *EpinioClient) AppStageID(appName string) (string, error) {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Config.Namespace, "Application", appName)

@@ -50,12 +50,6 @@ func New() (*EpinioClient, error) {
 	return epinioClient, nil
 }
 
-// ClearMemoization clears the memo, so a new call to getEpinioAPIClient does
-// not return a cached value
-func ClearMemoization() {
-	epinioClientMemo = nil
-}
-
 func getEpinioAPIClient(logger logr.Logger) (*epinioapi.Client, error) {
 	log := logger.WithName("EpinioApiClient")
 	defer func() {

@@ -503,3 +503,15 @@ func (c *Client) addAuthTokenToURL(url *url.URL) error {
 
 	return nil
 }
+
+// AppRestart restarts an app
+func (c *Client) AppRestart(namespace string, appName string) error {
+	endpoint := api.Routes.Path("AppRestart", namespace, appName)
+
+	if _, err := c.post(endpoint, ""); err != nil {
+		errorMsg := fmt.Sprintf("error restarting app %s in namespace %s", appName, namespace)
+		return errors.Wrap(err, errorMsg)
+	}
+
+	return nil
+}
