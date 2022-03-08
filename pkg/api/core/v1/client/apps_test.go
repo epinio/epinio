@@ -16,7 +16,7 @@ var _ = Describe("Client Apps unit tests", func() {
 	var statusCode int
 	var responseBody string
 
-	BeforeEach(func() {
+	JustBeforeEach(func() {
 		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(statusCode)
 			fmt.Fprint(w, responseBody)
