@@ -44,6 +44,12 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
+	router.NoMethod(func(ctx *gin.Context) {
+		response.Error(ctx, apierrors.NewAPIError("Method not allowed", "", http.StatusMethodNotAllowed))
+	})
+	router.NoRoute(func(ctx *gin.Context) {
+		response.Error(ctx, apierrors.NewNotFoundError("Route not found"))
+	})
 	router.Use(gin.Recovery())
 
 	// Do not set header if nothing is specified.

@@ -47,6 +47,7 @@ func init() {
 	CmdApp.AddCommand(CmdAppUpdate)
 	CmdApp.AddCommand(CmdAppDelete)
 	CmdApp.AddCommand(CmdAppPush) // See push.go for implementation
+	CmdApp.AddCommand(CmdAppRestart)
 }
 
 // CmdAppList implements the command: epinio app list
@@ -268,5 +269,25 @@ var CmdAppManifest = &cobra.Command{
 		err = client.AppManifest(args[0], args[1])
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error getting app manifest")
+	},
+}
+
+// CmdAppRestart implements the command: epinio app restart
+var CmdAppRestart = &cobra.Command{
+	Use:               "restart NAME",
+	Short:             "Restart the application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		err = client.AppRestart(args[0])
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error restarting app")
 	},
 }
