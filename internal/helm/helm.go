@@ -33,7 +33,7 @@ type ChartParameters struct {
 	ImageURL      string                // Application Image
 	Username      string                // User causing the (re)deployment
 	Instances     int32                 // Number Of Desired Replicas
-	StageID       string                // Stage ID for ImageURL
+	StageID       string                // Stage ID that produced ImageURL
 	Owner         metav1.OwnerReference // App CRD Owner Information
 	Environment   models.EnvVariableMap // App Environment
 	Services      []string              // Bound Services (list of names)

@@ -183,7 +183,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
 				Expect(err).NotTo(HaveOccurred(), out)
-				Expect(strings.Split(out, " ")).To(Equal(routes))
+				Expect(strings.Split(out, " ")).To(ConsistOf(routes))
 			})
 		})
 	})
