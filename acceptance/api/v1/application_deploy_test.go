@@ -70,20 +70,23 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				uploadResponse = uploadApplication(appName, namespace)
 				newBlob := uploadResponse.BlobUID
 
+				By("staging the application again")
 				stageRequest = models.StageRequest{
 					App:          models.AppRef{Name: appName, Namespace: namespace},
 					BlobUID:      newBlob,
 					BuilderImage: "paketobuildpacks/builder:full",
 				}
-				By("staging the application again")
 				stageResponse := stageApplication(appName, namespace, stageRequest)
 
+				By("waiting for the new blob to appear")
 				Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
 
+				By("deploying the application")
 				deployRequest.ImageURL = stageResponse.ImageURL
-				deployRequest.Stage.ID = stageRequest.BlobUID
+				deployRequest.Stage = stageResponse.Stage
 				deployApplication(appName, namespace, deployRequest)
 
+				By("waiting for the old blob to be gone")
 				Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
 			})
 		})
