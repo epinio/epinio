@@ -27,6 +27,7 @@ var _ = Describe("AppRestart Endpoint", func() {
 		app1 = catalog.NewAppName()
 		env.MakeContainerImageApp(app1, 1, containerImageURL)
 	})
+
 	AfterEach(func() {
 		env.DeleteApp(app1)
 		env.DeleteNamespace(namespace)

@@ -31,6 +31,7 @@ var _ = Describe("AppImportGit Endpoint", func() {
 		_, err := createApplication(appName, namespace, []string{})
 		Expect(err).ToNot(HaveOccurred())
 	})
+
 	AfterEach(func() {
 		env.DeleteNamespace(namespace)
 	})

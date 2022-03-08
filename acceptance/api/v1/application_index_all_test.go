@@ -39,6 +39,7 @@ var _ = Describe("AllApps Endpoints", func() {
 		app2 = catalog.NewAppName()
 		env.MakeContainerImageApp(app2, 1, containerImageURL)
 	})
+
 	AfterEach(func() {
 		env.TargetNamespace(namespace2)
 		env.DeleteApp(app2)

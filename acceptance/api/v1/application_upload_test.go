@@ -26,6 +26,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 	})
+
 	AfterEach(func() {
 		env.DeleteNamespace(namespace)
 	})

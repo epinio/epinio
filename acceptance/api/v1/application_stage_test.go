@@ -36,6 +36,7 @@ var _ = Describe("AppStage Endpoint", func() {
 		_, err := createApplication(appName, namespace, []string{})
 		Expect(err).ToNot(HaveOccurred())
 	})
+
 	AfterEach(func() {
 		env.DeleteNamespace(namespace)
 	})

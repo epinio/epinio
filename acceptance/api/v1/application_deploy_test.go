@@ -32,6 +32,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 
 	AfterEach(func() {
 		env.DeleteApp(appName)
+		env.DeleteNamespace(namespace)
 	})
 
 	Context("with staging", func() {
