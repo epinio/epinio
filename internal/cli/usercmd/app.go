@@ -526,3 +526,45 @@ func (c *EpinioClient) printReplicaDetails(app models.App) error {
 
 	return nil
 }
+
+// AppRestage restage an application
+func (c *EpinioClient) AppRestage(appName string) error {
+	log := c.Log.WithName("AppRestage").WithValues("Namespace", c.Config.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Config.Namespace).
+		WithStringValue("Application", appName).
+		Msg("Restaging application")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	log.V(1).Info("restaging application")
+
+	app, err := c.API.AppShow(c.Config.Namespace, appName)
+	if err != nil {
+		return err
+	}
+
+	if app.Origin.Kind == models.OriginContainer {
+		return nil
+	}
+
+	c.ui.Normal().Msg("Restaging application...")
+
+	req := models.StageRequest{App: app.Meta}
+	stageResponse, err := c.API.AppStage(req)
+	if err != nil {
+		return err
+	}
+
+	log.V(3).Info("stage response", "response", stageResponse)
+
+	stageID := stageResponse.Stage.ID
+	log.V(1).Info("start tailing logs", "StageID", stageID)
+
+	return c.stageLogs(log.V(1), app.Meta, stageID)
+}
