@@ -34,6 +34,10 @@ var _ = Describe("apps env", func() {
 		appName = catalog.NewAppName()
 	})
 
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
+
 	Describe("app without workload", func() {
 		BeforeEach(func() {
 			out, err := env.Epinio("", "apps", "create", appName)

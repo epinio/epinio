@@ -40,6 +40,10 @@ var _ = Describe("Apps", func() {
 		appName = catalog.NewAppName()
 	})
 
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
+
 	When("creating an application without a workload", func() {
 		AfterEach(func() {
 			// MakeApp... by each test (It)

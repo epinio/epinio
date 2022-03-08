@@ -55,6 +55,10 @@ var _ = Describe("Namespaces", func() {
 			Expect(out).To(MatchRegexp("Ok"))
 		})
 
+		AfterEach(func() {
+			env.DeleteNamespace(namespaceName)
+		})
+
 		It("lists namespaces", func() {
 			out, err := env.Epinio("", "namespace", "list", namespaceName)
 
@@ -87,6 +91,10 @@ var _ = Describe("Namespaces", func() {
 				out, err := env.Epinio("", "app", "create", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp("Ok"))
+			})
+
+			AfterEach(func() {
+				env.DeleteNamespace(namespaceName)
 			})
 
 			It("shows a namespace", func() {

@@ -22,6 +22,10 @@ var _ = Describe("Configurations", func() {
 		env.SetupAndTargetNamespace(namespace)
 	})
 
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
+
 	Describe("configuration list", func() {
 		BeforeEach(func() {
 			env.MakeConfiguration(configurationName1)
@@ -78,6 +82,9 @@ var _ = Describe("Configurations", func() {
 			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
 			env.DeleteConfiguration(configuration1)
+
+			env.DeleteNamespace(namespace1)
+			env.DeleteNamespace(namespace2)
 		})
 
 		It("lists all configurations belonging to all namespaces", func() {
@@ -253,6 +260,7 @@ var _ = Describe("Configurations", func() {
 			env.TargetNamespace(namespace)
 			env.DeleteApp(appName)
 			env.CleanupConfiguration(configurationName1)
+			env.DeleteNamespace(namespace)
 		})
 	})
 })

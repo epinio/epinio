@@ -15,6 +15,11 @@ var _ = Describe("Bounds between Apps & Configurations", func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 	})
+
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
+
 	Describe("Display", func() {
 		var appName string
 		var configurationName string
