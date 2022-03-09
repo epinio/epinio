@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,7 +21,7 @@ var _ = Describe("Client Apps unit tests", func() {
 			fmt.Fprint(w, responseBody)
 		}))
 
-		epinioClient = client.New(tracelog.NewLogger(), srv.URL, "", "", "")
+		epinioClient = client.New(srv.URL, "", "", "")
 	})
 
 	Describe("AppRestart", func() {

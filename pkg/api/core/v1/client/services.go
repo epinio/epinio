@@ -87,7 +87,7 @@ func (c *Client) ServiceBindingDelete(namespace string, appName string, serviceN
 }
 
 // ServiceDelete deletes a service
-func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f errorFunc) (models.ServiceDeleteResponse, error) {
+func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f ErrorFunc) (models.ServiceDeleteResponse, error) {
 	resp := models.ServiceDeleteResponse{}
 
 	b, err := json.Marshal(req)

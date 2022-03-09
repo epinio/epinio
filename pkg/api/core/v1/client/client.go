@@ -2,6 +2,7 @@
 package client
 
 import (
+	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/go-logr/logr"
 )
 
@@ -16,6 +17,14 @@ type Client struct {
 }
 
 // New returns a new Epinio API client
-func New(log logr.Logger, url string, wsURL string, user string, password string) *Client {
-	return &Client{log: log, URL: url, WsURL: wsURL, user: user, password: password}
+func New(url string, wsURL string, user string, password string) *Client {
+	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
+
+	return &Client{
+		log:      log,
+		URL:      url,
+		WsURL:    wsURL,
+		user:     user,
+		password: password,
+	}
 }
