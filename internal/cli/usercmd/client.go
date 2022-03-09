@@ -13,8 +13,6 @@ import (
 	"github.com/go-logr/logr"
 )
 
-var epinioClientMemo *epinioapi.Client
-
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
@@ -74,59 +72,22 @@ func New() (*EpinioClient, error) {
 		return nil, errors.Wrap(err, "error loading settings")
 	}
 
-	apiClient, err := NewEpinioAPIClient(cfg)
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting Epinio API client")
-	}
+	apiClient := epinioapi.New(cfg.API, cfg.WSS, cfg.User, cfg.Password)
 
 	return NewEpinioClient(cfg, apiClient)
 }
 
 func NewEpinioClient(cfg *settings.Settings, apiClient ApiClient) (*EpinioClient, error) {
-	ui := termui.NewUI()
 	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
 
 	log := logger.WithName("NewEpinioClient")
 	log.Info("Ingress API", "url", cfg.API)
 	log.Info("Settings API", "url", cfg.API)
 
-	epinioClient := &EpinioClient{
+	return &EpinioClient{
 		API:      apiClient,
-		ui:       ui,
+		ui:       termui.NewUI(),
 		Settings: cfg,
 		Log:      logger,
-	}
-	return epinioClient, nil
-}
-
-func NewEpinioAPIClient(cfg *settings.Settings) (*epinioapi.Client, error) {
-	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
-	defer func() {
-		if epinioClientMemo != nil {
-			log.Info("return", "api", epinioClientMemo.URL, "wss", epinioClientMemo.WsURL)
-			return
-		}
-		log.Info("return")
-	}()
-
-	// Check for information cached in memory, and return if such is found
-	if epinioClientMemo != nil {
-		log.Info("cached in memory")
-		return epinioClientMemo, nil
-	}
-
-	// Check for information cached in the Epinio settings,
-	// and return if such is found. Cache into memory as well.
-	log.Info("query settings")
-
-	if cfg.API != "" && cfg.WSS != "" {
-		log.Info("cached in settings")
-
-		epinioClient := epinioapi.New(log, cfg.API, cfg.WSS, cfg.User, cfg.Password)
-		epinioClientMemo = epinioClient
-
-		return epinioClient, nil
-	}
-
-	return nil, errors.New("Epinio no longer queries the cluster, please run epinio settings update or ask your operator for help")
+	}, nil
 }
