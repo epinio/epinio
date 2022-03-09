@@ -167,16 +167,16 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	return bodyBytes, nil
 }
 
-type errorFunc = func(response *http.Response, bodyBytes []byte, err error) error
+type ErrorFunc = func(response *http.Response, bodyBytes []byte, err error) error
 
 // doWithCustomErrorHandling has a special handler for "response type" errors.
 // These are errors where the server send a valid http response, but the status
 // code is not 200.
-// The errorFunc allows us to inspect the response, even unmarshal it into an
+// The ErrorFunc allows us to inspect the response, even unmarshal it into an
 // api.ErrorResponse and change the returned error.
 // Note: it's only used by ServiceDelete and that could be changed to transmit
 // it's data in a normal Response, instead of an error?
-func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string, f errorFunc) ([]byte, error) {
+func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string, f ErrorFunc) ([]byte, error) {
 
 	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))

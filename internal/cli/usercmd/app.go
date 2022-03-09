@@ -384,7 +384,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 		endpoint = api.WsRoutes.Path("StagingLogs", c.Settings.Namespace, stageID)
 	}
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(
-		fmt.Sprintf("%s%s/%s?%s", c.API.WsURL, api.WsRoot, endpoint, strings.Join(urlArgs, "&")), http.Header{})
+		fmt.Sprintf("%s%s/%s?%s", c.Settings.WSS, api.WsRoot, endpoint, strings.Join(urlArgs, "&")), http.Header{})
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}
