@@ -259,5 +259,5 @@ func (s *Configuration) Details(ctx context.Context) (map[string]string, error) 
 // configurationResourceName returns a name for a kube configuration resource
 // representing the namespace and configuration
 func configurationResourceName(namespace, configuration string) string {
-	return fmt.Sprintf("configuration.namespace-%s.svc-%s", namespace, configuration)
+	return fmt.Sprintf("configuration.namespace-%s.conf-%s", namespace, configuration)
 }

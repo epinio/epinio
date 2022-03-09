@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	StandardChart = "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.10/epinio-application-0.1.10.tgz"
+	StandardChart = "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.12/epinio-application-0.1.12.tgz"
 	// ChartName:   "/path/to/stable/etcd-operator",			Local directory
 	// ChartName:   "/path/to/stable/etcd-operator.tar.gz",			Local archive
 	// ChartName:   "http://helm.whatever.com/repo/etcd-operator.tar.gz",	Remote archive
