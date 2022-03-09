@@ -529,12 +529,12 @@ func (c *EpinioClient) printReplicaDetails(app models.App) error {
 
 // AppRestage restage an application
 func (c *EpinioClient) AppRestage(appName string) error {
-	log := c.Log.WithName("AppRestage").WithValues("Namespace", c.Config.Namespace, "Application", appName)
+	log := c.Log.WithName("AppRestage").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Namespace", c.Config.Namespace).
+		WithStringValue("Namespace", c.Settings.Namespace).
 		WithStringValue("Application", appName).
 		Msg("Restaging application")
 
@@ -544,7 +544,7 @@ func (c *EpinioClient) AppRestage(appName string) error {
 
 	log.V(1).Info("restaging application")
 
-	app, err := c.API.AppShow(c.Config.Namespace, appName)
+	app, err := c.API.AppShow(c.Settings.Namespace, appName)
 	if err != nil {
 		return err
 	}
