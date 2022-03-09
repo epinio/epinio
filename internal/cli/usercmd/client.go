@@ -19,10 +19,10 @@ type EpinioClient struct {
 	Settings *settings.Settings
 	Log      logr.Logger
 	ui       *termui.UI
-	API      ApiClient
+	API      APIClient
 }
 
-type ApiClient interface {
+type APIClient interface {
 	AuthToken() (string, error)
 	// app
 	AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error)
@@ -77,7 +77,7 @@ func New() (*EpinioClient, error) {
 	return NewEpinioClient(cfg, apiClient)
 }
 
-func NewEpinioClient(cfg *settings.Settings, apiClient ApiClient) (*EpinioClient, error) {
+func NewEpinioClient(cfg *settings.Settings, apiClient APIClient) (*EpinioClient, error) {
 	logger := tracelog.NewLogger().WithName("EpinioClient").V(3)
 
 	log := logger.WithName("NewEpinioClient")
