@@ -115,8 +115,8 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		By("Updating Epinio config", func() {
-			out, err := epinioHelper.Run("config", "update")
+		By("Updating Epinio settings", func() {
+			out, err := epinioHelper.Run("settings", "update")
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Ok"))
 		})

@@ -14,7 +14,7 @@ The `epinio install` command creates a default user for you with auto-generated
 credentials. You can find your current user's credentials with the command:
 
 ```
-epinio config show
+epinio settings show
 ```
 
 ## Adding a new user
@@ -48,11 +48,11 @@ type: BasicAuth
 kubectl apply -f fantasticuser.yaml
 ```
 
-Now you can edit your `~/.config/epinio/config.yaml` and set `pass` and `user`
+Now you can edit your `~/.config/epinio/settings.yaml` and set `pass` and `user`
 to the new credentials above. You can delete all users and add new ones at any
 time.
 
 ## NOTE
 
-The admin command `epinio config update` updates the epinio `config.yaml`
+The admin command `epinio settings update` updates the epinio `settings.yaml`
 with the credentials of the "oldest" user, based on creation date.

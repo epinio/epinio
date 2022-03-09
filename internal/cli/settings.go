@@ -6,7 +6,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/cli/admincmd"
-	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -14,11 +14,11 @@ import (
 
 var ()
 
-// CmdConfig implements the command: epinio config
-var CmdConfig = &cobra.Command{
-	Use:           "config",
-	Short:         "Epinio config management",
-	Long:          `Manage the epinio cli configuration`,
+// CmdSettings implements the command: epinio settings
+var CmdSettings = &cobra.Command{
+	Use:           "settings",
+	Short:         "Epinio settings management",
+	Long:          `Manage the epinio cli settings`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
 	Args:          cobra.MinimumNArgs(1),
@@ -31,13 +31,13 @@ var CmdConfig = &cobra.Command{
 }
 
 func init() {
-	CmdConfig.AddCommand(CmdConfigUpdate)
-	CmdConfig.AddCommand(CmdConfigShow)
-	CmdConfig.AddCommand(CmdConfigColors)
+	CmdSettings.AddCommand(CmdSettingsUpdate)
+	CmdSettings.AddCommand(CmdSettingsShow)
+	CmdSettings.AddCommand(CmdSettingsColors)
 }
 
-// CmdConfigColors implements the command: epinio config colors
-var CmdConfigColors = &cobra.Command{
+// CmdSettingsColors implements the command: epinio settings colors
+var CmdSettingsColors = &cobra.Command{
 	Use:   "colors BOOL",
 	Short: "Manage colored output",
 	Long:  "Enable/Disable colored output",
@@ -56,12 +56,12 @@ var CmdConfigColors = &cobra.Command{
 
 		ui := termui.NewUI()
 
-		theConfig, err := config.Load()
+		theSettings, err := settings.Load()
 		if err != nil {
-			return errors.Wrap(err, "failed to load configuration")
+			return errors.Wrap(err, "failed to load settings")
 		}
 
-		ui.Note().WithStringValue("Config", theConfig.Location).Msg("Edit Colorization Flag")
+		ui.Note().WithStringValue("Settings", theSettings.Location).Msg("Edit Colorization Flag")
 
 		colors, err := strconv.ParseBool(args[0])
 		// assert: err == nil -- see args validation
@@ -69,46 +69,46 @@ var CmdConfigColors = &cobra.Command{
 			return errors.Wrap(err, "unexpected bool parsing error")
 		}
 
-		theConfig.Colors = colors
-		if err := theConfig.Save(); err != nil {
+		theSettings.Colors = colors
+		if err := theSettings.Save(); err != nil {
 			return err
 		}
 
-		ui.Success().WithBoolValue("Colors", theConfig.Colors).Msg("Ok")
+		ui.Success().WithBoolValue("Colors", theSettings.Colors).Msg("Ok")
 		return nil
 	},
 }
 
-// CmdConfigShow implements the command: epinio config show
-var CmdConfigShow = &cobra.Command{
+// CmdSettingsShow implements the command: epinio settings show
+var CmdSettingsShow = &cobra.Command{
 	Use:   "show",
-	Short: "Show the current configuration",
+	Short: "Show the current settings",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
 		ui := termui.NewUI()
 
-		theConfig, err := config.Load()
+		theSettings, err := settings.Load()
 		if err != nil {
-			return errors.Wrap(err, "failed to load configuration")
+			return errors.Wrap(err, "failed to load settings")
 		}
 
-		ui.Note().WithStringValue("Config", theConfig.Location).Msg("Show Configuration")
+		ui.Note().WithStringValue("Settings", theSettings.Location).Msg("Show Settings")
 
 		certInfo := color.CyanString("None defined")
-		if theConfig.Certs != "" {
+		if theSettings.Certs != "" {
 			certInfo = color.BlueString("Present")
 		}
 
 		ui.Success().
 			WithTable("Key", "Value").
-			WithTableRow("Colorized Output", color.MagentaString("%t", theConfig.Colors)).
-			WithTableRow("Current Namespace", color.CyanString(theConfig.Namespace)).
-			WithTableRow("API User Name", color.BlueString(theConfig.User)).
-			WithTableRow("API Password", color.BlueString(theConfig.Password)).
-			WithTableRow("API Url", color.BlueString(theConfig.API)).
-			WithTableRow("WSS Url", color.BlueString(theConfig.WSS)).
+			WithTableRow("Colorized Output", color.MagentaString("%t", theSettings.Colors)).
+			WithTableRow("Current Namespace", color.CyanString(theSettings.Namespace)).
+			WithTableRow("API User Name", color.BlueString(theSettings.User)).
+			WithTableRow("API Password", color.BlueString(theSettings.Password)).
+			WithTableRow("API Url", color.BlueString(theSettings.API)).
+			WithTableRow("WSS Url", color.BlueString(theSettings.WSS)).
 			WithTableRow("Certificates", certInfo).
 			Msg("Ok")
 
@@ -116,8 +116,8 @@ var CmdConfigShow = &cobra.Command{
 	},
 }
 
-// CmdConfigUpdate implements the command: epinio config update
-var CmdConfigUpdate = &cobra.Command{
+// CmdSettingsUpdate implements the command: epinio settings update
+var CmdSettingsUpdate = &cobra.Command{
 	Use:   "update",
 	Short: "Update the api location & stored credentials",
 	Long:  "Update the api location and stored credentials from the current cluster",
@@ -131,9 +131,9 @@ var CmdConfigUpdate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.ConfigUpdate(cmd.Context())
+		err = client.SettingsUpdate(cmd.Context())
 		if err != nil {
-			return errors.Wrap(err, "failed to update the configuration")
+			return errors.Wrap(err, "failed to update the settings")
 		}
 
 		return nil

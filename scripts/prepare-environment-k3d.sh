@@ -51,7 +51,7 @@ k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh
 
-"${EPINIO_BINARY}" config update
+"${EPINIO_BINARY}" settings update
 
 # Check Epinio Installation
 # Retry 5 times because sometimes it takes a while before epinio server

@@ -4,7 +4,7 @@ package usercmd
 import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
-	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/cli/settings"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
 
@@ -16,16 +16,16 @@ var epinioClientMemo *epinioapi.Client
 // EpinioClient provides functionality for talking to a
 // Epinio installation on Kubernetes
 type EpinioClient struct {
-	Config *config.Config
-	Log    logr.Logger
-	ui     *termui.UI
-	API    *epinioapi.Client
+	Settings *settings.Settings
+	Log      logr.Logger
+	ui       *termui.UI
+	API      *epinioapi.Client
 }
 
 func New() (*EpinioClient, error) {
-	cfg, err := config.Load()
+	cfg, err := settings.Load()
 	if err != nil {
-		return nil, errors.Wrap(err, "error loading config")
+		return nil, errors.Wrap(err, "error loading settings")
 	}
 
 	ui := termui.NewUI()
@@ -39,13 +39,13 @@ func New() (*EpinioClient, error) {
 
 	log := logger.WithName("New")
 	log.Info("Ingress API", "url", serverURL)
-	log.Info("Config API", "url", cfg.API)
+	log.Info("Settings API", "url", cfg.API)
 
 	epinioClient := &EpinioClient{
-		API:    apiClient,
-		ui:     ui,
-		Config: cfg,
-		Log:    logger,
+		API:      apiClient,
+		ui:       ui,
+		Settings: cfg,
+		Log:      logger,
 	}
 	return epinioClient, nil
 }
@@ -66,17 +66,17 @@ func getEpinioAPIClient(logger logr.Logger) (*epinioapi.Client, error) {
 		return epinioClientMemo, nil
 	}
 
-	// Check for information cached in the Epinio configuration,
+	// Check for information cached in the Epinio settings,
 	// and return if such is found. Cache into memory as well.
-	log.Info("query configuration")
+	log.Info("query settings")
 
-	cfg, err := config.Load()
+	cfg, err := settings.Load()
 	if err != nil {
 		return nil, err
 	}
 
 	if cfg.API != "" && cfg.WSS != "" {
-		log.Info("cached in config")
+		log.Info("cached in settings")
 
 		epinioClient := epinioapi.New(log, cfg.API, cfg.WSS, cfg.User, cfg.Password)
 		epinioClientMemo = epinioClient
@@ -84,5 +84,5 @@ func getEpinioAPIClient(logger logr.Logger) (*epinioapi.Client, error) {
 		return epinioClient, nil
 	}
 
-	return nil, errors.New("Epinio no longer queries the cluster, please run epinio config update or ask your operator for help")
+	return nil, errors.New("Epinio no longer queries the cluster, please run epinio settings update or ask your operator for help")
 }

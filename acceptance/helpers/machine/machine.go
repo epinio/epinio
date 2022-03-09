@@ -16,7 +16,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/gorilla/websocket"
 )
 
@@ -141,10 +141,10 @@ func (m *Machine) GetPodNames(appName, namespaceName string) []string {
 	return strings.Split(out, "\n")
 }
 
-func (m *Machine) GetConfigFrom(location string) (*config.Config, error) {
-	return config.LoadFrom(location)
+func (m *Machine) GetSettingsFrom(location string) (*settings.Settings, error) {
+	return settings.LoadFrom(location)
 }
 
-func (m *Machine) GetConfig() (*config.Config, error) {
-	return config.Load()
+func (m *Machine) GetSettings() (*settings.Settings, error) {
+	return settings.Load()
 }
