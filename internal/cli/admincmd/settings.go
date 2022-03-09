@@ -10,7 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/auth"
-	"github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
 
@@ -27,38 +27,38 @@ const (
 // Admin provides functionality for administering Epinio installations on
 // Kubernetes
 type Admin struct {
-	Config *config.Config
-	Log    logr.Logger
-	ui     *termui.UI
+	Settings *settings.Settings
+	Log      logr.Logger
+	ui       *termui.UI
 }
 
 func New() (*Admin, error) {
-	configConfig, err := config.Load()
+	settingsSettings, err := settings.Load()
 	if err != nil {
 		return nil, err
 	}
 
 	uiUI := termui.NewUI()
 
-	logger := tracelog.NewLogger().WithName("EpinioConfig").V(3)
+	logger := tracelog.NewLogger().WithName("EpinioSettings").V(3)
 
 	return &Admin{
-		ui:     uiUI,
-		Config: configConfig,
-		Log:    logger,
+		ui:       uiUI,
+		Settings: settingsSettings,
+		Log:      logger,
 	}, nil
 }
 
-// ConfigUpdate updates the credentials stored in the config from the
+// SettingsUpdate updates the credentials stored in the settings from the
 // currently targeted kube cluster. It does not use the API server.
-func (a *Admin) ConfigUpdate(ctx context.Context) error {
-	log := a.Log.WithName("ConfigUpdate")
+func (a *Admin) SettingsUpdate(ctx context.Context) error {
+	log := a.Log.WithName("SettingsUpdate")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	a.ui.Note().
-		WithStringValue("Config", a.Config.Location).
+		WithStringValue("Settings", a.Settings.Location).
 		Msg("Updating the stored credentials from the current cluster")
 
 	details.Info("retrieving credentials")
@@ -89,20 +89,20 @@ func (a *Admin) ConfigUpdate(ctx context.Context) error {
 
 	details.Info("retrieved certs", "certs", certs)
 
-	a.Config.User = user
-	a.Config.Password = password
-	a.Config.API = api
-	a.Config.WSS = wss
-	a.Config.Certs = certs
+	a.Settings.User = user
+	a.Settings.Password = password
+	a.Settings.API = api
+	a.Settings.WSS = wss
+	a.Settings.Certs = certs
 
 	details.Info("saving",
-		"user", a.Config.User,
-		"pass", a.Config.Password,
-		"api", a.Config.API,
-		"wss", a.Config.WSS,
-		"cert", a.Config.Certs)
+		"user", a.Settings.User,
+		"pass", a.Settings.Password,
+		"api", a.Settings.API,
+		"wss", a.Settings.WSS,
+		"cert", a.Settings.Certs)
 
-	err = a.Config.Save()
+	err = a.Settings.Save()
 	if err != nil {
 		a.ui.Exclamation().Msg(errors.Wrap(err, "failed to save configuration").Error())
 		return nil
@@ -115,7 +115,7 @@ func (a *Admin) ConfigUpdate(ctx context.Context) error {
 }
 
 func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
-	// This is called only by the admin command `config update`
+	// This is called only by the admin command `settings update`
 	// which has to talk to the cluster to retrieve the
 	// information. This is allowed.
 
@@ -135,11 +135,11 @@ func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 }
 
 func getCerts(ctx context.Context, log logr.Logger) (string, error) {
-	// This is called only by the admin command `config update`
+	// This is called only by the admin command `settings update`
 	// which has to talk to the cluster to retrieve the
 	// information. This is allowed.
 
-	// Save the  CA cert into the config. The regular client
+	// Save the  CA cert into the settings. The regular client
 	// will then extend the Cert pool with the same, so that it
 	// can cerify the server cert.
 

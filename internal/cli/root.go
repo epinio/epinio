@@ -9,7 +9,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/tracelog"
-	pconfig "github.com/epinio/epinio/internal/cli/config"
+	settings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/spf13/cobra"
@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	flagConfigFile string
+	flagSettingsFile string
 )
 
 // NewEpinioCLI returns the main `epinio` cli.
@@ -46,10 +46,10 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	argToEnv := map[string]string{}
 
-	pf.StringVarP(&flagConfigFile, "config-file", "", pconfig.DefaultLocation(),
-		"set path of configuration file")
-	viper.BindPFlag("config-file", pf.Lookup("config-file"))
-	argToEnv["config-file"] = "EPINIO_CONFIG"
+	pf.StringVarP(&flagSettingsFile, "settings-file", "", settings.DefaultLocation(),
+		"set path of settings file")
+	viper.BindPFlag("settings-file", pf.Lookup("settings-file"))
+	argToEnv["settings-file"] = "EPINIO_SETTINGS"
 
 	config.KubeConfigFlags(pf, argToEnv)
 	tracelog.LoggerFlags(pf, argToEnv)
@@ -70,7 +70,7 @@ func init() {
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
 	rootCmd.AddCommand(CmdCompletion)
-	rootCmd.AddCommand(CmdConfig)
+	rootCmd.AddCommand(CmdSettings)
 	rootCmd.AddCommand(CmdInfo)
 	rootCmd.AddCommand(CmdNamespace)
 	rootCmd.AddCommand(CmdAppPush) // shorthand access to `app push`.

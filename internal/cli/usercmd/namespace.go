@@ -95,9 +95,9 @@ func (c *EpinioClient) Target(namespace string) error {
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	if namespace == "" {
-		details.Info("query config")
+		details.Info("query settings")
 		c.ui.Success().
-			WithStringValue("Currently targeted namespace", c.Config.Namespace).
+			WithStringValue("Currently targeted namespace", c.Settings.Namespace).
 			Msg("")
 		return nil
 	}
@@ -106,11 +106,11 @@ func (c *EpinioClient) Target(namespace string) error {
 		WithStringValue("Name", namespace).
 		Msg("Targeting namespace...")
 
-	details.Info("set config")
-	c.Config.Namespace = namespace
-	err := c.Config.Save()
+	details.Info("set settings")
+	c.Settings.Namespace = namespace
+	err := c.Settings.Save()
 	if err != nil {
-		return errors.Wrap(err, "failed to save configuration")
+		return errors.Wrap(err, "failed to save settings")
 	}
 
 	c.ui.Success().Msg("Namespace targeted.")
@@ -119,7 +119,7 @@ func (c *EpinioClient) Target(namespace string) error {
 }
 
 func (c *EpinioClient) TargetOk() error {
-	if c.Config.Namespace == "" {
+	if c.Settings.Namespace == "" {
 		return errors.New("Internal Error: No namespace targeted")
 	}
 	return nil

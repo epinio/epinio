@@ -8,7 +8,7 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	epinioConfig "github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/cli/settings"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -38,11 +38,11 @@ var _ = BeforeSuite(func() {
 	nodeTmpDir, err := ioutil.TempDir("", "epinio-"+nodeSuffix)
 	Expect(err).NotTo(HaveOccurred())
 
-	out, err := testenv.CopyEpinioConfig(nodeTmpDir)
+	out, err := testenv.CopyEpinioSettings(nodeTmpDir)
 	Expect(err).ToNot(HaveOccurred(), out)
-	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
+	os.Setenv("EPINIO_SETTINGS", nodeTmpDir+"/epinio.yaml")
 
-	config, err := epinioConfig.LoadFrom(nodeTmpDir + "/epinio.yaml")
+	config, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
 	env = testenv.New(nodeTmpDir, testenv.Root(), config.User, config.Password)

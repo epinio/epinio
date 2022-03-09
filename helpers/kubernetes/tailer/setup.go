@@ -17,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 )
 
-// Config contains the config for stern
 type Config struct {
 	Namespace             string           // Name of the namespace to monitor
 	PodQuery              *regexp.Regexp   // Limit monitoring to pods matching the RE

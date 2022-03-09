@@ -34,7 +34,7 @@ focus a run on specific tests, as per ginkgo's documentation.
 
    1. `KUBCONFIG`: This will give access the kubernetes cluster.
    
-   2. `EPINIO_CONFIG`: This will provide credentials to be used by tests
+   2. `EPINIO_SETTINGS`: This will provide credentials to be used by tests
       to access the epinio server
    
    3. `EPINIO_BINARY`: This will provide the path of epinio binary to be

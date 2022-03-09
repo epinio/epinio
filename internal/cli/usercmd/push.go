@@ -35,7 +35,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	source := params.Origin.String()
 	appRef := models.AppRef{
 		Name:      params.Name,
-		Namespace: c.Config.Namespace,
+		Namespace: c.Settings.Namespace,
 	}
 	log := c.Log.
 		WithName("Push").

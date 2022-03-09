@@ -47,7 +47,7 @@ else
   MIRROR_NAME="$SHARED_REGISTRY_MIRROR"
 fi
 
-echo "Writing epinio config yaml"
+echo "Writing epinio settings yaml"
 TMP_CONFIG="$(mktemp)"
 trap "rm -f $TMP_CONFIG" EXIT
 

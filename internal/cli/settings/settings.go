@@ -1,4 +1,4 @@
-package config
+package settings
 
 import (
 	"crypto/tls"
@@ -19,11 +19,11 @@ import (
 )
 
 var (
-	defaultConfigFilePath = os.ExpandEnv("${HOME}/.config/epinio/config.yaml")
+	defaultSettingsFilePath = os.ExpandEnv("${HOME}/.config/epinio/settings.yaml")
 )
 
-// Config represents a epinio config
-type Config struct {
+// Settings represents a epinio settings
+type Settings struct {
 	Namespace string `mapstructure:"namespace"`
 	User      string `mapstructure:"user"`
 	Password  string `mapstructure:"pass"`
@@ -38,21 +38,21 @@ type Config struct {
 	log logr.Logger
 }
 
-// DefaultLocation returns the standard location for the configuration file
+// DefaultLocation returns the standard location for the settings file
 func DefaultLocation() string {
-	return defaultConfigFilePath
+	return defaultSettingsFilePath
 }
 
-// Load loads the Epinio config from the default location
-func Load() (*Config, error) {
+// Load loads the Epinio settings from the default location
+func Load() (*Settings, error) {
 	return LoadFrom(location())
 }
 
-// LoadFrom loads the Epinio config from a specific file
-func LoadFrom(file string) (*Config, error) {
-	cfg := new(Config)
+// LoadFrom loads the Epinio settings from a specific file
+func LoadFrom(file string) (*Settings, error) {
+	cfg := new(Settings)
 
-	log := tracelog.NewLogger().WithName(fmt.Sprintf("Config-%p", cfg)).V(3)
+	log := tracelog.NewLogger().WithName(fmt.Sprintf("Settings-%p", cfg)).V(3)
 	log.Info("Loading", "from", file)
 
 	v := viper.New()
@@ -72,21 +72,21 @@ func LoadFrom(file string) (*Config, error) {
 	v.SetDefault("certs", "")
 	v.SetDefault("colors", true)
 
-	configExists, err := fileExists(file)
+	settingsExists, err := fileExists(file)
 	if err != nil {
 		return nil, errors.Wrapf(err, "filesystem error")
 	}
 
-	if configExists {
+	if settingsExists {
 		if err := v.ReadInConfig(); err != nil {
-			return nil, errors.Wrapf(err, "failed to read config file '%s'", file)
+			return nil, errors.Wrapf(err, "failed to read settings file '%s'", file)
 		}
 	}
 	v.AutomaticEnv()
 
 	err = v.Unmarshal(cfg)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal config file")
+		return nil, errors.Wrap(err, "failed to unmarshal settings file")
 	}
 
 	cfg.v = v
@@ -126,15 +126,15 @@ func LoadFrom(file string) (*Config, error) {
 	return cfg, nil
 }
 
-// Generates a string representation of the configuration (for debugging)
-func (c *Config) String() string {
+// Generates a string representation of the settings (for debugging)
+func (c *Settings) String() string {
 	return fmt.Sprintf(
 		"namespace=(%s), user=(%s), pass=(%s), api=(%s), wss=(%s), color=(%v), @(%s)",
 		c.Namespace, c.User, c.Password, c.API, c.WSS, c.Colors, c.Location)
 }
 
-// Save saves the Epinio config
-func (c *Config) Save() error {
+// Save saves the Epinio settings
+func (c *Settings) Save() error {
 	c.v.Set("namespace", c.Namespace)
 	c.v.Set("user", c.User)
 	c.v.Set("pass", c.Password)
@@ -147,17 +147,17 @@ func (c *Config) Save() error {
 
 	err := os.MkdirAll(filepath.Dir(c.v.ConfigFileUsed()), 0700)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create config dir '%s'", filepath.Dir(c.v.ConfigFileUsed()))
+		return errors.Wrapf(err, "failed to create settings dir '%s'", filepath.Dir(c.v.ConfigFileUsed()))
 	}
 
 	err = c.v.WriteConfig()
 	if err != nil {
-		return errors.Wrapf(err, "failed to write config file '%s'", c.v.ConfigFileUsed())
+		return errors.Wrapf(err, "failed to write settings file '%s'", c.v.ConfigFileUsed())
 	}
 
 	c.log.Info("Saved", "value", c.String())
 
-	// Note: Install saves the config via ConfigUpdate. The newly
+	// Note: Install saves the settings via SettingsUpdate. The newly
 	// retrieved cert(s) have to be made available now, so that
 	// creation of the default org can do proper verification.
 	if c.Certs != "" {
@@ -168,7 +168,7 @@ func (c *Config) Save() error {
 }
 
 func location() string {
-	return viper.GetString("config-file")
+	return viper.GetString("settings-file")
 }
 
 func fileExists(path string) (bool, error) {

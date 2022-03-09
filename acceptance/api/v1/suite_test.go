@@ -11,7 +11,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	epinioConfig "github.com/epinio/epinio/internal/cli/config"
+	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -45,13 +45,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	nodeTmpDir, err := ioutil.TempDir("", "epinio-"+nodeSuffix)
 	Expect(err).NotTo(HaveOccurred())
 
-	out, err := testenv.CopyEpinioConfig(nodeTmpDir)
+	out, err := testenv.CopyEpinioSettings(nodeTmpDir)
 	Expect(err).ToNot(HaveOccurred(), out)
-	os.Setenv("EPINIO_CONFIG", nodeTmpDir+"/epinio.yaml")
+	os.Setenv("EPINIO_SETTINGS", nodeTmpDir+"/epinio.yaml")
 
-	config, err := epinioConfig.LoadFrom(nodeTmpDir + "/epinio.yaml")
+	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
-	env = testenv.New(nodeTmpDir, testenv.Root(), config.User, config.Password)
+	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password)
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",

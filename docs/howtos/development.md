@@ -38,6 +38,8 @@ Look at the Makefile at the root of the project to see what is available.
 
 ### Installing Epinio
 
+# TODO: Update this section
+
 While we have a [dedicated document](https://docs.epinio.io/installation/installation.html) for cluster
 specific instructions, there are some differences for dev environments.
 These differences are explained in the section [Behind the curtains](#curtain) at the end of this document.
@@ -48,30 +50,13 @@ for the `system-domain` installation argument. If the variable is not set, it wi
 in the form of "1.2.3.4.omg.howdoi.website" where `1.2.3.4` is the IP address of your k3d cluster and
 `omg.howdoi.website` is a mirror-dns service which resolves to the IP address in front of it (similar to nip.io, xip.io etc).
 
-For all other environments the following commands should be sufficient:
+For all other environments the instructions [on our documentation site](https://docs.epinio.io/installation/installation.html) should
+be followed. After installation, this make target will replace the epinio API server
+with your locally built version:
 
 ```
-EPINIO_DONT_WAIT_FOR_DEPLOYMENT=1 ./dist/epinio-linux-amd64 install --system-domain=your-system-domain-here.org
 make patch-epinio-deployment
 ```
-
-You have to use a `system-domain` that points to the Traefik Service on your cluster.
-Depending on the type of cluster you use, this IP address may be the one of your
-cluster's container (e.g. in k3d, kind etc) or one provided by a load balancer
-(e.g. in public cloud providers). In any case, if you don't know what that IP address
-is before the Epinio installation, it will be printed for you at the end of the
-installation. You can then use it to set up your DNS after the fact.
-
-After making changes to the binary simply invoking `make patch-epinio-deployment` again
-will upload the changes into the running cluster.
-
-Another thing `epinio install` does after deploying all components is
-the creation and targeting of a standard namespace, `workspace`.
-
-Another post-deployment action performed by `install` is the automatic `config update`
-saving API credentials and certs into the client configuration file. As that
-command talks directly to the cluster and not the epinio API the
-failing server component does not matter.
 
 If the cluster is not running on linux-amd64 it will be necessary to set
 `EPINIO_BINARY_PATH` to the correct binary to place into the epinio server

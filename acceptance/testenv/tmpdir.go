@@ -48,7 +48,7 @@ func CleanupTmp() (string, error) {
 	return proc.Run("", true, "rm", append([]string{"-rf"}, temps...)...)
 }
 
-// CopyEpinioConfig copies the epinio yaml to the given dir
-func CopyEpinioConfig(dir string) (string, error) {
+// CopyEpinioSettings copies the epinio yaml to the given dir
+func CopyEpinioSettings(dir string) (string, error) {
 	return proc.Run("", false, "cp", EpinioYAML(), dir+"/epinio.yaml")
 }
