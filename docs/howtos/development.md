@@ -48,7 +48,7 @@ Since we use `k3d` in our CI tests we have created the make target `prepare_envi
 such an environment. That script uses the value of the "EPINIO_SYSTEM_DOMAIN" environment variable
 for the `system-domain` installation argument. If the variable is not set, it will try to use a "magic" domain
 in the form of "1.2.3.4.omg.howdoi.website" where `1.2.3.4` is the IP address of your k3d cluster and
-`omg.howdoi.website` is a mirror-dns service which resolves to the IP address in front of it (similar to nip.io, xip.io etc).
+`omg.howdoi.website` is a mirror-dns configuration which resolves to the IP address in front of it (similar to nip.io, xip.io etc).
 
 For all other environments the instructions [on our documentation site](https://docs.epinio.io/installation/installation.html) should
 be followed. After installation, this make target will replace the epinio API server

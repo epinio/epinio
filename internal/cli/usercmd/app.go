@@ -124,7 +124,7 @@ func (c *EpinioClient) Apps(all bool) error {
 	sort.Sort(apps)
 
 	if all {
-		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Services", "Status Details")
+		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Configurations", "Status Details")
 
 		for _, app := range apps {
 			if app.Workload == nil {
@@ -133,24 +133,24 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Meta.Name,
 					"n/a",
 					"n/a",
-					strings.Join(app.Configuration.Services, ", "),
+					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
 			} else {
 				sort.Strings(app.Workload.Routes)
-				sort.Strings(app.Configuration.Services)
+				sort.Strings(app.Configuration.Configurations)
 				msg = msg.WithTableRow(
 					app.Meta.Namespace,
 					app.Meta.Name,
 					app.Workload.Status,
 					strings.Join(app.Workload.Routes, ", "),
-					strings.Join(app.Configuration.Services, ", "),
+					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
 			}
 		}
 	} else {
-		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Services", "Status Details")
+		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Configurations", "Status Details")
 
 		for _, app := range apps {
 			if app.Workload == nil {
@@ -158,17 +158,17 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.Meta.Name,
 					"n/a",
 					"n/a",
-					strings.Join(app.Configuration.Services, ", "),
+					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
 			} else {
 				sort.Strings(app.Workload.Routes)
-				sort.Strings(app.Configuration.Services)
+				sort.Strings(app.Configuration.Configurations)
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Workload.Status,
 					strings.Join(app.Workload.Routes, ", "),
-					strings.Join(app.Configuration.Services, ", "),
+					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
 			}
@@ -522,14 +522,14 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 		return err
 	}
 
-	unboundServices := response.UnboundServices
-	if len(unboundServices) > 0 {
+	unboundConfigurations := response.UnboundConfigurations
+	if len(unboundConfigurations) > 0 {
 		s.Stop()
 
-		sort.Strings(unboundServices)
-		msg := c.ui.Note().WithTable("Unbound Services")
+		sort.Strings(unboundConfigurations)
+		msg := c.ui.Note().WithTable("Unbound Configurations")
 
-		for _, bonded := range unboundServices {
+		for _, bonded := range unboundConfigurations {
 			msg = msg.WithTableRow(bonded)
 		}
 		msg.Msg("")
@@ -582,7 +582,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	msg = msg.
 		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
-		WithTableRow("Bound Services", strings.Join(app.Configuration.Services, ", ")).
+		WithTableRow("Bound Configurations", strings.Join(app.Configuration.Configurations, ", ")).
 		WithTableRow("Environment", "")
 
 	if len(app.Configuration.Environment) > 0 {

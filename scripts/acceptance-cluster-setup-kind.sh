@@ -110,7 +110,7 @@ data:
 EOF
 
 date
-echo "Waiting for the deployments of the foundational services to be ready"
+echo "Waiting for the deployments of the foundational configurations to be ready"
 # 1200s = 20 min, to handle even a horrendously slow setup. Regular is 10 to 30 seconds.
 kubectl wait --for=condition=Available --namespace local-path-storage deployment/local-path-provisioner --timeout=1200s
 date

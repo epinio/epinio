@@ -53,22 +53,22 @@ var _ = Describe("Apps", func() {
 			Expect(out).To(MatchRegexp("Ok"))
 		})
 
-		Context("with service", func() {
-			var serviceName string
+		Context("with configuration", func() {
+			var configurationName string
 
 			BeforeEach(func() {
-				serviceName = catalog.NewServiceName()
-				env.MakeService(serviceName)
+				configurationName = catalog.NewConfigurationName()
+				env.MakeConfiguration(configurationName)
 			})
 
 			AfterEach(func() {
-				env.DeleteServiceUnbind(serviceName)
+				env.DeleteConfigurationUnbind(configurationName)
 				// env.DeleteApp see outer context
 			})
 
-			It("creates the app with instance count, services, and environment", func() {
+			It("creates the app with instance count, configurations, and environment", func() {
 				out, err := env.Epinio("", "app", "create", appName,
-					"--bind", serviceName,
+					"--bind", configurationName,
 					"--instances", "2",
 					"--env", "CREDO=up",
 					"--env", "DOGMA=no")
@@ -78,7 +78,7 @@ var _ = Describe("Apps", func() {
 				out, err = env.Epinio("", "app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
-				Expect(out).To(MatchRegexp(`Services\s*\|\s*` + serviceName + `\s*\|`))
+				Expect(out).To(MatchRegexp(`Configurations\s*\|\s*` + configurationName + `\s*\|`))
 				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
 				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
 			})
@@ -94,7 +94,7 @@ var _ = Describe("Apps", func() {
 
 				It("is possible to get a manifest", func() {
 					out, err := env.Epinio("", "app", "create", appName,
-						"--bind", serviceName,
+						"--bind", configurationName,
 						"--instances", "2",
 						"--env", "CREDO=up",
 						"--env", "DOGMA=no")
@@ -110,14 +110,14 @@ var _ = Describe("Apps", func() {
 					Expect(string(manifest)).To(MatchRegexp(fmt.Sprintf(`name: %s
 configuration:
   instances: 2
-  services:
+  configurations:
   - %s
   environment:
     CREDO: up
     DOGMA: "no"
   routes:
   - %s\..*
-`, appName, serviceName, appName)))
+`, appName, configurationName, appName)))
 				})
 			})
 		})
@@ -556,27 +556,27 @@ configuration:
 			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
 		})
 
-		Context("with service", func() {
-			var serviceName string
+		Context("with configuration", func() {
+			var configurationName string
 
 			BeforeEach(func() {
-				serviceName = catalog.NewServiceName()
-				env.MakeService(serviceName)
+				configurationName = catalog.NewConfigurationName()
+				env.MakeConfiguration(configurationName)
 			})
 
 			AfterEach(func() {
 				env.DeleteApp(appName)
-				env.DeleteService(serviceName)
+				env.DeleteConfiguration(configurationName)
 			})
 
-			It("pushes an app with bound services", func() {
+			It("pushes an app with bound configurations", func() {
 				currentDir, err := os.Getwd()
 				Expect(err).ToNot(HaveOccurred())
 
 				pushOutput, err := env.EpinioPush(path.Join(currentDir, "../assets/sample-app"),
 					appName,
 					"--name", appName,
-					"--bind", serviceName)
+					"--bind", configurationName)
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
@@ -584,24 +584,24 @@ configuration:
 					out, err := env.Epinio("", "app", "list")
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
-				}, "2m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
+				}, "2m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + configurationName))
 			})
 		})
 
-		It("unbinds bound services when deleting an app, and then deletes the service", func() {
-			serviceName := catalog.NewServiceName()
+		It("unbinds bound configurations when deleting an app, and then deletes the configuration", func() {
+			configurationName := catalog.NewConfigurationName()
 
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
-			env.MakeService(serviceName)
-			env.BindAppService(appName, serviceName, namespace)
+			env.MakeConfiguration(configurationName)
+			env.BindAppConfiguration(appName, configurationName, namespace)
 
 			By("deleting the app")
 			out, err := env.Epinio("", "app", "delete", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 			// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
-			Expect(out).To(MatchRegexp("UNBOUND SERVICES"))
-			Expect(out).To(MatchRegexp(serviceName))
+			Expect(out).To(MatchRegexp("UNBOUND CONFIGURATIONS"))
+			Expect(out).To(MatchRegexp(configurationName))
 
 			Eventually(func() string {
 				out, err := env.Epinio("", "app", "list")
@@ -609,7 +609,7 @@ configuration:
 				return out
 			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
 
-			env.DeleteService(serviceName)
+			env.DeleteConfiguration(configurationName)
 		})
 
 		Context("with environment variable", func() {
@@ -663,21 +663,21 @@ configuration:
 			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
 		})
 
-		Context("with service", func() {
-			var serviceName string
+		Context("with configuration", func() {
+			var configurationName string
 
 			BeforeEach(func() {
-				serviceName = catalog.NewServiceName()
-				env.MakeService(serviceName)
+				configurationName = catalog.NewConfigurationName()
+				env.MakeConfiguration(configurationName)
 			})
 
 			AfterEach(func() {
-				env.UnbindAppService(appName, serviceName, namespace)
-				env.DeleteService(serviceName)
+				env.UnbindAppConfiguration(appName, configurationName, namespace)
+				env.DeleteConfiguration(configurationName)
 				// DeleteApp see outer context
 			})
 
-			It("respects the bound services", func() {
+			It("respects the bound configurations", func() {
 				env.MakeContainerImageApp(appName, 1, containerImageURL)
 
 				Eventually(func() string {
@@ -687,7 +687,7 @@ configuration:
 					return out
 				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
 
-				out, err := env.Epinio("", "app", "update", appName, "--bind", serviceName)
+				out, err := env.Epinio("", "app", "update", appName, "--bind", configurationName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp("Successfully updated application"))
 
@@ -696,23 +696,23 @@ configuration:
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
-				}, "1m").Should(MatchRegexp(`Services\s*\|\s*` + serviceName + `\s*\|`))
+				}, "1m").Should(MatchRegexp(`Configurations\s*\|\s*` + configurationName + `\s*\|`))
 			})
 		})
 	})
 
 	Describe("list and show", func() {
-		var serviceName string
+		var configurationName string
 		BeforeEach(func() {
-			serviceName = catalog.NewServiceName()
+			configurationName = catalog.NewConfigurationName()
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
-			env.MakeService(serviceName)
-			env.BindAppService(appName, serviceName, namespace)
+			env.MakeConfiguration(configurationName)
+			env.BindAppConfiguration(appName, configurationName, namespace)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
-			env.CleanupService(serviceName)
+			env.CleanupConfiguration(configurationName)
 		})
 
 		It("lists all apps in the namespace", func() {
@@ -720,7 +720,7 @@ configuration:
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing applications"))
 			Expect(out).To(MatchRegexp(" " + appName + " "))
-			Expect(out).To(MatchRegexp(" " + serviceName + " "))
+			Expect(out).To(MatchRegexp(" " + configurationName + " "))
 		})
 
 		It("shows the details of an app", func() {
@@ -730,7 +730,7 @@ configuration:
 			Expect(out).To(MatchRegexp("Show application details"))
 			Expect(out).To(MatchRegexp("Application: " + appName))
 			Expect(out).To(MatchRegexp(`Origin .*\|.* ` + containerImageURL))
-			Expect(out).To(MatchRegexp(`Services .*\|.* ` + serviceName))
+			Expect(out).To(MatchRegexp(`Configurations .*\|.* ` + configurationName))
 			Expect(out).To(MatchRegexp("Routes .*\n|.* " + appName))
 
 			Eventually(func() string {

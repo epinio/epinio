@@ -1,4 +1,4 @@
-package servicebinding
+package configurationbinding
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -6,8 +6,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
-	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -20,8 +20,8 @@ import (
 // however always after it. IOW an internal error is always
 // the first element when reporting more than one error.
 
-// Create handles the API endpoint /namespaces/:namespace/applications/:app/servicebindings (POST)
-// It creates a binding between the specified service and application
+// Create handles the API endpoint /namespaces/:namespace/applications/:app/configurationbindings (POST)
+// It creates a binding between the specified configuration and application
 func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
@@ -35,13 +35,13 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	if len(bindRequest.Names) == 0 {
-		err := errors.New("Cannot bind service without names")
+		err := errors.New("Cannot bind configuration without names")
 		return apierror.BadRequest(err)
 	}
 
-	for _, serviceName := range bindRequest.Names {
-		if serviceName == "" {
-			err := errors.New("Cannot bind service with empty name")
+	for _, configurationName := range bindRequest.Names {
+		if configurationName == "" {
+			err := errors.New("Cannot bind configuration with empty name")
 			return apierror.BadRequest(err)
 		}
 	}
@@ -67,13 +67,13 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	// Collect errors and warnings per service, to report as much
+	// Collect errors and warnings per configuration, to report as much
 	// as possible while also applying as much as possible. IOW
 	// even when errors are reported it is possible for some of
-	// the services to be properly bound.
+	// the configurations to be properly bound.
 
 	// Take old state - See validation for use
-	oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
+	oldBound, err := application.BoundConfigurationNameSet(ctx, cluster, app.Meta)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -83,18 +83,18 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	var theIssues []apierror.APIError
 	var okToBind []string
 
-	// Validate existence of new services. Report invalid services as errors, later.
-	// Filter out the services already bound, to be reported as regular response.
-	for _, serviceName := range bindRequest.Names {
-		if _, ok := oldBound[serviceName]; ok {
-			resp.WasBound = append(resp.WasBound, serviceName)
+	// Validate existence of new configurations. Report invalid configurations as errors, later.
+	// Filter out the configurations already bound, to be reported as regular response.
+	for _, configurationName := range bindRequest.Names {
+		if _, ok := oldBound[configurationName]; ok {
+			resp.WasBound = append(resp.WasBound, configurationName)
 			continue
 		}
 
-		_, err := services.Lookup(ctx, cluster, namespace, serviceName)
+		_, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
 		if err != nil {
-			if err.Error() == "service not found" {
-				theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
+			if err.Error() == "configuration not found" {
+				theIssues = append(theIssues, apierror.ConfigurationIsNotKnown(configurationName))
 				continue
 			}
 
@@ -102,14 +102,14 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 			return apierror.NewMultiError(theIssues)
 		}
 
-		okToBind = append(okToBind, serviceName)
+		okToBind = append(okToBind, configurationName)
 	}
 
 	if len(okToBind) > 0 {
 		// Save those that were valid and not yet bound to the
 		// application. Extends the set.
 
-		err := application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, false)
+		err := application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
 			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
 			return apierror.NewMultiError(theIssues)

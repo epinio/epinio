@@ -1,4 +1,4 @@
-package servicebinding
+package configurationbinding
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -9,13 +9,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Delete handles the API endpoint /namespaces/:namespace/applications/:app/servicebindings/:service
-// It removes the binding between the specified service and application
+// Delete handles the API endpoint /namespaces/:namespace/applications/:app/configurationbindings/:configuration
+// It removes the binding between the specified configuration and application
 func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
-	serviceName := c.Param("service")
+	configurationName := c.Param("configuration")
 	username := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -31,7 +31,7 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	apiErr := DeleteBinding(ctx, cluster, namespace, appName, serviceName, username)
+	apiErr := DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)
 	if apiErr != nil {
 		return apiErr
 	}

@@ -7,8 +7,8 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
-	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -18,7 +18,7 @@ import (
 
 // Delete handles the API endpoint /namespaces/:namespace (DELETE).
 // It destroys the namespace specified by its name.
-// This includes all the applications and services in it.
+// This includes all the applications and configurations in it.
 func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
@@ -41,13 +41,13 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	serviceList, err := services.List(ctx, cluster, namespace)
+	configurationList, err := configurations.List(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	for _, service := range serviceList {
-		err = service.Delete(ctx)
+	for _, configuration := range configurationList {
+		err = configuration.Delete(ctx)
 		if err != nil && !apierrors.IsNotFound(err) {
 			return apierror.InternalError(err)
 		}

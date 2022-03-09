@@ -125,17 +125,17 @@ func (ar *AppRef) MakeEnvSecretName() string {
 	return names.GenerateResourceName(ar.Name + "-env")
 }
 
-// MakeServiceSecretName returns the name of the kube secret holding the
-// bound services of the referenced application
-func (ar *AppRef) MakeServiceSecretName() string {
-	// TODO: This needs tests for service operations on an app with a long name
+// MakeConfigurationSecretName returns the name of the kube secret holding the
+// bound configurations of the referenced application
+func (ar *AppRef) MakeConfigurationSecretName() string {
+	// TODO: This needs tests for configuration operations on an app with a long name
 	return names.GenerateResourceName(ar.Name + "-svc")
 }
 
 // MakeScaleSecretName returns the name of the kube secret holding the number
 // of desired instances for referenced application
 func (ar *AppRef) MakeScaleSecretName() string {
-	// TODO: This needs tests for service operations on an app with a long name
+	// TODO: This needs tests for configuration operations on an app with a long name
 	return names.GenerateResourceName(ar.Name + "-scale")
 }
 

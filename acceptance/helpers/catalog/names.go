@@ -32,10 +32,10 @@ func NewUserCredentials() (string, string) {
 	return strconv.Itoa(RandInt()), strconv.Itoa(RandInt())
 }
 
-func NewServiceName() string {
-	return "service-" + strconv.Itoa(int(time.Now().Nanosecond())) + strconv.Itoa(RandInt())
+func NewConfigurationName() string {
+	return "configuration-" + strconv.Itoa(int(time.Now().Nanosecond())) + strconv.Itoa(RandInt())
 }
 
-func GetServiceBindingName(namespaceName, serviceName, appName string) string {
-	return fmt.Sprintf("svc.namespace-%s.svc-%s.app-%s", namespaceName, serviceName, appName)
+func GetConfigurationBindingName(namespaceName, configurationName, appName string) string {
+	return fmt.Sprintf("svc.namespace-%s.svc-%s.app-%s", namespaceName, configurationName, appName)
 }

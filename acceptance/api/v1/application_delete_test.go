@@ -28,13 +28,13 @@ var _ = Describe("AppDelete Endpoint", func() {
 		env.DeleteNamespace(namespace)
 	})
 
-	It("removes the application, unbinds bound services", func() {
+	It("removes the application, unbinds bound configurations", func() {
 		app1 := catalog.NewAppName()
 		env.MakeContainerImageApp(app1, 1, containerImageURL)
-		service := catalog.NewServiceName()
-		env.MakeService(service)
-		env.BindAppService(app1, service, namespace)
-		defer env.CleanupService(service)
+		configuration := catalog.NewConfigurationName()
+		env.MakeConfiguration(configuration)
+		env.BindAppConfiguration(app1, configuration, namespace)
+		defer env.CleanupConfiguration(configuration)
 
 		response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
 			serverURL, v1.Root, namespace, app1), strings.NewReader(""))
@@ -49,8 +49,8 @@ var _ = Describe("AppDelete Endpoint", func() {
 		err = json.Unmarshal(bodyBytes, &resp)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(resp).To(HaveLen(1))
-		Expect(resp).To(HaveKey("unboundservices"))
-		Expect(resp["unboundservices"]).To(ContainElement(service))
+		Expect(resp).To(HaveKey("unboundconfigurations"))
+		Expect(resp["unboundconfigurations"]).To(ContainElement(configuration))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

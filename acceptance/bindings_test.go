@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Bounds between Apps & Services", func() {
+var _ = Describe("Bounds between Apps & Configurations", func() {
 	var namespace string
 	containerImageURL := "splatform/sample-app"
 
@@ -17,22 +17,22 @@ var _ = Describe("Bounds between Apps & Services", func() {
 	})
 	Describe("Display", func() {
 		var appName string
-		var serviceName string
+		var configurationName string
 		BeforeEach(func() {
 			appName = catalog.NewAppName()
-			serviceName = catalog.NewServiceName()
+			configurationName = catalog.NewConfigurationName()
 
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
-			env.MakeService(serviceName)
-			env.BindAppService(appName, serviceName, namespace)
+			env.MakeConfiguration(configurationName)
+			env.BindAppConfiguration(appName, configurationName, namespace)
 		})
-		It("shows the bound app for services list, and vice versa", func() {
-			out, err := env.Epinio("", "service", "list")
+		It("shows the bound app for configurations list, and vice versa", func() {
+			out, err := env.Epinio("", "configuration", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(serviceName + `.*` + appName))
+			Expect(out).To(MatchRegexp(configurationName + `.*` + appName))
 
 			// The next check uses `Eventually` because binding the
-			// service to the app forces a restart of the app's
+			// configuration to the app forces a restart of the app's
 			// pod. It takes the system some time to terminate the
 			// old pod, and spin up the new, during which `app list`
 			// will return inconsistent results about the desired
@@ -43,12 +43,12 @@ var _ = Describe("Bounds between Apps & Services", func() {
 				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + serviceName))
+			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + configurationName))
 		})
 		AfterEach(func() {
-			// Delete app first, as this also unbinds the service
+			// Delete app first, as this also unbinds the configuration
 			env.CleanupApp(appName)
-			env.CleanupService(serviceName)
+			env.CleanupConfiguration(configurationName)
 		})
 	})
 })

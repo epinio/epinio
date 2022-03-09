@@ -98,7 +98,7 @@ var CmdNamespaceDelete = &cobra.Command{
 			return err
 		}
 		if !force {
-			cmd.Printf("You are about to delete namespace %s and everything it includes, i.e. applications, services, etc. Are you sure? (y/n): ", args[0])
+			cmd.Printf("You are about to delete namespace %s and everything it includes, i.e. applications, configurations, etc. Are you sure? (y/n): ", args[0])
 			if !askConfirmation(cmd) {
 				return errors.New("Cancelled by user")
 			}

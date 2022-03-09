@@ -54,16 +54,16 @@ type APIClient interface {
 	NamespaceShow(namespace string) (models.Namespace, error)
 	NamespacesMatch(prefix string) (models.NamespacesMatchResponse, error)
 	Namespaces() (models.NamespaceList, error)
-	// services
-	Services(namespace string) (models.ServiceResponseList, error)
-	AllServices() (models.ServiceResponseList, error)
-	ServiceBindingCreate(req models.BindRequest, namespace string, appName string) (models.BindResponse, error)
-	ServiceBindingDelete(namespace string, appName string, serviceName string) (models.Response, error)
-	ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f epinioapi.ErrorFunc) (models.ServiceDeleteResponse, error)
-	ServiceCreate(req models.ServiceCreateRequest, namespace string) (models.Response, error)
-	ServiceUpdate(req models.ServiceUpdateRequest, namespace, name string) (models.Response, error)
-	ServiceShow(namespace string, name string) (models.ServiceResponse, error)
-	ServiceApps(namespace string) (models.ServiceAppsResponse, error)
+	// configurations
+	Configurations(namespace string) (models.ConfigurationResponseList, error)
+	AllConfigurations() (models.ConfigurationResponseList, error)
+	ConfigurationBindingCreate(req models.BindRequest, namespace string, appName string) (models.BindResponse, error)
+	ConfigurationBindingDelete(namespace string, appName string, configurationName string) (models.Response, error)
+	ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, name string, f epinioapi.ErrorFunc) (models.ConfigurationDeleteResponse, error)
+	ConfigurationCreate(req models.ConfigurationCreateRequest, namespace string) (models.Response, error)
+	ConfigurationUpdate(req models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error)
+	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)
+	ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error)
 }
 
 func New() (*EpinioClient, error) {

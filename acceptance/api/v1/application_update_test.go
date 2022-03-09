@@ -221,25 +221,25 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			checkSecretsForCerts(app, namespace, newRoutes...)
 		})
 	})
-	Describe("service bindings", func() {
+	Describe("configuration bindings", func() {
 		var (
-			app               string
-			service, service2 string
+			app                           string
+			configuration, configuration2 string
 		)
 
 		BeforeEach(func() {
 			app = catalog.NewAppName()
 			env.MakeContainerImageApp(app, 1, containerImageURL)
-			service = catalog.NewServiceName()
-			env.MakeService(service)
-			service2 = catalog.NewServiceName()
-			env.MakeService(service2)
+			configuration = catalog.NewConfigurationName()
+			env.MakeConfiguration(configuration)
+			configuration2 = catalog.NewConfigurationName()
+			env.MakeConfiguration(configuration2)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(app)
-			env.DeleteService(service)
-			env.DeleteService(service2)
+			env.DeleteConfiguration(configuration)
+			env.DeleteConfiguration(configuration2)
 		})
 
 		// helper function to allow deterministic string comparison
@@ -248,7 +248,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			return strings
 		}
 
-		readServiceBindings := func(namespace, app string) []string {
+		readConfigurationBindings := func(namespace, app string) []string {
 			response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
 				serverURL, v1.Root, namespace, app), strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
@@ -261,16 +261,16 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			var data models.App
 			err = json.Unmarshal(bodyBytes, &data)
 			Expect(err).ToNot(HaveOccurred())
-			return data.Configuration.Services
+			return data.Configuration.Configurations
 		}
 
-		It("binds a service to an app", func() {
-			serviceBindings := readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal([]string{}))
+		It("binds a configuration to an app", func() {
+			configurationBindings := readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal([]string{}))
 
-			newServiceBinding := []string{service}
+			newConfigurationBinding := []string{configuration}
 			data, err := json.Marshal(models.ApplicationUpdateRequest{
-				Services: newServiceBinding,
+				Configurations: newConfigurationBinding,
 			})
 			Expect(err).ToNot(HaveOccurred())
 			response, err := env.Curl("PATCH",
@@ -280,21 +280,21 @@ var _ = Describe("AppUpdate Endpoint", func() {
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
-			serviceBindings = readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal([]string{service}))
+			configurationBindings = readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal([]string{configuration}))
 		})
 
-		It("unbinds a service from an app", func() {
-			env.BindAppService(app, service, namespace)
-			env.BindAppService(app, service2, namespace)
+		It("unbinds a configuration from an app", func() {
+			env.BindAppConfiguration(app, configuration, namespace)
+			env.BindAppConfiguration(app, configuration2, namespace)
 
-			serviceBindings := readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal(sortStrings([]string{service, service2})))
+			configurationBindings := readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal(sortStrings([]string{configuration, configuration2})))
 
-			// delete a single service by only providing one of the two bound services
-			newServiceBinding := []string{service2}
+			// delete a single configuration by only providing one of the two bound configurations
+			newConfigurationBinding := []string{configuration2}
 			data, err := json.Marshal(models.ApplicationUpdateRequest{
-				Services: newServiceBinding,
+				Configurations: newConfigurationBinding,
 			})
 			Expect(err).ToNot(HaveOccurred())
 			response, err := env.Curl("PATCH",
@@ -304,17 +304,17 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-			serviceBindings = readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal([]string{service2}))
+			configurationBindings = readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal([]string{configuration2}))
 
-			// delete all services by providing an empty array
-			env.BindAppService(app, service, namespace)
-			serviceBindings = readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal(sortStrings([]string{service, service2})))
+			// delete all configurations by providing an empty array
+			env.BindAppConfiguration(app, configuration, namespace)
+			configurationBindings = readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal(sortStrings([]string{configuration, configuration2})))
 
-			newServiceBinding = []string{}
+			newConfigurationBinding = []string{}
 			data, err = json.Marshal(models.ApplicationUpdateRequest{
-				Services: newServiceBinding,
+				Configurations: newConfigurationBinding,
 			})
 			Expect(err).ToNot(HaveOccurred())
 			response, err = env.Curl("PATCH",
@@ -324,19 +324,19 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-			serviceBindings = readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal([]string{}))
+			configurationBindings = readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal([]string{}))
 		})
 
-		It("fails on non existing service bindings and does not touch any existing service config", func() {
-			env.BindAppService(app, service, namespace)
+		It("fails on non existing configuration bindings and does not touch any existing configuration config", func() {
+			env.BindAppConfiguration(app, configuration, namespace)
 
-			serviceBindings := readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal(sortStrings([]string{service})))
+			configurationBindings := readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal(sortStrings([]string{configuration})))
 
-			newServiceBinding := []string{"does_not_exist"}
+			newConfigurationBinding := []string{"does_not_exist"}
 			data, err := json.Marshal(models.ApplicationUpdateRequest{
-				Services: newServiceBinding,
+				Configurations: newConfigurationBinding,
 			})
 			Expect(err).ToNot(HaveOccurred())
 			response, err := env.Curl("PATCH",
@@ -355,10 +355,10 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusNotFound))
-			Expect(errorResponse.Errors[0].Title).To(Equal("Service 'does_not_exist' does not exist"))
+			Expect(errorResponse.Errors[0].Title).To(Equal("Configuration 'does_not_exist' does not exist"))
 
-			serviceBindings = readServiceBindings(namespace, app)
-			Expect(serviceBindings).To(Equal([]string{service}))
+			configurationBindings = readConfigurationBindings(namespace, app)
+			Expect(configurationBindings).To(Equal([]string{configuration}))
 		})
 	})
 })

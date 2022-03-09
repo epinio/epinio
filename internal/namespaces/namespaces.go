@@ -1,5 +1,5 @@
 // Package namespaces encapsulates all the functionality around Epinio-controlled namespaces
-// TODO: Consider moving this + the applications + the services packages under
+// TODO: Consider moving this + the applications + the configurations packages under
 // "models".
 package namespaces
 
@@ -54,7 +54,7 @@ func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace
 }
 
 // Create generates a new epinio-controlled namespace, i.e. a kube
-// namespace plus a service account.
+// namespace plus a configuration account.
 func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace string) error {
 	if _, err := kubeClient.Kubectl.CoreV1().Namespaces().Create(
 		ctx,
@@ -79,7 +79,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 	}
 
 	if err := createServiceAccount(ctx, kubeClient, namespace); err != nil {
-		return errors.Wrap(err, "failed to create a service account for apps")
+		return errors.Wrap(err, "failed to create a configuration account for apps")
 	}
 
 	if _, err := kubeClient.WaitForSecret(ctx, namespace, "registry-creds", duration.ToSecretCopied()); err != nil {
@@ -90,7 +90,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 }
 
 // Delete destroys an epinio-controlled namespace, i.e. the associated
-// kube namespace and service account.
+// kube namespace and configuration account.
 func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, namespace string) error {
 	err := kubeClient.Kubectl.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
 	if err != nil {

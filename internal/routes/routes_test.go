@@ -45,7 +45,7 @@ var _ = Describe("Route", func() {
 				Spec: networkingv1.IngressSpec{
 					DefaultBackend: &networkingv1.IngressBackend{
 						Service: &networkingv1.IngressServiceBackend{
-							Name: "someservice",
+							Name: "someconfiguration",
 							Port: networkingv1.ServiceBackendPort{
 								Name:   "http",
 								Number: 80,

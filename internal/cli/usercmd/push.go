@@ -70,9 +70,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		msg = msg.WithStringValue("Instances",
 			strconv.Itoa(int(*params.Configuration.Instances)))
 	}
-	if len(params.Configuration.Services) > 0 {
-		msg = msg.WithStringValue("Services",
-			strings.Join(params.Configuration.Services, ", "))
+	if len(params.Configuration.Configurations) > 0 {
+		msg = msg.WithStringValue("Configurations",
+			strings.Join(params.Configuration.Configurations, ", "))
 	}
 	if len(params.Configuration.Routes) > 0 {
 		msg = msg.WithStringValue("Routes", "")

@@ -1,4 +1,4 @@
-package servicebinding
+package configurationbinding
 
 import (
 	"context"
@@ -6,11 +6,11 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/services"
+	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, serviceName, username string) apierror.APIErrors {
+func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, configurationName, username string) apierror.APIErrors {
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
@@ -20,15 +20,15 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	_, err = services.Lookup(ctx, cluster, namespace, serviceName)
-	if err != nil && err.Error() == "service not found" {
-		return apierror.ServiceIsNotKnown(serviceName)
+	_, err = configurations.Lookup(ctx, cluster, namespace, configurationName)
+	if err != nil && err.Error() == "configuration not found" {
+		return apierror.ConfigurationIsNotKnown(configurationName)
 	}
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	err = application.BoundServicesUnset(ctx, cluster, app.Meta, serviceName)
+	err = application.BoundConfigurationsUnset(ctx, cluster, app.Meta, configurationName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

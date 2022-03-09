@@ -1,4 +1,4 @@
-package service
+package configuration
 
 import (
 	"context"
@@ -6,16 +6,16 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
-	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// Index handles the API end point /namespaces/:namespace/services
-// It returns a list of all known service instances
+// Index handles the API end point /namespaces/:namespace/configurations
+// It returns a list of all known configuration instances
 func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
@@ -33,7 +33,7 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	namespaceServices, err := services.List(ctx, cluster, namespace)
+	namespaceConfigurations, err := configurations.List(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -43,7 +43,7 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	responseData, err := makeResponse(ctx, appsOf, namespaceServices)
+	responseData, err := makeResponse(ctx, appsOf, namespaceConfigurations)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -52,31 +52,31 @@ func (sc Controller) Index(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func makeResponse(ctx context.Context, appsOf map[string][]string, services services.ServiceList) (models.ServiceResponseList, error) {
+func makeResponse(ctx context.Context, appsOf map[string][]string, configurations configurations.ConfigurationList) (models.ConfigurationResponseList, error) {
 
-	response := models.ServiceResponseList{}
+	response := models.ConfigurationResponseList{}
 
-	for _, service := range services {
-		serviceDetails, err := service.Details(ctx)
+	for _, configuration := range configurations {
+		configurationDetails, err := configuration.Details(ctx)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
-				continue // Service was deleted, ignore it
+				continue // Configuration was deleted, ignore it
 			} else {
-				return models.ServiceResponseList{}, err
+				return models.ConfigurationResponseList{}, err
 			}
 		}
 
-		key := application.ServiceKey(service.Name(), service.Namespace())
+		key := application.ConfigurationKey(configuration.Name(), configuration.Namespace())
 		appNames := appsOf[key]
 
-		response = append(response, models.ServiceResponse{
-			Meta: models.ServiceRef{
-				Name:      service.Name(),
-				Namespace: service.Namespace(),
+		response = append(response, models.ConfigurationResponse{
+			Meta: models.ConfigurationRef{
+				Name:      configuration.Name(),
+				Namespace: configuration.Namespace(),
 			},
-			Configuration: models.ServiceShowResponse{
-				Username:  service.User(),
-				Details:   serviceDetails,
+			Configuration: models.ConfigurationShowResponse{
+				Username:  configuration.User(),
+				Details:   configurationDetails,
 				BoundApps: appNames,
 			},
 		})

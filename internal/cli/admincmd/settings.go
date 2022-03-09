@@ -163,7 +163,7 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 	secret, err := cluster.WaitForSecret(ctx,
 		helmchart.EpinioNamespace,
 		helmchart.EpinioCertificateName+"-tls",
-		duration.ToServiceSecret(),
+		duration.ToConfigurationSecret(),
 	)
 
 	if err != nil {

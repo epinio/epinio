@@ -16,10 +16,10 @@ func ReleaseName(base string) string {
 	return TruncateMD5(base, 53)
 }
 
-// ServiceName returns the name of a kube service derived from the
+// ConfigurationName returns the name of a kube configuration derived from the
 // base string. It ensures that things like leading digits are
 // sufficiently hidden to prevent kube from erroring out on the name.
-func ServiceName(base string) string {
+func ConfigurationName(base string) string {
 	return GenerateResourceName("s-" + base)
 }
 

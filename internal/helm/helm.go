@@ -27,18 +27,18 @@ const (
 )
 
 type ChartParameters struct {
-	models.AppRef                       // Application: name & namespace
-	Cluster       *kubernetes.Cluster   // Cluster to talk to.
-	Chart         string                // Chart to use for deployment
-	ImageURL      string                // Application Image
-	Username      string                // User causing the (re)deployment
-	Instances     int32                 // Number Of Desired Replicas
-	StageID       string                // Stage ID that produced ImageURL
-	Owner         metav1.OwnerReference // App CRD Owner Information
-	Environment   models.EnvVariableMap // App Environment
-	Services      []string              // Bound Services (list of names)
-	Routes        []string              // Desired application routes
-	Start         *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
+	models.AppRef                        // Application: name & namespace
+	Cluster        *kubernetes.Cluster   // Cluster to talk to.
+	Chart          string                // Chart to use for deployment
+	ImageURL       string                // Application Image
+	Username       string                // User causing the (re)deployment
+	Instances      int32                 // Number Of Desired Replicas
+	StageID        string                // Stage ID that produced ImageURL
+	Owner          metav1.OwnerReference // App CRD Owner Information
+	Environment    models.EnvVariableMap // App Environment
+	Configurations []string              // Bound Configurations (list of names)
+	Routes         []string              // Desired application routes
+	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
 }
 
 func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) error {
@@ -56,9 +56,9 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	// marshal yaml from ? Instead of direct generation of a
 	// string ?
 
-	serviceNames := `[]`
-	if len(parameters.Services) > 0 {
-		serviceNames = fmt.Sprintf(`["%s"]`, strings.Join(parameters.Services, `","`))
+	configurationNames := `[]`
+	if len(parameters.Configurations) > 0 {
+		configurationNames = fmt.Sprintf(`["%s"]`, strings.Join(parameters.Configurations, `","`))
 	}
 
 	environment := `[]`
@@ -100,7 +100,7 @@ epinio:
   ingress: %[11]s
   replicaCount: %[1]d
   routes: %[8]s
-  services: %[6]s
+  configurations: %[6]s
   stageID: "%[3]s"
   tlsIssuer: "%[12]s"
   username: "%[5]s"
@@ -110,7 +110,7 @@ epinio:
 		parameters.StageID,
 		parameters.ImageURL,
 		parameters.Username,
-		serviceNames,
+		configurationNames,
 		environment,
 		routesYaml,
 		start,

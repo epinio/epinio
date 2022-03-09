@@ -1,11 +1,11 @@
 package models
 
-// Namespace has all the namespace properties, i.e. name, app names, and service names
+// Namespace has all the namespace properties, i.e. name, app names, and configuration names
 // It is used in the CLI and API responses.
 type Namespace struct {
-	Name     string   `json:"name,omitempty"`
-	Apps     []string `json:"apps,omitempty"`
-	Services []string `json:"services,omitempty"`
+	Name           string   `json:"name,omitempty"`
+	Apps           []string `json:"apps,omitempty"`
+	Configurations []string `json:"configurations,omitempty"`
 }
 
 // NamespaceList is a collection of namespaces

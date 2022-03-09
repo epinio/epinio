@@ -35,13 +35,13 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	services, err := application.BoundServiceNames(ctx, cluster, app)
+	configurations, err := application.BoundConfigurationNames(ctx, cluster, app)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	resp := models.ApplicationDeleteResponse{
-		UnboundServices: services,
+		UnboundConfigurations: configurations,
 	}
 
 	err = application.Delete(ctx, cluster, app)

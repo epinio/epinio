@@ -10,11 +10,11 @@ import (
 
 	"github.com/epinio/epinio/helpers/routes"
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/api/v1/configuration"
+	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/api/v1/service"
-	"github.com/epinio/epinio/internal/api/v1/servicebinding"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
@@ -98,11 +98,11 @@ var Routes = routes.NamedRoutes{
 	"EnvShow":  get("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Controller{}.Show)),
 	"EnvUnset": delete("/namespaces/:namespace/applications/:app/environment/:env", errorHandler(env.Controller{}.Unset)),
 
-	// Bind and unbind services to/from applications, by means of servicebindings in applications
-	"ServiceBindingCreate": post("/namespaces/:namespace/applications/:app/servicebindings",
-		errorHandler(servicebinding.Controller{}.Create)),
-	"ServiceBindingDelete": delete("/namespaces/:namespace/applications/:app/servicebindings/:service",
-		errorHandler(servicebinding.Controller{}.Delete)),
+	// Bind and unbind configurations to/from applications, by means of configurationbindings in applications
+	"ConfigurationBindingCreate": post("/namespaces/:namespace/applications/:app/configurationbindings",
+		errorHandler(configurationbinding.Controller{}.Create)),
+	"ConfigurationBindingDelete": delete("/namespaces/:namespace/applications/:app/configurationbindings/:configuration",
+		errorHandler(configurationbinding.Controller{}.Delete)),
 
 	// List, create, show and delete namespaces
 	"Namespaces":      get("/namespaces", errorHandler(namespace.Controller{}.Index)),
@@ -114,16 +114,16 @@ var Routes = routes.NamedRoutes{
 	"NamespacesMatch":  get("/namespacematches/:pattern", errorHandler(namespace.Controller{}.Match)),
 	"NamespacesMatch0": get("/namespacematches", errorHandler(namespace.Controller{}.Match)),
 
-	// List, show, create and delete services
-	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
+	// List, show, create and delete configurations
+	"ConfigurationApps": get("/namespaces/:namespace/configurationapps", errorHandler(configuration.Controller{}.ConfigurationApps)),
 	//
-	"AllServices":    get("/services", errorHandler(service.Controller{}.FullIndex)),
-	"Services":       get("/namespaces/:namespace/services", errorHandler(service.Controller{}.Index)),
-	"ServiceShow":    get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
-	"ServiceCreate":  post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
-	"ServiceDelete":  delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
-	"ServiceUpdate":  patch("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Update)),
-	"ServiceReplace": put("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Replace)),
+	"AllConfigurations":    get("/configurations", errorHandler(configuration.Controller{}.FullIndex)),
+	"Configurations":       get("/namespaces/:namespace/configurations", errorHandler(configuration.Controller{}.Index)),
+	"ConfigurationShow":    get("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Show)),
+	"ConfigurationCreate":  post("/namespaces/:namespace/configurations", errorHandler(configuration.Controller{}.Create)),
+	"ConfigurationDelete":  delete("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Delete)),
+	"ConfigurationUpdate":  patch("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Update)),
+	"ConfigurationReplace": put("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Replace)),
 }
 
 var WsRoutes = routes.NamedRoutes{

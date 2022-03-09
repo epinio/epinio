@@ -155,7 +155,7 @@ func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 // information.
 func UpdateISE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 
-	// ISE - Instances, Services, environment
+	// ISE - Instances, Configurations, environment
 
 	// I:nstances - Retrieve from options
 
@@ -166,7 +166,7 @@ func UpdateISE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 
 	// S:ervices - Retrieve from options
 
-	boundServices, err := cmd.Flags().GetStringSlice("bind")
+	boundConfigurations, err := cmd.Flags().GetStringSlice("bind")
 	if err != nil {
 		return manifest, errors.Wrap(err, "failed to read option --bind")
 	}
@@ -199,11 +199,11 @@ func UpdateISE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 	// - AppCreate API will replace it with `v1.DefaultInstances`
 	// - AppUpdate API will treat it as no op, i.e. keep current instances.
 
-	// S: Services - Replace
+	// S: Configurations - Replace
 
-	if len(boundServices) > 0 {
-		boundServices = uniqueStrings(boundServices)
-		manifest.Configuration.Services = boundServices
+	if len(boundConfigurations) > 0 {
+		boundConfigurations = uniqueStrings(boundConfigurations)
+		manifest.Configuration.Configurations = boundConfigurations
 	}
 
 	// E:nvironment - Replace

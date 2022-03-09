@@ -1,5 +1,5 @@
 // Package machine provides a number of utility functions encapsulating often-used sequences.
-// I.e. create/delete applications/services, bind/unbind services, etc.
+// I.e. create/delete applications/configurations, bind/unbind configurations, etc.
 // This is done in the hope of enhancing the readability of various before/after blocks.
 package machine
 
