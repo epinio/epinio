@@ -2,6 +2,7 @@ package servicebinding
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -71,7 +72,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	// even when errors are reported it is possible for some of
 	// the services to be properly bound.
 
-	// Take old state
+	// Take old state - See validation for use
 	oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -116,19 +117,9 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 		// Update the workload, if there is any.
 		if app.Workload != nil {
-			// For this read the new set of bound services back,
-			// as full service structures
-			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
-			if err != nil {
-				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-				return apierror.NewMultiError(theIssues)
-			}
-
-			err = application.NewWorkload(cluster, app.Meta).
-				BoundServicesChange(ctx, username, oldBound, newBound)
-			if err != nil {
-				theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-				return apierror.NewMultiError(theIssues)
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+			if apierr != nil {
+				return apierr
 			}
 		}
 	}

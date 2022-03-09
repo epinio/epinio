@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -27,28 +28,15 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 		return apierror.InternalError(err)
 	}
 
-	// Take old state
-	oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	err = application.BoundServicesUnset(ctx, cluster, app.Meta, serviceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	if app.Workload != nil {
-		// For this read the new set of bound services back,
-		// as full service structures
-		newBound, err := application.BoundServices(ctx, cluster, app.Meta)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-
-		err = application.NewWorkload(cluster, app.Meta).BoundServicesChange(ctx, username, oldBound, newBound)
-		if err != nil {
-			return apierror.InternalError(err)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+		if apierr != nil {
+			return apierr
 		}
 	}
 

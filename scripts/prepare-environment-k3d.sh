@@ -43,7 +43,7 @@ create_docker_pull_secret
 echo "Installing Epinio"
 helm upgrade --install --create-namespace -n epinio \
 	--set global.domain="$EPINIO_SYSTEM_DOMAIN" \
-	epinio helm-charts/chart/epinio --wait
+	epinio helm-charts/chart/epinio --wait "$@"
 
 echo "Importing locally built epinio server image"
 k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest

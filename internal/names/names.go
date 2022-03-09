@@ -10,6 +10,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
+// ReleaseName returns the name of a helm release derived from the
+// base string.
+func ReleaseName(base string) string {
+	return TruncateMD5(base, 53)
+}
+
 // ServiceName returns the name of a kube service derived from the
 // base string. It ensures that things like leading digits are
 // sufficiently hidden to prevent kube from erroring out on the name.

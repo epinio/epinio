@@ -92,16 +92,20 @@ var _ = Describe("AppPortForward Endpoint", func() {
 			})
 		})
 
-		When("you you specify a specific instance", func() {
+		When("you specify a specific instance", func() {
 			var conn httpstream.Connection
 			var connErr error
+			var appName string
 
 			BeforeEach(func() {
+				// Bug fix: Use separate application instead of the main of the suite
+				appName = "portforward"
+
 				env.MakeContainerImageApp(appName, 2, containerImageURL)
 
 				out, err := proc.Kubectl("get", "pods",
 					"-n", namespace,
-					"-l", fmt.Sprintf("app.kubernetes.io/part-of=%s,app.kubernetes.io/name=%s", namespace, appName),
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),
 					"-o", "name",
 				)
 				Expect(err).ToNot(HaveOccurred())
@@ -115,6 +119,7 @@ var _ = Describe("AppPortForward Endpoint", func() {
 
 			AfterEach(func() {
 				conn.Close()
+				env.DeleteApp(appName)
 			})
 
 			It("runs a GET through the opened stream and gets the response back", func() {

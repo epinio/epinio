@@ -1,9 +1,13 @@
 package service
 
 import (
+	"time"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -55,6 +59,8 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 
 	// Perform restart on the candidates which are actually running
 	if restart {
+		username := requestctx.User(ctx)
+
 		// Determine bound apps, as candidates for restart.
 		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
 		if err != nil {
@@ -75,10 +81,10 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 				// references/uses changed, i.e. the service. We still have to
 				// trigger the restart somehow, so that the pod mounting the
 				// service remounts it for the new/changed keys.
-
-				err = application.NewWorkload(cluster, app.Meta).Restart(ctx)
-				if err != nil {
-					return apierror.InternalError(err)
+				nano := time.Now().UnixNano()
+				_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
+				if apierr != nil {
+					return apierr
 				}
 			}
 		}

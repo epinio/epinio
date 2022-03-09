@@ -70,20 +70,23 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				uploadResponse = uploadApplication(appName, namespace)
 				newBlob := uploadResponse.BlobUID
 
+				By("staging the application again")
 				stageRequest = models.StageRequest{
 					App:          models.AppRef{Name: appName, Namespace: namespace},
 					BlobUID:      newBlob,
 					BuilderImage: "paketobuildpacks/builder:full",
 				}
-				By("staging the application again")
 				stageResponse := stageApplication(appName, namespace, stageRequest)
 
+				By("waiting for the new blob to appear")
 				Eventually(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(newBlob)))
 
+				By("deploying the application")
 				deployRequest.ImageURL = stageResponse.ImageURL
-				deployRequest.Stage.ID = stageRequest.BlobUID
+				deployRequest.Stage = stageResponse.Stage
 				deployApplication(appName, namespace, deployRequest)
 
+				By("waiting for the old blob to be gone")
 				Eventually(listS3Blobs, "2m").ShouldNot(ContainElement(ContainSubstring(oldBlob)))
 			})
 		})
@@ -169,7 +172,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		When("deploying an app with custom routes", func() {
 			var routes []string
 			BeforeEach(func() {
-				routes = append(routes, "appdomain.org", "appdomain2.org")
+				routes = []string{"appdomain.org", "appdomain2.org"}
 				out, err := proc.Kubectl("patch", "apps", "--type", "json",
 					"-n", namespace, appName, "--patch",
 					fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))
@@ -183,7 +186,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
 				Expect(err).NotTo(HaveOccurred(), out)
-				Expect(strings.Split(out, " ")).To(Equal(routes))
+				Expect(strings.Split(out, " ")).To(ConsistOf(routes))
 			})
 		})
 	})

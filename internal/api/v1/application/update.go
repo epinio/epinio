@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -59,8 +60,16 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.InternalError(err)
 	}
 
-	// TODO: Can we optimize to perform a single restart regardless of what changed ?!
-	// TODO: Should we ?
+	// Check if the request contains any changes. Abort early if not.
+
+	// if there is nothing to change
+	if updateRequest.Instances == nil && len(updateRequest.Environment) == 0 &&
+		updateRequest.Services == nil && len(updateRequest.Routes) == 0 {
+		response.OK(c)
+		return nil
+	}
+
+	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
 
 	if updateRequest.Instances != nil {
 		desired := *updateRequest.Instances
@@ -70,14 +79,6 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		if err != nil {
 			return apierror.InternalError(err)
 		}
-
-		// Restart workload, if any
-		if app.Workload != nil {
-			err = application.NewWorkload(cluster, app.Meta).Scale(ctx, desired)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-		}
 	}
 
 	if len(updateRequest.Environment) > 0 {
@@ -85,31 +86,10 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		if err != nil {
 			return apierror.InternalError(err)
 		}
-
-		// Restart workload, if any
-		if app.Workload != nil {
-			// For this read the new set of variables back
-			varNames, err := application.EnvironmentNames(ctx, cluster, app.Meta)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-
-			err = application.NewWorkload(cluster, app.Meta).
-				EnvironmentChange(ctx, varNames)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-		}
 	}
 
 	if updateRequest.Services != nil {
 		var okToBind []string
-
-		// Take old state
-		oldBound, err := application.BoundServiceNameSet(ctx, cluster, app.Meta)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
 
 		if len(updateRequest.Services) > 0 {
 			for _, serviceName := range updateRequest.Services {
@@ -133,22 +113,6 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		} else {
 			// remove all bound services
 			err = application.BoundServicesSet(ctx, cluster, app.Meta, []string{}, true)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-		}
-
-		// Restart workload, if any
-		if app.Workload != nil {
-			// For this read the new set of bound services back,
-			// as full service structures
-			newBound, err := application.BoundServices(ctx, cluster, app.Meta)
-			if err != nil {
-				return apierror.InternalError(err)
-			}
-
-			err = application.NewWorkload(cluster, app.Meta).
-				BoundServicesChange(ctx, username, oldBound, newBound)
 			if err != nil {
 				return apierror.InternalError(err)
 			}
@@ -178,10 +142,13 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		if err != nil {
 			return apierror.InternalError(err)
 		}
+	}
 
-		_, err = application.SyncIngresses(ctx, cluster, appRef, username)
-		if err != nil {
-			return apierror.InternalError(err)
+	// With everything saved, and a workload to update, re-deploy the changed state.
+	if app.Workload != nil {
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+		if apierr != nil {
+			return apierr
 		}
 	}
 
