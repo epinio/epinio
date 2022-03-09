@@ -4,7 +4,6 @@ package deploy
 import (
 	"context"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -39,35 +38,15 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	}
 
 	imageURL := appObj.ImageURL
-	instances := *appObj.Configuration.Instances
-	environment := appObj.Configuration.Environment
-	configurations := appObj.Configuration.Configurations
 	routes := appObj.Configuration.Routes
-
-	applicationCR, err := application.Get(ctx, cluster, app)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, apierror.AppIsNotKnown("application resource is missing")
-		}
-		return nil, apierror.InternalError(err, "failed to get the application resource")
-	}
-
-	// owner data to set into new resources
-	owner := metav1.OwnerReference{
-		APIVersion: applicationCR.GetAPIVersion(),
-		Kind:       applicationCR.GetKind(),
-		Name:       applicationCR.GetName(),
-		UID:        applicationCR.GetUID(),
-	}
 
 	deployParams := helm.ChartParameters{
 		Cluster:        cluster,
 		AppRef:         app,
 		Chart:          helm.StandardChart,
-		Owner:          owner,
-		Environment:    environment,
-		Configurations: configurations,
-		Instances:      instances,
+		Environment:    appObj.Configuration.Environment,
+		Configurations: appObj.Configuration.Configurations,
+		Instances:      *appObj.Configuration.Instances,
 		ImageURL:       imageURL,
 		Username:       username,
 		StageID:        stageID,
@@ -79,7 +58,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 
 	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, imageURL)
 	if err != nil {
-		return nil, apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes")
+		return nil, apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes", imageURL)
 	}
 
 	err = helm.Deploy(log, deployParams)

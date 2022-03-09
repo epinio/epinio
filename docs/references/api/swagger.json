@@ -1096,6 +1096,10 @@
         "deployment": {
           "$ref": "#/definitions/AppDeployment"
         },
+        "image_url": {
+          "type": "string",
+          "x-go-name": "ImageURL"
+        },
         "meta": {
           "$ref": "#/definitions/AppRef"
         },
