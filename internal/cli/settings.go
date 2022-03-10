@@ -10,6 +10,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var ()
@@ -31,6 +32,11 @@ var CmdSettings = &cobra.Command{
 }
 
 func init() {
+	flags := CmdSettingsUpdate.Flags()
+	flags.StringP("namespace", "n", "epinio", "(NAMESPACE) The namespace to use")
+	viper.BindPFlag("namespace", flags.Lookup("namespace"))
+	viper.BindEnv("namespace", "NAMESPACE")
+
 	CmdSettings.AddCommand(CmdSettingsUpdate)
 	CmdSettings.AddCommand(CmdSettingsShow)
 	CmdSettings.AddCommand(CmdSettingsColors)

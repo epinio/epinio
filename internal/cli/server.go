@@ -24,6 +24,11 @@ import (
 
 func init() {
 	flags := CmdServer.Flags()
+
+	flags.StringP("namespace", "n", "epinio", "(NAMESPACE) The namespace to use")
+	viper.BindPFlag("namespace", flags.Lookup("namespace"))
+	viper.BindEnv("namespace", "NAMESPACE")
+
 	flags.Int("port", 0, "(PORT) The port to listen on. Leave empty to auto-assign a random port")
 	viper.BindPFlag("port", flags.Lookup("port"))
 	viper.BindEnv("port", "PORT")

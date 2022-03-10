@@ -135,7 +135,7 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	// load the certificate for S3 if defined
 	s3CertificateSecret := viper.GetString("s3-certificate-secret")
 	if s3CertificateSecret != "" {
-		secret, err = cluster.GetSecret(ctx, helmchart.EpinioNamespace, s3CertificateSecret)
+		secret, err = cluster.GetSecret(ctx, helmchart.Namespace(), s3CertificateSecret)
 		if err != nil {
 			return details, errors.Wrapf(err, "getting s3 certificate secret %s", s3CertificateSecret)
 		}

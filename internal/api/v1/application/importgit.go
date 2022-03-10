@@ -70,7 +70,7 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
-	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.StagingNamespace, "epinio-s3-connection-details")
+	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), "epinio-s3-connection-details")
 	if err != nil {
 		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
 	}

@@ -43,7 +43,7 @@ func MainDomain(ctx context.Context) (string, error) {
 	}
 
 	// Get the epinio ingress
-	ingresses, err := cluster.ListIngress(ctx, helmchart.EpinioNamespace, "app.kubernetes.io/name=epinio")
+	ingresses, err := cluster.ListIngress(ctx, helmchart.Namespace(), "app.kubernetes.io/name=epinio")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to list ingresses for epinio")
 	}

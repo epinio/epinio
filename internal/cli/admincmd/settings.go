@@ -161,7 +161,7 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 	// name we are using here
 
 	secret, err := cluster.WaitForSecret(ctx,
-		helmchart.EpinioNamespace,
+		helmchart.Namespace(),
 		helmchart.EpinioCertificateName+"-tls",
 		duration.ToConfigurationSecret(),
 	)
@@ -178,7 +178,7 @@ func getCerts(ctx context.Context, log logr.Logger) (string, error) {
 // getEpinioURL finds the URL's for epinio from the cluster
 func getEpinioURL(ctx context.Context, cluster *kubernetes.Cluster) (string, string, error) {
 	// Get the ingress
-	ingresses, err := cluster.ListIngress(ctx, helmchart.EpinioNamespace, "app.kubernetes.io/name=epinio")
+	ingresses, err := cluster.ListIngress(ctx, helmchart.Namespace(), "app.kubernetes.io/name=epinio")
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to list ingresses for epinio api server")
 	}
