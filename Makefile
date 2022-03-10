@@ -69,7 +69,7 @@ compress:
 	upx --brute -1 ./dist/epinio-darwin-arm64
 
 test:
-	ginkgo --nodes ${GINKGO_NODES} -r -p -race --fail-on-pending helpers internal pkg
+	ginkgo --nodes ${GINKGO_NODES} -r -p -race --fail-on-pending --skip-file=acceptance
 
 tag:
 	@git describe --tags --abbrev=0
