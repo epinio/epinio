@@ -169,7 +169,7 @@ func createS3HelperPod() {
 
 	// Setup "mc" to talk to our minio endpoint (the "mc alias" command)
 	out, err = proc.Kubectl("exec", minioHelperPod, "--", "mc", "--insecure", "alias", "set", "minio",
-		"https://epinio-minio.epinio.svc.cluster.local:9000", string(accessKey), string(secretKey))
+		"https://minio.epinio.svc.cluster.local:9000", string(accessKey), string(secretKey))
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 
