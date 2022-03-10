@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/services"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	pkgerrors "github.com/pkg/errors"
@@ -22,12 +22,12 @@ import (
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
-type AppServiceBind struct {
-	service  string // name of the service getting bound
-	resource string // name of the kube secret to mount as volume to make the service params available in the app
+type AppConfigurationBind struct {
+	configuration string // name of the configuration getting bound
+	resource      string // name of the kube secret to mount as volume to make the configuration params available in the app
 }
 
-type AppServiceBindList []AppServiceBind
+type AppConfigurationBindList []AppConfigurationBind
 
 // Workload manages applications that are deployed. It provides workload
 // (deployments) specific actions for the application model.
@@ -42,29 +42,29 @@ func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
 	return &Workload{cluster: cluster, app: app}
 }
 
-func ToBinds(ctx context.Context, services services.ServiceList, appName string, userName string) (AppServiceBindList, error) {
-	bindings := AppServiceBindList{}
+func ToBinds(ctx context.Context, configurations configurations.ConfigurationList, appName string, userName string) (AppConfigurationBindList, error) {
+	bindings := AppConfigurationBindList{}
 
-	for _, service := range services {
-		bindResource, err := service.GetBinding(ctx, appName, userName)
+	for _, configuration := range configurations {
+		bindResource, err := configuration.GetBinding(ctx, appName, userName)
 		if err != nil {
-			return AppServiceBindList{}, err
+			return AppConfigurationBindList{}, err
 		}
-		bindings = append(bindings, AppServiceBind{
-			resource: bindResource.Name,
-			service:  service.Name(),
+		bindings = append(bindings, AppConfigurationBind{
+			resource:      bindResource.Name,
+			configuration: configuration.Name(),
 		})
 	}
 
 	return bindings, nil
 }
 
-func (b AppServiceBindList) ToVolumesArray() []corev1.Volume {
+func (b AppConfigurationBindList) ToVolumesArray() []corev1.Volume {
 	volumes := []corev1.Volume{}
 
 	for _, binding := range b {
 		volumes = append(volumes, corev1.Volume{
-			Name: binding.service,
+			Name: binding.configuration,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: binding.resource,
@@ -76,25 +76,25 @@ func (b AppServiceBindList) ToVolumesArray() []corev1.Volume {
 	return volumes
 }
 
-func (b AppServiceBindList) ToMountsArray() []corev1.VolumeMount {
+func (b AppConfigurationBindList) ToMountsArray() []corev1.VolumeMount {
 	mounts := []corev1.VolumeMount{}
 
 	for _, binding := range b {
 		mounts = append(mounts, corev1.VolumeMount{
-			Name:      binding.service,
+			Name:      binding.configuration,
 			ReadOnly:  true,
-			MountPath: fmt.Sprintf("/services/%s", binding.service),
+			MountPath: fmt.Sprintf("/configurations/%s", binding.configuration),
 		})
 	}
 
 	return mounts
 }
 
-func (b AppServiceBindList) ToNames() []string {
+func (b AppConfigurationBindList) ToNames() []string {
 	names := []string{}
 
 	for _, binding := range b {
-		names = append(names, binding.service)
+		names = append(names, binding.configuration)
 	}
 
 	return names

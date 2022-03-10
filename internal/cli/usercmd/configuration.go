@@ -12,180 +12,180 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-// Services gets all Epinio services in the targeted namespace
-func (c *EpinioClient) Services(all bool) error {
-	log := c.Log.WithName("Services").WithValues("Namespace", c.Settings.Namespace)
+// Configurations gets all Epinio configurations in the targeted namespace
+func (c *EpinioClient) Configurations(all bool) error {
+	log := c.Log.WithName("Configurations").WithValues("Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	msg := c.ui.Note()
 	if all {
-		msg.Msg("Listing all services")
+		msg.Msg("Listing all configurations")
 	} else {
 		msg.
 			WithStringValue("Namespace", c.Settings.Namespace).
-			Msg("Listing services")
+			Msg("Listing configurations")
 
 		if err := c.TargetOk(); err != nil {
 			return err
 		}
 	}
 
-	details.Info("list services")
+	details.Info("list configurations")
 
-	var services models.ServiceResponseList
+	var configurations models.ConfigurationResponseList
 	var err error
 
 	if all {
-		services, err = c.API.AllServices()
+		configurations, err = c.API.AllConfigurations()
 	} else {
-		services, err = c.API.Services(c.Settings.Namespace)
+		configurations, err = c.API.Configurations(c.Settings.Namespace)
 	}
 	if err != nil {
 		return err
 	}
 
-	details.Info("list services")
+	details.Info("list configurations")
 
-	sort.Sort(services)
+	sort.Sort(configurations)
 
-	details.Info("show services")
+	details.Info("show configurations")
 
 	msg = c.ui.Success()
 	if all {
 		msg = msg.WithTable("Namespace", "Name", "Applications")
 
-		for _, service := range services {
+		for _, configuration := range configurations {
 			msg = msg.WithTableRow(
-				service.Meta.Namespace,
-				service.Meta.Name,
-				strings.Join(service.Configuration.BoundApps, ", "))
+				configuration.Meta.Namespace,
+				configuration.Meta.Name,
+				strings.Join(configuration.Configuration.BoundApps, ", "))
 		}
 	} else {
 		msg = msg.WithTable("Name", "Applications")
 
-		for _, service := range services {
+		for _, configuration := range configurations {
 			msg = msg.WithTableRow(
-				service.Meta.Name,
-				strings.Join(service.Configuration.BoundApps, ", "))
+				configuration.Meta.Name,
+				strings.Join(configuration.Configuration.BoundApps, ", "))
 		}
 	}
 
-	msg.Msg("Epinio Services:")
+	msg.Msg("Epinio Configurations:")
 
 	return nil
 }
 
-// ServiceMatching returns all Epinio services having the specified prefix
+// ConfigurationMatching returns all Epinio configurations having the specified prefix
 // in their name.
-func (c *EpinioClient) ServiceMatching(ctx context.Context, prefix string) []string {
-	log := c.Log.WithName("ServiceMatching").WithValues("PrefixToMatch", prefix)
+func (c *EpinioClient) ConfigurationMatching(ctx context.Context, prefix string) []string {
+	log := c.Log.WithName("ConfigurationMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
 
-	// Ask for all services. Filtering is local.
+	// Ask for all configurations. Filtering is local.
 	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
 
-	response, err := c.API.Services(c.Settings.Namespace)
+	response, err := c.API.Configurations(c.Settings.Namespace)
 	if err != nil {
 		return result
 	}
 
 	for _, s := range response {
-		service := s.Meta.Name
-		details.Info("Found", "Name", service)
-		if strings.HasPrefix(service, prefix) {
-			details.Info("Matched", "Name", service)
-			result = append(result, service)
+		configuration := s.Meta.Name
+		details.Info("Found", "Name", configuration)
+		if strings.HasPrefix(configuration, prefix) {
+			details.Info("Matched", "Name", configuration)
+			result = append(result, configuration)
 		}
 	}
 
 	return result
 }
 
-// BindService attaches a service specified by name to the named application,
+// BindConfiguration attaches a configuration specified by name to the named application,
 // both in the targeted namespace.
-func (c *EpinioClient) BindService(serviceName, appName string) error {
-	log := c.Log.WithName("Bind Service To Application").
-		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Settings.Namespace)
+func (c *EpinioClient) BindConfiguration(configurationName, appName string) error {
+	log := c.Log.WithName("Bind Configuration To Application").
+		WithValues("Name", configurationName, "Application", appName, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Service", serviceName).
+		WithStringValue("Configuration", configurationName).
 		WithStringValue("Application", appName).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Bind Service")
+		Msg("Bind Configuration")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
 	request := models.BindRequest{
-		Names: []string{serviceName},
+		Names: []string{configurationName},
 	}
 
-	br, err := c.API.ServiceBindingCreate(request, c.Settings.Namespace, appName)
+	br, err := c.API.ConfigurationBindingCreate(request, c.Settings.Namespace, appName)
 	if err != nil {
 		return err
 	}
 
 	if len(br.WasBound) > 0 {
 		c.ui.Success().
-			WithStringValue("Service", serviceName).
+			WithStringValue("Configuration", configurationName).
 			WithStringValue("Application", appName).
 			WithStringValue("Namespace", c.Settings.Namespace).
-			Msg("Service Already Bound to Application.")
+			Msg("Configuration Already Bound to Application.")
 
 		return nil
 	}
 
 	c.ui.Success().
-		WithStringValue("Service", serviceName).
+		WithStringValue("Configuration", configurationName).
 		WithStringValue("Application", appName).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Service Bound to Application.")
+		Msg("Configuration Bound to Application.")
 	return nil
 }
 
-// UnbindService detaches the service specified by name from the named
+// UnbindConfiguration detaches the configuration specified by name from the named
 // application, both in the targeted namespace.
-func (c *EpinioClient) UnbindService(serviceName, appName string) error {
-	log := c.Log.WithName("Unbind Service").
-		WithValues("Name", serviceName, "Application", appName, "Namespace", c.Settings.Namespace)
+func (c *EpinioClient) UnbindConfiguration(configurationName, appName string) error {
+	log := c.Log.WithName("Unbind Configuration").
+		WithValues("Name", configurationName, "Application", appName, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Service", serviceName).
+		WithStringValue("Configuration", configurationName).
 		WithStringValue("Application", appName).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Unbind Service from Application")
+		Msg("Unbind Configuration from Application")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	_, err := c.API.ServiceBindingDelete(c.Settings.Namespace, appName, serviceName)
+	_, err := c.API.ConfigurationBindingDelete(c.Settings.Namespace, appName, configurationName)
 	if err != nil {
 		return err
 	}
 
 	c.ui.Success().
-		WithStringValue("Service", serviceName).
+		WithStringValue("Configuration", configurationName).
 		WithStringValue("Application", appName).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Service Detached From Application.")
+		Msg("Configuration Detached From Application.")
 	return nil
 }
 
-// DeleteService deletes a service specified by name
-func (c *EpinioClient) DeleteService(name string, unbind bool) error {
-	log := c.Log.WithName("Delete Service").
+// DeleteConfiguration deletes a configuration specified by name
+func (c *EpinioClient) DeleteConfiguration(name string, unbind bool) error {
+	log := c.Log.WithName("Delete Configuration").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
@@ -193,26 +193,26 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Delete Service")
+		Msg("Delete Configuration")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	request := models.ServiceDeleteRequest{
+	request := models.ConfigurationDeleteRequest{
 		Unbind: unbind,
 	}
 
 	var bound []string
 
-	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, name,
+	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, name,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
 			if response.StatusCode != http.StatusBadRequest {
 				return err
 			}
 
-			// A bad request happens when the service is
+			// A bad request happens when the configuration is
 			// still bound to one or more applications,
 			// and the response contains an array of their
 			// names.
@@ -238,7 +238,7 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 			msg = msg.WithTableRow(app)
 		}
 
-		msg.Msg("Unable to delete service. It is still used by")
+		msg.Msg("Unable to delete configuration. It is still used by")
 		c.ui.Exclamation().Compact().Msg("Use --unbind to force the issue")
 
 		return nil
@@ -247,14 +247,14 @@ func (c *EpinioClient) DeleteService(name string, unbind bool) error {
 	c.ui.Success().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Service Removed.")
+		Msg("Configuration Removed.")
 	return nil
 }
 
-// UpdateService updates a service specified by name and information about removed keys and changed assignments.
-// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *EpinioClient) UpdateService(name string, removedKeys []string, assignments map[string]string) error {
-	log := c.Log.WithName("Update Service").
+// UpdateConfiguration updates a configuration specified by name and information about removed keys and changed assignments.
+// TODO: Allow underscores in configuration names (right now they fail because of kubernetes naming rules for secrets)
+func (c *EpinioClient) UpdateConfiguration(name string, removedKeys []string, assignments map[string]string) error {
+	log := c.Log.WithName("Update Configuration").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
@@ -277,18 +277,18 @@ func (c *EpinioClient) UpdateService(name string, removedKeys []string, assignme
 	for _, key := range changed {
 		msg = msg.WithTableRow(key, "add/change", assignments[key])
 	}
-	msg.Msg("Update Service")
+	msg.Msg("Update Configuration")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	request := models.ServiceUpdateRequest{
+	request := models.ConfigurationUpdateRequest{
 		Remove: removedKeys,
 		Set:    assignments,
 	}
 
-	_, err := c.API.ServiceUpdate(request, c.Settings.Namespace, name)
+	_, err := c.API.ConfigurationUpdate(request, c.Settings.Namespace, name)
 	if err != nil {
 		return err
 	}
@@ -296,15 +296,15 @@ func (c *EpinioClient) UpdateService(name string, removedKeys []string, assignme
 	c.ui.Success().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Service Changes Saved.")
+		Msg("Configuration Changes Saved.")
 
 	return nil
 }
 
-// CreateService creates a service specified by name and key/value dictionary
-// TODO: Allow underscores in service names (right now they fail because of kubernetes naming rules for secrets)
-func (c *EpinioClient) CreateService(name string, dict []string) error {
-	log := c.Log.WithName("Create Service").
+// CreateConfiguration creates a configuration specified by name and key/value dictionary
+// TODO: Allow underscores in configuration names (right now they fail because of kubernetes naming rules for secrets)
+func (c *EpinioClient) CreateConfiguration(name string, dict []string) error {
+	log := c.Log.WithName("Create Configuration").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
@@ -317,22 +317,22 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 	for i := 0; i < len(dict); i += 2 {
 		key := dict[i]
 		value := dict[i+1]
-		path := fmt.Sprintf("/services/%s/%s", name, key)
+		path := fmt.Sprintf("/configurations/%s/%s", name, key)
 		msg = msg.WithTableRow(key, value, path)
 		data[key] = value
 	}
-	msg.Msg("Create Service")
+	msg.Msg("Create Configuration")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	request := models.ServiceCreateRequest{
+	request := models.ConfigurationCreateRequest{
 		Name: name,
 		Data: data,
 	}
 
-	_, err := c.API.ServiceCreate(request, c.Settings.Namespace)
+	_, err := c.API.ConfigurationCreate(request, c.Settings.Namespace)
 	if err != nil {
 		return err
 	}
@@ -343,13 +343,13 @@ func (c *EpinioClient) CreateService(name string, dict []string) error {
 	c.ui.Success().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Service Saved.")
+		Msg("Configuration Saved.")
 	return nil
 }
 
-// ServiceDetails shows the information of a service specified by name
-func (c *EpinioClient) ServiceDetails(name string) error {
-	log := c.Log.WithName("Service Details").
+// ConfigurationDetails shows the information of a configuration specified by name
+func (c *EpinioClient) ConfigurationDetails(name string) error {
+	log := c.Log.WithName("Configuration Details").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
@@ -357,17 +357,17 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 	c.ui.Note().
 		WithStringValue("Name", name).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Service Details")
+		Msg("Configuration Details")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	resp, err := c.API.ServiceShow(c.Settings.Namespace, name)
+	resp, err := c.API.ConfigurationShow(c.Settings.Namespace, name)
 	if err != nil {
 		return err
 	}
-	serviceDetails := resp.Configuration.Details
+	configurationDetails := resp.Configuration.Details
 	boundApps := resp.Configuration.BoundApps
 
 	sort.Strings(boundApps)
@@ -379,17 +379,17 @@ func (c *EpinioClient) ServiceDetails(name string) error {
 
 	msg := c.ui.Success()
 
-	if len(serviceDetails) > 0 {
+	if len(configurationDetails) > 0 {
 		msg = msg.WithTable("Parameter", "Value", "Access Path")
 
-		keys := make([]string, 0, len(serviceDetails))
-		for k := range serviceDetails {
+		keys := make([]string, 0, len(configurationDetails))
+		for k := range configurationDetails {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			msg = msg.WithTableRow(k, serviceDetails[k],
-				fmt.Sprintf("/services/%s/%s", name, k))
+			msg = msg.WithTableRow(k, configurationDetails[k],
+				fmt.Sprintf("/configurations/%s/%s", name, k))
 		}
 
 		msg.Msg("")

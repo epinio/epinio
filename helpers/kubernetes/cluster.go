@@ -478,17 +478,17 @@ func (c *Cluster) WaitUntilDeploymentExists(ctx context.Context, ui *termui.UI, 
 	return wait.PollImmediate(time.Second, timeout, c.DeploymentExists(ctx, namespace, deploymentName))
 }
 
-func (c *Cluster) WaitUntilServiceHasLoadBalancer(ctx context.Context, ui *termui.UI, namespace, serviceName string, timeout time.Duration) error {
-	s := ui.Progressf("Waiting for service %s in %s to have a Load Balancer", serviceName, namespace)
+func (c *Cluster) WaitUntilConfigurationHasLoadBalancer(ctx context.Context, ui *termui.UI, namespace, configurationName string, timeout time.Duration) error {
+	s := ui.Progressf("Waiting for configuration %s in %s to have a Load Balancer", configurationName, namespace)
 	defer s.Stop()
 
 	return wait.PollImmediate(time.Second, timeout, func() (bool, error) {
-		service, err := c.Kubectl.CoreV1().Services(namespace).Get(ctx, serviceName, metav1.GetOptions{})
+		configuration, err := c.Kubectl.CoreV1().Services(namespace).Get(ctx, configurationName, metav1.GetOptions{})
 		if err != nil {
 			return false, err
 		}
 
-		if len(service.Status.LoadBalancer.Ingress) == 0 {
+		if len(configuration.Status.LoadBalancer.Ingress) == 0 {
 			return false, nil
 		}
 

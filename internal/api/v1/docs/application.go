@@ -41,7 +41,7 @@ type AppCreateParam struct {
 	// in: path
 	Namespace string
 	// in: body
-	Service models.ApplicationCreateRequest
+	Configuration models.ApplicationCreateRequest
 }
 
 // swagger:response AppCreateResponse
@@ -256,7 +256,7 @@ type AppStageResponse struct {
 }
 
 // swagger:route POST /namespaces/{Namespace}/applications/{App}/deploy application AppDeploy
-// Create the deployment, service and ingress resources for the named `App` in the `Namespace`.
+// Create the deployment, configuration and ingress resources for the named `App` in the `Namespace`.
 // responses:
 //   200: AppDeployResponse
 

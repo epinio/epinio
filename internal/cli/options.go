@@ -20,7 +20,7 @@ func routeOption(cmd *cobra.Command) {
 
 // bindOption initializes the --bind/-b option for the provided command
 func bindOption(cmd *cobra.Command) {
-	cmd.Flags().StringSliceP("bind", "b", []string{}, "services to bind immediately")
+	cmd.Flags().StringSliceP("bind", "b", []string{}, "configurations to bind immediately")
 	// nolint:errcheck // Unable to handle error in init block this will be called from
 	cmd.RegisterFlagCompletionFunc("bind",
 		func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
@@ -44,7 +44,7 @@ func bindOption(cmd *cobra.Command) {
 			values := strings.Split(toComplete, ",")
 			if len(values) == 0 {
 				// Nothing. Report all possible matches
-				matches := app.ServiceMatching(ctx, toComplete)
+				matches := app.ConfigurationMatching(ctx, toComplete)
 				return matches, cobra.ShellCompDirectiveNoFileComp
 			}
 
@@ -53,7 +53,7 @@ func bindOption(cmd *cobra.Command) {
 			// expansions for that segment.
 
 			matches := []string{}
-			for _, match := range app.ServiceMatching(ctx, values[len(values)-1]) {
+			for _, match := range app.ConfigurationMatching(ctx, values[len(values)-1]) {
 				values[len(values)-1] = match
 				matches = append(matches, strings.Join(values, ","))
 			}

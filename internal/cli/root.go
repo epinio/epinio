@@ -76,7 +76,7 @@ func init() {
 	rootCmd.AddCommand(CmdAppPush) // shorthand access to `app push`.
 	rootCmd.AddCommand(CmdApp)
 	rootCmd.AddCommand(CmdTarget)
-	rootCmd.AddCommand(CmdService)
+	rootCmd.AddCommand(CmdConfiguration)
 	rootCmd.AddCommand(CmdServer)
 	rootCmd.AddCommand(cmdVersion)
 	// Hidden command providing developer tools

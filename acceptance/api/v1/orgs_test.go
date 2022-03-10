@@ -194,9 +194,9 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				err = json.Unmarshal(bodyBytes, &responseSpace)
 				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
 				Expect(responseSpace).To(Equal(models.Namespace{
-					Name:     namespace,
-					Apps:     nil,
-					Services: nil,
+					Name:           namespace,
+					Apps:           nil,
+					Configurations: nil,
 				}))
 			})
 		})
@@ -219,12 +219,12 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).To(HaveOccurred())
 			})
 
-			It("deletes an namespace including apps and services", func() {
+			It("deletes an namespace including apps and configurations", func() {
 				app1 := catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
-				svc1 := catalog.NewServiceName()
-				env.MakeService(svc1)
-				env.BindAppService(app1, svc1, namespace)
+				svc1 := catalog.NewConfigurationName()
+				env.MakeConfiguration(svc1)
+				env.BindAppConfiguration(app1, svc1, namespace)
 
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s",
 					serverURL, api.Root, namespace),

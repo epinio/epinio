@@ -20,7 +20,7 @@ import (
 
 // DeployApp deploys the referenced application via helm, based on the state held by CRD
 // and associated secrets. It is the backend for the API deploypoint, as well as all the
-// mutating endpoints, i.e. service and app changes (bindings, environment, scaling).
+// mutating endpoints, i.e. configuration and app changes (bindings, environment, scaling).
 func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, origin *models.ApplicationOrigin, start *int64) ([]string, apierror.APIErrors) {
 	log := requestctx.Logger(ctx)
 
@@ -41,7 +41,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	imageURL := appObj.ImageURL
 	instances := *appObj.Configuration.Instances
 	environment := appObj.Configuration.Environment
-	services := appObj.Configuration.Services
+	configurations := appObj.Configuration.Configurations
 	routes := appObj.Configuration.Routes
 
 	applicationCR, err := application.Get(ctx, cluster, app)
@@ -61,18 +61,18 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	}
 
 	deployParams := helm.ChartParameters{
-		Cluster:     cluster,
-		AppRef:      app,
-		Chart:       helm.StandardChart,
-		Owner:       owner,
-		Environment: environment,
-		Services:    services,
-		Instances:   instances,
-		ImageURL:    imageURL,
-		Username:    username,
-		StageID:     stageID,
-		Routes:      routes,
-		Start:       start,
+		Cluster:        cluster,
+		AppRef:         app,
+		Chart:          helm.StandardChart,
+		Owner:          owner,
+		Environment:    environment,
+		Configurations: configurations,
+		Instances:      instances,
+		ImageURL:       imageURL,
+		Username:       username,
+		StageID:        stageID,
+		Routes:         routes,
+		Start:          start,
 	}
 
 	log.Info("deploying app", "namespace", app.Namespace, "app", app.Name)
@@ -119,7 +119,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 // for staging it would mean the registry is running inside the staging pod
 // (which makes no sense).
 // Kubernetes can see a registry on localhost if it is deployed on the cluster
-// itself and exposed over a NodePort service.
+// itself and exposed over a NodePort configuration.
 // That's the trick we use, when we deploy the Epinio registry with the
 // "force-kube-internal-registry-tls" flag set to "false" in order to allow
 // Kubernetes to pull the images without TLS. Otherwise, when the tlsissuer

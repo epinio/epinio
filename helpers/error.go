@@ -6,7 +6,7 @@ func Retryable(msg string) bool {
 	return strings.Contains(msg, " x509: ") ||
 		strings.Contains(msg, "EOF") ||
 		strings.Contains(msg, "Gateway") ||
-		strings.Contains(msg, "Service Unavailable") ||
+		strings.Contains(msg, "Configuration Unavailable") ||
 		strings.Contains(msg, "connection refused") ||
 		strings.Contains(msg, "i/o timeout") ||
 		strings.Contains(msg, "no endpoints available") ||

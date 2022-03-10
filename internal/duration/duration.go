@@ -10,11 +10,11 @@ import (
 )
 
 const (
-	deployment        = 10 * time.Minute
-	namespaceDeletion = 5 * time.Minute
-	serviceSecret     = 5 * time.Minute
-	appBuilt          = 10 * time.Minute
-	secretCopied      = 5 * time.Minute
+	deployment          = 10 * time.Minute
+	namespaceDeletion   = 5 * time.Minute
+	configurationSecret = 5 * time.Minute
+	appBuilt            = 10 * time.Minute
+	secretCopied        = 5 * time.Minute
 
 	// Fixed. __Not__ affected by the multiplier.
 	userAbort  = 5 * time.Second
@@ -59,10 +59,10 @@ func ToNamespaceDeletion() time.Duration {
 	return Multiplier() * namespaceDeletion
 }
 
-// ToServiceSecret returns the duration to wait for the secret to a
-// catalog service binding to appear
-func ToServiceSecret() time.Duration {
-	return Multiplier() * serviceSecret
+// ToConfigurationSecret returns the duration to wait for the secret to a
+// catalog configuration binding to appear
+func ToConfigurationSecret() time.Duration {
+	return Multiplier() * configurationSecret
 }
 
 //

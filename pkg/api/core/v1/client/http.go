@@ -174,7 +174,7 @@ type ErrorFunc = func(response *http.Response, bodyBytes []byte, err error) erro
 // code is not 200.
 // The ErrorFunc allows us to inspect the response, even unmarshal it into an
 // api.ErrorResponse and change the returned error.
-// Note: it's only used by ServiceDelete and that could be changed to transmit
+// Note: it's only used by ConfigurationDelete and that could be changed to transmit
 // it's data in a normal Response, instead of an error?
 func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string, f ErrorFunc) ([]byte, error) {
 

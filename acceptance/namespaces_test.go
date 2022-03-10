@@ -39,15 +39,15 @@ var _ = Describe("Namespaces", func() {
 
 	Describe("namespace list", func() {
 		var namespaceName string
-		var serviceName string
+		var configurationName string
 		var appName string
 
 		BeforeEach(func() {
 			namespaceName = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespaceName)
 
-			serviceName = catalog.NewServiceName()
-			env.MakeService(serviceName)
+			configurationName = catalog.NewConfigurationName()
+			env.MakeConfiguration(configurationName)
 
 			appName = catalog.NewAppName()
 			out, err := env.Epinio("", "app", "create", appName)
@@ -59,7 +59,7 @@ var _ = Describe("Namespaces", func() {
 			out, err := env.Epinio("", "namespace", "list", namespaceName)
 
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`%s.* \| .*%s.* \| .*%s`, namespaceName, appName, serviceName)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`%s.* \| .*%s.* \| .*%s`, namespaceName, appName, configurationName)))
 		})
 	})
 
@@ -73,15 +73,15 @@ var _ = Describe("Namespaces", func() {
 
 		Context("existing namespace", func() {
 			var namespaceName string
-			var serviceName string
+			var configurationName string
 			var appName string
 
 			BeforeEach(func() {
 				namespaceName = catalog.NewNamespaceName()
 				env.SetupAndTargetNamespace(namespaceName)
 
-				serviceName = catalog.NewServiceName()
-				env.MakeService(serviceName)
+				configurationName = catalog.NewConfigurationName()
+				env.MakeConfiguration(configurationName)
 
 				appName = catalog.NewAppName()
 				out, err := env.Epinio("", "app", "create", appName)
@@ -94,7 +94,7 @@ var _ = Describe("Namespaces", func() {
 
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(fmt.Sprintf(`Name .*\| .*%s`, namespaceName)))
-				Expect(out).To(MatchRegexp(fmt.Sprintf(`Services .*\| .*%s`, serviceName)))
+				Expect(out).To(MatchRegexp(fmt.Sprintf(`Configurations .*\| .*%s`, configurationName)))
 				Expect(out).To(MatchRegexp(fmt.Sprintf(`Applications .*\| .*%s`, appName)))
 			})
 		})

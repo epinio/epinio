@@ -6,9 +6,9 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/configurations"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/namespaces"
-	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -38,7 +38,7 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 			return apierror.InternalError(err)
 		}
 
-		serviceNames, err := namespaceServices(ctx, cluster, namespace.Name)
+		configurationNames, err := namespaceConfigurations(ctx, cluster, namespace.Name)
 		// Ignore namespace if deleted mid-flight
 		if _, ok := err.(epinioerrors.NamespaceMissingError); ok {
 			continue
@@ -48,9 +48,9 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 		}
 
 		namespaces = append(namespaces, models.Namespace{
-			Name:     namespace.Name,
-			Apps:     appNames,
-			Services: serviceNames,
+			Name:           namespace.Name,
+			Apps:           appNames,
+			Configurations: configurationNames,
 		})
 	}
 
@@ -72,16 +72,16 @@ func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, namespace s
 	return appNames, nil
 }
 
-func namespaceServices(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
-	// Retrieve services for namespace, and reduce to their names.
-	services, err := services.List(ctx, cluster, namespace)
+func namespaceConfigurations(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
+	// Retrieve configurations for namespace, and reduce to their names.
+	configurations, err := configurations.List(ctx, cluster, namespace)
 	if err != nil {
 		return nil, err
 	}
-	serviceNames := make([]string, 0, len(services))
-	for _, service := range services {
-		serviceNames = append(serviceNames, service.Name())
+	configurationNames := make([]string, 0, len(configurations))
+	for _, configuration := range configurations {
+		configurationNames = append(configurationNames, configuration.Name())
 	}
 
-	return serviceNames, nil
+	return configurationNames, nil
 }

@@ -1,4 +1,4 @@
-package service
+package configuration
 
 import (
 	"time"
@@ -8,19 +8,19 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
-	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
-// Update handles the API endpoint PATCH /namespaces/:namespace/services/:app
-// It modifies the keys and values of the specified service.
+// Update handles the API endpoint PATCH /namespaces/:namespace/configurations/:app
+// It modifies the keys and values of the specified configuration.
 func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyclo // simplification defered
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
-	serviceName := c.Param("service")
+	configurationName := c.Param("configuration")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -36,10 +36,10 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
-	service, err := services.Lookup(ctx, cluster, namespace, serviceName)
+	configuration, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
 	if err != nil {
-		if err.Error() == "service not found" {
-			return apierror.ServiceIsNotKnown(serviceName)
+		if err.Error() == "configuration not found" {
+			return apierror.ConfigurationIsNotKnown(configurationName)
 		}
 		if err != nil {
 			return apierror.InternalError(err)
@@ -48,7 +48,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	// Retrieve and validate update request ...
 
-	var updateRequest models.ServiceUpdateRequest
+	var updateRequest models.ConfigurationUpdateRequest
 	err = c.BindJSON(&updateRequest)
 	if err != nil {
 		return apierror.BadRequest(err)
@@ -56,14 +56,14 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	// Save changes to resource
 
-	err = services.UpdateService(ctx, cluster, service, updateRequest)
+	err = configurations.UpdateConfiguration(ctx, cluster, configuration, updateRequest)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	// Determine bound apps, as candidates for restart.
 
-	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, serviceName)
+	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -80,11 +80,11 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		// Restart workload, if any
 		if app.Workload != nil {
 			// TODO :: This plain restart is different from all other restarts
-			// (scaling, ev change, bound services change) ... The deployment
+			// (scaling, ev change, bound configurations change) ... The deployment
 			// actually does not change, at all. A resource the deployment
-			// references/uses changed, i.e. the service. We still have to
+			// references/uses changed, i.e. the configuration. We still have to
 			// trigger the restart somehow, so that the pod mounting the
-			// service remounts it for the new/changed keys.
+			// configuration remounts it for the new/changed keys.
 			nano := time.Now().UnixNano()
 			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
 			if apierr != nil {

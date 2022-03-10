@@ -37,9 +37,9 @@ Epinio's development is governed by the following principles:
 - **Apps**
   - CRUD operations of your app. (An app can be a tarball or in a github repo)
   - Cloud Native Buildpacks provide the runtime environment for your apps
-- **Services**
-  - CRUD operations of your service. A service can be a database, SaaS etc. A service can be an external component or can be created using `epinio service`
-  - Bind services to apps.
+- **Configurations**
+  - CRUD operations of your configuration. A configuration can be a database, SaaS etc. A configuration can be an external component or can be created using `epinio configuration`
+  - Bind configurations to apps.
 
 ## Future Plans
 
@@ -51,7 +51,7 @@ Epinio's main goal is to make existing solutions accessible, to the application
 developer. Those solutions include:
 
 - TLS Certificate Signers
-- Service mesh integration and testing
+- Configuration mesh integration and testing
 - Open Telemetry
 - Multi-Tenancy
 - Serverless/Eventing framework

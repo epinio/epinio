@@ -16,55 +16,55 @@ var ResponseOK = Response{"ok"}
 type Request struct {
 }
 
-// ServiceRef references a Service by name and namespace
-type ServiceRef struct {
+// ConfigurationRef references a Configuration by name and namespace
+type ConfigurationRef struct {
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
 }
 
-// ServiceResponse represents the data of a single service instance
-type ServiceResponse struct {
-	Meta          ServiceRef          `json:"meta"`
-	Configuration ServiceShowResponse `json:"configuration"`
+// ConfigurationResponse represents the data of a single configuration instance
+type ConfigurationResponse struct {
+	Meta          ConfigurationRef          `json:"meta"`
+	Configuration ConfigurationShowResponse `json:"configuration"`
 }
 
-// ServiceResponseList represents a collection of service instance
-type ServiceResponseList []ServiceResponse
+// ConfigurationResponseList represents a collection of configuration instance
+type ConfigurationResponseList []ConfigurationResponse
 
-// ServiceCreateRequest represents and contains the data needed to
-// create a service instance
-type ServiceCreateRequest struct {
+// ConfigurationCreateRequest represents and contains the data needed to
+// create a configuration instance
+type ConfigurationCreateRequest struct {
 	Name string            `json:"name"`
 	Data map[string]string `json:"data"`
 }
 
-// ServiceUpdateRequest represents and contains the data needed to
-// update a service instance (add/change, and remove keys)
-type ServiceUpdateRequest struct {
+// ConfigurationUpdateRequest represents and contains the data needed to
+// update a configuration instance (add/change, and remove keys)
+type ConfigurationUpdateRequest struct {
 	Remove []string          `json:"remove,omitempty"`
 	Set    map[string]string `json:"edit,omitempty"`
 }
 
-// ServiceReplaceRequest represents and contains the data needed to
-// replace a service instance
-type ServiceReplaceRequest map[string]string
+// ConfigurationReplaceRequest represents and contains the data needed to
+// replace a configuration instance
+type ConfigurationReplaceRequest map[string]string
 
-// ServiceDeleteRequest represents and contains the data needed to delete a service
-type ServiceDeleteRequest struct {
+// ConfigurationDeleteRequest represents and contains the data needed to delete a configuration
+type ConfigurationDeleteRequest struct {
 	Unbind bool `json:"unbind"`
 }
 
-// ServiceDeleteResponse represents the server's response to a successful service deletion
-type ServiceDeleteResponse struct {
+// ConfigurationDeleteResponse represents the server's response to a successful configuration deletion
+type ConfigurationDeleteResponse struct {
 	BoundApps []string `json:"boundapps"`
 }
 
-// BindRequest represents and contains the data needed to bind services to an application.
+// BindRequest represents and contains the data needed to bind configurations to an application.
 type BindRequest struct {
 	Names []string `json:"names"`
 }
 
-// BindResponse represents the server's response to the successful binding of services to
+// BindResponse represents the server's response to the successful binding of configurations to
 // an application.
 type BindResponse struct {
 	WasBound []string `json:"wasbound"`
@@ -126,7 +126,7 @@ func (o *ApplicationOrigin) String() string {
 }
 
 // ApplicationCreateRequest represents and contains the data needed to
-// create an application (at rest), possibly with presets (services)
+// create an application (at rest), possibly with presets (configurations)
 type ApplicationCreateRequest struct {
 	Name          string                   `json:"name"          yaml:"name"`
 	Configuration ApplicationUpdateRequest `json:"configuration" yaml:"configuration,omitempty"`
@@ -134,14 +134,14 @@ type ApplicationCreateRequest struct {
 
 // ApplicationUpdateRequest represents and contains the data needed to update
 // an application. Specifically to modify the number of replicas to
-// run, and the services bound to it.
+// run, and the configurations bound to it.
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
-	Instances   *int32         `json:"instances"   yaml:"instances,omitempty"`
-	Services    []string       `json:"services"    yaml:"services,omitempty"`
-	Environment EnvVariableMap `json:"environment" yaml:"environment,omitempty"`
-	Routes      []string       `json:"routes" yaml:"routes,omitempty"`
+	Instances      *int32         `json:"instances"   yaml:"instances,omitempty"`
+	Configurations []string       `json:"configurations"    yaml:"configurations,omitempty"`
+	Environment    EnvVariableMap `json:"environment" yaml:"environment,omitempty"`
+	Routes         []string       `json:"routes" yaml:"routes,omitempty"`
 }
 
 type ImportGitResponse struct {
@@ -169,7 +169,7 @@ type StageResponse struct {
 }
 
 // DeployRequest represents and contains the data needed to deploy an application
-// Note that the overall application configuration (instances, services, EVs) is
+// Note that the overall application configuration (instances, configurations, EVs) is
 // already known server side, through AppCreate/AppUpdate requests.
 // This request not only comes with the image to deploy, but also the
 // information where the sources of that image came from.
@@ -187,7 +187,7 @@ type DeployResponse struct {
 
 // ApplicationDeleteResponse represents the server's response to a successful app deletion
 type ApplicationDeleteResponse struct {
-	UnboundServices []string `json:"unboundservices"`
+	UnboundConfigurations []string `json:"unboundconfigurations"`
 }
 
 // EnvMatchResponse contains the list of names for matching envs
@@ -195,8 +195,8 @@ type EnvMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
 
-// ServiceShowResponse contains details about a service
-type ServiceShowResponse struct {
+// ConfigurationShowResponse contains details about a configuration
+type ConfigurationShowResponse struct {
 	Username  string            `json:"user"`
 	Details   map[string]string `json:"details,omitempty"`
 	BoundApps []string          `json:"boundapps"`
@@ -224,7 +224,7 @@ type NamespacesMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
 
-// ServiceAppsResponse returns a list of apps per service
-type ServiceAppsResponse struct {
+// ConfigurationAppsResponse returns a list of apps per configuration
+type ConfigurationAppsResponse struct {
 	AppsOf map[string]AppList `json:"apps_of,omitempty"`
 }

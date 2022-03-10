@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
+	"github.com/epinio/epinio/internal/names"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
@@ -62,7 +63,7 @@ func (r *RailsApp) CreateDir() error {
 
 var _ = Describe("RubyOnRails", func() {
 	var rails RailsApp
-	var serviceName string
+	var configurationName string
 
 	BeforeEach(func() {
 		// Hardcode the contents of `config/credentials.yml.enc to avoid having to
@@ -96,31 +97,31 @@ var _ = Describe("RubyOnRails", func() {
 		out, err = proc.Run("", false, "helm", "repo", "update")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		serviceName = catalog.NewServiceName()
+		configurationName = names.TruncateMD5(catalog.NewConfigurationName(), 40)
 		out, err = proc.Run("", false,
-			"helm", "install", serviceName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Namespace,
+			"helm", "install", configurationName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Namespace,
 			"--set", "postgresqlDatabase=production",
 			"--set", "postgresqlUsername=myuser",
 			"--set", "postgresqlPassword=mypassword",
 			"--set", "volumePermissions.enabled=true")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		out, err = env.Epinio("", "service", "create", serviceName,
+		out, err = env.Epinio("", "configuration", "create", configurationName,
 			"username", "myuser",
 			"password", "mypassword",
-			"host", fmt.Sprintf("%s-postgresql.%s.svc.cluster.local", serviceName, rails.Namespace),
+			"host", fmt.Sprintf("%s-postgresql.%s.svc.cluster.local", configurationName, rails.Namespace),
 			"port", "5432",
 		)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		// Change Rails database configuration to match the service name
-		out, err = proc.Run(rails.Dir, false, "sed", "-i", fmt.Sprintf("s/mydb/%s/", serviceName), "config/database.yml")
+		// Change Rails database configuration to match the configuration name
+		out, err = proc.Run(rails.Dir, false, "sed", "-i", fmt.Sprintf("s/mydb/%s/", configurationName), "config/database.yml")
 		Expect(err).ToNot(HaveOccurred(), out)
 	})
 
 	AfterEach(func() {
-		env.DeleteServiceUnbind(serviceName)
-		out, err := proc.Run("", false, "helm", "delete", serviceName, "-n", rails.Namespace)
+		env.DeleteConfigurationUnbind(configurationName)
+		out, err := proc.Run("", false, "helm", "delete", configurationName, "-n", rails.Namespace)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		env.DeleteApp(rails.Name)
@@ -129,7 +130,7 @@ var _ = Describe("RubyOnRails", func() {
 	It("can deploy Rails", func() {
 		out, err := env.EpinioPush(rails.Dir, rails.Name,
 			"--name", rails.Name,
-			"--bind", serviceName)
+			"--bind", configurationName)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		route := testenv.AppRouteFromOutput(out)

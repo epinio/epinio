@@ -35,15 +35,15 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	serviceNames, err := namespaceServices(ctx, cluster, namespace)
+	configurationNames, err := namespaceConfigurations(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	response.OKReturn(c, models.Namespace{
-		Name:     namespace,
-		Apps:     appNames,
-		Services: serviceNames,
+		Name:           namespace,
+		Apps:           appNames,
+		Configurations: configurationNames,
 	})
 	return nil
 }

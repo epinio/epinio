@@ -5,8 +5,8 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
-	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -44,24 +44,24 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.AppAlreadyKnown(createRequest.Name)
 	}
 
-	// Sanity check the services, if any. IOW anything to be bound
+	// Sanity check the configurations, if any. IOW anything to be bound
 	// has to exist now.  We will check again when the application
-	// is deployed, to guard against bound services being removed
+	// is deployed, to guard against bound configurations being removed
 	// from now till then. While it should not be possible through
 	// epinio itself (*), external editing of the relevant
 	// resources cannot be excluded from consideration.
 	//
-	// (*) `epinio service delete S` on a bound service S will
+	// (*) `epinio configuration delete S` on a bound configuration S will
 	//      either reject the operation, or, when forced, unbind S
 	//      from the app.
 
 	var theIssues []apierror.APIError
 
-	for _, serviceName := range createRequest.Configuration.Services {
-		_, err := services.Lookup(ctx, cluster, namespace, serviceName)
+	for _, configurationName := range createRequest.Configuration.Configurations {
+		_, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
 		if err != nil {
-			if err.Error() == "service not found" {
-				theIssues = append(theIssues, apierror.ServiceIsNotKnown(serviceName))
+			if err.Error() == "configuration not found" {
+				theIssues = append(theIssues, apierror.ConfigurationIsNotKnown(configurationName))
 				continue
 			}
 
@@ -102,9 +102,9 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	// Save service information.
-	err = application.BoundServicesSet(ctx, cluster, appRef,
-		createRequest.Configuration.Services, true)
+	// Save configuration information.
+	err = application.BoundConfigurationsSet(ctx, cluster, appRef,
+		createRequest.Configuration.Configurations, true)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

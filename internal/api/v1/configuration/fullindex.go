@@ -1,16 +1,16 @@
-package service
+package configuration
 
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/services"
+	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	"github.com/gin-gonic/gin"
 )
 
-// FullIndex handles the API endpoint GET /services
+// FullIndex handles the API endpoint GET /configurations
 // It lists all the known applications in all namespaces, with and without workload.
 func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
@@ -20,7 +20,7 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	allServices, err := services.List(ctx, cluster, "")
+	allConfigurations, err := configurations.List(ctx, cluster, "")
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -30,7 +30,7 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	responseData, err := makeResponse(ctx, appsOf, allServices)
+	responseData, err := makeResponse(ctx, appsOf, allConfigurations)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

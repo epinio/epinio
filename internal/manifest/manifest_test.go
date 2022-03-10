@@ -94,7 +94,7 @@ origin:
     url: kilter
 configuration:
   instances: 2
-  services:
+  configurations:
   - bar
   environment:
     CREDO: up
@@ -117,7 +117,7 @@ configuration:
 						Name: "foo",
 						Configuration: models.ApplicationUpdateRequest{
 							Instances: &instances,
-							Services: []string{
+							Configurations: []string{
 								"bar",
 							},
 							Environment: models.EnvVariableMap{

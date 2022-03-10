@@ -140,10 +140,10 @@ func AppIsNotKnown(app string) APIError {
 		http.StatusNotFound)
 }
 
-// ServiceIsNotKnown constructs an API error for when the desired service instance does not exist
-func ServiceIsNotKnown(service string) APIError {
+// ConfigurationIsNotKnown constructs an API error for when the desired configuration instance does not exist
+func ConfigurationIsNotKnown(configuration string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Service '%s' does not exist", service),
+		fmt.Sprintf("Configuration '%s' does not exist", configuration),
 		"",
 		http.StatusNotFound)
 }
@@ -156,26 +156,26 @@ func NamespaceAlreadyKnown(namespace string) APIError {
 		http.StatusConflict)
 }
 
-// ServiceAlreadyKnown constructs an API error for when we have a conflict with an existing service instance
-func ServiceAlreadyKnown(service string) APIError {
+// ConfigurationAlreadyKnown constructs an API error for when we have a conflict with an existing configuration instance
+func ConfigurationAlreadyKnown(configuration string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Service '%s' already exists", service),
+		fmt.Sprintf("Configuration '%s' already exists", configuration),
 		"",
 		http.StatusConflict)
 }
 
-// ServiceAlreadyBound constructs an API error for when the service to bind is already bound to the app
-func ServiceAlreadyBound(service string) APIError {
+// ConfigurationAlreadyBound constructs an API error for when the configuration to bind is already bound to the app
+func ConfigurationAlreadyBound(configuration string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Service '%s' already bound", service),
+		fmt.Sprintf("Configuration '%s' already bound", configuration),
 		"",
 		http.StatusConflict)
 }
 
-// ServiceIsNotBound constructs an API error for when the service to unbind is actually not bound to the app
-func ServiceIsNotBound(service string) APIError {
+// ConfigurationIsNotBound constructs an API error for when the configuration to unbind is actually not bound to the app
+func ConfigurationIsNotBound(configuration string) APIError {
 	return NewAPIError(
-		fmt.Sprintf("Service '%s' is not bound", service),
+		fmt.Sprintf("Configuration '%s' is not bound", configuration),
 		"",
 		http.StatusBadRequest)
 }

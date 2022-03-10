@@ -177,7 +177,7 @@
             "required": true
           },
           {
-            "name": "Service",
+            "name": "Configuration",
             "in": "body",
             "schema": {
               "$ref": "#/definitions/ApplicationCreateRequest"
@@ -283,7 +283,7 @@
         "tags": [
           "application"
         ],
-        "summary": "Create the deployment, service and ingress resources for the named `App` in the `Namespace`.",
+        "summary": "Create the deployment, configuration and ingress resources for the named `App` in the `Namespace`.",
         "operationId": "AppDeploy",
         "parameters": [
           {
@@ -690,13 +690,13 @@
         }
       }
     },
-    "/namespaces/{Namespace}/applications/{App}/servicebindings": {
+    "/namespaces/{Namespace}/applications/{App}/configurationbindings": {
       "post": {
         "tags": [
           "svc-binding"
         ],
-        "summary": "Create service binding between `App` in `Namespace`, and the posted services, also in `Namespace`.",
-        "operationId": "ServiceBindingCreate",
+        "summary": "Create configuration binding between `App` in `Namespace`, and the posted configurations, also in `Namespace`.",
+        "operationId": "ConfigurationBindingCreate",
         "parameters": [
           {
             "type": "string",
@@ -720,18 +720,18 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceBindResponse"
+            "$ref": "#/responses/ConfigurationBindResponse"
           }
         }
       }
     },
-    "/namespaces/{Namespace}/applications/{App}/servicebindings/{Service}": {
+    "/namespaces/{Namespace}/applications/{App}/configurationbindings/{Configuration}": {
       "delete": {
         "tags": [
           "svc-binding"
         ],
-        "summary": "Remove service binding between `App` and `Service` in `Namespace`.",
-        "operationId": "ServiceBindingDelete",
+        "summary": "Remove configuration binding between `App` and `Configuration` in `Namespace`.",
+        "operationId": "ConfigurationBindingDelete",
         "parameters": [
           {
             "type": "string",
@@ -747,14 +747,14 @@
           },
           {
             "type": "string",
-            "name": "Service",
+            "name": "Configuration",
             "in": "path",
             "required": true
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceUnbindReponse"
+            "$ref": "#/responses/ConfigurationUnbindReponse"
           }
         }
       }
@@ -822,13 +822,13 @@
         }
       }
     },
-    "/namespaces/{Namespace}/serviceapps": {
+    "/namespaces/{Namespace}/configurationapps": {
       "get": {
         "tags": [
-          "service"
+          "configuration"
         ],
-        "summary": "Return map from services in the `Namespace`, to the apps in the same.",
-        "operationId": "ServiceApps",
+        "summary": "Return map from configurations in the `Namespace`, to the apps in the same.",
+        "operationId": "ConfigurationApps",
         "parameters": [
           {
             "type": "string",
@@ -839,18 +839,18 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceAppsResponse"
+            "$ref": "#/responses/ConfigurationAppsResponse"
           }
         }
       }
     },
-    "/namespaces/{Namespace}/services": {
+    "/namespaces/{Namespace}/configurations": {
       "get": {
         "tags": [
-          "service"
+          "configuration"
         ],
-        "summary": "Return list of services in the `Namespace`.",
-        "operationId": "Services",
+        "summary": "Return list of configurations in the `Namespace`.",
+        "operationId": "Configurations",
         "parameters": [
           {
             "type": "string",
@@ -861,16 +861,16 @@
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServicesResponse"
+            "$ref": "#/responses/ConfigurationsResponse"
           }
         }
       },
       "post": {
         "tags": [
-          "service"
+          "configuration"
         ],
-        "summary": "Create the posted new service in the `Namespace`.",
-        "operationId": "ServiceCreate",
+        "summary": "Create the posted new configuration in the `Namespace`.",
+        "operationId": "ConfigurationCreate",
         "parameters": [
           {
             "type": "string",
@@ -879,27 +879,27 @@
             "required": true
           },
           {
-            "name": "Service",
+            "name": "Configuration",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/ServiceCreateRequest"
+              "$ref": "#/definitions/ConfigurationCreateRequest"
             }
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceCreateResponse"
+            "$ref": "#/responses/ConfigurationCreateResponse"
           }
         }
       }
     },
-    "/namespaces/{Namespace}/services/{Service}": {
+    "/namespaces/{Namespace}/configurations/{Configuration}": {
       "get": {
         "tags": [
-          "service"
+          "configuration"
         ],
-        "summary": "Return details of the named `Service` in the `Namespace`.",
-        "operationId": "ServiceShow",
+        "summary": "Return details of the named `Configuration` in the `Namespace`.",
+        "operationId": "ConfigurationShow",
         "parameters": [
           {
             "type": "string",
@@ -909,23 +909,23 @@
           },
           {
             "type": "string",
-            "name": "Service",
+            "name": "Configuration",
             "in": "path",
             "required": true
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceShowResponse"
+            "$ref": "#/responses/ConfigurationShowResponse"
           }
         }
       },
       "put": {
-        "description": "Replace the named `Service` in the `Namespace` as per the instructions in the body",
+        "description": "Replace the named `Configuration` in the `Namespace` as per the instructions in the body",
         "tags": [
-          "service"
+          "configuration"
         ],
-        "operationId": "ServiceReplace",
+        "operationId": "ConfigurationReplace",
         "parameters": [
           {
             "type": "string",
@@ -935,7 +935,7 @@
           },
           {
             "type": "string",
-            "name": "Service",
+            "name": "Configuration",
             "in": "path",
             "required": true
           },
@@ -943,22 +943,22 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/ServiceReplaceRequest"
+              "$ref": "#/definitions/ConfigurationReplaceRequest"
             }
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceReplaceResponse"
+            "$ref": "#/responses/ConfigurationReplaceResponse"
           }
         }
       },
       "delete": {
         "tags": [
-          "service"
+          "configuration"
         ],
-        "summary": "Delete the named `Service` in the `Namespace`.",
-        "operationId": "ServiceDelete",
+        "summary": "Delete the named `Configuration` in the `Namespace`.",
+        "operationId": "ConfigurationDelete",
         "parameters": [
           {
             "type": "string",
@@ -968,23 +968,23 @@
           },
           {
             "type": "string",
-            "name": "Service",
+            "name": "Configuration",
             "in": "path",
             "required": true
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceDeleteResponse"
+            "$ref": "#/responses/ConfigurationDeleteResponse"
           }
         }
       },
       "patch": {
-        "description": "Update the named `Service` in the `Namespace` as per the instructions in the body",
+        "description": "Update the named `Configuration` in the `Namespace` as per the instructions in the body",
         "tags": [
-          "service"
+          "configuration"
         ],
-        "operationId": "ServiceUpdate",
+        "operationId": "ConfigurationUpdate",
         "parameters": [
           {
             "type": "string",
@@ -994,7 +994,7 @@
           },
           {
             "type": "string",
-            "name": "Service",
+            "name": "Configuration",
             "in": "path",
             "required": true
           },
@@ -1002,13 +1002,13 @@
             "name": "Body",
             "in": "body",
             "schema": {
-              "$ref": "#/definitions/ServiceUpdateRequest"
+              "$ref": "#/definitions/ConfigurationUpdateRequest"
             }
           }
         ],
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceUpdateResponse"
+            "$ref": "#/responses/ConfigurationUpdateResponse"
           }
         }
       }
@@ -1069,16 +1069,16 @@
         }
       }
     },
-    "/services": {
+    "/configurations": {
       "get": {
         "tags": [
-          "service"
+          "configuration"
         ],
-        "summary": "Return list of services in all namespaces.",
-        "operationId": "AllServices",
+        "summary": "Return list of configurations in all namespaces.",
+        "operationId": "AllConfigurations",
         "responses": {
           "200": {
-            "$ref": "#/responses/ServicesResponse"
+            "$ref": "#/responses/ConfigurationsResponse"
           }
         }
       }
@@ -1192,7 +1192,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ApplicationCreateRequest": {
-      "description": "ApplicationCreateRequest represents and contains the data needed to\ncreate an application (at rest), possibly with presets (services)",
+      "description": "ApplicationCreateRequest represents and contains the data needed to\ncreate an application (at rest), possibly with presets (configurations)",
       "type": "object",
       "properties": {
         "configuration": {
@@ -1209,12 +1209,12 @@
       "description": "ApplicationDeleteResponse represents the server's response to a successful app deletion",
       "type": "object",
       "properties": {
-        "unboundservices": {
+        "unboundconfigurations": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "x-go-name": "UnboundServices"
+          "x-go-name": "UnboundConfigurations"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1247,7 +1247,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ApplicationUpdateRequest": {
-      "description": "ApplicationUpdateRequest represents and contains the data needed to update\nan application. Specifically to modify the number of replicas to\nrun, and the services bound to it.\nNote: Instances is a pointer to give us a nil value separate from\nactual integers, as means of communicating `default`/`no change`.",
+      "description": "ApplicationUpdateRequest represents and contains the data needed to update\nan application. Specifically to modify the number of replicas to\nrun, and the configurations bound to it.\nNote: Instances is a pointer to give us a nil value separate from\nactual integers, as means of communicating `default`/`no change`.",
       "type": "object",
       "properties": {
         "environment": {
@@ -1265,19 +1265,19 @@
           },
           "x-go-name": "Routes"
         },
-        "services": {
+        "configurations": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "x-go-name": "Services"
+          "x-go-name": "Configurations"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "BindRequest": {
       "type": "object",
-      "title": "BindRequest represents and contains the data needed to bind services to an application.",
+      "title": "BindRequest represents and contains the data needed to bind configurations to an application.",
       "properties": {
         "names": {
           "type": "array",
@@ -1290,7 +1290,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "BindResponse": {
-      "description": "BindResponse represents the server's response to the successful binding of services to\nan application.",
+      "description": "BindResponse represents the server's response to the successful binding of configurations to\nan application.",
       "type": "object",
       "properties": {
         "wasbound": {
@@ -1304,7 +1304,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "DeployRequest": {
-      "description": "DeployRequest represents and contains the data needed to deploy an application\nNote that the overall application configuration (instances, services, EVs) is\nalready known server side, through AppCreate/AppUpdate requests.\nThis request not only comes with the image to deploy, but also the\ninformation where the sources of that image came from.",
+      "description": "DeployRequest represents and contains the data needed to deploy an application\nNote that the overall application configuration (instances, configurations, EVs) is\nalready known server side, through AppCreate/AppUpdate requests.\nThis request not only comes with the image to deploy, but also the\ninformation where the sources of that image came from.",
       "type": "object",
       "properties": {
         "app": {
@@ -1418,7 +1418,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "Namespace": {
-      "description": "Namespace has all the namespace properties, i.e. name, app names, and service names\nIt is used in the CLI and API responses.",
+      "description": "Namespace has all the namespace properties, i.e. name, app names, and configuration names\nIt is used in the CLI and API responses.",
       "type": "object",
       "properties": {
         "apps": {
@@ -1432,12 +1432,12 @@
           "type": "string",
           "x-go-name": "Name"
         },
-        "services": {
+        "configurations": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "x-go-name": "Services"
+          "x-go-name": "Configurations"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1518,8 +1518,8 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceCreateRequest": {
-      "description": "ServiceCreateRequest represents and contains the data needed to\ncreate a service instance",
+    "ConfigurationCreateRequest": {
+      "description": "ConfigurationCreateRequest represents and contains the data needed to\ncreate a configuration instance",
       "type": "object",
       "properties": {
         "data": {
@@ -1536,8 +1536,8 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceDeleteResponse": {
-      "description": "ServiceDeleteResponse represents the server's response to a successful service deletion",
+    "ConfigurationDeleteResponse": {
+      "description": "ConfigurationDeleteResponse represents the server's response to a successful configuration deletion",
       "type": "object",
       "properties": {
         "boundapps": {
@@ -1550,8 +1550,8 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceRef": {
-      "description": "ServiceRef references a Service by name and namespace",
+    "ConfigurationRef": {
+      "description": "ConfigurationRef references a Configuration by name and namespace",
       "type": "object",
       "properties": {
         "name": {
@@ -1565,37 +1565,37 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceReplaceRequest": {
-      "description": "ServiceReplaceRequest represents and contains the data needed to\nreplace a service instance",
+    "ConfigurationReplaceRequest": {
+      "description": "ConfigurationReplaceRequest represents and contains the data needed to\nreplace a configuration instance",
       "type": "object",
       "additionalProperties": {
         "type": "string"
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceResponse": {
-      "description": "ServiceResponse represents the data of a single service instance",
+    "ConfigurationResponse": {
+      "description": "ConfigurationResponse represents the data of a single configuration instance",
       "type": "object",
       "properties": {
         "configuration": {
-          "$ref": "#/definitions/ServiceShowResponse"
+          "$ref": "#/definitions/ConfigurationShowResponse"
         },
         "meta": {
-          "$ref": "#/definitions/ServiceRef"
+          "$ref": "#/definitions/ConfigurationRef"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceResponseList": {
-      "description": "ServiceResponseList represents a collection of service instance",
+    "ConfigurationResponseList": {
+      "description": "ConfigurationResponseList represents a collection of configuration instance",
       "type": "array",
       "items": {
-        "$ref": "#/definitions/ServiceResponse"
+        "$ref": "#/definitions/ConfigurationResponse"
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceShowResponse": {
-      "description": "ServiceShowResponse contains details about a service",
+    "ConfigurationShowResponse": {
+      "description": "ConfigurationShowResponse contains details about a configuration",
       "type": "object",
       "properties": {
         "boundapps": {
@@ -1619,8 +1619,8 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceUpdateRequest": {
-      "description": "ServiceUpdateRequest represents and contains the data needed to\nupdate a service instance (add/change, and remove keys)",
+    "ConfigurationUpdateRequest": {
+      "description": "ConfigurationUpdateRequest represents and contains the data needed to\nupdate a configuration instance (add/change, and remove keys)",
       "type": "object",
       "properties": {
         "edit": {
@@ -1837,7 +1837,7 @@
         "$ref": "#/definitions/NamespaceList"
       }
     },
-    "ServiceAppsResponse": {
+    "ConfigurationAppsResponse": {
       "description": "",
       "schema": {
         "type": "object",
@@ -1846,52 +1846,52 @@
         }
       }
     },
-    "ServiceBindResponse": {
+    "ConfigurationBindResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/BindResponse"
       }
     },
-    "ServiceCreateResponse": {
+    "ConfigurationCreateResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"
       }
     },
-    "ServiceDeleteResponse": {
+    "ConfigurationDeleteResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceDeleteResponse"
+        "$ref": "#/definitions/ConfigurationDeleteResponse"
       }
     },
-    "ServiceReplaceResponse": {
+    "ConfigurationReplaceResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"
       }
     },
-    "ServiceShowResponse": {
+    "ConfigurationShowResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceResponse"
+        "$ref": "#/definitions/ConfigurationResponse"
       }
     },
-    "ServiceUnbindReponse": {
+    "ConfigurationUnbindReponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"
       }
     },
-    "ServiceUpdateResponse": {
+    "ConfigurationUpdateResponse": {
       "description": "",
       "schema": {
         "$ref": "#/definitions/Response"
       }
     },
-    "ServicesResponse": {
+    "ConfigurationsResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceResponseList"
+        "$ref": "#/definitions/ConfigurationResponseList"
       }
     },
     "StagingCompleteResponse": {

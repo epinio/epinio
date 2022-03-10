@@ -9,7 +9,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/services"
+	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -64,7 +64,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	// if there is nothing to change
 	if updateRequest.Instances == nil && len(updateRequest.Environment) == 0 &&
-		updateRequest.Services == nil && len(updateRequest.Routes) == 0 {
+		updateRequest.Configurations == nil && len(updateRequest.Routes) == 0 {
 		response.OK(c)
 		return nil
 	}
@@ -88,31 +88,31 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		}
 	}
 
-	if updateRequest.Services != nil {
+	if updateRequest.Configurations != nil {
 		var okToBind []string
 
-		if len(updateRequest.Services) > 0 {
-			for _, serviceName := range updateRequest.Services {
-				_, err := services.Lookup(ctx, cluster, namespace, serviceName)
+		if len(updateRequest.Configurations) > 0 {
+			for _, configurationName := range updateRequest.Configurations {
+				_, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
 				if err != nil {
-					// do not change existing service bindings if there is an issue
-					if err.Error() == "service not found" {
-						return apierror.ServiceIsNotKnown(serviceName)
+					// do not change existing configuration bindings if there is an issue
+					if err.Error() == "configuration not found" {
+						return apierror.ConfigurationIsNotKnown(configurationName)
 					}
 
 					return apierror.InternalError(err)
 				}
 
-				okToBind = append(okToBind, serviceName)
+				okToBind = append(okToBind, configurationName)
 			}
 
-			err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, true)
+			err = application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, true)
 			if err != nil {
 				return apierror.InternalError(err)
 			}
 		} else {
-			// remove all bound services
-			err = application.BoundServicesSet(ctx, cluster, app.Meta, []string{}, true)
+			// remove all bound configurations
+			err = application.BoundConfigurationsSet(ctx, cluster, app.Meta, []string{}, true)
 			if err != nil {
 				return apierror.InternalError(err)
 			}

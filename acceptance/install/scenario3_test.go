@@ -15,19 +15,19 @@ import (
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", func() {
+var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Registry", func() {
 	var (
-		flags            []string
-		epinioHelper     epinio.Epinio
-		serviceName      = catalog.NewServiceName()
-		appName          string
-		loadbalancer     string
-		registryUsername string
-		registryPassword string
-		rangeIP          string
-		domain           string
-		domainIP         string
-		// testenv.New is not needed for VerifyAppServiceBound helper :shrug:
+		flags             []string
+		epinioHelper      epinio.Epinio
+		configurationName = catalog.NewConfigurationName()
+		appName           string
+		loadbalancer      string
+		registryUsername  string
+		registryPassword  string
+		rangeIP           string
+		domain            string
+		domainIP          string
+		// testenv.New is not needed for VerifyAppConfigurationBound helper :shrug:
 		env          testenv.EpinioEnv
 		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 	)
@@ -68,7 +68,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("Installs with private CA and pushes an app with service", func() {
+	It("Installs with private CA and pushes an app with configuration", func() {
 		By("Installing MetalLB", func() {
 			rangeIP = os.Getenv("RANGE_IP")
 			out, err := proc.RunW("sed", "-i", fmt.Sprintf("s/@IP_RANGE@/%s/", rangeIP),
@@ -144,17 +144,17 @@ var _ = Describe("<Scenario3> RKE, Private CA, Service, on External Registry", f
 			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
 		})
 
-		By("Creating a service and pushing an app", func() {
-			out, err := epinioHelper.Run("service", "create", serviceName, "mariadb", "10-3-22")
+		By("Creating a configuration and pushing an app", func() {
+			out, err := epinioHelper.Run("configuration", "create", configurationName, "mariadb", "10-3-22")
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = epinioHelper.Run("push",
 				"--name", appName,
 				"--path", testenv.AssetPath("sample-app"),
-				"--bind", serviceName)
+				"--bind", configurationName)
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			env.VerifyAppServiceBound(appName, serviceName, testenv.DefaultWorkspace, 1)
+			env.VerifyAppConfigurationBound(appName, configurationName, testenv.DefaultWorkspace, 1)
 
 			// Verify cluster_issuer is used
 			out, err = proc.RunW("kubectl", "get", "certificate",
