@@ -25,6 +25,9 @@ const (
 	//
 	// (*) A number, i.e. just digits. __No trailing newline__
 	afterEachSleepPath = "/tmp/after_each_sleep"
+
+	// Namespace is the namespace used for the epinio server and staging setup
+	Namespace = "epinio"
 )
 
 type EpinioEnv struct {

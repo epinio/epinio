@@ -19,7 +19,6 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/api/v1/application"
-	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 
@@ -269,7 +268,7 @@ configuration:
 			By("checking if the staging is using custom builder image")
 			labels := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/component=staging", appName)
 			imageList, err := proc.Kubectl("get", "pod",
-				"--namespace", helmchart.StagingNamespace,
+				"--namespace", testenv.Namespace,
 				"-l", labels,
 				"-o", "jsonpath={.items[0].spec.containers[*].image}")
 			Expect(err).NotTo(HaveOccurred())
@@ -363,7 +362,7 @@ configuration:
 
 			It("is using the cache PVC", func() {
 				out, err := proc.Kubectl("get", "pvc", "--namespace",
-					helmchart.StagingNamespace, names.GenerateResourceName(namespace, appName))
+					testenv.Namespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				out, err = push()
@@ -375,12 +374,12 @@ configuration:
 		When("deleting the app", func() {
 			It("deletes the cache PVC too", func() {
 				out, err := proc.Kubectl("get", "pvc", "--namespace",
-					helmchart.StagingNamespace, names.GenerateResourceName(namespace, appName))
+					testenv.Namespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).ToNot(HaveOccurred(), out)
 				env.DeleteApp(appName)
 
 				out, err = proc.Kubectl("get", "pvc", "--namespace",
-					helmchart.StagingNamespace, names.GenerateResourceName(namespace, appName))
+					testenv.Namespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).To(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName))))
 			})
