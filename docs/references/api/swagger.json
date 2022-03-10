@@ -15,6 +15,20 @@
         }
       }
     },
+    "/configurations": {
+      "get": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Return list of configurations in all namespaces.",
+        "operationId": "AllConfigurations",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationsResponse"
+          }
+        }
+      }
+    },
     "/info": {
       "get": {
         "description": "Return server system information",
@@ -274,6 +288,75 @@
         "responses": {
           "200": {
             "$ref": "#/responses/AppUpdateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/configurationbindings": {
+      "post": {
+        "tags": [
+          "svc-binding"
+        ],
+        "summary": "Create configuration binding between `App` in `Namespace`, and the posted configurations, also in `Namespace`.",
+        "operationId": "ConfigurationBindingCreate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/BindRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationBindResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/applications/{App}/configurationbindings/{Configuration}": {
+      "delete": {
+        "tags": [
+          "svc-binding"
+        ],
+        "summary": "Remove configuration binding between `App` and `Configuration` in `Namespace`.",
+        "operationId": "ConfigurationBindingDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Configuration",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationUnbindReponse"
           }
         }
       }
@@ -690,75 +773,6 @@
         }
       }
     },
-    "/namespaces/{Namespace}/applications/{App}/configurationbindings": {
-      "post": {
-        "tags": [
-          "svc-binding"
-        ],
-        "summary": "Create configuration binding between `App` in `Namespace`, and the posted configurations, also in `Namespace`.",
-        "operationId": "ConfigurationBindingCreate",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "Body",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/BindRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ConfigurationBindResponse"
-          }
-        }
-      }
-    },
-    "/namespaces/{Namespace}/applications/{App}/configurationbindings/{Configuration}": {
-      "delete": {
-        "tags": [
-          "svc-binding"
-        ],
-        "summary": "Remove configuration binding between `App` and `Configuration` in `Namespace`.",
-        "operationId": "ConfigurationBindingDelete",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "App",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Configuration",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ConfigurationUnbindReponse"
-          }
-        }
-      }
-    },
     "/namespaces/{Namespace}/applications/{App}/stage": {
       "post": {
         "tags": [
@@ -1068,20 +1082,6 @@
           }
         }
       }
-    },
-    "/configurations": {
-      "get": {
-        "tags": [
-          "configuration"
-        ],
-        "summary": "Return list of configurations in all namespaces.",
-        "operationId": "AllConfigurations",
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ConfigurationsResponse"
-          }
-        }
-      }
     }
   },
   "definitions": {
@@ -1254,6 +1254,13 @@
       "description": "ApplicationUpdateRequest represents and contains the data needed to update\nan application. Specifically to modify the number of replicas to\nrun, and the configurations bound to it.\nNote: Instances is a pointer to give us a nil value separate from\nactual integers, as means of communicating `default`/`no change`.",
       "type": "object",
       "properties": {
+        "configurations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Configurations"
+        },
         "environment": {
           "$ref": "#/definitions/EnvVariableMap"
         },
@@ -1268,13 +1275,6 @@
             "type": "string"
           },
           "x-go-name": "Routes"
-        },
-        "configurations": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "Configurations"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1303,6 +1303,128 @@
             "type": "string"
           },
           "x-go-name": "WasBound"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationCreateRequest": {
+      "description": "ConfigurationCreateRequest represents and contains the data needed to\ncreate a configuration instance",
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Data"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationDeleteResponse": {
+      "description": "ConfigurationDeleteResponse represents the server's response to a successful configuration deletion",
+      "type": "object",
+      "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationRef": {
+      "description": "ConfigurationRef references a Configuration by name and namespace",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Namespace"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationReplaceRequest": {
+      "description": "ConfigurationReplaceRequest represents and contains the data needed to\nreplace a configuration instance",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationResponse": {
+      "description": "ConfigurationResponse represents the data of a single configuration instance",
+      "type": "object",
+      "properties": {
+        "configuration": {
+          "$ref": "#/definitions/ConfigurationShowResponse"
+        },
+        "meta": {
+          "$ref": "#/definitions/ConfigurationRef"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationResponseList": {
+      "description": "ConfigurationResponseList represents a collection of configuration instance",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/ConfigurationResponse"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationShowResponse": {
+      "description": "ConfigurationShowResponse contains details about a configuration",
+      "type": "object",
+      "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Details"
+        },
+        "user": {
+          "type": "string",
+          "x-go-name": "Username"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationUpdateRequest": {
+      "description": "ConfigurationUpdateRequest represents and contains the data needed to\nupdate a configuration instance (add/change, and remove keys)",
+      "type": "object",
+      "properties": {
+        "edit": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "x-go-name": "Set"
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Remove"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1432,16 +1554,16 @@
           },
           "x-go-name": "Apps"
         },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
         "configurations": {
           "type": "array",
           "items": {
             "type": "string"
           },
           "x-go-name": "Configurations"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1518,128 +1640,6 @@
         "status": {
           "type": "string",
           "x-go-name": "Status"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationCreateRequest": {
-      "description": "ConfigurationCreateRequest represents and contains the data needed to\ncreate a configuration instance",
-      "type": "object",
-      "properties": {
-        "data": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "x-go-name": "Data"
-        },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationDeleteResponse": {
-      "description": "ConfigurationDeleteResponse represents the server's response to a successful configuration deletion",
-      "type": "object",
-      "properties": {
-        "boundapps": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "BoundApps"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationRef": {
-      "description": "ConfigurationRef references a Configuration by name and namespace",
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "namespace": {
-          "type": "string",
-          "x-go-name": "Namespace"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationReplaceRequest": {
-      "description": "ConfigurationReplaceRequest represents and contains the data needed to\nreplace a configuration instance",
-      "type": "object",
-      "additionalProperties": {
-        "type": "string"
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationResponse": {
-      "description": "ConfigurationResponse represents the data of a single configuration instance",
-      "type": "object",
-      "properties": {
-        "configuration": {
-          "$ref": "#/definitions/ConfigurationShowResponse"
-        },
-        "meta": {
-          "$ref": "#/definitions/ConfigurationRef"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationResponseList": {
-      "description": "ConfigurationResponseList represents a collection of configuration instance",
-      "type": "array",
-      "items": {
-        "$ref": "#/definitions/ConfigurationResponse"
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationShowResponse": {
-      "description": "ConfigurationShowResponse contains details about a configuration",
-      "type": "object",
-      "properties": {
-        "boundapps": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "BoundApps"
-        },
-        "details": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "x-go-name": "Details"
-        },
-        "user": {
-          "type": "string",
-          "x-go-name": "Username"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ConfigurationUpdateRequest": {
-      "description": "ConfigurationUpdateRequest represents and contains the data needed to\nupdate a configuration instance (add/change, and remove keys)",
-      "type": "object",
-      "properties": {
-        "edit": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          },
-          "x-go-name": "Set"
-        },
-        "remove": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "x-go-name": "Remove"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1775,6 +1775,63 @@
         "$ref": "#/definitions/AppList"
       }
     },
+    "ConfigurationAppsResponse": {
+      "description": "",
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/definitions/AppList"
+        }
+      }
+    },
+    "ConfigurationBindResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/BindResponse"
+      }
+    },
+    "ConfigurationCreateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ConfigurationDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ConfigurationDeleteResponse"
+      }
+    },
+    "ConfigurationReplaceResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ConfigurationShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ConfigurationResponse"
+      }
+    },
+    "ConfigurationUnbindReponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ConfigurationUpdateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ConfigurationsResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ConfigurationResponseList"
+      }
+    },
     "EnvListResponse": {
       "description": "",
       "schema": {
@@ -1839,63 +1896,6 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/NamespaceList"
-      }
-    },
-    "ConfigurationAppsResponse": {
-      "description": "",
-      "schema": {
-        "type": "object",
-        "additionalProperties": {
-          "$ref": "#/definitions/AppList"
-        }
-      }
-    },
-    "ConfigurationBindResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/BindResponse"
-      }
-    },
-    "ConfigurationCreateResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/Response"
-      }
-    },
-    "ConfigurationDeleteResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/ConfigurationDeleteResponse"
-      }
-    },
-    "ConfigurationReplaceResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/Response"
-      }
-    },
-    "ConfigurationShowResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/ConfigurationResponse"
-      }
-    },
-    "ConfigurationUnbindReponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/Response"
-      }
-    },
-    "ConfigurationUpdateResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/Response"
-      }
-    },
-    "ConfigurationsResponse": {
-      "description": "",
-      "schema": {
-        "$ref": "#/definitions/ConfigurationResponseList"
       }
     },
     "StagingCompleteResponse": {
