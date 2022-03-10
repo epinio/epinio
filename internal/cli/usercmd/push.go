@@ -251,6 +251,11 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 }
 
 func (c *EpinioClient) stageLogs(logger logr.Logger, appRef models.AppRef, stageID string) error {
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Application", appRef.Name).
+		Msg("Streaming application logs")
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
