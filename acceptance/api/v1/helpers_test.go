@@ -16,7 +16,6 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -126,7 +125,7 @@ func deployApplication(appName, namespace string, request models.DeployRequest) 
 func waitForStaging(jobName string) {
 	Eventually(func() string {
 		out, err := proc.Kubectl("get", "job",
-			"--namespace", helmchart.StagingNamespace,
+			"--namespace", testenv.Namespace,
 			jobName,
 			"-o", "jsonpath={.status.conditions[0].status}")
 		Expect(err).NotTo(HaveOccurred(), out)
