@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
@@ -20,7 +18,7 @@ import (
 )
 
 const (
-	StandardChart = "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.12/epinio-application-0.1.12.tgz"
+	StandardChart = "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.13/epinio-application-0.1.13.tgz"
 	// ChartName:   "/path/to/stable/etcd-operator",			Local directory
 	// ChartName:   "/path/to/stable/etcd-operator.tar.gz",			Local archive
 	// ChartName:   "http://helm.whatever.com/repo/etcd-operator.tar.gz",	Remote archive
@@ -34,7 +32,6 @@ type ChartParameters struct {
 	Username       string                // User causing the (re)deployment
 	Instances      int32                 // Number Of Desired Replicas
 	StageID        string                // Stage ID that produced ImageURL
-	Owner          metav1.OwnerReference // App CRD Owner Information
 	Environment    models.EnvVariableMap // App Environment
 	Configurations []string              // Bound Configurations (list of names)
 	Routes         []string              // Desired application routes
@@ -93,20 +90,18 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 	yamlParameters := fmt.Sprintf(`
 epinio:
-  appName: "%[10]s"
-  appUID: "%[2]s"
-  env: %[7]s
-  imageURL: "%[4]s"
-  ingress: %[11]s
+  appName: "%[9]s"
+  env: %[6]s
+  imageURL: "%[3]s"
+  ingress: %[10]s
   replicaCount: %[1]d
-  routes: %[8]s
-  configurations: %[6]s
-  stageID: "%[3]s"
-  tlsIssuer: "%[12]s"
-  username: "%[5]s"
-  %[9]s
+  routes: %[7]s
+  configurations: %[5]s
+  stageID: "%[2]s"
+  tlsIssuer: "%[11]s"
+  username: "%[4]s"
+  %[8]s
 `, parameters.Instances,
-		parameters.Owner.UID,
 		parameters.StageID,
 		parameters.ImageURL,
 		parameters.Username,
