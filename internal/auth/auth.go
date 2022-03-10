@@ -9,6 +9,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/randstr"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
 	"k8s.io/apimachinery/pkg/labels"
@@ -120,7 +121,7 @@ func GetUserSecretsByAge(ctx context.Context) ([]corev1.Secret, error) {
 	}).AsSelector().String()
 
 	// Find all user credential secrets
-	secretList, err := cluster.Kubectl.CoreV1().Secrets("epinio").List(ctx, metav1.ListOptions{
+	secretList, err := cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()).List(ctx, metav1.ListOptions{
 		FieldSelector: "type=BasicAuth",
 		LabelSelector: secretSelector,
 	})

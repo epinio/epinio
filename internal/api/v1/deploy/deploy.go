@@ -112,7 +112,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 // - the Epinio registry is an external one (if Epinio was deployed that way)
 // - a pre-existing image is being deployed (coming from an outer registry, not ours)
 func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
-	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, helmchart.StagingNamespace, registry.CredentialsSecretName)
+	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
 	if err != nil {
 		return imageURL, err
 	}

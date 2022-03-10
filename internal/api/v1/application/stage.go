@@ -64,7 +64,7 @@ func (app *stageParam) ImageURL(registryURL string) string {
 // "source" workspace.
 // The same PVC stores the application's build cache (on a separate directory).
 func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRef) error {
-	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.StagingNamespace).
+	_, err := cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
 		Get(ctx, ar.MakePVCName(), metav1.GetOptions{})
 	if err != nil && !apierrors.IsNotFound(err) { // Unknown error, irrelevant to non-existence
 		return err
@@ -74,11 +74,11 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 	}
 
 	// From here on, only if the PVC is missing
-	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.StagingNamespace).
+	_, err = cluster.Kubectl.CoreV1().PersistentVolumeClaims(helmchart.Namespace()).
 		Create(ctx, &corev1.PersistentVolumeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      ar.MakePVCName(),
-				Namespace: helmchart.StagingNamespace,
+				Namespace: helmchart.Namespace(),
 			},
 			Spec: corev1.PersistentVolumeClaimSpec{
 				AccessModes: []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
@@ -144,7 +144,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	}
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
-		helmchart.StagingNamespace, helmchart.S3ConnectionDetailsSecretName)
+		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return apierror.InternalError(err, "failed to fetch the S3 connection details")
 	}
@@ -191,7 +191,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	registryCertificateSecret := viper.GetString("registry-certificate-secret")
 	registryCertificateHash := ""
 	if registryCertificateSecret != "" {
-		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.StagingNamespace, registryCertificateSecret)
+		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.Namespace(), registryCertificateSecret)
 		if err != nil {
 			return apierror.InternalError(err, "cannot calculate Certificate hash")
 		}
@@ -220,12 +220,12 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	job, jobenv := newJobRun(params)
 
 	// Note: The secret is deleted with the job in function `Unstage()`.
-	err = cluster.CreateSecret(ctx, helmchart.StagingNamespace, *jobenv)
+	err = cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
 	if err != nil {
 		return apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
 	}
 
-	err = cluster.CreateJob(ctx, helmchart.StagingNamespace, job)
+	err = cluster.CreateJob(ctx, helmchart.Namespace(), job)
 	if err != nil {
 		return apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
 	}
@@ -236,7 +236,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	imageURL := params.ImageURL(params.RegistryURL)
 
-	log.Info("staged app", "namespace", helmchart.StagingNamespace, "app", params.AppRef, "uid", uid, "image", imageURL)
+	log.Info("staged app", "namespace", helmchart.Namespace(), "app", params.AppRef, "uid", uid, "image", imageURL)
 
 	response.OKReturn(c, models.StageResponse{
 		Stage:    models.NewStage(uid),
@@ -267,7 +267,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 	selector := fmt.Sprintf("app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.suse.org/stage-id=%s",
 		namespace, id)
 
-	jobList, err := cluster.ListJobs(ctx, helmchart.StagingNamespace, selector)
+	jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -277,12 +277,12 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 
 	for _, job := range jobList.Items {
 		// Wait for job to be done
-		err = cluster.WaitForJobDone(ctx, helmchart.StagingNamespace, job.Name, duration.ToAppBuilt())
+		err = cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, duration.ToAppBuilt())
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 		// Check job for failure
-		failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.StagingNamespace)
+		failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.Namespace())
 		if err != nil {
 			return apierror.InternalError(err)
 		}
@@ -602,7 +602,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 }
 
 func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, error) {
-	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.StagingNamespace, registry.CredentialsSecretName)
+	cd, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
 	if err != nil {
 		return "", err
 	}
@@ -618,7 +618,7 @@ func getRegistryURL(ctx context.Context, cluster *kubernetes.Cluster) (string, e
 }
 
 // The equivalent of:
-// kubectl get secret -n (helmchart.StagingNamespace) epinio-registry-tls -o json | jq -r '.["data"]["tls.crt"]' | base64 -d | openssl x509 -hash -noout
+// kubectl get secret -n (helmchart.Namespace()) epinio-registry-tls -o json | jq -r '.["data"]["tls.crt"]' | base64 -d | openssl x509 -hash -noout
 // written in golang.
 func getRegistryCertificateHash(ctx context.Context, c *kubernetes.Cluster, namespace string, name string) (string, error) {
 	secret, err := c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})

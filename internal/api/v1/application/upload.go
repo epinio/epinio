@@ -36,7 +36,7 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get access to a kube client")
 	}
 
-	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.StagingNamespace, helmchart.S3ConnectionDetailsSecretName)
+	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
 	}

@@ -96,7 +96,7 @@ func CurrentlyStaging(ctx context.Context, cluster *kubernetes.Cluster, namespac
 	selector := fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
 		appName, namespace)
 
-	jobList, err := cluster.ListJobs(ctx, helmchart.StagingNamespace, selector)
+	jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
 	if err != nil {
 		return false, err
 	}
@@ -253,7 +253,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 		return err
 	}
 
-	// delete old staging resources in namespace (helmchart.StagingNamespace)
+	// delete old staging resources in namespace (helmchart.Namespace())
 	err = Unstage(ctx, cluster, appRef, "")
 	if err != nil && !apierrors.IsNotFound(err) {
 		return err
@@ -279,7 +279,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 // deleteStagePVC removes the kube PVC resource which was used to hold the application sources for staging.
 func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	return cluster.Kubectl.CoreV1().
-		PersistentVolumeClaims(helmchart.StagingNamespace).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
+		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
 // StageID returns the stage ID of the last attempt at staging, if one exists. It returns
@@ -312,7 +312,7 @@ func ImageURL(app *unstructured.Unstructured) (string, error) {
 // objects from the S3 storage except for the current one.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
-		helmchart.StagingNamespace, helmchart.S3ConnectionDetailsSecretName)
+		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
 		return errors.Wrap(err, "fetching the S3 connection details from the Kubernetes secret")
 	}
@@ -321,7 +321,7 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return errors.Wrap(err, "creating an S3 manager")
 	}
 
-	jobs, err := cluster.ListJobs(ctx, helmchart.StagingNamespace,
+	jobs, err := cluster.ListJobs(ctx, helmchart.Namespace(),
 		fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
 			appRef.Name, appRef.Namespace))
 
