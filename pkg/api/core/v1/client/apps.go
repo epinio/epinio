@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/avast/retry-go"
+	"github.com/gorilla/websocket"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/apimachinery/pkg/util/httpstream/spdy"
@@ -279,6 +281,74 @@ func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, er
 	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
+}
+
+// AppLogs streams the logs of all the application instances, in the targeted namespace
+// If stageID is an empty string, runtime application logs are streamed. If stageID
+// is set, then the matching staging logs are streamed.
+// Logs are streamed through the returned channel.
+// There are 2 ways of stopping this method:
+// 1. The websocket connection closes.
+// 2. The context is canceled (used by the caller when printing of logs should be stopped).
+func (c *Client) AppLogs(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error) {
+	token, err := c.AuthToken()
+	if err != nil {
+		return nil, err
+	}
+
+	queryParams := url.Values{}
+	queryParams.Add("follow", strconv.FormatBool(follow))
+	queryParams.Add("stage_id", stageID)
+	queryParams.Add("authtoken", token)
+
+	var endpoint string
+	if stageID == "" {
+		endpoint = api.WsRoutes.Path("AppLogs", namespace, appName)
+	} else {
+		endpoint = api.WsRoutes.Path("StagingLogs", namespace, stageID)
+	}
+
+	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.WsURL, api.WsRoot, endpoint, queryParams.Encode())
+	webSocketConn, resp, err := websocket.DefaultDialer.Dial(websocketURL, http.Header{})
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
+	}
+
+	msgChan := make(chan []byte)
+
+	go func() {
+		// read messages until someone will close the socket or an error occurs
+		for {
+			_, message, err := webSocketConn.ReadMessage()
+			if err != nil {
+				c.log.Info("error reading message", "error", err)
+				close(msgChan)
+				return
+			}
+			msgChan <- message
+		}
+	}()
+
+	go func() {
+		// wait for the outer func to send the Done signal to close the socket
+		<-ctx.Done()
+
+		err := webSocketConn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+			time.Time{},
+		)
+
+		if err != nil {
+			c.log.Info("error sending close message to websocket", "error", err)
+			close(msgChan)
+			return
+		}
+
+		webSocketConn.Close()
+	}()
+
+	return msgChan, nil
 }
 
 // StagingComplete checks if the staging process is complete

@@ -2,29 +2,20 @@ package usercmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"gopkg.in/yaml.v2"
 
 	"github.com/epinio/epinio/helpers/bytes"
-	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	api "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
-
-	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
 )
 
 // AppCreate creates an app without a workload
@@ -328,29 +319,8 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 // AppLogs streams the logs of all the application instances, in the targeted namespace
 // If stageID is an empty string, runtime application logs are streamed. If stageID
 // is set, then the matching staging logs are streamed.
-// There are 2 ways of stopping this method:
-// 1. The websocket connection closes.
-// 2. Something is sent to the interrupt channel
-// The interrupt channel is used by the caller when printing of logs should
-// be stopped.
-// To make sure everything is properly stopped (both the main thread and the
-// go routine) no matter what caused the stop (number 1 or 2 above):
-// - The go routines closes the connection on interrupt. This causes the main
-//   loop to stop as well.
-// - The main thread sends a signal to the `done` channel when it returns. This
-//   causes the go routine to stop.
-// - The main thread waits for the go routine to stop before finally returning (by
-//   calling `wg.Wait()`.
-// This is what happens when `interrupt` receives something:
-// 1. The go routine closes the connection
-// 2. The loop in the main thread is stopped because the connection was closed
-// 3. The main thread sends to the `done` chan (as a "defer" function), and then
-//    calls wg.Wait() to wait for the go routine to exit.
-// 4. The go routine receives the `done` message, calls wg.Done() and returns
-// 5. The main thread returns
-// When the connection is closed (e.g. from the server side), the process is the
-// same but starts from #2 above.
-func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt chan bool) error {
+// The printLogs func will print the logs from the channel until the channel will be closed.
+func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -367,84 +337,18 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool, interrupt c
 
 	details.Info("application logs")
 
-	token, err := c.API.AuthToken()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logsChan, err := c.API.AppLogs(ctx, c.Settings.Namespace, appName, stageID, follow)
 	if err != nil {
+		c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		return err
 	}
 
-	var urlArgs = []string{}
-	urlArgs = append(urlArgs, fmt.Sprintf("follow=%t", follow))
-	urlArgs = append(urlArgs, fmt.Sprintf("stage_id=%s", stageID))
-	urlArgs = append(urlArgs, fmt.Sprintf("authtoken=%s", token))
+	c.printLogs(details, logsChan)
 
-	var endpoint string
-	if stageID == "" {
-		endpoint = api.WsRoutes.Path("AppLogs", c.Settings.Namespace, appName)
-	} else {
-		endpoint = api.WsRoutes.Path("StagingLogs", c.Settings.Namespace, stageID)
-	}
-	webSocketConn, resp, err := websocket.DefaultDialer.Dial(
-		fmt.Sprintf("%s%s/%s?%s", c.Settings.WSS, api.WsRoot, endpoint, strings.Join(urlArgs, "&")), http.Header{})
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
-	}
-
-	done := make(chan bool)
-	// When we get an interrupt, we close the websocket connection and we
-	// we don't want to return an error in this case.
-	connectionClosedByUs := false
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
-	go func() { // Closes the connection on "interrupt" or just stops on "done"
-		defer wg.Done()
-		for {
-			select {
-			case <-done: // Used by the other loop stop stop this go routine
-				return
-			case <-interrupt:
-				// Used by the caller of this method to stop everything. We simply close
-				// the connection here. This will make the loop below to stop and send us
-				// a signal on "done" above. That will stop this go routine too.
-				// nolint:errcheck // no place to pass any error to.
-				webSocketConn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), time.Time{})
-				connectionClosedByUs = true
-				webSocketConn.Close()
-			}
-		}
-	}()
-
-	defer func() {
-		done <- true // Stop the go routine when we return
-	}()
-
-	var logLine tailer.ContainerLogLine
-	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
-	for {
-		_, message, err := webSocketConn.ReadMessage()
-		if err != nil {
-			if connectionClosedByUs {
-				return nil
-			}
-			if websocket.IsCloseError(err, websocket.CloseNormalClosure) {
-				webSocketConn.Close()
-				return nil
-			}
-			return err
-		}
-		err = json.Unmarshal(message, &logLine)
-		if err != nil {
-			return err
-		}
-
-		printer.Print(logprinter.Log{
-			Message:       logLine.Message,
-			Namespace:     logLine.Namespace,
-			PodName:       logLine.PodName,
-			ContainerName: logLine.ContainerName,
-		}, c.ui.ProgressNote().Compact())
-	}
+	return nil
 }
 
 func (c *EpinioClient) AppExec(ctx context.Context, appName, instance string) error {

@@ -160,7 +160,7 @@ var CmdAppLogs = &cobra.Command{
 			stageID = ""
 		}
 
-		err = client.AppLogs(args[0], stageID, follow, nil)
+		err = client.AppLogs(args[0], stageID, follow)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error streaming application logs")
 	},

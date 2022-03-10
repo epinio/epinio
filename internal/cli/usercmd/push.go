@@ -2,19 +2,21 @@ package usercmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -248,31 +250,47 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	return nil
 }
 
-func (c *EpinioClient) stageLogs(details logr.Logger, appRef models.AppRef, stageID string) error {
-	// Buffered because the go routine may no longer be listening when we try
-	// to stop it. Stopping it should be a fire and forget. We have wg to wait
-	// for the routine to be gone.
-	stopChan := make(chan bool, 1)
-	var wg sync.WaitGroup
-	wg.Add(1)
-	defer wg.Wait()
-	go func() {
-		defer wg.Done()
-		err := c.AppLogs(appRef.Name, stageID, true, stopChan)
-		if err != nil {
-			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
-		}
-	}()
+func (c *EpinioClient) stageLogs(logger logr.Logger, appRef models.AppRef, stageID string) error {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	details.Info("wait for job", "StageID", stageID)
-	c.ui.ProgressNote().KeeplineUnder(1).Msg("Running staging")
-
-	_, err := c.API.StagingComplete(appRef.Namespace, stageID)
+	logsChan, err := c.API.AppLogs(ctx, c.Settings.Namespace, appRef.Name, stageID, true)
 	if err != nil {
-		stopChan <- true // Stop the printing go routine
+		c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
+	}
+
+	// print logs in async
+	go c.printLogs(logger, logsChan)
+
+	logger.Info("wait for job", "StageID", stageID)
+	c.ui.ProgressNote().Msg("Running staging")
+
+	// blocking function that wait until the staging is done
+	_, err = c.API.StagingComplete(appRef.Namespace, stageID)
+	if err != nil {
 		return errors.Wrap(err, "waiting for staging failed")
 	}
-	stopChan <- true // Stop the printing go routine
 
 	return err
+}
+
+// printLogs prints the logs coming from the logsChan channel
+func (c *EpinioClient) printLogs(logger logr.Logger, logsChan chan []byte) {
+	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
+
+	for msg := range logsChan {
+		var logLine tailer.ContainerLogLine
+
+		if err := json.Unmarshal(msg, &logLine); err != nil {
+			logger.Info("error parsing staging message", "error", err)
+			return
+		}
+
+		printer.Print(logprinter.Log{
+			Message:       logLine.Message,
+			Namespace:     logLine.Namespace,
+			PodName:       logLine.PodName,
+			ContainerName: logLine.ContainerName,
+		}, c.ui.ProgressNote().Compact())
+	}
 }
