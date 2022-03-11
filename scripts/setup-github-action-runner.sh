@@ -9,12 +9,20 @@
 # and  export GITHUB_RUNNER_TOKEN=<current token from github settings/actions/runners/new>
 # Note: You can use the same token to add or remove multiple runners,
 #       while it will expire after 1h.
+# Optional export GITHUB_RUNNER_LABELS=<label1,label2> to automatically make the
+# actions runner join/add "Labels"
 
 set -e
 
 if [ -z "$GITHUB_REPOSITORY_URL" ] || [ -z "$GITHUB_RUNNER_TOKEN" ]; then
   echo "Script requires GITHUB_REPOSITORY_URL and GITHUB_RUNNER_TOKEN to be set. Exiting"
   exit 1
+fi
+
+if [ -z "$GITHUB_RUNNER_LABELS" ]; then
+  unset GITHUB_RUNNER_LABELS
+ else
+  runner_labels="--labels $GITHUB_RUNNER_LABELS"
 fi
 
 REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY_URL" | cut -d '/' -f 4- | sed -e 's|/$||' -e 's|/|-|g')
@@ -47,7 +55,7 @@ tar xzf ./actions-runner-linux-x64-2.288.1.tar.gz
 
 # Make non-interactive
 sed -i 's/Runner.Listener configure/Runner.Listener configure --unattended/' config.sh
-./config.sh --url "$GITHUB_REPOSITORY_URL" --token "$GITHUB_RUNNER_TOKEN"
+./config.sh --url "$GITHUB_REPOSITORY_URL" --token "$GITHUB_RUNNER_TOKEN" $runner_labels
 
 # Configure and enable service
 sudo ./svc.sh install
