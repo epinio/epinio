@@ -550,6 +550,7 @@ func (c *EpinioClient) AppRestage(appName string) error {
 	}
 
 	if app.Origin.Kind == models.OriginContainer {
+		c.ui.Note().Msg("Unable to restage container-based application")
 		return nil
 	}
 

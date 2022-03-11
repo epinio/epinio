@@ -48,7 +48,7 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 			})
 		})
 
-		When("restaging an app of kind container", func() {
+		When("restaging a container-based app", func() {
 			var mockClient *mockAPIClient
 
 			BeforeEach(func() {
