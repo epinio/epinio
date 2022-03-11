@@ -310,6 +310,6 @@ var CmdAppRestage = &cobra.Command{
 
 		err = client.AppRestage(args[0])
 		// Note: errors.Wrap (nil, "...") == nil
-		return errors.Wrap(err, "error restarting app")
+		return errors.Wrap(err, "error restaging app")
 	},
 }
