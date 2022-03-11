@@ -215,6 +215,41 @@ configuration:
 		})
 	})
 
+	Describe("restage", func() {
+		When("restaging an existing app", func() {
+			It("will be staged again", func() {
+				env.MakeApp(appName, 1, false)
+
+				restageLogs, err := env.Epinio("", "app", "restage", appName)
+				Expect(err).ToNot(HaveOccurred(), restageLogs)
+
+				By("deleting the app")
+				env.DeleteApp(appName)
+			})
+		})
+
+		When("restaging a non existing app", func() {
+			It("will return an error", func() {
+				restageLogs, err := env.Epinio("", "app", "restage", appName)
+				Expect(err).To(HaveOccurred(), restageLogs)
+			})
+		})
+
+		When("restaging a container based app", func() {
+			It("won't be staged", func() {
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
+
+				restageLogs, err := env.Epinio("", "app", "restage", appName)
+				Expect(err).ToNot(HaveOccurred(), restageLogs)
+				Expect(restageLogs).Should(MatchRegexp("Unable to restage container-based application"))
+
+				By("deleting the app")
+				env.DeleteApp(appName)
+			})
+		})
+
+	})
+
 	When("pushing with custom route flag", func() {
 		AfterEach(func() {
 			env.DeleteApp(appName)

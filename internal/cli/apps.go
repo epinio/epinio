@@ -48,6 +48,7 @@ func init() {
 	CmdApp.AddCommand(CmdAppDelete)
 	CmdApp.AddCommand(CmdAppPush) // See push.go for implementation
 	CmdApp.AddCommand(CmdAppRestart)
+	CmdApp.AddCommand(CmdAppRestage)
 }
 
 // CmdAppList implements the command: epinio app list
@@ -289,5 +290,25 @@ var CmdAppRestart = &cobra.Command{
 		err = client.AppRestart(args[0])
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error restarting app")
+	},
+}
+
+// CmdAppRestage implements the command: epinio app restage
+var CmdAppRestage = &cobra.Command{
+	Use:               "restage NAME",
+	Short:             "Restage the application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		err = client.AppRestage(args[0])
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error restaging app")
 	},
 }
