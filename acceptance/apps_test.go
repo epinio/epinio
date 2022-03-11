@@ -216,20 +216,9 @@ configuration:
 	})
 
 	Describe("restage", func() {
-		When("restaging an app from git", func() {
+		When("restaging an existing app", func() {
 			It("will be staged again", func() {
-				wordpress := "https://github.com/epinio/example-wordpress"
-				pushLog, err := env.EpinioPush("",
-					appName,
-					"--name", appName,
-					"--git", wordpress+",main")
-				Expect(err).ToNot(HaveOccurred(), pushLog)
-
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "list")
-					Expect(err).ToNot(HaveOccurred(), out)
-					return out
-				}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
+				env.MakeApp(appName, 1, false)
 
 				restageLogs, err := env.Epinio("", "app", "restage", appName)
 				Expect(err).ToNot(HaveOccurred(), restageLogs)
@@ -237,31 +226,26 @@ configuration:
 				By("deleting the app")
 				env.DeleteApp(appName)
 			})
+		})
 
+		When("restaging a non existing app", func() {
+			It("will return an error", func() {
+				restageLogs, err := env.Epinio("", "app", "restage", appName)
+				Expect(err).To(HaveOccurred(), restageLogs)
+			})
 		})
 
 		When("restaging a container based app", func() {
 			It("won't be staged", func() {
-				pushLog, err := env.EpinioPush("",
-					appName,
-					"--name", appName,
-					"--container-image-url", containerImageURL)
-				Expect(err).ToNot(HaveOccurred(), pushLog)
-
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "list")
-					Expect(err).ToNot(HaveOccurred(), out)
-					return out
-				}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
 
 				restageLogs, err := env.Epinio("", "app", "restage", appName)
-				Expect(err).ToNot(HaveOccurred(), pushLog)
+				Expect(err).ToNot(HaveOccurred(), restageLogs)
 				Expect(restageLogs).Should(MatchRegexp("Unable to restage container-based application"))
 
 				By("deleting the app")
 				env.DeleteApp(appName)
 			})
-
 		})
 
 	})
