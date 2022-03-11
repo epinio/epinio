@@ -21,7 +21,7 @@ REPOSITORY_NAME=$(echo "$GITHUB_REPOSITORY_URL" | cut -d '/' -f 4- | sed -e 's|/
 ACTIONS_RUNNER_SERVICE=actions.runner."$REPOSITORY_NAME".`hostname`.service
 
 # Install needed packages
-rpms="make gcc docker libicu wget fping"
+rpms="make gcc docker libicu wget fping unzip jq"
 sudo ZYPP_LOCK_TIMEOUT=300 zypper --gpg-auto-import-keys ref
 grep SLES /etc/os-release \
   && rpms+=" git-core"    \
