@@ -554,8 +554,6 @@ func (c *EpinioClient) AppRestage(appName string) error {
 		return nil
 	}
 
-	c.ui.Normal().Msg("Restaging application...")
-
 	req := models.StageRequest{App: app.Meta}
 	stageResponse, err := c.API.AppStage(req)
 	if err != nil {
