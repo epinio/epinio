@@ -824,9 +824,11 @@ configuration:
 		AfterEach(func() {
 			env.TargetNamespace(namespace2)
 			env.DeleteApp(app2)
+			env.DeleteNamespace(namespace2)
 
 			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
+			env.DeleteNamespace(namespace1)
 		})
 
 		It("lists all applications belonging to all namespaces", func() {

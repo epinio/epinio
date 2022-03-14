@@ -96,10 +96,11 @@ func (w *WordpressApp) AppURL() (string, error) {
 }
 
 var _ = Describe("Wordpress", func() {
+	var namespace string
 	var wordpress WordpressApp
 
 	BeforeEach(func() {
-		namespace := catalog.NewNamespaceName()
+		namespace = catalog.NewNamespaceName()
 		wordpress = WordpressApp{
 			SourceURL: "https://wordpress.org/wordpress-5.6.1.tar.gz",
 			Name:      catalog.NewAppName(),
@@ -118,6 +119,7 @@ var _ = Describe("Wordpress", func() {
 
 		err = os.RemoveAll(wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred())
+		env.DeleteNamespace(namespace)
 	})
 
 	It("can deploy Wordpress", func() {

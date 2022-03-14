@@ -260,7 +260,6 @@ var _ = Describe("Configurations", func() {
 			env.TargetNamespace(namespace)
 			env.DeleteApp(appName)
 			env.CleanupConfiguration(configurationName1)
-			env.DeleteNamespace(namespace)
 		})
 	})
 })
