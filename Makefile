@@ -99,7 +99,11 @@ test-acceptance: showfocus
 	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/. acceptance/api/v1/. acceptance/apps/.
 
 test-acceptance-api: showfocus
-	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
+	ginkgo --label-filter="!slow" --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
+
+test-acceptance-api-slow: showfocus
+	ginkgo --label-filter="slow" --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
+
 
 test-acceptance-apps: showfocus
 	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/apps/.

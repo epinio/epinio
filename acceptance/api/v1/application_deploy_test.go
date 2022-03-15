@@ -91,7 +91,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		})
 
 		When("an older staging job for the same blob exists", func() {
-			It("doesn't delete the S3 object", func() {
+			It("doesn't delete the S3 object", Label("slow"), func() {
 				By("uploading the code")
 				uploadResponse := uploadApplication(appName, namespace)
 				theOnlyBlob := uploadResponse.BlobUID

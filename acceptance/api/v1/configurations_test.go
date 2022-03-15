@@ -113,7 +113,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			env.DeleteConfiguration(configuration1)
 		})
 
-		It("lists all configurations belonging to all namespaces", func() {
+		It("lists all configurations belonging to all namespaces", Label("slow"), func() {
 			// But we care only about the three we know about from the setup.
 
 			response, err := env.Curl("GET", fmt.Sprintf("%s%s/configurations",

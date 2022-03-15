@@ -284,7 +284,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			Expect(configurationBindings).To(Equal([]string{configuration}))
 		})
 
-		It("unbinds a configuration from an app", func() {
+		It("unbinds a configuration from an app", Label("slow"), func() {
 			env.BindAppConfiguration(app, configuration, namespace)
 			env.BindAppConfiguration(app, configuration2, namespace)
 

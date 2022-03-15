@@ -30,7 +30,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		env.DeleteNamespace(namespace)
 	})
 
-	It("lists the application data", func() {
+	It("lists the application data", Label("slow"), func() {
 		app := catalog.NewAppName()
 		env.MakeContainerImageApp(app, 1, containerImageURL)
 		defer env.DeleteApp(app)

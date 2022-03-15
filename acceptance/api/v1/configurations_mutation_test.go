@@ -299,7 +299,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(responseBody["errors"][0].Details).To(Equal(app))
 			})
 
-			It("unbinds and removes the configuration, when former is requested", func() {
+			It("unbinds and removes the configuration, when former is requested", Label("slow"), func() {
 				response, err := env.Curl("DELETE",
 					fmt.Sprintf("%s%s/namespaces/%s/configurations/%s",
 						serverURL, api.Root, namespace, configuration),

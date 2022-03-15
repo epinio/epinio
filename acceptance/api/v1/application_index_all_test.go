@@ -50,7 +50,7 @@ var _ = Describe("AllApps Endpoints", func() {
 		env.DeleteNamespace(namespace2)
 	})
 
-	It("lists all applications belonging to all namespaces", func() {
+	It("lists all applications belonging to all namespaces", Label("slow"), func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/applications",
 			serverURL, v1.Root), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
