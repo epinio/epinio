@@ -636,7 +636,6 @@ configuration:
 			By("deleting the app")
 			out, err := env.Epinio("", "app", "delete", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
-			// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 			Expect(out).To(MatchRegexp("UNBOUND CONFIGURATIONS"))
 			Expect(out).To(MatchRegexp(configurationName))

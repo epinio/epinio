@@ -19,12 +19,15 @@ var _ = Describe("Namespaces", func() {
 	Describe("namespace create", func() {
 		var namespaceName string
 
+		BeforeEach(func() {
+			namespaceName = catalog.NewNamespaceName()
+		})
+
 		AfterEach(func() {
 			env.DeleteNamespace(namespaceName)
 		})
 
 		It("creates and targets an namespace", func() {
-			namespaceName = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespaceName)
 
 			By("switching namespace back to default")
@@ -33,7 +36,6 @@ var _ = Describe("Namespaces", func() {
 		})
 
 		It("rejects creating an existing namespace", func() {
-			namespaceName = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespaceName)
 
 			out, err := env.Epinio("", "namespace", "create", namespaceName)

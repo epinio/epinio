@@ -103,7 +103,6 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 func (m *Machine) DeleteApp(appName string) {
 	out, err := m.Epinio("", "app", "delete", appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 	EventuallyWithOffset(1, func() string {
 		out, err := m.Epinio("", "app", "list")
@@ -114,8 +113,6 @@ func (m *Machine) DeleteApp(appName string) {
 
 func (m *Machine) CleanupApp(appName string) {
 	out, err := m.Epinio("", "app", "delete", appName)
-	// TODO: Fix `epinio delete` from returning before the app is deleted #131
-
 	if err != nil {
 		fmt.Printf("deleting app failed : %s\n%s", err.Error(), out)
 	}
