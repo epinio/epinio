@@ -127,6 +127,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				deployRequest.Stage.ID = stageResponse.Stage.ID
 				deployApplication(appName, namespace, deployRequest)
 
+				// TODO: Find a way to not have to wait for 2 minutes every time
 				Consistently(listS3Blobs, "2m").Should(ContainElement(ContainSubstring(theOnlyBlob)))
 			})
 		})
