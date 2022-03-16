@@ -34,20 +34,52 @@ func UpdateRoutes(manifest models.ApplicationManifest, cmd *cobra.Command) (mode
 }
 
 // UpdateBSN updates the incoming manifest with information pulled from the --builder,
-// sources (--path, --git, and --container-imageurl), and --name options. Option
-// information replaces any existing information.
+// sources (--path, --git, and --container-imageurl), and --name options.
+// Option information replaces any existing information.
 func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	var err error
 	// BSN - Builder, Source origin, Name
 
 	// B:uilder - Retrieve from options
+	manifest, err = UpdateBuilder(manifest, cmd)
+	if err != nil {
+		return manifest, err
+	}
 
+	// S:ources - Retrieve from options
+	manifest, err = UpdateSources(manifest, cmd)
+	if err != nil {
+		return manifest, err
+	}
+
+	// N:ame - Retrieve from options
+	manifest, err = UpdateName(manifest, cmd)
+	if err != nil {
+		return manifest, err
+	}
+
+	return manifest, nil
+}
+
+// UpdateBuilder updates the incoming manifest with information pulled from the --builder option
+func UpdateBuilder(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	builderImage, err := cmd.Flags().GetString("builder-image")
 	if err != nil {
 		return manifest, errors.Wrap(err, "could not read option --builder-image")
 	}
 
-	// S:ources - Retrieve from options
+	// B:uilder - Replace
 
+	if builderImage != "" {
+		manifest.Staging.Builder = builderImage
+	}
+
+	return manifest, nil
+}
+
+// UpdateSources updates the incoming manifest with information pulled from the sources
+// (--path, --git, and --container-imageurl) options
+func UpdateSources(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	path, err := cmd.Flags().GetString("path")
 	if err != nil {
 		return manifest, errors.Wrap(err, "failed to read option --name")
@@ -108,22 +140,6 @@ func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 		}
 	}
 
-	// N:ame - Retrieve from options
-
-	name, err := cmd.Flags().GetString("name")
-	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --name")
-	}
-
-	// Retrieval complete, without errors. Update manifest as needed. No errors
-	// possible here.
-
-	// B:uilder - replace
-
-	if builderImage != "" {
-		manifest.Staging.Builder = builderImage
-	}
-
 	// S:ources - Replace
 
 	if origins > 0 {
@@ -141,6 +157,16 @@ func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 		}
 	}
 
+	return manifest, nil
+}
+
+// UpdateName updates the incoming manifest with information pulled from the --name option
+func UpdateName(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	name, err := cmd.Flags().GetString("name")
+	if err != nil {
+		return manifest, errors.Wrap(err, "failed to read option --name")
+	}
+
 	// N:ame - Replace
 
 	if name != "" {
@@ -150,45 +176,40 @@ func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 	return manifest, nil
 }
 
-// UpdateISE updates the incoming manifest with information pulled from the
-// --bind, --env, and --instances options. Option information replaces any existing
-// information.
-func UpdateISE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
-
-	// ISE - Instances, Configurations, environment
+// UpdateICE updates the incoming manifest with information pulled from the
+// --bind, --env, and --instances options.
+// Option information replaces any existing information.
+func UpdateICE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	var err error
+	// ICE - Instances, Configurations, Environment
 
 	// I:nstances - Retrieve from options
-
-	instances, err := instances(cmd)
+	manifest, err = UpdateInstances(manifest, cmd)
 	if err != nil {
 		return manifest, err
 	}
 
-	// S:ervices - Retrieve from options
-
-	boundConfigurations, err := cmd.Flags().GetStringSlice("bind")
+	// C:onfigurations - Retrieve from options
+	manifest, err = UpdateConfigurations(manifest, cmd)
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --bind")
+		return manifest, err
 	}
 
 	// E:nvironment - Retrieve from options
-
-	evAssignments, err := cmd.Flags().GetStringSlice("env")
+	manifest, err = UpdateEnvironment(manifest, cmd)
 	if err != nil {
-		return manifest, errors.Wrap(err, "failed to read option --env")
+		return manifest, err
 	}
 
-	environment := models.EnvVariableMap{}
-	for _, assignment := range evAssignments {
-		pieces := strings.Split(assignment, "=")
-		if len(pieces) != 2 {
-			return manifest, errors.New("Bad --env assignment `" + assignment + "`, expected `name=value` as value")
-		}
-		environment[pieces[0]] = pieces[1]
-	}
+	return manifest, nil
+}
 
-	// Retrieval complete, without errors. Update manifest as needed. No errors
-	// possible here.
+// UpdateInstances updates the incoming manifest with information pulled from the --instances option
+func UpdateInstances(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	instances, err := instances(cmd)
+	if err != nil {
+		return manifest, err
+	}
 
 	// I:nstances - Replace
 
@@ -199,11 +220,40 @@ func UpdateISE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 	// - AppCreate API will replace it with `v1.DefaultInstances`
 	// - AppUpdate API will treat it as no op, i.e. keep current instances.
 
-	// S: Configurations - Replace
+	return manifest, nil
+}
+
+// UpdateConfigurations updates the incoming manifest with information pulled from the --bind option
+func UpdateConfigurations(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	boundConfigurations, err := cmd.Flags().GetStringSlice("bind")
+	if err != nil {
+		return manifest, errors.Wrap(err, "failed to read option --bind")
+	}
+
+	// C: Configurations - Replace
 
 	if len(boundConfigurations) > 0 {
 		boundConfigurations = uniqueStrings(boundConfigurations)
 		manifest.Configuration.Configurations = boundConfigurations
+	}
+
+	return manifest, nil
+}
+
+// UpdateEnvironment updates the incoming manifest with information pulled from the --env option
+func UpdateEnvironment(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	evAssignments, err := cmd.Flags().GetStringSlice("env")
+	if err != nil {
+		return manifest, errors.Wrap(err, "failed to read option --env")
+	}
+
+	environment := models.EnvVariableMap{}
+	for _, assignment := range evAssignments {
+		pieces := strings.SplitN(assignment, "=", 2)
+		if len(pieces) < 2 {
+			return manifest, errors.New("Bad --env assignment `" + assignment + "`, expected `name=value` as value")
+		}
+		environment[pieces[0]] = pieces[1]
 	}
 
 	// E:nvironment - Replace

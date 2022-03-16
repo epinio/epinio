@@ -62,7 +62,7 @@ var CmdAppPush = &cobra.Command{
 			return errors.Wrap(err, "Manifest error")
 		}
 
-		m, err = manifest.UpdateISE(m, cmd)
+		m, err = manifest.UpdateICE(m, cmd)
 		if err != nil {
 			return err
 		}
