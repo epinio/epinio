@@ -37,6 +37,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 		env.TargetNamespace(namespace)
 		env.DeleteConfiguration(svc1)
 		env.DeleteConfiguration(svc2)
+		env.DeleteNamespace(namespace)
 	})
 
 	Describe("GET /api/v1/namespaces/:namespace/configurations", func() {
@@ -111,6 +112,8 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
 			env.DeleteConfiguration(configuration1)
+			env.DeleteNamespace(namespace1)
+			env.DeleteNamespace(namespace2)
 		})
 
 		It("lists all configurations belonging to all namespaces", func() {

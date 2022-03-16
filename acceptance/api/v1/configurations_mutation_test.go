@@ -25,6 +25,10 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 		env.SetupAndTargetNamespace(namespace)
 	})
 
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
+
 	Describe("POST /api/v1/namespaces/:namespace/configurations/", func() {
 		It("returns a 'bad request' for a non JSON body", func() {
 			response, err := env.Curl("POST",

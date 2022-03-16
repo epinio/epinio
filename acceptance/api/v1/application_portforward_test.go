@@ -39,6 +39,7 @@ var _ = Describe("AppPortForward Endpoint", func() {
 	})
 
 	AfterEach(func() {
+		env.DeleteApp(appName)
 		env.DeleteNamespace(namespace)
 	})
 

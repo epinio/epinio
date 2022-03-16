@@ -40,6 +40,10 @@ var _ = Describe("Apps", func() {
 		appName = catalog.NewAppName()
 	})
 
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
+
 	When("creating an application without a workload", func() {
 		AfterEach(func() {
 			// MakeApp... by each test (It)
@@ -632,7 +636,6 @@ configuration:
 			By("deleting the app")
 			out, err := env.Epinio("", "app", "delete", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
-			// TODO: Fix `epinio delete` from returning before the app is deleted #131
 
 			Expect(out).To(MatchRegexp("UNBOUND CONFIGURATIONS"))
 			Expect(out).To(MatchRegexp(configurationName))
@@ -820,9 +823,11 @@ configuration:
 		AfterEach(func() {
 			env.TargetNamespace(namespace2)
 			env.DeleteApp(app2)
+			env.DeleteNamespace(namespace2)
 
 			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
+			env.DeleteNamespace(namespace1)
 		})
 
 		It("lists all applications belonging to all namespaces", func() {

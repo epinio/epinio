@@ -25,14 +25,7 @@ var _ = Describe("AppCreate Endpoint", func() {
 	})
 
 	AfterEach(func() {
-		Eventually(func() string {
-			out, err := env.Epinio("", "app", "delete", appName)
-			if err != nil {
-				return out
-			}
-			return ""
-		}, "5m").Should(BeEmpty())
-
+		env.DeleteApp(appName)
 		env.DeleteNamespace(namespace)
 	})
 

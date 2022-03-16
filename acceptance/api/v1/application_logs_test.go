@@ -34,6 +34,7 @@ var _ = Describe("AppLogs Endpoint", func() {
 		route = testenv.AppRouteFromOutput(out)
 		Expect(route).ToNot(BeEmpty())
 	})
+
 	AfterEach(func() {
 		env.DeleteApp(app)
 		env.DeleteNamespace(namespace)

@@ -125,6 +125,7 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		env.DeleteApp(rails.Name)
+		env.DeleteNamespace(rails.Namespace)
 	})
 
 	It("can deploy Rails", func() {

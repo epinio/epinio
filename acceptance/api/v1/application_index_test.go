@@ -25,6 +25,7 @@ var _ = Describe("Apps Endpoint", func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 	})
+
 	AfterEach(func() {
 		env.DeleteNamespace(namespace)
 	})

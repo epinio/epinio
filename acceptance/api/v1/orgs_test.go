@@ -32,6 +32,11 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 			return err
 		}, "1m").ShouldNot(HaveOccurred())
 	})
+
+	AfterEach(func() {
+		env.DeleteNamespace(namespace)
+	})
+
 	Context("Namespaces", func() {
 		Describe("GET /api/v1/namespaces", func() {
 			It("lists all namespaces", func() {
@@ -144,6 +149,9 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
 					Equal("Namespace 'birdy' already exists"))
+
+				// cleanup
+				env.DeleteNamespace("birdy")
 			})
 
 			It("fails for a restricted namespace", func() {
@@ -173,6 +181,9 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(jsOK))
+
+				// cleanup
+				env.DeleteNamespace("birdwatcher")
 			})
 		})
 
@@ -203,9 +214,12 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 
 		Describe("DELETE /api/v1/namespaces/:namespace", func() {
 			It("deletes an namespace", func() {
+				namespaceToDelete := catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespaceToDelete)
+
 				response, err := env.Curl("DELETE",
 					fmt.Sprintf("%s%s/namespaces/%s",
-						serverURL, api.Root, namespace),
+						serverURL, api.Root, namespaceToDelete),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -215,19 +229,22 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(jsOK))
 
-				_, err = proc.Kubectl("get", "namespace", namespace)
+				_, err = proc.Kubectl("get", "namespace", namespaceToDelete)
 				Expect(err).To(HaveOccurred())
 			})
 
 			It("deletes an namespace including apps and configurations", func() {
+				namespaceToDelete := catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespaceToDelete)
+
 				app1 := catalog.NewAppName()
 				env.MakeContainerImageApp(app1, 1, containerImageURL)
 				svc1 := catalog.NewConfigurationName()
 				env.MakeConfiguration(svc1)
-				env.BindAppConfiguration(app1, svc1, namespace)
+				env.BindAppConfiguration(app1, svc1, namespaceToDelete)
 
 				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s",
-					serverURL, api.Root, namespace),
+					serverURL, api.Root, namespaceToDelete),
 					strings.NewReader(``))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
@@ -236,7 +253,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(bodyBytes)).To(Equal(jsOK))
 
-				env.VerifyNamespaceNotExist(namespace)
+				env.VerifyNamespaceNotExist(namespaceToDelete)
 			})
 		})
 
