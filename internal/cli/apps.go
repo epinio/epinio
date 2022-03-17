@@ -91,7 +91,7 @@ var CmdAppCreate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		m, err := manifest.UpdateISE(models.ApplicationManifest{}, cmd)
+		m, err := manifest.UpdateICE(models.ApplicationManifest{}, cmd)
 		if err != nil {
 			return errors.Wrap(err, "unable to get app configuration")
 		}
@@ -236,7 +236,7 @@ var CmdAppUpdate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		m, err := manifest.UpdateISE(models.ApplicationManifest{}, cmd)
+		m, err := manifest.UpdateICE(models.ApplicationManifest{}, cmd)
 		if err != nil {
 			return errors.Wrap(err, "unable to get app configuration")
 		}
