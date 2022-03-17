@@ -159,7 +159,8 @@ func createS3HelperPod() {
 	Expect(err).ToNot(HaveOccurred(), string(out))
 
 	// Start the pod
-	out, err = proc.Kubectl("run", minioHelperPod, "--image=minio/mc", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
+	// FIX: pinning the minio CLI while waiting for this fix https://github.com/minio/mc/issues/4024
+	out, err = proc.Kubectl("run", minioHelperPod, "--image=minio/mc:RELEASE.2022-03-13T22-34-00Z", "--command", "--", "/bin/bash", "-c", "trap : TERM INT; sleep infinity & wait")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	// Wait until the pod is ready
