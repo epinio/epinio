@@ -74,7 +74,9 @@ var _ = Describe("Apps", func() {
 					"--bind", configurationName,
 					"--instances", "2",
 					"--env", "CREDO=up",
-					"--env", "DOGMA=no")
+					"--env", "DOGMA=no",
+					"--env", "COMPLEX=-X foo=bar",
+				)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp("Ok"))
 
@@ -84,6 +86,7 @@ var _ = Describe("Apps", func() {
 				Expect(out).To(MatchRegexp(`Configurations\s*\|\s*` + configurationName + `\s*\|`))
 				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
 				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
+				Expect(out).To(MatchRegexp(`- COMPLEX\s*\|\s*-X foo=bar\s*\|`))
 			})
 
 			Context("manifest", func() {
