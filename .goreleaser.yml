@@ -22,21 +22,24 @@ builds:
       - -w -s
       - -X "github.com/epinio/epinio/internal/version.Version={{ .Tag }}"
     goos:
-      - linux
       - darwin
+      - linux
       - windows
     goarch:
       - amd64
       - arm64
       - arm
+      - s390x
     goarm:
       - "7"
-    ignore:
-    - goos: windows
-      goarch: arm
-      goarm: "7"
-    - goos: windows
-      goarch: arm64
+    targets:
+    - darwin_amd64
+    - darwin_arm64
+    - linux_amd64
+    - linux_arm64
+    - linux_arm_7
+    - linux_s390x
+    - windows_amd64
 
 changelog:
   ## Delegate Changelog to release-drafter
@@ -130,6 +133,24 @@ dockers:
     - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
     - "--build-arg=DIST_BINARY=epinio"
     - "--platform=linux/arm/v7"
+  -
+    use: buildx
+    goos: linux
+    goarch: s390x
+    ids:
+    - epinio
+    image_templates:
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-s390x"
+    dockerfile: images/Dockerfile
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--build-arg=DIST_BINARY=epinio"
+    - "--platform=linux/s390x"
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
   -
@@ -138,12 +159,14 @@ docker_manifests:
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-arm64v8"
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-armv7"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-s390x"
   -
     name_template: "ghcr.io/epinio/epinio-server:latest"
     image_templates:
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-arm64v8"
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-armv7"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-s390x"
 
 brews:
   - name: epinio
