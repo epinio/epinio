@@ -28,7 +28,15 @@ builds:
     goarch:
       - amd64
       - arm64
-      # - arm
+      - arm
+    goarm:
+      - "7"
+    ignore:
+    - goos: windows
+      goarch: arm
+      goarm: "7"
+    - goos: windows
+      goarch: arm64
 
 changelog:
   ## Delegate Changelog to release-drafter
@@ -42,8 +50,7 @@ snapshot:
 
 dockers:
   -
-    # ID of the image, needed if you want to filter by it later on (e.g. on custom publishers).
-    id: epinio
+    use: buildx
 
     # GOOS of the built binaries/packages that should be used.
     goos: linux
@@ -57,16 +64,13 @@ dockers:
 
     # Templates of the Docker image names.
     image_templates:
-    - "ghcr.io/epinio/epinio-server:{{ .Tag }}"
-    - "ghcr.io/epinio/epinio-server:latest"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
 
     # Skips the docker push.
     #skip_push: "true"
 
     # Path to the Dockerfile (from the project root).
     dockerfile: images/Dockerfile
-
-    use: docker
 
     # Template of the docker build flags.
     build_flag_templates:
@@ -89,6 +93,57 @@ dockers:
     # This field does not support wildcards, you can add an entire folder here
     # and use wildcards when you `COPY`/`ADD` in your Dockerfile.
     extra_files: []
+  -
+    use: buildx
+    goos: linux
+    goarch: arm64
+    ids:
+    - epinio
+    image_templates:
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-arm64v8"
+    dockerfile: images/Dockerfile
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--build-arg=DIST_BINARY=epinio"
+    - "--platform=linux/arm64/v8"
+  -
+    use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "7"
+    ids:
+    - epinio
+    image_templates:
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-armv7"
+    dockerfile: images/Dockerfile
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--build-arg=DIST_BINARY=epinio"
+    - "--platform=linux/arm/v7"
+docker_manifests:
+  # https://goreleaser.com/customization/docker_manifest/
+  -
+    name_template: "ghcr.io/epinio/epinio-server:{{ .Tag }}"
+    image_templates:
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-arm64v8"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-armv7"
+  -
+    name_template: "ghcr.io/epinio/epinio-server:latest"
+    image_templates:
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-arm64v8"
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-armv7"
 
 brews:
   - name: epinio
