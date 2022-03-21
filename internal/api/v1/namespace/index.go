@@ -80,7 +80,7 @@ func namespaceConfigurations(ctx context.Context, cluster *kubernetes.Cluster, n
 	}
 	configurationNames := make([]string, 0, len(configurations))
 	for _, configuration := range configurations {
-		configurationNames = append(configurationNames, configuration.Name())
+		configurationNames = append(configurationNames, configuration.Name)
 	}
 
 	return configurationNames, nil

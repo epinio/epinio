@@ -66,13 +66,13 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 			}
 		}
 
-		key := application.ConfigurationKey(configuration.Name(), configuration.Namespace())
+		key := application.ConfigurationKey(configuration.Name, configuration.Namespace)
 		appNames := appsOf[key]
 
 		response = append(response, models.ConfigurationResponse{
 			Meta: models.ConfigurationRef{
-				Name:      configuration.Name(),
-				Namespace: configuration.Namespace(),
+				Name:      configuration.Name,
+				Namespace: configuration.Namespace,
 			},
 			Configuration: models.ConfigurationShowResponse{
 				Username:  configuration.User(),
