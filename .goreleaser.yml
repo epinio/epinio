@@ -89,3 +89,29 @@ dockers:
     # This field does not support wildcards, you can add an entire folder here
     # and use wildcards when you `COPY`/`ADD` in your Dockerfile.
     extra_files: []
+
+brews:
+  - name: epinio
+    description: "CLI for Epinio, the Application Development Engine for Kubernetes"
+    homepage: "https://epinio.io/"
+    license: "Apache-2.0"
+
+    tap:
+      owner: epinio
+      name: homebrew-tap
+
+    folder: Formula
+    url_template: "https://github.com/epinio/epinio/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+
+    # If set to auto, the release will not be uploaded to the homebrew tap
+    # in case there is an indicator for prerelease in the tag e.g. v1.0.0-rc1
+    # Default is false.
+    skip_upload: "auto"
+
+    test: |
+      output = shell_output("#{bin}/epinio version 2>&1")
+      assert_match "Epinio Version: #{version}", output
+
+      output = shell_output("#{bin}/epinio settings update 2>&1")
+      assert_match "failed to get kube config", output
+      assert_match "no configuration has been provided", output
