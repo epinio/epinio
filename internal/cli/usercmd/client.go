@@ -70,6 +70,7 @@ type APIClient interface {
 	// services
 	ServiceCatalog() (*models.ServiceCatalogResponse, error)
 	ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error)
+	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
 }
 
 func New() (*EpinioClient, error) {

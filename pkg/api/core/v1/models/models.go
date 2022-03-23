@@ -239,6 +239,10 @@ type ServiceCatalogShowResponse struct {
 	Service *Service `json:"service,omitempty"`
 }
 
+type ServiceCreateRequest struct {
+	Name string `json:"name,omitempty"`
+}
+
 type Service struct {
 	Name        string   `json:"name,omitempty"`
 	Description string   `json:"description,omitempty"`

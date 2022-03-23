@@ -50,3 +50,29 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 
 	return nil
 }
+
+// CreateNamespace creates a namespace
+func (c *EpinioClient) ServiceCreate(serviceName string) error {
+	log := c.Log.WithName("ServiceCreate")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().Msg("Creatign Service...")
+
+	request := &models.ServiceCreateRequest{
+		Name: serviceName,
+	}
+
+	err := c.API.ServiceCreate(request, c.Settings.Namespace)
+	if err != nil {
+		return err
+	}
+
+	// service := catalogShowResponse.Service
+
+	// c.ui.Success().WithTable("Name", "Description").
+	// 	WithTableRow(service.Name, service.Description).
+	// 	Msg("Epinio Service:")
+
+	return nil
+}

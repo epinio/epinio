@@ -129,6 +129,7 @@ var Routes = routes.NamedRoutes{
 	// Services
 	"ServiceCatalog":     get("/services", errorHandler(service.Controller{}.Catalog)),
 	"ServiceCatalogShow": get("/services/:servicename", errorHandler(service.Controller{}.CatalogShow)),
+	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
 }
 
 var WsRoutes = routes.NamedRoutes{

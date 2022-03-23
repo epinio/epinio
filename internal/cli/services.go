@@ -20,6 +20,7 @@ var CmdServices = &cobra.Command{
 
 func init() {
 	CmdServices.AddCommand(CmdServiceCatalog)
+	CmdServices.AddCommand(CmdServiceCreate)
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -46,5 +47,23 @@ var CmdServiceCatalog = &cobra.Command{
 		}
 
 		return nil
+	},
+}
+
+var CmdServiceCreate = &cobra.Command{
+	Use:   "create NAME",
+	Short: "Create an instance of an Epinio service",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		serviceName := args[0]
+		err = client.ServiceCreate(serviceName)
+		return errors.Wrap(err, "error creating Epinio Service")
 	},
 }

@@ -38,3 +38,13 @@ func (c *Client) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogS
 
 	return &resp, nil
 }
+
+func (c *Client) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.post(api.Routes.Path("ServiceCreate", namespace), string(b))
+	return err
+}
