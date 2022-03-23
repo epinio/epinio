@@ -46,13 +46,13 @@ func ToBinds(ctx context.Context, configurations configurations.ConfigurationLis
 	bindings := AppConfigurationBindList{}
 
 	for _, configuration := range configurations {
-		bindResource, err := configuration.GetBinding(ctx, appName, userName)
+		bindResource, err := configuration.GetSecret(ctx)
 		if err != nil {
 			return AppConfigurationBindList{}, err
 		}
 		bindings = append(bindings, AppConfigurationBind{
 			resource:      bindResource.Name,
-			configuration: configuration.Name(),
+			configuration: configuration.Name,
 		})
 	}
 
