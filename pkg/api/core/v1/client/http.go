@@ -138,9 +138,8 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	respLog := responseLogger(c.log, response)
-
 	bodyBytes, err := ioutil.ReadAll(response.Body)
+	respLog := responseLogger(c.log, response, string(bodyBytes))
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")
 		return []byte{}, wrapResponseError(err, response.StatusCode)
@@ -199,9 +198,8 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	respLog := responseLogger(c.log, response)
-
 	bodyBytes, err := ioutil.ReadAll(response.Body)
+	respLog := responseLogger(c.log, response, string(bodyBytes))
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")
 		return []byte{}, wrapResponseError(err, response.StatusCode)
@@ -245,13 +243,14 @@ func requestLogger(l logr.Logger, method string, uri string, body string) logr.L
 	return log
 }
 
-func responseLogger(l logr.Logger, response *http.Response) logr.Logger {
+func responseLogger(l logr.Logger, response *http.Response, body string) logr.Logger {
 	log := l.WithValues("status", response.StatusCode)
 	if log.V(5).Enabled() {
 		log = log.WithValues("header", response.Header)
 		if response.TLS != nil {
 			log = log.WithValues("TLSServerName", response.TLS.ServerName)
 		}
+		log = log.WithValues("body", body)
 	}
 	return log
 }
