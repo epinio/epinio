@@ -228,3 +228,27 @@ type NamespacesMatchResponse struct {
 type ConfigurationAppsResponse struct {
 	AppsOf map[string]AppList `json:"apps_of,omitempty"`
 }
+
+// ServiceCatalogResponse
+type ServiceCatalogResponse struct {
+	Services []*Service `json:"services,omitempty"`
+}
+
+// ServiceCatalogResponse
+type ServiceCatalogShowResponse struct {
+	Service *Service `json:"service,omitempty"`
+}
+
+type Service struct {
+	Name        string   `json:"name,omitempty"`
+	Description string   `json:"description,omitempty"`
+	HelmChart   string   `json:"chart,omitempty"`
+	HelmRepo    HelmRepo `json:"helmRepo,omitempty"`
+	Values      string   `json:"values,omitempty"`
+	UserValues  string   `json:"userValues,omitempty"`
+}
+
+type HelmRepo struct {
+	Name string `json:"name,omitempty"`
+	URL  string `json:"url,omitempty"`
+}

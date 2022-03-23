@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/env"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/api/v1/service"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
@@ -124,6 +125,10 @@ var Routes = routes.NamedRoutes{
 	"ConfigurationDelete":  delete("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Delete)),
 	"ConfigurationUpdate":  patch("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Update)),
 	"ConfigurationReplace": put("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Replace)),
+
+	// Services
+	"ServiceCatalog":     get("/services", errorHandler(service.Controller{}.Catalog)),
+	"ServiceCatalogShow": get("/services/:servicename", errorHandler(service.Controller{}.CatalogShow)),
 }
 
 var WsRoutes = routes.NamedRoutes{
