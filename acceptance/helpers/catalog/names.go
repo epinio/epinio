@@ -25,7 +25,7 @@ func NewNamespaceName() string {
 }
 
 func NewAppName() string {
-	return "apps-" + strconv.Itoa(int(time.Now().Nanosecond()))
+	return "app-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
 func NewUserCredentials() (string, string) {
