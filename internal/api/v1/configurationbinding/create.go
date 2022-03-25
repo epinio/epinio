@@ -91,7 +91,14 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 			continue
 		}
 
-		_, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
+		// TODO we can do this in a better way?
+		err := configurations.LabelConfigurationSecrets(ctx, cluster, namespace, configurationName)
+		if err != nil {
+			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			continue
+		}
+
+		_, err = configurations.Lookup(ctx, cluster, namespace, configurationName)
 		if err != nil {
 			if err.Error() == "configuration not found" {
 				theIssues = append(theIssues, apierror.ConfigurationIsNotKnown(configurationName))

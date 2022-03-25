@@ -11,7 +11,6 @@ package configurations
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -19,6 +18,7 @@ import (
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	ConfigurationLabelKey = "epinio.suse.org/configuration"
+	ConfigurationLabelKey     = "epinio.suse.org/configuration"
+	ConfigurationTypeLabelKey = "epinio.suse.org/configuration-type"
 )
 
 type ConfigurationList []*Configuration
@@ -73,12 +74,13 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 		}
 	}
 
-	secrets, err := cluster.Kubectl.CoreV1().
-		Secrets(namespace).List(ctx,
-		metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("%s=true", ConfigurationLabelKey),
-		})
+	secretSelector := labels.Set(map[string]string{
+		ConfigurationLabelKey: "true",
+	}).AsSelector()
 
+	listOpts := metav1.ListOptions{LabelSelector: secretSelector.String()}
+
+	secrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -118,20 +120,21 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 		sdata[k] = []byte(v)
 	}
 
-	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata,
-		map[string]string{
-			"epinio.suse.org/configuration-type": "custom",
-			ConfigurationLabelKey:                "true",
-			"app.kubernetes.io/created-by":       username,
-			"app.kubernetes.io/name":             "epinio",
-			// "app.kubernetes.io/version":     cmd.Version
-			// FIXME: Importing cmd causes cycle
-			// FIXME: Move version info to separate package!
-		},
-	)
+	labels := map[string]string{
+		ConfigurationLabelKey:          "true",
+		ConfigurationTypeLabelKey:      "custom",
+		"app.kubernetes.io/created-by": username,
+		"app.kubernetes.io/name":       "epinio",
+		// "app.kubernetes.io/version":     cmd.Version
+		// FIXME: Importing cmd causes cycle
+		// FIXME: Move version info to separate package!
+	}
+
+	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels)
 	if err != nil {
 		return nil, err
 	}
+
 	return &Configuration{
 		Name:       name,
 		Namespace:  namespace,
@@ -210,6 +213,41 @@ func (s *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 	}
 
 	return secret, nil
+}
+
+// LabelConfigurationSecrets will look for the Opaque secrets released with a service, looking for the
+// app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
+func LabelConfigurationSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, releaseName string) error {
+	secretSelector := labels.Set(map[string]string{
+		"app.kubernetes.io/managed-by": "Helm",
+		"app.kubernetes.io/instance":   releaseName,
+	}).AsSelector()
+
+	listOptions := metav1.ListOptions{
+		FieldSelector: "type=Opaque",
+		LabelSelector: secretSelector.String(),
+	}
+
+	// Find all user credential secrets
+	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOptions)
+	if err != nil {
+		return err
+	}
+
+	for _, secret := range secretList.Items {
+		sec := secret
+
+		// set labels without override the old ones
+		sec.GetLabels()[ConfigurationLabelKey] = "true"
+		sec.GetLabels()[ConfigurationTypeLabelKey] = "service"
+
+		_, err = kubeClient.Kubectl.CoreV1().Secrets(namespace).Update(ctx, &sec, metav1.UpdateOptions{})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Delete destroys the configuration instance, i.e. its underlying secret
