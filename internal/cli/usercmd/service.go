@@ -52,15 +52,16 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 }
 
 // CreateNamespace creates a namespace
-func (c *EpinioClient) ServiceCreate(serviceName string) error {
+func (c *EpinioClient) ServiceCreate(serviceName, serviceReleaseName string) error {
 	log := c.Log.WithName("ServiceCreate")
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().Msg("Creatign Service...")
+	c.ui.Note().Msg("Creating Service...")
 
 	request := &models.ServiceCreateRequest{
-		Name: serviceName,
+		Name:        serviceName,
+		ReleaseName: serviceReleaseName,
 	}
 
 	err := c.API.ServiceCreate(request, c.Settings.Namespace)

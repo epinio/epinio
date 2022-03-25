@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -18,6 +17,25 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 )
 
+/**
+
+TODO:
+We need a CRD to keep tracks of the released instances.
+We could have one more CRD (i.e.: ServiceRelease) or we switch to the Rancher helm-controller
+and use their HelmChart CRD to keep track of them.
+In Any case after the installation is done we want to label the Opaque secrets that came out the deploy
+in order to show them as Configurations, and be able to bind them to the services they belong to.
+
+TODO2:
+A service may output more than one secrets, so `epinio service bind` could bind all of them at once.
+
+TODO3:
+Show the type of the configuration and the service it belongs to (if any) in the `epinio configuration list/show`
+
+TODO4:
+remove the hardcoded service/release name during the `epinio service create`
+
+*/
 func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
@@ -43,7 +61,12 @@ func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = helmDeployService(ctx, cluster.RestConfig, *service, namespace)
+	err = kubeServiceClient.CreateRelease(ctx, namespace, service.Name, createRequest.ReleaseName)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	err = helmDeployService(ctx, cluster.RestConfig, *service, namespace, createRequest.ReleaseName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -57,6 +80,7 @@ func helmDeployService(
 	restConfig *rest.Config,
 	service models.Service,
 	namespace string,
+	releaseName string,
 ) error {
 
 	client, err := getHelmClient(restConfig, namespace)
@@ -72,21 +96,20 @@ func helmDeployService(
 		return err
 	}
 
-	release, err := client.InstallOrUpgradeChart(ctx, &hc.ChartSpec{
-		ReleaseName: names.ReleaseName(service.Name),
+	_, err = client.InstallOrUpgradeChart(ctx, &hc.ChartSpec{
+		ReleaseName: names.ReleaseName(releaseName),
 		ChartName:   service.HelmChart,
 		Namespace:   namespace,
 		Wait:        true,
 		Atomic:      true,
 		Timeout:     duration.ToDeployment(),
 		// TODO handle values
-		ValuesYaml: `
-commonLabels:
-  "epinio.io/mylabel": "foobar"
-`,
+		// 		ValuesYaml: fmt.Sprintf(`
+		// commonLabels:
+		//   "%s": "true"
+		// `, configurations.ConfigurationLabelKey),
 		ReuseValues: true,
 	})
-	fmt.Printf("%+v\n", release)
 
 	return err
 }

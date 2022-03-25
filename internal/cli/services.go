@@ -51,9 +51,9 @@ var CmdServiceCatalog = &cobra.Command{
 }
 
 var CmdServiceCreate = &cobra.Command{
-	Use:   "create NAME",
-	Short: "Create an instance of an Epinio service",
-	Args:  cobra.ExactArgs(1),
+	Use:   "create SERVICENAME RELEASENAME",
+	Short: "Create an instance RELEASENAME of an Epinio service SERVICENAME",
+	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -63,7 +63,9 @@ var CmdServiceCreate = &cobra.Command{
 		}
 
 		serviceName := args[0]
-		err = client.ServiceCreate(serviceName)
+		serviceReleaseName := args[1]
+
+		err = client.ServiceCreate(serviceName, serviceReleaseName)
 		return errors.Wrap(err, "error creating Epinio Service")
 	},
 }

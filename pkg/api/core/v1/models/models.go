@@ -239,8 +239,10 @@ type ServiceCatalogShowResponse struct {
 	Service *Service `json:"service,omitempty"`
 }
 
+// TODO fix camelCase
 type ServiceCreateRequest struct {
-	Name string `json:"name,omitempty"`
+	Name        string `json:"name,omitempty"`
+	ReleaseName string `json:"releaseName,omitempty"`
 }
 
 type Service struct {
