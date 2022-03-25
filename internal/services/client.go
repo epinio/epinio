@@ -7,8 +7,9 @@ import (
 )
 
 type ServiceClient struct {
-	kubeClient        *kubernetes.Cluster
-	serviceKubeClient dynamic.NamespaceableResourceInterface
+	kubeClient               *kubernetes.Cluster
+	serviceKubeClient        dynamic.NamespaceableResourceInterface
+	serviceReleaseKubeClient dynamic.NamespaceableResourceInterface
 }
 
 func NewKubernetesServiceClient(kubeClient *kubernetes.Cluster) (*ServiceClient, error) {
@@ -17,14 +18,20 @@ func NewKubernetesServiceClient(kubeClient *kubernetes.Cluster) (*ServiceClient,
 		return nil, err
 	}
 
-	gvr := schema.GroupVersionResource{
+	serviceGroupVersion := schema.GroupVersionResource{
 		Group:    "application.epinio.io",
 		Version:  "v1",
 		Resource: "services",
 	}
+	serviceReleaseGroupVersion := schema.GroupVersionResource{
+		Group:    "application.epinio.io",
+		Version:  "v1",
+		Resource: "servicereleases",
+	}
 
 	return &ServiceClient{
-		kubeClient:        kubeClient,
-		serviceKubeClient: dynamicKubeClient.Resource(gvr),
+		kubeClient:               kubeClient,
+		serviceKubeClient:        dynamicKubeClient.Resource(serviceGroupVersion),
+		serviceReleaseKubeClient: dynamicKubeClient.Resource(serviceReleaseGroupVersion),
 	}, nil
 }

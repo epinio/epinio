@@ -2,12 +2,14 @@ package services
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
+	epinioappv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func NewServiceFromJSONMap(m map[string]interface{}) (*models.Service, error) {
@@ -46,48 +48,56 @@ func NewServiceFromJSONMap(m map[string]interface{}) (*models.Service, error) {
 }
 
 func (s *ServiceClient) Get(ctx context.Context, serviceName string) (*models.Service, error) {
-	serviceList, err := s.List(ctx)
+	result, err := s.serviceKubeClient.Namespace("epinio").Get(ctx, serviceName, metav1.GetOptions{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
 	}
 
-	for _, service := range serviceList {
-		if service.Name == serviceName {
-			return service, nil
-		}
+	service, err := NewServiceFromJSONMap(result.UnstructuredContent())
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating Service from JSON map")
 	}
-
-	return nil, fmt.Errorf("service %s not found", serviceName)
+	return service, nil
 }
-
-// TODO fix
-// func (s *ServiceClient) Get(ctx context.Context, serviceName string) (*models.Service, error) {
-// 	result, err := s.serviceKubeClient.Get(ctx, serviceName, metav1.GetOptions{})
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	service, err := NewServiceFromJSONMap(result.UnstructuredContent())
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return service, nil
-// }
 
 func (s *ServiceClient) List(ctx context.Context) ([]*models.Service, error) {
 	listResult, err := s.serviceKubeClient.List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error listing services")
 	}
 
 	services := []*models.Service{}
 	for _, item := range listResult.Items {
 		service, err := NewServiceFromJSONMap(item.UnstructuredContent())
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "error creating Service from JSON map")
 		}
 		services = append(services, service)
 	}
 
 	return services, nil
+}
+
+func (s *ServiceClient) CreateRelease(ctx context.Context, namespace, serviceName, releaseName string) error {
+	serviceReleaseCR := &epinioappv1.ServiceRelease{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: epinioappv1.GroupVersion.String(),
+			Kind:       "ServiceRelease",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: releaseName},
+		Spec: epinioappv1.ServiceReleaseSpec{
+			Name: serviceName,
+		},
+	}
+
+	mapServiceRelease, err := runtime.DefaultUnstructuredConverter.ToUnstructured(serviceReleaseCR)
+	if err != nil {
+		return errors.Wrap(err, "error converting serviceReleaseCR to unstructured")
+	}
+
+	unstructureServiceRelease := &unstructured.Unstructured{}
+	unstructureServiceRelease.SetUnstructuredContent(mapServiceRelease)
+
+	_, err = s.serviceReleaseKubeClient.Namespace(namespace).Create(ctx, unstructureServiceRelease, metav1.CreateOptions{})
+	return errors.Wrap(err, "error creating serviceReleaseCR")
 }
