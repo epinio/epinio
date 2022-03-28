@@ -31,15 +31,12 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-const (
-	AWSCLIImage = "amazon/aws-cli:2.0.52"
-	BashImage   = "bash"
-)
-
 type stageParam struct {
 	models.AppRef
 	BlobUID             string
 	BuilderImage        string
+	DownloadImage       string
+	UnpackImage         string
 	Environment         models.EnvVariableList
 	Owner               metav1.OwnerReference
 	RegistryURL         string
@@ -128,10 +125,23 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
 
+	config, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), helmchart.EpinioStageScriptsName)
+	if err != nil {
+		return apierror.InternalError(err, "failed to retrieve staging image refs")
+	}
+
+	// get builder image from either request, application, or default as final fallback
+
 	builderImage, builderErr := getBuilderImage(req, app)
 	if builderErr != nil {
 		return builderErr
 	}
+	if builderImage == "" {
+		builderImage = config.Data["builderImage"]
+	}
+
+	downloadImage := config.Data["downloadImage"]
+	unpackImage := config.Data["unpackImage"]
 
 	log.Info("staging app", "namespace", namespace, "app", req)
 
@@ -200,6 +210,8 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
+		DownloadImage:       downloadImage,
+		UnpackImage:         unpackImage,
 		BlobUID:             blobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
@@ -553,7 +565,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					InitContainers: []corev1.Container{
 						{
 							Name:         "download-s3-blob",
-							Image:        AWSCLIImage,
+							Image:        app.DownloadImage,
 							VolumeMounts: volumeMounts,
 							Command:      []string{"/bin/bash"},
 							Args: []string{
@@ -564,7 +576,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 						},
 						{
 							Name:         "unpack-blob",
-							Image:        BashImage,
+							Image:        app.UnpackImage,
 							VolumeMounts: volumeMounts,
 							Command:      []string{"bash"},
 							Args: []string{
@@ -653,11 +665,6 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 	builderImage, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "builderimage")
 	if err != nil {
 		returnErr = apierror.InternalError(err, "builderimage should be a string!")
-		return "", returnErr
-	}
-
-	if builderImage == "" {
-		returnErr = apierror.NewBadRequest("request didn't provide a builder image and a previous one doesn't exist")
 		return "", returnErr
 	}
 

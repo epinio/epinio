@@ -36,9 +36,7 @@ var _ = Describe("Manifest", func() {
 						Path:      workdir,
 						Container: "",
 					},
-					Staging: models.ApplicationStage{
-						Builder: manifest.DefaultBuilder,
-					},
+					Staging: models.ApplicationStage{},
 				}))
 			})
 		})

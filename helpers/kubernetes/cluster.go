@@ -604,6 +604,11 @@ func (c *Cluster) Exec(namespace, podName, containerName string, command, stdin 
 	return strings.TrimSpace(stdout.String()), strings.TrimSpace(stderr.String()), err
 }
 
+// GetConfigMap gets a configmap's values
+func (c *Cluster) GetConfigMap(ctx context.Context, namespace, name string) (*v1.ConfigMap, error) {
+	return c.Kubectl.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
 // GetSecret gets a secret's values
 func (c *Cluster) GetSecret(ctx context.Context, namespace, name string) (*v1.Secret, error) {
 	return c.Kubectl.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})

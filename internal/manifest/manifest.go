@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	separator      = ","
-	DefaultBuilder = "paketobuildpacks/builder:full"
+	separator = ","
 )
 
 // UpdateRoutes updates the incoming manifest with information pulled from the --route option.
@@ -289,12 +288,11 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 	}
 
 	// Base manifest, defaults
+	// Note: Builder defaults to empty string - Insertion of Default builder happens server side.
 	manifest := models.ApplicationManifest{
-		Self:   "<<Defaults>>",
-		Origin: defaultOrigin,
-		Staging: models.ApplicationStage{
-			Builder: DefaultBuilder,
-		},
+		Self:    "<<Defaults>>",
+		Origin:  defaultOrigin,
+		Staging: models.ApplicationStage{},
 	}
 
 	if !manifestExists {
