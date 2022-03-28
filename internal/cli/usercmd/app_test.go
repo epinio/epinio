@@ -230,3 +230,15 @@ func (m *mockAPIClient) ConfigurationShow(namespace string, name string) (models
 func (m *mockAPIClient) ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error) {
 	return models.ConfigurationAppsResponse{}, nil
 }
+
+func (m *mockAPIClient) ServiceCatalog() (*models.ServiceCatalogResponse, error) {
+	return nil, nil
+}
+
+func (m *mockAPIClient) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error) {
+	return nil, nil
+}
+
+func (m *mockAPIClient) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
+	return nil
+}
