@@ -24,16 +24,20 @@ func NewServiceFromJSONMap(m map[string]interface{}) (*models.Service, error) {
 		return nil, errors.New("description should be string")
 	}
 
+	if service.LongDescription, _, err = unstructured.NestedString(m, "spec", "longDescription"); err != nil {
+		return nil, errors.New("longDescription should be string")
+	}
+
 	if service.HelmChart, _, err = unstructured.NestedString(m, "spec", "chart"); err != nil {
 		return nil, errors.New("chart should be string")
 	}
 
 	if service.HelmRepo.Name, _, err = unstructured.NestedString(m, "spec", "helmRepo", "name"); err != nil {
-		return nil, errors.New("chart should be string")
+		return nil, errors.New("helmRepo.name should be string")
 	}
 
 	if service.HelmRepo.URL, _, err = unstructured.NestedString(m, "spec", "helmRepo", "url"); err != nil {
-		return nil, errors.New("chart should be string")
+		return nil, errors.New("helmRepo.url should be string")
 	}
 
 	if service.Values, _, err = unstructured.NestedString(m, "spec", "values"); err != nil {

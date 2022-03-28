@@ -242,16 +242,17 @@ type ServiceCatalogShowResponse struct {
 // TODO fix camelCase
 type ServiceCreateRequest struct {
 	Name        string `json:"name,omitempty"`
-	ReleaseName string `json:"releaseName,omitempty"`
+	ReleaseName string `json:"release_name,omitempty"`
 }
 
 type Service struct {
-	Name        string   `json:"name,omitempty"`
-	Description string   `json:"description,omitempty"`
-	HelmChart   string   `json:"chart,omitempty"`
-	HelmRepo    HelmRepo `json:"helmRepo,omitempty"`
-	Values      string   `json:"values,omitempty"`
-	UserValues  string   `json:"userValues,omitempty"`
+	Name            string   `json:"name,omitempty"`
+	Description     string   `json:"description,omitempty"`
+	LongDescription string   `json:"long_description,omitempty"`
+	HelmChart       string   `json:"chart,omitempty"`
+	HelmRepo        HelmRepo `json:"helm_repo,omitempty"`
+	Values          string   `json:"values,omitempty"`
+	UserValues      string   `json:"user_values,omitempty"`
 }
 
 type HelmRepo struct {

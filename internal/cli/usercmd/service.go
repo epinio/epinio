@@ -35,7 +35,9 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().Msg("Getting catalog...")
+	c.ui.Note().
+		WithStringValue("Service", serviceName).
+		Msg("Show service details")
 
 	catalogShowResponse, err := c.API.ServiceCatalogShow(serviceName)
 	if err != nil {
@@ -44,8 +46,10 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 
 	service := catalogShowResponse.Service
 
-	c.ui.Success().WithTable("Name", "Description").
-		WithTableRow(service.Name, service.Description).
+	c.ui.Success().WithTable("Key", "Value").
+		WithTableRow("Name", service.Name).
+		WithTableRow("Description", service.Description).
+		WithTableRow("Long Description", service.LongDescription).
 		Msg("Epinio Service:")
 
 	return nil
