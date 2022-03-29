@@ -81,3 +81,23 @@ func (c *EpinioClient) ServiceCreate(serviceName, serviceReleaseName string) err
 
 	return nil
 }
+
+// CreateNamespace creates a namespace
+func (c *EpinioClient) ServiceReleaseBind(serviceReleaseName, appName string) error {
+	log := c.Log.WithName("ServiceReleaseBind")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().Msg("Binding Service...")
+
+	request := &models.ServiceReleaseBindRequest{
+		AppName: appName,
+	}
+
+	err := c.API.ServiceReleaseBindingCreate(request, c.Settings.Namespace, serviceReleaseName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

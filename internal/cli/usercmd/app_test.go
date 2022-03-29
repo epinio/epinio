@@ -242,3 +242,7 @@ func (m *mockAPIClient) ServiceCatalogShow(serviceName string) (*models.ServiceC
 func (m *mockAPIClient) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
 	return nil
 }
+
+func (m *mockAPIClient) ServiceReleaseBindingCreate(req *models.ServiceReleaseBindRequest, namespace, releaseName string) error {
+	return nil
+}

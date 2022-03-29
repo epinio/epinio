@@ -96,20 +96,21 @@ func helmDeployService(
 		return err
 	}
 
-	_, err = client.InstallOrUpgradeChart(ctx, &hc.ChartSpec{
-		ReleaseName: names.ReleaseName(releaseName),
-		ChartName:   service.HelmChart,
-		Namespace:   namespace,
-		Wait:        true,
-		Atomic:      true,
-		Timeout:     duration.ToDeployment(),
-		// TODO handle values
-		// 		ValuesYaml: fmt.Sprintf(`
-		// commonLabels:
-		//   "%s": "true"
-		// `, configurations.ConfigurationLabelKey),
-		ReuseValues: true,
-	})
+	go func() {
+		_, err = client.InstallOrUpgradeChart(context.Background(), &hc.ChartSpec{
+			ReleaseName: names.ReleaseName(releaseName),
+			ChartName:   service.HelmChart,
+			Namespace:   namespace,
+			Atomic:      true,
+			Timeout:     duration.ToDeployment(),
+			// TODO handle values
+			// 		ValuesYaml: fmt.Sprintf(`
+			// commonLabels:
+			//   "%s": "true"
+			// `, configurations.ConfigurationLabelKey),
+			ReuseValues: true,
+		})
+	}()
 
 	return err
 }

@@ -215,9 +215,9 @@ func (s *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 	return secret, nil
 }
 
-// LabelConfigurationSecrets will look for the Opaque secrets released with a service, looking for the
+// LabelReleaseSecrets will look for the Opaque secrets released with a service, looking for the
 // app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
-func LabelConfigurationSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, releaseName string) error {
+func LabelReleaseSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, releaseName string) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/managed-by": "Helm",
 		"app.kubernetes.io/instance":   releaseName,
@@ -231,7 +231,7 @@ func LabelConfigurationSecrets(ctx context.Context, kubeClient *kubernetes.Clust
 	// Find all user credential secrets
 	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOptions)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, secret := range secretList.Items {
@@ -243,11 +243,11 @@ func LabelConfigurationSecrets(ctx context.Context, kubeClient *kubernetes.Clust
 
 		_, err = kubeClient.Kubectl.CoreV1().Secrets(namespace).Update(ctx, &sec, metav1.UpdateOptions{})
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
+	return secretList.Items, nil
 }
 
 // Delete destroys the configuration instance, i.e. its underlying secret

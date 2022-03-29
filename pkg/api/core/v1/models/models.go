@@ -239,7 +239,6 @@ type ServiceCatalogShowResponse struct {
 	Service *Service `json:"service,omitempty"`
 }
 
-// TODO fix camelCase
 type ServiceCreateRequest struct {
 	Name        string `json:"name,omitempty"`
 	ReleaseName string `json:"release_name,omitempty"`
@@ -258,4 +257,8 @@ type Service struct {
 type HelmRepo struct {
 	Name string `json:"name,omitempty"`
 	URL  string `json:"url,omitempty"`
+}
+
+type ServiceReleaseBindRequest struct {
+	AppName string `json:"app_name,omitempty"`
 }

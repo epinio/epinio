@@ -21,6 +21,7 @@ var CmdServices = &cobra.Command{
 func init() {
 	CmdServices.AddCommand(CmdServiceCatalog)
 	CmdServices.AddCommand(CmdServiceCreate)
+	CmdServices.AddCommand(CmdServiceReleaseBindCreate)
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -66,6 +67,26 @@ var CmdServiceCreate = &cobra.Command{
 		serviceReleaseName := args[1]
 
 		err = client.ServiceCreate(serviceName, serviceReleaseName)
+		return errors.Wrap(err, "error creating Epinio Service")
+	},
+}
+
+var CmdServiceReleaseBindCreate = &cobra.Command{
+	Use:   "bind RELEASENAME APPNAME",
+	Short: "Bind a service release RELEASENAME to an Epinio app APPNAME",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		serviceReleaseName := args[0]
+		appName := args[1]
+
+		err = client.ServiceReleaseBind(serviceReleaseName, appName)
 		return errors.Wrap(err, "error creating Epinio Service")
 	},
 }

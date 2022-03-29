@@ -48,3 +48,13 @@ func (c *Client) ServiceCreate(req *models.ServiceCreateRequest, namespace strin
 	_, err = c.post(api.Routes.Path("ServiceCreate", namespace), string(b))
 	return err
 }
+
+func (c *Client) ServiceReleaseBindingCreate(req *models.ServiceReleaseBindRequest, namespace, releaseName string) error {
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.post(api.Routes.Path("ServiceReleaseBindingCreate", namespace, releaseName), string(b))
+	return err
+}

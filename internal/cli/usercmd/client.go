@@ -71,6 +71,7 @@ type APIClient interface {
 	ServiceCatalog() (*models.ServiceCatalogResponse, error)
 	ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error)
 	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
+	ServiceReleaseBindingCreate(req *models.ServiceReleaseBindRequest, namespace, releaseName string) error
 }
 
 func New() (*EpinioClient, error) {

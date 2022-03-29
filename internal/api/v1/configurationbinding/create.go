@@ -1,6 +1,8 @@
 package configurationbinding
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -26,7 +28,6 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
-	username := requestctx.User(ctx)
 
 	var bindRequest models.BindRequest
 	err := c.BindJSON(&bindRequest)
@@ -67,6 +68,25 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(appName)
 	}
 
+	boundedConfigs, errors := CreateConfigurationBinding(ctx, cluster, namespace, *app, bindRequest.Names)
+	if len(errors.Errors()) > 0 {
+		return apierror.NewMultiError(errors.Errors())
+	}
+
+	resp := models.BindResponse{WasBound: boundedConfigs}
+
+	response.OKReturn(c, resp)
+	return nil
+}
+
+func CreateConfigurationBinding(
+	ctx context.Context,
+	cluster *kubernetes.Cluster,
+	namespace string,
+	app models.App,
+	configurationNames []string,
+) ([]string, apierror.APIErrors) {
+
 	// Collect errors and warnings per configuration, to report as much
 	// as possible while also applying as much as possible. IOW
 	// even when errors are reported it is possible for some of
@@ -75,26 +95,18 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	// Take old state - See validation for use
 	oldBound, err := application.BoundConfigurationNameSet(ctx, cluster, app.Meta)
 	if err != nil {
-		return apierror.InternalError(err)
+		return nil, apierror.InternalError(err)
 	}
 
-	resp := models.BindResponse{}
-
+	boundedConfigs := []string{}
 	var theIssues []apierror.APIError
 	var okToBind []string
 
 	// Validate existence of new configurations. Report invalid configurations as errors, later.
 	// Filter out the configurations already bound, to be reported as regular response.
-	for _, configurationName := range bindRequest.Names {
+	for _, configurationName := range configurationNames {
 		if _, ok := oldBound[configurationName]; ok {
-			resp.WasBound = append(resp.WasBound, configurationName)
-			continue
-		}
-
-		// TODO we can do this in a better way?
-		err := configurations.LabelConfigurationSecrets(ctx, cluster, namespace, configurationName)
-		if err != nil {
-			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			boundedConfigs = append(boundedConfigs, configurationName)
 			continue
 		}
 
@@ -106,7 +118,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 			}
 
 			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-			return apierror.NewMultiError(theIssues)
+			return nil, apierror.NewMultiError(theIssues)
 		}
 
 		okToBind = append(okToBind, configurationName)
@@ -119,22 +131,17 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		err := application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
 			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
-			return apierror.NewMultiError(theIssues)
+			return nil, apierror.NewMultiError(theIssues)
 		}
 
 		// Update the workload, if there is any.
 		if app.Workload != nil {
-			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, requestctx.User(ctx), "", nil, nil)
 			if apierr != nil {
-				return apierr
+				return nil, apierr
 			}
 		}
 	}
 
-	if len(theIssues) > 0 {
-		return apierror.NewMultiError(theIssues)
-	}
-
-	response.OKReturn(c, resp)
-	return nil
+	return boundedConfigs, nil
 }
