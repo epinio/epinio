@@ -1,6 +1,6 @@
 module github.com/epinio/epinio
 
-go 1.17
+go 1.18
 
 replace github.com/containerd/containerd => github.com/containerd/containerd v1.5.11
 
