@@ -61,7 +61,7 @@ func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = kubeServiceClient.CreateRelease(ctx, namespace, service.Name, createRequest.ReleaseName)
+	err = kubeServiceClient.CreateRelease(ctx, namespace, createRequest.ReleaseName, *service)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

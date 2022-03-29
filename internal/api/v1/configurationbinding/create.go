@@ -2,6 +2,7 @@ package configurationbinding
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
@@ -69,7 +70,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	boundedConfigs, errors := CreateConfigurationBinding(ctx, cluster, namespace, *app, bindRequest.Names)
-	if len(errors.Errors()) > 0 {
+	if errors != nil {
 		return apierror.NewMultiError(errors.Errors())
 	}
 
@@ -86,6 +87,7 @@ func CreateConfigurationBinding(
 	app models.App,
 	configurationNames []string,
 ) ([]string, apierror.APIErrors) {
+	logger := requestctx.Logger(ctx).WithName("CreateConfigurationBinding")
 
 	// Collect errors and warnings per configuration, to report as much
 	// as possible while also applying as much as possible. IOW
@@ -93,17 +95,22 @@ func CreateConfigurationBinding(
 	// the configurations to be properly bound.
 
 	// Take old state - See validation for use
+
+	logger.Info("BoundConfigurationNameSet")
 	oldBound, err := application.BoundConfigurationNameSet(ctx, cluster, app.Meta)
 	if err != nil {
 		return nil, apierror.InternalError(err)
 	}
 
 	boundedConfigs := []string{}
-	var theIssues []apierror.APIError
-	var okToBind []string
+	theIssues := []apierror.APIError{}
+	okToBind := []string{}
 
 	// Validate existence of new configurations. Report invalid configurations as errors, later.
 	// Filter out the configurations already bound, to be reported as regular response.
+
+	logger.Info(fmt.Sprintf("configurationNames loop: %#v", configurationNames))
+
 	for _, configurationName := range configurationNames {
 		if _, ok := oldBound[configurationName]; ok {
 			boundedConfigs = append(boundedConfigs, configurationName)
@@ -124,15 +131,20 @@ func CreateConfigurationBinding(
 		okToBind = append(okToBind, configurationName)
 	}
 
+	logger.Info(fmt.Sprintf("okToBind: %#v", okToBind))
+
 	if len(okToBind) > 0 {
 		// Save those that were valid and not yet bound to the
 		// application. Extends the set.
 
+		logger.Info("BoundConfigurationsSet")
 		err := application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
 			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
 			return nil, apierror.NewMultiError(theIssues)
 		}
+
+		logger.Info("DeployApp")
 
 		// Update the workload, if there is any.
 		if app.Workload != nil {

@@ -4,12 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	epinioappv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 )
 
 func NewServiceFromJSONMap(m map[string]interface{}) (*models.Service, error) {
@@ -82,15 +83,23 @@ func (s *ServiceClient) List(ctx context.Context) ([]*models.Service, error) {
 	return services, nil
 }
 
-func (s *ServiceClient) CreateRelease(ctx context.Context, namespace, serviceName, releaseName string) error {
-	serviceReleaseCR := &epinioappv1.ServiceRelease{
+func (s *ServiceClient) CreateRelease(ctx context.Context, namespace, releaseName string, service models.Service) error {
+	serviceReleaseCR := &helmapiv1.HelmChart{
 		TypeMeta: metav1.TypeMeta{
-			APIVersion: epinioappv1.GroupVersion.String(),
-			Kind:       "ServiceRelease",
+			APIVersion: "helm.cattle.io/v1",
+			Kind:       "HelmChart",
 		},
-		ObjectMeta: metav1.ObjectMeta{Name: releaseName},
-		Spec: epinioappv1.ServiceReleaseSpec{
-			Name: serviceName,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      releaseName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"lababala": "custom-label",
+			},
+		},
+		Spec: helmapiv1.HelmChartSpec{
+			TargetNamespace: namespace,
+			Chart:           service.HelmChart,
+			Repo:            service.HelmRepo.URL,
 		},
 	}
 

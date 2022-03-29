@@ -24,9 +24,9 @@ func NewKubernetesServiceClient(kubeClient *kubernetes.Cluster) (*ServiceClient,
 		Resource: "services",
 	}
 	serviceReleaseGroupVersion := schema.GroupVersionResource{
-		Group:    "application.epinio.io",
+		Group:    "helm.cattle.io",
 		Version:  "v1",
-		Resource: "servicereleases",
+		Resource: "helmcharts",
 	}
 
 	return &ServiceClient{
