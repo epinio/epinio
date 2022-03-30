@@ -8,10 +8,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CmdSettings implements the command: epinio settings
+// CmdServices implements the command: epinio services
 var CmdServices = &cobra.Command{
 	Hidden:        true, // TODO remove me when ready
 	Use:           "service",
+	Aliases:       []string{"services"},
 	Short:         "Epinio service management",
 	Long:          `Manage the epinio services`,
 	SilenceErrors: false,
