@@ -1,8 +1,12 @@
 package usercmd
 
-import "github.com/epinio/epinio/pkg/api/core/v1/models"
+import (
+	"fmt"
 
-// CreateNamespace creates a namespace
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
+)
+
+// ServiceCatalog lists available services
 func (c *EpinioClient) ServiceCatalog() error {
 	log := c.Log.WithName("ServiceCatalog")
 	log.Info("start")

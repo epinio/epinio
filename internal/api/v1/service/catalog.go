@@ -8,6 +8,7 @@ import (
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
@@ -50,6 +51,10 @@ func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 
 	service, err := kubeServiceClient.Get(ctx, serviceName)
 	if err != nil {
+		if k8sapierrors.IsNotFound(err) {
+			return apierror.NewNotFoundError("service instance doesn't exist")
+		}
+
 		return apierror.InternalError(err)
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,7 +54,7 @@ func NewServiceFromJSONMap(m map[string]interface{}) (*models.Service, error) {
 }
 
 func (s *ServiceClient) Get(ctx context.Context, serviceName string) (*models.Service, error) {
-	result, err := s.serviceKubeClient.Namespace("epinio").Get(ctx, serviceName, metav1.GetOptions{})
+	result, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).Get(ctx, serviceName, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
 	}
@@ -66,7 +67,7 @@ func (s *ServiceClient) Get(ctx context.Context, serviceName string) (*models.Se
 }
 
 func (s *ServiceClient) List(ctx context.Context) ([]*models.Service, error) {
-	listResult, err := s.serviceKubeClient.List(ctx, metav1.ListOptions{})
+	listResult, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "error listing services")
 	}
