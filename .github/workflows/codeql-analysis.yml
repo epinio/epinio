@@ -1,7 +1,7 @@
 name: "CodeQL"
 
 env:
-  SETUP_GO_VERSION: '^1.17.2'
+  SETUP_GO_VERSION: '^1.18'
 
 on:
   workflow_dispatch:

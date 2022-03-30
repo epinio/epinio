@@ -33,7 +33,7 @@ on:
         default: ""
 
 env:
-  SETUP_GO_VERSION: '^1.17.2'
+  SETUP_GO_VERSION: '^1.18'
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
