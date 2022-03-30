@@ -238,4 +238,3 @@ func (m *mockAPIClient) ServiceCatalog() (*models.ServiceCatalogResponse, error)
 func (m *mockAPIClient) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error) {
 	return nil, nil
 }
-
