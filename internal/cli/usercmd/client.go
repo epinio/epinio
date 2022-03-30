@@ -67,6 +67,9 @@ type APIClient interface {
 	ConfigurationUpdate(req models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error)
 	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)
 	ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error)
+	// services
+	ServiceCatalog() (*models.ServiceCatalogResponse, error)
+	ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error)
 }
 
 func New() (*EpinioClient, error) {
