@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/helpers/bytes"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -199,6 +202,59 @@ func (c *EpinioClient) AppShow(appName string) error {
 	}
 
 	return c.printReplicaDetails(app)
+}
+
+// AppExport saves the named app, in the targeted namespace, to the directory.
+func (c *EpinioClient) AppExport(appName string, directory string) error {
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Application", appName).
+		WithStringValue("Target Directory", directory).
+		Msg("Export application")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	details.Info("export application")
+
+	// 1. Create directory
+	// 2. Retrieve values.yaml for application
+	// 3. Retrieve chart tarball for application
+	// (4.) Retrieve application image (staged sources)
+	// Save all to the directory (in each step)
+	//
+	// While the `values.yaml` is likely quite small it is
+	// essentially a file like all the other parts (chart tarball,
+	// image). For consistency just handle all of them as files,
+	// in the same manner (web socket ?)
+
+	err := os.MkdirAll(directory, 0700)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create export directory '%s'", directory)
+	}
+
+	err = c.API.AppGetPart(c.Settings.Namespace, appName, "values", filepath.Join(directory, "values.yaml"))
+	if err != nil {
+		return err
+	}
+
+	err = c.API.AppGetPart(c.Settings.Namespace, appName, "chart", filepath.Join(directory, "app-chart.tar.gz"))
+	if err != nil {
+		return err
+	}
+
+	//	err = c.API.AppGetPart(c.Settings.Namespace, appName, "image", filepath.Join(directory,"image"))
+	//	if err != nil {
+	//		return err
+	//	}
+
+	return nil
 }
 
 // AppManifest saves the information of the named app, in the targeted namespace, into a manifest file

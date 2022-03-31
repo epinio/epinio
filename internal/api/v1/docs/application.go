@@ -69,6 +69,27 @@ type AppShowResponse struct {
 	Body models.App
 }
 
+// swagger:route GET /namespaces/{Namespace}/applications/{App}/part/{Part} application AppPart
+// Return parts of the named `App` in the `Namespace`.
+// responses:
+//   200: AppPartResponse
+
+// swagger:parameters AppPart
+type AppPartParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+	// in: path
+	Part string
+}
+
+// swagger:response AppPartResponse
+type AppPartResponse struct {
+	// in: body
+	Body []byte
+}
+
 // swagger:route GET /namespaces/{Namespace}/applications/{App}/logs application AppLogs
 // Return logs of the named `App` in the `Namespace` streamed over a websocket.
 // responses:
