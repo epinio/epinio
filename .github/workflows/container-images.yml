@@ -18,7 +18,7 @@ jobs:
           password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
