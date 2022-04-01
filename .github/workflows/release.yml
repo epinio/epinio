@@ -53,7 +53,7 @@ jobs:
       # Allow to release Epinio Helm chart automatically when we release Epinio.
       # The latest tag is sent to the Helm chart repo.
       - name: Repository Dispatch
-        uses: peter-evans/repository-dispatch@v1
+        uses: peter-evans/repository-dispatch@v2
         with:
           token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
           repository: epinio/helm-charts
