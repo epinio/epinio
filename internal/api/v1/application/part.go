@@ -1,8 +1,14 @@
 package application
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/helm"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 )
@@ -42,8 +48,28 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 		// While the app exists it has no workload, and therefore no chart to export
 		return apierror.NewBadRequest("No chart available for application without workload")
 	}
+
 	if partName == "chart" {
-		return apierror.NewInternalError("chart part not yet supported")
+		// Fixed chart in the system. Request and return it.
+		// Better/Faster from the local file cache ?
+		// TODO: List cache directory
+
+		response, err := http.Get(helm.StandardChart)
+		if err != nil || response.StatusCode != http.StatusOK {
+			c.Status(http.StatusServiceUnavailable)
+			return nil
+		}
+
+		reader := response.Body
+		contentLength := response.ContentLength
+		contentType := response.Header.Get("Content-Type")
+
+		requestctx.Logger(c.Request.Context()).Info("OK",
+			"origin", c.Request.URL.String(),
+			"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
+		)
+		c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
+		return nil
 	}
 
 	if partName == "image" {
@@ -51,7 +77,16 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 	}
 
 	if partName == "values" {
-		return apierror.NewInternalError("values part not yet supported")
+		log := requestctx.Logger(ctx)
+
+		yaml, err := helm.Values(cluster, log, app.Meta)
+
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		response.OKBytes(c, yaml)
+		return nil
 	}
 
 	return apierror.NewBadRequest("unknown part, expected chart, image, or values")
