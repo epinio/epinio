@@ -41,7 +41,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -84,7 +84,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -137,7 +137,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -190,7 +190,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
