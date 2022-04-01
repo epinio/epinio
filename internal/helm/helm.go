@@ -15,6 +15,7 @@ import (
 	"github.com/go-logr/logr"
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 const (
@@ -36,6 +37,27 @@ type ChartParameters struct {
 	Configurations []string              // Bound Configurations (list of names)
 	Routes         []string              // Desired application routes
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
+}
+
+func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) ([]byte, error) {
+	none := []byte{}
+
+	client, err := getHelmClient(cluster, logger, app.Namespace)
+	if err != nil {
+		return none, err
+	}
+
+	values, err := client.GetReleaseValues(names.ReleaseName(app.Name), false)
+	if err != nil {
+		return none, err
+	}
+
+	yaml, err := yaml.Marshal(values)
+	if err != nil {
+		return none, err
+	}
+
+	return yaml, nil
 }
 
 func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) error {
