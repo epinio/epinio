@@ -177,6 +177,7 @@ brews:
     tap:
       owner: epinio
       name: homebrew-tap
+      token: "{{ .Env.COMMITTER_TOKEN }}"
 
     folder: Formula
     url_template: "https://github.com/epinio/epinio/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
