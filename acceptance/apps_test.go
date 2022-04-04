@@ -741,7 +741,7 @@ configuration:
 		})
 	})
 
-	Describe("list and show", func() {
+	Describe("list, show, and export", func() {
 		var configurationName string
 		BeforeEach(func() {
 			configurationName = catalog.NewConfigurationName()
@@ -778,6 +778,58 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
+		})
+
+		Context("", func() {
+			var app, exportPath, exportValues, exportChart string
+
+			BeforeEach(func() {
+				exportPath = catalog.NewTmpName(appName + "-export")
+				exportValues = path.Join(exportPath, "values.yaml")
+				exportChart = path.Join(exportPath, "app-chart.tar.gz")
+
+				app = catalog.NewAppName()
+				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org")
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(app)
+
+				err := os.RemoveAll(exportPath)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("exports the details of an app", func() {
+				out, err := env.Epinio("", "app", "export", app, exportPath)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				exported, err := filepath.Glob(exportPath + "/*")
+				Expect(err).ToNot(HaveOccurred(), exported)
+				Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+
+				Expect(exportPath).To(BeADirectory())
+				Expect(exportValues).To(BeARegularFile())
+				Expect(exportChart).To(BeARegularFile())
+
+				values, err := ioutil.ReadFile(exportValues)
+				Expect(err).ToNot(HaveOccurred(), string(values))
+				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
+  appName: %[1]s
+  configurations: []
+  env: []
+  imageURL: splatform/sample-app
+  replicaCount: 1
+  routes:
+  - domain: exportdomain.org
+    id: exportdomain.org
+    path: /
+  stageID: ""
+  start: null
+  tlsIssuer: epinio-ca
+  username: admin
+`, app)))
+				// Not checking that exportChart is a proper tarball.
+			})
 		})
 
 		Describe("no instances", func() {
