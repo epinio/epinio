@@ -47,7 +47,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
 
@@ -57,7 +57,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Cache Tools
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.1
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -83,7 +83,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           submodules: recursive
           fetch-depth: 0
