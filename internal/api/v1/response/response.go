@@ -21,7 +21,7 @@ func OK(c *gin.Context) {
 	c.JSON(http.StatusOK, models.ResponseOK)
 }
 
-// OKReturn reports a success with some data
+// OKBytes reports a success with some data
 func OKBytes(c *gin.Context, response []byte) {
 	requestctx.Logger(c.Request.Context()).Info("OK",
 		"origin", c.Request.URL.String(),

@@ -49,8 +49,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 	return nil
 }
 
-// AppsMatching returns all Epinio apps having the specified prefix
-// in their name.
+// AppsMatching returns all Epinio apps having the specified prefix in their name.
 func (c *EpinioClient) AppsMatching(prefix string) []string {
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
@@ -223,17 +222,6 @@ func (c *EpinioClient) AppExport(appName string, directory string) error {
 
 	details.Info("export application")
 
-	// 1. Create directory
-	// 2. Retrieve values.yaml for application
-	// 3. Retrieve chart tarball for application
-	// (4.) Retrieve application image (staged sources)
-	// Save all to the directory (in each step)
-	//
-	// While the `values.yaml` is likely quite small it is
-	// essentially a file like all the other parts (chart tarball,
-	// image). For consistency just handle all of them as files,
-	// in the same manner (web socket ?)
-
 	err := os.MkdirAll(directory, 0700)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create export directory '%s'", directory)
@@ -248,11 +236,6 @@ func (c *EpinioClient) AppExport(appName string, directory string) error {
 	if err != nil {
 		return err
 	}
-
-	//	err = c.API.AppGetPart(c.Settings.Namespace, appName, "image", filepath.Join(directory,"image"))
-	//	if err != nil {
-	//		return err
-	//	}
 
 	return nil
 }
