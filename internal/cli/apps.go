@@ -146,7 +146,7 @@ var CmdAppExport = &cobra.Command{
 
 		err = client.AppExport(args[0], args[1])
 		// Note: errors.Wrap (nil, "...") == nil
-		return errors.Wrap(err, "error showing app")
+		return errors.Wrap(err, "error exporting app")
 	},
 }
 
