@@ -684,6 +684,40 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/part/{Part}": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return parts of the named `App` in the `Namespace`.",
+        "operationId": "AppPart",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Part",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppPartResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/applications/{App}/portforward": {
       "get": {
         "tags": [
@@ -1729,6 +1763,16 @@
     },
     "AppLogsResponse": {
       "description": ""
+    },
+    "AppPartResponse": {
+      "description": "",
+      "schema": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "uint8"
+        }
+      }
     },
     "AppPortForwardResponse": {
       "description": ""
