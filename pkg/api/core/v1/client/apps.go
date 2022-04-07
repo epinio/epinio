@@ -138,6 +138,67 @@ func (c *Client) AppShow(namespace string, appName string) (models.App, error) {
 	return resp, nil
 }
 
+// AppGetPart retrieves part of an app (values.yaml, chart, image)
+func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) error {
+
+	endpoint := api.Routes.Path("AppPart", namespace, appName, part)
+	requestBody := ""
+	method := "GET"
+
+	// inlined c.get/c.do to the where the response is handled.
+	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
+	c.log.Info(fmt.Sprintf("%s %s", method, uri))
+
+	reqLog := requestLogger(c.log, method, uri, requestBody)
+
+	request, err := http.NewRequest(method, uri, strings.NewReader(requestBody))
+	if err != nil {
+		reqLog.V(1).Error(err, "cannot build request")
+		return err
+	}
+
+	request.SetBasicAuth(c.user, c.password)
+
+	response, err := (&http.Client{}).Do(request)
+
+	if err != nil {
+		reqLog.V(1).Error(err, "request failed")
+		castedErr, ok := err.(*url.Error)
+		if !ok {
+			return errors.New("couldn't cast request Error!")
+		}
+		if castedErr.Timeout() {
+			return errors.New("request cancelled or timed out")
+		}
+
+		return errors.Wrap(err, "making the request")
+	}
+
+	if response.StatusCode != http.StatusOK {
+		bodyBytes, _ := ioutil.ReadAll(response.Body)
+		return wrapResponseError(fmt.Errorf("server status code: %s\n%s",
+			http.StatusText(response.StatusCode), string(bodyBytes)),
+			response.StatusCode)
+	}
+
+	defer response.Body.Close()
+	reqLog.V(1).Info("request finished")
+
+	// Create the file
+	out, err := os.Create(destinationPath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// copy response body to file
+	_, err = io.Copy(out, response.Body)
+
+	c.log.V(1).Info("response stored")
+
+	return err
+}
+
 // AppUpdate updates an app
 func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error) {
 	var resp models.Response

@@ -33,6 +33,23 @@ func (m *Machine) MakeContainerImageApp(appName string, instances int, container
 	return pushOutput
 }
 
+func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, containerImageURL, route string) string {
+	pushOutput, err := m.Epinio("", "apps", "push",
+		"--name", appName,
+		"--route", route,
+		"--container-image-url", containerImageURL,
+		"--instances", strconv.Itoa(instances))
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
+
+	EventuallyWithOffset(1, func() string {
+		out, err := m.Epinio("", "app", "list")
+		Expect(err).ToNot(HaveOccurred(), out)
+		return out
+	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+
+	return pushOutput
+}
+
 func (m *Machine) MakeGolangApp(appName string, instances int, deployFromCurrentDir bool) string {
 	currentDir, err := os.Getwd()
 	ExpectWithOffset(1, err).ToNot(HaveOccurred())

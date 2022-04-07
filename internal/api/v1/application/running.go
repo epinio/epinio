@@ -1,8 +1,6 @@
 package application
 
 import (
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -42,8 +40,7 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 
 	if app.Workload == nil {
 		// While the app exists it has no workload, and therefore no status
-		return apierror.NewAPIError("No status available for application without workload",
-			"", http.StatusBadRequest)
+		return apierror.NewBadRequest("No status available for application without workload")
 	}
 
 	err = cluster.WaitForDeploymentCompleted(

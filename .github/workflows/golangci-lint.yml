@@ -43,7 +43,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3.1.0
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.42
+          version: v1.45
 
           args: --timeout=10m --config=${{ steps.configfile.outputs.file }}
 

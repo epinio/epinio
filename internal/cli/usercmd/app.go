@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"gopkg.in/yaml.v2"
+
+	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/helpers/bytes"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -46,8 +49,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 	return nil
 }
 
-// AppsMatching returns all Epinio apps having the specified prefix
-// in their name.
+// AppsMatching returns all Epinio apps having the specified prefix in their name.
 func (c *EpinioClient) AppsMatching(prefix string) []string {
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
@@ -199,6 +201,43 @@ func (c *EpinioClient) AppShow(appName string) error {
 	}
 
 	return c.printReplicaDetails(app)
+}
+
+// AppExport saves the named app, in the targeted namespace, to the directory.
+func (c *EpinioClient) AppExport(appName string, directory string) error {
+	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
+	log.Info("start")
+	defer log.Info("return")
+	details := log.V(1) // NOTE: Increment of level, not absolute.
+
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		WithStringValue("Application", appName).
+		WithStringValue("Target Directory", directory).
+		Msg("Export application")
+
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
+
+	details.Info("export application")
+
+	err := os.MkdirAll(directory, 0700)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create export directory '%s'", directory)
+	}
+
+	err = c.API.AppGetPart(c.Settings.Namespace, appName, "values", filepath.Join(directory, "values.yaml"))
+	if err != nil {
+		return err
+	}
+
+	err = c.API.AppGetPart(c.Settings.Namespace, appName, "chart", filepath.Join(directory, "app-chart.tar.gz"))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // AppManifest saves the information of the named app, in the targeted namespace, into a manifest file

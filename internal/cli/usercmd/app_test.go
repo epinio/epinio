@@ -103,6 +103,10 @@ func (m *mockAPIClient) AppShow(namespace string, appName string) (models.App, e
 	return m.mockAppShow(namespace, appName)
 }
 
+func (m *mockAPIClient) AppGetPart(namespace, appName, part, destination string) error {
+	return nil
+}
+
 func (m *mockAPIClient) AppUpdate(req models.ApplicationUpdateRequest, namespace string, appName string) (models.Response, error) {
 	return models.Response{}, nil
 }

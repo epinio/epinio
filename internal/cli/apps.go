@@ -44,6 +44,7 @@ func init() {
 
 	CmdApp.AddCommand(CmdAppManifest)
 	CmdApp.AddCommand(CmdAppShow)
+	CmdApp.AddCommand(CmdAppExport)
 	CmdApp.AddCommand(CmdAppUpdate)
 	CmdApp.AddCommand(CmdAppDelete)
 	CmdApp.AddCommand(CmdAppPush) // See push.go for implementation
@@ -125,6 +126,27 @@ var CmdAppShow = &cobra.Command{
 		err = client.AppShow(args[0])
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error showing app")
+	},
+}
+
+// CmdAppExport implements the command: epinio apps export
+var CmdAppExport = &cobra.Command{
+	Use:               "export NAME DIRECTORY",
+	Short:             "Export the named application into the directory",
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: matchingAppsFinder,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		err = client.AppExport(args[0], args[1])
+		// Note: errors.Wrap (nil, "...") == nil
+		return errors.Wrap(err, "error exporting app")
 	},
 }
 
