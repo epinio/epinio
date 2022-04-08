@@ -246,6 +246,8 @@ type ServiceCatalogShowResponse struct {
 	CatalogService *CatalogService `json:"catalog_service,omitempty"`
 }
 
+// Service matches github.com/epinio/application/api/v1 ServiceSpec
+// Reason for existence: Do not expose the internal CRD struct in the API.
 type ServiceCreateRequest struct {
 	CatalogService string `json:"catalog_service,omitempty"`
 	Name           string `json:"name,omitempty"`
@@ -260,6 +262,8 @@ type CatalogService struct {
 	Values           string   `json:"values,omitempty"`
 }
 
+// HelmRepo matches github.com/epinio/application/api/v1 HelmRepo
+// Reason for existence: Do not expose the internal CRD struct in the API.
 type HelmRepo struct {
 	Name string `json:"name,omitempty"`
 	URL  string `json:"url,omitempty"`
@@ -309,6 +313,16 @@ func ServiceHelmChartName(name, namespace string) string {
 
 type ServiceListResponse struct {
 	Services []*Service `json:"services,omitempty"`
+}
+
+// AppChart matches github.com/epinio/application/api/v1 AppChartSpec
+// Reason for existence: Do not expose the internal CRD struct in the API.
+type AppChart struct {
+	Name             string   `json:"name,omitempty"`
+	Description      string   `json:"description,omitempty"`
+	ShortDescription string   `json:"short_description,omitempty"`
+	HelmChart        string   `json:"chart,omitempty"`
+	HelmRepo         HelmRepo `json:"helm_repo,omitempty"`
 }
 
 // ChartMatchResponse contains the list of names for matching application charts
