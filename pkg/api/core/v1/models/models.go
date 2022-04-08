@@ -1,8 +1,10 @@
+// -*- fill-column: 90 -*-
 // Package models contains the types (mostly structures) encapsulating
 // the API requests and reponses used by the communication between
 // epinio client and APIserver.
 // Not all of them unfortunately, the simpler ones are coded directly.
-// TODO: Give even the most simple requests and responses properly named types.
+// TODO: Give even the most simple requests and responses properly
+// named types.
 package models
 
 import (
@@ -84,11 +86,18 @@ type ApplicationManifest struct {
 	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
 }
 
-// ApplicationStaging is the part of the manifest holding information relevant to staging
-// the application's sources. This is, currently, only the reference to the Paketo builder
-// image to use.
+// ApplicationStage is the part of the manifest holding information
+// relevant to staging the application's sources. This is, currently,
+// only the reference to the Paketo builder image to use.
 type ApplicationStage struct {
 	Builder string `yaml:"builder,omitempty"`
+}
+
+// ApplicationDeploy is the part of the manifest holding information
+// relevant to deploying the application image. This is, currently,
+// only the reference to the application chart to use
+type ApplicationDeploy struct {
+	AppChart string `yaml:"appchart,omitempty"`
 }
 
 // ApplicationOrigin is the part of the manifest describing the origin of the application
@@ -134,6 +143,7 @@ func (o *ApplicationOrigin) String() string {
 type ApplicationCreateRequest struct {
 	Name          string                   `json:"name"          yaml:"name"`
 	Configuration ApplicationUpdateRequest `json:"configuration" yaml:"configuration,omitempty"`
+	Deploy        ApplicationDeploy        `json:"deploy"        yaml:"deploy,omitempty"`
 }
 
 // ApplicationUpdateRequest represents and contains the data needed to update

@@ -32,15 +32,21 @@ func UpdateRoutes(manifest models.ApplicationManifest, cmd *cobra.Command) (mode
 	return manifest, nil
 }
 
-// UpdateBSN updates the incoming manifest with information pulled from the --builder,
-// sources (--path, --git, and --container-imageurl), and --name options.
+// UpdateBASN updates the incoming manifest with information pulled from the --builder,
+// sources (--path, --git, and --container-imageurl), --app-chart, and --name options.
 // Option information replaces any existing information.
-func UpdateBSN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+func UpdateBASN(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
 	var err error
-	// BSN - Builder, Source origin, Name
+	// BASN - Builder, AppChart, Source origin, Name
 
 	// B:uilder - Retrieve from options
 	manifest, err = UpdateBuilder(manifest, cmd)
+	if err != nil {
+		return manifest, err
+	}
+
+	// A:ppChart - Retrieve from options
+	manifest, err = UpdateAppChart(manifest, cmd)
 	if err != nil {
 		return manifest, err
 	}
@@ -71,6 +77,22 @@ func UpdateBuilder(manifest models.ApplicationManifest, cmd *cobra.Command) (mod
 
 	if builderImage != "" {
 		manifest.Staging.Builder = builderImage
+	}
+
+	return manifest, nil
+}
+
+// UpdateAppChart updates the incoming manifest with information pulled from the --app-chart option
+func UpdateAppChart(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	appChart, err := cmd.Flags().GetString("app-chart")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --app-chart")
+	}
+
+	// A:ppchart - Replace
+
+	if appChart != "" {
+		manifest.Deploy.AppChart = appChart
 	}
 
 	return manifest, nil

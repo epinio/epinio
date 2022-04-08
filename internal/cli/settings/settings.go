@@ -64,7 +64,7 @@ func LoadFrom(file string) (*Settings, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
 	v.SetDefault("namespace", "workspace")
-	v.SetDefault("appchart", "standard")
+	v.SetDefault("appchart", "")
 
 	// Use empty defaults in viper to allow NeededOptions defaults to apply
 	v.SetDefault("user", "")

@@ -35,6 +35,8 @@ func init() {
 	instancesOption(CmdAppCreate)
 	instancesOption(CmdAppUpdate)
 
+	CmdAppCreate.Flags().String("app-chart", "", "App chart to use for deployment")
+
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
@@ -97,12 +99,18 @@ var CmdAppCreate = &cobra.Command{
 			return errors.Wrap(err, "unable to get app configuration")
 		}
 
+		// AppChart - Retrieve from options
+		m, err = manifest.UpdateAppChart(m, cmd)
+		if err != nil {
+			return errors.Wrap(err, "unable to get app chart")
+		}
+
 		m, err = manifest.UpdateRoutes(m, cmd)
 		if err != nil {
 			return err
 		}
 
-		err = client.AppCreate(args[0], m.Configuration)
+		err = client.AppCreate(args[0], m.Configuration, m.Deploy)
 		// Note: errors.Wrap (nil, "...") == nil
 		return errors.Wrap(err, "error creating app")
 	},
