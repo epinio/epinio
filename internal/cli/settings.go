@@ -111,6 +111,7 @@ var CmdSettingsShow = &cobra.Command{
 			WithTable("Key", "Value").
 			WithTableRow("Colorized Output", color.MagentaString("%t", theSettings.Colors)).
 			WithTableRow("Current Namespace", color.CyanString(theSettings.Namespace)).
+			WithTableRow("Default App Chart", color.CyanString(theSettings.AppChart)).
 			WithTableRow("API User Name", color.BlueString(theSettings.User)).
 			WithTableRow("API Password", color.BlueString(theSettings.Password)).
 			WithTableRow("API Url", color.BlueString(theSettings.API)).

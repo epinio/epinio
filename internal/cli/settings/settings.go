@@ -24,13 +24,14 @@ var (
 
 // Settings represents a epinio settings
 type Settings struct {
-	Namespace string `mapstructure:"namespace"`
+	Namespace string `mapstructure:"namespace"` // Currently targeted namespace
 	User      string `mapstructure:"user"`
 	Password  string `mapstructure:"pass"`
 	API       string `mapstructure:"api"`
 	WSS       string `mapstructure:"wss"`
 	Certs     string `mapstructure:"certs"`
 	Colors    bool   `mapstructure:"colors"`
+	AppChart  string `mapstructure:"appchart"` // Current default app chart (name)
 
 	Location string // Origin of data, file which was loaded
 
@@ -63,6 +64,7 @@ func LoadFrom(file string) (*Settings, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 
 	v.SetDefault("namespace", "workspace")
+	v.SetDefault("appchart", "standard")
 
 	// Use empty defaults in viper to allow NeededOptions defaults to apply
 	v.SetDefault("user", "")
@@ -129,13 +131,14 @@ func LoadFrom(file string) (*Settings, error) {
 // Generates a string representation of the settings (for debugging)
 func (c *Settings) String() string {
 	return fmt.Sprintf(
-		"namespace=(%s), user=(%s), pass=(%s), api=(%s), wss=(%s), color=(%v), @(%s)",
-		c.Namespace, c.User, c.Password, c.API, c.WSS, c.Colors, c.Location)
+		"namespace=(%s), user=(%s), pass=(%s), api=(%s), wss=(%s), color=(%v), appchart=(%v), @(%s)",
+		c.Namespace, c.User, c.Password, c.API, c.WSS, c.Colors, c.AppChart, c.Location)
 }
 
 // Save saves the Epinio settings
 func (c *Settings) Save() error {
 	c.v.Set("namespace", c.Namespace)
+	c.v.Set("appchart", c.AppChart)
 	c.v.Set("user", c.User)
 	c.v.Set("pass", c.Password)
 	c.v.Set("api", c.API)
