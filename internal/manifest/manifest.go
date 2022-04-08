@@ -92,7 +92,7 @@ func UpdateAppChart(manifest models.ApplicationManifest, cmd *cobra.Command) (mo
 	// A:ppchart - Replace
 
 	if appChart != "" {
-		manifest.Deploy.AppChart = appChart
+		manifest.Configuration.AppChart = appChart
 	}
 
 	return manifest, nil
