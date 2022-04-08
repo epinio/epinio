@@ -28,6 +28,11 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
+	// Use settings default if user did not specify --app-chart
+	if appDeploy.AppChart == "" {
+		appDeploy.AppChart = c.Settings.AppChart
+	}
+
 	c.ui.Note().
 		WithStringValue("Namespace", c.Settings.Namespace).
 		WithStringValue("Application", appName).

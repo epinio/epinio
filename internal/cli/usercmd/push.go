@@ -34,6 +34,12 @@ type PushParams struct {
 // * deploy
 // * wait for app
 func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // nolint: gocyclo // Many ifs for view purposes
+
+	// Use settings default if user did not specify --app-chart
+	if params.Deploy.AppChart == "" {
+		params.Deploy.AppChart = c.Settings.AppChart
+	}
+
 	source := params.Origin.String()
 	appRef := models.AppRef{
 		Name:      params.Name,
@@ -52,6 +58,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		WithStringValue("Manifest", params.Self).
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Source Origin", source).
+		WithStringValue("AppChart", params.Deploy.AppChart).
 		WithStringValue("Target Namespace", appRef.Namespace)
 	for _, ev := range params.Configuration.Environment.List() {
 		msg = msg.WithStringValue(fmt.Sprintf("Environment '%s'", ev.Name), ev.Value)
