@@ -68,23 +68,32 @@ func InstallTraefik() {
 var _ = SynchronizedBeforeSuite(func() []byte {
 	ingressController := os.Getenv("INGRESS_CONTROLLER")
 
-	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
+	By("Installing and configuring the prerequisites", func() {
+		testenv.SetRoot("../..")
+		testenv.SetupEnv()
+	})
 
-	testenv.SetRoot("../..")
-	testenv.SetupEnv()
+	By("Compiling Epinio", func() {
+		testenv.BuildEpinio()
+	})
 
-	fmt.Printf("Compiling Epinio on node %d\n", GinkgoParallelProcess())
-	testenv.BuildEpinio()
+	By("Creating registry secret", func() {
+		testenv.CreateRegistrySecret()
+	})
 
-	// Install and configure the prerequisites
-	testenv.CreateRegistrySecret()
-	InstallCertManager()
-	fmt.Printf("Installing %s as ingress controller\n", ingressController)
-	if ingressController == "nginx" {
-		InstallNginx()
-	} else if ingressController == "traefik" {
-		InstallTraefik()
-	}
+	By("Installing cert-manager", func() {
+		InstallCertManager()
+	})
+
+	By("Installing ingress controller", func() {
+		if ingressController == "nginx" {
+			fmt.Printf("Using nginx\n")
+			InstallNginx()
+		} else if ingressController == "traefik" {
+			fmt.Printf("Using traefik\n")
+			InstallTraefik()
+		}
+	})
 
 	return []byte{}
 }, func(_ []byte) {

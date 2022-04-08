@@ -96,20 +96,20 @@ acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
 
 test-acceptance: showfocus
-	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/. acceptance/api/v1/. acceptance/apps/.
+	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/. acceptance/api/v1/. acceptance/apps/.
 
 test-acceptance-api: showfocus
-	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
+	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
 
 test-acceptance-apps: showfocus
-	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/apps/.
+	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/apps/.
 
 test-acceptance-cli: showfocus
-	ginkgo --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/.
+	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/.
 
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
-	ginkgo --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
+	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
 
 showfocus:
 	@if test `cat acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go | grep -c 'FIt\|FWhen\|FDescribe\|FContext'` -gt 0 ; then echo ; echo 'Focus:' ; grep 'FIt\|FWhen\|FDescribe\|FContext' acceptance/*.go acceptance/apps/*.go acceptance/api/v1/*.go ; echo ; fi
