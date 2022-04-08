@@ -63,13 +63,39 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	// Check if the request contains any changes. Abort early if not.
 
 	// if there is nothing to change
-	if updateRequest.Instances == nil && len(updateRequest.Environment) == 0 &&
-		updateRequest.Configurations == nil && len(updateRequest.Routes) == 0 {
+	if updateRequest.Instances == nil &&
+		len(updateRequest.Environment) == 0 &&
+		updateRequest.Configurations == nil &&
+		len(updateRequest.Routes) == 0 &&
+		updateRequest.AppChart == "" {
 		response.OK(c)
 		return nil
 	}
 
 	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
+
+	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
+		if app.Workload != nil {
+			return apierror.NewBadRequest("Unable to change app chart of active application")
+		}
+
+		client, err := cluster.ClientApp()
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		// Patch
+		patch := fmt.Sprintf(`[{
+				"op": "replace",
+				"path": "/spec/chartname",
+				"value": "%s" }]`,
+			updateRequest.AppChart)
+
+		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+	}
 
 	if updateRequest.Instances != nil {
 		desired := *updateRequest.Instances

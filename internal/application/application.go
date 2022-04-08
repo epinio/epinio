@@ -38,7 +38,7 @@ const EpinioApplicationAreaLabel = "epinio.suse.org/area"
 // Create generates a new kube app resource in the namespace of the
 // namespace. Note that this is the passive resource holding the
 // app's configuration. It is not the active workload
-func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string) error {
+func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string, chart string) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -47,8 +47,9 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	// we create the appCRD in the namespace
 	obj := &epinioappv1.App{
 		Spec: epinioappv1.AppSpec{
-			Routes: routes,
-			Origin: epinioappv1.AppOrigin{},
+			Routes:    routes,
+			Origin:    epinioappv1.AppOrigin{},
+			ChartName: chart,
 		},
 	}
 

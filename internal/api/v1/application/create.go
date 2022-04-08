@@ -85,9 +85,14 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		routes = []string{route}
 	}
 
+	chart := "standard"
+	if createRequest.Configuration.AppChart != "" {
+		chart = createRequest.Configuration.AppChart
+	}
+
 	// Arguments found OK, now we can modify the system state
 
-	err = application.Create(ctx, cluster, appRef, username, routes)
+	err = application.Create(ctx, cluster, appRef, username, routes, chart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
