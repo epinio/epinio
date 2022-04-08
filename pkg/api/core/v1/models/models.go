@@ -310,3 +310,16 @@ func ServiceHelmChartName(name, namespace string) string {
 type ServiceListResponse struct {
 	Services []*Service `json:"services,omitempty"`
 }
+
+// ChartMatchResponse contains the list of names for matching application charts
+type ChartMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
+// ChartCreateRequest represents and contains the data needed to create an application
+// chart instance
+type ChartCreateRequest struct {
+	Name       string `json:"name"`
+	Repository string `json:"repository"`
+	URL        string `json:"url"`
+}

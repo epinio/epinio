@@ -45,9 +45,9 @@ func (c *EpinioClient) ChartCreate(ctx context.Context, name, url, repo string) 
 		Msg("Create Application Chart")
 
 	request := models.ChartCreateRequest{
-		Name: name,
-		Repo: repo,
-		URL:  url,
+		Name:       name,
+		Repository: repo,
+		URL:        url,
 	}
 
 	_, err := c.API.ChartCreate(request)
@@ -79,8 +79,8 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 		WithStringValue("Name", chart.Name).
 		WithStringValue("Short", chart.ShortDescription).
 		WithStringValue("Description", chart.Description).
-		WithStringValue("Repo", chart.Repo.Url).
-		WithStringValue("Url", chart.Url).
+		WithStringValue("Repo", chart.HelmRepo.URL).
+		WithStringValue("Url", chart.HelmChart).
 		Msg("OK")
 
 	return nil
@@ -94,7 +94,6 @@ func (c *EpinioClient) ChartDelete(ctx context.Context, name string) error {
 
 	c.ui.Note().
 		WithStringValue("Name", name).
-		WithStringValue("Variable", envName).
 		Msg("Remove application chart")
 
 	_, err := c.API.ChartDelete(name)
@@ -108,7 +107,7 @@ func (c *EpinioClient) ChartDelete(ctx context.Context, name string) error {
 }
 
 // ChartMatching retrieves all application charts in the cluster, for the given prefix
-func (c *EpinioClient) ChartMatching(ctx context.Context, prefix string) []string {
+func (c *EpinioClient) ChartMatching(prefix string) []string {
 	log := c.Log.WithName("ChartMatching")
 	log.Info("start")
 	defer log.Info("return")
