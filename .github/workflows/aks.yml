@@ -140,6 +140,7 @@ jobs:
           AKS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
           EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aks_domain || secrets.AKS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
+          INGRESS_CONTROLLER: traefik
         shell: bash
         run: |
           echo "System Domain: $AKS_DOMAIN"

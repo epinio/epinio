@@ -20,6 +20,7 @@ on:
 env:
   SETUP_GO_VERSION: '^1.18'
   GINKGO_NODES: 8
+  INGRESS_CONTROLLER: traefik
 
 jobs:
   linter:

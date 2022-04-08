@@ -66,6 +66,8 @@ func InstallTraefik() {
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
+	ingressController := os.Getenv("INGRESS_CONTROLLER")
+
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
 
 	testenv.SetRoot("../..")
@@ -77,11 +79,10 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Install and configure the prerequisites
 	testenv.CreateRegistrySecret()
 	InstallCertManager()
-	if os.Getenv("INGRESS_CONTROLLER") == "NGINX" {
-		fmt.Printf("Installing Nginx as ingress controller")
+	fmt.Printf("Installing %s as ingress controller\n", ingressController)
+	if ingressController == "nginx" {
 		InstallNginx()
-	} else {
-		fmt.Printf("Installing Traefik as ingress controller")
+	} else if ingressController == "traefik" {
 		InstallTraefik()
 	}
 
