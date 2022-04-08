@@ -3,7 +3,6 @@ package usercmd_test
 import (
 	"context"
 
-	epinioappv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -264,16 +263,16 @@ func (m *mockAPIClient) ServiceList(namespace string) (*models.ServiceListRespon
 	return nil, nil
 }
 
-func (m *mockAPIClient) ChartList() ([]epinioappv1.AppChartSpec, error) {
-	return []epinioappv1.AppChartSpec{}, nil
+func (m *mockAPIClient) ChartList() ([]models.AppChart, error) {
+	return []models.AppChart{}, nil
 }
 
 func (m *mockAPIClient) ChartCreate(request models.ChartCreateRequest) (models.Response, error) {
 	return models.Response{}, nil
 }
 
-func (m *mockAPIClient) ChartShow(name string) (epinioappv1.AppChartSpec, error) {
-	return epinioappv1.AppChartSpec{}, nil
+func (m *mockAPIClient) ChartShow(name string) (models.AppChart, error) {
+	return models.AppChart{}, nil
 }
 
 func (m *mockAPIClient) ChartDelete(name string) (models.Response, error) {

@@ -4,7 +4,6 @@ package usercmd
 import (
 	"context"
 
-	epinioappv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -80,9 +79,9 @@ type APIClient interface {
 	ServiceList(namespace string) (*models.ServiceListResponse, error)
 
 	// application charts
-	ChartList() ([]epinioappv1.AppChartSpec, error)
+	ChartList() ([]models.AppChart, error)
 	ChartCreate(request models.ChartCreateRequest) (models.Response, error)
-	ChartShow(name string) (epinioappv1.AppChartSpec, error)
+	ChartShow(name string) (models.AppChart, error)
 	ChartDelete(name string) (models.Response, error)
 	ChartMatch(prefix string) (models.ChartMatchResponse, error)
 }

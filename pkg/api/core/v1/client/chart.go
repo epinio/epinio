@@ -5,14 +5,13 @@ import (
 
 	"github.com/pkg/errors"
 
-	epinioappv1 "github.com/epinio/application/api/v1"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
 // ChartList returns a list of all known application charts
-func (c *Client) ChartList() ([]epinioappv1.AppChartSpec, error) {
-	var resp []epinioappv1.AppChartSpec
+func (c *Client) ChartList() ([]models.AppChart, error) {
+	var resp []models.AppChart
 
 	data, err := c.get(api.Routes.Path("ChartList"))
 	if err != nil {
@@ -52,8 +51,8 @@ func (c *Client) ChartCreate(request models.ChartCreateRequest) (models.Response
 }
 
 // ChartShow returns a named application chart
-func (c *Client) ChartShow(name string) (epinioappv1.AppChartSpec, error) {
-	resp := epinioappv1.AppChartSpec{}
+func (c *Client) ChartShow(name string) (models.AppChart, error) {
+	resp := models.AppChart{}
 
 	data, err := c.get(api.Routes.Path("ChartShow", name))
 	if err != nil {
