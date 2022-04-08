@@ -36,6 +36,20 @@ func InstallCertManager() {
 	Expect(err).NotTo(HaveOccurred(), out)
 }
 
+func InstallNginx() {
+	out, err := proc.RunW("helm", "repo", "add", "nginx-stable", "https://helm.nginx.com/stable")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "repo", "update")
+	Expect(err).NotTo(HaveOccurred(), out)
+	out, err = proc.RunW("helm", "upgrade", "--install", "nginx-ingress", "nginx-stable/nginx-ingress",
+		"-n", "ingress-nginx",
+		"--create-namespace",
+		"--set", "controller.setAsDefaultIngress=true",
+		"--set", "controller.service.name=ingress-nginx-controller",
+	)
+	Expect(err).NotTo(HaveOccurred(), out)
+}
+
 func InstallTraefik() {
 	out, err := proc.RunW("helm", "repo", "add", "traefik", "https://helm.traefik.io/traefik")
 	Expect(err).NotTo(HaveOccurred(), out)
@@ -52,6 +66,8 @@ func InstallTraefik() {
 }
 
 var _ = SynchronizedBeforeSuite(func() []byte {
+	ingressController := os.Getenv("INGRESS_CONTROLLER")
+
 	fmt.Printf("I'm running on runner = %s\n", os.Getenv("HOSTNAME"))
 
 	testenv.SetRoot("../..")
@@ -63,7 +79,12 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	// Install and configure the prerequisites
 	testenv.CreateRegistrySecret()
 	InstallCertManager()
-	InstallTraefik()
+	fmt.Printf("Installing %s as ingress controller\n", ingressController)
+	if ingressController == "nginx" {
+		InstallNginx()
+	} else if ingressController == "traefik" {
+		InstallTraefik()
+	}
 
 	return []byte{}
 }, func(_ []byte) {

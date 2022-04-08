@@ -116,6 +116,7 @@ jobs:
           KUBECONFIG: /etc/rancher/rke2/rke2.yaml
           REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
+          INGRESS_CONTROLLER: traefik
         run: |
           # Get a free IP address on server's network
           export RANGE_IP="$(scripts/get-free-ip.sh)"

@@ -61,14 +61,14 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 
 	It("Installs with loadbalancer IP, custom domain and pushes an app with env vars", func() {
 		By("Checking LoadBalancer IP", func() {
-			// Ensure that Traefik LB is not in Pending state anymore, could take time
+			// Ensure that Nginx LB is not in Pending state anymore, could take time
 			Eventually(func() string {
-				out, err := proc.RunW("kubectl", "get", "svc", "-n", "traefik", "traefik", "--no-headers")
+				out, err := proc.RunW("kubectl", "get", "svc", "-n", "ingress-nginx", "ingress-nginx-controller", "--no-headers")
 				Expect(err).NotTo(HaveOccurred(), out)
 				return out
 			}, "4m", "2s").ShouldNot(ContainSubstring("<pending>"))
 
-			out, err := proc.RunW("kubectl", "get", "service", "-n", "traefik", "traefik", "-o", "json")
+			out, err := proc.RunW("kubectl", "get", "service", "-n", "ingress-nginx", "ingress-nginx-controller", "-o", "json")
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			// Check that an IP address for LB is configured
