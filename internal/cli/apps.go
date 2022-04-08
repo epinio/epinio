@@ -39,7 +39,8 @@ func init() {
 	CmdAppUpdate.Flags().String("app-chart", "", "App chart to use for deployment")
 
 	CmdApp.AddCommand(CmdAppCreate)
-	CmdApp.AddCommand(CmdAppEnv) // See env.go for implementation
+	CmdApp.AddCommand(CmdAppChart) // See chart.go for implementation
+	CmdApp.AddCommand(CmdAppEnv)   // See env.go for implementation
 	CmdApp.AddCommand(CmdAppList)
 	CmdApp.AddCommand(CmdAppLogs)
 	CmdApp.AddCommand(CmdAppExec)
