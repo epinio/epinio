@@ -22,7 +22,7 @@ import (
 )
 
 // AppCreate creates an app without a workload
-func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest) error {
+func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpdateRequest, appDeploy models.ApplicationDeploy) error {
 	log := c.Log.WithName("Apps").WithValues("Namespace", c.Settings.Namespace, "Application", appName)
 	log.Info("start")
 	defer log.Info("return")
@@ -38,6 +38,7 @@ func (c *EpinioClient) AppCreate(appName string, appConfig models.ApplicationUpd
 	request := models.ApplicationCreateRequest{
 		Name:          appName,
 		Configuration: appConfig,
+		Deploy:        appDeploy,
 	}
 
 	_, err := c.API.AppCreate(request, c.Settings.Namespace)
@@ -268,6 +269,7 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 	m.Name = appName
 	m.Configuration = app.Configuration
 	m.Origin = app.Origin
+	m.Deploy = app.Deploy
 
 	yaml, err := yaml.Marshal(m)
 	if err != nil {
@@ -524,6 +526,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 	}
 
 	msg = msg.
+		WithTableRow("App Chart", app.Deploy.AppChart).
 		WithTableRow("Desired Instances", fmt.Sprintf("%d", *app.Configuration.Instances)).
 		WithTableRow("Bound Configurations", strings.Join(app.Configuration.Configurations, ", ")).
 		WithTableRow("Environment", "")

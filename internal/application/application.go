@@ -282,6 +282,18 @@ func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef mod
 		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
+// AppChart returns the app chart (to be) used for application deployment, if one exists. It returns
+// an empty string otherwise. The information is pulled out of the app resource itself,
+// saved there by the deploy endpoint.
+func AppChart(app *unstructured.Unstructured) (string, error) {
+	chartName, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "chartname")
+	if err != nil {
+		return "", errors.New("chartname should be string")
+	}
+
+	return chartName, nil
+}
+
 // StageID returns the stage ID of the last attempt at staging, if one exists. It returns
 // an empty string otherwise. The information is pulled out of the app resource itself,
 // saved there by the staging endpoint. Note that success/failure of staging is immaterial
@@ -470,6 +482,11 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return err
 	}
 
+	chartName, err := AppChart(applicationCR)
+	if err != nil {
+		return err
+	}
+
 	stageID, err := StageID(applicationCR)
 	if err != nil {
 		return err
@@ -487,6 +504,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Origin = origin
 	app.StageID = stageID
 	app.ImageURL = imageURL
+	app.Deploy.AppChart = chartName
 
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.

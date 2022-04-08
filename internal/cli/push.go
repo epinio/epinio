@@ -20,6 +20,7 @@ func init() {
 	CmdAppPush.Flags().StringP("name", "n", "", "Application name. (mandatory if no manifest is provided)")
 	CmdAppPush.Flags().StringP("path", "p", "", "Path to application sources.")
 	CmdAppPush.Flags().String("builder-image", "", "Paketo builder image to use for staging")
+	CmdAppPush.Flags().String("app-chart", "", "App chart to use for deployment")
 
 	routeOption(CmdAppPush)
 	bindOption(CmdAppPush)
@@ -67,7 +68,7 @@ var CmdAppPush = &cobra.Command{
 			return err
 		}
 
-		m, err = manifest.UpdateBSN(m, cmd)
+		m, err = manifest.UpdateBASN(m, cmd)
 		if err != nil {
 			return err
 		}
