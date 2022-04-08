@@ -93,13 +93,6 @@ type ApplicationStage struct {
 	Builder string `yaml:"builder,omitempty"`
 }
 
-// ApplicationDeploy is the part of the manifest holding information
-// relevant to deploying the application image. This is, currently,
-// only the reference to the application chart to use
-type ApplicationDeploy struct {
-	AppChart string `yaml:"appchart,omitempty"`
-}
-
 // ApplicationOrigin is the part of the manifest describing the origin of the application
 // (sources). At most one of the fields may be specified / not empty.
 type ApplicationOrigin struct {
@@ -143,7 +136,6 @@ func (o *ApplicationOrigin) String() string {
 type ApplicationCreateRequest struct {
 	Name          string                   `json:"name"          yaml:"name"`
 	Configuration ApplicationUpdateRequest `json:"configuration" yaml:"configuration,omitempty"`
-	Deploy        ApplicationDeploy        `json:"deploy"        yaml:"deploy,omitempty"`
 }
 
 // ApplicationUpdateRequest represents and contains the data needed to update
@@ -152,10 +144,11 @@ type ApplicationCreateRequest struct {
 // Note: Instances is a pointer to give us a nil value separate from
 // actual integers, as means of communicating `default`/`no change`.
 type ApplicationUpdateRequest struct {
-	Instances      *int32         `json:"instances"   yaml:"instances,omitempty"`
-	Configurations []string       `json:"configurations"    yaml:"configurations,omitempty"`
-	Environment    EnvVariableMap `json:"environment" yaml:"environment,omitempty"`
-	Routes         []string       `json:"routes" yaml:"routes,omitempty"`
+	Instances      *int32         `json:"instances"          yaml:"instances,omitempty"`
+	Configurations []string       `json:"configurations"     yaml:"configurations,omitempty"`
+	Environment    EnvVariableMap `json:"environment"        yaml:"environment,omitempty"`
+	Routes         []string       `json:"routes"             yaml:"routes,omitempty"`
+	AppChart       string         `json:"appchart,omitempty" yaml:"appchart,omitempty"`
 }
 
 type ImportGitResponse struct {

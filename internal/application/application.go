@@ -501,10 +501,10 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Configurations = configurations
 	app.Configuration.Environment = environment
 	app.Configuration.Routes = desiredRoutes
+	app.Configuration.AppChart = chartName
 	app.Origin = origin
 	app.StageID = stageID
 	app.ImageURL = imageURL
-	app.Deploy.AppChart = chartName
 
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.
