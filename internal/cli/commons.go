@@ -45,7 +45,7 @@ func CreateKubeClient(configPath string) kubernetes.Interface {
 	return clientset
 }
 
-// matchingAppsFinder return a list of matching apps from the provided partial command
+// matchingAppsFinder returns a list of matching apps from the provided partial command
 func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) != 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -61,7 +61,7 @@ func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
-// matchingNamespaceFinder return a list of matching namespaces from the provided partial command
+// matchingNamespaceFinder returns a list of matching namespaces from the provided partial command
 func matchingNamespaceFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) != 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -73,6 +73,23 @@ func matchingNamespaceFinder(cmd *cobra.Command, args []string, toComplete strin
 	}
 
 	matches := app.NamespacesMatching(toComplete)
+
+	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
+// matchingChartFinder returns a list of application charts whose names match the provided partial name
+func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 1 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	app, err := usercmd.New()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// #args == 0: chart name.
+	matches := app.ChartMatching(toComplete)
 
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
