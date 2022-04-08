@@ -158,7 +158,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		if respLog.V(5).Enabled() {
 			respLog = respLog.WithValues("body", string(bodyBytes))
 		}
-		respLog.V(1).Error(err, "response is not StatusOK")
+		respLog.V(1).Info("response is not StatusOK: " + err.Error())
 
 		return bodyBytes, wrapResponseError(err, response.StatusCode)
 	}
@@ -219,7 +219,7 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 			if respLog.V(5).Enabled() {
 				respLog = respLog.WithValues("body", string(bodyBytes))
 			}
-			respLog.V(1).Error(err, "response is not StatusOK after custom error handling")
+			respLog.V(1).Info("response is not StatusOK after custom error handling: " + err.Error())
 
 			return bodyBytes, wrapResponseError(err, response.StatusCode)
 		}
