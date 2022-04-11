@@ -1,14 +1,21 @@
 package application
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
+	"helm.sh/helm/v3/pkg/repo"
 )
 
 // GetPart handles the API endpoint GET /namespaces/:namespace/applications/:app/part/:part
@@ -19,6 +26,7 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	partName := c.Param("part")
+	logger := requestctx.Logger(ctx)
 
 	if partName != "values" && partName != "chart" && partName != "image" {
 		return apierror.NewBadRequest("unknown part, expected chart, image, or values")
@@ -49,49 +57,84 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 
 	switch partName {
 	case "chart":
-		return fetchAppChart(c)
+		return fetchAppChart(c, ctx, logger, cluster, app.Meta)
 	case "image":
 		return fetchAppImage(c)
 	case "values":
-		return fetchAppValues(c, cluster, app.Meta)
+		return fetchAppValues(c, logger, cluster, app.Meta)
 	}
 
 	return apierror.NewBadRequest("unknown part, expected chart, image, or values")
 }
 
-func fetchAppChart(c *gin.Context) apierror.APIErrors {
-	// Fixed chart in the system. Request and return it.
-	// Better/Faster from the local file cache ?
-	// TODO: List cache directory
+func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
 
-	return apierror.NewInternalError("disabled until app chart lookup and fetch is available")
+	// Get application
+	theApp, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
 
-	// response, err := http.Get(helm.StandardChart)
-	// if err != nil || response.StatusCode != http.StatusOK {
-	// 	c.Status(http.StatusServiceUnavailable)
-	// 	return nil
-	// }
+	if theApp == nil {
+		return apierror.AppIsNotKnown(app.Name)
+	}
 
-	// reader := response.Body
-	// contentLength := response.ContentLength
-	// contentType := response.Header.Get("Content-Type")
+	// Get the application's app chart
+	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if appChart == nil {
+		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
+	}
 
-	// requestctx.Logger(c.Request.Context()).Info("OK",
-	// 	"origin", c.Request.URL.String(),
-	// 	"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
-	// )
-	// c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
-	// return nil
+	if appChart.HelmRepo.URL != "" {
+		// Chart is specified as simple name, and resolved through a helm repo
+
+		client, err := helm.GetHelmClient(cluster, logger, app.Namespace)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		if err := client.AddOrUpdateChartRepo(repo.Entry{
+			Name: appChart.HelmRepo.Name,
+			URL:  appChart.HelmRepo.URL,
+		}); err != nil {
+			return apierror.InternalError(err)
+		}
+
+		// TODO: Fetch chart tarball from repo, via helm client
+		// BAD: Mittwald client used here does not seem to support such.
+
+		return apierror.NewInternalError("unable to fetch chart tarball from helm repo")
+	}
+
+	// Chart is specified as direct url to the tarball
+
+	response, err := http.Get(appChart.HelmChart)
+	if err != nil || response.StatusCode != http.StatusOK {
+		c.Status(http.StatusServiceUnavailable)
+		return nil
+	}
+
+	reader := response.Body
+	contentLength := response.ContentLength
+	contentType := response.Header.Get("Content-Type")
+
+	logger.Info("OK",
+		"origin", c.Request.URL.String(),
+		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
+	)
+	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
+	return nil
 }
 
 func fetchAppImage(c *gin.Context) apierror.APIErrors {
 	return apierror.NewBadRequest("image part not yet supported")
 }
 
-func fetchAppValues(c *gin.Context, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
-	yaml, err := helm.Values(cluster,
-		requestctx.Logger(c.Request.Context()),
-		app)
+func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
+	yaml, err := helm.Values(cluster, logger, app)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

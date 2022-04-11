@@ -7,6 +7,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
@@ -77,6 +78,14 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
 		if app.Workload != nil {
 			return apierror.NewBadRequest("Unable to change app chart of active application")
+		}
+
+		found, err := appchart.Exists(ctx, cluster, updateRequest.AppChart)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		if !found {
+			return apierror.AppChartIsNotKnown(updateRequest.AppChart)
 		}
 
 		client, err := cluster.ClientApp()

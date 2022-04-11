@@ -42,6 +42,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	chartName := appObj.Configuration.AppChart
 
 	deployParams := helm.ChartParameters{
+		Context:        ctx,
 		Cluster:        cluster,
 		AppRef:         app,
 		Chart:          chartName,
