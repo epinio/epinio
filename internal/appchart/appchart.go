@@ -3,23 +3,71 @@ package appchart
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 
+	epinioappv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Create constructs and saves a new app chart resource.
-func Create(ctx context.Context, cluster *kubernetes.Cluster, name, repository, url string) error {
-	return nil
+func Create(ctx context.Context, cluster *kubernetes.Cluster, name, short, desc, repo, url string) error {
+
+	client, err := cluster.ClientAppChart()
+	if err != nil {
+		return err
+	}
+
+	helmRepo := epinioappv1.AppHelmRepo{}
+	if repo != "" {
+		helmRepo.URL = repo
+		helmRepo.Name = base64.StdEncoding.EncodeToString([]byte(repo))
+	}
+
+	obj := &epinioappv1.AppChart{
+		Spec: epinioappv1.AppChartSpec{
+			Name:             name,
+			Description:      desc,
+			ShortDescription: short,
+			HelmRepo:         helmRepo,
+			HelmChart:        url,
+		},
+	}
+
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(obj)
+	if err != nil {
+		return err
+	}
+	us := &unstructured.Unstructured{Object: u}
+	us.SetAPIVersion("application.epinio.io/v1")
+	us.SetKind("AppChart")
+	us.SetName(name)
+
+	_, err = client.Namespace(helmchart.Namespace()).Create(ctx, us, metav1.CreateOptions{})
+	return err
 }
 
 // Delete removed the named app chart CR.
 func Delete(ctx context.Context, cluster *kubernetes.Cluster, name string) error {
+	client, err := cluster.ClientAppChart()
+	if err != nil {
+		return err
+	}
+
+	// BEWARE: This breaks re-pushing of apps using the chart.
+
+	// delete app chart resource
+	err = client.Namespace(helmchart.Namespace()).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 

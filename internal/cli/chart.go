@@ -18,6 +18,12 @@ func init() {
 	CmdAppChart.AddCommand(CmdAppChartCreate)
 	CmdAppChart.AddCommand(CmdAppChartShow)
 	CmdAppChart.AddCommand(CmdAppChartDelete)
+
+	// Create: --short, --desc, --helm-repo
+	CmdAppChartCreate.Flags().StringP("short", "s", "", "Short description of the new chart")
+	CmdAppChartCreate.Flags().StringP("desc", "d", "", "Long description of the new chart")
+	CmdAppChartCreate.Flags().StringP("helm-repo", "r", "", "Helm repository needed to resolve the chart ref")
+
 }
 
 // CmdAppChartList implements the command: epinio app env list
@@ -45,9 +51,9 @@ var CmdAppChartList = &cobra.Command{
 
 // CmdAppChartCreate implements the command: epinio app chart create
 var CmdAppChartCreate = &cobra.Command{
-	Use:   "create NAME --repo REPO URL",
+	Use:   "create [OPTIONS] NAME CHARTREF",
 	Short: "Extend set of application charts",
-	Long:  "Make a new application chart known to epinio",
+	Long:  "Make new application chart known to epinio",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -58,9 +64,22 @@ var CmdAppChartCreate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
+		short, err := cmd.Flags().GetString("short")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --short")
+		}
+		desc, err := cmd.Flags().GetString("desc")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --desc")
+		}
+		repo, err := cmd.Flags().GetString("helm-repo")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --helm-repo")
+		}
+
 		// TODO: process options, pass options
 
-		err = client.ChartCreate(cmd.Context(), args[0], args[1], "<<TODO:repo>>")
+		err = client.ChartCreate(cmd.Context(), args[0], args[1], short, desc, repo)
 		if err != nil {
 			return errors.Wrap(err, "error setting into app environment")
 		}
@@ -72,7 +91,7 @@ var CmdAppChartCreate = &cobra.Command{
 // CmdAppChartShow implements the command: epinio app env show
 var CmdAppChartShow = &cobra.Command{
 	Use:               "show CHARTNAME",
-	Short:             "Describe application's environment variable",
+	Short:             "Describe application chart",
 	Args:              cobra.ExactArgs(1),
 	ValidArgsFunction: matchingChartFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {

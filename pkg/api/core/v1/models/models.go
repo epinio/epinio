@@ -333,7 +333,9 @@ type ChartMatchResponse struct {
 // ChartCreateRequest represents and contains the data needed to create an application
 // chart instance
 type ChartCreateRequest struct {
-	Name       string `json:"name"`
-	Repository string `json:"repository"`
-	URL        string `json:"url"`
+	Name        string `json:"name"`
+	ShortDesc   string `json:"shortDescription"`
+	Description string `json:"description"`
+	URL         string `json:"url"`
+	Repository  string `json:"repository"`
 }
