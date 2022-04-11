@@ -75,13 +75,13 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 		return err
 	}
 
-	c.ui.Success().
-		WithStringValue("Name", chart.Name).
-		WithStringValue("Short", chart.ShortDescription).
-		WithStringValue("Description", chart.Description).
-		WithStringValue("Repo", chart.HelmRepo.URL).
-		WithStringValue("Url", chart.HelmChart).
-		Msg("OK")
+	c.ui.Success().WithTable("Key", "Value").
+		WithTableRow("Name", chart.Name).
+		WithTableRow("Short", chart.ShortDescription).
+		WithTableRow("Description", chart.Description).
+		WithTableRow("Repo", chart.HelmRepo.URL).
+		WithTableRow("Url", chart.HelmChart).
+		Msg("Details:")
 
 	return nil
 }

@@ -1288,6 +1288,10 @@
       "description": "ApplicationUpdateRequest represents and contains the data needed to update\nan application. Specifically to modify the number of replicas to\nrun, and the configurations bound to it.\nNote: Instances is a pointer to give us a nil value separate from\nactual integers, as means of communicating `default`/`no change`.",
       "type": "object",
       "properties": {
+        "appchart": {
+          "type": "string",
+          "x-go-name": "AppChart"
+        },
         "configurations": {
           "type": "array",
           "items": {

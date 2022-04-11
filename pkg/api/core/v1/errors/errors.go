@@ -187,3 +187,19 @@ func ConfigurationIsNotBound(configuration string) APIError {
 		"",
 		http.StatusBadRequest)
 }
+
+// AppChartAlreadyKnown constructs an API error for when we have a conflict with an existing app chart
+func AppChartAlreadyKnown(app string) APIError {
+	return NewAPIError(
+		fmt.Sprintf("Application Chart '%s' already exists", app),
+		"",
+		http.StatusConflict)
+}
+
+// AppChartIsNotKnown constructs an API error for when the desired app chart does not exist
+func AppChartIsNotKnown(app string) APIError {
+	return NewAPIError(
+		fmt.Sprintf("Application Chart '%s' does not exist", app),
+		"",
+		http.StatusNotFound)
+}

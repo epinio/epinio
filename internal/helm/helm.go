@@ -21,17 +21,10 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-const (
-	StandardChart = "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz"
-	// ChartName:   "/path/to/stable/etcd-operator",			Local directory
-	// ChartName:   "/path/to/stable/etcd-operator.tar.gz",			Local archive
-	// ChartName:   "http://helm.whatever.com/repo/etcd-operator.tar.gz",	Remote archive
-)
-
 type ChartParameters struct {
 	models.AppRef                        // Application: name & namespace
 	Cluster        *kubernetes.Cluster   // Cluster to talk to.
-	Chart          string                // Chart to use for deployment
+	Chart          string                // Name of Chart CR to use for deployment
 	ImageURL       string                // Application Image
 	Username       string                // User causing the (re)deployment
 	Instances      int32                 // Number Of Desired Replicas
