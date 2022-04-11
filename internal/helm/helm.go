@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
@@ -18,11 +19,13 @@ import (
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	"helm.sh/helm/v3/pkg/repo"
 	"k8s.io/client-go/rest"
 )
 
 type ChartParameters struct {
 	models.AppRef                        // Application: name & namespace
+	Context        context.Context       // Operation context
 	Cluster        *kubernetes.Cluster   // Cluster to talk to.
 	Chart          string                // Name of Chart CR to use for deployment
 	ImageURL       string                // Application Image
@@ -66,6 +69,14 @@ func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) 
 }
 
 func Deploy(logger logr.Logger, parameters ChartParameters) error {
+	// Find the app chart to use for the deployment.
+	appChart, err := appchart.Lookup(parameters.Context, parameters.Cluster, parameters.Chart)
+	if err != nil {
+		return err
+	}
+	if appChart == nil {
+		return fmt.Errorf("Unable to deploy, chart %s not found", parameters.Chart)
+	}
 
 	// YAML string - TODO ? Use unstructured as intermediary to
 	// marshal yaml from ? Instead of direct generation of a
@@ -136,7 +147,7 @@ epinio:
 
 	chartSpec := hc.ChartSpec{
 		ReleaseName: names.ReleaseName(parameters.Name),
-		ChartName:   parameters.Chart,
+		ChartName:   appChart.HelmChart,
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true,
@@ -148,6 +159,15 @@ epinio:
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
 		return err
+	}
+
+	if appChart.HelmRepo.URL != "" {
+		if err := client.AddOrUpdateChartRepo(repo.Entry{
+			Name: appChart.HelmRepo.Name,
+			URL:  appChart.HelmRepo.URL,
+		}); err != nil {
+			return err
+		}
 	}
 
 	if _, err := client.InstallOrUpgradeChart(context.Background(), &chartSpec); err != nil {

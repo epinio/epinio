@@ -3,6 +3,7 @@ package application
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
@@ -85,9 +86,19 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		routes = []string{route}
 	}
 
+	// Finalize chart selection (system fallback), and verify existence.
+
 	chart := "standard"
 	if createRequest.Configuration.AppChart != "" {
 		chart = createRequest.Configuration.AppChart
+	}
+
+	found, err = appchart.Exists(ctx, cluster, chart)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if !found {
+		return apierror.AppChartIsNotKnown(chart)
 	}
 
 	// Arguments found OK, now we can modify the system state
