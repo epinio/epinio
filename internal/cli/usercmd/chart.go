@@ -32,7 +32,7 @@ func (c *EpinioClient) ChartList(ctx context.Context) error {
 }
 
 // ChartCreate makes a new application chart known to epinio.
-func (c *EpinioClient) ChartCreate(ctx context.Context, name, url, repo string) error {
+func (c *EpinioClient) ChartCreate(ctx context.Context, name, url, short, desc, repo string) error {
 	log := c.Log.WithName("ChartCreate")
 	log.Info("start")
 	defer log.Info("return")
@@ -40,14 +40,18 @@ func (c *EpinioClient) ChartCreate(ctx context.Context, name, url, repo string) 
 	c.ui.Note().
 		WithStringValue("Namespace", c.Settings.Namespace).
 		WithStringValue("Name", name).
-		WithStringValue("Repository", repo).
-		WithStringValue("Url", url).
+		WithStringValue("Short Description", short).
+		WithStringValue("Description", desc).
+		WithStringValue("Chart Reference", url).
+		WithStringValue("Chart Repository", repo).
 		Msg("Create Application Chart")
 
 	request := models.ChartCreateRequest{
-		Name:       name,
-		Repository: repo,
-		URL:        url,
+		Name:        name,
+		ShortDesc:   short,
+		Description: desc,
+		Repository:  repo,
+		URL:         url,
 	}
 
 	_, err := c.API.ChartCreate(request)
