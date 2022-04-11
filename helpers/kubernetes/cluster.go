@@ -133,6 +133,21 @@ func (c *Cluster) detectPlatform(ctx context.Context) {
 	}
 }
 
+// ClientAppChart returns a dynamic client for the app chart resource
+func (c *Cluster) ClientAppChart() (dynamic.NamespaceableResourceInterface, error) {
+	cs, err := dynamic.NewForConfig(c.RestConfig)
+	if err != nil {
+		return nil, err
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "application.epinio.io",
+		Version:  "v1",
+		Resource: "appcharts",
+	}
+	return cs.Resource(gvr), nil
+}
+
 // ClientApp returns a dynamic namespaced client for the app resource
 func (c *Cluster) ClientApp() (dynamic.NamespaceableResourceInterface, error) {
 	cs, err := dynamic.NewForConfig(c.RestConfig)

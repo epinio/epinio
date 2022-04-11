@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/epinio/epinio/helpers/routes"
+	"github.com/epinio/epinio/internal/api/v1/appchart"
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
@@ -140,6 +141,14 @@ var Routes = routes.NamedRoutes{
 		"/namespaces/:namespace/services/:servicename/bind",
 		errorHandler(service.Controller{}.Bind),
 	),
+
+	// App charts
+	"ChartList":   get("/appcharts", errorHandler(appchart.Controller{}.FullIndex)),
+	"ChartCreate": post("/appcharts", errorHandler(appchart.Controller{}.Create)),
+	"ChartDelete": delete("/appcharts/:name", errorHandler(appchart.Controller{}.Delete)),
+	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Controller{}.Match)),
+	"ChartMatch0": get("/appchartsmatch", errorHandler(appchart.Controller{}.Match)),
+	"ChartShow":   get("/appcharts/:name", errorHandler(appchart.Controller{}.Show)),
 }
 
 var WsRoutes = routes.NamedRoutes{

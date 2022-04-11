@@ -1,9 +1,6 @@
 package application
 
 import (
-	"fmt"
-	"net/http"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
@@ -67,22 +64,24 @@ func fetchAppChart(c *gin.Context) apierror.APIErrors {
 	// Better/Faster from the local file cache ?
 	// TODO: List cache directory
 
-	response, err := http.Get(helm.StandardChart)
-	if err != nil || response.StatusCode != http.StatusOK {
-		c.Status(http.StatusServiceUnavailable)
-		return nil
-	}
+	return apierror.NewInternalError("disabled until app chart lookup and fetch is available")
 
-	reader := response.Body
-	contentLength := response.ContentLength
-	contentType := response.Header.Get("Content-Type")
+	// response, err := http.Get(helm.StandardChart)
+	// if err != nil || response.StatusCode != http.StatusOK {
+	// 	c.Status(http.StatusServiceUnavailable)
+	// 	return nil
+	// }
 
-	requestctx.Logger(c.Request.Context()).Info("OK",
-		"origin", c.Request.URL.String(),
-		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
-	)
-	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
-	return nil
+	// reader := response.Body
+	// contentLength := response.ContentLength
+	// contentType := response.Header.Get("Content-Type")
+
+	// requestctx.Logger(c.Request.Context()).Info("OK",
+	// 	"origin", c.Request.URL.String(),
+	// 	"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
+	// )
+	// c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
+	// return nil
 }
 
 func fetchAppImage(c *gin.Context) apierror.APIErrors {
