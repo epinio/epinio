@@ -145,21 +145,12 @@ epinio:
 
 	logger.Info("app helm setup", "parameters", yamlParameters)
 
-	chartSpec := hc.ChartSpec{
-		ReleaseName: names.ReleaseName(parameters.Name),
-		ChartName:   appChart.HelmChart,
-		Namespace:   parameters.Namespace,
-		Wait:        true,
-		Atomic:      true,
-		ValuesYaml:  yamlParameters,
-		Timeout:     duration.ToDeployment(),
-		ReuseValues: true,
-	}
-
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
 		return err
 	}
+
+	chartRef := appChart.HelmChart
 
 	if appChart.HelmRepo.URL != "" {
 		if err := client.AddOrUpdateChartRepo(repo.Entry{
@@ -168,6 +159,19 @@ epinio:
 		}); err != nil {
 			return err
 		}
+
+		chartRef = fmt.Spritnf("%s/%s", appChart.HelmRepo.Name, chartRef)
+	}
+
+	chartSpec := hc.ChartSpec{
+		ReleaseName: names.ReleaseName(parameters.Name),
+		ChartName:   chartRef,
+		Namespace:   parameters.Namespace,
+		Wait:        true,
+		Atomic:      true,
+		ValuesYaml:  yamlParameters,
+		Timeout:     duration.ToDeployment(),
+		ReuseValues: true,
 	}
 
 	if _, err := client.InstallOrUpgradeChart(context.Background(), &chartSpec); err != nil {
