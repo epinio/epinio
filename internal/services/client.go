@@ -7,8 +7,9 @@ import (
 )
 
 type ServiceClient struct {
-	kubeClient        *kubernetes.Cluster
-	serviceKubeClient dynamic.NamespaceableResourceInterface
+	kubeClient           *kubernetes.Cluster
+	serviceKubeClient    dynamic.NamespaceableResourceInterface
+	helmChartsKubeClient dynamic.NamespaceableResourceInterface
 }
 
 func NewKubernetesServiceClient(kubeClient *kubernetes.Cluster) (*ServiceClient, error) {
@@ -22,9 +23,15 @@ func NewKubernetesServiceClient(kubeClient *kubernetes.Cluster) (*ServiceClient,
 		Version:  "v1",
 		Resource: "services",
 	}
+	helmChartsGroupVersion := schema.GroupVersionResource{
+		Group:    "helm.cattle.io",
+		Version:  "v1",
+		Resource: "helmcharts",
+	}
 
 	return &ServiceClient{
-		kubeClient:        kubeClient,
-		serviceKubeClient: dynamicKubeClient.Resource(serviceGroupVersion),
+		kubeClient:           kubeClient,
+		serviceKubeClient:    dynamicKubeClient.Resource(serviceGroupVersion),
+		helmChartsKubeClient: dynamicKubeClient.Resource(helmChartsGroupVersion),
 	}, nil
 }

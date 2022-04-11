@@ -24,13 +24,13 @@ func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	serviceList, err := kubeServiceClient.List(ctx)
+	serviceList, err := kubeServiceClient.ListCatalogServices(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	response.OKReturn(c, models.ServiceCatalogResponse{
-		Services: serviceList,
+		CatalogServices: serviceList,
 	})
 	return nil
 }
@@ -49,7 +49,7 @@ func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	service, err := kubeServiceClient.Get(ctx, serviceName)
+	service, err := kubeServiceClient.GetCatalogService(ctx, serviceName)
 	if err != nil {
 		if k8sapierrors.IsNotFound(err) {
 			return apierror.NewNotFoundError("service instance doesn't exist")
@@ -59,7 +59,7 @@ func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 	}
 
 	response.OKReturn(c, models.ServiceCatalogShowResponse{
-		Service: service,
+		CatalogService: service,
 	})
 	return nil
 }

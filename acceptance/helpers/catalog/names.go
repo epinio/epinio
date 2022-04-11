@@ -32,6 +32,10 @@ func NewCatalogServiceName() string {
 	return "service-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
+func NewServiceName() string {
+	return "service-instance-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
 func NewUserCredentials() (string, string) {
 	return strconv.Itoa(RandInt()), strconv.Itoa(RandInt())
 }

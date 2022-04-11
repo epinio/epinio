@@ -38,3 +38,39 @@ func (c *Client) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogS
 
 	return &resp, nil
 }
+
+func (c *Client) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.post(api.Routes.Path("ServiceCreate", namespace), string(b))
+	return err
+}
+
+func (c *Client) ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.ServiceShowResponse, error) {
+	data, err := c.get(api.Routes.Path("ServiceShow", namespace, req.Name))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ServiceShowResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return &resp, nil
+}
+
+func (c *Client) ServiceBind(req *models.ServiceBindRequest, namespace, name string) error {
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.post(api.Routes.Path("ServiceBind", namespace, name), string(b))
+	return err
+}

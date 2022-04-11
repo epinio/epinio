@@ -140,6 +140,14 @@ func AppIsNotKnown(app string) APIError {
 		http.StatusNotFound)
 }
 
+// ServiceIsNotKnown constructs an API error for when the desired service does not exist
+func ServiceIsNotKnown(service string) APIError {
+	return NewAPIError(
+		fmt.Sprintf("Service '%s' does not exist", service),
+		"",
+		http.StatusNotFound)
+}
+
 // ConfigurationIsNotKnown constructs an API error for when the desired configuration instance does not exist
 func ConfigurationIsNotKnown(configuration string) APIError {
 	return NewAPIError(

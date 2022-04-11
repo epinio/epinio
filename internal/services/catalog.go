@@ -11,9 +11,15 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-func NewServiceFromJSONMap(m map[string]interface{}) (*models.Service, error) {
+const (
+	// Only Helmcharts with this label are considered Epinio "Services".
+	// Used to filter out Helmcharts created by other means (manually, k3s etc).
+	ServiceLabelKey = "application.epinio.io/catalog-service-name"
+)
+
+func NewCatalogServiceFromJSONMap(m map[string]interface{}) (*models.CatalogService, error) {
 	var err error
-	service := &models.Service{}
+	service := &models.CatalogService{}
 
 	if service.Name, _, err = unstructured.NestedString(m, "spec", "name"); err != nil {
 		return nil, errors.New("name should be string")
@@ -46,28 +52,28 @@ func NewServiceFromJSONMap(m map[string]interface{}) (*models.Service, error) {
 	return service, nil
 }
 
-func (s *ServiceClient) Get(ctx context.Context, serviceName string) (*models.Service, error) {
+func (s *ServiceClient) GetCatalogService(ctx context.Context, serviceName string) (*models.CatalogService, error) {
 	result, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).Get(ctx, serviceName, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
 	}
 
-	service, err := NewServiceFromJSONMap(result.UnstructuredContent())
+	service, err := NewCatalogServiceFromJSONMap(result.UnstructuredContent())
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating Service from JSON map")
 	}
 	return service, nil
 }
 
-func (s *ServiceClient) List(ctx context.Context) ([]*models.Service, error) {
+func (s *ServiceClient) ListCatalogServices(ctx context.Context) ([]*models.CatalogService, error) {
 	listResult, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, "error listing services")
 	}
 
-	services := []*models.Service{}
+	services := []*models.CatalogService{}
 	for _, item := range listResult.Items {
-		service, err := NewServiceFromJSONMap(item.UnstructuredContent())
+		service, err := NewCatalogServiceFromJSONMap(item.UnstructuredContent())
 		if err != nil {
 			return nil, errors.Wrap(err, "error creating Service from JSON map")
 		}
