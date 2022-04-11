@@ -325,6 +325,9 @@ type AppChart struct {
 	HelmRepo         HelmRepo `json:"helm_repo,omitempty"`
 }
 
+// AppChartList is a collection of app charts
+type AppChartList []AppChart
+
 // ChartMatchResponse contains the list of names for matching application charts
 type ChartMatchResponse struct {
 	Names []string `json:"names,omitempty"`
