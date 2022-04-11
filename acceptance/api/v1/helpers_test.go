@@ -15,9 +15,11 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
+	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 	"github.com/pkg/errors"
 
 	. "github.com/onsi/gomega"
@@ -264,4 +266,70 @@ func createApplication(name string, namespace string, routes []string) (*http.Re
 
 	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", namespace)
 	return env.Curl("POST", url, strings.NewReader(body))
+}
+
+func createCatalogService(catalogService models.CatalogService) {
+	createCatalogServiceInNamespace("epinio", catalogService)
+}
+
+func createCatalogServiceInNamespace(namespace string, catalogService models.CatalogService) {
+	sampleServiceFilePath := sampleServiceTmpFile(namespace, catalogService)
+	defer os.Remove(sampleServiceFilePath)
+
+	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
+	Expect(err).ToNot(HaveOccurred(), out)
+}
+
+func deleteCatalogService(name string) {
+	deleteCatalogServiceFromNamespace("epinio", name)
+}
+
+func deleteCatalogServiceFromNamespace(namespace, name string) {
+	out, err := proc.Kubectl("delete", "-n", namespace, "services.application.epinio.io", name)
+	Expect(err).ToNot(HaveOccurred(), out)
+}
+
+func sampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
+	serviceYAML := fmt.Sprintf(`
+apiVersion: application.epinio.io/v1
+kind: Service
+metadata:
+  name: "%[1]s"
+  namespace: "%[2]s"
+spec:
+  chart: "%[3]s"
+  description: |
+    A simple description of this service.
+  values: "%[5]s"
+  helmRepo:
+    url: "%[4]s"
+  name: %[1]s`,
+		catalogService.Name,
+		namespace,
+		catalogService.HelmChart,
+		catalogService.HelmRepo,
+		catalogService.Values)
+
+	filePath, err := helpers.CreateTmpFile(serviceYAML)
+	Expect(err).ToNot(HaveOccurred())
+
+	return filePath
+}
+
+func helmChartTmpFile(helmChart helmapiv1.HelmChart) string {
+	b, err := json.Marshal(helmChart)
+	Expect(err).ToNot(HaveOccurred())
+
+	filePath, err := helpers.CreateTmpFile(string(b))
+	Expect(err).ToNot(HaveOccurred())
+
+	return filePath
+}
+
+func createHelmChart(helmChart helmapiv1.HelmChart) {
+	sampleServiceFilePath := helmChartTmpFile(helmChart)
+	defer os.Remove(sampleServiceFilePath)
+
+	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
+	Expect(err).ToNot(HaveOccurred(), out)
 }

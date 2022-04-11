@@ -130,6 +130,14 @@ var Routes = routes.NamedRoutes{
 	// Services
 	"ServiceCatalog":     get("/services", errorHandler(service.Controller{}.Catalog)),
 	"ServiceCatalogShow": get("/services/:servicename", errorHandler(service.Controller{}.CatalogShow)),
+	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
+	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
+
+	// Bind a service to/from applications
+	"ServiceBind": post(
+		"/namespaces/:namespace/services/:servicename/bind",
+		errorHandler(service.Controller{}.Bind),
+	),
 }
 
 var WsRoutes = routes.NamedRoutes{

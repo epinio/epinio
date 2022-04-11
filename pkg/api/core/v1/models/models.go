@@ -5,7 +5,9 @@
 // TODO: Give even the most simple requests and responses properly named types.
 package models
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Response struct {
 	Status string `json:"status"`
@@ -231,15 +233,20 @@ type ConfigurationAppsResponse struct {
 
 // ServiceCatalogResponse
 type ServiceCatalogResponse struct {
-	Services []*Service `json:"services,omitempty"`
+	CatalogServices []*CatalogService `json:"catalog_services,omitempty"`
 }
 
 // ServiceCatalogShowResponse
 type ServiceCatalogShowResponse struct {
-	Service *Service `json:"service,omitempty"`
+	CatalogService *CatalogService `json:"catalog_service,omitempty"`
 }
 
-type Service struct {
+type ServiceCreateRequest struct {
+	CatalogService string `json:"catalog_service,omitempty"`
+	Name           string `json:"name,omitempty"`
+}
+
+type CatalogService struct {
 	Name             string   `json:"name,omitempty"`
 	Description      string   `json:"description,omitempty"`
 	ShortDescription string   `json:"short_description,omitempty"`
@@ -251,4 +258,27 @@ type Service struct {
 type HelmRepo struct {
 	Name string `json:"name,omitempty"`
 	URL  string `json:"url,omitempty"`
+}
+
+type ServiceBindRequest struct {
+	AppName string `json:"app_name,omitempty"`
+}
+
+type ServiceShowRequest struct {
+	Name string `json:"name,omitempty"`
+}
+
+type ServiceShowResponse struct {
+	Service *Service `json:"service,omitempty"`
+}
+
+type Service struct {
+	Name           string `json:"name,omitempty"`
+	Namespace      string `json:"namespace,omitempty"`
+	CatalogService string `json:"catalog_service,omitempty"`
+	Status         string `json:"status,omitempty"`
+}
+
+func ServiceHelmChartName(name, namespace string) string {
+	return fmt.Sprintf("%s-%s", namespace, name)
 }

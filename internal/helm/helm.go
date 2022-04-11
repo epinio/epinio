@@ -4,6 +4,7 @@ package helm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -16,6 +17,8 @@ import (
 	hc "github.com/mittwald/go-helm-client"
 	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
+	helmrelease "helm.sh/helm/v3/pkg/release"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -42,7 +45,7 @@ type ChartParameters struct {
 func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) ([]byte, error) {
 	none := []byte{}
 
-	client, err := getHelmClient(cluster, logger, app.Namespace)
+	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
 	if err != nil {
 		return none, err
 	}
@@ -61,7 +64,7 @@ func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) 
 }
 
 func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) error {
-	client, err := getHelmClient(cluster, logger, app.Namespace)
+	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
 	if err != nil {
 		return err
 	}
@@ -149,7 +152,7 @@ epinio:
 		ReuseValues: true,
 	}
 
-	client, err := getHelmClient(parameters.Cluster, logger, parameters.Namespace)
+	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
 		return err
 	}
@@ -161,8 +164,27 @@ epinio:
 	return nil
 }
 
-func getHelmClient(cluster *kubernetes.Cluster, logger logr.Logger, namespace string) (hc.Client, error) {
+func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (string, error) {
+	client, err := GetHelmClient(cluster.RestConfig, logger, namespace)
+	if err != nil {
+		return "", err
+	}
+
+	var r *helmrelease.Release
+	if r, err = client.GetRelease(releaseName); err != nil {
+		return "", err
+	}
+
+	if r.Info == nil {
+		return "", errors.New("no status available")
+	}
+
+	return string(r.Info.Status), nil
+}
+
+func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string) (hc.Client, error) {
 	options := &hc.RestConfClientOptions{
+		RestConfig: restConfig,
 		Options: &hc.Options{
 			Namespace:        namespace,         // Match chart spec
 			RepositoryCache:  "/tmp/.helmcache", // Hopefully reduces chart downloads.
@@ -173,13 +195,7 @@ func getHelmClient(cluster *kubernetes.Cluster, logger logr.Logger, namespace st
 				logger.Info("helm", "report", fmt.Sprintf(format, v...))
 			},
 		},
-		RestConfig: cluster.RestConfig,
 	}
 
-	client, err := hc.NewClientFromRestConf(options)
-	if err != nil {
-		return nil, err
-	}
-
-	return client, nil
+	return hc.NewClientFromRestConf(options)
 }
