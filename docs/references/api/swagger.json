@@ -1,6 +1,121 @@
 { "info": {"title": "Epinio", "version":"1"},
   "swagger": "2.0",
   "paths": {
+    "/appcharts": {
+      "get": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Return list of app charts.",
+        "operationId": "AllCharts",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppChartsResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Create the posted new chart.",
+        "operationId": "ChartCreate",
+        "parameters": [
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ChartCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartCreateResponse"
+          }
+        }
+      }
+    },
+    "/appcharts/{Chart}": {
+      "get": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Return details of the named `Chart`.",
+        "operationId": "ChartShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Chart",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartShowResponse"
+          }
+        }
+      }
+    },
+    "/appchartsmatch": {
+      "get": {
+        "description": "Return the chart names. (No prefix == Empty prefix == All match)",
+        "tags": [
+          "appcharts"
+        ],
+        "operationId": "ChartMatch0",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartMatchResponse"
+          }
+        }
+      }
+    },
+    "/appchartsmatch/{Pattern}": {
+      "get": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Return the chart names with prefix `Pattern`.",
+        "operationId": "ChartMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartMatchResponse"
+          }
+        }
+      }
+    },
+    "/applcharts/{Chart}": {
+      "delete": {
+        "tags": [
+          "appcharts"
+        ],
+        "summary": "Delete the named `Chart`.",
+        "operationId": "ChartDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Chart",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ChartDeleteResponse"
+          }
+        }
+      }
+    },
     "/applications": {
       "get": {
         "tags": [
@@ -1154,6 +1269,40 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppChart": {
+      "description": "AppChart matches github.com/epinio/application/api/v1 AppChartSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
+      "type": "object",
+      "properties": {
+        "chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "helm_repo": {
+          "$ref": "#/definitions/HelmRepo"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "short_description": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppChartList": {
+      "description": "AppChartList is a collection of app charts",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/AppChart"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "AppDeployment": {
       "description": "AppDeployment contains all the information specific to an active\napplication, i.e. one with a deployment in the cluster.",
       "type": "object",
@@ -1341,6 +1490,47 @@
             "type": "string"
           },
           "x-go-name": "WasBound"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ChartCreateRequest": {
+      "description": "ChartCreateRequest represents and contains the data needed to create an application\nchart instance",
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "repository": {
+          "type": "string",
+          "x-go-name": "Repository"
+        },
+        "shortDescription": {
+          "type": "string",
+          "x-go-name": "ShortDesc"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ChartMatchResponse": {
+      "description": "ChartMatchResponse contains the list of names for matching application charts",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1552,6 +1742,21 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "HelmRepo": {
+      "description": "HelmRepo matches github.com/epinio/application/api/v1 HelmRepo\nReason for existence: Do not expose the internal CRD struct in the API.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "url": {
+          "type": "string",
+          "x-go-name": "URL"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ImportGitResponse": {
       "type": "object",
       "properties": {
@@ -1738,6 +1943,12 @@
     }
   },
   "responses": {
+    "AppChartsResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AppChartList"
+      }
+    },
     "AppCreateResponse": {
       "description": "",
       "schema": {
@@ -1821,6 +2032,30 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/AppList"
+      }
+    },
+    "ChartCreateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ChartDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ChartMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ChartMatchResponse"
+      }
+    },
+    "ChartShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AppChart"
       }
     },
     "ConfigurationAppsResponse": {
