@@ -179,18 +179,18 @@ func (u *Message) Msg(message string) {
 	switch u.msgType {
 	case normal:
 	case exclamation:
-		message = emoji.Sprintf(":warning: %s", message)
+		message = emoji.Sprintf(":warning:%s", message)
 		message = color.YellowString(message)
 	case note:
 		message = emoji.Sprintf(":ship:%s", message)
 		message = color.BlueString(message)
 	case success:
-		message = emoji.Sprintf(":heavy_check_mark: %s", message)
+		message = emoji.Sprintf(":heavy_check_mark:%s", message)
 		message = color.GreenString(message)
 	case progress:
-		message = emoji.Sprintf(":three-thirty: %s", message)
+		message = emoji.Sprintf(":three-thirty:%s", message)
 	case problem:
-		message = emoji.Sprintf(":forbidden:%s", message)
+		message = emoji.Sprintf(":cross_mark:%s", message)
 		message = color.RedString(message)
 	}
 

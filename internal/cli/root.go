@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/epinio/epinio/helpers/kubernetes/config"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	settings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
@@ -37,7 +38,7 @@ var rootCmd = &cobra.Command{
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		termui.NewUI().Problem().Msg(err.Error())
 		os.Exit(-1)
 	}
 }
