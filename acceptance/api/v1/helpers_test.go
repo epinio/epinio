@@ -307,7 +307,7 @@ spec:
 		catalogService.Name,
 		namespace,
 		catalogService.HelmChart,
-		catalogService.HelmRepo,
+		catalogService.HelmRepo.URL,
 		catalogService.Values)
 
 	filePath, err := helpers.CreateTmpFile(serviceYAML)

@@ -3,11 +3,14 @@ package services
 import (
 	"context"
 	"fmt"
+	"sync"
+	"time"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/panjf2000/ants"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -116,4 +119,69 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 	_, err = s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Create(
 		ctx, unstructureHelmChart, metav1.CreateOptions{})
 	return errors.Wrap(err, "error creating helm chart")
+}
+
+// DeleteAll deletes all helmcharts installed on the specified namespace.
+// It's used to cleanup before a namespace is deleted.
+// The targetNamespace is not the namespace where the helmchart resource resides
+// (that would be `epinio`) but the `targetNamespace` field of the helmchart.
+// Since FieldSelector on CRDs can't be used with arbitrary fields, we need
+// to delete them one by one (otherwise we could use `DeleteCollection`).
+func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) error {
+	list, err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).List(ctx,
+		metav1.ListOptions{
+			LabelSelector: ServiceLabelKey, // Existence of the label key
+		},
+	)
+	if err != nil {
+		return errors.Wrap(err, "error listing helm charts")
+	}
+
+	const maxConcurrent = 100
+	errChan := make(chan error)
+	var wg, errWg sync.WaitGroup
+	var loopErr error
+
+	errWg.Add(1)
+	go func() {
+		for err := range errChan {
+			loopErr = err
+			break
+		}
+		errWg.Done()
+	}()
+
+	p, err := ants.NewPoolWithFunc(maxConcurrent, func(i interface{}) {
+		err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Delete(
+			ctx, i.(string), metav1.DeleteOptions{})
+		if err != nil {
+			errChan <- err
+		}
+		wg.Done()
+	}, ants.WithExpiryDuration(30*time.Second))
+	if err != nil {
+		return err
+	}
+
+	for _, item := range list.Items {
+		n, found, err := unstructured.NestedString(item.UnstructuredContent(), "spec", "targetNamespace")
+		if err != nil {
+			errChan <- err
+		}
+
+		if found && n == targetNamespace {
+			wg.Add(1)
+			err = p.Invoke(item.GetName())
+			if err != nil {
+				errChan <- err
+			}
+		}
+	}
+	defer p.Release()
+
+	wg.Wait()
+	close(errChan)
+	errWg.Wait()
+
+	return loopErr
 }
