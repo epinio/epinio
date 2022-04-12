@@ -79,7 +79,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		}
 	}
 
-	service.Status = serviceStatus
+	service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
 
 	return &service, nil
 }

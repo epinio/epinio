@@ -100,7 +100,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", resp.Service.Name).
 		WithTableRow("Catalog Service", resp.Service.CatalogService).
-		WithTableRow("Status", resp.Service.Status).
+		WithTableRow("Status", resp.Service.Status.String()).
 		Msg("Details:")
 
 	return nil

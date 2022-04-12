@@ -7,6 +7,8 @@ package models
 
 import (
 	"fmt"
+
+	helmrelease "helm.sh/helm/v3/pkg/release"
 )
 
 type Response struct {
@@ -273,11 +275,30 @@ type ServiceShowResponse struct {
 }
 
 type Service struct {
-	Name           string `json:"name,omitempty"`
-	Namespace      string `json:"namespace,omitempty"`
-	CatalogService string `json:"catalog_service,omitempty"`
-	Status         string `json:"status,omitempty"`
+	Name           string        `json:"name,omitempty"`
+	Namespace      string        `json:"namespace,omitempty"`
+	CatalogService string        `json:"catalog_service,omitempty"`
+	Status         ServiceStatus `json:"status,omitempty"`
 }
+
+type ServiceStatus string
+
+const (
+	ServiceStatusDeployed ServiceStatus = "deployed"
+	ServiceStatusNotReady ServiceStatus = "not-ready"
+	ServiceStatusUnknown  ServiceStatus = "unknown"
+)
+
+func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
+	switch status {
+	case helmrelease.StatusDeployed:
+		return ServiceStatusDeployed
+	default:
+		return ServiceStatusNotReady
+	}
+}
+
+func (s ServiceStatus) String() string { return string(s) }
 
 func ServiceHelmChartName(name, namespace string) string {
 	return fmt.Sprintf("%s-%s", namespace, name)
