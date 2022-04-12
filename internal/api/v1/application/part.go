@@ -93,7 +93,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 	if appChart.HelmRepo != "" {
 		// Chart is specified as simple name, and resolved through a helm repo
 
-		client, err := helm.GetHelmClient(cluster, logger, app.Namespace)
+		client, err := helm.GetHelmClient(cluster.RestConfig, logger, app.Namespace)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
