@@ -32,16 +32,10 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		return nil, errors.Wrap(err, "fetching the service instance")
 	}
 
-	catalogServiceName := ""
-	for k, v := range srv.GetLabels() {
-		if k == CatalogServiceLabelKey {
-			catalogServiceName = v
-			break
-		}
-	}
+	catalogServiceName, found := srv.GetLabels()[CatalogServiceLabelKey]
 
 	// Helmchart is not labeled, act as if service is "not found"
-	if catalogServiceName == "" {
+	if !found {
 		return nil, nil
 	}
 

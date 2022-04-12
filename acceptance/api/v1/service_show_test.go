@@ -192,7 +192,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 					createHelmChart(helmChart)
 				})
 
-				It("returns the service with status Not Ready", func() {
+				It("returns the service with status not-ready", func() {
 					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceName)
 					response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
@@ -204,7 +204,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(showResponse.Service).ToNot(BeNil())
 
-					Expect(showResponse.Service.Status).To(Equal("Not Ready"))
+					Expect(showResponse.Service.Status).To(Equal(models.ServiceStatusNotReady))
 				})
 			})
 		})
