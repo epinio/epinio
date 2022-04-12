@@ -9,10 +9,71 @@ import (
 // [x] apps chart default NAME
 // [x] apps chart list
 // [x] apps chart show NAME
-// [ ] apps chart create [--short TEXT] [--desc TEXT] [--helm-repo REPO] NAME REF
+// [x] apps chart create [--short TEXT] [--desc TEXT] [--helm-repo REPO] NAME REF
 // [ ] apps chart delete NAME
 
 var _ = Describe("apps chart", func() {
+
+	standardBall := "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz"
+
+	Describe("app chart create", func() {
+		When("creating a basic chart", func() {
+			AfterEach(func() {
+				out, err := env.Epinio("", "apps", "chart", "delete", "standard.direct")
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+			It("creates a new chart", func() {
+				out, err := env.Epinio("", "apps", "chart", "create",
+					"standard.direct",
+					standardBall)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Create Application Chart"))
+				Expect(out).To(ContainSubstring("Name: standard.direct"))
+				Expect(out).To(ContainSubstring("Helm Chart: " + standardBall))
+
+				out, err = env.Epinio("", "apps", "chart", "show", "standard.direct")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Show application chart details"))
+				Expect(out).To(MatchRegexp(`Key *| *VALUE`))
+				Expect(out).To(MatchRegexp(`Name *| *standard.direct`))
+				Expect(out).To(MatchRegexp(`Short *| *|`))
+				Expect(out).To(MatchRegexp(`Description *| *|`))
+				Expect(out).To(MatchRegexp(`Helm Repository *| *|`))
+				Expect(out).To(MatchRegexp(`Helm chart *| *` + standardBall))
+			})
+		})
+
+		When("creating a described chart", func() {
+			AfterEach(func() {
+				out, err := env.Epinio("", "apps", "chart", "delete", "standard.direct.explained")
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+			It("creates a new chart with descriptions", func() {
+				out, err := env.Epinio("", "apps", "chart", "create",
+					"standard.direct.explained",
+					standardBall,
+					"--short", "standard, direct url, described",
+					"--desc", "direct url standard with descriptions",
+				)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Create Application Chart"))
+				Expect(out).To(ContainSubstring("Name: standard.direct"))
+				Expect(out).To(ContainSubstring("Helm Chart: " + standardBall))
+				Expect(out).To(ContainSubstring("Short Description: standard, direct url, described"))
+				Expect(out).To(ContainSubstring("Description: direct url standard with descriptions"))
+
+				out, err = env.Epinio("", "apps", "chart", "show", "standard.direct.explained")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Show application chart details"))
+				Expect(out).To(MatchRegexp(`Key *| *VALUE`))
+				Expect(out).To(MatchRegexp(`Name *| *standard.direct`))
+				Expect(out).To(MatchRegexp(`Short *| *standard, direct url, described`))
+				Expect(out).To(MatchRegexp(`Description *| *direct url standard with descriptions`))
+				Expect(out).To(MatchRegexp(`Helm Repository *| *|`))
+				Expect(out).To(MatchRegexp(`Helm chart *| *` + standardBall))
+			})
+		})
+	})
 
 	Describe("app chart list", func() {
 		It("list the standard app chart", func() {
