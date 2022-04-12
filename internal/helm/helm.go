@@ -4,6 +4,7 @@ package helm
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strings"
@@ -150,22 +151,32 @@ epinio:
 		return err
 	}
 
-	chartRef := appChart.HelmChart
+	helmChart := appChart.HelmChart
+	helmVersion := ""
 
-	if appChart.HelmRepo.URL != "" {
+	// See also part.go, fetchAppChart
+	if appChart.HelmRepo != "" {
+		name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
 		if err := client.AddOrUpdateChartRepo(repo.Entry{
-			Name: appChart.HelmRepo.Name,
-			URL:  appChart.HelmRepo.URL,
+			Name: name,
+			URL:  appChart.HelmRepo,
 		}); err != nil {
 			return err
 		}
 
-		chartRef = fmt.Spritnf("%s/%s", appChart.HelmRepo.Name, chartRef)
+		pieces := strings.SplitN(helmChart, ":", 2)
+		if len(pieces) == 2 {
+			helmVersion = pieces[1]
+			helmChart = pieces[0]
+		}
+
+		helmChart = fmt.Sprintf("%s/%s", name, helmChart)
 	}
 
 	chartSpec := hc.ChartSpec{
 		ReleaseName: names.ReleaseName(parameters.Name),
-		ChartName:   chartRef,
+		ChartName:   helmChart,
+		Version:     helmVersion,
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true,
