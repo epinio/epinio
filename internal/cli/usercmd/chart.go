@@ -32,7 +32,7 @@ func (c *EpinioClient) ChartList(ctx context.Context) error {
 }
 
 // ChartCreate makes a new application chart known to epinio.
-func (c *EpinioClient) ChartCreate(ctx context.Context, name, url, short, desc, repo string) error {
+func (c *EpinioClient) ChartCreate(ctx context.Context, name, chart, short, desc, repo string) error {
 	log := c.Log.WithName("ChartCreate")
 	log.Info("start")
 	defer log.Info("return")
@@ -42,16 +42,16 @@ func (c *EpinioClient) ChartCreate(ctx context.Context, name, url, short, desc, 
 		WithStringValue("Name", name).
 		WithStringValue("Short Description", short).
 		WithStringValue("Description", desc).
-		WithStringValue("Chart Reference", url).
-		WithStringValue("Chart Repository", repo).
+		WithStringValue("Helm Chart", chart).
+		WithStringValue("Helm Repository", repo).
 		Msg("Create Application Chart")
 
 	request := models.ChartCreateRequest{
 		Name:        name,
 		ShortDesc:   short,
 		Description: desc,
-		Repository:  repo,
-		URL:         url,
+		HelmRepo:    repo,
+		HelmChart:   chart,
 	}
 
 	_, err := c.API.ChartCreate(request)
@@ -83,8 +83,8 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 		WithTableRow("Name", chart.Name).
 		WithTableRow("Short", chart.ShortDescription).
 		WithTableRow("Description", chart.Description).
-		WithTableRow("Repo", chart.HelmRepo.URL).
-		WithTableRow("Url", chart.HelmChart).
+		WithTableRow("Helm Repository", chart.HelmRepo).
+		WithTableRow("Helm Chart", chart.HelmChart).
 		Msg("Details:")
 
 	return nil

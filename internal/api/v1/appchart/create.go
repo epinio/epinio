@@ -35,11 +35,12 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	// Arguments found OK, now we can modify the system state
 
-	err = appchart.Create(ctx, cluster, createRequest.Name,
+	err = appchart.Create(ctx, cluster,
+		createRequest.Name,
 		createRequest.ShortDesc,
 		createRequest.Description,
-		createRequest.Repository,
-		createRequest.URL,
+		createRequest.HelmRepo,
+		createRequest.HelmChart,
 	)
 	if err != nil {
 		return apierror.InternalError(err)

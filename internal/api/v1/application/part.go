@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
+	"github.com/epinio/epinio/internal/names"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -88,7 +90,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
 	}
 
-	if appChart.HelmRepo.URL != "" {
+	if appChart.HelmRepo != "" {
 		// Chart is specified as simple name, and resolved through a helm repo
 
 		client, err := helm.GetHelmClient(cluster, logger, app.Namespace)
@@ -96,13 +98,28 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 			return apierror.InternalError(err)
 		}
 
+		name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(appChart.HelmRepo)))
+
 		if err := client.AddOrUpdateChartRepo(repo.Entry{
-			Name: appChart.HelmRepo.Name,
-			URL:  appChart.HelmRepo.URL,
+			Name: name,
+			URL:  appChart.HelmRepo,
 		}); err != nil {
 			return apierror.InternalError(err)
 		}
 
+		// Compute chart name and version - enable when we have fetch
+		//
+		// helmChart := appChart.HelmChart
+		// helmVersion := ""
+		//
+		// pieces := strings.SplitN(helmChart, ":", 2)
+		// if len(pieces) == 2 {
+		// 	helmVersion = pieces[1]
+		// 	helmChart = pieces[0]
+		// }
+		//
+		// helmChart = fmt.Sprintf("%s/%s", name, helmChart)
+		//
 		// TODO: Fetch chart tarball from repo, via helm client
 		// BAD: Mittwald client used here does not seem to support such.
 

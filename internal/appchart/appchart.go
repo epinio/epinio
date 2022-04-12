@@ -3,7 +3,6 @@ package appchart
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
@@ -17,26 +16,19 @@ import (
 )
 
 // Create constructs and saves a new app chart resource.
-func Create(ctx context.Context, cluster *kubernetes.Cluster, name, short, desc, repo, url string) error {
-
+func Create(ctx context.Context, cluster *kubernetes.Cluster, name, short, desc, repo, chart string) error {
 	client, err := cluster.ClientAppChart()
 	if err != nil {
 		return err
 	}
 
-	helmRepo := epinioappv1.AppHelmRepo{}
-	if repo != "" {
-		helmRepo.URL = repo
-		helmRepo.Name = base64.StdEncoding.EncodeToString([]byte(repo))
-	}
-
+	// Note: name is set later, in the resource meta data.
 	obj := &epinioappv1.AppChart{
 		Spec: epinioappv1.AppChartSpec{
-			Name:             name,
 			Description:      desc,
 			ShortDescription: short,
-			HelmRepo:         helmRepo,
-			HelmChart:        url,
+			HelmRepo:         repo,
+			HelmChart:        chart,
 		},
 	}
 
@@ -72,7 +64,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, name string) error
 }
 
 // List returns a slice of all known app chart CRs.
-func List(ctx context.Context, cluster *kubernetes.Cluster) ([]models.AppChart, error) {
+func List(ctx context.Context, cluster *kubernetes.Cluster) (models.AppChartList, error) {
 	client, err := cluster.ClientAppChart()
 	if err != nil {
 		return nil, err
@@ -83,7 +75,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster) ([]models.AppChart, 
 		return nil, err
 	}
 
-	apps := make([]models.AppChart, 0, len(list.Items))
+	apps := make(models.AppChartList, 0, len(list.Items))
 
 	for _, chart := range list.Items {
 		copy := chart // Prevent memory aliasing warning
@@ -137,7 +129,7 @@ func Get(ctx context.Context, cluster *kubernetes.Cluster, name string) (*unstru
 // toChart converts the unstructured app chart CR into the proper model
 func toChart(chart *unstructured.Unstructured) (*models.AppChart, error) {
 
-	name, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "name")
+	name, _, err := unstructured.NestedString(chart.UnstructuredContent(), "metadata", "name")
 	if err != nil {
 		return nil, errors.New("chart should be string")
 	}
@@ -152,29 +144,21 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChart, error) {
 		return nil, errors.New("shortdescription should be string")
 	}
 
-	chartRef, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "chart")
+	helmChart, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmChart")
 	if err != nil {
-		return nil, errors.New("helmchart should be string")
+		return nil, errors.New("helm chart should be string")
 	}
 
-	repoName, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmRepo", "name")
+	helmRepo, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmRepo")
 	if err != nil {
-		return nil, errors.New("repo name should be string")
-	}
-
-	repoURL, _, err := unstructured.NestedString(chart.UnstructuredContent(), "spec", "helmRepo", "url")
-	if err != nil {
-		return nil, errors.New("repo url should be string")
+		return nil, errors.New("helm repo should be string")
 	}
 
 	return &models.AppChart{
 		Name:             name,
 		Description:      description,
 		ShortDescription: short,
-		HelmChart:        chartRef,
-		HelmRepo: models.HelmRepo{
-			Name: repoName,
-			URL:  repoURL,
-		},
+		HelmChart:        helmChart,
+		HelmRepo:         helmRepo,
 	}, nil
 }
