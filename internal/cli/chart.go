@@ -18,6 +18,7 @@ func init() {
 	CmdAppChart.AddCommand(CmdAppChartCreate)
 	CmdAppChart.AddCommand(CmdAppChartShow)
 	CmdAppChart.AddCommand(CmdAppChartDelete)
+	CmdAppChart.AddCommand(CmdAppChartDefault)
 
 	// Create: --short, --desc, --helm-repo
 	CmdAppChartCreate.Flags().StringP("short", "s", "", "Short description of the new chart")
@@ -26,7 +27,38 @@ func init() {
 
 }
 
-// CmdAppChartList implements the command: epinio app env list
+// CmdAppChartDefault implements the command: epinio app chart default
+var CmdAppChartDefault = &cobra.Command{
+	Use:               "default [CHARTNAME]",
+	Short:             "Set or show app chart default",
+	Long:              "Set or show app chart default",
+	Args:              cobra.MaximumNArgs(1),
+	ValidArgsFunction: matchingChartFinder,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		if len(args) == 1 {
+			err = client.ChartDefaultSet(cmd.Context(), args[0])
+			if err != nil {
+				return errors.Wrap(err, "error setting app chart default")
+			}
+		} else {
+			err = client.ChartDefaultShow(cmd.Context())
+			if err != nil {
+				return errors.Wrap(err, "error showing app chart default")
+			}
+		}
+
+		return nil
+	},
+}
+
+// CmdAppChartList implements the command: epinio app chart list
 var CmdAppChartList = &cobra.Command{
 	Use:   "list",
 	Short: "List application charts",
