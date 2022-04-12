@@ -9,18 +9,28 @@ import (
 )
 
 // ChartDefaultSet sets the local app chart default
-func (c *EpinioClient) ChartDefaultSet(ctx context.Context, chart string) error {
+func (c *EpinioClient) ChartDefaultSet(ctx context.Context, chartName string) error {
 	log := c.Log.WithName("ChartDefaultSet")
 	log.Info("start")
 	defer log.Info("return")
 
-	c.Settings.AppChart = chart
+	// Validate chosen app chart to exist
+	if chartName != "" {
+		_, err := c.API.ChartShow(chartName)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Save to settings
+	c.Settings.AppChart = chartName
 	err := c.Settings.Save()
 	if err != nil {
 		return errors.Wrap(err, "failed to save settings")
 	}
 
-	if chart == "" {
+	// And report
+	if chartName == "" {
 		c.ui.Note().
 			Msg("Unset Default Application Chart")
 	} else {
