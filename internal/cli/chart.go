@@ -81,7 +81,7 @@ var CmdAppChartCreate = &cobra.Command{
 
 		err = client.ChartCreate(cmd.Context(), args[0], args[1], short, desc, repo)
 		if err != nil {
-			return errors.Wrap(err, "error setting into app environment")
+			return errors.Wrap(err, "error creating chart")
 		}
 
 		return nil
@@ -105,7 +105,7 @@ var CmdAppChartShow = &cobra.Command{
 
 		err = client.ChartShow(cmd.Context(), args[0])
 		if err != nil {
-			return errors.Wrap(err, "error accessing app environment")
+			return errors.Wrap(err, "error showing app chart")
 		}
 
 		return nil
@@ -130,7 +130,7 @@ var CmdAppChartDelete = &cobra.Command{
 
 		err = client.ChartDelete(cmd.Context(), args[0])
 		if err != nil {
-			return errors.Wrap(err, "error removing from app environment")
+			return errors.Wrap(err, "error removing app chart")
 		}
 
 		return nil
