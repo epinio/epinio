@@ -209,6 +209,57 @@ configuration:
 				}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
 			})
 
+			Context("app charts", func() {
+				var chartName string
+
+				BeforeEach(func() {
+					chartName = catalog.NewTmpName("chart-")
+
+					out, err := env.Epinio("", "apps", "chart", "create", chartName, "fox")
+					Expect(err).ToNot(HaveOccurred(), out)
+				})
+
+				AfterEach(func() {
+					out, err := env.Epinio("", "apps", "chart", "delete", chartName)
+					Expect(err).ToNot(HaveOccurred(), out)
+				})
+
+				It("fails to change the app chart of the running app", func() {
+					out, err := env.Epinio("", "app", "update", appName, "--app-chart", chartName)
+					Expect(err).To(HaveOccurred(), out)
+					Expect(out).To(ContainSubstring("Bad Request: Unable to change app chart of active application"))
+				})
+
+				When("no workload is present", func() {
+					var appName1 string
+
+					BeforeEach(func() {
+						appName1 = catalog.NewAppName()
+
+						out, err := env.Epinio("", "app", "create", appName1)
+						Expect(err).ToNot(HaveOccurred(), out)
+						Expect(out).To(MatchRegexp("Ok"))
+					})
+
+					AfterEach(func() {
+						env.DeleteApp(appName1)
+					})
+
+					It("respects the desired app chart", func() {
+						out, err := env.Epinio("", "app", "update", appName1,
+							"--app-chart", "standard")
+						Expect(err).ToNot(HaveOccurred(), out)
+
+						Eventually(func() string {
+							out, err := env.Epinio("", "app", "show", appName1)
+							ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+
+							return out
+						}, "1m").Should(MatchRegexp(`App Chart\s*\|\s*standard\s*\|`))
+					})
+				})
+			})
+
 			It("respects environment variable changes", func() {
 				out, err := env.Epinio("", "app", "update", appName, "--env", "MYVAR=myvalue")
 				Expect(err).ToNot(HaveOccurred(), out)
