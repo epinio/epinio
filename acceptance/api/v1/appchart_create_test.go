@@ -29,7 +29,7 @@ var _ = Describe("ChartCreate Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		FIt("fails to create the chart", func() {
+		It("fails to create the chart", func() {
 			request := models.ChartCreateRequest{
 				Name:      "duplicate.api",
 				HelmChart: "placeholder",
