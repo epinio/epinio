@@ -41,6 +41,26 @@ var _ = Describe("apps chart", func() {
 	})
 
 	Describe("app chart create", func() {
+		When("creating a duplicate chart", func() {
+			BeforeEach(func() {
+				out, err := env.Epinio("", "apps", "chart", "create", "duplicate", "fox")
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			AfterEach(func() {
+				out, err := env.Epinio("", "apps", "chart", "delete", "duplicate")
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("fails to create the chart", func() {
+				out, err := env.Epinio("", "apps", "chart", "create", "duplicate", "rabbit")
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Create Application Chart"))
+				Expect(out).To(ContainSubstring("Name: duplicate"))
+				Expect(out).To(ContainSubstring("Conflict: Application Chart 'duplicate' already exists"))
+			})
+		})
+
 		When("creating a basic chart", func() {
 			AfterEach(func() {
 				out, err := env.Epinio("", "apps", "chart", "delete", "standard.direct")
@@ -66,13 +86,13 @@ var _ = Describe("apps chart", func() {
 			})
 		})
 
-		When("creating a described chart", func() {
+		When("creating a chart with descriptions", func() {
 			AfterEach(func() {
 				out, err := env.Epinio("", "apps", "chart", "delete", "standard.direct.explained")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
-			It("creates a new chart with descriptions", func() {
+			It("creates a new chart with the descriptions", func() {
 				out, err := env.Epinio("", "apps", "chart", "create",
 					"standard.direct.explained",
 					standardBall,

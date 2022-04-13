@@ -18,6 +18,39 @@ var _ = Describe("ChartCreate Endpoint", func() {
 
 	standardBall := "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz"
 
+	When("creating a duplicate chart", func() {
+		BeforeEach(func() {
+			out, err := env.Epinio("", "apps", "chart", "create", "duplicate.api", "fox")
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		AfterEach(func() {
+			out, err := env.Epinio("", "apps", "chart", "delete", "duplicate.api")
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		FIt("fails to create the chart", func() {
+			request := models.ChartCreateRequest{
+				Name:      "duplicate.api",
+				HelmChart: "placeholder",
+			}
+			b, err := json.Marshal(request)
+			Expect(err).ToNot(HaveOccurred())
+
+			url := serverURL + v1.Root + "/" + v1.Routes.Path("ChartCreate")
+			response, err := env.Curl("POST", url, strings.NewReader(string(b)))
+
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
+			Expect(string(bodyBytes)).To(Equal(`{"errors":[{"status":409,"title":"Application Chart 'duplicate.api' already exists","details":""}]}`))
+		})
+	})
+
 	When("creating a new app chart", func() {
 		AfterEach(func() {
 			out, err := env.Epinio("", "apps", "chart", "delete", "standard.direct")
