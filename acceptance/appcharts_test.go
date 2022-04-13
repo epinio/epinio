@@ -10,13 +10,11 @@ var _ = Describe("apps chart", func() {
 	standardBall := "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz"
 
 	Describe("app chart delete", func() {
-		When("deleting a bogus chart", func() {
-			It("fails to delete anything", func() {
-				out, err := env.Epinio("", "apps", "chart", "delete", "bogus")
-				Expect(err).To(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring("Remove application chart"))
-				Expect(out).To(ContainSubstring("Not Found: Application Chart 'bogus' does not exist"))
-			})
+		It("fails to delete an unknown app chart", func() {
+			out, err := env.Epinio("", "apps", "chart", "delete", "bogus")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Remove application chart"))
+			Expect(out).To(ContainSubstring("Not Found: Application Chart 'bogus' does not exist"))
 		})
 
 		When("deleting an existing chart chart", func() {
