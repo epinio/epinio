@@ -5,16 +5,40 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// [x] apps chart default
-// [x] apps chart default NAME
-// [x] apps chart list
-// [x] apps chart show NAME
-// [x] apps chart create [--short TEXT] [--desc TEXT] [--helm-repo REPO] NAME REF
-// [ ] apps chart delete NAME
-
 var _ = Describe("apps chart", func() {
 
 	standardBall := "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz"
+
+	Describe("app chart delete", func() {
+		When("deleting a bogus chart", func() {
+			It("fails to delete anything", func() {
+				out, err := env.Epinio("", "apps", "chart", "delete", "bogus")
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Remove application chart"))
+				Expect(out).To(ContainSubstring("Not Found: Application Chart 'bogus' does not exist"))
+			})
+		})
+
+		When("deleting an existing chart chart", func() {
+			BeforeEach(func() {
+				out, err := env.Epinio("", "apps", "chart", "create", "to.be.deleted", standardBall)
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("deletes the chart", func() {
+				out, err := env.Epinio("", "apps", "chart", "delete", "to.be.deleted")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Remove application chart"))
+				Expect(out).To(ContainSubstring("Name: to.be.deleted"))
+				Expect(out).To(ContainSubstring("OK"))
+
+				out, err = env.Epinio("", "apps", "chart", "show", "to.be.deleted")
+				Expect(err).To(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Show application chart details"))
+				Expect(out).To(ContainSubstring("Not Found: Application Chart 'to.be.deleted' does not exist"))
+			})
+		})
+	})
 
 	Describe("app chart create", func() {
 		When("creating a basic chart", func() {
@@ -22,10 +46,9 @@ var _ = Describe("apps chart", func() {
 				out, err := env.Epinio("", "apps", "chart", "delete", "standard.direct")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
+
 			It("creates a new chart", func() {
-				out, err := env.Epinio("", "apps", "chart", "create",
-					"standard.direct",
-					standardBall)
+				out, err := env.Epinio("", "apps", "chart", "create", "standard.direct", standardBall)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("Create Application Chart"))
 				Expect(out).To(ContainSubstring("Name: standard.direct"))
@@ -48,6 +71,7 @@ var _ = Describe("apps chart", func() {
 				out, err := env.Epinio("", "apps", "chart", "delete", "standard.direct.explained")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
+
 			It("creates a new chart with descriptions", func() {
 				out, err := env.Epinio("", "apps", "chart", "create",
 					"standard.direct.explained",
