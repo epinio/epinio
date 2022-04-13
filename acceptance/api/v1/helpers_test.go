@@ -268,6 +268,23 @@ func createApplication(name string, namespace string, routes []string) (*http.Re
 	return env.Curl("POST", url, strings.NewReader(body))
 }
 
+func createApplicationWithChart(name string, namespace string, chart string) (*http.Response, error) {
+	request := models.ApplicationCreateRequest{
+		Name: name,
+		Configuration: models.ApplicationUpdateRequest{
+			AppChart: chart,
+		},
+	}
+	b, err := json.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	body := string(b)
+
+	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", namespace)
+	return env.Curl("POST", url, strings.NewReader(body))
+}
+
 func createCatalogService(catalogService models.CatalogService) {
 	createCatalogServiceInNamespace("epinio", catalogService)
 }
