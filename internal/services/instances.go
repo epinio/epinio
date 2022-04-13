@@ -138,3 +138,93 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) e
 
 	return errors.Wrap(err, "error deleting helm charts")
 }
+
+func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.Service, error) {
+	serviceList := []*models.Service{}
+
+	unstructuredServiceList, err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return serviceList, nil
+		}
+		return nil, errors.Wrap(err, "fetching the service instance")
+	}
+
+	helmChartList, err := convertUnstructuredListIntoHelmCharts(unstructuredServiceList)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting unstructured list to helm charts")
+	}
+
+	filteredServiceList := filterNamespacedHelmCharts(helmChartList, namespace)
+
+	for _, srv := range filteredServiceList {
+		var catalogServicePrefix string
+		catalogServiceName := srv.GetLabels()[CatalogServiceLabelKey]
+
+		_, err = s.GetCatalogService(ctx, catalogServiceName)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				catalogServicePrefix = "[Missing] "
+			} else {
+				return nil, err
+			}
+		}
+
+		service := models.Service{
+			Name:           srv.Name,
+			Namespace:      namespace,
+			CatalogService: fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
+		}
+
+		logger := tracelog.NewLogger().WithName("ServiceStatus")
+		serviceStatus, err := helm.Status(ctx, logger, s.kubeClient, srv.Spec.TargetNamespace, srv.Name)
+		if err != nil {
+			if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+				serviceStatus = "Not Ready" // The installation job is still running?
+			} else {
+				return nil, errors.Wrap(err, "finding helm release status")
+			}
+		}
+
+		service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
+
+		serviceList = append(serviceList, &service)
+	}
+
+	return serviceList, nil
+}
+
+func convertUnstructuredListIntoHelmCharts(unstructuredList *unstructured.UnstructuredList) ([]helmapiv1.HelmChart, error) {
+	helmChartList := []helmapiv1.HelmChart{}
+
+	for _, srv := range unstructuredList.Items {
+		helmChart := helmapiv1.HelmChart{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(srv.Object, &helmChart)
+		if err != nil {
+			return nil, errors.Wrap(err, "error converting helmchart")
+		}
+
+		helmChartList = append(helmChartList, helmChart)
+	}
+
+	return helmChartList, nil
+}
+
+// filterNamespacedHelmCharts will return from the list only the Epinio Services deployed in the specified namespace
+func filterNamespacedHelmCharts(helmCharts []helmapiv1.HelmChart, namespace string) []helmapiv1.HelmChart {
+	filteredServiceList := []helmapiv1.HelmChart{}
+
+	for _, helmChart := range helmCharts {
+		// check if Service was deployed in the targeting namespace
+		isInTargetNamespace := helmChart.Spec.TargetNamespace == namespace
+
+		// check if it's an Epinio Service
+		_, isEpinioService := helmChart.GetLabels()[CatalogServiceLabelKey]
+
+		if isInTargetNamespace && isEpinioService {
+			filteredServiceList = append(filteredServiceList, helmChart)
+		}
+	}
+
+	return filteredServiceList
+}

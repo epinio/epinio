@@ -131,6 +131,7 @@ var Routes = routes.NamedRoutes{
 	"ServiceCatalog":     get("/services", errorHandler(service.Controller{}.Catalog)),
 	"ServiceCatalogShow": get("/services/:servicename", errorHandler(service.Controller{}.CatalogShow)),
 	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
+	"ServiceList":        get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
 	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
 	"ServiceDelete":      delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
 

@@ -79,3 +79,19 @@ func (c *Client) ServiceBind(req *models.ServiceBindRequest, namespace, name str
 	_, err = c.post(api.Routes.Path("ServiceBind", namespace, name), string(b))
 	return err
 }
+
+func (c *Client) ServiceList(namespace string) (*models.ServiceListResponse, error) {
+	data, err := c.get(api.Routes.Path("ServiceList", namespace))
+	if err != nil {
+		return nil, err
+	}
+
+	var resp models.ServiceListResponse
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return nil, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return &resp, err
+}

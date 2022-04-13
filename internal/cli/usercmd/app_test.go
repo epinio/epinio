@@ -258,3 +258,7 @@ func (m *mockAPIClient) ServiceCreate(req *models.ServiceCreateRequest, namespac
 func (m *mockAPIClient) ServiceBind(req *models.ServiceBindRequest, namespace, releaseName string) error {
 	return nil
 }
+
+func (m *mockAPIClient) ServiceList(namespace string) (*models.ServiceListResponse, error) {
+	return nil, nil
+}
