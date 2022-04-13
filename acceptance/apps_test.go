@@ -577,6 +577,7 @@ configuration:
   environment:
     CREDO: up
     DOGMA: "no"
+  appchart: standard
 `, origin, appName)), 0600)
 				Expect(err).ToNot(HaveOccurred())
 				absManifestPath, err := filepath.Abs(manifestPath)
@@ -594,6 +595,7 @@ configuration:
 				out, err = env.Epinio("", "app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
+				Expect(out).To(MatchRegexp(`App Chart\s*\|\s*standard\s*\|`))
 				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
 				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
 				Expect(out).To(MatchRegexp(fmt.Sprintf(" %s-.*|\\s+true\\s+|.*|.*|.*|.*|", appName)))
