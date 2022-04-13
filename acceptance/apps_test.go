@@ -71,6 +71,7 @@ var _ = Describe("Apps", func() {
 
 			It("creates the app with instance count, configurations, and environment", func() {
 				out, err := env.Epinio("", "app", "create", appName,
+					"--app-chart", "standard",
 					"--bind", configurationName,
 					"--instances", "2",
 					"--env", "CREDO=up",
@@ -83,6 +84,7 @@ var _ = Describe("Apps", func() {
 				out, err = env.Epinio("", "app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
+				Expect(out).To(MatchRegexp(`App Chart\s*\|\s*standard\s*\|`))
 				Expect(out).To(MatchRegexp(`Configurations\s*\|\s*` + configurationName + `\s*\|`))
 				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
 				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
@@ -100,6 +102,7 @@ var _ = Describe("Apps", func() {
 
 				It("is possible to get a manifest", func() {
 					out, err := env.Epinio("", "app", "create", appName,
+						"--app-chart", "standard",
 						"--bind", configurationName,
 						"--instances", "2",
 						"--env", "CREDO=up",
@@ -123,6 +126,7 @@ configuration:
     DOGMA: "no"
   routes:
   - %s\..*
+  appchart: standard
 `, appName, configurationName, appName)))
 				})
 			})

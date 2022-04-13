@@ -45,5 +45,19 @@ var _ = Describe("AppCreate Endpoint", func() {
 			Expect(len(routes)).To(Equal(1))
 			Expect(routes[0]).To(Equal("mytestdomain.org"))
 		})
+
+		It("remembers the chart in the app resource", func() {
+			response, err := createApplicationWithChart(appName, namespace, "standard")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
+			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.chartname}")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(Equal("standard"))
+		})
 	})
 })
