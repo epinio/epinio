@@ -100,7 +100,7 @@ var _ = Describe("apps chart", func() {
 	})
 
 	Describe("app chart list", func() {
-		It("list the standard app chart", func() {
+		It("lists the known app charts", func() {
 			out, err := env.Epinio("", "apps", "chart", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show Application Charts"))
