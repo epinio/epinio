@@ -1,6 +1,11 @@
 package acceptance_test
 
 import (
+	"os"
+	"path"
+	"path/filepath"
+
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -8,6 +13,8 @@ import (
 var _ = Describe("apps chart", func() {
 
 	standardBall := "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz"
+	standardChart := "epinio-application:0.1.15"
+	standardRepo := "https://epinio.github.io/helm-charts"
 
 	Describe("app chart delete", func() {
 		It("fails to delete an unknown app chart", func() {
@@ -113,6 +120,51 @@ var _ = Describe("apps chart", func() {
 				Expect(out).To(MatchRegexp(`Description *| *direct url standard with descriptions`))
 				Expect(out).To(MatchRegexp(`Helm Repository *| *|`))
 				Expect(out).To(MatchRegexp(`Helm chart *| *` + standardBall))
+			})
+		})
+
+		When("using a chart based on repo and name+version reference", func() {
+			var appName, exportPath, exportValues, exportChart string
+
+			BeforeEach(func() {
+				appName = catalog.NewAppName()
+
+				out, err := env.Epinio("", "apps", "chart", "create",
+					"standard.repo", standardChart,
+					"--helm-repo", standardRepo)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				appDir := "../assets/sample-app"
+				out, err = env.EpinioPush(appDir, appName, "--name", appName, "--app-chart", "standard.repo")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("App is online"))
+
+				exportPath = catalog.NewTmpName(appName + "-export")
+				exportValues = path.Join(exportPath, "values.yaml")
+				exportChart = path.Join(exportPath, "app-chart.tar.gz")
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(appName)
+
+				out, err := env.Epinio("", "apps", "chart", "delete", "standard.repo")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				err = os.RemoveAll(exportPath)
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			It("exports the chart properly from the app", func() {
+				out, err := env.Epinio("", "app", "export", appName, exportPath)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				exported, err := filepath.Glob(exportPath + "/*")
+				Expect(err).ToNot(HaveOccurred(), exported)
+				Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+
+				Expect(exportPath).To(BeADirectory())
+				Expect(exportValues).To(BeARegularFile())
+				Expect(exportChart).To(BeARegularFile())
 			})
 		})
 	})
