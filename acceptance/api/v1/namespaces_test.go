@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -20,7 +19,6 @@ import (
 var _ = Describe("Namespaces API Application Endpoints", func() {
 	var namespace string
 	const jsOK = `{"status":"ok"}`
-	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
@@ -209,51 +207,6 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 					Apps:           nil,
 					Configurations: nil,
 				}))
-			})
-		})
-
-		Describe("DELETE /api/v1/namespaces/:namespace", func() {
-			It("deletes an namespace", func() {
-				namespaceToDelete := catalog.NewNamespaceName()
-				env.SetupAndTargetNamespace(namespaceToDelete)
-
-				response, err := env.Curl("DELETE",
-					fmt.Sprintf("%s%s/namespaces/%s",
-						serverURL, api.Root, namespaceToDelete),
-					strings.NewReader(``))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-				Expect(string(bodyBytes)).To(Equal(jsOK))
-
-				_, err = proc.Kubectl("get", "namespace", namespaceToDelete)
-				Expect(err).To(HaveOccurred())
-			})
-
-			It("deletes an namespace including apps and configurations", func() {
-				namespaceToDelete := catalog.NewNamespaceName()
-				env.SetupAndTargetNamespace(namespaceToDelete)
-
-				app1 := catalog.NewAppName()
-				env.MakeContainerImageApp(app1, 1, containerImageURL)
-				svc1 := catalog.NewConfigurationName()
-				env.MakeConfiguration(svc1)
-				env.BindAppConfiguration(app1, svc1, namespaceToDelete)
-
-				response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s",
-					serverURL, api.Root, namespaceToDelete),
-					strings.NewReader(``))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(response).ToNot(BeNil())
-				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
-				Expect(err).ToNot(HaveOccurred())
-				Expect(string(bodyBytes)).To(Equal(jsOK))
-
-				env.VerifyNamespaceNotExist(namespaceToDelete)
 			})
 		})
 

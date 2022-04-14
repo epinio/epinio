@@ -34,7 +34,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 
 	catalogServiceName := ""
 	for k, v := range srv.GetLabels() {
-		if k == ServiceLabelKey {
+		if k == CatalogServiceLabelKey {
 			catalogServiceName = v
 			break
 		}
@@ -94,7 +94,8 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Name:      models.ServiceHelmChartName(name, namespace),
 			Namespace: helmchart.Namespace(),
 			Labels: map[string]string{
-				ServiceLabelKey: catalogService.Name,
+				CatalogServiceLabelKey:  catalogService.Name,
+				TargetNamespaceLabelKey: namespace,
 			},
 		},
 		Spec: helmapiv1.HelmChartSpec{
@@ -116,4 +117,19 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 	_, err = s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Create(
 		ctx, unstructureHelmChart, metav1.CreateOptions{})
 	return errors.Wrap(err, "error creating helm chart")
+}
+
+// DeleteAll deletes all helmcharts installed on the specified namespace.
+// It's used to cleanup before a namespace is deleted.
+// The targetNamespace is not the namespace where the helmchart resource resides
+// (that would be `epinio`) but the `targetNamespace` field of the helmchart.
+func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) error {
+	err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).DeleteCollection(ctx,
+		metav1.DeleteOptions{},
+		metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("%s=%s", TargetNamespaceLabelKey, targetNamespace),
+		},
+	)
+
+	return errors.Wrap(err, "error deleting helm charts")
 }
