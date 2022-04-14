@@ -32,10 +32,6 @@ func (ctr Controller) List(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if len(serviceList) == 0 {
-		return apierror.NewNotFoundError("no services found")
-	}
-
 	resp := models.ServiceListResponse{
 		Services: serviceList,
 	}

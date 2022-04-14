@@ -3,29 +3,27 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 )
 
 var _ = Describe("ServiceList Endpoint", func() {
-	var namespace string
+	var namespace1, namespace2 string
 	var catalogService models.CatalogService
 
 	BeforeEach(func() {
-		namespace = catalog.NewNamespaceName()
-		env.SetupAndTargetNamespace(namespace)
+		namespace1 = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace1)
+
+		namespace2 = catalog.NewNamespaceName()
+		env.SetupAndTargetNamespace(namespace2)
 
 		catalogService = models.CatalogService{
 			Name:      catalog.NewCatalogServiceName(),
@@ -41,25 +39,88 @@ var _ = Describe("ServiceList Endpoint", func() {
 
 	AfterEach(func() {
 		deleteCatalogService(catalogService.Name)
-		env.DeleteNamespace(namespace)
+		env.DeleteNamespace(namespace1)
+		env.DeleteNamespace(namespace2)
 	})
 
-	When("helmchart list is empty", func() {
-		It("returns a 404", func() {
-			endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace)
+	When("no service exists", func() {
+		It("returns a 200 with an empty list", func() {
+			endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace1)
 			response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 
-			b, err := ioutil.ReadAll(response.Body)
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			var serviceListResponse models.ServiceListResponse
+			err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
 			Expect(err).ToNot(HaveOccurred())
 
-			fmt.Printf("NS: %s - %+v\n", namespace, string(b))
-
-			Expect(response.StatusCode).To(Equal(http.StatusNotFound))
+			Expect(serviceListResponse.Services).Should(HaveLen(0))
 		})
 	})
 
-	When("helmchart exists", func() {
+	When("only one service exists", func() {
+		var serviceName1 string
+
+		BeforeEach(func() {
+			serviceName1 = catalog.NewServiceName()
+		})
+
+		When("it is in another namespace", func() {
+			BeforeEach(func() {
+				env.TargetNamespace(namespace2)
+				env.MakeServiceInstance(serviceName1, catalogService.Name)
+			})
+
+			AfterEach(func() {
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace2))
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("returns an empty list", func() {
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace2)
+				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				var serviceListResponse models.ServiceListResponse
+				err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(serviceListResponse.Services).Should(HaveLen(0))
+			})
+		})
+
+		When("it is in the targeted namespace", func() {
+			BeforeEach(func() {
+				env.TargetNamespace(namespace1)
+				env.MakeServiceInstance(serviceName1, catalogService.Name)
+			})
+
+			AfterEach(func() {
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace1))
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("returns the list with the service", func() {
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace2)
+				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				var serviceListResponse models.ServiceListResponse
+				err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(serviceListResponse.Services).Should(HaveLen(1))
+				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName1))
+			})
+		})
+	})
+
+	When("two services exists", func() {
 		var serviceName1, serviceName2 string
 
 		BeforeEach(func() {
@@ -67,107 +128,113 @@ var _ = Describe("ServiceList Endpoint", func() {
 			serviceName2 = catalog.NewServiceName()
 		})
 
-		When("helmchart is not labeled", func() {
+		When("they are in another namespace", func() {
 			BeforeEach(func() {
-				helmChart := helmapiv1.HelmChart{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "helm.cattle.io/v1",
-						Kind:       "HelmChart",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      models.ServiceHelmChartName(serviceName1, namespace),
-						Namespace: "epinio",
-					},
-					Spec: helmapiv1.HelmChartSpec{
-						TargetNamespace: namespace,
-						Chart:           catalogService.HelmChart,
-						Repo:            catalogService.HelmRepo.URL,
-					},
-				}
-				createHelmChart(helmChart)
+				env.TargetNamespace(namespace2)
+
+				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Name)
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace2))
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName2, namespace2))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
-			It("returns a 404", func() {
-				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace)
+			It("returns an empty list", func() {
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace1)
 				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 
-				Expect(response.StatusCode).To(Equal(http.StatusNotFound))
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				var serviceListResponse models.ServiceListResponse
+				err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(serviceListResponse.Services).Should(HaveLen(0))
 			})
 		})
 
-		When("helmchart is labeled", func() {
-			var helmChart1, helmChart2 helmapiv1.HelmChart
-
+		When("they are in two different namespace", func() {
 			BeforeEach(func() {
-				commonHelmChart := helmapiv1.HelmChart{
-					TypeMeta: metav1.TypeMeta{
-						APIVersion: "helm.cattle.io/v1",
-						Kind:       "HelmChart",
-					},
-					ObjectMeta: metav1.ObjectMeta{
-						Namespace: "epinio",
-						Labels: map[string]string{
-							services.ServiceLabelKey: catalogService.Name,
-						},
-					},
-					Spec: helmapiv1.HelmChartSpec{
-						TargetNamespace: namespace,
-						Chart:           catalogService.HelmChart,
-						Repo:            catalogService.HelmRepo.URL,
-					},
-				}
+				env.TargetNamespace(namespace1)
+				env.MakeServiceInstance(serviceName1, catalogService.Name)
 
-				helmChart1 = commonHelmChart
-				helmChart2 = commonHelmChart
-
-				helmChart1.ObjectMeta.Name = models.ServiceHelmChartName(serviceName1, namespace)
-				helmChart2.ObjectMeta.Name = models.ServiceHelmChartName(serviceName2, namespace)
+				env.TargetNamespace(namespace2)
+				env.MakeServiceInstance(serviceName2, catalogService.Name)
 			})
 
-			// Cleanup for all sub-cases
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace1))
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName2, namespace))
+				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName2, namespace2))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
-			When("helmchart is ready", func() {
+			It("returns a list with service1 in namespace1", func() {
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace1)
+				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
 
-				BeforeEach(func() {
-					createHelmChart(helmChart1)
-					createHelmChart(helmChart2)
-				})
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-				It("returns the two services", func() {
-					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace)
-					response, err := env.Curl("GET", endpoint, strings.NewReader(""))
-					Expect(err).ToNot(HaveOccurred())
+				var serviceListResponse models.ServiceListResponse
+				err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
+				Expect(err).ToNot(HaveOccurred())
 
-					Expect(response.StatusCode).To(
-						Equal(http.StatusOK),
-						fmt.Sprintf("respose status was %d, not 200", response.StatusCode),
-					)
+				Expect(serviceListResponse.Services).Should(HaveLen(1))
+				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName1))
+			})
 
-					respBody, err := ioutil.ReadAll(response.Body)
-					Expect(err).ToNot(HaveOccurred())
+			It("returns a list with service2 in namespace2", func() {
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace2)
+				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
 
-					var listResponse models.ServiceListResponse
-					err = json.Unmarshal(respBody, &listResponse)
-					Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					Expect(listResponse.Services).ToNot(BeNil())
-					Expect(listResponse.Services).To(HaveLen(2))
+				var serviceListResponse models.ServiceListResponse
+				err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
+				Expect(err).ToNot(HaveOccurred())
 
-					Expect(listResponse.Services[0]).ToNot(BeEquivalentTo(listResponse.Services[1]))
-				})
+				Expect(serviceListResponse.Services).Should(HaveLen(1))
+				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName2))
+			})
+		})
+
+		When("they are in the targeted namespace", func() {
+			BeforeEach(func() {
+				env.TargetNamespace(namespace1)
+
+				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Name)
+			})
+
+			AfterEach(func() {
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace1))
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName2, namespace1))
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("returns a list with both the service", func() {
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace1)
+				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+				var serviceListResponse models.ServiceListResponse
+				err = json.NewDecoder(response.Body).Decode(&serviceListResponse)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(serviceListResponse.Services).Should(HaveLen(2))
 			})
 		})
 	})

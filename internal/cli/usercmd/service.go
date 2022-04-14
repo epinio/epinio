@@ -150,15 +150,14 @@ func (c *EpinioClient) ServiceList() error {
 	}
 
 	if len(resp.Services) == 0 {
-		return errors.New("no Services found")
+		c.ui.Normal().Msg("No services found")
+		return nil
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Catalog Service", "Status")
-
 	for _, service := range resp.Services {
 		msg = msg.WithTableRow(service.Name, service.CatalogService, service.Status.String())
 	}
-
 	msg.Msg("Details:")
 
 	return nil

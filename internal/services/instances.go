@@ -90,6 +90,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Labels: map[string]string{
 				CatalogServiceLabelKey:  catalogService.Name,
 				TargetNamespaceLabelKey: namespace,
+				ServiceNameLabelKey:     name,
 			},
 		},
 		Spec: helmapiv1.HelmChartSpec{
@@ -142,7 +143,16 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) e
 func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.Service, error) {
 	serviceList := []*models.Service{}
 
-	unstructuredServiceList, err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).List(ctx, metav1.ListOptions{})
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf(
+			"%s,%s,%s=%s",
+			ServiceNameLabelKey,
+			CatalogServiceLabelKey,
+			TargetNamespaceLabelKey, namespace,
+		),
+	}
+
+	unstructuredServiceList, err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).List(ctx, listOpts)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return serviceList, nil
@@ -155,9 +165,7 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 		return nil, errors.Wrap(err, "error converting unstructured list to helm charts")
 	}
 
-	filteredServiceList := filterNamespacedHelmCharts(helmChartList, namespace)
-
-	for _, srv := range filteredServiceList {
+	for _, srv := range helmChartList {
 		var catalogServicePrefix string
 		catalogServiceName := srv.GetLabels()[CatalogServiceLabelKey]
 
@@ -171,7 +179,7 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 		}
 
 		service := models.Service{
-			Name:           srv.Name,
+			Name:           srv.GetLabels()[ServiceNameLabelKey],
 			Namespace:      namespace,
 			CatalogService: fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
 		}
@@ -208,23 +216,4 @@ func convertUnstructuredListIntoHelmCharts(unstructuredList *unstructured.Unstru
 	}
 
 	return helmChartList, nil
-}
-
-// filterNamespacedHelmCharts will return from the list only the Epinio Services deployed in the specified namespace
-func filterNamespacedHelmCharts(helmCharts []helmapiv1.HelmChart, namespace string) []helmapiv1.HelmChart {
-	filteredServiceList := []helmapiv1.HelmChart{}
-
-	for _, helmChart := range helmCharts {
-		// check if Service was deployed in the targeting namespace
-		isInTargetNamespace := helmChart.Spec.TargetNamespace == namespace
-
-		// check if it's an Epinio Service
-		_, isEpinioService := helmChart.GetLabels()[CatalogServiceLabelKey]
-
-		if isInTargetNamespace && isEpinioService {
-			filteredServiceList = append(filteredServiceList, helmChart)
-		}
-	}
-
-	return filteredServiceList
 }

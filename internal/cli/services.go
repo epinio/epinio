@@ -128,7 +128,7 @@ var CmdServiceBindCreate = &cobra.Command{
 		appName := args[1]
 
 		err = client.ServiceBind(serviceName, appName)
-		return errors.Wrap(err, "error creating Epinio Service")
+		return errors.Wrap(err, "error binding Epinio Service")
 	},
 }
 
@@ -145,6 +145,6 @@ var CmdServiceList = &cobra.Command{
 		}
 
 		err = client.ServiceList()
-		return errors.Wrap(err, "error creating Epinio Service")
+		return errors.Wrap(err, "error listing Epinio Service")
 	},
 }
