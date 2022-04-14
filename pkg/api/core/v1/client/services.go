@@ -65,6 +65,11 @@ func (c *Client) ServiceShow(req *models.ServiceShowRequest, namespace string) (
 	return &resp, nil
 }
 
+func (c *Client) ServiceDelete(namespace, name string) error {
+	_, err := c.delete(api.Routes.Path("ServiceDelete", namespace, name))
+	return err
+}
+
 func (c *Client) ServiceBind(req *models.ServiceBindRequest, namespace, name string) error {
 	b, err := json.Marshal(req)
 	if err != nil {

@@ -24,6 +24,7 @@ func init() {
 	CmdServices.AddCommand(CmdServiceCreate)
 	CmdServices.AddCommand(CmdServiceBindCreate)
 	CmdServices.AddCommand(CmdServiceShow)
+	CmdServices.AddCommand(CmdServiceDelete)
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -92,6 +93,24 @@ var CmdServiceShow = &cobra.Command{
 	},
 }
 
+var CmdServiceDelete = &cobra.Command{
+	Use:   "delete SERVICENAME",
+	Short: "Delete service instance SERVICENAME",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		serviceName := args[0]
+
+		err = client.ServiceDelete(serviceName)
+		return errors.Wrap(err, "error deleting Service")
+	},
+}
 var CmdServiceBindCreate = &cobra.Command{
 	Use:   "bind SERVICENAME APPNAME",
 	Short: "Bind a service SERVICENAME to an Epinio app APPNAME",
