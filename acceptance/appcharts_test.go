@@ -124,34 +124,34 @@ var _ = Describe("apps chart", func() {
 		})
 
 		When("using a chart based on repo and name+version reference", func() {
-			var appName, exportPath, exportValues, exportChart string
+			var appName, exportPath, exportValues, exportChart, chartId string
 
 			BeforeEach(func() {
 				appName = catalog.NewAppName()
-
-				out, err := env.Epinio("", "apps", "chart", "create",
-					"standard.repo", standardChart,
-					"--helm-repo", standardRepo)
-				Expect(err).ToNot(HaveOccurred(), out)
-
-				appDir := "../assets/sample-app"
-				out, err = env.EpinioPush(appDir, appName, "--name", appName, "--app-chart", "standard.repo")
-				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring("App is online"))
-
+				chartId = catalog.NewTmpName(appName + "-chart")
 				exportPath = catalog.NewTmpName(appName + "-export")
 				exportValues = path.Join(exportPath, "values.yaml")
 				exportChart = path.Join(exportPath, "app-chart.tar.gz")
+
+				out, err := env.Epinio("", "apps", "chart", "create",
+					chartId, standardChart, "--helm-repo", standardRepo)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				appDir := "../assets/sample-app"
+				out, err = env.EpinioPush(appDir, appName,
+					"--name", appName, "--app-chart", chartId)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("App is online"))
 			})
 
 			AfterEach(func() {
-				env.DeleteApp(appName)
-
-				out, err := env.Epinio("", "apps", "chart", "delete", "standard.repo")
+				out, err := env.Epinio("", "apps", "chart", "delete", chartId)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				err = os.RemoveAll(exportPath)
 				Expect(err).ToNot(HaveOccurred())
+
+				env.DeleteApp(appName)
 			})
 
 			It("exports the chart properly from the app", func() {
