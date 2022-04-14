@@ -33,8 +33,7 @@ var _ = Describe("ChartShow Endpoint", func() {
 			Name:             "standard",
 			Description:      "Epinio standard support chart for application deployment",
 			ShortDescription: "Epinio standard deployment",
-			HelmChart:        "epinio-application:0.1.15",
-			HelmRepo:         "https://epinio.github.io/helm-charts",
+			HelmChart:        "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz",
 		}))
 	})
 
