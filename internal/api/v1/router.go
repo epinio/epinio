@@ -132,6 +132,7 @@ var Routes = routes.NamedRoutes{
 	"ServiceCatalogShow": get("/services/:servicename", errorHandler(service.Controller{}.CatalogShow)),
 	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
 	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
+	"ServiceDelete":      delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
 
 	// Bind a service to/from applications
 	"ServiceBind": post(

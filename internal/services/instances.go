@@ -119,6 +119,17 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 	return errors.Wrap(err, "error creating helm chart")
 }
 
+// Delete deletes the helmcharts that matches the given service which is
+// installed on the namespace (that's the targetNamespace).
+func (s *ServiceClient) Delete(ctx context.Context, namespace, service string) error {
+	err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Delete(ctx,
+		models.ServiceHelmChartName(service, namespace),
+		metav1.DeleteOptions{},
+	)
+
+	return errors.Wrap(err, "error deleting helm charts")
+}
+
 // DeleteAll deletes all helmcharts installed on the specified namespace.
 // It's used to cleanup before a namespace is deleted.
 // The targetNamespace is not the namespace where the helmchart resource resides
