@@ -137,8 +137,8 @@ var _ = Describe("apps chart", func() {
 			Expect(out).To(MatchRegexp(`Short *| *Epinio standard deployment`))
 			Expect(out).To(MatchRegexp(`Description *| *Epinio standard support chart`))
 			Expect(out).To(MatchRegexp(`for application deployment`))
-			Expect(out).To(MatchRegexp(`Helm Repository *| *https://epinio.github.io/helm-charts`))
-			Expect(out).To(MatchRegexp(`Helm chart *| *epinio-application:`))
+			Expect(out).To(MatchRegexp(`Helm Repository *| *|`))
+			Expect(out).To(MatchRegexp(`Helm Chart *| *epinio-application*`))
 		})
 
 		It("fails to show the details of bogus app chart", func() {
