@@ -78,7 +78,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 			})
 
 			It("returns an empty list", func() {
-				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace2)
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace1)
 				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 
@@ -104,7 +104,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 			})
 
 			It("returns the list with the service", func() {
-				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace2)
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace1)
 				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())
 
