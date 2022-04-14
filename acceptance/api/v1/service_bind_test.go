@@ -32,7 +32,8 @@ var _ = Describe("ServiceBind Endpoint", func() {
 				Name:      models.ServiceHelmChartName(name, namespace),
 				Namespace: "epinio",
 				Labels: map[string]string{
-					services.ServiceLabelKey: catalogService.Name,
+					services.CatalogServiceLabelKey:  catalogService.Name,
+					services.TargetNamespaceLabelKey: namespace,
 				},
 			},
 			Spec: helmapiv1.HelmChartSpec{

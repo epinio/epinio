@@ -14,7 +14,8 @@ import (
 const (
 	// Only Helmcharts with this label are considered Epinio "Services".
 	// Used to filter out Helmcharts created by other means (manually, k3s etc).
-	ServiceLabelKey = "application.epinio.io/catalog-service-name"
+	CatalogServiceLabelKey  = "application.epinio.io/catalog-service-name"
+	TargetNamespaceLabelKey = "application.epinio.io/target-namespace"
 )
 
 func NewCatalogServiceFromJSONMap(m map[string]interface{}) (*models.CatalogService, error) {

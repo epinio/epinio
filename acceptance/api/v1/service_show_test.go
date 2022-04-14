@@ -108,7 +108,8 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Name:      models.ServiceHelmChartName(serviceName, namespace),
 						Namespace: "epinio",
 						Labels: map[string]string{
-							services.ServiceLabelKey: catalogService.Name,
+							services.CatalogServiceLabelKey:  catalogService.Name,
+							services.TargetNamespaceLabelKey: namespace,
 						},
 					},
 					Spec: helmapiv1.HelmChartSpec{
@@ -157,7 +158,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			When("helmchart is ready and the catalog service is missing", func() {
 
 				BeforeEach(func() {
-					helmChart.ObjectMeta.Labels[services.ServiceLabelKey] = "missing-catalog-service"
+					helmChart.ObjectMeta.Labels[services.CatalogServiceLabelKey] = "missing-catalog-service"
 					createHelmChart(helmChart)
 				})
 
