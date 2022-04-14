@@ -124,9 +124,12 @@ var _ = Describe("apps chart", func() {
 		})
 
 		When("using a chart based on repo and name+version reference", func() {
-			var appName, exportPath, exportValues, exportChart, chartId string
+			var namespace, appName, exportPath, exportValues, exportChart, chartId string
 
 			BeforeEach(func() {
+				namespace = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespace)
+
 				appName = catalog.NewAppName()
 				chartId = catalog.NewTmpName(appName + "-chart")
 				exportPath = catalog.NewTmpName(appName + "-export")
@@ -152,6 +155,7 @@ var _ = Describe("apps chart", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				env.DeleteApp(appName)
+				env.DeleteNamespace(namespace)
 			})
 
 			It("exports the chart properly from the app", func() {
