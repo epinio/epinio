@@ -14,6 +14,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 
 	ants "github.com/panjf2000/ants/v2"
 
@@ -83,13 +84,12 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, namespace stri
 	errChan := make(chan error)
 
 	var wg, errWg sync.WaitGroup
-	var loopErr error
+	var loopErrs []error
 
 	errWg.Add(1)
 	go func() {
 		for err := range errChan {
-			loopErr = err
-			break
+			loopErrs = append(loopErrs, err)
 		}
 		errWg.Done()
 	}()
@@ -118,7 +118,12 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, namespace stri
 	close(errChan)
 	errWg.Wait()
 
-	return loopErr
+	totalErrs := len(loopErrs)
+	if totalErrs > 0 {
+		return errors.Wrapf(loopErrs[1], "%d errors occurred. This is the first one", totalErrs)
+	}
+
+	return nil
 }
 
 // deleteServices removes all provisioned services when a Namespace is deleted

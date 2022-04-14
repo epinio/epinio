@@ -140,13 +140,12 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) e
 	const maxConcurrent = 100
 	errChan := make(chan error)
 	var wg, errWg sync.WaitGroup
-	var loopErr error
+	var loopErrs []error
 
 	errWg.Add(1)
 	go func() {
 		for err := range errChan {
-			loopErr = err
-			break
+			loopErrs = append(loopErrs, err)
 		}
 		errWg.Done()
 	}()
@@ -183,5 +182,10 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) e
 	close(errChan)
 	errWg.Wait()
 
-	return loopErr
+	totalErrs := len(loopErrs)
+	if totalErrs > 0 {
+		return errors.Wrapf(loopErrs[1], "%d errors occurred. This is the first one", totalErrs)
+	}
+
+	return nil
 }
