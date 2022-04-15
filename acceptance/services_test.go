@@ -1,6 +1,8 @@
 package acceptance_test
 
 import (
+	"fmt"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -22,7 +24,7 @@ var _ = Describe("Services", func() {
 
 			out, err = env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Name.*|.*service-instance-268892044"))
+			Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", service)))
 		})
 
 		AfterEach(func() {

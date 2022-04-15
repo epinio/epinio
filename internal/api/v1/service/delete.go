@@ -37,7 +37,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, nil)
+	response.OK(c)
 
 	return nil
 }

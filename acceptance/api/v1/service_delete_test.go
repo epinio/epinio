@@ -8,7 +8,6 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -105,31 +104,8 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 			})
 
 			When("helmchart is labeled", func() {
-
-				var helmChart helmapiv1.HelmChart
-
 				BeforeEach(func() {
-					helmChart = helmapiv1.HelmChart{
-						TypeMeta: metav1.TypeMeta{
-							APIVersion: "helm.cattle.io/v1",
-							Kind:       "HelmChart",
-						},
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      models.ServiceHelmChartName(serviceName, namespace),
-							Namespace: "epinio",
-							Labels: map[string]string{
-								services.CatalogServiceLabelKey:  catalogService.Name,
-								services.TargetNamespaceLabelKey: namespace,
-							},
-						},
-						Spec: helmapiv1.HelmChartSpec{
-							TargetNamespace: namespace,
-							Chart:           catalogService.HelmChart,
-							Repo:            catalogService.HelmRepo.URL,
-						},
-					}
-
-					createHelmChart(helmChart)
+					env.MakeServiceInstance(serviceName, catalogService.Name)
 				})
 
 				It("deletes the helmchart", func() {
