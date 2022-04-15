@@ -10,7 +10,6 @@ import (
 
 // CmdServices implements the command: epinio services
 var CmdServices = &cobra.Command{
-	Hidden:        true, // TODO remove me when ready
 	Use:           "service",
 	Aliases:       []string{"services"},
 	Short:         "Epinio service management",
