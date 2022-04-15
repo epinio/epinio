@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 
+	apiv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 const (
@@ -21,51 +23,17 @@ const (
 	ServiceNameLabelKey = "application.epinio.io/service-name"
 )
 
-func NewCatalogServiceFromJSONMap(m map[string]interface{}) (*models.CatalogService, error) {
-	var err error
-	service := &models.CatalogService{}
-
-	if service.Name, _, err = unstructured.NestedString(m, "spec", "name"); err != nil {
-		return nil, errors.New("name should be string")
-	}
-
-	if service.ShortDescription, _, err = unstructured.NestedString(m, "spec", "shortDescription"); err != nil {
-		return nil, errors.New("shortDescription should be string")
-	}
-
-	if service.Description, _, err = unstructured.NestedString(m, "spec", "description"); err != nil {
-		return nil, errors.New("description should be string")
-	}
-
-	if service.HelmChart, _, err = unstructured.NestedString(m, "spec", "chart"); err != nil {
-		return nil, errors.New("chart should be string")
-	}
-
-	if service.HelmRepo.Name, _, err = unstructured.NestedString(m, "spec", "helmRepo", "name"); err != nil {
-		return nil, errors.New("helmRepo.name should be string")
-	}
-
-	if service.HelmRepo.URL, _, err = unstructured.NestedString(m, "spec", "helmRepo", "url"); err != nil {
-		return nil, errors.New("helmRepo.url should be string")
-	}
-
-	if service.Values, _, err = unstructured.NestedString(m, "spec", "values"); err != nil {
-		return nil, errors.New("values should be string")
-	}
-
-	return service, nil
-}
-
 func (s *ServiceClient) GetCatalogService(ctx context.Context, serviceName string) (*models.CatalogService, error) {
 	result, err := s.serviceKubeClient.Namespace(helmchart.Namespace()).Get(ctx, serviceName, metav1.GetOptions{})
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("error getting service %s from namespace epinio", serviceName))
 	}
 
-	service, err := NewCatalogServiceFromJSONMap(result.UnstructuredContent())
+	service, err := convertUnstructuredIntoCatalogService(*result)
 	if err != nil {
-		return nil, errors.Wrap(err, "error creating Service from JSON map")
+		return nil, errors.Wrap(err, "error converting result into Catalog Service")
 	}
+
 	return service, nil
 }
 
@@ -75,14 +43,44 @@ func (s *ServiceClient) ListCatalogServices(ctx context.Context) ([]*models.Cata
 		return nil, errors.Wrap(err, "error listing services")
 	}
 
-	services := []*models.CatalogService{}
-	for _, item := range listResult.Items {
-		service, err := NewCatalogServiceFromJSONMap(item.UnstructuredContent())
-		if err != nil {
-			return nil, errors.Wrap(err, "error creating Service from JSON map")
-		}
-		services = append(services, service)
+	services, err := convertUnstructuredListIntoCatalogService(listResult)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting listResult into Catalog Services")
 	}
 
 	return services, nil
+}
+
+func convertUnstructuredListIntoCatalogService(unstructuredList *unstructured.UnstructuredList) ([]*models.CatalogService, error) {
+	catalogServices := []*models.CatalogService{}
+
+	for _, item := range unstructuredList.Items {
+		catalogService, err := convertUnstructuredIntoCatalogService(item)
+		if err != nil {
+			return nil, errors.Wrap(err, "error converting catalog service list")
+		}
+		catalogServices = append(catalogServices, catalogService)
+	}
+
+	return catalogServices, nil
+}
+
+func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructured) (*models.CatalogService, error) {
+	catalogService := apiv1.Service{}
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(unstructured.Object, &catalogService)
+	if err != nil {
+		return nil, errors.Wrap(err, "error converting catalog service")
+	}
+
+	return &models.CatalogService{
+		Name:             catalogService.Spec.Name,
+		Description:      catalogService.Spec.Description,
+		ShortDescription: catalogService.Spec.ShortDescription,
+		HelmChart:        catalogService.Spec.HelmChart,
+		HelmRepo: models.HelmRepo{
+			Name: catalogService.Spec.HelmRepo.Name,
+			URL:  catalogService.Spec.HelmRepo.URL,
+		},
+		Values: catalogService.Spec.Values,
+	}, nil
 }
