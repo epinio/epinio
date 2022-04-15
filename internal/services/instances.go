@@ -140,6 +140,7 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) e
 	return errors.Wrap(err, "error deleting helm charts")
 }
 
+// List will return all the Epinio Services available in the targeted namespace
 func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.Service, error) {
 	serviceList := []*models.Service{}
 
@@ -165,23 +166,28 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 		return nil, errors.Wrap(err, "error converting unstructured list to helm charts")
 	}
 
-	for _, srv := range helmChartList {
-		var catalogServicePrefix string
-		catalogServiceName := srv.GetLabels()[CatalogServiceLabelKey]
+	catalogServices, err := s.ListCatalogServices(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting catalog services")
+	}
 
-		_, err = s.GetCatalogService(ctx, catalogServiceName)
-		if err != nil {
-			if apierrors.IsNotFound(err) {
-				catalogServicePrefix = "[Missing] "
-			} else {
-				return nil, err
-			}
+	// catalogServiceNameMap is a lookup map to check the available Catalog Services
+	catalogServiceNameMap := map[string]struct{}{}
+	for _, catalogService := range catalogServices {
+		catalogServiceNameMap[catalogService.Name] = struct{}{}
+	}
+
+	for _, srv := range helmChartList {
+
+		catalogServiceName := srv.GetLabels()[CatalogServiceLabelKey]
+		if _, exists := catalogServiceNameMap[catalogServiceName]; !exists {
+			catalogServiceName = "[Missing] " + catalogServiceName
 		}
 
 		service := models.Service{
 			Name:           srv.GetLabels()[ServiceNameLabelKey],
 			Namespace:      namespace,
-			CatalogService: fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
+			CatalogService: catalogServiceName,
 		}
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")
