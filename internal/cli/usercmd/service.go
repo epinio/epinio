@@ -106,6 +106,19 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	return nil
 }
 
+// ServiceDelete deletes a service
+func (c *EpinioClient) ServiceDelete(name string) error {
+	log := c.Log.WithName("ServiceDelete")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().Msg("Deleting Service...")
+
+	err := c.API.ServiceDelete(c.Settings.Namespace, name)
+
+	return errors.Wrap(err, "service deletion failed")
+}
+
 // ServiceBind binds a service to an application
 func (c *EpinioClient) ServiceBind(name, appName string) error {
 	log := c.Log.WithName("ServiceBind")

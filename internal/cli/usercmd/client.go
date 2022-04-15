@@ -74,6 +74,7 @@ type APIClient interface {
 	ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.ServiceShowResponse, error)
 	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
 	ServiceBind(req *models.ServiceBindRequest, namespace, name string) error
+	ServiceDelete(namespace, name string) error
 }
 
 func New() (*EpinioClient, error) {

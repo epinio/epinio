@@ -247,6 +247,10 @@ func (m *mockAPIClient) ServiceShow(req *models.ServiceShowRequest, namespace st
 	return nil, nil
 }
 
+func (m *mockAPIClient) ServiceDelete(name, namespace string) error {
+	return nil
+}
+
 func (m *mockAPIClient) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
 	return nil
 }
