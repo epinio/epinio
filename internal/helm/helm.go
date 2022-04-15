@@ -164,7 +164,7 @@ epinio:
 	return nil
 }
 
-func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (string, error) {
+func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (helmrelease.Status, error) {
 	client, err := GetHelmClient(cluster.RestConfig, logger, namespace)
 	if err != nil {
 		return "", err
@@ -179,7 +179,7 @@ func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster
 		return "", errors.New("no status available")
 	}
 
-	return string(r.Info.Status), nil
+	return r.Info.Status, nil
 }
 
 func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string) (hc.Client, error) {

@@ -133,14 +133,15 @@ var _ = Describe("ServiceShow Endpoint", func() {
 				})
 
 				It("returns the service with status Ready", func() {
-					Eventually(func() string {
+					Eventually(func() models.ServiceStatus {
 						endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceName)
 						response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 						Expect(err).ToNot(HaveOccurred())
 
-						if response.StatusCode != http.StatusOK {
-							return fmt.Sprintf("respose status was %d, not 200", response.StatusCode)
-						}
+						Expect(response.StatusCode).To(
+							Equal(http.StatusOK),
+							fmt.Sprintf("respose status was %d, not 200", response.StatusCode),
+						)
 
 						respBody, err := ioutil.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
@@ -151,7 +152,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Expect(showResponse.Service).ToNot(BeNil())
 
 						return showResponse.Service.Status
-					}, "1m", "5s").Should(Equal("deployed"))
+					}, "1m", "5s").Should(Equal(models.ServiceStatusDeployed))
 				})
 			})
 
@@ -191,7 +192,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 					createHelmChart(helmChart)
 				})
 
-				It("returns the service with status Not Ready", func() {
+				It("returns the service with status not-ready", func() {
 					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceName)
 					response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 					Expect(err).ToNot(HaveOccurred())
@@ -203,7 +204,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 					Expect(err).ToNot(HaveOccurred())
 					Expect(showResponse.Service).ToNot(BeNil())
 
-					Expect(showResponse.Service.Status).To(Equal("Not Ready"))
+					Expect(showResponse.Service.Status).To(Equal(models.ServiceStatusNotReady))
 				})
 			})
 		})

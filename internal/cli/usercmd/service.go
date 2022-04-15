@@ -100,7 +100,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", resp.Service.Name).
 		WithTableRow("Catalog Service", resp.Service.CatalogService).
-		WithTableRow("Status", resp.Service.Status).
+		WithTableRow("Status", resp.Service.Status.String()).
 		Msg("Details:")
 
 	return nil
@@ -134,4 +134,31 @@ func (c *EpinioClient) ServiceBind(name, appName string) error {
 	err := c.API.ServiceBind(request, c.Settings.Namespace, name)
 	// Note: errors.Wrap (nil, "...") == nil
 	return errors.Wrap(err, "service bind failed")
+}
+
+// ServiceList list of the service instances in the targeted namespace
+func (c *EpinioClient) ServiceList() error {
+	log := c.Log.WithName("ServiceList")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().Msg("Listing Services...")
+
+	resp, err := c.API.ServiceList(c.Settings.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "service list failed")
+	}
+
+	if len(resp.Services) == 0 {
+		c.ui.Normal().Msg("No services found")
+		return nil
+	}
+
+	msg := c.ui.Success().WithTable("Name", "Catalog Service", "Status")
+	for _, service := range resp.Services {
+		msg = msg.WithTableRow(service.Name, service.CatalogService, service.Status.String())
+	}
+	msg.Msg("Details:")
+
+	return nil
 }

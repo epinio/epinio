@@ -25,6 +25,7 @@ func init() {
 	CmdServices.AddCommand(CmdServiceBindCreate)
 	CmdServices.AddCommand(CmdServiceShow)
 	CmdServices.AddCommand(CmdServiceDelete)
+	CmdServices.AddCommand(CmdServiceList)
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -127,6 +128,23 @@ var CmdServiceBindCreate = &cobra.Command{
 		appName := args[1]
 
 		err = client.ServiceBind(serviceName, appName)
-		return errors.Wrap(err, "error creating Epinio Service")
+		return errors.Wrap(err, "error binding Epinio Service")
+	},
+}
+
+var CmdServiceList = &cobra.Command{
+	Use:   "list",
+	Short: "List all the services in the targeted namespace",
+	Args:  cobra.ExactArgs(0),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		err = client.ServiceList()
+		return errors.Wrap(err, "error listing Epinio Service")
 	},
 }
