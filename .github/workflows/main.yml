@@ -59,6 +59,14 @@ jobs:
 
       - name: Unit Tests
         run: make test
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./coverprofile.out
+          flags: unittests
+          name: codecov-epinio 
+          verbose: true
 
       - name: Clean all
         if: always()
