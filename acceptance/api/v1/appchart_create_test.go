@@ -79,24 +79,17 @@ var _ = Describe("ChartCreate Endpoint", func() {
 			Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 
 			out, err := proc.Kubectl("get", "appcharts", "-n", "epinio",
-				"standard.direct", "-o", "jsonpath={.spec.description}")
+				"standard.direct", "-o", "json")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(Equal("Direct standard"))
 
-			out, err = proc.Kubectl("get", "appcharts", "-n", "epinio",
-				"standard.direct", "-o", "jsonpath={.spec.shortDescription}")
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(Equal("Direct url to tarball standard"))
+			var result map[string]interface{}
+			json.Unmarshal([]byte(out), &result)
+			spec := result["spec"].(map[string]interface{})
 
-			out, err = proc.Kubectl("get", "appcharts", "-n", "epinio",
-				"standard.direct", "-o", "jsonpath={.spec.helmChart}")
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(Equal(standardBall))
-
-			out, err = proc.Kubectl("get", "appcharts", "-n", "epinio",
-				"standard.direct", "-o", "jsonpath={.spec.helmRepo}")
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(Equal(""))
+			Expect(spec["description"].(string)).To(Equal("Direct standard"))
+			Expect(spec["shortDescription"].(string)).To(Equal("Direct url to tarball standard"))
+			Expect(spec["helmChart"].(string)).To(Equal(standardBall))
+			Expect(spec["helmRepo"]).To(BeNil())
 		})
 	})
 })
