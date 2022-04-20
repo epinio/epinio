@@ -1,7 +1,7 @@
 FROM alpine as certs
 RUN apk --update --no-cache add ca-certificates
 
-FROM scratch
+FROM alpine
 COPY --from=certs /etc/ssl/certs /etc/ssl/certs
 
 # default, if running outside of gorelease with a self-compiled binary

@@ -87,6 +87,28 @@ var CmdServer = &cobra.Command{
 	},
 }
 
+func RunServer() error {
+	logger := tracelog.NewLogger().WithName("EpinioServer")
+
+	handler, err := server.NewHandler(logger)
+	if err != nil {
+		return errors.Wrap(err, "error creating handler")
+	}
+
+	port := 8030
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return errors.Wrap(err, "error creating listener")
+	}
+
+	ui := termui.NewUI()
+	ui.Normal().Msg("Epinio version: " + version.Version)
+	listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
+	ui.Normal().Msg("listening on localhost on port " + listeningPort)
+
+	return startServerGracefully(listener, handler)
+}
+
 // startServerGracefully will start the server and will wait for a graceful shutdown
 func startServerGracefully(listener net.Listener, handler http.Handler) error {
 	srv := &http.Server{
