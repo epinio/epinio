@@ -265,7 +265,7 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 		return err
 	}
 
-	err = cluster.WaitForPodBySelectorMissing(ctx, nil,
+	err = cluster.WaitForPodBySelectorMissing(ctx,
 		appRef.Namespace,
 		fmt.Sprintf("app.kubernetes.io/name=%s", appRef.Name),
 		duration.ToDeployment())

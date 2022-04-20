@@ -1,22 +1,11 @@
 package auth
 
 import (
-	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/pkg/errors"
-
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/serializer/yaml"
-
-	"github.com/epinio/epinio/helpers/kubernetes"
 )
 
 // ExtendLocalTrust makes the certs found in specified PEM string
@@ -46,87 +35,4 @@ func ExtendLocalTrust(certs string) {
 	// See https://github.com/gorilla/websocket/issues/601 for
 	// what this is a work around for.
 	http.DefaultTransport.(*http.Transport).ForceAttemptHTTP2 = false
-}
-
-// CertParam describes the cert-manager certificate CRD. It's passed to
-// CreateCertificate to create the cert-manager certificate CR.
-type CertParam struct {
-	Name      string
-	Namespace string
-	Domain    string
-	Issuer    string
-	Labels    map[string]string
-}
-
-// CreateCertificate creates a certificate resource, for the given
-// cluster issuer
-func CreateCertificate(
-	ctx context.Context,
-	cluster *kubernetes.Cluster,
-	cert CertParam,
-	owner *metav1.OwnerReference,
-) error {
-	obj, err := newCertificate(cert)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("creation of ssl certificate for issuer '%s' failed", cert.Issuer))
-	}
-
-	client, err := cluster.ClientCertificate()
-	if err != nil {
-		return err
-	}
-
-	if owner != nil {
-		obj.SetOwnerReferences([]metav1.OwnerReference{*owner})
-	}
-
-	_, err = client.Namespace(cert.Namespace).Create(ctx, obj, metav1.CreateOptions{})
-	// Ignore the error if it's about cert already existing.
-	if err != nil && !apierrors.IsAlreadyExists(err) {
-		return err
-	}
-
-	return nil
-}
-
-// newCertificate creates a proper certificate resource from the
-// specified parameters. The result is suitable for upload to the
-// cluster.
-func newCertificate(cert CertParam) (*unstructured.Unstructured, error) {
-	// spec.CommonName is deprecated and length-limited.
-	// At most 64 characters are allowed, as per [RFC 3280](https://www.rfc-editor.org/rfc/rfc3280.txt).
-	// That makes it a problem for long app name and domain combinations.
-	// The spec.dnsNames (SAN, Subject Alternate Names) do not have such a limit.
-	// The SANs are preferred and usually checked first.
-	quotedLabels := []string{}
-	for k, v := range cert.Labels {
-		quotedLabels = append(quotedLabels, fmt.Sprintf("%q: %q", k, v))
-	}
-	data := fmt.Sprintf(`{
-		"apiVersion": "cert-manager.io/v1",
-		"kind": "Certificate",
-		"metadata": {
-			"name": "%[1]s",
-			"labels": {%[4]s}
-		},
-		"spec": {
-			"secretName" : "%[1]s-tls",
-			"dnsNames": [
-				"%[2]s"
-			],
-			"issuerRef" : {
-				"name" : "%[3]s",
-				"kind" : "ClusterIssuer"
-			}
-		}
-	}`, cert.Name, cert.Domain, cert.Issuer, strings.Join(quotedLabels, ","))
-
-	decoderUnstructured := yaml.NewDecodingSerializer(unstructured.UnstructuredJSONScheme)
-	obj := &unstructured.Unstructured{}
-	_, _, err := decoderUnstructured.Decode([]byte(data), nil, obj)
-	if err != nil {
-		return nil, err
-	}
-
-	return obj, err
 }
