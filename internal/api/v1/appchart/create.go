@@ -27,7 +27,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	found, err := appchart.Exists(ctx, cluster, createRequest.Name)
 	if err != nil {
-		return apierror.InternalError(err, "failed to check for app resource")
+		return apierror.InternalError(err, "failed to check for appchart resource")
 	}
 	if found {
 		return apierror.AppChartAlreadyKnown(createRequest.Name)

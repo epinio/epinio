@@ -143,7 +143,7 @@ var Routes = routes.NamedRoutes{
 	),
 
 	// App charts
-	"ChartList":   get("/appcharts", errorHandler(appchart.Controller{}.FullIndex)),
+	"ChartList":   get("/appcharts", errorHandler(appchart.Controller{}.Index)),
 	"ChartCreate": post("/appcharts", errorHandler(appchart.Controller{}.Create)),
 	"ChartDelete": delete("/appcharts/:name", errorHandler(appchart.Controller{}.Delete)),
 	"ChartMatch":  get("/appchartsmatch/:pattern", errorHandler(appchart.Controller{}.Match)),
