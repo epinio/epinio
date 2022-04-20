@@ -109,7 +109,6 @@ var CmdAppChartCreate = &cobra.Command{
 			return errors.Wrap(err, "error reading option --helm-repo")
 		}
 
-
 		err = client.ChartCreate(cmd.Context(), args[0], args[1], short, desc, repo)
 		if err != nil {
 			return errors.Wrap(err, "error creating chart")
