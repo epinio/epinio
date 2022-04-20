@@ -236,9 +236,13 @@ configuration:
 					BeforeEach(func() {
 						appName1 = catalog.NewAppName()
 
-						out, err := env.Epinio("", "app", "create", appName1)
+						out, err := env.Epinio("", "app", "create", appName1, "--app-chart", chartName)
 						Expect(err).ToNot(HaveOccurred(), out)
 						Expect(out).To(MatchRegexp("Ok"))
+
+						out, err = env.Epinio("", "app", "show", appName1)
+						Expect(err).ToNot(HaveOccurred(), out)
+						Expect(out).To(MatchRegexp(`App Chart\s*\|\s*%s\s*\|`, chartName))
 					})
 
 					AfterEach(func() {
