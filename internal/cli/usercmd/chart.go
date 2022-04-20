@@ -178,7 +178,7 @@ func (c *EpinioClient) ChartMatching(prefix string) []string {
 
 	resp, err := c.API.ChartMatch(prefix)
 	if err != nil {
-		// TODO log that we dropped an error
+		log.Error(err, "calling chart match endpoint")
 		return []string{}
 	}
 
