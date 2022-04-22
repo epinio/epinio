@@ -44,7 +44,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 		Expect(domain).ToNot(BeEmpty())
 		domainIP = strings.TrimSuffix(domain, ".omg.howdoi.website")
 
-		appName = "externalregtest"
+		appName = "external-reg-test-rke"
 
 		registryUsername = os.Getenv("REGISTRY_USERNAME")
 		Expect(registryUsername).ToNot(BeEmpty())
