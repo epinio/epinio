@@ -1176,6 +1176,144 @@
         }
       }
     },
+    "/namespaces/{Namespace}/services": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return list of service instances in the `Namespace`.",
+        "operationId": "ServiceList",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceListResponse"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Create a named instance of an Epinio Catalog Service in the `Namespace`.",
+        "operationId": "ServiceCreate",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Configuration",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceCreateRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCreateResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/services/{Servicename}/bind": {
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Bind the named `Servicename` instance in the `Namespace` to an App.",
+        "operationId": "ServiceBind",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Servicename",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Configuration",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceBindRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceBindResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/services/{Service}": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return details of the named `Service` instance in the `Namespace`.",
+        "operationId": "ServiceShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceShowResponse"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Delete the named `Service` instance in the `Namespace`.",
+        "operationId": "ServiceDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceDeleteResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/staging/{StageID}/complete": {
       "get": {
         "tags": [
@@ -1231,6 +1369,42 @@
           }
         }
       }
+    },
+    "/services": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return all available Epinio Catalog services.",
+        "operationId": "ServiceCatalog",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCatalogResponse"
+          }
+        }
+      }
+    },
+    "/services/{Servicename}": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return details of the named Epinio Catalog `Service``.",
+        "operationId": "ServiceCatalogShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Servicename",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCatalogShowResponse"
+          }
+        }
+      }
     }
   },
   "definitions": {
@@ -1273,16 +1447,17 @@
       "description": "AppChart matches github.com/epinio/application/api/v1 AppChartSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
-        "chart": {
-          "type": "string",
-          "x-go-name": "HelmChart"
-        },
         "description": {
           "type": "string",
           "x-go-name": "Description"
         },
+        "helm_chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
         "helm_repo": {
-          "$ref": "#/definitions/HelmRepo"
+          "type": "string",
+          "x-go-name": "HelmRepo"
         },
         "name": {
           "type": "string",
@@ -1494,6 +1669,35 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "CatalogService": {
+      "type": "object",
+      "properties": {
+        "chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "description": {
+          "type": "string",
+          "x-go-name": "Description"
+        },
+        "helm_repo": {
+          "$ref": "#/definitions/HelmRepo"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "short_description": {
+          "type": "string",
+          "x-go-name": "ShortDescription"
+        },
+        "values": {
+          "type": "string",
+          "x-go-name": "Values"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ChartCreateRequest": {
       "description": "ChartCreateRequest represents and contains the data needed to create an application\nchart instance",
       "type": "object",
@@ -1502,21 +1706,21 @@
           "type": "string",
           "x-go-name": "Description"
         },
+        "helm_chart": {
+          "type": "string",
+          "x-go-name": "HelmChart"
+        },
+        "helm_repo": {
+          "type": "string",
+          "x-go-name": "HelmRepo"
+        },
         "name": {
           "type": "string",
           "x-go-name": "Name"
         },
-        "repository": {
-          "type": "string",
-          "x-go-name": "Repository"
-        },
-        "shortDescription": {
+        "short_description": {
           "type": "string",
           "x-go-name": "ShortDesc"
-        },
-        "url": {
-          "type": "string",
-          "x-go-name": "URL"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1887,6 +2091,102 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "Service": {
+      "type": "object",
+      "properties": {
+        "catalog_service": {
+          "type": "string",
+          "x-go-name": "CatalogService"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Namespace"
+        },
+        "status": {
+          "$ref": "#/definitions/ServiceStatus"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceBindRequest": {
+      "type": "object",
+      "properties": {
+        "app_name": {
+          "type": "string",
+          "x-go-name": "AppName"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceCatalogResponse": {
+      "description": "ServiceCatalogResponse",
+      "type": "object",
+      "properties": {
+        "catalog_services": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/CatalogService"
+          },
+          "x-go-name": "CatalogServices"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceCatalogShowResponse": {
+      "description": "ServiceCatalogShowResponse",
+      "type": "object",
+      "properties": {
+        "catalog_service": {
+          "$ref": "#/definitions/CatalogService"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceCreateRequest": {
+      "description": "Service matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
+      "type": "object",
+      "properties": {
+        "catalog_service": {
+          "type": "string",
+          "x-go-name": "CatalogService"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceListResponse": {
+      "type": "object",
+      "properties": {
+        "services": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Service"
+          },
+          "x-go-name": "Services"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceShowResponse": {
+      "type": "object",
+      "properties": {
+        "service": {
+          "$ref": "#/definitions/Service"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceStatus": {
+      "type": "string",
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "StageRef": {
       "description": "StageRef references a staging run by ID, currently randomly generated\nfor each POST to the staging endpoint",
       "type": "object",
@@ -2179,6 +2479,48 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/NamespaceList"
+      }
+    },
+    "ServiceBindResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ServiceCatalogResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceCatalogResponse"
+      }
+    },
+    "ServiceCatalogShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceCatalogShowResponse"
+      }
+    },
+    "ServiceCreateResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ServiceDeleteResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
+      }
+    },
+    "ServiceListResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceListResponse"
+      }
+    },
+    "ServiceShowResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceShowResponse"
       }
     },
     "StagingCompleteResponse": {
