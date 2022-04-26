@@ -106,6 +106,11 @@ kubectl delete pod -n epinio epinio-copier
 # https://stackoverflow.com/a/5773761
 EPINIO_BINARY_HASH=($(${SHASUM:=shasum} ${EPINIO_BINARY_PATH}))
 
+helper=""
+if [ -n "$EPINIO_COVERAGE" ]; then
+  helper=',{"name": "tools", "image": "alpine", "command": ["sleep","9000"], "volumeMounts": [{"mountPath": "/tmp", "name": "tmp-volume"}]}'
+fi
+
 echo "Patching the epinio-server deployment to use the copied binary"
 PATCH=$(cat <<EOF
 { "spec": { "template": {
@@ -135,13 +140,14 @@ PATCH=$(cat <<EOF
               "mountPath": "/epinio-binary"
             }
           ]
-        }]
+        }$helper]
       }
     }
   }
 }
 EOF
 )
+
 kubectl patch deployment -n epinio epinio-server -p "${PATCH}"
 
 # https://kubernetes.io/docs/reference/generated/kubectl/kubectl-commands#-em-status-em-

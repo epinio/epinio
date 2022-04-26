@@ -59,13 +59,13 @@ jobs:
 
       - name: Unit Tests
         run: make test
-      
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v2
         with:
           files: ./coverprofile.out
           flags: unittests
-          name: codecov-epinio 
+          name: codecov-epinio
           verbose: true
 
       - name: Clean all
@@ -76,6 +76,9 @@ jobs:
     needs:
       - linter
     runs-on: self-hosted
+
+    env:
+      EPINIO_COVERAGE: true
 
     steps:
       - name: Checkout
@@ -116,6 +119,15 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli
+          scripts/collect-coverage.sh
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./coverprofile.out
+          flags: acceptance-cli
+          name: codecov-epinio
+          verbose: true
 
       - name: Cleanup k3d cluster
         if: always()
@@ -129,6 +141,9 @@ jobs:
     needs:
       - linter
     runs-on: self-hosted
+
+    env:
+      EPINIO_COVERAGE: true
 
     steps:
       - name: Checkout
@@ -169,6 +184,15 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-api
+          scripts/collect-coverage.sh
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./coverprofile.out
+          flags: acceptance-api
+          name: codecov-epinio
+          verbose: true
 
       - name: Cleanup k3d cluster
         if: always()
@@ -182,6 +206,9 @@ jobs:
     needs:
       - linter
     runs-on: self-hosted
+
+    env:
+      EPINIO_COVERAGE: true
 
     steps:
       - name: Checkout
@@ -222,6 +249,15 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-apps
+          scripts/collect-coverage.sh
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v2
+        with:
+          files: ./coverprofile.out
+          flags: acceptance-apps
+          name: codecov-epinio
+          verbose: true
 
       - name: Failure Logs
         if: failure()

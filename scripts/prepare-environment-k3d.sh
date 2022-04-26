@@ -10,7 +10,7 @@ source "${SCRIPT_DIR}/helpers.sh"
 UNAME="$(uname | tr "[:upper:]" "[:lower:]")"
 
 # EPINIO_BINARY is used to execute the installation commands
-EPINIO_BINARY="./dist/epinio-"${UNAME}"-amd64"
+EPINIO_BINARY="./dist/epinio-$UNAME-amd64"
 
 function check_dependency {
 	for dep in "$@"
@@ -48,8 +48,25 @@ helm upgrade --install --create-namespace -n epinio \
 echo "Importing locally built epinio server image"
 k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest
 
+# compile coverage binary and add required env var
+if [ -n "$EPINIO_COVERAGE" ]; then
+  echo "Compiling coverage binary"
+  GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go test -c -covermode=count -coverpkg ./...
+  export EPINIO_BINARY_PATH="epinio.test"
+  echo "Patching epinio for coverage env var"
+  kubectl patch deployments -n epinio epinio-server --type=json \
+    -p '[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "EPINIO_COVERAGE", "value": "true"}}]'
+fi
+
 # Patch Epinio
 ./scripts/patch-epinio-deployment.sh
+
+if [ -n "$EPINIO_COVERAGE" ]; then
+  echo "Patching epinio ingress with coverage helper container"
+  kubectl patch ingress -n epinio epinio --type=json \
+    -p '[{"op": "add", "path": "/spec/rules/0/http/paths/-", "value":
+    { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
+fi
 
 "${EPINIO_BINARY}" settings update
 
