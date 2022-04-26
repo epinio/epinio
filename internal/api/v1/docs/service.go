@@ -18,15 +18,15 @@ type ServiceCatalogResponse struct {
 	Body models.ServiceCatalogResponse
 }
 
-// swagger:route GET /services/{Servicename} service ServiceCatalogShow
-// Return details of the named Epinio Catalog `Service``.
+// swagger:route GET /services/{CatalogService} service ServiceCatalogShow
+// Return details of the named Epinio `CatalogService`.
 // responses:
 //   200: ServiceCatalogShowResponse
 
 // swagger:parameters ServiceCatalogShow
 type ServiceCatalogShowParam struct {
 	// in: path
-	Servicename string
+	CatalogService string
 }
 
 // swagger:response ServiceCatalogShowResponse
@@ -36,7 +36,7 @@ type ServiceCatalogShowResponse struct {
 }
 
 // swagger:route POST /namespaces/{Namespace}/services service ServiceCreate
-// Create a named instance of an Epinio Catalog Service in the `Namespace`.
+// Create a named service of an Epinio catalog service in the `Namespace`.
 // responses:
 //   200: ServiceCreateResponse
 
@@ -55,7 +55,7 @@ type ServiceCreateResponse struct {
 }
 
 // swagger:route GET /namespaces/{Namespace}/services service ServiceList
-// Return list of service instances in the `Namespace`.
+// Return list of services in the `Namespace`.
 // responses:
 //   200: ServiceListResponse
 
@@ -72,7 +72,7 @@ type ServiceListResponse struct {
 }
 
 // swagger:route GET /namespaces/{Namespace}/services/{Service} service ServiceShow
-// Return details of the named `Service` instance in the `Namespace`.
+// Return details of the named `Service` in the `Namespace`.
 // responses:
 //   200: ServiceShowResponse
 
@@ -91,7 +91,7 @@ type ServiceShowParam struct {
 }
 
 // swagger:route DELETE /namespaces/{Namespace}/services/{Service} service ServiceDelete
-// Delete the named `Service` instance in the `Namespace`.
+// Delete the named `Service` in the `Namespace`.
 // responses:
 //   200: ServiceDeleteResponse
 
@@ -109,8 +109,8 @@ type ServiceDeleteResponse struct {
 	Body models.Response
 }
 
-// swagger:route POST /namespaces/{Namespace}/services/{Servicename}/bind service ServiceBind
-// Bind the named `Servicename` instance in the `Namespace` to an App.
+// swagger:route POST /namespaces/{Namespace}/services/{Service}/bind service ServiceBind
+// Bind the named `Service` in the `Namespace` to an App.
 // responses:
 //   200: ServiceBindResponse
 
@@ -119,7 +119,7 @@ type ServiceBindParam struct {
 	// in: path
 	Namespace string
 	// in: path
-	Servicename string
+	Service string
 	// in: body
 	Configuration models.ServiceBindRequest
 }

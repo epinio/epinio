@@ -113,7 +113,7 @@ var CmdServiceDelete = &cobra.Command{
 }
 var CmdServiceBindCreate = &cobra.Command{
 	Use:   "bind SERVICENAME APPNAME",
-	Short: "Bind a service SERVICENAME to an Epinio app APPNAME",
+	Short: "Bind a service instance SERVICENAME to an Epinio app APPNAME",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true

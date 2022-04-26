@@ -1181,7 +1181,7 @@
         "tags": [
           "service"
         ],
-        "summary": "Return list of service instances in the `Namespace`.",
+        "summary": "Return list of services in the `Namespace`.",
         "operationId": "ServiceList",
         "parameters": [
           {
@@ -1201,7 +1201,7 @@
         "tags": [
           "service"
         ],
-        "summary": "Create a named instance of an Epinio Catalog Service in the `Namespace`.",
+        "summary": "Create a named service of an Epinio catalog service in the `Namespace`.",
         "operationId": "ServiceCreate",
         "parameters": [
           {
@@ -1225,47 +1225,12 @@
         }
       }
     },
-    "/namespaces/{Namespace}/services/{Servicename}/bind": {
-      "post": {
-        "tags": [
-          "service"
-        ],
-        "summary": "Bind the named `Servicename` instance in the `Namespace` to an App.",
-        "operationId": "ServiceBind",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "Namespace",
-            "in": "path",
-            "required": true
-          },
-          {
-            "type": "string",
-            "name": "Servicename",
-            "in": "path",
-            "required": true
-          },
-          {
-            "name": "Configuration",
-            "in": "body",
-            "schema": {
-              "$ref": "#/definitions/ServiceBindRequest"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ServiceBindResponse"
-          }
-        }
-      }
-    },
     "/namespaces/{Namespace}/services/{Service}": {
       "get": {
         "tags": [
           "service"
         ],
-        "summary": "Return details of the named `Service` instance in the `Namespace`.",
+        "summary": "Return details of the named `Service` in the `Namespace`.",
         "operationId": "ServiceShow",
         "parameters": [
           {
@@ -1291,7 +1256,7 @@
         "tags": [
           "service"
         ],
-        "summary": "Delete the named `Service` instance in the `Namespace`.",
+        "summary": "Delete the named `Service` in the `Namespace`.",
         "operationId": "ServiceDelete",
         "parameters": [
           {
@@ -1310,6 +1275,41 @@
         "responses": {
           "200": {
             "$ref": "#/responses/ServiceDeleteResponse"
+          }
+        }
+      }
+    },
+    "/namespaces/{Namespace}/services/{Service}/bind": {
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Bind the named `Service` in the `Namespace` to an App.",
+        "operationId": "ServiceBind",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Configuration",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceBindRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceBindResponse"
           }
         }
       }
@@ -1384,17 +1384,17 @@
         }
       }
     },
-    "/services/{Servicename}": {
+    "/services/{CatalogService}": {
       "get": {
         "tags": [
           "service"
         ],
-        "summary": "Return details of the named Epinio Catalog `Service``.",
+        "summary": "Return details of the named Epinio `CatalogService`.",
         "operationId": "ServiceCatalogShow",
         "parameters": [
           {
             "type": "string",
-            "name": "Servicename",
+            "name": "CatalogService",
             "in": "path",
             "required": true
           }

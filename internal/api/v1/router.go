@@ -130,7 +130,7 @@ var Routes = routes.NamedRoutes{
 
 	// Services
 	"ServiceCatalog":     get("/services", errorHandler(service.Controller{}.Catalog)),
-	"ServiceCatalogShow": get("/services/:servicename", errorHandler(service.Controller{}.CatalogShow)),
+	"ServiceCatalogShow": get("/services/:catalogservice", errorHandler(service.Controller{}.CatalogShow)),
 	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
 	"ServiceList":        get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
 	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
@@ -138,7 +138,7 @@ var Routes = routes.NamedRoutes{
 
 	// Bind a service to/from applications
 	"ServiceBind": post(
-		"/namespaces/:namespace/services/:servicename/bind",
+		"/namespaces/:namespace/services/:service/bind",
 		errorHandler(service.Controller{}.Bind),
 	),
 
