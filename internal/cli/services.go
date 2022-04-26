@@ -70,7 +70,7 @@ var CmdServiceCreate = &cobra.Command{
 		serviceName := args[1]
 
 		err = client.ServiceCreate(catalogServiceName, serviceName)
-		return errors.Wrap(err, "error creating Epinio catalog service")
+		return errors.Wrap(err, "error creating service")
 	},
 }
 
