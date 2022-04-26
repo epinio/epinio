@@ -16,6 +16,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
 	"github.com/epinio/epinio/internal/version"
+	"github.com/gin-gonic/gin"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -93,13 +94,23 @@ func startServerGracefully(listener net.Listener, handler http.Handler) error {
 		Handler: handler,
 	}
 
+	quit := make(chan os.Signal, 1)
+
+	// in coverage mode we need to be able to terminate the server to collect the report
+	if _, ok := os.LookupEnv("EPINIO_COVERAGE"); ok {
+		router := handler.(*gin.Engine)
+		router.GET("/exit", func(c *gin.Context) {
+			c.AbortWithStatus(http.StatusNoContent)
+			quit <- syscall.SIGTERM
+		})
+	}
+
 	go func() {
 		if err := srv.Serve(listener); err != nil && errors.Is(err, http.ErrServerClosed) {
 			log.Printf("listen: %s\n", err)
 		}
 	}()
 
-	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
