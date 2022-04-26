@@ -37,7 +37,7 @@ func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
 
 func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
-	serviceName := c.Param("servicename")
+	serviceName := c.Param("catalogservice")
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

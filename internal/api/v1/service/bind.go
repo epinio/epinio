@@ -25,7 +25,7 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 	logger := requestctx.Logger(ctx).WithName("Bind")
 
 	namespace := c.Param("namespace")
-	serviceName := c.Param("servicename")
+	serviceName := c.Param("service")
 
 	var bindRequest models.ServiceBindRequest
 	err := c.BindJSON(&bindRequest)

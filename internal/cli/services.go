@@ -29,7 +29,7 @@ func init() {
 
 var CmdServiceCatalog = &cobra.Command{
 	Use:   "catalog [NAME]",
-	Short: "Lists all available Epinio services, or show the details of the specified one",
+	Short: "Lists all available Epinio catalog services, or show the details of the specified one",
 	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -41,13 +41,13 @@ var CmdServiceCatalog = &cobra.Command{
 
 		if len(args) == 0 {
 			err = client.ServiceCatalog()
-			return errors.Wrap(err, "error listing Epinio services")
+			return errors.Wrap(err, "error listing Epinio catalog services")
 		}
 
 		if len(args) == 1 {
 			serviceName := args[0]
 			err = client.ServiceCatalogShow(serviceName)
-			return errors.Wrap(err, fmt.Sprintf("error showing %s Epinio service", serviceName))
+			return errors.Wrap(err, fmt.Sprintf("error showing %s Epinio catalog service", serviceName))
 		}
 
 		return nil
@@ -56,7 +56,7 @@ var CmdServiceCatalog = &cobra.Command{
 
 var CmdServiceCreate = &cobra.Command{
 	Use:   "create CATALOGSERVICENAME SERVICENAME",
-	Short: "Create an instance SERVICENAME of an Epinio service CATALOGSERVICENAME",
+	Short: "Create a service SERVICENAME of an Epinio catalog service CATALOGSERVICENAME",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -70,13 +70,13 @@ var CmdServiceCreate = &cobra.Command{
 		serviceName := args[1]
 
 		err = client.ServiceCreate(catalogServiceName, serviceName)
-		return errors.Wrap(err, "error creating Epinio Service")
+		return errors.Wrap(err, "error creating service")
 	},
 }
 
 var CmdServiceShow = &cobra.Command{
 	Use:   "show SERVICENAME",
-	Short: "Show details of a service instance SERVICENAME",
+	Short: "Show details of a service SERVICENAME",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -89,13 +89,13 @@ var CmdServiceShow = &cobra.Command{
 		serviceName := args[0]
 
 		err = client.ServiceShow(serviceName)
-		return errors.Wrap(err, "error showing Service")
+		return errors.Wrap(err, "error showing service")
 	},
 }
 
 var CmdServiceDelete = &cobra.Command{
 	Use:   "delete SERVICENAME",
-	Short: "Delete service instance SERVICENAME",
+	Short: "Delete service SERVICENAME",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -108,7 +108,7 @@ var CmdServiceDelete = &cobra.Command{
 		serviceName := args[0]
 
 		err = client.ServiceDelete(serviceName)
-		return errors.Wrap(err, "error deleting Service")
+		return errors.Wrap(err, "error deleting service")
 	},
 }
 var CmdServiceBindCreate = &cobra.Command{
@@ -127,7 +127,7 @@ var CmdServiceBindCreate = &cobra.Command{
 		appName := args[1]
 
 		err = client.ServiceBind(serviceName, appName)
-		return errors.Wrap(err, "error binding Epinio Service")
+		return errors.Wrap(err, "error binding service")
 	},
 }
 
@@ -144,6 +144,6 @@ var CmdServiceList = &cobra.Command{
 		}
 
 		err = client.ServiceList()
-		return errors.Wrap(err, "error listing Epinio Service")
+		return errors.Wrap(err, "error listing services")
 	},
 }
