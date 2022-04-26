@@ -8,21 +8,22 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/helpers/route53"
 	"github.com/epinio/epinio/acceptance/testenv"
 )
 
-var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
+var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", func() {
 	var (
-		appName      = catalog.NewAppName()
-		domain       string
-		epinioHelper epinio.Epinio
-		flags        []string
-		loadbalancer string
-		zoneID       string
+		appName          string
+		domain           string
+		epinioHelper     epinio.Epinio
+		flags            []string
+		loadbalancer     string
+		registryUsername string
+		registryPassword string
+		zoneID           string
 	)
 
 	BeforeEach(func() {
@@ -35,9 +36,21 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging", func() {
 		zoneID = os.Getenv("AWS_ZONE_ID")
 		Expect(zoneID).ToNot(BeEmpty())
 
+		appName = "external-reg-test-aks-letsencrypt"
+
+		registryUsername = os.Getenv("REGISTRY_USERNAME")
+		Expect(registryUsername).ToNot(BeEmpty())
+
+		registryPassword = os.Getenv("REGISTRY_PASSWORD")
+		Expect(registryPassword).ToNot(BeEmpty())
 		flags = []string{
 			"--set", "global.domain=" + domain,
 			"--set", "global.tlsIssuer=letsencrypt-staging",
+			"--set", "containerregistry.enabled=false",
+			"--set", "global.registryURL=registry.hub.docker.com",
+			"--set", "global.registryUsername=" + registryUsername,
+			"--set", "global.registryPassword=" + registryPassword,
+			"--set", "global.registryNamespace=splatform",
 		}
 	})
 
