@@ -215,6 +215,28 @@ func (s *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 	return secret, nil
 }
 
+// ForService returns a slice of Secrets matching the given Service.
+func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
+	secretSelector := labels.Set(map[string]string{
+		"app.kubernetes.io/managed-by": "Helm",
+		"app.kubernetes.io/instance":   models.ServiceHelmChartName(name, namespace),
+		ConfigurationLabelKey:          "true",
+		ConfigurationTypeLabelKey:      "service",
+	}).AsSelector()
+
+	listOptions := metav1.ListOptions{
+		FieldSelector: "type=Opaque",
+		LabelSelector: secretSelector.String(),
+	}
+
+	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return secretList.Items, nil
+}
+
 // LabelServiceSecrets will look for the Opaque secrets released with a service, looking for the
 // app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
 func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {

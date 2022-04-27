@@ -10,54 +10,14 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var _ = Describe("ServiceBind Endpoint", func() {
 	var namespace, containerImageURL string
 	var catalogService models.CatalogService
-
-	createService := func(name, namespace string, catalogService models.CatalogService) {
-		helmChart := helmapiv1.HelmChart{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "helm.cattle.io/v1",
-				Kind:       "HelmChart",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      models.ServiceHelmChartName(name, namespace),
-				Namespace: "epinio",
-				Labels: map[string]string{
-					services.CatalogServiceLabelKey:  catalogService.Name,
-					services.TargetNamespaceLabelKey: namespace,
-				},
-			},
-			Spec: helmapiv1.HelmChartSpec{
-				TargetNamespace: namespace,
-				Chart:           catalogService.HelmChart,
-				Repo:            catalogService.HelmRepo.URL,
-			},
-		}
-		createHelmChart(helmChart)
-
-		cmd := func() (string, error) {
-			return proc.Run("", false, "helm", "get", "all", "-n", namespace,
-				models.ServiceHelmChartName(name, namespace))
-		}
-		Eventually(func() error {
-			_, err := cmd()
-			return err
-		}, "1m", "5s").Should(BeNil())
-
-		Eventually(func() string {
-			out, _ := cmd()
-			return out
-		}, "1m", "5s").ShouldNot(MatchRegexp(".*release: not found.*"))
-	}
 
 	BeforeEach(func() {
 		containerImageURL = "splatform/sample-app"

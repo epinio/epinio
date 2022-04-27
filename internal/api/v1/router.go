@@ -139,8 +139,12 @@ var Routes = routes.NamedRoutes{
 	// Bind a service to/from applications
 	"ServiceBind": post(
 		"/namespaces/:namespace/services/:service/bind",
-		errorHandler(service.Controller{}.Bind),
-	),
+		errorHandler(service.Controller{}.Bind)),
+
+	// Unbind a service to/from applications
+	"ServiceUnbind": post(
+		"/namespaces/:namespace/services/:service/unbind",
+		errorHandler(service.Controller{}.Unbind)),
 
 	// App charts
 	"ChartList":   get("/appcharts", errorHandler(appchart.Controller{}.Index)),

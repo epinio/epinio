@@ -273,6 +273,10 @@ type ServiceBindRequest struct {
 	AppName string `json:"app_name,omitempty"`
 }
 
+type ServiceUnbindRequest struct {
+	AppName string `json:"app_name,omitempty"`
+}
+
 type ServiceShowRequest struct {
 	Name string `json:"name,omitempty"`
 }
