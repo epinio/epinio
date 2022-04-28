@@ -80,6 +80,16 @@ func (c *Client) ServiceBind(req *models.ServiceBindRequest, namespace, name str
 	return err
 }
 
+func (c *Client) ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name string) error {
+	b, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	_, err = c.post(api.Routes.Path("ServiceUnbind", namespace, name), string(b))
+	return err
+}
+
 func (c *Client) ServiceList(namespace string) (*models.ServiceListResponse, error) {
 	data, err := c.get(api.Routes.Path("ServiceList", namespace))
 	if err != nil {

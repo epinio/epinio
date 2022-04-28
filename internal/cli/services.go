@@ -22,6 +22,7 @@ func init() {
 	CmdServices.AddCommand(CmdServiceCatalog)
 	CmdServices.AddCommand(CmdServiceCreate)
 	CmdServices.AddCommand(CmdServiceBindCreate)
+	CmdServices.AddCommand(CmdServiceUnbind)
 	CmdServices.AddCommand(CmdServiceShow)
 	CmdServices.AddCommand(CmdServiceDelete)
 	CmdServices.AddCommand(CmdServiceList)
@@ -128,6 +129,26 @@ var CmdServiceBindCreate = &cobra.Command{
 
 		err = client.ServiceBind(serviceName, appName)
 		return errors.Wrap(err, "error binding service")
+	},
+}
+
+var CmdServiceUnbind = &cobra.Command{
+	Use:   "unbind SERVICENAME APPNAME",
+	Short: "Unbinds a service SERVICENAME from an Epinio app APPNAME",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		cmd.SilenceUsage = true
+
+		client, err := usercmd.New()
+		if err != nil {
+			return errors.Wrap(err, "error initializing cli")
+		}
+
+		serviceName := args[0]
+		appName := args[1]
+
+		err = client.ServiceUnbind(serviceName, appName)
+		return errors.Wrap(err, "error unbinding service")
 	},
 }
 
