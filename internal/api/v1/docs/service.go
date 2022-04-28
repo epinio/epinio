@@ -129,3 +129,24 @@ type ServiceBindResponse struct {
 	// in: body
 	Body models.Response
 }
+
+// swagger:route POST /namespaces/{Namespace}/services/{Service}/unbind service ServiceUnbind
+// Unbind the named `Service` in the `Namespace` from an App.
+// responses:
+//   200: ServiceUnbindResponse
+
+// swagger:parameters ServiceUnbind
+type ServiceUnbindParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Service string
+	// in: body
+	Configuration models.ServiceUnbindRequest
+}
+
+// swagger:response ServiceUnbindResponse
+type ServiceUnbindResponse struct {
+	// in: body
+	Body models.Response
+}
