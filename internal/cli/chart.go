@@ -15,9 +15,7 @@ var CmdAppChart = &cobra.Command{
 
 func init() {
 	CmdAppChart.AddCommand(CmdAppChartList)
-	CmdAppChart.AddCommand(CmdAppChartCreate)
 	CmdAppChart.AddCommand(CmdAppChartShow)
-	CmdAppChart.AddCommand(CmdAppChartDelete)
 	CmdAppChart.AddCommand(CmdAppChartDefault)
 
 	// Create: --short, --desc, --helm-repo
@@ -83,7 +81,7 @@ var CmdAppChartList = &cobra.Command{
 
 // CmdAppChartCreate implements the command: epinio app chart create
 var CmdAppChartCreate = &cobra.Command{
-	Use:   "create [OPTIONS] NAME CHARTREF",
+	Use:   "create NAME CHARTREF",
 	Short: "Extend set of application charts",
 	Long:  "Make new application chart known to epinio",
 	Args:  cobra.ExactArgs(2),

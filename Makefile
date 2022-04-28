@@ -119,7 +119,7 @@ generate:
 
 # Assumes that the `docs` checkout is a sibling of the `epinio` checkout
 generate-cli-docs:
-	@./scripts/cli-docs-generate.sh ../docs/src/references/cli
+	@./scripts/cli-docs-generate.sh ../docs/docs/references/cli
 
 lint:
 	go vet ./...
