@@ -267,16 +267,8 @@ func (m *mockAPIClient) ChartList() ([]models.AppChart, error) {
 	return []models.AppChart{}, nil
 }
 
-func (m *mockAPIClient) ChartCreate(request models.ChartCreateRequest) (models.Response, error) {
-	return models.Response{}, nil
-}
-
 func (m *mockAPIClient) ChartShow(name string) (models.AppChart, error) {
 	return models.AppChart{}, nil
-}
-
-func (m *mockAPIClient) ChartDelete(name string) (models.Response, error) {
-	return models.Response{}, nil
 }
 
 func (m *mockAPIClient) ChartMatch(prefix string) (models.ChartMatchResponse, error) {

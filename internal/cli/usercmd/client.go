@@ -80,9 +80,7 @@ type APIClient interface {
 
 	// application charts
 	ChartList() ([]models.AppChart, error)
-	ChartCreate(request models.ChartCreateRequest) (models.Response, error)
 	ChartShow(name string) (models.AppChart, error)
-	ChartDelete(name string) (models.Response, error)
 	ChartMatch(prefix string) (models.ChartMatchResponse, error)
 }
 

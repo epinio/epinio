@@ -18,23 +18,6 @@ type AppChartsResponse struct {
 	Body models.AppChartList
 }
 
-// swagger:route POST /appcharts appcharts ChartCreate
-// Create the posted new chart.
-// responses:
-//   200: ChartCreateResponse
-
-// swagger:parameters ChartCreate
-type ChartCreateParam struct {
-	// in: body
-	Body models.ChartCreateRequest
-}
-
-// swagger:response ChartCreateResponse
-type ChartCreateResponse struct {
-	// in: body
-	Body models.Response
-}
-
 // swagger:route GET /appcharts/{Chart} appcharts ChartShow
 // Return details of the named `Chart`.
 // responses:
@@ -50,23 +33,6 @@ type ChartShowParam struct {
 type ChartShowResponse struct {
 	// in: body
 	Body models.AppChart
-}
-
-// swagger:route DELETE /applcharts/{Chart} appcharts ChartDelete
-// Delete the named `Chart`.
-// responses:
-//   200: ChartDeleteResponse
-
-// swagger:parameters ChartDelete
-type ChartDeleteParam struct {
-	// in: path
-	Chart string
-}
-
-// swagger:response ChartDeleteResponse
-type ChartDeleteResponse struct {
-	// in: body
-	Body models.Response
 }
 
 // swagger:route GET /appchartsmatch/{Pattern} appcharts ChartMatch
