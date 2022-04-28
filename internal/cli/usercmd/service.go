@@ -136,6 +136,22 @@ func (c *EpinioClient) ServiceBind(name, appName string) error {
 	return errors.Wrap(err, "service bind failed")
 }
 
+// ServiceUnbind unbinds a service from an application
+func (c *EpinioClient) ServiceUnbind(name, appName string) error {
+	log := c.Log.WithName("ServiceUnbind")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().Msg("Unbinding Service...")
+
+	request := &models.ServiceUnbindRequest{
+		AppName: appName,
+	}
+
+	err := c.API.ServiceUnbind(request, c.Settings.Namespace, name)
+	return errors.Wrap(err, "service unbind failed")
+}
+
 // ServiceList list of the service instances in the targeted namespace
 func (c *EpinioClient) ServiceList() error {
 	log := c.Log.WithName("ServiceList")

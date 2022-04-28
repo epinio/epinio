@@ -259,6 +259,10 @@ func (m *mockAPIClient) ServiceBind(req *models.ServiceBindRequest, namespace, r
 	return nil
 }
 
+func (m *mockAPIClient) ServiceUnbind(req *models.ServiceUnbindRequest, namespace, releaseName string) error {
+	return nil
+}
+
 func (m *mockAPIClient) ServiceList(namespace string) (*models.ServiceListResponse, error) {
 	return nil, nil
 }
