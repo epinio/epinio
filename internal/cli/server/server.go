@@ -3,19 +3,20 @@ package server
 
 import (
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/casbin/casbin/v2"
 	"github.com/epinio/epinio/helpers/authtoken"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/pkg/errors"
 
 	"github.com/alron/ginlogr"
 	"github.com/gin-contrib/sessions"
@@ -87,6 +88,11 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
+	e, err := casbin.NewEnforcer("/etc/config/casbin.conf", "/etc/config/policy.csv")
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing Casbin conf")
+	}
+
 	// add common middlewares to all the routes
 	router.Use(
 		sessions.Sessions("epinio-session", store),
@@ -97,13 +103,13 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// Register api routes
 	{
-		apiRoutesGroup := router.Group(apiv1.Root, authMiddleware, sessionMiddleware)
+		apiRoutesGroup := router.Group(apiv1.Root, authMiddleware, sessionMiddleware, apiv1.AuthorizationMiddleware(e))
 		apiv1.Lemon(apiRoutesGroup)
 	}
 
 	// Register web socket routes
 	{
-		wapiRoutesGroup := router.Group(apiv1.WsRoot, tokenAuthMiddleware)
+		wapiRoutesGroup := router.Group(apiv1.WsRoot, tokenAuthMiddleware, apiv1.AuthorizationMiddleware(e))
 		apiv1.Spice(wapiRoutesGroup)
 	}
 
