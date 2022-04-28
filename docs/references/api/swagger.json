@@ -1314,6 +1314,41 @@
         }
       }
     },
+    "/namespaces/{Namespace}/services/{Service}/unbind": {
+      "post": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Unbind the named `Service` in the `Namespace` from an App.",
+        "operationId": "ServiceUnbind",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Service",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "Configuration",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceUnbindRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceUnbindResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/staging/{StageID}/complete": {
       "get": {
         "tags": [
@@ -2187,6 +2222,16 @@
       "type": "string",
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ServiceUnbindRequest": {
+      "type": "object",
+      "properties": {
+        "app_name": {
+          "type": "string",
+          "x-go-name": "AppName"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "StageRef": {
       "description": "StageRef references a staging run by ID, currently randomly generated\nfor each POST to the staging endpoint",
       "type": "object",
@@ -2521,6 +2566,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/ServiceShowResponse"
+      }
+    },
+    "ServiceUnbindResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
       }
     },
     "StagingCompleteResponse": {
