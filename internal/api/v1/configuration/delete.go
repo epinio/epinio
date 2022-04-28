@@ -21,7 +21,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	configurationName := c.Param("configuration")
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	var deleteRequest models.ConfigurationDeleteRequest
 	err := c.BindJSON(&deleteRequest)

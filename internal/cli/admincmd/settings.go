@@ -63,13 +63,14 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 
 	details.Info("retrieving credentials")
 
-	user, password, err := auth.GetFirstUserAccount(ctx)
-	if err != nil {
-		a.ui.Exclamation().Msg(err.Error())
+	users, err := auth.GetUsersByAge(ctx)
+	if len(users) == 0 {
+		a.ui.Exclamation().Msg("no user account found")
 		return nil
 	}
+	user := users[0]
 
-	details.Info("retrieved credentials", "user", user, "password", password)
+	details.Info("retrieved credentials", "user", user.Username, "password", user.Password)
 	details.Info("retrieving server locations")
 
 	api, wss, err := getAPI(ctx, details)
@@ -89,8 +90,8 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 
 	details.Info("retrieved certs", "certs", certs)
 
-	a.Settings.User = user
-	a.Settings.Password = password
+	a.Settings.User = user.Username
+	a.Settings.Password = user.Password
 	a.Settings.API = api
 	a.Settings.WSS = wss
 	a.Settings.Certs = certs

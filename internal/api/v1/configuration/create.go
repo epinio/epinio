@@ -16,7 +16,7 @@ import (
 func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	var createRequest models.ConfigurationCreateRequest
 	err := c.BindJSON(&createRequest)

@@ -79,7 +79,7 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "creating an S3 manager")
 	}
 
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 	blobUID, err := manager.Upload(ctx, tarball, map[string]string{
 		"app": name, "namespace": namespace, "username": username,
 	})

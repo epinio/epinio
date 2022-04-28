@@ -4,113 +4,63 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"sort"
+	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/helpers/randstr"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 	"k8s.io/apimachinery/pkg/labels"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// PasswordAuth wraps a set of password-based credentials
-type PasswordAuth struct {
-	Username string
-	Password string
+// User is a struct containing all the information of an Epinio User
+type User struct {
+	Username   string
+	Password   string
+	CreatedAt  time.Time
+	Role       string
+	Namespaces []string
 }
 
-type SecretsSortable []corev1.Secret
-
-func (a SecretsSortable) Len() int { return len(a) }
-func (a SecretsSortable) Less(i, j int) bool {
-	time1 := a[i].ObjectMeta.CreationTimestamp
-	time2 := a[j].ObjectMeta.CreationTimestamp
-
-	return time1.Before(&time2)
-}
-func (a SecretsSortable) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-// Htpassword returns user+hash string suitable for use by Traefik's
-// BasicAuth module.
-func (auth *PasswordAuth) Htpassword() (string, error) {
-	hash, err := HashBcrypt(auth.Password)
-	if err != nil {
-		return "", err
+// NewUserFromSecret create an Epinio User from a Secret
+func NewUserFromSecret(secret corev1.Secret) User {
+	user := User{
+		Username:  string(secret.Data["username"]),
+		Password:  string(secret.Data["password"]),
+		CreatedAt: secret.ObjectMeta.CreationTimestamp.Time,
+		Role:      secret.Labels[kubernetes.EpinioAPISecretLabelKey],
 	}
-	return auth.Username + ":" + hash, nil
+
+	if ns, found := secret.Data["namespaces"]; found {
+		user.Namespaces = strings.Split(string(ns), "\n")
+	}
+
+	return user
 }
 
-// HashBcrypt generates an Bcrypt hash for a password.
-// See https://github.com/foomo/htpasswd for the origin of this code.
-// MIT licensed, as per `blob/master/LICENSE.txt`
-func HashBcrypt(password string) (hash string, err error) {
-	passwordBytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return
-	}
-	return string(passwordBytes), nil
-}
-
-// RandomPasswordAuth generates a random user+password
-// combination. Both elements are random 16-character hex strings.
-func RandomPasswordAuth() (*PasswordAuth, error) {
-	user, err := randstr.Hex16()
-	if err != nil {
-		return nil, err
-	}
-
-	password, err := randstr.Hex16()
-	if err != nil {
-		return nil, err
-	}
-
-	return &PasswordAuth{
-		Username: user,
-		Password: password,
-	}, nil
-}
-
-// GetFirstUserAccount returns the credentials of the oldest Epinio user.
-// This should normally be the one created during installation unless someone
-// deleted that.
-func GetFirstUserAccount(ctx context.Context) (string, string, error) {
-	secrets, err := GetUserSecretsByAge(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
-	if len(secrets) > 0 {
-		username := string(secrets[0].Data["username"])
-		password := string(secrets[0].Data["password"])
-		return username, password, nil
-	} else {
-		return "", "", errors.New("no user account found")
-	}
-}
-
-// GetUserAccounts returns all Epinio users as a gin.Accounts object to be
-// passed to the BasicAuth middleware.
-func GetUserAccounts(ctx context.Context) (*gin.Accounts, error) {
-	secrets, err := GetUserSecretsByAge(ctx)
-	if err != nil {
-		return nil, err
-	}
+// MakeGinAccountsFromUsers is a utility func to convert the Epinio users to gin.Accounts,
+// that can be passed to the BasicAuth middleware.
+func MakeGinAccountsFromUsers(users []User) gin.Accounts {
 	accounts := gin.Accounts{}
-	for _, secret := range secrets {
-		accounts[string(secret.Data["username"])] = string(secret.Data["password"])
+	for _, user := range users {
+		accounts[user.Username] = user.Password
 	}
-
-	return &accounts, nil
+	return accounts
 }
 
-// GetUserSecretsByAge returns the user BasicAuth Secrets sorted from older to
-// younger by creationTimestamp.
-func GetUserSecretsByAge(ctx context.Context) ([]corev1.Secret, error) {
+// ByCreationTime can be used to sort Users by CreationTime
+type ByCreationTime []User
+
+func (c ByCreationTime) Len() int           { return len(c) }
+func (c ByCreationTime) Less(i, j int) bool { return c[i].CreatedAt.Before(c[j].CreatedAt) }
+func (a ByCreationTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+// GetUsers returns all the Epinio users
+func GetUsers(ctx context.Context) ([]User, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return nil, err
@@ -129,8 +79,21 @@ func GetUserSecretsByAge(ctx context.Context) ([]corev1.Secret, error) {
 		return nil, err
 	}
 
-	// Now lets sort the list
-	sort.Sort(SecretsSortable(secretList.Items))
+	users := []User{}
+	for _, secret := range secretList.Items {
+		users = append(users, NewUserFromSecret(secret))
+	}
 
-	return secretList.Items, nil
+	return users, nil
+}
+
+// GetUsersByAge returns the Epinio Users BasicAuth sorted from older to younger by CreationTime.
+func GetUsersByAge(ctx context.Context) ([]User, error) {
+	users, err := GetUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	sort.Sort(ByCreationTime(users))
+
+	return users, nil
 }

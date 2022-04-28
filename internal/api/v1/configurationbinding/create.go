@@ -151,7 +151,7 @@ func CreateConfigurationBinding(
 
 		// Update the workload, if there is any.
 		if app.Workload != nil {
-			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, requestctx.User(ctx), "", nil, nil)
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, requestctx.User(ctx).Username, "", nil, nil)
 			if apierr != nil {
 				return nil, apierr
 			}

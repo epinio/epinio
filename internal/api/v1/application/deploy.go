@@ -25,7 +25,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	req := models.DeployRequest{}
 	if err := c.BindJSON(&req); err != nil {

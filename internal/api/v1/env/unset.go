@@ -17,7 +17,7 @@ import (
 func (hc Controller) Unset(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")

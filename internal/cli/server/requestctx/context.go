@@ -5,6 +5,7 @@ import (
 	"context"
 
 	"github.com/epinio/epinio/helpers/tracelog"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/go-logr/logr"
 )
 
@@ -18,13 +19,17 @@ type UserKey struct{}
 type LoggerKey struct{}
 
 // WithUser adds the user name to the context
-func WithUser(ctx context.Context, val string) context.Context {
+func WithUser(ctx context.Context, val auth.User) context.Context {
 	return context.WithValue(ctx, UserKey{}, val)
 }
 
 // User returns the user name from the context
-func User(ctx context.Context) string {
-	return extractString(ctx, UserKey{})
+func User(ctx context.Context) auth.User {
+	user, ok := ctx.Value(UserKey{}).(auth.User)
+	if !ok {
+		return auth.User{}
+	}
+	return user
 }
 
 // WithID adds the request ID to the context

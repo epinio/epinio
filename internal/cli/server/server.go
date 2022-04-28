@@ -2,7 +2,7 @@
 package server
 
 import (
-	"encoding/base64"
+	"encoding/gob"
 	"errors"
 	"fmt"
 	"net/http"
@@ -76,6 +76,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	store := cookie.NewStore([]byte(os.Getenv("SESSION_KEY")))
 	store.Options(sessions.Options{MaxAge: 60 * 60 * 24}) // expire in a day
+	gob.Register(auth.User{})
 
 	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
 	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
@@ -137,56 +138,44 @@ func authMiddleware(ctx *gin.Context) {
 	logger := requestctx.Logger(reqCtx).WithName("AuthMiddleware")
 
 	// First get the available users
-	accounts, err := auth.GetUserAccounts(ctx)
+	users, err := auth.GetUsers(ctx)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
+		ctx.Abort()
+		return
 	}
 
-	if len(*accounts) == 0 {
+	if len(users) == 0 {
 		response.Error(ctx, apierrors.NewAPIError("no user found", "", http.StatusUnauthorized))
+		ctx.Abort()
+		return
 	}
+
+	accounts := auth.MakeGinAccountsFromUsers(users)
 
 	// We set this to the current user after successful authentication.
 	// This is also added to the context for controllers to use.
-	var user string
+	var username string
 
 	session := sessions.Default(ctx)
 	sessionUser := session.Get("user")
 	if sessionUser == nil { // no session exists, try basic auth
 		logger.V(1).Info("Basic auth authentication")
-		authHeader := string(ctx.GetHeader("Authorization"))
-		// If basic auth header is there, extract the user out of it
-		if authHeader != "" {
-			// A Basic auth header looks something like this:
-			// Basic base64_encoded_username:password_string
-			headerParts := strings.Split(authHeader, " ")
-			if len(headerParts) < 2 {
-				response.Error(ctx, apierrors.NewInternalError("Authorization header format was not expected"))
-				ctx.Abort()
-				return
-			}
-			creds, err := base64.StdEncoding.DecodeString(headerParts[1])
-			if err != nil {
-				response.Error(ctx, apierrors.NewInternalError("Couldn't decode auth header"))
-				ctx.Abort()
-				return
-			}
 
-			// creds is in username:password format
-			user = strings.Split(string(creds), ":")[0]
-			if user == "" {
+		var ok bool
+		username, _, ok = ctx.Request.BasicAuth()
+		if !ok {
 				response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
 				ctx.Abort()
 				return
-			}
 		}
 
 		// Perform basic auth authentication
-		gin.BasicAuth(*accounts)(ctx)
+		gin.BasicAuth(accounts)(ctx)
 	} else {
 		logger.V(1).Info("Session authentication")
 		var ok bool
-		user, ok = sessionUser.(string)
+		user, ok := sessionUser.(auth.User)
 		if !ok {
 			response.Error(ctx, apierrors.NewInternalError("Couldn't parse user from session"))
 			ctx.Abort()
@@ -195,22 +184,18 @@ func authMiddleware(ctx *gin.Context) {
 
 		// Check if that user still exists. If not delete the session and block the request!
 		// This allows us to kick out users even if they keep their browser open.
-		userStillExists := false
-		for checkUser := range *accounts {
-			if checkUser == user {
-				userStillExists = true
-				break
-			}
-		}
-		if !userStillExists {
+		_, found := accounts[user.Username]
+
+		if !found {
 			session.Clear()
 			session.Options(sessions.Options{MaxAge: -1})
-			err := session.Save()
-			if err != nil {
+
+			if err := session.Save(); err != nil {
 				response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
 				ctx.Abort()
 				return
 			}
+
 			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
 			ctx.Abort()
 			return
@@ -219,9 +204,15 @@ func authMiddleware(ctx *gin.Context) {
 
 	// Write the user info in the context. It's needed by the next middleware
 	// to write it into the session.
+	for _, user := range users {
+		if user.Username == username {
 	newCtx := ctx.Request.Context()
 	newCtx = requestctx.WithUser(newCtx, user)
-	ctx.Request = ctx.Request.WithContext(newCtx)
+			ctx.Request = ctx.Request.Clone(newCtx)
+
+			break
+		}
+	}
 }
 
 // sessionMiddleware creates a new session for a logged in user.
@@ -233,7 +224,7 @@ func sessionMiddleware(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 	requestContext := ctx.Request.Context()
 	user := requestctx.User(requestContext)
-	if user == "" { // This can't be, authentication has succeeded.
+	if user.Username == "" { // This can't be, authentication has succeeded.
 		response.Error(ctx, apierrors.NewInternalError("Couldn't set user in session after successful authentication. This can't happen."))
 		ctx.Abort()
 		return
@@ -283,8 +274,21 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 		return
 	}
 
-	// we don't check if the user exists, token lifetime is small enough
+	// find the user and add it in the context
+	users, err := auth.GetUsers(ctx)
+	if err != nil {
+		response.Error(ctx, apierrors.InternalError(err))
+		ctx.Abort()
+		return
+	}
+
+	for _, user := range users {
+		if user.Username == claims.Username {
 	newCtx := ctx.Request.Context()
-	newCtx = requestctx.WithUser(newCtx, claims.Username)
-	ctx.Request = ctx.Request.WithContext(newCtx)
+			newCtx = requestctx.WithUser(newCtx, user)
+			ctx.Request = ctx.Request.Clone(newCtx)
+
+			break
+		}
+	}
 }
