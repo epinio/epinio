@@ -178,7 +178,6 @@ func authMiddleware(ctx *gin.Context) {
 				response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
 				ctx.Abort()
 				return
-			}
 		}
 
 		// Perform basic auth authentication
