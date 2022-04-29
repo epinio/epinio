@@ -227,21 +227,27 @@ func authMiddleware(ctx *gin.Context) {
 func sessionMiddleware(ctx *gin.Context) {
 	session := sessions.Default(ctx)
 	requestContext := ctx.Request.Context()
+
 	user := requestctx.User(requestContext)
 	if user.Username == "" { // This can't be, authentication has succeeded.
 		response.Error(ctx, apierrors.NewInternalError("Couldn't set user in session after successful authentication. This can't happen."))
 		ctx.Abort()
 		return
 	}
+
 	if session.Get("user") == nil { // Only the first time after authentication success
+
+		// remove the Password from the user saved in session (just in case)
+		user.Password = ""
+
 		session.Set("user", user)
 		session.Options(sessions.Options{
 			MaxAge:   172800, // Expire session every 2 days
 			Secure:   true,
 			HttpOnly: true,
 		})
-		err := session.Save()
-		if err != nil {
+
+		if err := session.Save(); err != nil {
 			response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
 			ctx.Abort()
 			return

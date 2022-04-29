@@ -64,6 +64,10 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 	details.Info("retrieving credentials")
 
 	users, err := auth.GetUsersByAge(ctx)
+	if err != nil {
+		a.ui.Exclamation().Msg(err.Error())
+		return nil
+	}
 	if len(users) == 0 {
 		a.ui.Exclamation().Msg("no user account found")
 		return nil
