@@ -11,17 +11,21 @@ import (
 func AuthorizationMiddleware(enforcer *casbin.Enforcer) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logger := requestctx.Logger(c.Request.Context())
-
 		user := requestctx.User(c.Request.Context())
+
 		subject := user.Role
 		domains := user.Namespaces
 		action := c.Request.Method
 		resource := c.Request.URL.Path
 
+		var authorized bool
+		var err error
+
+		logger.Info(fmt.Sprintf("authorization request for subject:[%s] domain:[%#v-len(%d)] action:[%s] resource:[%s]\n", subject, domains, len(domains), action, resource))
+
 		for _, domain := range domains {
-			logger.Info(fmt.Sprintf("authorization request for subject:[%s/%s] domain:[%s] action:[%s] resource:[%s]\n", user, subject, domain, action, resource))
-			authorized, err := enforcer.Enforce(subject, domain, action, resource)
-			logger.Info(fmt.Sprintf("authorized, err: %+v %+v\n", authorized, err))
+			authorized, err = enforcer.Enforce(subject, domain, action, resource)
+			logger.Info(fmt.Sprintf("authorized:[%+v] - err:[%+v]\n", authorized, err))
 		}
 	}
 }
