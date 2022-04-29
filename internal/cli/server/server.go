@@ -162,12 +162,16 @@ func authMiddleware(ctx *gin.Context) {
 	if sessionUser == nil { // no session exists, try basic auth
 		logger.V(1).Info("Basic auth authentication")
 
-		var ok bool
-		username, _, ok = ctx.Request.BasicAuth()
-		if !ok {
+		// we need this check to return a 401 instead of an error
+		auth := ctx.Request.Header.Get("Authorization")
+		if auth != "" {
+			var ok bool
+			username, _, ok = ctx.Request.BasicAuth()
+			if !ok {
 				response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
 				ctx.Abort()
 				return
+			}
 		}
 
 		// Perform basic auth authentication
@@ -206,8 +210,8 @@ func authMiddleware(ctx *gin.Context) {
 	// to write it into the session.
 	for _, user := range users {
 		if user.Username == username {
-	newCtx := ctx.Request.Context()
-	newCtx = requestctx.WithUser(newCtx, user)
+			newCtx := ctx.Request.Context()
+			newCtx = requestctx.WithUser(newCtx, user)
 			ctx.Request = ctx.Request.Clone(newCtx)
 
 			break
@@ -284,7 +288,7 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 
 	for _, user := range users {
 		if user.Username == claims.Username {
-	newCtx := ctx.Request.Context()
+			newCtx := ctx.Request.Context()
 			newCtx = requestctx.WithUser(newCtx, user)
 			ctx.Request = ctx.Request.Clone(newCtx)
 
