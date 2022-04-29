@@ -1,0 +1,31 @@
+apiVersion: application.epinio.io/v1
+kind: Service
+metadata:
+  annotations:
+    meta.helm.sh/release-name: epinio
+    meta.helm.sh/release-namespace: epinio
+  labels:
+    app.kubernetes.io/managed-by: Helm
+  name: my-postgresql
+  namespace: epinio
+spec:
+  chart: postgresql
+  description: |
+    This service is going to deploy a simple default Bitnami PostreSQL db instance.
+    You can find more info at https://github.com/bitnami/charts/tree/master/bitnami/postgresql/.
+    This database is running inside the cluster so it's probably not a good choice for production
+    environments, at least with this default configuration.
+  helmRepo:
+    name: bitnami
+    url: https://charts.bitnami.com/bitnami
+  name: my-postgresql
+  shortDescription: A PostgreSQL service that can be used during development
+  values: |-
+    global:
+      postgresql:
+        auth:
+          database: production
+          username: myuser
+          password: mypassword
+    volumePermissions:
+      enabled: true
