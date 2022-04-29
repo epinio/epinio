@@ -185,6 +185,7 @@ func authMiddleware(ctx *gin.Context) {
 			ctx.Abort()
 			return
 		}
+		username = user.Username
 
 		// Check if that user still exists. If not delete the session and block the request!
 		// This allows us to kick out users even if they keep their browser open.
