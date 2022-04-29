@@ -29,14 +29,21 @@ type User struct {
 // NewUserFromSecret create an Epinio User from a Secret
 func NewUserFromSecret(secret corev1.Secret) User {
 	user := User{
-		Username:  string(secret.Data["username"]),
-		Password:  string(secret.Data["password"]),
-		CreatedAt: secret.ObjectMeta.CreationTimestamp.Time,
-		Role:      secret.Labels[kubernetes.EpinioAPISecretLabelKey],
+		Username:   string(secret.Data["username"]),
+		Password:   string(secret.Data["password"]),
+		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
+		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
+		Namespaces: []string{},
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {
-		user.Namespaces = strings.Split(string(ns), "\n")
+		namespaces := strings.TrimSpace(string(ns))
+		for _, namespace := range strings.Split(namespaces, "\n") {
+			namespace = strings.TrimSpace(namespace)
+			if namespace != "" {
+				user.Namespaces = append(user.Namespaces, namespace)
+			}
+		}
 	}
 
 	return user
@@ -55,9 +62,15 @@ func MakeGinAccountsFromUsers(users []User) gin.Accounts {
 // ByCreationTime can be used to sort Users by CreationTime
 type ByCreationTime []User
 
-func (c ByCreationTime) Len() int           { return len(c) }
-func (c ByCreationTime) Less(i, j int) bool { return c[i].CreatedAt.Before(c[j].CreatedAt) }
-func (a ByCreationTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (c ByCreationTime) Len() int      { return len(c) }
+func (a ByCreationTime) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func (c ByCreationTime) Less(i, j int) bool {
+	if c[i].CreatedAt == c[j].CreatedAt {
+		return c[i].Username < c[j].Username
+	}
+	return c[i].CreatedAt.Before(c[j].CreatedAt)
+}
 
 // GetUsers returns all the Epinio users
 func GetUsers(ctx context.Context) ([]User, error) {
