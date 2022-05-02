@@ -78,7 +78,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
 
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 	for _, secret := range serviceConfigurations {
 		// TODO: Don't `helm upgrade` after each removal. Do it once.
 		errors := configurationbinding.DeleteBinding(
