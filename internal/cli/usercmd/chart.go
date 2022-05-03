@@ -3,7 +3,6 @@ package usercmd
 import (
 	"context"
 
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 )
@@ -92,37 +91,6 @@ func (c *EpinioClient) ChartList(ctx context.Context) error {
 	return nil
 }
 
-// ChartCreate makes a new application chart known to epinio.
-func (c *EpinioClient) ChartCreate(ctx context.Context, name, chart, short, desc, repo string) error {
-	log := c.Log.WithName("ChartCreate")
-	log.Info("start")
-	defer log.Info("return")
-
-	c.ui.Note().
-		WithStringValue("Name", name).
-		WithStringValue("Short Description", short).
-		WithStringValue("Description", desc).
-		WithStringValue("Helm Chart", chart).
-		WithStringValue("Helm Repository", repo).
-		Msg("Create Application Chart")
-
-	request := models.ChartCreateRequest{
-		Name:        name,
-		ShortDesc:   short,
-		Description: desc,
-		HelmRepo:    repo,
-		HelmChart:   chart,
-	}
-
-	_, err := c.API.ChartCreate(request)
-	if err != nil {
-		return err
-	}
-
-	c.ui.Success().Msg("OK")
-	return nil
-}
-
 // ChartShow shows the value of the specified environment variable in
 // the named application.
 func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
@@ -146,26 +114,6 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 		WithTableRow("Helm Repository", chart.HelmRepo).
 		WithTableRow("Helm Chart", chart.HelmChart).
 		Msg("Details:")
-
-	return nil
-}
-
-// ChartDelete removes the named application chart from epinio
-func (c *EpinioClient) ChartDelete(ctx context.Context, name string) error {
-	log := c.Log.WithName("ChartDelete")
-	log.Info("start")
-	defer log.Info("return")
-
-	c.ui.Note().
-		WithStringValue("Name", name).
-		Msg("Remove application chart")
-
-	_, err := c.API.ChartDelete(name)
-	if err != nil {
-		return err
-	}
-
-	c.ui.Success().Msg("OK")
 
 	return nil
 }

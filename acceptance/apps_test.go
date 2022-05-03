@@ -211,17 +211,36 @@ configuration:
 
 			Context("app charts", func() {
 				var chartName string
+				var tempFile string
 
 				BeforeEach(func() {
 					chartName = catalog.NewTmpName("chart-")
+					tempFile = catalog.NewTmpName("chart-") + `.yaml`
 
-					out, err := env.Epinio("", "apps", "chart", "create", chartName, "fox")
+					err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
+kind: AppChart
+metadata:
+  namespace: epinio
+  name: %s
+  labels:
+    app.kubernetes.io/component: epinio
+    app.kubernetes.io/instance: default
+    app.kubernetes.io/name: epinio-standard-app-chart
+    app.kubernetes.io/part-of: epinio
+spec:
+  helmChart: fox
+`, chartName)), 0600)
+					Expect(err).ToNot(HaveOccurred())
+
+					out, err := proc.Kubectl("apply", "-f", tempFile)
 					Expect(err).ToNot(HaveOccurred(), out)
 				})
 
 				AfterEach(func() {
-					out, err := env.Epinio("", "apps", "chart", "delete", chartName)
+					out, err := proc.Kubectl("delete", "-f", tempFile)
 					Expect(err).ToNot(HaveOccurred(), out)
+
+					os.Remove(tempFile)
 				})
 
 				It("fails to change the app chart of the running app", func() {

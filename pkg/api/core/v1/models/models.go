@@ -336,13 +336,3 @@ type AppChartList []AppChart
 type ChartMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
-
-// ChartCreateRequest represents and contains the data needed to create an application
-// chart instance
-type ChartCreateRequest struct {
-	Name        string `json:"name"`
-	ShortDesc   string `json:"short_description"`
-	Description string `json:"description"`
-	HelmChart   string `json:"helm_chart"`
-	HelmRepo    string `json:"helm_repo"`
-}

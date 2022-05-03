@@ -13,13 +13,16 @@ go run internal/cli/docs/generate-cli-docs.go "${destination}"/
 # Fix ${HOME} references to proper `~`.
 perl -pi -e "s@${HOME}@~@" "${destination}"/*md
 
-# Fix the cross-links to match hierarchy and mdbook expectations.
-sed -i 's@(\.\./\(.*\))@(\1.md)@' "${destination}"/*md
+# Fix the cross-links to match hierarchy and tooling expectations.
+sed -i 's@(\.\./\(.*\))@(./\1.md)@' "${destination}"/*md
 
-# Drop the HUGO specific annotations from file heads
+# Rework the YAML header/annotations. Fix `push` link.
 for md in "${destination}"/*md
 do
-    tail --lines +6 $md > $$
+    echo -n .
+    ( cat $md | grep -v linkTitle: | grep -v weight:
+    ) | sed -e 's|epinio_app_push.md|epinio_push.md|' \
+      > $$
     mv $$ $md
 done
 
