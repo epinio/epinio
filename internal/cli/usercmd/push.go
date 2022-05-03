@@ -2,7 +2,6 @@ package usercmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -290,25 +289,4 @@ func (c *EpinioClient) stageLogs(logger logr.Logger, appRef models.AppRef, stage
 	}
 
 	return err
-}
-
-// printLogs prints the logs coming from the logsChan channel
-func (c *EpinioClient) printLogs(logger logr.Logger, logsChan chan []byte) {
-	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
-
-	for msg := range logsChan {
-		var logLine tailer.ContainerLogLine
-
-		if err := json.Unmarshal(msg, &logLine); err != nil {
-			logger.Info("error parsing staging message", "error", err)
-			return
-		}
-
-		printer.Print(logprinter.Log{
-			Message:       logLine.Message,
-			Namespace:     logLine.Namespace,
-			PodName:       logLine.PodName,
-			ContainerName: logLine.ContainerName,
-		}, c.ui.ProgressNote().Compact())
-	}
 }
