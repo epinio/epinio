@@ -22,6 +22,10 @@ export LDFLAGS += -X github.com/epinio/epinio/internal/version.Version=$(VERSION
 
 build: build-amd64
 
+# amd64 variant
+build-cover:
+	GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go test -c -covermode=count -coverpkg ./... -o dist/epinio-linux-amd64-coverage
+
 build-win: build-windows
 
 build-all: build-amd64 build-arm64 build-arm32 build-windows build-darwin build-darwin-m1

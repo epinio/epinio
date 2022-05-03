@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,6 +24,7 @@ import (
 	gospdy "k8s.io/client-go/transport/spdy"
 
 	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -351,10 +351,11 @@ func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, er
 // There are 2 ways of stopping this method:
 // 1. The websocket connection closes.
 // 2. The context is canceled (used by the caller when printing of logs should be stopped).
-func (c *Client) AppLogs(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error) {
+func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printCallback func(tailer.ContainerLogLine)) error {
+
 	token, err := c.AuthToken()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	queryParams := url.Values{}
@@ -372,44 +373,22 @@ func (c *Client) AppLogs(ctx context.Context, namespace, appName, stageID string
 	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.WsURL, api.WsRoot, endpoint, queryParams.Encode())
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(websocketURL, http.Header{})
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
+		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}
 
-	msgChan := make(chan []byte)
-
-	go func() {
-		// read messages until someone will close the socket or an error occurs
-		for {
-			_, message, err := webSocketConn.ReadMessage()
-			if err != nil {
-				c.log.Info("error reading message", "error", err)
-				close(msgChan)
-				return
-			}
-			msgChan <- message
-		}
-	}()
-
-	go func() {
-		// wait for the outer func to send the Done signal to close the socket
-		<-ctx.Done()
-
-		err := webSocketConn.WriteControl(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-			time.Time{},
-		)
-
+	var logLine tailer.ContainerLogLine
+	for {
+		_, message, err := webSocketConn.ReadMessage()
 		if err != nil {
-			c.log.Info("error sending close message to websocket", "error", err)
-			close(msgChan)
-			return
+			return nil
 		}
 
-		webSocketConn.Close()
-	}()
+		if err := json.Unmarshal(message, &logLine); err != nil {
+			return errors.Wrap(err, "error parsing staging message")
+		}
 
-	return msgChan, nil
+		printCallback(logLine)
+	}
 }
 
 // StagingComplete checks if the staging process is complete

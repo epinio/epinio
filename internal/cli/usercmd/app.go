@@ -16,6 +16,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/helpers/bytes"
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
@@ -381,16 +383,21 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
 
 	details.Info("application logs")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
+	callback := func(logLine tailer.ContainerLogLine) {
+		printer.Print(logprinter.Log{
+			Message:       logLine.Message,
+			Namespace:     logLine.Namespace,
+			PodName:       logLine.PodName,
+			ContainerName: logLine.ContainerName,
+		}, c.ui.ProgressNote().Compact())
+	}
 
-	logsChan, err := c.API.AppLogs(ctx, c.Settings.Namespace, appName, stageID, follow)
+	err := c.API.AppLogs(c.Settings.Namespace, appName, stageID, follow, callback)
 	if err != nil {
 		c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		return err
 	}
-
-	c.printLogs(details, logsChan)
 
 	return nil
 }

@@ -2,7 +2,6 @@ package usercmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -263,46 +262,31 @@ func (c *EpinioClient) stageLogs(logger logr.Logger, appRef models.AppRef, stage
 		WithStringValue("Application", appRef.Name).
 		Msg("Streaming application logs")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	go func() {
+		printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
+		callback := func(logLine tailer.ContainerLogLine) {
+			printer.Print(logprinter.Log{
+				Message:       logLine.Message,
+				Namespace:     logLine.Namespace,
+				PodName:       logLine.PodName,
+				ContainerName: logLine.ContainerName,
+			}, c.ui.ProgressNote().Compact())
+		}
 
-	logsChan, err := c.API.AppLogs(ctx, c.Settings.Namespace, appRef.Name, stageID, true)
-	if err != nil {
-		c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
-	}
-
-	// print logs in async
-	go c.printLogs(logger, logsChan)
+		err := c.API.AppLogs(c.Settings.Namespace, appRef.Name, stageID, true, callback)
+		if err != nil {
+			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
+		}
+	}()
 
 	logger.Info("wait for job", "StageID", stageID)
 	c.ui.ProgressNote().Msg("Running staging")
 
 	// blocking function that wait until the staging is done
-	_, err = c.API.StagingComplete(appRef.Namespace, stageID)
+	_, err := c.API.StagingComplete(appRef.Namespace, stageID)
 	if err != nil {
 		return errors.Wrap(err, "waiting for staging failed")
 	}
 
 	return err
-}
-
-// printLogs prints the logs coming from the logsChan channel
-func (c *EpinioClient) printLogs(logger logr.Logger, logsChan chan []byte) {
-	printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
-
-	for msg := range logsChan {
-		var logLine tailer.ContainerLogLine
-
-		if err := json.Unmarshal(msg, &logLine); err != nil {
-			logger.Info("error parsing staging message", "error", err)
-			return
-		}
-
-		printer.Print(logprinter.Log{
-			Message:       logLine.Message,
-			Namespace:     logLine.Namespace,
-			PodName:       logLine.PodName,
-			ContainerName: logLine.ContainerName,
-		}, c.ui.ProgressNote().Compact())
-	}
 }
