@@ -40,10 +40,11 @@ const (
 )
 
 var (
-	EpinioNamespaceLabelKey   = "app.kubernetes.io/component"
-	EpinioNamespaceLabelValue = "epinio-namespace"
-	EpinioAPISecretLabelKey   = fmt.Sprintf("%s/%s", APISGroupName, "api-user-credentials")
-	EpinioAPISecretLabelValue = "true"
+	EpinioNamespaceLabelKey     = "app.kubernetes.io/component"
+	EpinioNamespaceLabelValue   = "epinio-namespace"
+	EpinioAPISecretLabelKey     = fmt.Sprintf("%s/%s", APISGroupName, "api-user-credentials")
+	EpinioAPISecretLabelValue   = "true"
+	EpinioAPISecretRoleLabelKey = fmt.Sprintf("%s/%s", APISGroupName, "role")
 )
 
 // Memoization of GetCluster

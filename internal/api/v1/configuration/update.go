@@ -69,7 +69,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	}
 
 	// Perform restart on the candidates which are actually running
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	for _, appName := range appNames {
 		app, err := application.Lookup(ctx, cluster, namespace, appName)

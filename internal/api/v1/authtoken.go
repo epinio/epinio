@@ -15,7 +15,7 @@ import (
 // token for further logins
 func AuthToken(c *gin.Context) APIErrors {
 	requestContext := c.Request.Context()
-	user := requestctx.User(requestContext)
+	user := requestctx.User(requestContext).Username
 
 	response.OKReturn(c, models.AuthTokenResponse{
 		Token: authtoken.Create(user, authtoken.DefaultExpiry),

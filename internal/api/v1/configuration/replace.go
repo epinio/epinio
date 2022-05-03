@@ -59,7 +59,7 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 
 	// Perform restart on the candidates which are actually running
 	if restart {
-		username := requestctx.User(ctx)
+		username := requestctx.User(ctx).Username
 
 		// Determine bound apps, as candidates for restart.
 		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)

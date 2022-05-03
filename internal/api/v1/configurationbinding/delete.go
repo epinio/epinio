@@ -16,7 +16,7 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	configurationName := c.Param("configuration")
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {

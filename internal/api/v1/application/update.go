@@ -23,7 +23,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
-	username := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
