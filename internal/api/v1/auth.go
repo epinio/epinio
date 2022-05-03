@@ -20,7 +20,7 @@ func AuthorizationMiddleware(c *gin.Context) {
 	path := c.Request.URL.Path
 	namespace := c.Param("namespace")
 
-	logger.Info(fmt.Sprintf("authorization request from user [%s] for [%s - %s]", user.Username, method, path))
+	logger.Info(fmt.Sprintf("authorization request from user [%s] with role [%s] for [%s - %s]", user.Username, user.Role, method, path))
 
 	var authorized bool
 	switch user.Role {

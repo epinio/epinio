@@ -57,14 +57,14 @@ var _ = Describe("Authorization Middleware", func() {
 				url = "http://url.com/restricted"
 			})
 
-			It("returns status code 400", func() {
+			It("returns status code 401", func() {
 				AuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusUnauthorized))
 			})
 		})
 
 		When("url is namespaced", func() {
-			It("returns status code 400 for another namespace", func() {
+			It("returns status code 401 for another namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "another-workspace"}}
 
 				AuthorizationMiddleware(c)

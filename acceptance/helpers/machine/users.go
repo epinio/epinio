@@ -3,6 +3,7 @@ package machine
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	. "github.com/onsi/gomega"
 
@@ -11,20 +12,25 @@ import (
 )
 
 // CreateEpinioUser creates a new "user" BasicAuth Secret labeled as an Epinio User.
-func (m *Machine) CreateEpinioUser() (string, string) {
+func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, string) {
 	user, password := catalog.NewUserCredentials()
+	ns := strings.Join(namespaces, "\n")
+
 	secretData := fmt.Sprintf(`apiVersion: v1
 stringData:
   username: "%s"
   password: "%s"
+  namespaces: |
+    %s
 kind: Secret
 metadata:
   labels:
     epinio.suse.org/api-user-credentials: "true"
+    epinio.suse.org/role: "%s"
   name: epinio-user-%s
   namespace: epinio
 type: BasicAuth
-`, user, password, user)
+`, user, password, ns, role, user)
 
 	secretTmpFile := catalog.NewTmpName("tmpUserFile") + `.yaml`
 	err := os.WriteFile(secretTmpFile, []byte(secretData), 0600)
