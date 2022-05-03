@@ -26,11 +26,5 @@ do
     mv $$ $md
 done
 
-# Fix up the app chart docs, hide the operator commands
-#rm "${destination}"/epinio_app_chart_create.md
-#rm "${destination}"/epinio_app_chart_delete.md
-#cat "${destination}"/epinio_app_chart.md | grep -v _create | grep -v _delete > $$
-#mv $$ "${destination}"/epinio_app_chart.md
-
 echo /Done
 exit
