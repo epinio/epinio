@@ -82,7 +82,7 @@ func DescribeAppLogs() {
 			ctx, cancel := context.WithTimeout(context.Background(), waitingTime)
 			defer cancel()
 
-			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", false)
+			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			messages := []string{}
@@ -100,7 +100,7 @@ func DescribeAppLogs() {
 			ctx, cancel := context.WithTimeout(context.Background(), waitingTime)
 			defer cancel()
 
-			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", false)
+			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", false, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			messages := []string{}
@@ -121,7 +121,7 @@ func DescribeAppLogs() {
 			ctx, cancel := context.WithTimeout(context.Background(), waitingTime)
 			defer cancel()
 
-			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", true)
+			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", true, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			messages := []string{}
@@ -132,14 +132,14 @@ func DescribeAppLogs() {
 			Expect(len(messages)).To(BeNumerically(">", logMessages))
 		})
 
-		It("will read more less logs if cancelled before", func() {
+		It("will read less logs if cancelled before", func() {
 			totalLogTime := time.Duration(logMessages) * logMessageDelay
 			waitingTime := totalLogTime - 1*time.Second
 
 			ctx, cancel := context.WithTimeout(context.Background(), waitingTime)
 			defer cancel()
 
-			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", true)
+			msgChan, err := epinioClient.AppLogs(ctx, "namespace-foo", "appname", "stageID", true, true)
 			Expect(err).ToNot(HaveOccurred())
 
 			messages := []string{}

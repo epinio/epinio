@@ -384,7 +384,7 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	logsChan, err := c.API.AppLogs(ctx, c.Settings.Namespace, appName, stageID, follow)
+	logsChan, err := c.API.AppLogs(ctx, c.Settings.Namespace, appName, stageID, follow, false)
 	if err != nil {
 		c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		return err

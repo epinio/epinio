@@ -37,7 +37,7 @@ type APIClient interface {
 	AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
-	AppLogs(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error)
+	AppLogs(ctx context.Context, namespace, appName, stageID string, follow, closer bool) (chan []byte, error)
 	StagingComplete(namespace string, id string) (models.Response, error)
 	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(namespace string, appName, instance string, tty kubectlterm.TTY) error

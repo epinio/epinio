@@ -30,7 +30,7 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 					return &models.StageResponse{Stage: models.NewStage("ID")}, nil
 				}
 
-				mockClient.mockAppLogs = func(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error) {
+				mockClient.mockAppLogs = func(ctx context.Context, namespace, appName, stageID string, follow, closer bool) (chan []byte, error) {
 					return make(chan []byte), nil
 				}
 
@@ -79,7 +79,7 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 type mockAPIClient struct {
 	mockAppShow         func(namespace string, appName string) (models.App, error)
 	mockAppStage        func(req models.StageRequest) (*models.StageResponse, error)
-	mockAppLogs         func(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error)
+	mockAppLogs         func(ctx context.Context, namespace, appName, stageID string, follow, closer bool) (chan []byte, error)
 	mockStagingComplete func(namespace string, id string) (models.Response, error)
 }
 
@@ -131,8 +131,8 @@ func (m *mockAPIClient) AppDeploy(req models.DeployRequest) (*models.DeployRespo
 	return nil, nil
 }
 
-func (m *mockAPIClient) AppLogs(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error) {
-	return m.mockAppLogs(ctx, namespace, appName, stageID, follow)
+func (m *mockAPIClient) AppLogs(ctx context.Context, namespace, appName, stageID string, follow, closer bool) (chan []byte, error) {
+	return m.mockAppLogs(ctx, namespace, appName, stageID, follow, closer)
 }
 
 func (m *mockAPIClient) StagingComplete(namespace string, id string) (models.Response, error) {

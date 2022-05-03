@@ -351,7 +351,7 @@ func (c *Client) AppDeploy(req models.DeployRequest) (*models.DeployResponse, er
 // There are 2 ways of stopping this method:
 // 1. The websocket connection closes.
 // 2. The context is canceled (used by the caller when printing of logs should be stopped).
-func (c *Client) AppLogs(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error) {
+func (c *Client) AppLogs(ctx context.Context, namespace, appName, stageID string, follow, closer bool) (chan []byte, error) {
 	token, err := c.AuthToken()
 	if err != nil {
 		return nil, err
@@ -390,24 +390,28 @@ func (c *Client) AppLogs(ctx context.Context, namespace, appName, stageID string
 		}
 	}()
 
-	go func() {
-		// wait for the outer func to send the Done signal to close the socket
-		<-ctx.Done()
+	if closer {
+		go func() {
 
-		err := webSocketConn.WriteControl(
-			websocket.CloseMessage,
-			websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
-			time.Time{},
-		)
+			// wait for the outer func to send the Done signal to close the socket
+			<-ctx.Done()
 
-		if err != nil {
-			c.log.Info("error sending close message to websocket", "error", err)
-			close(msgChan)
-			return
-		}
 
-		webSocketConn.Close()
-	}()
+			err := webSocketConn.WriteControl(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""),
+				time.Time{},
+			)
+
+			if err != nil {
+				c.log.Info("error sending close message to websocket", "error", err)
+				close(msgChan)
+				return
+			}
+
+			webSocketConn.Close()
+		}()
+	}
 
 	return msgChan, nil
 }
