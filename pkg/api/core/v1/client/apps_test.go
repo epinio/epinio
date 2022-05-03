@@ -5,6 +5,5 @@ import (
 )
 
 var _ = Describe("Client Apps unit tests", func() {
-	Describe("AppLogs", DescribeAppLogs)
 	Describe("AppRestart", DescribeAppRestart)
 })

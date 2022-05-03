@@ -2,8 +2,7 @@
 package usercmd
 
 import (
-	"context"
-
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -37,7 +36,7 @@ type APIClient interface {
 	AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error)
 	AppStage(req models.StageRequest) (*models.StageResponse, error)
 	AppDeploy(req models.DeployRequest) (*models.DeployResponse, error)
-	AppLogs(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error)
+	AppLogs(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error
 	StagingComplete(namespace string, id string) (models.Response, error)
 	AppRunning(app models.AppRef) (models.Response, error)
 	AppExec(namespace string, appName, instance string, tty kubectlterm.TTY) error

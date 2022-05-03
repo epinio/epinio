@@ -1,8 +1,7 @@
 package usercmd_test
 
 import (
-	"context"
-
+	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/cli/usercmd"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
@@ -30,8 +29,8 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 					return &models.StageResponse{Stage: models.NewStage("ID")}, nil
 				}
 
-				mockClient.mockAppLogs = func(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error) {
-					return make(chan []byte), nil
+				mockClient.mockAppLogs = func(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error {
+					return nil
 				}
 
 				mockClient.mockStagingComplete = func(namespace, id string) (models.Response, error) {
@@ -79,7 +78,7 @@ var _ = Describe("Client Apps unit tests", Label("wip"), func() {
 type mockAPIClient struct {
 	mockAppShow         func(namespace string, appName string) (models.App, error)
 	mockAppStage        func(req models.StageRequest) (*models.StageResponse, error)
-	mockAppLogs         func(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error)
+	mockAppLogs         func(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error
 	mockStagingComplete func(namespace string, id string) (models.Response, error)
 }
 
@@ -131,8 +130,8 @@ func (m *mockAPIClient) AppDeploy(req models.DeployRequest) (*models.DeployRespo
 	return nil, nil
 }
 
-func (m *mockAPIClient) AppLogs(ctx context.Context, namespace, appName, stageID string, follow bool) (chan []byte, error) {
-	return m.mockAppLogs(ctx, namespace, appName, stageID, follow)
+func (m *mockAPIClient) AppLogs(namespace, appName, stageID string, follow bool, callback func(tailer.ContainerLogLine)) error {
+	return m.mockAppLogs(namespace, appName, stageID, follow, callback)
 }
 
 func (m *mockAPIClient) StagingComplete(namespace string, id string) (models.Response, error) {
