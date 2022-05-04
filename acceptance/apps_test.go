@@ -511,8 +511,7 @@ spec:
 			By("pushing the app")
 			out := env.MakeApp(appName, 1, true)
 
-			Expect(out).To(MatchRegexp(`.*Configuring PHP Application.*`))
-			Expect(out).To(MatchRegexp(`.*Using feature -- PHP.*`))
+			Expect(out).To(MatchRegexp(`.*Generating default PHP configuration.*`))
 			// Doesn't include linkerd sidecar logs
 			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
 		})
@@ -1007,8 +1006,7 @@ configuration:
 			out, err := env.Epinio("", "app", "logs", "--staging", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp(`.*Configuring PHP Application.*`))
-			Expect(out).To(MatchRegexp(`.*Using feature -- PHP.*`))
+			Expect(out).To(MatchRegexp(`.*Generating default PHP configuration.*`))
 			// Doesn't include linkerd sidecar logs
 			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
 		})

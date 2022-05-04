@@ -79,10 +79,10 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 			"--instances", strconv.Itoa(instances))
 	}
 
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
+	Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
-	EventuallyWithOffset(1, func() string {
+	Eventually(func() string {
 		out, err := m.Epinio("", "app", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
