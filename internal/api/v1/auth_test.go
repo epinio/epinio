@@ -1,10 +1,11 @@
-package v1
+package v1_test
 
 import (
 	"context"
 	"net/http"
 	"net/http/httptest"
 
+	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
@@ -44,21 +45,21 @@ var _ = Describe("Authorization Middleware", func() {
 
 		When("url is not restricted", func() {
 			It("returns status code 200", func() {
-				AuthorizationMiddleware(c)
+				v1.AuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusOK))
 			})
 		})
 
 		When("url is restricted", func() {
 			BeforeEach(func() {
-				AdminRoutes = map[string]struct{}{
+				v1.AdminRoutes = map[string]struct{}{
 					"/restricted": {},
 				}
 				url = "http://url.com/restricted"
 			})
 
 			It("returns status code 401", func() {
-				AuthorizationMiddleware(c)
+				v1.AuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusUnauthorized))
 			})
 		})
@@ -67,14 +68,14 @@ var _ = Describe("Authorization Middleware", func() {
 			It("returns status code 401 for another namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "another-workspace"}}
 
-				AuthorizationMiddleware(c)
+				v1.AuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusUnauthorized))
 			})
 
 			It("returns status code 200 for its namespace", func() {
 				c.Params = []gin.Param{{Key: "namespace", Value: "workspace"}}
 
-				AuthorizationMiddleware(c)
+				v1.AuthorizationMiddleware(c)
 				Expect(w.Code).To(Equal(http.StatusOK))
 			})
 		})
