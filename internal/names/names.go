@@ -5,46 +5,48 @@ package names
 import (
 	"crypto/md5" // nolint:gosec // Non-crypto use
 	"encoding/hex"
+	"regexp"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// ReleaseName returns the name of a helm release derived from the
-// base string.
-func ReleaseName(base string) string {
-	return TruncateMD5(base, 53)
-}
+var allowedDNSLabelChars = regexp.MustCompile("[^-a-z0-9]*")
 
-// ConfigurationName returns the name of a kube configuration derived from the
-// base string. It ensures that things like leading digits are
-// sufficiently hidden to prevent kube from erroring out on the name.
-func ConfigurationName(base string) string {
-	return GenerateResourceName("s-" + base)
-}
-
-// IngressName returns the name of a kube ingress derived from the
-// base string. It ensures that things like leading digits are
-// sufficiently hidden to prevent kube from erroring out on the name.
-// It also replaces "/" characters with "-" to produce a valid resource
-// name from a route (which may contain "/" characters).
-func IngressName(base string) string {
-	baseSafe := strings.ReplaceAll(base, "/", "-")
-	return GenerateResourceName("i-" + baseSafe)
+// DNSLabelSafe filters invalid characters and returns a string that is safe to use as a DNS label.
+// It does not enforce the required string length, see `Sanitize`.
+//
+// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
+func DNSLabelSafe(name string) string {
+	name = strings.Replace(name, "_", "-", -1)
+	name = strings.ToLower(name)
+	name = allowedDNSLabelChars.ReplaceAllLiteralString(name, "")
+	name = strings.TrimLeft(name, "-")
+	name = strings.TrimRight(name, "-")
+	return name
 }
 
 // GenerateResourceName joins the input strings with dots (".")  and
 // returns the result, suitably truncated to the maximum length of
 // kube resource names.
 func GenerateResourceName(names ...string) string {
-	return TruncateMD5(strings.Join(names, "."), 63)
+	name := DNSLabelSafe(strings.Join(names, "."))
+	return TruncateMD5(name, 63)
+}
+
+// ReleaseName returns the name of a helm release derived from the
+// base string.
+func ReleaseName(base string) string {
+	name := DNSLabelSafe(base)
+	return TruncateMD5(name, 53)
 }
 
 // GenerateDNS1123SubDomainName joins the input strings with dots (".")
 // and returns the result, suitably truncated to the maximum length
 // allowed for the domain names.
 func GenerateDNS1123SubDomainName(names ...string) string {
-	return TruncateMD5(strings.Join(names, "."), validation.DNS1123SubdomainMaxLength)
+	name := DNSLabelSafe(strings.Join(names, "."))
+	return TruncateMD5(name, validation.DNS1123SubdomainMaxLength)
 }
 
 // TruncateMD5 truncates the input string s to the maxLen, if
