@@ -30,7 +30,7 @@ func DNSLabelSafe(name string) string {
 // returns the result, suitably truncated to the maximum length of
 // kube resource names.
 func GenerateResourceName(names ...string) string {
-	name := DNSLabelSafe(strings.Join(names, "."))
+	name := DNSLabelSafe(strings.Join(names, "-"))
 	return TruncateMD5(name, 63)
 }
 
@@ -45,7 +45,7 @@ func ReleaseName(base string) string {
 // and returns the result, suitably truncated to the maximum length
 // allowed for the domain names.
 func GenerateDNS1123SubDomainName(names ...string) string {
-	name := DNSLabelSafe(strings.Join(names, "."))
+	name := DNSLabelSafe(strings.Join(names, "-"))
 	return TruncateMD5(name, validation.DNS1123SubdomainMaxLength)
 }
 

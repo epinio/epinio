@@ -106,8 +106,17 @@ func (b AppConfigurationBindList) ToNames() []string {
 func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	var err error
 	if a.deployment == nil {
-		a.deployment, err = a.cluster.Kubectl.AppsV1().
-			Deployments(a.app.Namespace).Get(ctx, a.app.Name, metav1.GetOptions{})
+		depList, err := a.cluster.Kubectl.AppsV1().
+			Deployments(a.app.Namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", a.app.Name, a.app.Namespace),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(depList.Items) < 1 {
+			return nil, apierrors.NewNotFound(appsv1.Resource("deployment"), a.app.Name)
+		}
+		a.deployment = &depList.Items[0]
 	}
 
 	return a.deployment, err
@@ -202,6 +211,7 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 	}
 
 	return &models.AppDeployment{
+		Name:            deployment.Name,
 		Active:          true,
 		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
 		Replicas:        replicas,

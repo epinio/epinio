@@ -51,6 +51,7 @@ type PodInfo struct {
 // application, i.e. one with a deployment in the cluster.
 type AppDeployment struct {
 	// TODO: Readiness and Liveness fields?
+	Name            string              `json:"name,omitempty"`
 	Active          bool                `json:"active,omitempty"` // app is > 0 replicas
 	CreatedAt       string              `json:"createdAt,omitempty"`
 	DesiredReplicas int32               `json:"desiredreplicas"`

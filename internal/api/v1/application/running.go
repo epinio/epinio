@@ -44,7 +44,7 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 	}
 
 	err = cluster.WaitForDeploymentCompleted(
-		ctx, nil, namespace, appName, duration.ToAppBuilt())
+		ctx, nil, namespace, app.Workload.Name, duration.ToAppBuilt())
 	if err != nil {
 		return apierror.InternalError(err)
 	}
