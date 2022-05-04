@@ -44,25 +44,11 @@ func (w *WordpressApp) CreateDir() error {
 	if out, err := proc.Run(w.Dir, false, "tar", append([]string{"xvf"}, tarPaths...)...); err != nil {
 		return errors.Wrap(err, out)
 	}
-	if out, err := proc.Run(w.Dir, false, "mv", "wordpress", "htdocs"); err != nil {
-		return errors.Wrap(err, out)
-	}
 
 	if out, err := proc.Run("", false, "rm", tarPaths...); err != nil {
 		return errors.Wrap(err, out)
 	}
 
-	buildpackYaml := []byte(`
----
-php:
-  version: 7.4.x
-  script: index.php
-  webserver: nginx
-  webdirectory: htdocs
-`)
-	if err := ioutil.WriteFile(path.Join(w.Dir, "buildpack.yml"), buildpackYaml, 0644); err != nil {
-		return err
-	}
 	if err := os.MkdirAll(path.Join(w.Dir, ".php.ini.d"), 0755); err != nil {
 		return err
 	}
@@ -123,7 +109,10 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	It("can deploy Wordpress", func() {
-		out, err := env.EpinioPush(wordpress.Dir, wordpress.Name, "--name", wordpress.Name)
+		out, err := env.EpinioPush(wordpress.Dir, wordpress.Name, "--name", wordpress.Name,
+			"-e", "BP_PHP_WEB_DIR=wordpress",
+			"-e", "BP_PHP_VERSION=7.4.x",
+			"-e", "BP_PHP_SERVER=nginx")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		out, err = env.Epinio("", "app", "list")
