@@ -91,7 +91,18 @@ func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespac
 	}
 	user.AddNamespace(namespace)
 
-	_, err = s.updateUserSecret(ctx, user)
+	err = s.updateUserSecret(ctx, user)
+	return err
+}
+
+func (s *AuthService) RemoveNamespaceFromUser(ctx context.Context, username, namespace string) error {
+	user, err := s.GetUserByUsername(ctx, username)
+	if err != nil {
+		return err
+	}
+	user.RemoveNamespace(namespace)
+
+	err = s.updateUserSecret(ctx, user)
 	return err
 }
 
@@ -112,16 +123,19 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 	return secretList.Items, nil
 }
 
-func (s *AuthService) updateUserSecret(ctx context.Context, user User) (User, error) {
+func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 	updatedUser := user
 
-	updatedUser.secret.Data["namespaces"] = []byte(strings.Join(user.Namespaces, "\n"))
+	updatedUser.secret.StringData = make(map[string]string)
+	if len(user.Namespaces) > 0 {
+		updatedUser.secret.StringData["namespaces"] = strings.Join(user.Namespaces, "\n")
+	}
 
 	updatedSecret, err := s.SecretInterface.Update(ctx, updatedUser.secret, metav1.UpdateOptions{})
 	if err != nil {
-		return user, err
+		return err
 	}
 	updatedUser.secret = updatedSecret
 
-	return updatedUser, nil
+	return nil
 }

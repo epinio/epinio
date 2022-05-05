@@ -8,6 +8,8 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
@@ -47,6 +49,11 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	err = deleteServices(ctx, cluster, namespace)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	err = deleteNamespaceFromUser(ctx, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -134,4 +141,21 @@ func deleteServices(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 	}
 
 	return kubeServiceClient.DeleteAll(ctx, namespace)
+}
+
+// deleteNamespaceFromUser will delete the namespace from the User namespaces
+func deleteNamespaceFromUser(ctx context.Context, namespace string) error {
+	user := requestctx.User(ctx)
+
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = authService.RemoveNamespaceFromUser(ctx, user.Username, namespace)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
