@@ -164,7 +164,10 @@ configuration:
 			pushLog, err := env.EpinioPush("",
 				appName,
 				"--name", appName,
-				"--git", wordpress+",main")
+				"--git", wordpress+",main",
+				"-e", "BP_PHP_WEB_DIR=wordpress",
+				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_SERVER=nginx")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
 			Eventually(func() string {
@@ -180,7 +183,13 @@ configuration:
 		Describe("update", func() {
 			BeforeEach(func() {
 				wordpress := "https://github.com/epinio/example-wordpress"
-				pushLog, err := env.EpinioPush("", appName, "--name", appName, "--git", wordpress+",main")
+				pushLog, err := env.EpinioPush("",
+					appName,
+					"--name", appName,
+					"--git", wordpress+",main",
+					"-e", "BP_PHP_WEB_DIR=wordpress",
+					"-e", "BP_PHP_VERSION=7.4.x",
+					"-e", "BP_PHP_SERVER=nginx")
 				Expect(err).ToNot(HaveOccurred(), pushLog)
 
 				Eventually(func() string {
