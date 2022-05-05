@@ -3,6 +3,7 @@ package v1
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
@@ -30,7 +31,7 @@ func AuthorizationMiddleware(c *gin.Context) {
 		authorized = authorizeUser(logger, user, path, namespace)
 	}
 
-	logger.Info(fmt.Sprintf("user [%s] authorized [%t]", user.Username, authorized))
+	logger.Info(fmt.Sprintf("user [%s] with role [%s] authorized [%t] for namespace [%s]", user.Username, user.Role, authorized, namespace))
 
 	if !authorized {
 		response.Error(c, apierrors.NewAPIError("user unauthorized", "", http.StatusUnauthorized))
@@ -47,7 +48,7 @@ func authorizeAdmin(logger logr.Logger) bool {
 func authorizeUser(logger logr.Logger, user auth.User, path, namespace string) bool {
 	logger = logger.V(1).WithName("authorizeUser")
 
-	// check if the requested path is not restricted
+	// check if the requested path is restricted
 	if _, found := AdminRoutes[path]; found {
 		logger.Info(fmt.Sprintf("path [%s] is an admin route, user unauthorized", path))
 		return false
@@ -60,6 +61,8 @@ func authorizeUser(logger logr.Logger, user auth.User, path, namespace string) b
 				return true
 			}
 		}
+
+		logger.Info(fmt.Sprintf("namespace [%s] is not in user namespaces [%s]", namespace, strings.Join(user.Namespaces, ", ")))
 		return false
 	}
 

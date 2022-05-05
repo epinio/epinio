@@ -121,7 +121,7 @@ var _ = Describe("Users", func() {
 		var user, password string
 
 		BeforeEach(func() {
-			user, password = env.CreateEpinioUser("user", []string{"workspace"})
+			user, password = env.CreateEpinioUser("user", []string{"workspace", "workspace2"})
 		})
 
 		AfterEach(func() {
