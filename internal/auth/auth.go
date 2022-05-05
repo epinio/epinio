@@ -6,7 +6,9 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"sort"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -16,13 +18,17 @@ import (
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 )
 
-type AuthService struct {
-	SecretInterface
-}
+var (
+	ErrUserNotFound = errors.New("user not found")
+)
 
 //counterfeiter:generate . SecretInterface
 type SecretInterface interface {
 	typedcorev1.SecretInterface
+}
+
+type AuthService struct {
+	SecretInterface
 }
 
 func NewAuthServiceFromContext(ctx context.Context) (*AuthService, error) {
@@ -51,6 +57,22 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
+// GetUserByUsername return the user with the provided username
+// It will return a UserNotFound error if the user is not found
+func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	users, err := s.GetUsers(ctx)
+	if err != nil {
+		return User{}, err
+	}
+
+	for _, user := range users {
+		if user.Username == username {
+			return user, nil
+		}
+	}
+	return User{}, ErrUserNotFound
+}
+
 // GetUsersByAge returns the Epinio Users BasicAuth sorted from older to younger by CreationTime.
 func (s *AuthService) GetUsersByAge(ctx context.Context) ([]User, error) {
 	users, err := s.GetUsers(ctx)
@@ -60,6 +82,17 @@ func (s *AuthService) GetUsersByAge(ctx context.Context) ([]User, error) {
 	sort.Sort(ByCreationTime(users))
 
 	return users, nil
+}
+
+func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespace string) error {
+	user, err := s.GetUserByUsername(ctx, username)
+	if err != nil {
+		return err
+	}
+	user.AddNamespace(namespace)
+
+	_, err = s.updateUserSecret(ctx, user)
+	return err
 }
 
 func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, error) {
@@ -77,4 +110,18 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 	}
 
 	return secretList.Items, nil
+}
+
+func (s *AuthService) updateUserSecret(ctx context.Context, user User) (User, error) {
+	updatedUser := user
+
+	updatedUser.secret.Data["namespaces"] = []byte(strings.Join(user.Namespaces, "\n"))
+
+	updatedSecret, err := s.SecretInterface.Update(ctx, updatedUser.secret, metav1.UpdateOptions{})
+	if err != nil {
+		return user, err
+	}
+	updatedUser.secret = updatedSecret
+
+	return updatedUser, nil
 }
