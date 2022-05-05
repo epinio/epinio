@@ -63,7 +63,12 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 
 	details.Info("retrieving credentials")
 
-	users, err := auth.GetUsersByAge(ctx)
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	users, err := authService.GetUsersByAge(ctx)
 	if err != nil {
 		a.ui.Exclamation().Msg(err.Error())
 		return nil
