@@ -1,6 +1,8 @@
 package application
 
 import (
+	"fmt"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -57,6 +59,8 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to set application's image url")
 	}
 
+	fmt.Printf("req = %+v\n", req)
+	fmt.Printf("req.Stage = %+v\n", req.Stage)
 	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID, &req.Origin, nil)
 	if apierr != nil {
 		return apierr

@@ -150,6 +150,11 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName
 	app := meta.App()
 
 	err = fetch(ctx, cluster, app)
+	fmt.Printf("err ************** = %+v\n", err)
+	// Error here:
+	// err ************** = strconv.Atoi: parsing "": invalid syntax
+	// then :
+	// ❌  error pushing app to server: can't deploy app: Bad Request: stage id mismatch
 	if err != nil {
 		app.StatusMessage = err.Error()
 		app.Status = models.ApplicationError
@@ -441,6 +446,7 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 // fetch is a common helper for Lookup and List. It fetches all
 // information about an application from the cluster.
 func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
+	fmt.Printf("in fetch ************** app = %+v\n", app)
 	// Consider delayed loading, i.e. on first access, or for transfer (API response).
 	// Consider objects for the information which hide the defered loading.
 	// These could also have the necessary modifier methods.
@@ -457,45 +463,47 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		}
 		return apierror.InternalError(err, "failed to get the application resource")
 	}
+	fmt.Printf("applicationCR  1 = %+v\n", applicationCR)
 
 	desiredRoutes, err := DesiredRoutes(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding desired routes")
 	}
 
 	origin, err := Origin(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding origin")
 	}
 
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding env")
 	}
 
 	instances, err := Scaling(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding scaling")
 	}
 
 	configurations, err := BoundConfigurationNames(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding configurations")
 	}
 
 	chartName, err := AppChart(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding app chart")
 	}
 
+	fmt.Printf("applicationCR = %+v\n", applicationCR)
 	stageID, err := StageID(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding the stage id")
 	}
 
 	imageURL, err := ImageURL(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding the image url")
 	}
 
 	app.Configuration.Instances = &instances

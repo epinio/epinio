@@ -3,6 +3,7 @@ package deploy
 
 import (
 	"context"
+	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -34,6 +35,8 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	stageID := appObj.StageID
 
 	if expectedStageID != "" && expectedStageID != stageID {
+		fmt.Printf("expectedStageID = %+v\n", expectedStageID)
+		fmt.Printf("stageID = %+v\n", stageID)
 		return nil, apierror.NewBadRequest("stage id mismatch", expectedStageID, stageID)
 	}
 

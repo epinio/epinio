@@ -710,6 +710,7 @@ func findPreviousBlobUID(app *unstructured.Unstructured) (string, error) {
 }
 
 func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructured.Unstructured, params stageParam) error {
+	fmt.Printf("params = %+v\n", params)
 	if err := unstructured.SetNestedField(app.Object, params.BlobUID, "spec", "blobuid"); err != nil {
 		return err
 	}
@@ -730,6 +731,8 @@ func updateApp(ctx context.Context, cluster *kubernetes.Cluster, app *unstructur
 		return err
 	}
 
+	fmt.Printf("app = %+v\n", app)
+	fmt.Printf("app.Object = %+v\n", app.Object)
 	_, err = client.Namespace(namespace).Update(ctx, app, metav1.UpdateOptions{})
 
 	return err

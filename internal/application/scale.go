@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
 
@@ -23,6 +24,8 @@ func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return 0, err
 	}
 
+	fmt.Printf("scaleSecret.Data = %+v\n", scaleSecret.Data)
+	// TODO: This comes back empty. Data is empty. Why ?!
 	result, err := strconv.Atoi(string(scaleSecret.Data[instanceKey])) // nolint:gosec // overflow blocked by guards
 	if err != nil {
 		return 0, err
@@ -75,5 +78,6 @@ func scaleUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 // instances. If necessary it creates that secret.
 func scaleLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeScaleSecretName()
+	fmt.Printf("secretName = %+v\n", secretName)
 	return loadOrCreateSecret(ctx, cluster, appRef, secretName, "scaling")
 }
