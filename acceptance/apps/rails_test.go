@@ -97,7 +97,7 @@ var _ = Describe("RubyOnRails", func() {
 		out, err = proc.Run("", false, "helm", "repo", "update")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		configurationName = names.TruncateMD5(catalog.NewConfigurationName(), 40)
+		configurationName = names.Truncate(catalog.NewConfigurationName(), 40)
 		out, err = proc.Run("", false,
 			"helm", "install", configurationName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Namespace,
 			"--set", "postgresqlDatabase=production",
