@@ -40,7 +40,7 @@ Look at the Makefile at the root of the project to see what is available.
 
 # TODO: Update this section
 
-While we have a [dedicated document](https://docs.epinio.io/installation/installation.html) for cluster
+While we have a [dedicated document](https://docs.epinio.io/installation) for cluster
 specific instructions, there are some differences for dev environments.
 These differences are explained in the section [Behind the curtains](#curtain) at the end of this document.
 
@@ -50,7 +50,7 @@ for the `system-domain` installation argument. If the variable is not set, it wi
 in the form of "1.2.3.4.omg.howdoi.website" where `1.2.3.4` is the IP address of your k3d cluster and
 `omg.howdoi.website` is a mirror-dns configuration which resolves to the IP address in front of it (similar to nip.io, xip.io etc).
 
-For all other environments the instructions [on our documentation site](https://docs.epinio.io/installation/installation.html) should
+For all other environments the instructions [on our documentation site](https://docs.epinio.io/installation) should
 be followed. After installation, this make target will replace the epinio API server
 with your locally built version:
 
