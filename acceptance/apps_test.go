@@ -497,7 +497,7 @@ spec:
 				out, err = push()
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(out).To(MatchRegexp("Reusing cache layer"))
+				Expect(out).To(MatchRegexp("Reusing cached layer"))
 			})
 		})
 		When("deleting the app", func() {
