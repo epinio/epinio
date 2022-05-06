@@ -460,42 +460,42 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 
 	desiredRoutes, err := DesiredRoutes(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding desired routes")
 	}
 
 	origin, err := Origin(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding origin")
 	}
 
 	environment, err := Environment(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding env")
 	}
 
 	instances, err := Scaling(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding scaling")
 	}
 
 	configurations, err := BoundConfigurationNames(ctx, cluster, app.Meta)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding configurations")
 	}
 
 	chartName, err := AppChart(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding app chart")
 	}
 
 	stageID, err := StageID(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding the stage id")
 	}
 
 	imageURL, err := ImageURL(applicationCR)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "finding the image url")
 	}
 
 	app.Configuration.Instances = &instances
