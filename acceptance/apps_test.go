@@ -1053,8 +1053,10 @@ configuration:
 			}, "1m").Should(Equal(http.StatusOK))
 
 			By("checking the latest log")
-			scanner.Scan()
-			Expect(scanner.Text()).To(ContainSubstring("[200]: GET /"))
+			Eventually(func() string {
+				scanner.Scan()
+				return scanner.Text()
+			}, "30s").Should((ContainSubstring("[200]: GET /")))
 		})
 	})
 
