@@ -5,9 +5,10 @@ package helm
 import (
 	"context"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/pkg/errors"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/appchart"
@@ -73,7 +74,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	// Find the app chart to use for the deployment.
 	appChart, err := appchart.Lookup(parameters.Context, parameters.Cluster, parameters.Chart)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "looking up application chart")
 	}
 	if appChart == nil {
 		return fmt.Errorf("Unable to deploy, chart %s not found", parameters.Chart)
@@ -148,7 +149,7 @@ epinio:
 
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create a helm client")
 	}
 
 	helmChart := appChart.HelmChart
@@ -161,7 +162,7 @@ epinio:
 			Name: name,
 			URL:  appChart.HelmRepo,
 		}); err != nil {
-			return err
+			return errors.Wrap(err, "creating the chart repository")
 		}
 
 		pieces := strings.SplitN(helmChart, ":", 2)
