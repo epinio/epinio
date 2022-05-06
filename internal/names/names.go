@@ -44,7 +44,7 @@ func GenerateResourceName(names ...string) string {
 // - is always valid for a resource name
 // - is never longer than maxLen characters
 // - has low probability of collisions
-// Since the checksum must always be included, this function shouldn't be used
+// NOTE: Since the checksum must always be included, this function shouldn't be used
 // to produce names shorter than Sha1sumLength characters.
 func GenerateResourceNameTruncated(originalName string, maxLen int) string {
 	sumArray := sha1.Sum([]byte(originalName)) // nolint:gosec // Non-crypto use
