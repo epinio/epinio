@@ -137,8 +137,15 @@ func authMiddleware(ctx *gin.Context) {
 	reqCtx := ctx.Request.Context()
 	logger := requestctx.Logger(reqCtx).WithName("AuthMiddleware")
 
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		response.Error(ctx, apierrors.InternalError(err))
+		ctx.Abort()
+		return
+	}
+
 	// First get the available users
-	users, err := auth.GetUsers(ctx)
+	users, err := authService.GetUsers(ctx)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
 		ctx.Abort()
@@ -285,8 +292,15 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 		return
 	}
 
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		response.Error(ctx, apierrors.InternalError(err))
+		ctx.Abort()
+		return
+	}
+
 	// find the user and add it in the context
-	users, err := auth.GetUsers(ctx)
+	users, err := authService.GetUsers(ctx)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
 		ctx.Abort()
