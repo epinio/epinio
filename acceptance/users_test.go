@@ -25,7 +25,7 @@ var _ = Describe("Users", func() {
 		var user, password string
 
 		BeforeEach(func() {
-			user, password = env.CreateEpinioUser()
+			user, password = env.CreateEpinioUser("user", nil)
 		})
 		AfterEach(func() {
 			env.DeleteEpinioUser(user)
@@ -64,11 +64,12 @@ var _ = Describe("Users", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
 		})
 	})
+
 	When("an existing user is deleted", func() {
 		var cookie, user, password string
 
 		BeforeEach(func() {
-			user, password = env.CreateEpinioUser()
+			user, password = env.CreateEpinioUser("user", nil)
 
 			// First request with basicauth to get the cookie
 			request.SetBasicAuth(user, password)
@@ -107,11 +108,72 @@ var _ = Describe("Users", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
 		})
 	})
+
 	When("user doesn't exist", func() {
 		Specify("the response should be 401", func() {
 			resp, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+		})
+	})
+
+	Describe("a regular user", func() {
+		var user, password string
+
+		BeforeEach(func() {
+			user, password = env.CreateEpinioUser("user", []string{"workspace", "workspace2"})
+		})
+
+		AfterEach(func() {
+			env.DeleteEpinioUser(user)
+		})
+
+		Specify("can describe its namespace", func() {
+			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL, v1.Root)
+			request, err := http.NewRequest("GET", uri, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			request.SetBasicAuth(user, password)
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+		})
+
+		Specify("cannot describe another namespace", func() {
+			uri := fmt.Sprintf("%s%s/namespaces/another", serverURL, v1.Root)
+			request, err := http.NewRequest("GET", uri, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			request.SetBasicAuth(user, password)
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+		})
+	})
+
+	Describe("an admin user", func() {
+		var user, password string
+
+		BeforeEach(func() {
+			user, password = env.CreateEpinioUser("admin", nil)
+		})
+
+		AfterEach(func() {
+			env.DeleteEpinioUser(user)
+		})
+
+		Specify("can describe any namespace", func() {
+			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL, v1.Root)
+			request, err := http.NewRequest("GET", uri, nil)
+			Expect(err).ToNot(HaveOccurred())
+
+			request.SetBasicAuth(user, password)
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 	})
 })

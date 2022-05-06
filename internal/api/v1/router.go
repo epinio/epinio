@@ -69,6 +69,9 @@ func put(path string, h gin.HandlerFunc) routes.Route {
 	return routes.NewRoute("PUT", path, h)
 }
 
+// AdminRoutes is the list of restricted routes, only accessible by admins
+var AdminRoutes map[string]struct{} = map[string]struct{}{}
+
 var Routes = routes.NamedRoutes{
 	"Info":      get("/info", errorHandler(Info)),
 	"AuthToken": get("/authtoken", errorHandler(AuthToken)),
