@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
+	"github.com/pkg/errors"
 	pkgerrors "github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -115,6 +116,9 @@ func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 		}
 		if len(depList.Items) < 1 {
 			return nil, apierrors.NewNotFound(appsv1.Resource("deployment"), a.app.Name)
+		}
+		if len(depList.Items) > 1 {
+			return nil, errors.New("found more than one deployment for the application")
 		}
 		a.deployment = &depList.Items[0]
 	}
