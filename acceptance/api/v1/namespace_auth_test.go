@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Users Namespace", func() {
+var _ = Describe("Users Namespace", func() {
 	var request *http.Request
 	var err error
 
@@ -129,6 +129,30 @@ var _ = FDescribe("Users Namespace", func() {
 
 					response = showNamespace(userAdmin, passwordAdmin, namespaceAdmin)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
+					response.Body.Close()
+				})
+			})
+
+			When("user1 delete its namespace and user2 recreate the same namespace", func() {
+				var commonNamespace string
+				BeforeEach(func() {
+					commonNamespace = catalog.NewNamespaceName()
+					createNamespace(user1, passwordUser1, commonNamespace)
+					env.DeleteNamespace(commonNamespace)
+					createNamespace(user2, passwordUser2, commonNamespace)
+
+					fmt.Printf("User1 [%s] - User2 [%s] - namespace [%s]", user1, user2, commonNamespace)
+				})
+
+				It("can show his namespace", func() {
+					response := showNamespace(user2, passwordUser2, commonNamespace)
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
+					response.Body.Close()
+				})
+
+				It("user1 cannot show user2 namespace", func() {
+					response := showNamespace(user1, passwordUser1, commonNamespace)
+					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
 					response.Body.Close()
 				})
 			})

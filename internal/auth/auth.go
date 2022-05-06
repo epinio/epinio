@@ -7,6 +7,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 
@@ -95,15 +96,25 @@ func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespac
 	return err
 }
 
-func (s *AuthService) RemoveNamespaceFromUser(ctx context.Context, username, namespace string) error {
-	user, err := s.GetUserByUsername(ctx, username)
+func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
+	users, err := s.GetUsers(ctx)
 	if err != nil {
 		return err
 	}
-	user.RemoveNamespace(namespace)
 
-	err = s.updateUserSecret(ctx, user)
-	return err
+	errorMessages := []string{}
+	for _, user := range users {
+		user.RemoveNamespace(namespace)
+		err = s.updateUserSecret(ctx, user)
+		if err != nil {
+			errorMessages = append(errorMessages, err.Error())
+		}
+	}
+
+	if len(errorMessages) > 0 {
+		return fmt.Errorf("some error occurred while cleaning users: [%s]", strings.Join(errorMessages, ", "))
+	}
+	return nil
 }
 
 func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, error) {
