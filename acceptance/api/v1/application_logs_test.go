@@ -95,9 +95,10 @@ var _ = Describe("AppLogs Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		By("get to the end of logs")
-		for i := 0; i < logLength-1; i++ {
+		for i := 0; i < logLength; i++ {
 			_, message, err := wsConn.ReadMessage()
 			Expect(err).NotTo(HaveOccurred())
+
 			Expect(message).NotTo(BeNil())
 		}
 
@@ -125,7 +126,7 @@ var _ = Describe("AppLogs Endpoint", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(message).NotTo(BeNil())
 			return string(message)
-		}, "10s").Should(ContainSubstring("GET / HTTP/1.1"))
+		}, "10s").Should(ContainSubstring("[200]: GET /"))
 
 		err = wsConn.Close()
 		Expect(err).ToNot(HaveOccurred())

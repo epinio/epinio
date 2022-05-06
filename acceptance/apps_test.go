@@ -1054,7 +1054,7 @@ configuration:
 
 			By("checking the latest log")
 			scanner.Scan()
-			Expect(scanner.Text()).To(ContainSubstring("GET / HTTP/1.1"))
+			Expect(scanner.Text()).To(ContainSubstring("[200]: GET /"))
 		})
 	})
 
