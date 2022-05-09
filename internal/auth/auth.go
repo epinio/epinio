@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -18,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/util/retry"
 )
 
 var (
@@ -30,7 +30,6 @@ type SecretInterface interface {
 }
 
 type AuthService struct {
-	sync.Mutex
 	SecretInterface
 }
 
@@ -137,20 +136,19 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 }
 
 func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
-	s.Lock()
-	defer s.Unlock()
-
-	userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
-
-	if len(user.Namespaces) > 0 {
-		userSecret.StringData = map[string]string{
-			"namespaces": strings.Join(user.Namespaces, "\n"),
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
+		if err != nil {
+			return err
 		}
-	}
 
-	_, err = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
-	return err
+		if len(user.Namespaces) > 0 {
+			userSecret.StringData = map[string]string{
+				"namespaces": strings.Join(user.Namespaces, "\n"),
+			}
+		}
+
+		_, err = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
+		return err
+	})
 }
