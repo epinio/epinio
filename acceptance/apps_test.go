@@ -1016,6 +1016,13 @@ configuration:
 				By(fmt.Sprintf("LOG_ [%3d]: %s", idx, line))
 			}
 			By("----------------------------------")
+
+			// Skip correction dependent on coverage vs not.
+			logLength = logLength - 1
+			if _, ok := os.LookupEnv("EPINIO_COVERAGE"); ok {
+				logLength = logLength - 2
+			}
+			By(fmt.Sprintf("SKIP %d lines", logLength))
 		})
 
 		AfterEach(func() {
@@ -1050,7 +1057,7 @@ configuration:
 
 			By("get to the end of logs")
 			By("----------------------------------")
-			for i := 0; i < logLength-1; i++ {
+			for i := 0; i < logLength; i++ {
 				By(fmt.Sprintf("SCAN [%3d]", i))
 				scanner.Scan()
 				By(fmt.Sprintf("SKIP [%3d]: %s", i, scanner.Text()))
