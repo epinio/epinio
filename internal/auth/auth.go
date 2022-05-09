@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -29,6 +30,7 @@ type SecretInterface interface {
 }
 
 type AuthService struct {
+	sync.Mutex
 	SecretInterface
 }
 
@@ -135,6 +137,9 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 }
 
 func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
+	s.Lock()
+	defer s.Unlock()
+
 	userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 	if err != nil {
 		return err
