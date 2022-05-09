@@ -20,7 +20,7 @@ type User struct {
 	Role       string
 	Namespaces []string
 
-	secret *corev1.Secret
+	secretName string
 }
 
 // NewUserFromSecret create an Epinio User from a Secret
@@ -32,7 +32,7 @@ func NewUserFromSecret(secret corev1.Secret) User {
 		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
 		Namespaces: []string{},
 
-		secret: &secret,
+		secretName: secret.GetName(),
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {

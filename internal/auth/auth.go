@@ -135,18 +135,17 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 }
 
 func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
-	updatedUser := user
-
-	updatedUser.secret.StringData = make(map[string]string)
-	if len(user.Namespaces) > 0 {
-		updatedUser.secret.StringData["namespaces"] = strings.Join(user.Namespaces, "\n")
-	}
-
-	updatedSecret, err := s.SecretInterface.Update(ctx, updatedUser.secret, metav1.UpdateOptions{})
+	userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
-	updatedUser.secret = updatedSecret
 
-	return nil
+	if len(user.Namespaces) > 0 {
+		userSecret.StringData = map[string]string{
+			"namespaces": strings.Join(user.Namespaces, "\n"),
+		}
+	}
+
+	_, err = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
+	return err
 }
