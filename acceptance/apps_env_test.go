@@ -16,7 +16,10 @@ var _ = Describe("apps env", func() {
 	)
 
 	secret := func(ns, appname string) string {
-		n, err := proc.Kubectl("get", "secret", "--namespace", ns, appname+"-env", "-o", "jsonpath={.metadata.name}")
+		n, err := proc.Kubectl("get", "secret",
+			"--namespace", ns,
+			"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s,epinio.suse.org/area=environment", appname, ns),
+			"-o", "jsonpath={.items[].metadata.name")
 		if err != nil {
 			return ""
 		}

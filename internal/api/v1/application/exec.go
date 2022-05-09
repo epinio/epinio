@@ -45,7 +45,8 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 			"", http.StatusBadRequest)
 	}
 
-	podNames, err := application.NewWorkload(cluster, app.Meta).PodNames(ctx)
+	workload := application.NewWorkload(cluster, app.Meta)
+	podNames, err := workload.PodNames(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -72,7 +73,12 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		podToConnect = podNames[0]
 	}
 
-	proxyRequest(c.Writer, c.Request, podToConnect, namespace, appName, cluster.Kubectl)
+	deployment, err := workload.Deployment(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	proxyRequest(c.Writer, c.Request, podToConnect, namespace, deployment.Name, cluster.Kubectl)
 
 	return nil
 }
