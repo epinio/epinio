@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
+	"github.com/pkg/errors"
 	pkgerrors "github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -106,8 +107,20 @@ func (b AppConfigurationBindList) ToNames() []string {
 func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
 	var err error
 	if a.deployment == nil {
-		a.deployment, err = a.cluster.Kubectl.AppsV1().
-			Deployments(a.app.Namespace).Get(ctx, a.app.Name, metav1.GetOptions{})
+		depList, err := a.cluster.Kubectl.AppsV1().
+			Deployments(a.app.Namespace).List(ctx, metav1.ListOptions{
+			LabelSelector: fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", a.app.Name, a.app.Namespace),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(depList.Items) < 1 {
+			return nil, apierrors.NewNotFound(appsv1.Resource("deployment"), a.app.Name)
+		}
+		if len(depList.Items) > 1 {
+			return nil, errors.New("found more than one deployment for the application")
+		}
+		a.deployment = &depList.Items[0]
 	}
 
 	return a.deployment, err
@@ -202,6 +215,7 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 	}
 
 	return &models.AppDeployment{
+		Name:            deployment.Name,
 		Active:          true,
 		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
 		Replicas:        replicas,
@@ -247,7 +261,7 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo
 	for i, pod := range pods {
 		restarts := int32(0)
 		for _, cs := range pod.Status.ContainerStatuses {
-			if cs.Name == a.app.Name {
+			if cs.Name == a.deployment.Name {
 				restarts += cs.RestartCount
 			}
 		}

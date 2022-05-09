@@ -1,6 +1,8 @@
 package acceptance_test
 
 import (
+	"fmt"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/ginkgo/v2"
@@ -14,15 +16,22 @@ var _ = Describe("apps env", func() {
 	)
 
 	secret := func(ns, appname string) string {
-		n, err := proc.Kubectl("get", "secret", "--namespace", ns, appname+"-env", "-o", "jsonpath={.metadata.name}")
+		n, err := proc.Kubectl("get", "secret",
+			"--namespace", ns,
+			"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s,epinio.suse.org/area=environment", appname, ns),
+			"-o", "jsonpath={.items[].metadata.name")
 		if err != nil {
-			return ""
+			return err.Error()
 		}
 		return n
 	}
 
 	deployedEnv := func(ns, app string) string {
-		out, err := proc.Kubectl("get", "deployment", "--namespace", ns, app, "-o", "jsonpath={.spec.template.spec.containers[0].env}")
+		out, err := proc.Kubectl("get", "deployments",
+			"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", app, ns),
+			"--namespace", ns,
+			"-o", "jsonpath={.items[].spec.template.spec.containers[0].env}")
+
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
 	}

@@ -62,7 +62,7 @@ var _ = Describe("AppShow Endpoint", func() {
 		// Run `yes > /dev/null &` and expect at least 1000 millicpus
 		// https://winaero.com/how-to-create-100-cpu-load-in-linux/
 		out, err = proc.Kubectl("exec",
-			"--namespace", namespace, podNames[0], "--container", app,
+			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
 			"--", "bin/sh", "-c", "yes > /dev/null 2> /dev/null &")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Eventually(func() int64 {
@@ -71,13 +71,13 @@ var _ = Describe("AppShow Endpoint", func() {
 		}, "240s", "1s").Should(BeNumerically(">=", 900))
 		// Kill the "yes" process to bring CPU down again
 		out, err = proc.Kubectl("exec",
-			"--namespace", namespace, podNames[0], "--container", app,
+			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
 			"--", "killall", "-9", "yes")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Increase memory for 3 minutes to check memory metric
 		out, err = proc.Kubectl("exec",
-			"--namespace", namespace, podNames[0], "--container", app,
+			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
 			"--", "bin/bash", "-c", "cat <( </dev/zero head -c 50m) <(sleep 180) | tail")
 		Expect(err).ToNot(HaveOccurred(), out)
 		Eventually(func() int64 {
@@ -92,7 +92,7 @@ var _ = Describe("AppShow Endpoint", func() {
 
 		// Kill an app container and see the count increasing
 		out, err = proc.Kubectl("exec",
-			"--namespace", namespace, podNames[0], "--container", app,
+			"--namespace", namespace, podNames[0], "--container", appObj.Workload.Name,
 			"--", "bin/sh", "-c", "kill 1")
 		Expect(err).ToNot(HaveOccurred(), out)
 

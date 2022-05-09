@@ -27,15 +27,17 @@ func (m *Machine) BindAppConfiguration(appName, configurationName, namespace str
 }
 
 func (m *Machine) VerifyAppConfigurationBound(appName, configurationName, namespace string, offset int) {
-	out, err := proc.Kubectl("get", "deployment",
-		"--namespace", namespace, appName,
-		"-o", "jsonpath={.spec.template.spec.volumes}")
+	out, err := proc.Kubectl("get", "deployments",
+		"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+		"--namespace", namespace,
+		"-o", "jsonpath={.items[].spec.template.spec.volumes}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).To(MatchRegexp(configurationName))
 
-	out, err = proc.Kubectl("get", "deployment",
-		"--namespace", namespace, appName,
-		"-o", "jsonpath={.spec.template.spec.containers[0].volumeMounts}")
+	out, err = proc.Kubectl("get", "deployments",
+		"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+		"--namespace", namespace,
+		"-o", "jsonpath={.items[].spec.template.spec.containers[0].volumeMounts}")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("/configurations/" + configurationName))
 }
@@ -83,15 +85,17 @@ func (m *Machine) UnbindAppConfiguration(appName, configurationName, namespace s
 }
 
 func (m *Machine) VerifyAppConfigurationNotbound(appName, configurationName, namespace string, offset int) {
-	out, err := proc.Kubectl("get", "deployment",
-		"--namespace", namespace, appName,
-		"-o", "jsonpath={.spec.template.spec.volumes}")
+	out, err := proc.Kubectl("get", "deployments",
+		"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+		"--namespace", namespace,
+		"-o", "jsonpath={.items[].spec.template.spec.volumes}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp(configurationName))
 
-	out, err = proc.Kubectl("get", "deployment",
-		"--namespace", namespace, appName,
-		"-o", "jsonpath={.spec.template.spec.containers[0].volumeMounts}")
+	out, err = proc.Kubectl("get", "deployments",
+		"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+		"--namespace", namespace,
+		"-o", "jsonpath={.items[].spec.template.spec.containers[0].volumeMounts}")
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).ToNot(MatchRegexp("/configurations/" + configurationName))
 }

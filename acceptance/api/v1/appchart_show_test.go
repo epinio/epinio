@@ -29,12 +29,10 @@ var _ = Describe("ChartShow Endpoint", func() {
 		err = json.Unmarshal(bodyBytes, &appchart)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(appchart).To(Equal(models.AppChart{
-			Name:             "standard",
-			Description:      "Epinio standard support chart for application deployment",
-			ShortDescription: "Epinio standard deployment",
-			HelmChart:        "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.15/epinio-application-0.1.15.tgz",
-		}))
+		Expect(appchart.Name).To(Equal("standard"))
+		Expect(appchart.Description).To(Equal("Epinio standard support chart for application deployment"))
+		Expect(appchart.ShortDescription).To(Equal("Epinio standard deployment"))
+		Expect(appchart.HelmChart).To(MatchRegexp("https://github\\.com/epinio/helm-charts/releases/download/epinio-application-.*/epinio-application-.*\\.tgz"))
 	})
 
 	It("returns a 404 when the chart does not exist", func() {

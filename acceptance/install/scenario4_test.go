@@ -2,6 +2,7 @@ package install_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -144,7 +145,10 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() string {
-				out, err := proc.RunW("kubectl", "get", "deployment", "--namespace", testenv.DefaultWorkspace, appName, "-o", "jsonpath={.spec.template.spec.containers[0].env}")
+				out, err := proc.Kubectl("get", "deployments",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, testenv.DefaultWorkspace),
+					"--namespace", testenv.DefaultWorkspace,
+					"-o", "jsonpath={.items[].spec.template.spec.containers[0].env}")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}).Should(MatchRegexp("MYVAR"))

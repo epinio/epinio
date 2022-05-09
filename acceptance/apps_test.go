@@ -418,9 +418,10 @@ spec:
 		}
 
 		replicas := func(ns, name string) string {
-			n, err := proc.Kubectl("get", "deployment",
-				"--namespace", ns, name,
-				"-o", "jsonpath={.spec.replicas}")
+			n, err := proc.Kubectl("get", "deployments",
+				"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", name, ns),
+				"--namespace", ns,
+				"-o", "jsonpath={.items[].spec.replicas}")
 			if err != nil {
 				return ""
 			}
@@ -1116,9 +1117,9 @@ configuration:
 			Expect(err).ToNot(HaveOccurred())
 
 			remoteOut, err := proc.Kubectl("exec",
-				strings.TrimSpace(podName), "-n", namespace, "-c", appName,
+				strings.TrimSpace(podName), "-n", namespace,
 				"--", "cat", "/workspace/testfile")
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred(), remoteOut)
 
 			// The command we run should have effects
 			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"))

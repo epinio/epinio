@@ -3,67 +3,80 @@
 package names
 
 import (
-	"crypto/md5" // nolint:gosec // Non-crypto use
+	// nolint:gosec // Non-crypto use
+	"crypto/sha1"
 	"encoding/hex"
+	"fmt"
+	"regexp"
 	"strings"
-
-	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// ReleaseName returns the name of a helm release derived from the
-// base string.
-func ReleaseName(base string) string {
-	return TruncateMD5(base, 53)
+const (
+	Sha1sumLength = 40 // The length of a sha1sum checksum
+)
+
+var allowedDNSLabelChars = regexp.MustCompile("[^-a-z0-9]*")
+
+// DNSLabelSafe filters invalid characters and returns a string that is safe to
+// use as Kubernetes resource name.
+//
+// https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-label-names
+func DNSLabelSafe(name string) string {
+	name = strings.TrimLeft(name, "0123456789") // leading digits
+	name = strings.Replace(name, "_", "-", -1)
+	name = strings.ToLower(name)
+	name = allowedDNSLabelChars.ReplaceAllLiteralString(name, "")
+	name = strings.TrimLeft(name, "-")
+	name = strings.TrimRight(name, "-")
+	return name
 }
 
-// ConfigurationName returns the name of a kube configuration derived from the
-// base string. It ensures that things like leading digits are
-// sufficiently hidden to prevent kube from erroring out on the name.
-func ConfigurationName(base string) string {
-	return GenerateResourceName("s-" + base)
-}
-
-// IngressName returns the name of a kube ingress derived from the
-// base string. It ensures that things like leading digits are
-// sufficiently hidden to prevent kube from erroring out on the name.
-// It also replaces "/" characters with "-" to produce a valid resource
-// name from a route (which may contain "/" characters).
-func IngressName(base string) string {
-	baseSafe := strings.ReplaceAll(base, "/", "-")
-	return GenerateResourceName("i-" + baseSafe)
-}
-
-// GenerateResourceName joins the input strings with dots (".")  and
-// returns the result, suitably truncated to the maximum length of
-// kube resource names.
 func GenerateResourceName(names ...string) string {
-	return TruncateMD5(strings.Join(names, "."), 63)
+	originalName := strings.Join(names, "-")
+	return GenerateResourceNameTruncated(originalName, 63)
 }
 
-// GenerateDNS1123SubDomainName joins the input strings with dots (".")
-// and returns the result, suitably truncated to the maximum length
-// allowed for the domain names.
-func GenerateDNS1123SubDomainName(names ...string) string {
-	return TruncateMD5(strings.Join(names, "."), validation.DNS1123SubdomainMaxLength)
+// GenerateResourceNameTruncated joins the input strings with dashes("-")
+// and returns the checksum of the produced string after removing
+// any characters that are invalid for kubernetes resource names
+// and prefixing the checksum with up to (maxLen - Sha1sumLength) characters of the original
+// string. It concatenates the prefix with the checksum with a "-".
+// This way the generated name:
+// - is always valid for a resource name
+// - is never longer than maxLen characters
+// - has low probability of collisions
+// NOTE: Since the checksum must always be included, this function shouldn't be used
+// to produce names shorter than Sha1sumLength characters.
+func GenerateResourceNameTruncated(originalName string, maxLen int) string {
+	sumArray := sha1.Sum([]byte(originalName)) // nolint:gosec // Non-crypto use
+	sum := hex.EncodeToString(sumArray[:])
+
+	if maxLen < Sha1sumLength {
+		panic(fmt.Sprintf("shouldn't try to generate a resource name shorter than %d characters", Sha1sumLength))
+	}
+
+	// Don't prefix anything if we don't have enough room for at least a
+	// letter from the originalName plus the dash "-" to separate it from the checksum
+	if maxLen < 42 {
+		return sum
+	}
+
+	safePrefix := Truncate(DNSLabelSafe(originalName), (maxLen - (Sha1sumLength + 1)))
+
+	return fmt.Sprintf("%s-%s", safePrefix, sum)
 }
 
-// TruncateMD5 truncates the input string s to the maxLen, if
-// necessary. Shorter strings are passed through unchanged. Truncation
-// is done by computing an MD5 hash over the __entire__ string and
-// then combining it with the (maxLen-32)-sized prefix of the
-// input. This result in a string of exactly maxLen characters.  The
-// magic 32 is the length of the 16 byte MD5 hash in hex characters.
-func TruncateMD5(s string, maxLen int) string {
+// ReleaseName returns the name of a helm release derived from the base string.
+func ReleaseName(base string) string {
+	return GenerateResourceNameTruncated(base, 53)
+}
+
+// Truncate truncates the input string s to the maxLen, if
+// necessary. Shorter strings are passed through unchanged.
+func Truncate(s string, maxLen int) string {
 	if len(s) <= maxLen {
 		return s
 	}
 
-	sumHex := md5.Sum([]byte(s)) // nolint:gosec // Non-crypto use
-	sum := hex.EncodeToString(sumHex[:])
-	suffix := "-" + sum
-	suffixLen := len(suffix)
-
-	front := maxLen - suffixLen
-
-	return s[:front] + suffix
+	return s[:maxLen]
 }
