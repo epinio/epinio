@@ -1094,9 +1094,9 @@ configuration:
 			Expect(err).ToNot(HaveOccurred())
 
 			remoteOut, err := proc.Kubectl("exec",
-				strings.TrimSpace(podName), "-n", namespace, "-c", appName,
+				strings.TrimSpace(podName), "-n", namespace,
 				"--", "cat", "/workspace/testfile")
-			Expect(err).ToNot(HaveOccurred())
+			Expect(err).ToNot(HaveOccurred(), remoteOut)
 
 			// The command we run should have effects
 			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"))

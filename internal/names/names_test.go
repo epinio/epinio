@@ -12,14 +12,14 @@ import (
 
 var _ = Describe("Names", func() {
 	Describe("DNSLabelSafe", func() {
-		var invalidName string
-
-		BeforeEach(func() {
-			invalidName = "this-is.-un.a-cceptable"
+		It("removes characters that are invalid in kubernetes resource names", func() {
+			invalidName := "this-is.-un.a-cceptable"
+			Expect(DNSLabelSafe(invalidName)).To(Equal("this-is-una-cceptable"))
 		})
 
-		It("removes characters that are invalid in kubernetes resource names", func() {
-			Expect(DNSLabelSafe(invalidName)).To(Equal("this-is-una-cceptable"))
+		It("removes leading digits", func() {
+			invalidName := "123epinio-is-awesome"
+			Expect(DNSLabelSafe(invalidName)).To(Equal("epinio-is-awesome"))
 		})
 	})
 
