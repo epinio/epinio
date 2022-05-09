@@ -30,13 +30,10 @@ var _ = Describe("ChartList Endpoint", func() {
 		err = json.Unmarshal(bodyBytes, &appcharts)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(appcharts).To(ContainElements(models.AppChartList{
-			models.AppChart{
-				Name:             "standard",
-				Description:      "Epinio standard support chart for application deployment",
-				ShortDescription: "Epinio standard deployment",
-				HelmChart:        "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.16/epinio-application-0.1.16.tgz",
-			},
-		}))
+		Expect(len(appcharts)).To(Equal(1))
+		Expect(appcharts[0].Name).To(Equal("standard"))
+		Expect(appcharts[0].Description).To(Equal("Epinio standard support chart for application deployment"))
+		Expect(appcharts[0].ShortDescription).To(Equal("Epinio standard deployment"))
+		Expect(appcharts[0].HelmChart).To(MatchRegexp("https://github\\.com/epinio/helm-charts/releases/download/epinio-application-.*/epinio-application-.*\\.tgz"))
 	})
 })

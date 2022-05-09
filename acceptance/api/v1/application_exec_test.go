@@ -78,14 +78,23 @@ var _ = Describe("AppExec Endpoint", func() {
 				// Run the command
 				cmdStr := "echo testing-epinio > /workspace/test-echo"
 				command := append([]byte{0}, []byte(cmdStr)...)
-				err = wsConn.WriteMessage(websocket.TextMessage, command)
+				err = wsConn.WriteMessage(websocket.BinaryMessage, command)
 				Expect(err).ToNot(HaveOccurred())
 
-				_, messageBytes, err = wsConn.ReadMessage()
-				Expect(err).ToNot(HaveOccurred())
+				messageBytes = []byte{} // Empty the slice
+				// When we hit the "end of the terminal width" we will get a carriage return
+				// along with the last character again. Resizing the terminal is complicated
+				// and we avoid this here with this trick. The number of characters we can
+				// write before we get a carriage return (ascii 13) depends on the size
+				// of the prompt, which in turn depends on the name of the Pod.
+				replaceRegex := regexp.MustCompile(`.\r`)
+				Eventually(func() string {
+					_, newBytes, err := wsConn.ReadMessage()
+					Expect(err).ToNot(HaveOccurred())
 
-				// It prints command to stdout
-				Expect(string(messageBytes)).To(ContainSubstring(cmdStr))
+					messageBytes = append(messageBytes, newBytes[1:]...) // Skip the "channel" byte
+					return replaceRegex.ReplaceAllString(string(messageBytes), "")
+				}, "20s", "1s").Should(MatchRegexp(cmdStr))
 
 				// Exit the terminal
 				cmdStr = "\nexit\n"
@@ -100,7 +109,7 @@ var _ = Describe("AppExec Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				out, err = proc.Kubectl("exec",
-					strings.TrimSpace(out), "-n", namespace, "-c", appName,
+					strings.TrimSpace(out), "-n", namespace,
 					"--", "cat", "/workspace/test-echo")
 				Expect(err).ToNot(HaveOccurred(), out)
 

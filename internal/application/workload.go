@@ -261,7 +261,7 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo
 	for i, pod := range pods {
 		restarts := int32(0)
 		for _, cs := range pod.Status.ContainerStatuses {
-			if cs.Name == a.app.Name {
+			if cs.Name == a.deployment.Name {
 				restarts += cs.RestartCount
 			}
 		}
