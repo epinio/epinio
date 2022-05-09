@@ -992,10 +992,13 @@ configuration:
 		)
 
 		BeforeEach(func() {
+			By("deploying an app")
+
 			out := env.MakeApp(appName, 1, true)
 			routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
 			route = string(routeRegexp.Find([]byte(out)))
 
+			By("getting the current logs in full")
 			out, err := env.Epinio("", "app", "logs", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
@@ -1005,9 +1008,25 @@ configuration:
 			}
 			logs := strings.Split(out, "\n")
 			logLength = len(logs)
+
+			By("----------------------------------")
+			By(fmt.Sprintf("LOGS = %d lines", logLength))
+
+			for idx, line := range logs {
+				By(fmt.Sprintf("LOG_ [%3d]: %s", idx, line))
+			}
+			By("----------------------------------")
+
+			// Skip correction dependent on coverage vs not.
+			logLength = logLength - 1
+			if _, ok := os.LookupEnv("EPINIO_COVERAGE"); ok {
+				logLength = logLength - 2
+			}
+			By(fmt.Sprintf("SKIP %d lines", logLength))
 		})
 
 		AfterEach(func() {
+			By("removing the app")
 			env.DeleteApp(appName)
 		})
 
@@ -1035,11 +1054,15 @@ configuration:
 
 			By("read all the logs")
 			scanner := bufio.NewScanner(reader)
+
 			By("get to the end of logs")
-			for i := 0; i < logLength-1; i++ {
+			By("----------------------------------")
+			for i := 0; i < logLength; i++ {
+				By(fmt.Sprintf("SCAN [%3d]", i))
 				scanner.Scan()
-				scanner.Text()
+				By(fmt.Sprintf("SKIP [%3d]: %s", i, scanner.Text()))
 			}
+			By("----------------------------------")
 
 			By("adding new logs")
 			// Theoretically "Eventually" shouldn't be required. http 200 should be
