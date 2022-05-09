@@ -2,6 +2,7 @@ package install_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"time"
 
@@ -136,7 +137,10 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Eventually(func() string {
-				out, err := proc.RunW("kubectl", "get", "deployment", "--namespace", testenv.DefaultWorkspace, appName, "-o", "jsonpath={.spec.replicas}")
+				out, err := proc.Kubectl("get", "deployments",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, testenv.DefaultWorkspace),
+					"--namespace", testenv.DefaultWorkspace,
+					"-o", "jsonpath={.items[].spec.replicas}")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
 			}, "30s", "1s").Should(Equal("0"))
