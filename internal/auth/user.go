@@ -20,7 +20,7 @@ type User struct {
 	Role       string
 	Namespaces []string
 
-	secret *corev1.Secret
+	secretName string
 }
 
 // NewUserFromSecret create an Epinio User from a Secret
@@ -32,7 +32,7 @@ func NewUserFromSecret(secret corev1.Secret) User {
 		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
 		Namespaces: []string{},
 
-		secret: &secret,
+		secretName: secret.GetName(),
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {
@@ -48,6 +48,7 @@ func NewUserFromSecret(secret corev1.Secret) User {
 	return user
 }
 
+// AddNamespace adds the namespace to the User's namespaces, if not already exists
 func (u *User) AddNamespace(namespace string) {
 	if namespace == "" {
 		return
@@ -62,16 +63,22 @@ func (u *User) AddNamespace(namespace string) {
 	u.Namespaces = append(u.Namespaces, namespace)
 }
 
-func (u *User) RemoveNamespace(namespace string) {
+// RemoveNamespace removes a namespace from the User's namespaces.
+// It returns false if the namespace was not there
+func (u *User) RemoveNamespace(namespace string) bool {
 	updatedNamespaces := []string{}
+	removed := false
 
 	for _, ns := range u.Namespaces {
 		if ns != namespace {
 			updatedNamespaces = append(updatedNamespaces, ns)
+		} else {
+			removed = true
 		}
 	}
 
 	u.Namespaces = updatedNamespaces
+	return removed
 }
 
 // MakeGinAccountsFromUsers is a utility func to convert the Epinio users to gin.Accounts,

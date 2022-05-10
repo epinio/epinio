@@ -131,11 +131,78 @@ var _ = Describe("Auth users", func() {
 			})
 		})
 	})
+
+	Describe("AddNamespaceToUser", func() {
+
+		When("user doesn't have the namespace", func() {
+			It("will be added", func() {
+				userSecrets := []corev1.Secret{
+					newUserSecret("user1", "password", "admin", ""),
+					newUserSecret("user2", "password", "user", "workspace\nworkspace2"),
+					newUserSecret("user3", "password", "user", "workspace"),
+				}
+
+				// setup mock
+				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
+				fake.GetReturns(&userSecrets[1], nil)
+				updatedUserSecret := newUserSecret("user3", "password", "user", "workspace\nworkspace2")
+				fake.UpdateReturns(&updatedUserSecret, nil)
+
+				// do test
+				err := authService.AddNamespaceToUser(context.Background(), "user3", "workspace2")
+				Expect(err).ToNot(HaveOccurred())
+
+				_, secretName, _ := fake.GetArgsForCall(0)
+				Expect(secretName).To(Equal("user3"))
+
+				_, secret, _ := fake.UpdateArgsForCall(0)
+				Expect(secret.StringData).To(HaveLen(1))
+				Expect(secret.StringData["namespaces"]).To(Equal("workspace\nworkspace2"))
+			})
+		})
+	})
+
+	Describe("RemoveNamespaceFromUsers", func() {
+
+		When("users have the namespace", func() {
+			It("will be removed", func() {
+				userSecrets := []corev1.Secret{
+					newUserSecret("user1", "password", "admin", ""),
+					newUserSecret("user2", "password", "user", "workspace\nworkspace2"),
+					newUserSecret("user3", "password", "user", "workspace"),
+				}
+
+				// setup mock
+				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
+
+				fake.GetReturnsOnCall(0, &userSecrets[1], nil)
+				updatedUser2 := newUserSecret("user2", "password", "user", "workspace2")
+				fake.UpdateReturnsOnCall(0, &updatedUser2, nil)
+
+				fake.GetReturnsOnCall(1, &userSecrets[2], nil)
+				updatedUser3 := newUserSecret("user3", "password", "user", "")
+				fake.UpdateReturnsOnCall(1, &updatedUser3, nil)
+
+				// do test
+				err := authService.RemoveNamespaceFromUsers(context.Background(), "workspace")
+				Expect(err).ToNot(HaveOccurred())
+
+				_, secretName, _ := fake.GetArgsForCall(0)
+				Expect(secretName).To(Equal("user2"))
+
+				_, secretName, _ = fake.GetArgsForCall(1)
+				Expect(secretName).To(Equal("user3"))
+
+				Expect(fake.GetCallCount()).To(Equal(2))
+			})
+		})
+	})
 })
 
 func newUserSecret(username, password, role, namespaces string) corev1.Secret {
 	return corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
+			Name: username,
 			Labels: map[string]string{
 				kubernetes.EpinioAPISecretRoleLabelKey: role,
 			},
