@@ -18,12 +18,14 @@ func (c *EpinioClient) ServiceCatalog() error {
 		return errors.Wrap(err, "service catalog failed")
 	}
 
-	msg := c.ui.Success().WithTable("Name", "Description")
+	msg := c.ui.Success().WithTable("Name", "Repo", "Chart", "Description")
 
-	for _, name := range catalog.CatalogServices {
+	for _, service := range catalog.CatalogServices {
 		msg = msg.WithTableRow(
-			name.Name,
-			name.ShortDescription,
+			service.Name,
+			service.HelmRepo.URL,
+			service.HelmChart,
+			service.ShortDescription,
 		)
 	}
 
@@ -53,6 +55,9 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 		WithTableRow("Name", service.Name).
 		WithTableRow("Short Description", service.ShortDescription).
 		WithTableRow("Description", service.Description).
+		WithTableRow("Helm Chart", service.HelmChart).
+		WithTableRow("Helm Repository", service.HelmRepo.URL).
+		WithTableRow("Chart Values", service.Values).
 		Msg("Epinio Service:")
 
 	return nil
