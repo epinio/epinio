@@ -107,7 +107,12 @@ func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace st
 
 	errorMessages := []string{}
 	for _, user := range users {
-		user.RemoveNamespace(namespace)
+		removed := user.RemoveNamespace(namespace)
+		// namespace was not in the Users namespaces
+		if !removed {
+			continue
+		}
+
 		err = s.updateUserSecret(ctx, user)
 		if err != nil {
 			errorMessages = append(errorMessages, err.Error())
