@@ -77,48 +77,48 @@ var _ = Describe("Users Namespace", func() {
 				env.DeleteNamespace(namespaceAdmin)
 			})
 
-			When("user1 try to show a namespace", func() {
-				It("can show his namespace", func() {
+			When("user1 tries to show a namespace", func() {
+				It("shows the user's namespace", func() {
 					response := showNamespace(user1, passwordUser1, namespaceUser1)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 				})
 
-				It("cannot show user2 namespace", func() {
+				It("doesn't show the other user's namespace", func() {
 					response := showNamespace(user1, passwordUser1, namespaceUser2)
 					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
 					response.Body.Close()
 				})
 
-				It("cannot show userAdmin namespace", func() {
+				It("doesn't show the admin's namespace", func() {
 					response := showNamespace(user1, passwordUser1, namespaceAdmin)
 					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
 					response.Body.Close()
 				})
 			})
 
-			When("user2 try to show a namespace", func() {
-				It("can show his namespace", func() {
+			When("user2 tries to show a namespace", func() {
+				It("shows the user's namespace", func() {
 					response := showNamespace(user2, passwordUser2, namespaceUser2)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 				})
 
-				It("cannot show user1 namespace", func() {
+				It("doesn't show the other user's namespace", func() {
 					response := showNamespace(user2, passwordUser2, namespaceUser1)
 					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
 					response.Body.Close()
 				})
 
-				It("cannot show userAdmin namespace", func() {
+				It("doesn't show the admin's namespace", func() {
 					response := showNamespace(user2, passwordUser2, namespaceAdmin)
 					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
 					response.Body.Close()
 				})
 			})
 
-			When("userAdmin try to show a namespace", func() {
-				It("can show every namespace", func() {
+			When("an admin user tries to show a namespace", func() {
+				It("shows every namespace", func() {
 					response := showNamespace(userAdmin, passwordAdmin, namespaceUser1)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
@@ -133,7 +133,7 @@ var _ = Describe("Users Namespace", func() {
 				})
 			})
 
-			When("user1 delete its namespace and user2 recreate the same namespace", func() {
+			When("a user deletes a namespace and another user recreates the same namespace", func() {
 				var commonNamespace string
 				BeforeEach(func() {
 					commonNamespace = catalog.NewNamespaceName()
@@ -141,16 +141,15 @@ var _ = Describe("Users Namespace", func() {
 					env.DeleteNamespace(commonNamespace)
 					createNamespace(user2, passwordUser2, commonNamespace)
 
-					fmt.Printf("User1 [%s] - User2 [%s] - namespace [%s]", user1, user2, commonNamespace)
 				})
 
-				It("can show his namespace", func() {
+				It("shows the user's namespace", func() {
 					response := showNamespace(user2, passwordUser2, commonNamespace)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 				})
 
-				It("user1 cannot show user2 namespace", func() {
+				It("doesn't show the other user's namespace", func() {
 					response := showNamespace(user1, passwordUser1, commonNamespace)
 					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
 					response.Body.Close()
