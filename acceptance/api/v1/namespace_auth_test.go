@@ -97,26 +97,6 @@ var _ = Describe("Users Namespace", func() {
 				})
 			})
 
-			When("user2 tries to show a namespace", func() {
-				It("shows the user's namespace", func() {
-					response := showNamespace(user2, passwordUser2, namespaceUser2)
-					Expect(response.StatusCode).To(Equal(http.StatusOK))
-					response.Body.Close()
-				})
-
-				It("doesn't show the other user's namespace", func() {
-					response := showNamespace(user2, passwordUser2, namespaceUser1)
-					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
-					response.Body.Close()
-				})
-
-				It("doesn't show the admin's namespace", func() {
-					response := showNamespace(user2, passwordUser2, namespaceAdmin)
-					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
-					response.Body.Close()
-				})
-			})
-
 			When("an admin user tries to show a namespace", func() {
 				It("shows every namespace", func() {
 					response := showNamespace(userAdmin, passwordAdmin, namespaceUser1)
