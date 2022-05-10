@@ -6,13 +6,13 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -36,7 +36,7 @@ type AuthService struct {
 func NewAuthServiceFromContext(ctx context.Context) (*AuthService, error) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error getting kubernetes cluster")
 	}
 
 	return &AuthService{
@@ -48,7 +48,7 @@ func NewAuthServiceFromContext(ctx context.Context) (*AuthService, error) {
 func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 	secrets, err := s.getUsersSecrets(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error getting users secrets")
 	}
 
 	users := []User{}
@@ -64,7 +64,7 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
 	users, err := s.GetUsers(ctx)
 	if err != nil {
-		return User{}, err
+		return User{}, errors.Wrap(err, "error getting users")
 	}
 
 	for _, user := range users {
@@ -79,28 +79,30 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 func (s *AuthService) GetUsersByAge(ctx context.Context) ([]User, error) {
 	users, err := s.GetUsers(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error getting users")
 	}
 	sort.Sort(ByCreationTime(users))
 
 	return users, nil
 }
 
+// AddNamespaceToUser will add to the User the specified namespace
 func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespace string) error {
 	user, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf("error getting user [%s] by username", username))
 	}
 	user.AddNamespace(namespace)
 
 	err = s.updateUserSecret(ctx, user)
-	return err
+	return errors.Wrap(err, fmt.Sprintf("error updating user secret [%s]", username))
 }
 
+// RemoveNamespaceFromUsers will remove the specified namespace from all the users
 func (s *AuthService) RemoveNamespaceFromUsers(ctx context.Context, namespace string) error {
 	users, err := s.GetUsers(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error getting users")
 	}
 
 	errorMessages := []string{}
@@ -129,7 +131,7 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 		LabelSelector: secretSelector,
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error getting the list of the user secrets")
 	}
 
 	return secretList.Items, nil
@@ -139,7 +141,7 @@ func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 		if err != nil {
-			return err
+			return errors.Wrap(err, fmt.Sprintf("error getting the user secret [%s]", user.Username))
 		}
 
 		if len(user.Namespaces) > 0 {
@@ -149,6 +151,6 @@ func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 		}
 
 		_, err = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
-		return err
+		return errors.Wrap(err, fmt.Sprintf("error updating the user secret [%s]", userSecret.GetName()))
 	})
 }

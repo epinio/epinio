@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -146,12 +147,12 @@ func deleteServices(ctx context.Context, cluster *kubernetes.Cluster, namespace 
 func deleteNamespaceFromUsers(ctx context.Context, namespace string) error {
 	authService, err := auth.NewAuthServiceFromContext(ctx)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error creating auth service")
 	}
 
 	err = authService.RemoveNamespaceFromUsers(ctx, namespace)
 	if err != nil {
-		return err
+		return errors.Wrap(err, fmt.Sprintf("error removing namespace [%s] from users", namespace))
 	}
 
 	return nil
