@@ -1,6 +1,8 @@
 package usercmd
 
 import (
+	"strings"
+
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 )
@@ -18,7 +20,7 @@ func (c *EpinioClient) ServiceCatalog() error {
 		return errors.Wrap(err, "service catalog failed")
 	}
 
-	msg := c.ui.Success().WithTable("Name", "Repo", "Chart", "Description")
+	msg := c.ui.Success().WithTable("Name", "Repository", "Chart", "Description")
 
 	for _, service := range catalog.CatalogServices {
 		msg = msg.WithTableRow(
@@ -51,13 +53,23 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 
 	service := catalogShowResponse.CatalogService
 
+	helmChartName := service.HelmChart
+	helmChartVersion := ""
+	pieces := strings.SplitN(helmChartName, ":", 2)
+	if len(pieces) == 2 {
+		helmChartVersion = pieces[1]
+		helmChartName = pieces[0]
+	}
+
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", service.Name).
 		WithTableRow("Short Description", service.ShortDescription).
 		WithTableRow("Description", service.Description).
-		WithTableRow("Helm Chart", service.HelmChart).
-		WithTableRow("Helm Repository", service.HelmRepo.URL).
-		WithTableRow("Chart Values", service.Values).
+		WithTableRow("Helm", "").
+		WithTableRow("- Repository", service.HelmRepo.URL).
+		WithTableRow("- Chart", helmChartName).
+		WithTableRow("- Version", helmChartVersion).
+		WithTableRow("- Values", service.Values).
 		Msg("Epinio Service:")
 
 	return nil
@@ -69,7 +81,10 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string) err
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().Msg("Creating Service...")
+	c.ui.Note().
+		WithStringValue("Class", catalogServiceName).
+		WithStringValue("Service", serviceName).
+		Msg("Creating Service...")
 
 	request := &models.ServiceCreateRequest{
 		CatalogService: catalogServiceName,
