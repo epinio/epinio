@@ -63,7 +63,10 @@ func (r *RailsApp) CreateDir() error {
 
 var _ = Describe("RubyOnRails", func() {
 	var rails RailsApp
+	var serviceName string
+	var catalogName string
 	var configurationName string
+	var newHost string
 
 	BeforeEach(func() {
 		// Hardcode the contents of `config/credentials.yml.enc to avoid having to
@@ -89,29 +92,37 @@ var _ = Describe("RubyOnRails", func() {
 		out, err = env.Epinio("", "apps", "env", "set", rails.Name, "RAILS_MASTER_KEY", rails.MasterKey)
 		Expect(err).ToNot(HaveOccurred(), out)
 
+		// Create a custom service catalog
+		serviceName = names.Truncate(catalog.NewServiceName(), 20)
+		catalogName = names.Truncate(catalog.NewCatalogServiceName(), 20)
+
+		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/myname/%s/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
+		Expect(err).ToNot(HaveOccurred(), out)
+
+		out, err = proc.Kubectl("apply", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
+		Expect(err).ToNot(HaveOccurred(), out)
+
 		// Create a database for Rails
-		out, err = proc.Run("", false, "helm", "repo", "add", "bitnami", "https://charts.bitnami.com/bitnami")
+		out, err = env.Epinio("", "service", "create", catalogName, serviceName)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		// Update helm repos
-		out, err = proc.Run("", false, "helm", "repo", "update")
+		Eventually(func() string {
+			out, _ := env.Epinio("", "service", "show", serviceName)
+			return out
+		}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+
+		// Bind the database to app
+		out, err = env.Epinio("", "service", "bind", serviceName, rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		configurationName = names.Truncate(catalog.NewConfigurationName(), 40)
-		out, err = proc.Run("", false,
-			"helm", "install", configurationName, "bitnami/postgresql", "--version", "10.12.0", "-n", rails.Namespace,
-			"--set", "postgresqlDatabase=production",
-			"--set", "postgresqlUsername=myuser",
-			"--set", "postgresqlPassword=mypassword",
-			"--set", "volumePermissions.enabled=true")
-		Expect(err).ToNot(HaveOccurred(), out)
+		// Update the configuration
+		configurationName = fmt.Sprintf("%s-%s-postgresql", rails.Namespace, serviceName)
+		newHost = fmt.Sprintf("%s.%s.svc.cluster.local", configurationName, rails.Namespace)
 
-		out, err = env.Epinio("", "configuration", "create", configurationName,
-			"username", "myuser",
-			"password", "mypassword",
-			"host", fmt.Sprintf("%s-postgresql.%s.svc.cluster.local", configurationName, rails.Namespace),
-			"port", "5432",
-		)
+		out, err = env.Epinio("", "configurations", "update", configurationName,
+			"--set", "host="+newHost,
+			"--set", "port=5432",
+			"--set", "username=myuser")
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Change Rails database configuration to match the configuration name
@@ -120,18 +131,20 @@ var _ = Describe("RubyOnRails", func() {
 	})
 
 	AfterEach(func() {
-		env.DeleteConfigurationUnbind(configurationName)
-		out, err := proc.Run("", false, "helm", "delete", configurationName, "-n", rails.Namespace)
+		// Delete my custom service catalog
+		out, err := proc.Kubectl("delete", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
+		Expect(err).ToNot(HaveOccurred(), out)
+		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/%s/myname/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
+		env.DeleteService(serviceName)
 		env.DeleteApp(rails.Name)
 		env.DeleteNamespace(rails.Namespace)
 	})
 
 	It("can deploy Rails", func() {
 		out, err := env.EpinioPush(rails.Dir, rails.Name,
-			"--name", rails.Name,
-			"--bind", configurationName)
+			"--name", rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		route := testenv.AppRouteFromOutput(out)
