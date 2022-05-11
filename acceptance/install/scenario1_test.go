@@ -60,7 +60,7 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 			// Check that an IP address for LB is configured
 			status := &testenv.LoadBalancerHostname{}
 			err = json.Unmarshal([]byte(out), status)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
 			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
 			Expect(loadbalancer).ToNot(BeEmpty())
@@ -84,7 +84,7 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 
 				answer := &route53.DNSAnswer{}
 				err = json.Unmarshal([]byte(out), answer)
-				Expect(err).NotTo(HaveOccurred())
+				Expect(err).NotTo(HaveOccurred(), out)
 				if len(answer.RecordData) == 0 {
 					return ""
 				}
