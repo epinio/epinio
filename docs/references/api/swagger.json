@@ -1673,11 +1673,20 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "CatalogService": {
+      "description": "CatalogService matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
+        "appVersion": {
+          "type": "string",
+          "x-go-name": "AppVersion"
+        },
         "chart": {
           "type": "string",
           "x-go-name": "HelmChart"
+        },
+        "chartVersion": {
+          "type": "string",
+          "x-go-name": "ChartVersion"
         },
         "description": {
           "type": "string",
@@ -2134,7 +2143,6 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ServiceCreateRequest": {
-      "description": "Service matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
         "catalog_service": {
