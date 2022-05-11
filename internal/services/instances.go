@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/helm"
@@ -81,14 +80,6 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 
 func (s *ServiceClient) Create(ctx context.Context, namespace, name string, catalogService models.CatalogService) error {
 
-	helmChartName := catalogService.HelmChart
-	helmChartVersion := ""
-	pieces := strings.SplitN(helmChartName, ":", 2)
-	if len(pieces) == 2 {
-		helmChartVersion = pieces[1]
-		helmChartName = pieces[0]
-	}
-
 	helmChart := &helmapiv1.HelmChart{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "helm.cattle.io/v1",
@@ -105,8 +96,8 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 		},
 		Spec: helmapiv1.HelmChartSpec{
 			TargetNamespace: namespace,
-			Chart:           helmChartName,
-			Version:         helmChartVersion,
+			Chart:           catalogService.HelmChart,
+			Version:         catalogService.ChartVersion,
 			Repo:            catalogService.HelmRepo.URL,
 			ValuesContent:   catalogService.Values,
 		},

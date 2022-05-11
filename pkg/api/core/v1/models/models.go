@@ -246,18 +246,20 @@ type ServiceCatalogShowResponse struct {
 	CatalogService *CatalogService `json:"catalog_service,omitempty"`
 }
 
-// Service matches github.com/epinio/application/api/v1 ServiceSpec
-// Reason for existence: Do not expose the internal CRD struct in the API.
 type ServiceCreateRequest struct {
 	CatalogService string `json:"catalog_service,omitempty"`
 	Name           string `json:"name,omitempty"`
 }
 
+// CatalogService matches github.com/epinio/application/api/v1 ServiceSpec
+// Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
 	Name             string   `json:"name,omitempty"`
 	Description      string   `json:"description,omitempty"`
 	ShortDescription string   `json:"short_description,omitempty"`
 	HelmChart        string   `json:"chart,omitempty"`
+	ChartVersion     string   `json:"chartVersion,omitempty"`
+	AppVersion       string   `json:"appVersion,omitempty"`
 	HelmRepo         HelmRepo `json:"helm_repo,omitempty"`
 	Values           string   `json:"values,omitempty"`
 }

@@ -1,8 +1,6 @@
 package usercmd
 
 import (
-	"strings"
-
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 )
@@ -23,15 +21,9 @@ func (c *EpinioClient) ServiceCatalog() error {
 	msg := c.ui.Success().WithTable("Name", "Version", "Description")
 
 	for _, service := range catalog.CatalogServices {
-		chartVersion := "implied latest"
-		pieces := strings.SplitN(service.HelmChart, ":", 2)
-		if len(pieces) == 2 {
-			chartVersion = pieces[1]
-		}
-
 		msg = msg.WithTableRow(
 			service.Name,
-			chartVersion,
+			service.AppVersion,
 			service.ShortDescription,
 		)
 	}
@@ -58,15 +50,9 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 
 	service := catalogShowResponse.CatalogService
 
-	chartVersion := "implied latest"
-	pieces := strings.SplitN(service.HelmChart, ":", 2)
-	if len(pieces) == 2 {
-		chartVersion = pieces[1]
-	}
-
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", service.Name).
-		WithTableRow("Version", chartVersion).
+		WithTableRow("Version", service.AppVersion).
 		WithTableRow("Short Description", service.ShortDescription).
 		WithTableRow("Description", service.Description).
 		Msg("Epinio Service:")
