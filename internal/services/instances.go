@@ -79,6 +79,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 }
 
 func (s *ServiceClient) Create(ctx context.Context, namespace, name string, catalogService models.CatalogService) error {
+
 	helmChart := &helmapiv1.HelmChart{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "helm.cattle.io/v1",
@@ -96,6 +97,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 		Spec: helmapiv1.HelmChartSpec{
 			TargetNamespace: namespace,
 			Chart:           catalogService.HelmChart,
+			Version:         catalogService.ChartVersion,
 			Repo:            catalogService.HelmRepo.URL,
 			ValuesContent:   catalogService.Values,
 		},

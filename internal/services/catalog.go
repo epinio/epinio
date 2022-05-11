@@ -77,6 +77,8 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 		Description:      catalogService.Spec.Description,
 		ShortDescription: catalogService.Spec.ShortDescription,
 		HelmChart:        catalogService.Spec.HelmChart,
+		ChartVersion:     catalogService.Spec.ChartVersion,
+		AppVersion:       catalogService.Spec.AppVersion,
 		HelmRepo: models.HelmRepo{
 			Name: catalogService.Spec.HelmRepo.Name,
 			URL:  catalogService.Spec.HelmRepo.URL,
