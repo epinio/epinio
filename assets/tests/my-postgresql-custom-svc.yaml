@@ -6,7 +6,7 @@ metadata:
     meta.helm.sh/release-namespace: epinio
   labels:
     app.kubernetes.io/managed-by: Helm
-  name: my-postgresql
+  name: myname
   namespace: epinio
 spec:
   chart: postgresql
@@ -18,7 +18,7 @@ spec:
   helmRepo:
     name: bitnami
     url: https://charts.bitnami.com/bitnami
-  name: my-postgresql
+  name: myname
   shortDescription: A PostgreSQL service that can be used during development
   values: |-
     global:

@@ -64,6 +64,7 @@ func (r *RailsApp) CreateDir() error {
 var _ = Describe("RubyOnRails", func() {
 	var rails RailsApp
 	var serviceName string
+	var catalogName string
 	var configurationName string
 	var newHost string
 
@@ -92,13 +93,17 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Create a custom service catalog
+		serviceName = names.Truncate(catalog.NewServiceName(), 20)
+		catalogName = names.Truncate(catalog.NewCatalogServiceName(), 20)
+
+		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/myname/%s/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
+		Expect(err).ToNot(HaveOccurred(), out)
+
 		out, err = proc.Kubectl("apply", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		serviceName = names.Truncate(catalog.NewCatalogServiceName(), 40)
-
 		// Create a database for Rails
-		out, err = env.Epinio("", "service", "create", "my-postgresql", serviceName)
+		out, err = env.Epinio("", "service", "create", catalogName, serviceName)
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		Eventually(func() string {
@@ -128,6 +133,8 @@ var _ = Describe("RubyOnRails", func() {
 	AfterEach(func() {
 		// Delete my custom service catalog
 		out, err := proc.Kubectl("delete", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
+		Expect(err).ToNot(HaveOccurred(), out)
+		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/%s/myname/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		env.DeleteService(serviceName)
