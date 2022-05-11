@@ -1091,6 +1091,13 @@
             "name": "Configuration",
             "in": "path",
             "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ConfigurationDeleteRequest"
+            }
           }
         ],
         "responses": {
@@ -1475,7 +1482,6 @@
       "type": "object",
       "properties": {
         "active": {
-          "description": "TODO: Readiness and Liveness fields?",
           "type": "boolean",
           "x-go-name": "Active"
         },
@@ -1487,6 +1493,11 @@
           "type": "integer",
           "format": "int32",
           "x-go-name": "DesiredReplicas"
+        },
+        "name": {
+          "description": "TODO: Readiness and Liveness fields?",
+          "type": "string",
+          "x-go-name": "Name"
         },
         "readyreplicas": {
           "type": "integer",
@@ -1718,6 +1729,17 @@
         "name": {
           "type": "string",
           "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationDeleteRequest": {
+      "description": "ConfigurationDeleteRequest represents and contains the data needed to delete a configuration",
+      "type": "object",
+      "properties": {
+        "unbind": {
+          "type": "boolean",
+          "x-go-name": "Unbind"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"

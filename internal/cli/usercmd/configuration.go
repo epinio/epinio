@@ -185,7 +185,7 @@ func (c *EpinioClient) UnbindConfiguration(configurationName, appName string) er
 
 // DeleteConfiguration deletes a configuration specified by name
 func (c *EpinioClient) DeleteConfiguration(name string, unbind bool) error {
-	log := c.Log.WithName("Delete Configuration").
+	log := c.Log.WithName("DeleteConfiguration").
 		WithValues("Name", name, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")

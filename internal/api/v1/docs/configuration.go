@@ -17,6 +17,8 @@ type ConfigurationDeleteParam struct {
 	Namespace string
 	// in: path
 	Configuration string
+	// in: body
+	Body models.ConfigurationDeleteRequest
 }
 
 // swagger:response ConfigurationDeleteResponse
