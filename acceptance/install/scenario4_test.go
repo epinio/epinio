@@ -22,6 +22,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		flags           []string
 		epinioHelper    epinio.Epinio
 		appName         = catalog.NewAppName()
+		serviceName     = catalog.NewServiceName()
 		loadbalancer    string
 		domain          string
 		zoneID          string
@@ -132,11 +133,33 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
 		})
 
-		By("Pushing an app with Env vars", func() {
+		By("Creating the application", func() {
 			out, err := epinioHelper.Run("apps", "create", appName)
 			Expect(err).NotTo(HaveOccurred(), out)
+		})
 
-			out, err = epinioHelper.Run("apps", "env", "set", appName, "MYVAR", "myvalue")
+		By("Deploying a database with service", func() {
+			out, err := epinioHelper.Run("service", "create", "mysql-dev", serviceName)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, _ := epinioHelper.Run("service", "show", serviceName)
+				return out
+			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+		})
+
+		By("Bind the database to the app", func() {
+			out, err := epinioHelper.Run("service", "bind", serviceName, appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Eventually(func() string {
+				out, err := epinioHelper.Run("app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "2m", "5s").Should(MatchRegexp("Bound Configurations.*\\|.*%s-%s-mysql", testenv.DefaultWorkspace, serviceName))
+		})
+
+		By("Pushing an app with Env vars", func() {
+			out, err := epinioHelper.Run("apps", "env", "set", appName, "MYVAR", "myvalue")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			out, err = epinioHelper.Run("push",
