@@ -246,8 +246,8 @@ func (m *mockAPIClient) ServiceShow(req *models.ServiceShowRequest, namespace st
 	return nil, nil
 }
 
-func (m *mockAPIClient) ServiceDelete(name, namespace string) error {
-	return nil
+func (m *mockAPIClient) ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f epinioapi.ErrorFunc) (models.ServiceDeleteResponse, error) {
+	return models.ServiceDeleteResponse{}, nil
 }
 
 func (m *mockAPIClient) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {

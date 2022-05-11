@@ -3,6 +3,8 @@ package client
 import (
 	"encoding/json"
 
+	"github.com/pkg/errors"
+
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -65,9 +67,34 @@ func (c *Client) ServiceShow(req *models.ServiceShowRequest, namespace string) (
 	return &resp, nil
 }
 
-func (c *Client) ServiceDelete(namespace, name string) error {
-	_, err := c.delete(api.Routes.Path("ServiceDelete", namespace, name))
-	return err
+func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f ErrorFunc) (models.ServiceDeleteResponse, error) {
+
+	resp := models.ServiceDeleteResponse{}
+
+	b, err := json.Marshal(req)
+	if err != nil {
+		return resp, nil
+	}
+
+	data, err := c.doWithCustomErrorHandling(
+		api.Routes.Path("ServiceDelete", namespace, name),
+		"DELETE", string(b), f)
+	if err != nil {
+		if err.Error() != "Bad Request" {
+			return resp, err
+		}
+		return resp, nil
+	}
+
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &resp); err != nil {
+			return resp, errors.Wrap(err, "response body is not JSON")
+		}
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
 }
 
 func (c *Client) ServiceBind(req *models.ServiceBindRequest, namespace, name string) error {

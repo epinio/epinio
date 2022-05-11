@@ -271,6 +271,16 @@ type HelmRepo struct {
 	URL  string `json:"url,omitempty"`
 }
 
+// ServiceDeleteRequest represents and contains the data needed to delete a service
+type ServiceDeleteRequest struct {
+	Unbind bool `json:"unbind"`
+}
+
+// ServiceDeleteResponse represents the server's response to a successful service deletion
+type ServiceDeleteResponse struct {
+	BoundApps []string `json:"boundapps"`
+}
+
 type ServiceBindRequest struct {
 	AppName string `json:"app_name,omitempty"`
 }

@@ -1234,6 +1234,13 @@
             "name": "Service",
             "in": "path",
             "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceDeleteRequest"
+            }
           }
         ],
         "responses": {
@@ -2156,6 +2163,31 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ServiceDeleteRequest": {
+      "description": "ServiceDeleteRequest represents and contains the data needed to delete a service",
+      "type": "object",
+      "properties": {
+        "unbind": {
+          "type": "boolean",
+          "x-go-name": "Unbind"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceDeleteResponse": {
+      "description": "ServiceDeleteResponse represents the server's response to a successful service deletion",
+      "type": "object",
+      "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ServiceListResponse": {
       "type": "object",
       "properties": {
@@ -2501,7 +2533,7 @@
     "ServiceDeleteResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/Response"
+        "$ref": "#/definitions/ServiceDeleteResponse"
       }
     },
     "ServiceListResponse": {
