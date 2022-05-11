@@ -20,13 +20,18 @@ func (c *EpinioClient) ServiceCatalog() error {
 		return errors.Wrap(err, "service catalog failed")
 	}
 
-	msg := c.ui.Success().WithTable("Name", "Repository", "Chart", "Description")
+	msg := c.ui.Success().WithTable("Name", "Version", "Description")
 
 	for _, service := range catalog.CatalogServices {
+		chartVersion := "implied latest"
+		pieces := strings.SplitN(service.HelmChart, ":", 2)
+		if len(pieces) == 2 {
+			chartVersion = pieces[1]
+		}
+
 		msg = msg.WithTableRow(
 			service.Name,
-			service.HelmRepo.URL,
-			service.HelmChart,
+			chartVersion,
 			service.ShortDescription,
 		)
 	}
@@ -53,23 +58,17 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 
 	service := catalogShowResponse.CatalogService
 
-	helmChartName := service.HelmChart
-	helmChartVersion := ""
-	pieces := strings.SplitN(helmChartName, ":", 2)
+	chartVersion := "implied latest"
+	pieces := strings.SplitN(service.HelmChart, ":", 2)
 	if len(pieces) == 2 {
-		helmChartVersion = pieces[1]
-		helmChartName = pieces[0]
+		chartVersion = pieces[1]
 	}
 
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", service.Name).
+		WithTableRow("Version", chartVersion).
 		WithTableRow("Short Description", service.ShortDescription).
 		WithTableRow("Description", service.Description).
-		WithTableRow("Helm", "").
-		WithTableRow("- Repository", service.HelmRepo.URL).
-		WithTableRow("- Chart", helmChartName).
-		WithTableRow("- Version", helmChartVersion).
-		WithTableRow("- Values", service.Values).
 		Msg("Epinio Service:")
 
 	return nil
@@ -82,7 +81,7 @@ func (c *EpinioClient) ServiceCreate(catalogServiceName, serviceName string) err
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Class", catalogServiceName).
+		WithStringValue("Catalog", catalogServiceName).
 		WithStringValue("Service", serviceName).
 		Msg("Creating Service...")
 
