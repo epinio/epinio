@@ -21,6 +21,8 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 )
 
+// Bind handles the API endpoint /namespaces/:namespace/services/:service/bind (POST)
+// It creates a binding between the specified service and application
 func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
@@ -70,7 +72,10 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	// label the secrets
+	// A service has one or more associated secrets containing its attributes. Adding
+	// a specific set of labels turns these secrets into valid epinio
+	// configurations. These configurations are then bound to the application.
+
 	logger.Info("looking for secrets to label")
 
 	configurationSecrets, err := configurations.LabelServiceSecrets(ctx, cluster, namespace, serviceName)

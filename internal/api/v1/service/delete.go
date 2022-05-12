@@ -9,6 +9,8 @@ import (
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
+// Delete handles the API end point /namespaces/:namespace/services/:service (DELETE)
+// It deletes the named service
 func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")

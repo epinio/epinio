@@ -21,6 +21,8 @@ import (
 	helmrelease "helm.sh/helm/v3/pkg/release"
 )
 
+// Unbind handles the API endpoint /namespaces/:namespace/services/:service/unbind (POST)
+// It removes the binding between the specified service and application
 func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
@@ -69,6 +71,11 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	if srv.Info.Status != helmrelease.StatusDeployed {
 		return apierror.InternalError(err)
 	}
+
+	// A service has one or more associated secrets containing its attributes. On
+	// binding adding a specific set of labels turned these secrets into valid epinio
+	// configurations. Here these configurations are simply unbound from the
+	// application.
 
 	logger.Info("looking for service secrets")
 
