@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -13,12 +14,14 @@ import (
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/gin-gonic/gin"
+	"github.com/go-logr/logr"
+	v1 "k8s.io/api/core/v1"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 
 	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 )
 
 // Unbind handles the API endpoint /namespaces/:namespace/services/:service/unbind (POST)
@@ -87,18 +90,33 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
 
 	username := requestctx.User(ctx).Username
+
+	apiErr := UnbindService(ctx, cluster, logger, namespace, app.AppRef().Name, username, serviceConfigurations)
+	if apiErr != nil {
+		return apiErr // already apierror.MultiError
+	}
+
+	response.OK(c)
+	return nil
+}
+
+func UnbindService(
+	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
+	namespace, appName, userName string,
+	serviceConfigurations []v1.Secret,
+) apierror.APIErrors {
+	logger.Info("unbinding service configurations")
+
 	for _, secret := range serviceConfigurations {
 		// TODO: Don't `helm upgrade` after each removal. Do it once.
 		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, app.AppRef().Name, secret.Name, username,
+			ctx, cluster, namespace, appName, secret.Name, userName,
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())
 		}
 	}
 
-	logger.Info("unbinding service configurations")
-
-	response.OK(c)
+	logger.Info("unbound service configurations")
 	return nil
 }
