@@ -1,20 +1,43 @@
 package service
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/configurations"
+	"github.com/epinio/epinio/internal/helm"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+
+	helmrelease "helm.sh/helm/v3/pkg/release"
+	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 )
 
 // Delete handles the API end point /namespaces/:namespace/services/:service (DELETE)
 // It deletes the named service
 func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	logger := requestctx.Logger(ctx).WithName("Delete")
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
+	// username := requestctx.User(ctx).Username
+
+	var deleteRequest models.ServiceDeleteRequest
+	err := c.BindJSON(&deleteRequest)
+	if err != nil {
+		return apierror.BadRequest(err)
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -23,6 +46,76 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	if err := ctr.validateNamespace(ctx, cluster, namespace); err != nil {
 		return err
+	}
+
+	logger.Info("getting helm client")
+
+	client, err := helm.GetHelmClient(cluster.RestConfig, logger, namespace)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	logger.Info("looking for service")
+	releaseName := names.ServiceHelmChartName(serviceName, namespace)
+	srv, err := client.GetRelease(releaseName)
+	if err != nil {
+		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+			return apierror.NewNotFoundError(fmt.Sprintf("%s - %s", err.Error(), releaseName))
+		}
+		return apierror.InternalError(err)
+	}
+
+	logger.Info(fmt.Sprintf("service found %+v\n", serviceName))
+	if srv.Info.Status != helmrelease.StatusDeployed {
+		return apierror.InternalError(err)
+	}
+
+	// A service has one or more associated secrets containing its attributes.
+	// Binding turned these secrets into configurations and bound them to the
+	// application.  Unbinding simply unbound them.  We may think that this means that
+	// we only have to look for the first configuration to determine what apps the
+	// service is bound to. Not so. With the secrets visible as configurations an
+	// adventurous user may have unbound them in part, and left in part. So, check
+	// everything, and then de-duplicate.
+
+	boundAppNames := []string{}
+
+	serviceConfigurations, err := configurations.ForService(ctx, cluster, namespace, serviceName)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
+
+	for _, secret := range serviceConfigurations {
+		bound, err := application.BoundAppsNamesFor(ctx, cluster, namespace, secret.Name)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		boundAppNames = append(boundAppNames, bound...)
+	}
+
+	boundAppNames = helpers.UniqueStrings(boundAppNames)
+
+	// Verify that the service is unbound. IOW not bound to any application.
+	// If it is, and automatic unbind was requested, do that.
+	// Without automatic unbind such applications are reported as error.
+
+	if len(boundAppNames) > 0 {
+		if !deleteRequest.Unbind {
+			return apierror.NewBadRequest("bound applications exist", strings.Join(boundAppNames, ","))
+		}
+
+		username := requestctx.User(ctx).Username
+
+		// Unbind all the services' configurations from the found applications.
+		for _, appName := range boundAppNames {
+			apiErr := UnbindService(ctx, cluster, logger, namespace, appName, username, serviceConfigurations)
+			if apiErr != nil {
+				return apiErr
+			}
+		}
 	}
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
@@ -39,7 +132,8 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OK(c)
-
+	response.OKReturn(c, models.ServiceDeleteResponse{
+		BoundApps: boundAppNames,
+	})
 	return nil
 }
