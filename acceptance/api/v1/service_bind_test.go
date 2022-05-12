@@ -75,18 +75,18 @@ var _ = Describe("ServiceBind Endpoint", func() {
 		var serviceName string
 
 		BeforeEach(func() {
-			createCatalogService(catalogService)
+			catalog.CreateCatalogService(catalogService)
 
 			// Let's create a service so that only app is missing
 			serviceName = catalog.NewServiceName()
-			createService(serviceName, namespace, catalogService)
+			catalog.CreateService(serviceName, namespace, catalogService)
 		})
 
 		AfterEach(func() {
 			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			deleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Name)
 		})
 
 		It("returns 404", func() {
@@ -113,13 +113,13 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			// Use a chart that creates some secret (nginx doesn't)
 			catalogService.HelmChart = "mysql"
 			catalogService.Values = ""
-			createCatalogService(catalogService)
+			catalog.CreateCatalogService(catalogService)
 
 			app = catalog.NewAppName()
 			serviceName = catalog.NewServiceName()
 
 			env.MakeContainerImageApp(app, 1, containerImageURL)
-			createService(serviceName, namespace, catalogService)
+			catalog.CreateService(serviceName, namespace, catalogService)
 		})
 
 		AfterEach(func() {
@@ -127,7 +127,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			deleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Name)
 		})
 
 		It("binds the service's secrets", func() {

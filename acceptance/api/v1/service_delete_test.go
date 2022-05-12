@@ -45,11 +45,11 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 				},
 				Values: "{'service': {'type': 'ClusterIP'}}",
 			}
-			createCatalogService(catalogService)
+			catalog.CreateCatalogService(catalogService)
 		})
 
 		AfterEach(func() {
-			deleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Name)
 			env.DeleteNamespace(namespace)
 		})
 
@@ -87,7 +87,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 							Repo:            catalogService.HelmRepo.URL,
 						},
 					}
-					createHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart)
 				})
 
 				AfterEach(func() {

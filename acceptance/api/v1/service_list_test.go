@@ -35,11 +35,11 @@ var _ = Describe("ServiceList Endpoint", func() {
 			},
 			Values: "{'service': {'type': 'ClusterIP'}}",
 		}
-		createCatalogService(catalogService)
+		catalog.CreateCatalogService(catalogService)
 	})
 
 	AfterEach(func() {
-		deleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Name)
 		env.DeleteNamespace(namespace1)
 		env.DeleteNamespace(namespace2)
 	})

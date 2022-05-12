@@ -34,13 +34,13 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 			},
 		}
 
-		createCatalogService(catalogService)
+		catalog.CreateCatalogService(catalogService)
 
 		app = catalog.NewAppName()
 		env.MakeContainerImageApp(app, 1, containerImageURL)
 
 		serviceName = catalog.NewServiceName()
-		createService(serviceName, namespace, catalogService)
+		catalog.CreateService(serviceName, namespace, catalogService)
 
 		// Bind the service to the app
 		out, err := env.Epinio("", "service", "bind", serviceName, app)
@@ -56,7 +56,7 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		deleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Name)
 		env.DeleteNamespace(namespace)
 	})
 

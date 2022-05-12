@@ -102,7 +102,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 				},
 				Values: "{'service': {'type': 'ClusterIP'}}",
 			}
-			createCatalogService(catalogService)
+			catalog.CreateCatalogService(catalogService)
 
 			serviceName = catalog.NewServiceName()
 			service := models.ServiceCreateRequest{
@@ -116,7 +116,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 		})
 
 		AfterEach(func() {
-			deleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Name)
 			env.DeleteNamespace(namespace)
 		})
 

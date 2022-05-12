@@ -37,11 +37,11 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			},
 			Values: "{'service': {'type': 'ClusterIP'}}",
 		}
-		createCatalogService(catalogService)
+		catalog.CreateCatalogService(catalogService)
 	})
 
 	AfterEach(func() {
-		deleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Name)
 		env.DeleteNamespace(namespace)
 	})
 
@@ -79,7 +79,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Repo:            catalogService.HelmRepo.URL,
 					},
 				}
-				createHelmChart(helmChart)
+				catalog.CreateHelmChart(helmChart)
 			})
 
 			AfterEach(func() {
@@ -130,7 +130,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			When("helmchart is ready", func() {
 
 				BeforeEach(func() {
-					createHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart)
 				})
 
 				It("returns the service with status Ready", func() {
@@ -161,7 +161,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 
 				BeforeEach(func() {
 					helmChart.ObjectMeta.Labels[services.CatalogServiceLabelKey] = "missing-catalog-service"
-					createHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart)
 				})
 
 				It("returns the service with name prefixed with [Missing]", func() {
@@ -190,7 +190,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			When("helmchart is not ready", func() {
 				BeforeEach(func() {
 					helmChart.Spec.Chart = "doesntexist"
-					createHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart)
 				})
 
 				It("returns the service with status not-ready", func() {

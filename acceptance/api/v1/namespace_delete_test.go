@@ -33,7 +33,7 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 			},
 			Values: "{'service': {'type': 'ClusterIP'}}",
 		}
-		createCatalogService(catalogService)
+		catalog.CreateCatalogService(catalogService)
 
 		// Irrelevant namespace and service instance
 		otherNamespace = catalog.NewNamespaceName()
@@ -61,7 +61,7 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(otherService, otherNamespace))
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		deleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Name)
 		env.DeleteNamespace(otherNamespace)
 	})
 

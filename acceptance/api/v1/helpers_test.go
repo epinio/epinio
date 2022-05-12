@@ -15,14 +15,10 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
-	"github.com/epinio/epinio/helpers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
-	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/gomega"
 )
@@ -285,107 +281,4 @@ func createApplicationWithChart(name string, namespace string, chart string) (*h
 
 	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppCreate", namespace)
 	return env.Curl("POST", url, strings.NewReader(body))
-}
-
-func createCatalogService(catalogService models.CatalogService) {
-	createCatalogServiceInNamespace("epinio", catalogService)
-}
-
-func createCatalogServiceInNamespace(namespace string, catalogService models.CatalogService) {
-	sampleServiceFilePath := sampleServiceTmpFile(namespace, catalogService)
-	defer os.Remove(sampleServiceFilePath)
-
-	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
-	Expect(err).ToNot(HaveOccurred(), out)
-}
-
-func deleteCatalogService(name string) {
-	deleteCatalogServiceFromNamespace("epinio", name)
-}
-
-func deleteCatalogServiceFromNamespace(namespace, name string) {
-	out, err := proc.Kubectl("delete", "-n", namespace, "services.application.epinio.io", name)
-	Expect(err).ToNot(HaveOccurred(), out)
-}
-
-func sampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
-	serviceYAML := fmt.Sprintf(`
-apiVersion: application.epinio.io/v1
-kind: Service
-metadata:
-  name: "%[1]s"
-  namespace: "%[2]s"
-spec:
-  chart: "%[3]s"
-  description: |
-    A simple description of this service.
-  values: "%[5]s"
-  helmRepo:
-    url: "%[4]s"
-  name: %[1]s`,
-		catalogService.Name,
-		namespace,
-		catalogService.HelmChart,
-		catalogService.HelmRepo.URL,
-		catalogService.Values)
-
-	filePath, err := helpers.CreateTmpFile(serviceYAML)
-	Expect(err).ToNot(HaveOccurred())
-
-	return filePath
-}
-
-func helmChartTmpFile(helmChart helmapiv1.HelmChart) string {
-	b, err := json.Marshal(helmChart)
-	Expect(err).ToNot(HaveOccurred())
-
-	filePath, err := helpers.CreateTmpFile(string(b))
-	Expect(err).ToNot(HaveOccurred())
-
-	return filePath
-}
-
-func createHelmChart(helmChart helmapiv1.HelmChart) {
-	sampleServiceFilePath := helmChartTmpFile(helmChart)
-	defer os.Remove(sampleServiceFilePath)
-
-	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
-	Expect(err).ToNot(HaveOccurred(), out)
-}
-
-func createService(name, namespace string, catalogService models.CatalogService) {
-	helmChart := helmapiv1.HelmChart{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "helm.cattle.io/v1",
-			Kind:       "HelmChart",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ServiceHelmChartName(name, namespace),
-			Namespace: "epinio",
-			Labels: map[string]string{
-				services.CatalogServiceLabelKey:  catalogService.Name,
-				services.TargetNamespaceLabelKey: namespace,
-			},
-		},
-		Spec: helmapiv1.HelmChartSpec{
-			TargetNamespace: namespace,
-			Chart:           catalogService.HelmChart,
-			Repo:            catalogService.HelmRepo.URL,
-		},
-	}
-	createHelmChart(helmChart)
-
-	cmd := func() (string, error) {
-		return proc.Run("", false, "helm", "get", "all", "-n", namespace,
-			names.ServiceHelmChartName(name, namespace))
-	}
-	Eventually(func() error {
-		_, err := cmd()
-		return err
-	}, "1m", "5s").Should(BeNil())
-
-	Eventually(func() string {
-		out, _ := cmd()
-		return out
-	}, "1m", "5s").ShouldNot(MatchRegexp(".*release: not found.*"))
 }
