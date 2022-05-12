@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
@@ -69,7 +70,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Kind:       "HelmChart",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      models.ServiceHelmChartName(serviceName, namespace),
+						Name:      names.ServiceHelmChartName(serviceName, namespace),
 						Namespace: "epinio",
 					},
 					Spec: helmapiv1.HelmChartSpec{
@@ -82,7 +83,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -105,7 +106,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Kind:       "HelmChart",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      models.ServiceHelmChartName(serviceName, namespace),
+						Name:      names.ServiceHelmChartName(serviceName, namespace),
 						Namespace: "epinio",
 						Labels: map[string]string{
 							services.CatalogServiceLabelKey:  catalogService.Name,
@@ -122,7 +123,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 
 			// Cleanup for all sub-cases
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 

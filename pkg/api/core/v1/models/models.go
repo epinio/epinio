@@ -323,10 +323,6 @@ func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
 
 func (s ServiceStatus) String() string { return string(s) }
 
-func ServiceHelmChartName(name, namespace string) string {
-	return fmt.Sprintf("%s-%s", namespace, name)
-}
-
 type ServiceListResponse struct {
 	Services []*Service `json:"services,omitempty"`
 }

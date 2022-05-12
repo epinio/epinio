@@ -360,7 +360,7 @@ func createService(name, namespace string, catalogService models.CatalogService)
 			Kind:       "HelmChart",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      models.ServiceHelmChartName(name, namespace),
+			Name:      names.ServiceHelmChartName(name, namespace),
 			Namespace: "epinio",
 			Labels: map[string]string{
 				services.CatalogServiceLabelKey:  catalogService.Name,
@@ -377,7 +377,7 @@ func createService(name, namespace string, catalogService models.CatalogService)
 
 	cmd := func() (string, error) {
 		return proc.Run("", false, "helm", "get", "all", "-n", namespace,
-			models.ServiceHelmChartName(name, namespace))
+			names.ServiceHelmChartName(name, namespace))
 	}
 	Eventually(func() error {
 		_, err := cmd()

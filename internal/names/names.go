@@ -51,14 +51,14 @@ func GenerateResourceNameTruncated(originalName string, maxLen int) string {
 	sumArray := sha1.Sum([]byte(originalName)) // nolint:gosec // Non-crypto use
 	sum := hex.EncodeToString(sumArray[:])
 
-	if maxLen < Sha1sumLength {
-		panic(fmt.Sprintf("shouldn't try to generate a resource name shorter than %d characters", Sha1sumLength))
-	}
+	// We allow maxLen less than the sha hash. We take the prefix of the hash in that
+	// case.  While there is some risk of conflict it should be tolerable until we
+	// reach maxLen < 10 or so.
 
 	// Don't prefix anything if we don't have enough room for at least a
 	// letter from the originalName plus the dash "-" to separate it from the checksum
 	if maxLen < 42 {
-		return sum
+		return fmt.Sprintf("x%s", sum[1:maxLen-1])
 	}
 
 	safePrefix := Truncate(DNSLabelSafe(originalName), (maxLen - (Sha1sumLength + 1)))
@@ -69,6 +69,15 @@ func GenerateResourceNameTruncated(originalName string, maxLen int) string {
 // ReleaseName returns the name of a helm release derived from the base string.
 func ReleaseName(base string) string {
 	return GenerateResourceNameTruncated(base, 53)
+}
+
+func ServiceHelmChartName(name, namespace string) string {
+	// The helm controller deploying the chart generates derived names for secrets and
+	// pods from the name of the chart, and __does not__ length limit them properly.
+	// As one of the components is the name of the chart we cannot fully account for
+	// it here (*). We keep 33 under the limit for suitable space.
+	// (*) NOTE: While some places have the chart name available, others do not.
+	return GenerateResourceNameTruncated(fmt.Sprintf("%s-%s", namespace, name), 30)
 }
 
 // Truncate truncates the input string s to the maxLen, if

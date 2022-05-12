@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -84,7 +85,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 
 		deleteService := func(name, namespace string) {
 			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio",
-				models.ServiceHelmChartName(name, namespace))
+				names.ServiceHelmChartName(name, namespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 		}
 

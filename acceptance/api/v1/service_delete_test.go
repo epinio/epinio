@@ -8,6 +8,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,7 +78,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 							Kind:       "HelmChart",
 						},
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      models.ServiceHelmChartName(serviceName, namespace),
+							Name:      names.ServiceHelmChartName(serviceName, namespace),
 							Namespace: "epinio",
 						},
 						Spec: helmapiv1.HelmChartSpec{
@@ -90,7 +91,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 				})
 
 				AfterEach(func() {
-					out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+					out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 					Expect(err).ToNot(HaveOccurred(), out)
 				})
 
@@ -109,7 +110,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 				})
 
 				It("deletes the helmchart", func() {
-					out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+					out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 					Expect(err).ToNot(HaveOccurred(), out)
 					Expect(out).ToNot(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
 
@@ -120,7 +121,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
 					Eventually(func() string {
-						out, err = proc.Kubectl("get", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+						out, err = proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 						return out
 					}, "1m", "5s").Should(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
 				})

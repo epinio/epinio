@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/helm"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/gin-gonic/gin"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -55,7 +56,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	}
 
 	logger.Info("looking for service")
-	releaseName := models.ServiceHelmChartName(serviceName, namespace)
+	releaseName := names.ServiceHelmChartName(serviceName, namespace)
 	srv, err := client.GetRelease(releaseName)
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
