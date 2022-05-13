@@ -75,7 +75,50 @@ var _ = Describe("Services", func() {
 		})
 	})
 
-	Describe("delete services", func() {
+	Describe("Create", func() {
+		var namespace, service string
+
+		BeforeEach(func() {
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
+
+			service = catalog.NewServiceName()
+		})
+
+		AfterEach(func() {
+			By("delete it")
+			out, err := env.Epinio("", "service", "delete", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "delete", service)
+				return out
+			}, "1m", "5s").Should(MatchRegexp("service not found"))
+
+			env.DeleteNamespace(namespace)
+		})
+
+		It("creates a service", func() {
+			By("create it")
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("show it")
+			out, err = env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", service)))
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+
+			By(fmt.Sprintf("%s/%s up", namespace, service))
+		})
+	})
+
+	Describe("Delete", func() {
 		var namespace, service string
 
 		BeforeEach(func() {
@@ -84,12 +127,22 @@ var _ = Describe("Services", func() {
 
 			service = catalog.NewServiceName()
 
+			By("create it")
 			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
+			By("show it")
 			out, err = env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", service)))
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+
+			By(fmt.Sprintf("%s/%s up", namespace, service))
 		})
 
 		AfterEach(func() {
@@ -107,7 +160,7 @@ var _ = Describe("Services", func() {
 		})
 	})
 
-	Describe("unbind services", func() {
+	Describe("Bind", func() {
 		var namespace, service, app, containerImageURL string
 
 		BeforeEach(func() {
@@ -118,38 +171,115 @@ var _ = Describe("Services", func() {
 
 			service = catalog.NewServiceName()
 
+			By("create it")
 			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
+			By("create app")
 			app = catalog.NewAppName()
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+		})
+
+		AfterEach(func() {
+			out, err := env.Epinio("", "service", "unbind", service, app)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).ToNot(MatchRegexp("Available Commands:")) // Command should exist
+
+			By("verify unbinding")
+			appShowOut, err := env.Epinio("", "app", "show", app)
+			Expect(err).ToNot(HaveOccurred())
+			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+			Expect(appShowOut).ToNot(MatchRegexp(matchString))
+
+			By("delete it")
+			out, err = env.Epinio("", "service", "delete", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "delete", service)
+				return out
+			}, "1m", "5s").Should(MatchRegexp("service not found"))
+
+			env.DeleteNamespace(namespace)
+		})
+
+		It("binds the service", func() {
+			By("bind it")
+			out, err := env.Epinio("", "service", "bind", service, app)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("verify binding")
+			appShowOut, err := env.Epinio("", "app", "show", app)
+			Expect(err).ToNot(HaveOccurred())
+			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+			Expect(appShowOut).To(MatchRegexp(matchString))
+		})
+	})
+
+	Describe("Unbind", func() {
+		var namespace, service, app, containerImageURL string
+
+		BeforeEach(func() {
+			containerImageURL = "splatform/sample-app"
+
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
+
+			service = catalog.NewServiceName()
+
+			By("create it")
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("create app")
+			app = catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+
+			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
 			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
 
+			By("bind it")
 			out, err = env.Epinio("", "service", "bind", service, app)
 			Expect(err).ToNot(HaveOccurred(), out)
-		})
 
-		AfterEach(func() {
-			env.DeleteNamespace(namespace)
-		})
-
-		It("unbinds the service", func() {
+			By("verify binding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
 			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
 			Expect(appShowOut).To(MatchRegexp(matchString))
+		})
 
+		AfterEach(func() {
+			By("delete it")
+			out, err := env.Epinio("", "service", "delete", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "delete", service)
+				return out
+			}, "1m", "5s").Should(MatchRegexp("service not found"))
+
+			env.DeleteNamespace(namespace)
+		})
+
+		It("unbinds the service", func() {
 			out, err := env.Epinio("", "service", "unbind", service, app)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).ToNot(MatchRegexp("Available Commands:")) // Command should exist
 
-			appShowOut, err = env.Epinio("", "app", "show", app)
+			By("verify unbinding")
+			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString = fmt.Sprintf("Bound Configurations.*%s", service)
+			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
 			Expect(appShowOut).ToNot(MatchRegexp(matchString))
 		})
 	})
