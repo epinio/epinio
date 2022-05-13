@@ -75,18 +75,10 @@ func HelmChartTmpFile(helmChart helmapiv1.HelmChart) string {
 	return filePath
 }
 
-func CreateHelmChart(helmChart helmapiv1.HelmChart) {
-	sampleServiceFilePath := HelmChartTmpFile(helmChart)
-	defer os.Remove(sampleServiceFilePath)
-
-	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
-	Expect(err).ToNot(HaveOccurred(), out)
-
-	// Wait for the chart to exist.
+func WaitForHelmRelease(namespace, name string) {
+	// Wait for the chart release to exist.
 	cmd := func() (string, error) {
-		return proc.Run("", false, "helm", "get", "all", "-n",
-			helmChart.Spec.TargetNamespace,
-			helmChart.ObjectMeta.Name)
+		return proc.Run("", false, "helm", "get", "all", "-n", namespace, name)
 	}
 	Eventually(func() error {
 		_, err := cmd()
@@ -97,6 +89,18 @@ func CreateHelmChart(helmChart helmapiv1.HelmChart) {
 		out, _ := cmd()
 		return out
 	}, "1m", "5s").ShouldNot(MatchRegexp(".*release: not found.*"))
+}
+
+func CreateHelmChart(helmChart helmapiv1.HelmChart) {
+	sampleServiceFilePath := HelmChartTmpFile(helmChart)
+	defer os.Remove(sampleServiceFilePath)
+
+	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	WaitForHelmRelease(
+		helmChart.Spec.TargetNamespace,
+		helmChart.ObjectMeta.Name)
 }
 
 func CreateService(name, namespace string, catalogService models.CatalogService) {
