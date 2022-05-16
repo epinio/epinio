@@ -1,11 +1,15 @@
 package machine
 
 import (
+	"fmt"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
+	By(fmt.Sprintf("MSI %s -> %s", catalogService, serviceName))
+
 	out, err := m.Epinio("", "service", "create", catalogService, serviceName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
@@ -17,6 +21,8 @@ func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
 
 		return out
 	}, "2m", "5s").Should(MatchRegexp("Status.*|.*deployed"))
+
+	By("MSI/ok")
 }
 
 func (m *Machine) DeleteService(serviceName string) {
