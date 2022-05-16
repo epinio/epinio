@@ -89,6 +89,7 @@ var _ = Describe("Services", func() {
 			By("delete it")
 			out, err := env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Service Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
@@ -158,6 +159,81 @@ var _ = Describe("Services", func() {
 				return out
 			}, "1m", "5s").Should(MatchRegexp("service not found"))
 		})
+
+		When("bound to an app", func() {
+			var namespace, service, app, containerImageURL string
+
+			BeforeEach(func() {
+				containerImageURL = "splatform/sample-app"
+
+				namespace = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespace)
+
+				service = catalog.NewServiceName()
+
+				By("create it")
+				out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				By("create app")
+				app = catalog.NewAppName()
+				env.MakeContainerImageApp(app, 1, containerImageURL)
+
+				By("wait for deployment")
+				Eventually(func() string {
+					out, _ := env.Epinio("", "service", "show", service)
+					return out
+				}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+
+				By("bind it")
+				out, err = env.Epinio("", "service", "bind", service, app)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				By("verify binding")
+				appShowOut, err := env.Epinio("", "app", "show", app)
+				Expect(err).ToNot(HaveOccurred())
+				matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+				Expect(appShowOut).To(MatchRegexp(matchString))
+			})
+
+			AfterEach(func() {
+				env.DeleteNamespace(namespace)
+			})
+
+			It("fails to delete a bound service", func() {
+				out, err := env.Epinio("", "service", "delete", service)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp("Unable to delete service. It is still used by"))
+				Expect(out).To(MatchRegexp(app))
+
+				// Enable deletion by getting rid of the binding first.
+
+				By("delete app")
+				env.DeleteApp(app)
+
+				By("delete it")
+				out, err = env.Epinio("", "service", "delete", service)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp("Service Removed"))
+
+				Eventually(func() string {
+					out, _ := env.Epinio("", "service", "delete", service)
+					return out
+				}, "1m", "5s").Should(MatchRegexp("service not found"))
+
+			})
+
+			It("unbinds and deletes a bound service when forced", func() {
+				out, err := env.Epinio("", "service", "delete", "--unbind", service)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp("Service Removed"))
+
+				Eventually(func() string {
+					out, _ := env.Epinio("", "service", "delete", service)
+					return out
+				}, "1m", "5s").Should(MatchRegexp("service not found"))
+			})
+		})
 	})
 
 	Describe("Bind", func() {
@@ -200,6 +276,7 @@ var _ = Describe("Services", func() {
 			By("delete it")
 			out, err = env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Service Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
@@ -262,6 +339,7 @@ var _ = Describe("Services", func() {
 			By("delete it")
 			out, err := env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("Service Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
