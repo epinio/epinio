@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -161,7 +162,7 @@ var _ = Describe("Services", func() {
 		})
 
 		When("bound to an app", func() {
-			var namespace, service, app, containerImageURL string
+			var namespace, service, app, containerImageURL, chart string
 
 			BeforeEach(func() {
 				containerImageURL = "splatform/sample-app"
@@ -170,6 +171,7 @@ var _ = Describe("Services", func() {
 				env.SetupAndTargetNamespace(namespace)
 
 				service = catalog.NewServiceName()
+				chart = names.ServiceHelmChartName(service, namespace)
 
 				By("create it")
 				out, err := env.Epinio("", "service", "create", "mysql-dev", service)
@@ -192,7 +194,7 @@ var _ = Describe("Services", func() {
 				By("verify binding")
 				appShowOut, err := env.Epinio("", "app", "show", app)
 				Expect(err).ToNot(HaveOccurred())
-				matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+				matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
 				Expect(appShowOut).To(MatchRegexp(matchString))
 			})
 
@@ -237,7 +239,7 @@ var _ = Describe("Services", func() {
 	})
 
 	Describe("Bind", func() {
-		var namespace, service, app, containerImageURL string
+		var namespace, service, app, containerImageURL, chart string
 
 		BeforeEach(func() {
 			containerImageURL = "splatform/sample-app"
@@ -246,6 +248,7 @@ var _ = Describe("Services", func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
+			chart = names.ServiceHelmChartName(service, namespace)
 
 			By("create it")
 			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
@@ -270,7 +273,7 @@ var _ = Describe("Services", func() {
 			By("verify unbinding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
 			Expect(appShowOut).ToNot(MatchRegexp(matchString))
 
 			By("delete it")
@@ -294,13 +297,13 @@ var _ = Describe("Services", func() {
 			By("verify binding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
 			Expect(appShowOut).To(MatchRegexp(matchString))
 		})
 	})
 
 	Describe("Unbind", func() {
-		var namespace, service, app, containerImageURL string
+		var namespace, service, app, containerImageURL, chart string
 
 		BeforeEach(func() {
 			containerImageURL = "splatform/sample-app"
@@ -309,6 +312,7 @@ var _ = Describe("Services", func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
+			chart = names.ServiceHelmChartName(service, namespace)
 
 			By("create it")
 			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
@@ -331,7 +335,7 @@ var _ = Describe("Services", func() {
 			By("verify binding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
 			Expect(appShowOut).To(MatchRegexp(matchString))
 		})
 
@@ -357,7 +361,7 @@ var _ = Describe("Services", func() {
 			By("verify unbinding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", service)
+			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
 			Expect(appShowOut).ToNot(MatchRegexp(matchString))
 		})
 	})
