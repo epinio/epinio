@@ -107,7 +107,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 	})
 
 	When("both app and service exist", func() {
-		var app, serviceName string
+		var app, serviceName, chartName string
 
 		BeforeEach(func() {
 			// Use a chart that creates some secret (nginx doesn't)
@@ -117,6 +117,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 
 			app = catalog.NewAppName()
 			serviceName = catalog.NewServiceName()
+			chartName = names.ServiceHelmChartName(serviceName, namespace)
 
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 			catalog.CreateService(serviceName, namespace, catalogService)
@@ -147,7 +148,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", serviceName)
+			matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 			Expect(appShowOut).To(MatchRegexp(matchString))
 		})
 	})

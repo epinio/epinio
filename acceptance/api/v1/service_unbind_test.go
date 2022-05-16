@@ -16,7 +16,7 @@ import (
 )
 
 var _ = Describe("ServiceUnbind Endpoint", func() {
-	var namespace, containerImageURL, app, serviceName string
+	var namespace, containerImageURL, app, serviceName, chartName string
 	var catalogService models.CatalogService
 
 	BeforeEach(func() {
@@ -40,6 +40,8 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		env.MakeContainerImageApp(app, 1, containerImageURL)
 
 		serviceName = catalog.NewServiceName()
+		chartName = names.ServiceHelmChartName(serviceName, namespace)
+
 		catalog.CreateService(serviceName, namespace, catalogService)
 
 		// Bind the service to the app
@@ -47,7 +49,7 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 		out, err = env.Epinio("", "app", "show", app)
 		Expect(err).ToNot(HaveOccurred(), out)
-		matchString := fmt.Sprintf("Bound Configurations.*%s", serviceName)
+		matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 		Expect(out).To(MatchRegexp(matchString))
 	})
 
@@ -71,7 +73,7 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 
 		appShowOut, err := env.Epinio("", "app", "show", app)
 		Expect(err).ToNot(HaveOccurred())
-		matchString := fmt.Sprintf("Bound Configurations.*%s", serviceName)
+		matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 		Expect(appShowOut).ToNot(MatchRegexp(matchString))
 	})
 })
