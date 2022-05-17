@@ -20,7 +20,7 @@ func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
 		Expect(out).To(MatchRegexp(serviceName))
 
 		return out
-	}, "2m", "5s").Should(MatchRegexp("Status.*|.*deployed"))
+	}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
 
 	By("MSI/ok")
 }
