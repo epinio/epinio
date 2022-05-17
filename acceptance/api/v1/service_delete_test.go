@@ -99,7 +99,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 							Repo:            catalogService.HelmRepo.URL,
 						},
 					}
-					catalog.CreateHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart, true)
 				})
 
 				AfterEach(func() {

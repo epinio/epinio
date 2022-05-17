@@ -79,7 +79,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Repo:            catalogService.HelmRepo.URL,
 					},
 				}
-				catalog.CreateHelmChart(helmChart)
+				catalog.CreateHelmChart(helmChart, true)
 			})
 
 			AfterEach(func() {
@@ -130,7 +130,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			When("helmchart is ready", func() {
 
 				BeforeEach(func() {
-					catalog.CreateHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart, true)
 				})
 
 				It("returns the service with status Ready", func() {
@@ -161,7 +161,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 
 				BeforeEach(func() {
 					helmChart.ObjectMeta.Labels[services.CatalogServiceLabelKey] = "missing-catalog-service"
-					catalog.CreateHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart, true)
 				})
 
 				It("returns the service with name prefixed with [Missing]", func() {
@@ -190,7 +190,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			When("helmchart is not ready", func() {
 				BeforeEach(func() {
 					helmChart.Spec.Chart = "doesntexist"
-					catalog.CreateHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart, false)
 				})
 
 				It("returns the service with status not-ready", func() {

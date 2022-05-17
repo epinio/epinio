@@ -91,16 +91,18 @@ func WaitForHelmRelease(namespace, name string) {
 	}, "1m", "5s").ShouldNot(MatchRegexp(".*release: not found.*"))
 }
 
-func CreateHelmChart(helmChart helmapiv1.HelmChart) {
+func CreateHelmChart(helmChart helmapiv1.HelmChart, wait bool) {
 	sampleServiceFilePath := HelmChartTmpFile(helmChart)
 	defer os.Remove(sampleServiceFilePath)
 
 	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	WaitForHelmRelease(
-		helmChart.Spec.TargetNamespace,
-		helmChart.ObjectMeta.Name)
+	if wait {
+		WaitForHelmRelease(
+			helmChart.Spec.TargetNamespace,
+			helmChart.ObjectMeta.Name)
+	}
 }
 
 func CreateService(name, namespace string, catalogService models.CatalogService) {
@@ -122,5 +124,5 @@ func CreateService(name, namespace string, catalogService models.CatalogService)
 			Chart:           catalogService.HelmChart,
 			Repo:            catalogService.HelmRepo.URL,
 		},
-	})
+	}, true)
 }
