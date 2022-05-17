@@ -27,6 +27,8 @@ func init() {
 	CmdServices.AddCommand(CmdServiceShow)
 	CmdServices.AddCommand(CmdServiceDelete)
 	CmdServices.AddCommand(CmdServiceList)
+
+	CmdServiceList.Flags().Bool("all", false, "list all services")
 }
 
 var CmdServiceCatalog = &cobra.Command{
@@ -170,7 +172,17 @@ var CmdServiceList = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.ServiceList()
+		all, err := cmd.Flags().GetBool("all")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --all")
+		}
+
+		if all {
+			err = client.ServiceListAll()
+		} else {
+			err = client.ServiceList()
+		}
+
 		return errors.Wrap(err, "error listing services")
 	},
 }

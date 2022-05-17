@@ -228,7 +228,9 @@ func (c *EpinioClient) ServiceList() error {
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().Msg("Listing Services...")
+	c.ui.Note().
+		WithStringValue("Namespace", c.Settings.Namespace).
+		Msg("Listing Services...")
 
 	resp, err := c.API.ServiceList(c.Settings.Namespace)
 	if err != nil {
@@ -246,6 +248,33 @@ func (c *EpinioClient) ServiceList() error {
 			fmt.Sprintf("%v", service.Meta.CreatedAt),
 			service.CatalogService,
 			service.Status.String())
+	}
+	msg.Msg("Details:")
+
+	return nil
+}
+
+// ServiceListAll list of all the services instances where the user has permissions
+func (c *EpinioClient) ServiceListAll() error {
+	log := c.Log.WithName("ServiceListAll")
+	log.Info("start")
+	defer log.Info("return")
+
+	c.ui.Note().Msg("Listing all Services...")
+
+	resp, err := c.API.AllServices()
+	if err != nil {
+		return errors.Wrap(err, "service list failed")
+	}
+
+	if len(resp.Services) == 0 {
+		c.ui.Normal().Msg("No services found")
+		return nil
+	}
+
+	msg := c.ui.Success().WithTable("Namespace", "Name", "Catalog Service", "Status")
+	for _, service := range resp.Services {
+		msg = msg.WithTableRow(service.Namespace, service.Name, service.CatalogService, service.Status.String())
 	}
 	msg.Msg("Details:")
 

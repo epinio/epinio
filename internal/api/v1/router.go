@@ -131,13 +131,16 @@ var Routes = routes.NamedRoutes{
 	"ConfigurationUpdate":  patch("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Update)),
 	"ConfigurationReplace": put("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Replace)),
 
+	// Service Catalog
+	"ServiceCatalog":     get("/catalogservices", errorHandler(service.Controller{}.Catalog)),
+	"ServiceCatalogShow": get("/catalogservices/:catalogservice", errorHandler(service.Controller{}.CatalogShow)),
+
 	// Services
-	"ServiceCatalog":     get("/services", errorHandler(service.Controller{}.Catalog)),
-	"ServiceCatalogShow": get("/services/:catalogservice", errorHandler(service.Controller{}.CatalogShow)),
-	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
-	"ServiceList":        get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
-	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
-	"ServiceDelete":      delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
+	"AllServices":   get("/services", errorHandler(service.Controller{}.FullIndex)),
+	"ServiceCreate": post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
+	"ServiceList":   get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
+	"ServiceShow":   get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
+	"ServiceDelete": delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
 
 	// Bind a service to/from applications
 	"ServiceBind": post(

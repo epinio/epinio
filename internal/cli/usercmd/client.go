@@ -71,6 +71,7 @@ type APIClient interface {
 	ServiceCatalog() (*models.ServiceCatalogResponse, error)
 	ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error)
 
+	AllServices() (*models.ServiceListResponse, error)
 	ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.ServiceShowResponse, error)
 	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
 	ServiceBind(req *models.ServiceBindRequest, namespace, name string) error

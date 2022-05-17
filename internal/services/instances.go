@@ -146,17 +146,31 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) e
 	return errors.Wrap(err, "error deleting helm charts")
 }
 
-// List will return all the Epinio Services available in the targeted namespace
-func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.Service, error) {
+// ListAll will return all the Epinio Service instances
+func (s *ServiceClient) ListAll(ctx context.Context) ([]*models.Service, error) {
+	return s.list(ctx, "")
+}
+
+// ListInNamespace will return all the Epinio Services available in the targeted namespace
+func (s *ServiceClient) ListInNamespace(ctx context.Context, namespace string) ([]*models.Service, error) {
+	return s.list(ctx, namespace)
+}
+
+// list will return all the Epinio Services available in the targeted namespace.
+// If the namespace is blank it will return all the instances from all the namespaces
+func (s *ServiceClient) list(ctx context.Context, namespace string) ([]*models.Service, error) {
 	serviceList := []*models.Service{}
 
-	listOpts := metav1.ListOptions{
-		LabelSelector: fmt.Sprintf(
+	listOpts := metav1.ListOptions{}
+	if namespace == "" {
+		listOpts.LabelSelector = fmt.Sprintf("%s,%s", ServiceNameLabelKey, CatalogServiceLabelKey)
+	} else {
+		listOpts.LabelSelector = fmt.Sprintf(
 			"%s,%s,%s=%s",
 			ServiceNameLabelKey,
 			CatalogServiceLabelKey,
 			TargetNamespaceLabelKey, namespace,
-		),
+		)
 	}
 
 	unstructuredServiceList, err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).List(ctx, listOpts)
@@ -193,7 +207,7 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 		service := models.Service{
 			Meta: models.Meta{
 				Name:      srv.GetLabels()[ServiceNameLabelKey],
-				Namespace: namespace,
+				Namespace: srv.GetLabels()[TargetNamespaceLabelKey],
 				CreatedAt: srv.GetCreationTimestamp(),
 			},
 			CatalogService: catalogServiceName,
