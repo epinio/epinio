@@ -1,7 +1,9 @@
 package v1_test
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -24,7 +26,11 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 	When("namespace doesn't exist", func() {
 		It("returns 404", func() {
 			endpoint := fmt.Sprintf("%s%s/namespaces/notexists/services/whatever", serverURL, v1.Root)
-			response, err := env.Curl("DELETE", endpoint, strings.NewReader(""))
+
+			requestBody, err := json.Marshal(models.ServiceDeleteRequest{})
+			Expect(err).ToNot(HaveOccurred())
+
+			response, err := env.Curl("DELETE", endpoint, strings.NewReader(string(requestBody)))
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound))
@@ -56,7 +62,11 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 		When("service instance doesn't exist", func() {
 			It("returns 404", func() {
 				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/notexists", serverURL, v1.Root, namespace)
-				response, err := env.Curl("DELETE", endpoint, strings.NewReader(""))
+
+				requestBody, err := json.Marshal(models.ServiceDeleteRequest{})
+				Expect(err).ToNot(HaveOccurred())
+
+				response, err := env.Curl("DELETE", endpoint, strings.NewReader(string(requestBody)))
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound))
@@ -65,9 +75,11 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 
 		When("helmchart exists", func() {
 			var serviceName string
+			var chartName string
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
+				chartName = names.ServiceHelmChartName(serviceName, namespace)
 			})
 
 			When("helmchart is not labeled", func() {
@@ -78,7 +90,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 							Kind:       "HelmChart",
 						},
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      names.ServiceHelmChartName(serviceName, namespace),
+							Name:      chartName,
 							Namespace: "epinio",
 						},
 						Spec: helmapiv1.HelmChartSpec{
@@ -91,13 +103,17 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 				})
 
 				AfterEach(func() {
-					out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
+					out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", chartName)
 					Expect(err).ToNot(HaveOccurred(), out)
 				})
 
 				It("returns 404", func() {
-					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/notexists", serverURL, v1.Root, namespace)
-					response, err := env.Curl("DELETE", endpoint, strings.NewReader(""))
+					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceName)
+
+					requestBody, err := json.Marshal(models.ServiceDeleteRequest{})
+					Expect(err).ToNot(HaveOccurred())
+
+					response, err := env.Curl("DELETE", endpoint, strings.NewReader(string(requestBody)))
 					Expect(err).ToNot(HaveOccurred())
 
 					Expect(response.StatusCode).To(Equal(http.StatusNotFound))
@@ -107,21 +123,42 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 			When("helmchart is labeled", func() {
 				BeforeEach(func() {
 					env.MakeServiceInstance(serviceName, catalogService.Name)
+
+					By(fmt.Sprintf("locate helm chart %s", chartName))
+
+					out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", chartName)
+					Expect(err).ToNot(HaveOccurred(), out)
+					Expect(out).ToNot(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
 				})
 
 				It("deletes the helmchart", func() {
-					out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
-					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(out).ToNot(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
-
+					By("assemble url")
 					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s",
 						serverURL, v1.Root, namespace, serviceName)
-					response, err := env.Curl("DELETE", endpoint, strings.NewReader(""))
-					Expect(err).ToNot(HaveOccurred())
-					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
+					By(fmt.Sprintf("assemble request for %s", endpoint))
+					requestBody, err := json.Marshal(models.ServiceDeleteRequest{})
+					Expect(err).ToNot(HaveOccurred())
+
+					By("curl request")
+					response, err := env.Curl("DELETE", endpoint, strings.NewReader(string(requestBody)))
+					Expect(err).ToNot(HaveOccurred())
+
+					By("read response")
+					respBody, err := ioutil.ReadAll(response.Body)
+					Expect(err).ToNot(HaveOccurred())
+
+					By(fmt.Sprintf("decode response %s", string(respBody)))
+					var deleteResponse models.ServiceDeleteResponse
+					err = json.Unmarshal(respBody, &deleteResponse)
+					Expect(err).ToNot(HaveOccurred(), string(respBody))
+
+					By("check status")
+					Expect(response.StatusCode).To(Equal(http.StatusOK), string(respBody))
+
+					By("check helm chart removal")
 					Eventually(func() string {
-						out, err = proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
+						out, _ := proc.Kubectl("get", "helmchart", "-n", "epinio", chartName)
 						return out
 					}, "1m", "5s").Should(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
 				})
