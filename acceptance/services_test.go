@@ -4,6 +4,9 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/helpers/regex"
+	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -11,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Services", func() {
+var _ = FDescribe("Services", func() {
 
 	Describe("Catalog", func() {
 		It("lists the standard catalog", func() {
@@ -75,6 +78,182 @@ var _ = Describe("Services", func() {
 
 				Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", serviceName)))
 			})
+		})
+	})
+
+	deleteServiceFromNamespace := func(namespace, service string) {
+		env.TargetNamespace(namespace)
+
+		out, err := env.Epinio("", "service", "delete", service)
+		Expect(err).ToNot(HaveOccurred(), out)
+		Expect(out).To(MatchRegexp("Service Removed"))
+
+		Eventually(func() string {
+			out, _ := env.Epinio("", "service", "delete", service)
+			return out
+		}, "1m", "5s").Should(MatchRegexp("service not found"))
+
+	}
+
+	Describe("List", func() {
+		var namespace, service string
+
+		BeforeEach(func() {
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
+
+			service = catalog.NewServiceName()
+		})
+
+		AfterEach(func() {
+			By("delete it")
+			deleteServiceFromNamespace(namespace, service)
+			env.DeleteNamespace(namespace)
+		})
+
+		It("list a service", func() {
+			By("create it")
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("show it")
+			out, err = env.Epinio("", "service", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp("Listing Services"))
+			Expect(out).To(MatchRegexp("Namespace: " + namespace))
+
+			Expect(out).To(MatchRegexp(regex.TableLine(service, "mysql-dev", "not-ready")))
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "list")
+				return out
+			}, "2m", "5s").Should(MatchRegexp("deployed"))
+
+			By(fmt.Sprintf("%s/%s up", namespace, service))
+		})
+	})
+
+	Describe("ListAll", func() {
+		var namespace1, namespace2 string
+		var service1, service2 string
+		var tmpSettingsPath string
+		var user1, password1 string
+		var user2, password2 string
+
+		updateSettings := func(user, password, namespace string) {
+			settings, err := settings.LoadFrom(tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), settings)
+
+			settings.User = user
+			settings.Password = password
+			settings.Namespace = namespace
+			err = settings.Save()
+			Expect(err).ToNot(HaveOccurred())
+		}
+
+		BeforeEach(func() {
+			namespace1 = catalog.NewNamespaceName()
+			namespace2 = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace1)
+			env.SetupAndTargetNamespace(namespace2)
+
+			service1 = catalog.NewServiceName()
+			service2 = catalog.NewServiceName()
+
+			// create temp settings that we can use to switch users
+			tmpSettingsPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
+			out, err := env.Epinio("", "settings", "update", "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// create users with permissions in different namespaces
+			user1, password1 = env.CreateEpinioUser("user", []string{namespace1})
+			user2, password2 = env.CreateEpinioUser("user", []string{namespace2})
+		})
+
+		AfterEach(func() {
+			By("delete it")
+			deleteServiceFromNamespace(namespace1, service1)
+			deleteServiceFromNamespace(namespace2, service2)
+
+			env.DeleteNamespace(namespace1)
+			env.DeleteNamespace(namespace2)
+
+			// Remove transient settings
+			out, err := proc.Run("", false, "rm", "-f", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			env.DeleteEpinioUser(user1)
+			env.DeleteEpinioUser(user2)
+		})
+
+		It("list all services", func() {
+			By("create them in different namespaces")
+			// create service1 in namespace1
+			env.TargetNamespace(namespace1)
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service1)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// create service2 in namespace2
+			env.TargetNamespace(namespace2)
+			out, err = env.Epinio("", "service", "create", "mysql-dev", service2)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// show all the services (we are admin, good to go)
+			By("show it")
+			out, err = env.Epinio("", "service", "list", "--all")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp("Listing all Services"))
+
+			Expect(out).To(MatchRegexp(regex.TableLine(namespace1, service1, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(regex.TableLine(namespace2, service2, "mysql-dev", "not-ready")))
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "list", "--all")
+				return out
+			}, "2m", "5s").Should(MatchRegexp(regex.TableLine(namespace1, service1, "mysql-dev", "deployed")))
+
+			By(fmt.Sprintf("%s/%s up", namespace1, service1))
+		})
+
+		It("list only the services in the user namespace", func() {
+			By("create them in different namespaces")
+
+			// impersonate user1 and target namespace1
+			updateSettings(user1, password1, namespace1)
+
+			// create service1 in namespace1
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service1, "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out, tmpSettingsPath)
+
+			// impersonate user2
+			updateSettings(user2, password2, namespace2)
+
+			// create service2 in namespace2
+			env.TargetNamespace(namespace2)
+			out, err = env.Epinio("", "service", "create", "mysql-dev", service2, "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// show only owned namespaces (we are user2, only namespace2)
+			By("show it")
+			out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(MatchRegexp("Listing all Services"))
+
+			Expect(out).NotTo(MatchRegexp(regex.TableLine(namespace1, service1, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(regex.TableLine(namespace2, service2, "mysql-dev", "not-ready")))
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
+				return out
+			}, "2m", "5s").Should(MatchRegexp(regex.TableLine(namespace2, service2, "mysql-dev", "deployed")))
+
+			By(fmt.Sprintf("%s/%s up", namespace1, service1))
 		})
 	})
 
