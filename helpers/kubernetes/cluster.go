@@ -73,6 +73,26 @@ type Cluster struct {
 	platform   Platform
 }
 
+// GetHTTP1Client returns a clientset that is always using HTTP/1.1 (not HTTP2)
+// We need that when using the SPDY protocol and UPGRADE requests which HTTP2
+// doesn't understand:
+// https://github.com/golang/net/blob/183a9ca12b87817e0ced91cdd139606cbb193ef2/http2/transport.go#L1083-L1085
+func GetHTTP1Client(ctx context.Context) (*kubernetes.Clientset, error) {
+	restConfig, err := kubeconfig.KubeConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	// copy to avoid mutating the passed-in config
+	config := restclient.CopyConfig(restConfig)
+	// set the warning handler for this client to ignore warnings
+	config.WarningHandler = restclient.NoWarnings{}
+
+	config.NextProtos = []string{"http/1.1"}
+
+	return kubernetes.NewForConfig(config)
+}
+
 // GetCluster returns the Cluster needed to talk to it. On first call it
 // creates it from a Kubernetes rest client config and cli arguments /
 // environment variables.
