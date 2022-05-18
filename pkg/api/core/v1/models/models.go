@@ -10,8 +10,28 @@ package models
 import (
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	helmrelease "helm.sh/helm/v3/pkg/release"
 )
+
+// Note: Meta is an extension of `ConfigurationRef` later in the file. Users of
+// `ConfigurationRef` should be incrementally switched over to `Meta`.
+
+// Meta holds the information needed to reference a resource (name and namespace), plus
+// general descriptive things (creation timestamp).
+type Meta struct {
+	Name      string      `json:"name"`
+	Namespace string      `json:"namespace,omitempty"`
+	CreatedAt metav1.Time `json:"createdAt,omitempty"`
+}
+
+// MetaLite holds the information needed to reference a non-namespaced resource (name),
+// plus general descriptive things (creation timestamp).
+type MetaLite struct {
+	Name      string      `json:"name"`
+	CreatedAt metav1.Time `json:"createdAt,omitempty"`
+}
 
 type Response struct {
 	Status string `json:"status"`
