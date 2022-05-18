@@ -48,8 +48,8 @@ var _ = Describe("ServiceCatalog Endpoint", func() {
 	})
 
 	It("lists services from the 'epinio' namespace", func() {
-		createCatalogService(catalogService)
-		defer deleteCatalogService(catalogService.Name)
+		catalog.CreateCatalogService(catalogService)
+		defer catalog.DeleteCatalogService(catalogService.Name)
 
 		catalog := catalogResponse()
 		serviceNames := []string{}
@@ -60,8 +60,8 @@ var _ = Describe("ServiceCatalog Endpoint", func() {
 	})
 
 	It("doesn't list services from namespaces other than 'epinio'", func() {
-		createCatalogServiceInNamespace("default", catalogService)
-		defer deleteCatalogServiceFromNamespace("default", catalogService.Name)
+		catalog.CreateCatalogServiceInNamespace("default", catalogService)
+		defer catalog.DeleteCatalogServiceFromNamespace("default", catalogService.Name)
 
 		catalog := catalogResponse()
 		serviceNames := []string{}

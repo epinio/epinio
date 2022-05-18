@@ -1091,6 +1091,13 @@
             "name": "Configuration",
             "in": "path",
             "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ConfigurationDeleteRequest"
+            }
           }
         ],
         "responses": {
@@ -1227,6 +1234,13 @@
             "name": "Service",
             "in": "path",
             "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceDeleteRequest"
+            }
           }
         ],
         "responses": {
@@ -1475,7 +1489,6 @@
       "type": "object",
       "properties": {
         "active": {
-          "description": "TODO: Readiness and Liveness fields?",
           "type": "boolean",
           "x-go-name": "Active"
         },
@@ -1487,6 +1500,11 @@
           "type": "integer",
           "format": "int32",
           "x-go-name": "DesiredReplicas"
+        },
+        "name": {
+          "description": "TODO: Readiness and Liveness fields?",
+          "type": "string",
+          "x-go-name": "Name"
         },
         "readyreplicas": {
           "type": "integer",
@@ -1662,11 +1680,20 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "CatalogService": {
+      "description": "CatalogService matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
+        "appVersion": {
+          "type": "string",
+          "x-go-name": "AppVersion"
+        },
         "chart": {
           "type": "string",
           "x-go-name": "HelmChart"
+        },
+        "chartVersion": {
+          "type": "string",
+          "x-go-name": "ChartVersion"
         },
         "description": {
           "type": "string",
@@ -1718,6 +1745,17 @@
         "name": {
           "type": "string",
           "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationDeleteRequest": {
+      "description": "ConfigurationDeleteRequest represents and contains the data needed to delete a configuration",
+      "type": "object",
+      "properties": {
+        "unbind": {
+          "type": "boolean",
+          "x-go-name": "Unbind"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2112,7 +2150,6 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ServiceCreateRequest": {
-      "description": "Service matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
         "catalog_service": {
@@ -2122,6 +2159,31 @@
         "name": {
           "type": "string",
           "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceDeleteRequest": {
+      "description": "ServiceDeleteRequest represents and contains the data needed to delete a service",
+      "type": "object",
+      "properties": {
+        "unbind": {
+          "type": "boolean",
+          "x-go-name": "Unbind"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceDeleteResponse": {
+      "description": "ServiceDeleteResponse represents the server's response to a successful service deletion",
+      "type": "object",
+      "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2471,7 +2533,7 @@
     "ServiceDeleteResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/Response"
+        "$ref": "#/definitions/ServiceDeleteResponse"
       }
     },
     "ServiceListResponse": {

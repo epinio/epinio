@@ -75,7 +75,7 @@ type APIClient interface {
 	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
 	ServiceBind(req *models.ServiceBindRequest, namespace, name string) error
 	ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name string) error
-	ServiceDelete(namespace, name string) error
+	ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f epinioapi.ErrorFunc) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (*models.ServiceListResponse, error)
 
 	// application charts

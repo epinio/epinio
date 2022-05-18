@@ -15,6 +15,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -219,7 +220,7 @@ func (s *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   models.ServiceHelmChartName(name, namespace),
+		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
 		ConfigurationLabelKey:          "true",
 		ConfigurationTypeLabelKey:      "service",
 	}).AsSelector()
@@ -242,7 +243,7 @@ func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, 
 func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   models.ServiceHelmChartName(name, namespace),
+		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
 	}).AsSelector()
 
 	listOptions := metav1.ListOptions{

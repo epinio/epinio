@@ -1,6 +1,12 @@
 package usercmd
 
 import (
+	"encoding/json"
+	"net/http"
+	"sort"
+	"strings"
+
+	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 )
@@ -112,16 +118,71 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 }
 
 // ServiceDelete deletes a service
-func (c *EpinioClient) ServiceDelete(name string) error {
+func (c *EpinioClient) ServiceDelete(name string, unbind bool) error {
 	log := c.Log.WithName("ServiceDelete")
 	log.Info("start")
 	defer log.Info("return")
 
-	c.ui.Note().Msg("Deleting Service...")
+	c.ui.Note().
+		WithStringValue("Name", name).
+		WithStringValue("Namespace", c.Settings.Namespace).
+		Msg("Deleting Service...")
 
-	err := c.API.ServiceDelete(c.Settings.Namespace, name)
+	if err := c.TargetOk(); err != nil {
+		return err
+	}
 
-	return errors.Wrap(err, "service deletion failed")
+	request := models.ServiceDeleteRequest{
+		Unbind: unbind,
+	}
+
+	var bound []string
+
+	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, name,
+		func(response *http.Response, bodyBytes []byte, err error) error {
+			// nothing special for internal errors and the like
+			if response.StatusCode != http.StatusBadRequest {
+				return err
+			}
+
+			// A bad request happens when the configuration is
+			// still bound to one or more applications,
+			// and the response contains an array of their
+			// names.
+
+			var apiError apierrors.ErrorResponse
+			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
+				return err
+			}
+
+			bound = strings.Split(apiError.Errors[0].Details, ",")
+			return nil
+		})
+
+	if err != nil {
+		return errors.Wrap(err, "service deletion failed")
+	}
+
+	if len(bound) > 0 {
+		sort.Strings(bound)
+		sort.Strings(bound)
+		msg := c.ui.Exclamation().WithTable("Bound Applications")
+
+		for _, app := range bound {
+			msg = msg.WithTableRow(app)
+		}
+
+		msg.Msg("Unable to delete service. It is still used by")
+		c.ui.Exclamation().Compact().Msg("Use --unbind to force the issue")
+
+		return nil
+	}
+
+	c.ui.Success().
+		WithStringValue("Name", name).
+		WithStringValue("Namespace", c.Settings.Namespace).
+		Msg("Service Removed.")
+	return nil
 }
 
 // ServiceBind binds a service to an application

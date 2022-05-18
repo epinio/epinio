@@ -1,7 +1,6 @@
 package service
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -10,16 +9,14 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
-	"github.com/epinio/epinio/internal/helm"
 	"github.com/gin-gonic/gin"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
-
-	helmrelease "helm.sh/helm/v3/pkg/release"
 )
 
+// Bind handles the API endpoint /namespaces/:namespace/services/:service/bind (POST)
+// It creates a binding between the specified service and application
 func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
@@ -47,29 +44,15 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
 	}
 
-	logger.Info("getting helm client")
-
-	client, err := helm.GetHelmClient(cluster.RestConfig, logger, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
+	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
+	if apiErr != nil {
+		return apiErr
 	}
 
-	logger.Info("looking for service")
-	releaseName := models.ServiceHelmChartName(serviceName, namespace)
-	srv, err := client.GetRelease(releaseName)
-	if err != nil {
-		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			return apierror.NewNotFoundError(fmt.Sprintf("%s - %s", err.Error(), releaseName))
-		}
-		return apierror.InternalError(err)
-	}
+	// A service has one or more associated secrets containing its attributes. Adding
+	// a specific set of labels turns these secrets into valid epinio
+	// configurations. These configurations are then bound to the application.
 
-	logger.Info(fmt.Sprintf("service found %+v\n", serviceName))
-	if srv.Info.Status != helmrelease.StatusDeployed {
-		return apierror.InternalError(err)
-	}
-
-	// label the secrets
 	logger.Info("looking for secrets to label")
 
 	configurationSecrets, err := configurations.LabelServiceSecrets(ctx, cluster, namespace, serviceName)

@@ -7,6 +7,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,7 +24,7 @@ import (
 func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*models.Service, error) {
 	var service models.Service
 
-	helmChartName := models.ServiceHelmChartName(name, namespace)
+	helmChartName := names.ServiceHelmChartName(name, namespace)
 	srv, err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Get(ctx, helmChartName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -86,7 +87,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Kind:       "HelmChart",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      models.ServiceHelmChartName(name, namespace),
+			Name:      names.ServiceHelmChartName(name, namespace),
 			Namespace: helmchart.Namespace(),
 			Labels: map[string]string{
 				CatalogServiceLabelKey:  catalogService.Name,
@@ -120,7 +121,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 // installed on the namespace (that's the targetNamespace).
 func (s *ServiceClient) Delete(ctx context.Context, namespace, service string) error {
 	err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Delete(ctx,
-		models.ServiceHelmChartName(service, namespace),
+		names.ServiceHelmChartName(service, namespace),
 		metav1.DeleteOptions{},
 	)
 

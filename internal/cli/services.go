@@ -19,6 +19,7 @@ var CmdServices = &cobra.Command{
 }
 
 func init() {
+	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
 	CmdServices.AddCommand(CmdServiceCatalog)
 	CmdServices.AddCommand(CmdServiceCreate)
 	CmdServices.AddCommand(CmdServiceBindCreate)
@@ -101,6 +102,11 @@ var CmdServiceDelete = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
+		unbind, err := cmd.Flags().GetBool("unbind")
+		if err != nil {
+			return errors.Wrap(err, "error reading option --unbind")
+		}
+
 		client, err := usercmd.New()
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -108,7 +114,7 @@ var CmdServiceDelete = &cobra.Command{
 
 		serviceName := args[0]
 
-		err = client.ServiceDelete(serviceName)
+		err = client.ServiceDelete(serviceName, unbind)
 		return errors.Wrap(err, "error deleting service")
 	},
 }
