@@ -71,8 +71,11 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 
 		response = append(response, models.ConfigurationResponse{
 			Meta: models.ConfigurationRef{
-				Name:      configuration.Name,
-				Namespace: configuration.Namespace,
+				Meta: models.Meta{
+					CreatedAt: configuration.CreatedAt,
+					Name:      configuration.Name,
+					Namespace: configuration.Namespace,
+				},
 			},
 			Configuration: models.ConfigurationShowResponse{
 				Username:  configuration.User(),

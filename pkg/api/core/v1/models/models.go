@@ -44,8 +44,7 @@ type Request struct {
 
 // ConfigurationRef references a Configuration by name and namespace
 type ConfigurationRef struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Meta
 }
 
 // ConfigurationResponse represents the data of a single configuration instance

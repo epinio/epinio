@@ -94,9 +94,9 @@ var _ = Describe("Configurations", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(MatchRegexp("Listing all configurations"))
 
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *%s *\|`, namespace1, configuration1, app1)))
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, namespace2, configuration1)))
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\| *\|`, namespace2, configuration2)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\|[^|]*\| *%s *\|`, namespace1, configuration1, app1)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\|[^|]*\| *\|`, namespace2, configuration1)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\|[^|]*\| *\|`, namespace2, configuration2)))
 		})
 	})
 
