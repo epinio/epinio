@@ -2,6 +2,7 @@ package usercmd
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -24,11 +25,12 @@ func (c *EpinioClient) ServiceCatalog() error {
 		return errors.Wrap(err, "service catalog failed")
 	}
 
-	msg := c.ui.Success().WithTable("Name", "Version", "Description")
+	msg := c.ui.Success().WithTable("Name", "Created", "Version", "Description")
 
 	for _, service := range catalog.CatalogServices {
 		msg = msg.WithTableRow(
-			service.Name,
+			service.Meta.Name,
+			fmt.Sprintf("%v", service.Meta.CreatedAt),
 			service.AppVersion,
 			service.ShortDescription,
 		)
@@ -57,7 +59,8 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 	service := catalogShowResponse.CatalogService
 
 	c.ui.Success().WithTable("Key", "Value").
-		WithTableRow("Name", service.Name).
+		WithTableRow("Name", service.Meta.Name).
+		WithTableRow("Created", fmt.Sprintf("%v", service.Meta.CreatedAt)).
 		WithTableRow("Version", service.AppVersion).
 		WithTableRow("Short Description", service.ShortDescription).
 		WithTableRow("Description", service.Description).

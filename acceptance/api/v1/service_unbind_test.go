@@ -26,7 +26,9 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		env.SetupAndTargetNamespace(namespace)
 
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "mysql",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -58,7 +60,7 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		catalog.DeleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(namespace)
 	})
 

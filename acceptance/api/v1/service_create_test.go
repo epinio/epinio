@@ -94,7 +94,9 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			catalogService = models.CatalogService{
-				Name:      catalog.NewCatalogServiceName(),
+				Meta: models.MetaLite{
+					Name: catalog.NewCatalogServiceName(),
+				},
 				HelmChart: "nginx",
 				HelmRepo: models.HelmRepo{
 					Name: "",
@@ -106,7 +108,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 
 			serviceName = catalog.NewServiceName()
 			service := models.ServiceCreateRequest{
-				CatalogService: catalogService.Name,
+				CatalogService: catalogService.Meta.Name,
 				Name:           serviceName,
 			}
 
@@ -116,7 +118,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 		})
 
 		AfterEach(func() {
-			catalog.DeleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
 			env.DeleteNamespace(namespace)
 		})
 

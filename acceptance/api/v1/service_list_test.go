@@ -27,7 +27,9 @@ var _ = Describe("ServiceList Endpoint", func() {
 		env.SetupAndTargetNamespace(namespace2)
 
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -39,7 +41,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 	})
 
 	AfterEach(func() {
-		catalog.DeleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(namespace1)
 		env.DeleteNamespace(namespace2)
 	})
@@ -70,7 +72,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 		When("it is in another namespace", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace2)
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
@@ -96,7 +98,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 		When("it is in the targeted namespace", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace1)
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
@@ -133,8 +135,8 @@ var _ = Describe("ServiceList Endpoint", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace2)
 
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
-				env.MakeServiceInstance(serviceName2, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
@@ -163,10 +165,10 @@ var _ = Describe("ServiceList Endpoint", func() {
 		When("they are in two different namespace", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace1)
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
 
 				env.TargetNamespace(namespace2)
-				env.MakeServiceInstance(serviceName2, catalogService.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
@@ -212,8 +214,8 @@ var _ = Describe("ServiceList Endpoint", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace1)
 
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
-				env.MakeServiceInstance(serviceName2, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {

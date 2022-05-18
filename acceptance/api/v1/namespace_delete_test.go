@@ -25,7 +25,9 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 
 		// Create a Catalog Service
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -39,13 +41,13 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 		otherNamespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(otherNamespace)
 		otherService = catalog.NewServiceName()
-		env.MakeServiceInstance(otherService, catalogService.Name)
+		env.MakeServiceInstance(otherService, catalogService.Meta.Name)
 
 		// The namespace under test
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 		serviceName = catalog.NewServiceName()
-		env.MakeServiceInstance(serviceName, catalogService.Name)
+		env.MakeServiceInstance(serviceName, catalogService.Meta.Name)
 
 		// An app
 		app1 := catalog.NewAppName()
@@ -61,7 +63,7 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(otherService, otherNamespace))
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		catalog.DeleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(otherNamespace)
 	})
 

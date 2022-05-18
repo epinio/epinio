@@ -73,7 +73,10 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 	}
 
 	return &models.CatalogService{
-		Name:             catalogService.Spec.Name,
+		Meta: models.MetaLite{
+			Name:      catalogService.Spec.Name,
+			CreatedAt: unstructured.GetCreationTimestamp(),
+		},
 		Description:      catalogService.Spec.Description,
 		ShortDescription: catalogService.Spec.ShortDescription,
 		HelmChart:        catalogService.Spec.HelmChart,

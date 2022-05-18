@@ -270,10 +270,10 @@ type ServiceCreateRequest struct {
 	Name           string `json:"name,omitempty"`
 }
 
-// CatalogService matches github.com/epinio/application/api/v1 ServiceSpec
+// CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
-	Name             string   `json:"name,omitempty"`
+	Meta             MetaLite `json:"meta,omitempty"`
 	Description      string   `json:"description,omitempty"`
 	ShortDescription string   `json:"short_description,omitempty"`
 	HelmChart        string   `json:"chart,omitempty"`
