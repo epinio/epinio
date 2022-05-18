@@ -12,13 +12,10 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	parser "github.com/novln/docker-parser"
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	RegistrySecretNamespaceAnnotationKey = "epinio.suse.org/registry-namespace" // nolint:gosec // not credentials
-	KubedNamespaceSelector               = "kubed-sync=registry-creds"
 	CredentialsSecretName                = "registry-creds"
 )
 
@@ -185,41 +182,4 @@ func GetConnectionDetails(ctx context.Context, cluster *kubernetes.Cluster, secr
 	}
 
 	return &details, nil
-}
-
-// Store stores the connection details in a secret.
-// The registry namespace (or org) is stored in an annotation (because Kubernetes expects
-// the secret in a specific format). It is used to construct the full url to
-// an application image in the form: registryURL/registryNamespace/appImage
-func (d *ConnectionDetails) Store(ctx context.Context, cluster *kubernetes.Cluster, secretNamespace, secretName string) (*corev1.Secret, error) {
-	dockerconfigjson, err := d.DockerConfigJSON()
-	if err != nil {
-		return nil, err
-	}
-
-	dockerconfigjsonStr, err := json.Marshal(dockerconfigjson)
-	if err != nil {
-		return nil, err
-	}
-
-	createdSecret, err := cluster.Kubectl.CoreV1().Secrets(secretNamespace).Create(ctx,
-		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: secretName,
-				Annotations: map[string]string{
-					RegistrySecretNamespaceAnnotationKey: d.Namespace,
-					"kubed.appscode.com/sync":            KubedNamespaceSelector,
-				},
-			},
-			StringData: map[string]string{
-				".dockerconfigjson": string(dockerconfigjsonStr),
-			},
-			Type: "kubernetes.io/dockerconfigjson",
-		}, metav1.CreateOptions{})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return createdSecret, nil
 }
