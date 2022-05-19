@@ -118,7 +118,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(serviceListResponse.Services).Should(HaveLen(1))
-				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName1))
+				Expect(serviceListResponse.Services[0].Meta.Name).To(Equal(serviceName1))
 			})
 		})
 	})
@@ -191,7 +191,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(serviceListResponse.Services).Should(HaveLen(1))
-				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName1))
+				Expect(serviceListResponse.Services[0].Meta.Name).To(Equal(serviceName1))
 			})
 
 			It("returns a list with service2 in namespace2", func() {
@@ -206,7 +206,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(serviceListResponse.Services).Should(HaveLen(1))
-				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName2))
+				Expect(serviceListResponse.Services[0].Meta.Name).To(Equal(serviceName2))
 			})
 		})
 

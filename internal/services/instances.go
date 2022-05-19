@@ -59,8 +59,11 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	}
 
 	service = models.Service{
-		Name:           name,
-		Namespace:      targetNamespace,
+		Meta: models.Meta{
+			Name:      name,
+			Namespace: targetNamespace,
+			CreatedAt: srv.GetCreationTimestamp(),
+		},
 		CatalogService: fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
 	}
 
@@ -188,8 +191,11 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 		}
 
 		service := models.Service{
-			Name:           srv.GetLabels()[ServiceNameLabelKey],
-			Namespace:      namespace,
+			Meta: models.Meta{
+				Name:      srv.GetLabels()[ServiceNameLabelKey],
+				Namespace: namespace,
+				CreatedAt: srv.GetCreationTimestamp(),
+			},
 			CatalogService: catalogServiceName,
 		}
 

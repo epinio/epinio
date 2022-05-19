@@ -112,7 +112,8 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	}
 
 	c.ui.Success().WithTable("Key", "Value").
-		WithTableRow("Name", resp.Service.Name).
+		WithTableRow("Name", resp.Service.Meta.Name).
+		WithTableRow("Created", fmt.Sprintf("%v", resp.Service.Meta.CreatedAt)).
 		WithTableRow("Catalog Service", resp.Service.CatalogService).
 		WithTableRow("Status", resp.Service.Status.String()).
 		Msg("Details:")
@@ -239,9 +240,12 @@ func (c *EpinioClient) ServiceList() error {
 		return nil
 	}
 
-	msg := c.ui.Success().WithTable("Name", "Catalog Service", "Status")
+	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Status")
 	for _, service := range resp.Services {
-		msg = msg.WithTableRow(service.Name, service.CatalogService, service.Status.String())
+		msg = msg.WithTableRow(service.Meta.Name,
+			fmt.Sprintf("%v", service.Meta.CreatedAt),
+			service.CatalogService,
+			service.Status.String())
 	}
 	msg.Msg("Details:")
 

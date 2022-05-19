@@ -317,8 +317,7 @@ type ServiceShowResponse struct {
 }
 
 type Service struct {
-	Name           string        `json:"name,omitempty"`
-	Namespace      string        `json:"namespace,omitempty"`
+	Meta           Meta          `json:"meta,omitempty"`
 	CatalogService string        `json:"catalog_service,omitempty"`
 	Status         ServiceStatus `json:"status,omitempty"`
 }
