@@ -216,6 +216,11 @@ var _ = FDescribe("Services", func() {
 				return out
 			}, "2m", "5s").Should(MatchRegexp(regex.TableLine(namespace1, service1, "mysql-dev", "deployed")))
 
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "list", "--all")
+				return out
+			}, "2m", "5s").Should(MatchRegexp(regex.TableLine(namespace2, service2, "mysql-dev", "deployed")))
+
 			By(fmt.Sprintf("%s/%s up", namespace1, service1))
 		})
 
