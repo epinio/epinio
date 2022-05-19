@@ -43,7 +43,9 @@ var _ = Describe("Services", func() {
 				serviceName = catalog.NewCatalogServiceName()
 
 				catalogService = models.CatalogService{
-					Name:      serviceName,
+					Meta: models.MetaLite{
+						Name: serviceName,
+					},
 					HelmChart: "nginx",
 					HelmRepo: models.HelmRepo{
 						Name: "",

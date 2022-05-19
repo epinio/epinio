@@ -38,6 +38,7 @@ type Configuration struct {
 	Name       string
 	Namespace  string
 	Username   string
+	CreatedAt  metav1.Time
 	kubeClient *kubernetes.Cluster
 }
 
@@ -55,6 +56,7 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 		return nil, err
 	}
 	c.Username = s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+	c.CreatedAt = s.ObjectMeta.CreationTimestamp
 
 	return c, nil
 }
@@ -94,6 +96,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 		username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 		result = append(result, &Configuration{
+			CreatedAt:  s.ObjectMeta.CreationTimestamp,
 			Name:       name,
 			Namespace:  namespace,
 			Username:   username,

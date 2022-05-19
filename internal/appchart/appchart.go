@@ -104,8 +104,13 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChart, error) {
 		return nil, errors.New("helm repo should be string")
 	}
 
+	createdAt := chart.GetCreationTimestamp()
+
 	return &models.AppChart{
-		Name:             name,
+		Meta: models.MetaLite{
+			Name:      name,
+			CreatedAt: createdAt,
+		},
 		Description:      description,
 		ShortDescription: short,
 		HelmChart:        helmChart,

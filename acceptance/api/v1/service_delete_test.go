@@ -43,7 +43,9 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			catalogService = models.CatalogService{
-				Name:      catalog.NewCatalogServiceName(),
+				Meta: models.MetaLite{
+					Name: catalog.NewCatalogServiceName(),
+				},
 				HelmChart: "nginx",
 				HelmRepo: models.HelmRepo{
 					Name: "",
@@ -55,7 +57,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 		})
 
 		AfterEach(func() {
-			catalog.DeleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
 			env.DeleteNamespace(namespace)
 		})
 
@@ -122,7 +124,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 
 			When("helmchart is labeled", func() {
 				BeforeEach(func() {
-					env.MakeServiceInstance(serviceName, catalogService.Name)
+					env.MakeServiceInstance(serviceName, catalogService.Meta.Name)
 
 					By(fmt.Sprintf("locate helm chart %s", chartName))
 

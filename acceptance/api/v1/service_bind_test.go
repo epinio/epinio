@@ -27,7 +27,9 @@ var _ = Describe("ServiceBind Endpoint", func() {
 		env.SetupAndTargetNamespace(namespace)
 
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -86,7 +88,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			catalog.DeleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
 		})
 
 		It("returns 404", func() {
@@ -128,7 +130,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			catalog.DeleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
 		})
 
 		It("binds the service's secrets", func() {

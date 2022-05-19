@@ -38,8 +38,8 @@ func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 	log.Info("match prefix", "pattern", prefix)
 	matches := []string{}
 	for _, appchart := range appcharts {
-		if strings.HasPrefix(appchart.Name, prefix) {
-			matches = append(matches, appchart.Name)
+		if strings.HasPrefix(appchart.Meta.Name, prefix) {
+			matches = append(matches, appchart.Meta.Name)
 		}
 	}
 

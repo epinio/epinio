@@ -59,8 +59,11 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	}
 
 	service = models.Service{
-		Name:           name,
-		Namespace:      targetNamespace,
+		Meta: models.Meta{
+			Name:      name,
+			Namespace: targetNamespace,
+			CreatedAt: srv.GetCreationTimestamp(),
+		},
 		CatalogService: fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
 	}
 
@@ -90,7 +93,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Name:      names.ServiceHelmChartName(name, namespace),
 			Namespace: helmchart.Namespace(),
 			Labels: map[string]string{
-				CatalogServiceLabelKey:  catalogService.Name,
+				CatalogServiceLabelKey:  catalogService.Meta.Name,
 				TargetNamespaceLabelKey: namespace,
 				ServiceNameLabelKey:     name,
 			},
@@ -177,7 +180,7 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 	// catalogServiceNameMap is a lookup map to check the available Catalog Services
 	catalogServiceNameMap := map[string]struct{}{}
 	for _, catalogService := range catalogServices {
-		catalogServiceNameMap[catalogService.Name] = struct{}{}
+		catalogServiceNameMap[catalogService.Meta.Name] = struct{}{}
 	}
 
 	for _, srv := range helmChartList {
@@ -188,8 +191,11 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 		}
 
 		service := models.Service{
-			Name:           srv.GetLabels()[ServiceNameLabelKey],
-			Namespace:      namespace,
+			Meta: models.Meta{
+				Name:      srv.GetLabels()[ServiceNameLabelKey],
+				Namespace: namespace,
+				CreatedAt: srv.GetCreationTimestamp(),
+			},
 			CatalogService: catalogServiceName,
 		}
 

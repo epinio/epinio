@@ -124,13 +124,16 @@ func (c *EpinioClient) Apps(all bool) error {
 	sort.Sort(apps)
 
 	if all {
-		msg = c.ui.Success().WithTable("Namespace", "Name", "Status", "Routes", "Configurations", "Status Details")
+		msg = c.ui.Success().WithTable("Namespace", "Name", "Created", "Status", "Routes", "Configurations", "Status Details")
 
 		for _, app := range apps {
+			created := fmt.Sprintf("%v", app.Meta.CreatedAt)
+
 			if app.Workload == nil {
 				msg = msg.WithTableRow(
 					app.Meta.Namespace,
 					app.Meta.Name,
+					created,
 					"n/a",
 					"n/a",
 					strings.Join(app.Configuration.Configurations, ", "),
@@ -142,6 +145,7 @@ func (c *EpinioClient) Apps(all bool) error {
 				msg = msg.WithTableRow(
 					app.Meta.Namespace,
 					app.Meta.Name,
+					created,
 					app.Workload.Status,
 					strings.Join(app.Workload.Routes, ", "),
 					strings.Join(app.Configuration.Configurations, ", "),
@@ -150,12 +154,15 @@ func (c *EpinioClient) Apps(all bool) error {
 			}
 		}
 	} else {
-		msg = c.ui.Success().WithTable("Name", "Status", "Routes", "Configurations", "Status Details")
+		msg = c.ui.Success().WithTable("Name", "Created", "Status", "Routes", "Configurations", "Status Details")
 
 		for _, app := range apps {
+			created := fmt.Sprintf("%v", app.Meta.CreatedAt)
+
 			if app.Workload == nil {
 				msg = msg.WithTableRow(
 					app.Meta.Name,
+					created,
 					"n/a",
 					"n/a",
 					strings.Join(app.Configuration.Configurations, ", "),
@@ -166,6 +173,7 @@ func (c *EpinioClient) Apps(all bool) error {
 				sort.Strings(app.Configuration.Configurations)
 				msg = msg.WithTableRow(
 					app.Meta.Name,
+					created,
 					app.Workload.Status,
 					strings.Join(app.Workload.Routes, ", "),
 					strings.Join(app.Configuration.Configurations, ", "),
@@ -497,7 +505,8 @@ func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
 
 func (c *EpinioClient) printAppDetails(app models.App) error {
 	msg := c.ui.Success().WithTable("Key", "Value").
-		WithTableRow("Origin", app.Origin.String())
+		WithTableRow("Origin", app.Origin.String()).
+		WithTableRow("Created", fmt.Sprintf("%v", app.Meta.CreatedAt))
 
 	var createdAt time.Time
 	var err error

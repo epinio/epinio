@@ -53,7 +53,7 @@ spec:
   helmRepo:
     url: "%[4]s"
   name: %[1]s`,
-		catalogService.Name,
+		catalogService.Meta.Name,
 		namespace,
 		catalogService.HelmChart,
 		catalogService.HelmRepo.URL,
@@ -115,7 +115,7 @@ func CreateService(name, namespace string, catalogService models.CatalogService)
 			Name:      names.ServiceHelmChartName(name, namespace),
 			Namespace: "epinio",
 			Labels: map[string]string{
-				services.CatalogServiceLabelKey:  catalogService.Name,
+				services.CatalogServiceLabelKey:  catalogService.Meta.Name,
 				services.TargetNamespaceLabelKey: namespace,
 			},
 		},

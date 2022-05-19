@@ -16,7 +16,8 @@ import (
 
 // Namespace represents an epinio-controlled namespace in the system
 type Namespace struct {
-	Name string
+	Name      string
+	CreatedAt metav1.Time
 }
 
 func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, error) {
@@ -31,7 +32,10 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, err
 
 	result := []Namespace{}
 	for _, namespace := range namespaceList.Items {
-		result = append(result, Namespace{Name: namespace.ObjectMeta.Name})
+		result = append(result, Namespace{
+			Name:      namespace.ObjectMeta.Name,
+			CreatedAt: namespace.ObjectMeta.CreationTimestamp,
+		})
 	}
 
 	return result, nil
@@ -51,6 +55,21 @@ func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace
 	}
 
 	return false, nil
+}
+
+// Get returns the meta data of  the named epinio-controlled namespace
+func Get(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace string) (*Namespace, error) {
+	namespaces, err := List(ctx, kubeClient)
+	if err != nil {
+		return nil, err
+	}
+	for _, namespace := range namespaces {
+		if namespace.Name == lookupNamespace {
+			return &namespace, nil
+		}
+	}
+
+	return nil, nil
 }
 
 // Create generates a new epinio-controlled namespace, i.e. a kube

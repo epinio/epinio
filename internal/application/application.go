@@ -179,6 +179,7 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace str
 
 	apps := make([]models.AppRef, 0, len(list.Items))
 	for _, app := range list.Items {
+		// XXX created-at!
 		apps = append(apps, models.NewAppRef(app.GetName(), app.GetNamespace()))
 	}
 
@@ -497,6 +498,8 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	if err != nil {
 		return errors.Wrap(err, "finding the image url")
 	}
+
+	app.Meta.CreatedAt = applicationCR.GetCreationTimestamp()
 
 	app.Configuration.Instances = &instances
 	app.Configuration.Configurations = configurations
