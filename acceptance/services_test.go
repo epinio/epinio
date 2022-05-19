@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Services", func() {
+var _ = Describe("Services", func() {
 
 	Describe("Catalog", func() {
 		It("lists the standard catalog", func() {
