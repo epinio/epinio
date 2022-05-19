@@ -2,6 +2,7 @@ package usercmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
@@ -73,18 +74,20 @@ func (c *EpinioClient) ChartList(ctx context.Context) error {
 		return err
 	}
 
-	msg := c.ui.Success().WithTable("Default", "Name", "Description")
+	msg := c.ui.Success().WithTable("Default", "Name", "Created", "Description")
 
 	for _, chart := range charts {
 		mark := ""
-		name := chart.Name
+		name := chart.Meta.Name
+		created := fmt.Sprintf("%v", chart.Meta.CreatedAt)
 		short := chart.ShortDescription
-		if chart.Name == c.Settings.AppChart {
+		if chart.Meta.Name == c.Settings.AppChart {
 			mark = color.BlueString("*")
 			name = color.BlueString(name)
+			created = color.BlueString(created)
 			short = color.BlueString(short)
 		}
-		msg = msg.WithTableRow(mark, name, short)
+		msg = msg.WithTableRow(mark, name, created, short)
 	}
 
 	msg.Msg("Ok")
@@ -108,7 +111,8 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 	}
 
 	c.ui.Success().WithTable("Key", "Value").
-		WithTableRow("Name", chart.Name).
+		WithTableRow("Name", chart.Meta.Name).
+		WithTableRow("Created", fmt.Sprintf("%v", chart.Meta.CreatedAt)).
 		WithTableRow("Short", chart.ShortDescription).
 		WithTableRow("Description", chart.Description).
 		WithTableRow("Helm Repository", chart.HelmRepo).

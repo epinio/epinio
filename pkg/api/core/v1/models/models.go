@@ -349,11 +349,11 @@ type ServiceListResponse struct {
 // AppChart matches github.com/epinio/application/api/v1 AppChartSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type AppChart struct {
-	Name             string `json:"name,omitempty"`
-	Description      string `json:"description,omitempty"`
-	ShortDescription string `json:"short_description,omitempty"`
-	HelmChart        string `json:"helm_chart,omitempty"`
-	HelmRepo         string `json:"helm_repo,omitempty"`
+	Meta             MetaLite `json:"meta,omitempty"`
+	Description      string   `json:"description,omitempty"`
+	ShortDescription string   `json:"short_description,omitempty"`
+	HelmChart        string   `json:"helm_chart,omitempty"`
+	HelmRepo         string   `json:"helm_repo,omitempty"`
 }
 
 // AppChartList is a collection of app charts

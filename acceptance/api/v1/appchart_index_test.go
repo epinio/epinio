@@ -31,7 +31,7 @@ var _ = Describe("ChartList Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(len(appcharts)).To(Equal(1))
-		Expect(appcharts[0].Name).To(Equal("standard"))
+		Expect(appcharts[0].Meta.Name).To(Equal("standard"))
 		Expect(appcharts[0].Description).To(Equal("Epinio standard support chart for application deployment"))
 		Expect(appcharts[0].ShortDescription).To(Equal("Epinio standard deployment"))
 		Expect(appcharts[0].HelmChart).To(MatchRegexp("https://github\\.com/epinio/helm-charts/releases/download/epinio-application-.*/epinio-application-.*\\.tgz"))
