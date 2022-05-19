@@ -50,7 +50,7 @@ func filterServices(user auth.User, services []*models.Service) []*models.Servic
 
 	filteredServices := []*models.Service{}
 	for _, service := range services {
-		if _, allowed := namespacesMap[service.Namespace]; allowed {
+		if _, allowed := namespacesMap[service.Meta.Namespace]; allowed {
 			filteredServices = append(filteredServices, service)
 		}
 	}

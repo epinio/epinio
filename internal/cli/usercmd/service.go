@@ -274,7 +274,7 @@ func (c *EpinioClient) ServiceListAll() error {
 
 	msg := c.ui.Success().WithTable("Namespace", "Name", "Catalog Service", "Status")
 	for _, service := range resp.Services {
-		msg = msg.WithTableRow(service.Namespace, service.Name, service.CatalogService, service.Status.String())
+		msg = msg.WithTableRow(service.Meta.Namespace, service.Meta.Name, service.CatalogService, service.Status.String())
 	}
 	msg.Msg("Details:")
 
