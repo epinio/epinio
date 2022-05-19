@@ -123,7 +123,7 @@ var _ = FDescribe("Services", func() {
 			Expect(out).To(MatchRegexp("Listing Services"))
 			Expect(out).To(MatchRegexp("Namespace: " + namespace))
 
-			Expect(out).To(MatchRegexp(regex.TableRow(service, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", "not-ready")))
 
 			By("wait for deployment")
 			Eventually(func() string {
