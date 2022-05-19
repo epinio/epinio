@@ -143,7 +143,8 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 }
 
 func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
-	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	// note: Wrap (nil, ...) returns nil.
+	return errors.Wrap(retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("error getting the user secret [%s]", user.Username))
@@ -156,6 +157,6 @@ func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 		}
 
 		_, err = s.SecretInterface.Update(ctx, userSecret, metav1.UpdateOptions{})
-		return errors.Wrap(err, fmt.Sprintf("error updating the user secret [%s]", userSecret.GetName()))
-	})
+		return err
+	}), fmt.Sprintf("error updating the user secret [%s]", user))
 }
