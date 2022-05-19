@@ -87,6 +87,42 @@
         }
       }
     },
+    "/catalogservices": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return all available Epinio Catalog services.",
+        "operationId": "ServiceCatalog",
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCatalogResponse"
+          }
+        }
+      }
+    },
+    "/catalogservices/{CatalogService}": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return details of the named Epinio `CatalogService`.",
+        "operationId": "ServiceCatalogShow",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "CatalogService",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceCatalogShowResponse"
+          }
+        }
+      }
+    },
     "/configurations": {
       "get": {
         "tags": [
@@ -1381,33 +1417,11 @@
         "tags": [
           "service"
         ],
-        "summary": "Return all available Epinio Catalog services.",
-        "operationId": "ServiceCatalog",
+        "summary": "Return all the `Services` where the User has authorization.",
+        "operationId": "AllServices",
         "responses": {
           "200": {
-            "$ref": "#/responses/ServiceCatalogResponse"
-          }
-        }
-      }
-    },
-    "/services/{CatalogService}": {
-      "get": {
-        "tags": [
-          "service"
-        ],
-        "summary": "Return details of the named Epinio `CatalogService`.",
-        "operationId": "ServiceCatalogShow",
-        "parameters": [
-          {
-            "type": "string",
-            "name": "CatalogService",
-            "in": "path",
-            "required": true
-          }
-        ],
-        "responses": {
-          "200": {
-            "$ref": "#/responses/ServiceCatalogShowResponse"
+            "$ref": "#/responses/ServiceListResponse"
           }
         }
       }
