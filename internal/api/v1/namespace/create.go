@@ -4,11 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
@@ -21,13 +19,8 @@ import (
 func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
-	cluster, err := kubernetes.GetCluster(ctx)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
 	var request models.NamespaceCreateRequest
-	err = c.BindJSON(&request)
+	err := c.BindJSON(&request)
 	if err != nil {
 		return apierror.NewBadRequestError(err.Error())
 	}
@@ -37,7 +30,7 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError("name of namespace to create not found")
 	}
 
-	exists, err := namespaces.Exists(ctx, cluster, namespaceName)
+	exists, err := oc.namespaceService.Exists(ctx, namespaceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -45,7 +38,7 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.NamespaceAlreadyKnown(namespaceName)
 	}
 
-	err = namespaces.Create(ctx, cluster, namespaceName)
+	err = oc.namespaceService.Create(ctx, namespaceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

@@ -11,6 +11,7 @@ import (
 
 // Route describes a route for httprouter
 type Route struct {
+	Name    string
 	Method  string
 	Path    string
 	Format  string
@@ -21,10 +22,10 @@ var formatRegex = regexp.MustCompile(`:\w+`)
 
 // NewRoute returns a new route, which can be added to NamedRoutes and
 // used with gin. Trailing and leading slashes are removed.
-func NewRoute(method string, path string, h gin.HandlerFunc) Route {
+func NewRoute(name, method, path string, h gin.HandlerFunc) Route {
 	format := formatRegex.ReplaceAllString(path, "%s")
 	format = strings.Trim(format, "/")
-	return Route{method, path, format, h}
+	return Route{name, method, path, format, h}
 }
 
 // NamedRoutes is a map of all named routes, to provide something like
@@ -47,4 +48,11 @@ func (n NamedRoutes) Path(name string, params ...interface{}) string {
 		return strings.Trim(r.Path, "/")
 	}
 	return fmt.Sprintf(r.Format, params...)
+}
+
+func (n NamedRoutes) SetRoutes(routes ...Route) {
+	// TODO add some validation to prevent overriding and such
+	for _, route := range routes {
+		n[route.Name] = route
+	}
 }

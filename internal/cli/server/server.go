@@ -13,12 +13,14 @@ import (
 	"github.com/epinio/epinio/helpers/authtoken"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/dex"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
@@ -110,6 +112,22 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		// Some other Stat error, report
 		return nil, errors.Wrap(err, "extending local trust with dex")
 	}
+
+	// init routes
+
+	// TODO not sure why it needs a context (it's used in the Platform)
+	cluster, err := kubernetes.GetCluster(context.Background())
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot create Kubernetes Client")
+	}
+
+	// create the needed controllers
+	namespaceController := namespace.NewController(namespaces.NewKubernetesService(cluster))
+
+	// setup routes
+	apiv1.Routes.SetRoutes(apiv1.MakeRoutes()...)
+	apiv1.Routes.SetRoutes(apiv1.MakeNamespaceRoutes(namespaceController)...)
+	apiv1.Routes.SetRoutes(apiv1.MakeWsRoutes()...)
 
 	// Register api routes
 	{
