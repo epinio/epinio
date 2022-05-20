@@ -166,13 +166,13 @@ func BoundConfigurations(ctx context.Context, cluster *kubernetes.Cluster, appRe
 
 // BoundConfigurationNameSet returns the configuration names for the configurations bound to the application by a user, as a map/set
 func BoundConfigurationNameSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (NameSet, error) {
-	svcSecret, err := svcLoad(ctx, cluster, appRef)
+	configSecret, err := configLoad(ctx, cluster, appRef)
 	if err != nil {
 		return nil, err
 	}
 
 	result := NameSet{}
-	for name := range svcSecret.Data {
+	for name := range configSecret.Data {
 		result[name] = struct{}{}
 	}
 
@@ -181,13 +181,13 @@ func BoundConfigurationNameSet(ctx context.Context, cluster *kubernetes.Cluster,
 
 // BoundConfigurationNames returns the configuration names for the configurations bound to the application by a user, as a slice. Ordered by name.
 func BoundConfigurationNames(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
-	svcSecret, err := svcLoad(ctx, cluster, appRef)
+	configSecret, err := configLoad(ctx, cluster, appRef)
 	if err != nil {
 		return nil, err
 	}
 
 	result := []string{}
-	for name := range svcSecret.Data {
+	for name := range configSecret.Data {
 		result = append(result, name)
 	}
 
@@ -201,13 +201,13 @@ func BoundConfigurationNames(ctx context.Context, cluster *kubernetes.Cluster, a
 // When the function returns the configuration set will be extended.
 // Adding a known configuration is a no-op.
 func BoundConfigurationsSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, configurationNames []string, replace bool) error {
-	return svcUpdate(ctx, cluster, appRef, func(svcSecret *v1.Secret) {
+	return configUpdate(ctx, cluster, appRef, func(configSecret *v1.Secret) {
 		// Replacement is adding to a clear structure
 		if replace {
-			svcSecret.Data = make(map[string][]byte)
+			configSecret.Data = make(map[string][]byte)
 		}
 		for _, configurationName := range configurationNames {
-			svcSecret.Data[configurationName] = nil
+			configSecret.Data[configurationName] = nil
 		}
 	})
 }
@@ -216,38 +216,38 @@ func BoundConfigurationsSet(ctx context.Context, cluster *kubernetes.Cluster, ap
 // When the function returns the configuration set will be shrunk.
 // Removing an unknown configuration is a no-op.
 func BoundConfigurationsUnset(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, configurationName string) error {
-	return svcUpdate(ctx, cluster, appRef, func(svcSecret *v1.Secret) {
-		delete(svcSecret.Data, configurationName)
+	return configUpdate(ctx, cluster, appRef, func(configSecret *v1.Secret) {
+		delete(configSecret.Data, configurationName)
 	})
 }
 
-// svcUpdate is a helper for the public functions. It encapsulates the read/modify/write cycle
+// configUpdate is a helper for the public functions. It encapsulates the read/modify/write cycle
 // necessary to update the application's kube resource holding the application's configuration names.
-func svcUpdate(ctx context.Context, cluster *kubernetes.Cluster,
+func configUpdate(ctx context.Context, cluster *kubernetes.Cluster,
 	appRef models.AppRef, modifyBoundConfigurations func(*v1.Secret)) error {
 
 	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		svcSecret, err := svcLoad(ctx, cluster, appRef)
+		configSecret, err := configLoad(ctx, cluster, appRef)
 		if err != nil {
 			return err
 		}
 
-		if svcSecret.Data == nil {
-			svcSecret.Data = make(map[string][]byte)
+		if configSecret.Data == nil {
+			configSecret.Data = make(map[string][]byte)
 		}
 
-		modifyBoundConfigurations(svcSecret)
+		modifyBoundConfigurations(configSecret)
 
 		_, err = cluster.Kubectl.CoreV1().Secrets(appRef.Namespace).Update(
-			ctx, svcSecret, metav1.UpdateOptions{})
+			ctx, configSecret, metav1.UpdateOptions{})
 
 		return err
 	})
 }
 
-// svcLoad locates and returns the kube secret storing the referenced application's bound configurations'
+// configLoad locates and returns the kube secret storing the referenced application's bound configurations'
 // names. If necessary it creates that secret.
-func svcLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
+func configLoad(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (*v1.Secret, error) {
 	secretName := appRef.MakeConfigurationSecretName()
 	return loadOrCreateSecret(ctx, cluster, appRef, secretName, "configuration")
 }

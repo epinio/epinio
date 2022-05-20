@@ -136,7 +136,7 @@ func (ar *AppRef) MakeEnvSecretName() string {
 // bound configurations of the referenced application
 func (ar *AppRef) MakeConfigurationSecretName() string {
 	// TODO: This needs tests for configuration operations on an app with a long name
-	return names.GenerateResourceName(ar.Name + "-svc")
+	return names.GenerateResourceName(ar.Name + "-config")
 }
 
 // MakeScaleSecretName returns the name of the kube secret holding the number
