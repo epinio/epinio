@@ -217,7 +217,8 @@ func CheckOriginFunc(allowedOrigins []string) func(r *http.Request) bool {
 
 		for _, allowedOrigin := range allowedOrigins {
 			trimmedOrigin := strings.TrimSuffix(allowedOrigin, "/")
-			if trimmedOrigin == "*" || trimmedOrigin == originHeader {
+			trimmedHeader := strings.TrimSuffix(originHeader, "/")
+			if trimmedOrigin == "*" || trimmedOrigin == trimmedHeader {
 				return true
 			}
 		}
