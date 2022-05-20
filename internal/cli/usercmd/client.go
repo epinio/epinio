@@ -1,6 +1,8 @@
 // Package usercmd provides Epinio CLI commands for users
 package usercmd
 
+//go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
+
 import (
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
@@ -23,6 +25,7 @@ type EpinioClient struct {
 	API      APIClient
 }
 
+//counterfeiter:generate . APIClient
 type APIClient interface {
 	AuthToken() (string, error)
 	// app
