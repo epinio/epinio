@@ -90,12 +90,11 @@ func BoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster, namespa
 	return result, nil
 }
 
-// BoundAppsNames returns a map from the configuration names of configurations in the specified
-// namespace, to the names of the applications they are bound to. The keys of the map are
-// always a combination of namespace name and configuration name, to distinguish same-named
-// configurations in different namespaces (See `ConfigurationKey` below). The application names never
-// contain namespace information, as they are always in the same namespace as the configuration
-// referencing them.
+// BoundAppsNames returns a map from the names of configurations in the specified namespace, to the
+// names of the applications they are bound to. The keys of the map are always a combination of
+// namespace name and configuration name, to distinguish same-named configurations in different
+// namespaces (See `ConfigurationKey` below). The application names never contain namespace
+// information, as they are always in the same namespace as the configuration referencing them.
 
 func BoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]string, error) {
 
