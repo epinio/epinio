@@ -26,6 +26,11 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	clientSetHTTP1, err := kubernetes.GetHTTP1Client(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
 		return err
 	}
@@ -78,7 +83,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	proxyRequest(c.Writer, c.Request, podToConnect, namespace, deployment.Name, cluster.Kubectl)
+	proxyRequest(c.Writer, c.Request, podToConnect, namespace, deployment.Name, clientSetHTTP1)
 
 	return nil
 }
