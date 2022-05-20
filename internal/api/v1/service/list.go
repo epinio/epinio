@@ -27,7 +27,7 @@ func (ctr Controller) List(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	serviceList, err := kubeServiceClient.List(ctx, namespace)
+	serviceList, err := kubeServiceClient.ListInNamespace(ctx, namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

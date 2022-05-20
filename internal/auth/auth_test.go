@@ -19,11 +19,12 @@ import (
 
 var _ = Describe("Auth users", func() {
 	var authService *auth.AuthService
-	var fake = &authfakes.FakeSecretInterface{}
-
-	rand.Seed(time.Now().UnixNano())
+	var fake *authfakes.FakeSecretInterface
 
 	BeforeEach(func() {
+		rand.Seed(time.Now().UnixNano())
+
+		fake = &authfakes.FakeSecretInterface{}
 		authService = &auth.AuthService{
 			SecretInterface: fake,
 		}

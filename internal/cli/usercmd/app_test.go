@@ -242,6 +242,10 @@ func (m *mockAPIClient) ServiceCatalogShow(serviceName string) (*models.ServiceC
 	return nil, nil
 }
 
+func (m *mockAPIClient) AllServices() (*models.ServiceListResponse, error) {
+	return nil, nil
+}
+
 func (m *mockAPIClient) ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.ServiceShowResponse, error) {
 	return nil, nil
 }

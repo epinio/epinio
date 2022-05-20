@@ -4,7 +4,7 @@ package docs
 
 import "github.com/epinio/epinio/pkg/api/core/v1/models"
 
-// swagger:route GET /services service ServiceCatalog
+// swagger:route GET /catalogservices service ServiceCatalog
 // Return all available Epinio Catalog services.
 // responses:
 //   200: ServiceCatalogResponse
@@ -18,7 +18,7 @@ type ServiceCatalogResponse struct {
 	Body models.ServiceCatalogResponse
 }
 
-// swagger:route GET /services/{CatalogService} service ServiceCatalogShow
+// swagger:route GET /catalogservices/{CatalogService} service ServiceCatalogShow
 // Return details of the named Epinio `CatalogService`.
 // responses:
 //   200: ServiceCatalogShowResponse
@@ -34,6 +34,11 @@ type ServiceCatalogShowResponse struct {
 	// in: body
 	Body models.ServiceCatalogShowResponse
 }
+
+// swagger:route GET /services service AllServices
+// Return all the `Services` where the User has authorization.
+// responses:
+//   200: ServiceListResponse
 
 // swagger:route POST /namespaces/{Namespace}/services service ServiceCreate
 // Create a named service of an Epinio catalog service in the `Namespace`.

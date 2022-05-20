@@ -19,7 +19,7 @@ var _ = Describe("ServiceCatalog Endpoint", func() {
 	var catalogService models.CatalogService
 
 	catalogResponse := func() models.ServiceCatalogResponse {
-		response, err := env.Curl("GET", fmt.Sprintf("%s%s/services", serverURL, v1.Root), strings.NewReader(""))
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/catalogservices", serverURL, v1.Root), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 
