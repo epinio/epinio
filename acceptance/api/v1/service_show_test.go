@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
@@ -28,7 +29,9 @@ var _ = Describe("ServiceShow Endpoint", func() {
 		env.SetupAndTargetNamespace(namespace)
 
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -36,11 +39,11 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			},
 			Values: "{'service': {'type': 'ClusterIP'}}",
 		}
-		createCatalogService(catalogService)
+		catalog.CreateCatalogService(catalogService)
 	})
 
 	AfterEach(func() {
-		deleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(namespace)
 	})
 
@@ -69,7 +72,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Kind:       "HelmChart",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      models.ServiceHelmChartName(serviceName, namespace),
+						Name:      names.ServiceHelmChartName(serviceName, namespace),
 						Namespace: "epinio",
 					},
 					Spec: helmapiv1.HelmChartSpec{
@@ -78,11 +81,11 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Repo:            catalogService.HelmRepo.URL,
 					},
 				}
-				createHelmChart(helmChart)
+				catalog.CreateHelmChart(helmChart, true)
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -105,10 +108,10 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Kind:       "HelmChart",
 					},
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      models.ServiceHelmChartName(serviceName, namespace),
+						Name:      names.ServiceHelmChartName(serviceName, namespace),
 						Namespace: "epinio",
 						Labels: map[string]string{
-							services.CatalogServiceLabelKey:  catalogService.Name,
+							services.CatalogServiceLabelKey:  catalogService.Meta.Name,
 							services.TargetNamespaceLabelKey: namespace,
 						},
 					},
@@ -122,14 +125,14 @@ var _ = Describe("ServiceShow Endpoint", func() {
 
 			// Cleanup for all sub-cases
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
 			When("helmchart is ready", func() {
 
 				BeforeEach(func() {
-					createHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart, true)
 				})
 
 				It("returns the service with status Ready", func() {
@@ -160,7 +163,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 
 				BeforeEach(func() {
 					helmChart.ObjectMeta.Labels[services.CatalogServiceLabelKey] = "missing-catalog-service"
-					createHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart, true)
 				})
 
 				It("returns the service with name prefixed with [Missing]", func() {
@@ -189,7 +192,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			When("helmchart is not ready", func() {
 				BeforeEach(func() {
 					helmChart.Spec.Chart = "doesntexist"
-					createHelmChart(helmChart)
+					catalog.CreateHelmChart(helmChart, false)
 				})
 
 				It("returns the service with status not-ready", func() {

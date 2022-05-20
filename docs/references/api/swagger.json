@@ -1091,6 +1091,13 @@
             "name": "Configuration",
             "in": "path",
             "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ConfigurationDeleteRequest"
+            }
           }
         ],
         "responses": {
@@ -1227,6 +1234,13 @@
             "name": "Service",
             "in": "path",
             "required": true
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceDeleteRequest"
+            }
           }
         ],
         "responses": {
@@ -1451,9 +1465,8 @@
           "type": "string",
           "x-go-name": "HelmRepo"
         },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
+        "meta": {
+          "$ref": "#/definitions/MetaLite"
         },
         "short_description": {
           "type": "string",
@@ -1475,7 +1488,6 @@
       "type": "object",
       "properties": {
         "active": {
-          "description": "TODO: Readiness and Liveness fields?",
           "type": "boolean",
           "x-go-name": "Active"
         },
@@ -1487,6 +1499,11 @@
           "type": "integer",
           "format": "int32",
           "x-go-name": "DesiredReplicas"
+        },
+        "name": {
+          "description": "TODO: Readiness and Liveness fields?",
+          "type": "string",
+          "x-go-name": "Name"
         },
         "readyreplicas": {
           "type": "integer",
@@ -1534,6 +1551,9 @@
       "description": "AppRef references an App by name and namespace",
       "type": "object",
       "properties": {
+        "createdAt": {
+          "$ref": "#/definitions/Time"
+        },
         "name": {
           "type": "string",
           "x-go-name": "Name"
@@ -1662,11 +1682,20 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "CatalogService": {
+      "description": "CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
+        "appVersion": {
+          "type": "string",
+          "x-go-name": "AppVersion"
+        },
         "chart": {
           "type": "string",
           "x-go-name": "HelmChart"
+        },
+        "chartVersion": {
+          "type": "string",
+          "x-go-name": "ChartVersion"
         },
         "description": {
           "type": "string",
@@ -1675,9 +1704,8 @@
         "helm_repo": {
           "$ref": "#/definitions/HelmRepo"
         },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
+        "meta": {
+          "$ref": "#/definitions/MetaLite"
         },
         "short_description": {
           "type": "string",
@@ -1722,6 +1750,17 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ConfigurationDeleteRequest": {
+      "description": "ConfigurationDeleteRequest represents and contains the data needed to delete a configuration",
+      "type": "object",
+      "properties": {
+        "unbind": {
+          "type": "boolean",
+          "x-go-name": "Unbind"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ConfigurationDeleteResponse": {
       "description": "ConfigurationDeleteResponse represents the server's response to a successful configuration deletion",
       "type": "object",
@@ -1740,6 +1779,9 @@
       "description": "ConfigurationRef references a Configuration by name and namespace",
       "type": "object",
       "properties": {
+        "createdAt": {
+          "$ref": "#/definitions/Time"
+        },
         "name": {
           "type": "string",
           "x-go-name": "Name"
@@ -1955,6 +1997,39 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "Meta": {
+      "description": "Meta holds the information needed to reference a resource (name and namespace), plus\ngeneral descriptive things (creation timestamp).",
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "$ref": "#/definitions/Time"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        },
+        "namespace": {
+          "type": "string",
+          "x-go-name": "Namespace"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "MetaLite": {
+      "description": "plus general descriptive things (creation timestamp).",
+      "type": "object",
+      "title": "MetaLite holds the information needed to reference a non-namespaced resource (name),",
+      "properties": {
+        "createdAt": {
+          "$ref": "#/definitions/Time"
+        },
+        "name": {
+          "type": "string",
+          "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "Namespace": {
       "description": "Namespace has all the namespace properties, i.e. name, app names, and configuration names\nIt is used in the CLI and API responses.",
       "type": "object",
@@ -1973,9 +2048,8 @@
           },
           "x-go-name": "Configurations"
         },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
+        "meta": {
+          "$ref": "#/definitions/MetaLite"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2063,13 +2137,8 @@
           "type": "string",
           "x-go-name": "CatalogService"
         },
-        "name": {
-          "type": "string",
-          "x-go-name": "Name"
-        },
-        "namespace": {
-          "type": "string",
-          "x-go-name": "Namespace"
+        "meta": {
+          "$ref": "#/definitions/Meta"
         },
         "status": {
           "$ref": "#/definitions/ServiceStatus"
@@ -2112,7 +2181,6 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "ServiceCreateRequest": {
-      "description": "Service matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
       "properties": {
         "catalog_service": {
@@ -2122,6 +2190,31 @@
         "name": {
           "type": "string",
           "x-go-name": "Name"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceDeleteRequest": {
+      "description": "ServiceDeleteRequest represents and contains the data needed to delete a service",
+      "type": "object",
+      "properties": {
+        "unbind": {
+          "type": "boolean",
+          "x-go-name": "Unbind"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ServiceDeleteResponse": {
+      "description": "ServiceDeleteResponse represents the server's response to a successful service deletion",
+      "type": "object",
+      "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2204,6 +2297,12 @@
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "Time": {
+      "description": "+protobuf.options.marshal=false\n+protobuf.as=Timestamp\n+protobuf.options.(gogoproto.goproto_stringer)=false",
+      "type": "object",
+      "title": "Time is a wrapper around time.Time which supports correct\nmarshaling to YAML and JSON.  Wrappers are provided for many\nof the factory methods that the time package offers.",
+      "x-go-package": "k8s.io/apimachinery/pkg/apis/meta/v1"
     },
     "UploadResponse": {
       "description": "UploadResponse represents the server's response to a successful app sources upload",
@@ -2471,7 +2570,7 @@
     "ServiceDeleteResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/Response"
+        "$ref": "#/definitions/ServiceDeleteResponse"
       }
     },
     "ServiceListResponse": {

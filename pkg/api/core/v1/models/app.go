@@ -67,8 +67,10 @@ type AppDeployment struct {
 func NewApp(name string, namespace string) *App {
 	return &App{
 		Meta: AppRef{
-			Name:      name,
-			Namespace: namespace,
+			Meta{
+				Name:      name,
+				Namespace: namespace,
+			},
 		},
 	}
 }
@@ -105,13 +107,17 @@ func (al AppList) Less(i, j int) bool {
 
 // AppRef references an App by name and namespace
 type AppRef struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Meta
 }
 
 // NewAppRef returns a new reference to an app
 func NewAppRef(name string, namespace string) AppRef {
-	return AppRef{Name: name, Namespace: namespace}
+	return AppRef{
+		Meta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
 }
 
 // App returns a fresh app model for the reference

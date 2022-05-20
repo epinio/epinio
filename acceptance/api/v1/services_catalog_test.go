@@ -37,7 +37,9 @@ var _ = Describe("ServiceCatalog Endpoint", func() {
 
 	BeforeEach(func() {
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -48,26 +50,26 @@ var _ = Describe("ServiceCatalog Endpoint", func() {
 	})
 
 	It("lists services from the 'epinio' namespace", func() {
-		createCatalogService(catalogService)
-		defer deleteCatalogService(catalogService.Name)
+		catalog.CreateCatalogService(catalogService)
+		defer catalog.DeleteCatalogService(catalogService.Meta.Name)
 
 		catalog := catalogResponse()
 		serviceNames := []string{}
 		for _, s := range catalog.CatalogServices {
-			serviceNames = append(serviceNames, s.Name)
+			serviceNames = append(serviceNames, s.Meta.Name)
 		}
-		Expect(serviceNames).To(ContainElement(catalogService.Name))
+		Expect(serviceNames).To(ContainElement(catalogService.Meta.Name))
 	})
 
 	It("doesn't list services from namespaces other than 'epinio'", func() {
-		createCatalogServiceInNamespace("default", catalogService)
-		defer deleteCatalogServiceFromNamespace("default", catalogService.Name)
+		catalog.CreateCatalogServiceInNamespace("default", catalogService)
+		defer catalog.DeleteCatalogServiceFromNamespace("default", catalogService.Meta.Name)
 
 		catalog := catalogResponse()
 		serviceNames := []string{}
 		for _, s := range catalog.CatalogServices {
-			serviceNames = append(serviceNames, s.Name)
+			serviceNames = append(serviceNames, s.Meta.Name)
 		}
-		Expect(serviceNames).ToNot(ContainElement(catalogService.Name))
+		Expect(serviceNames).ToNot(ContainElement(catalogService.Meta.Name))
 	})
 })

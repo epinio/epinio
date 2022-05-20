@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -254,7 +255,7 @@ func UpdateConfigurations(manifest models.ApplicationManifest, cmd *cobra.Comman
 	// C: Configurations - Replace
 
 	if len(boundConfigurations) > 0 {
-		boundConfigurations = uniqueStrings(boundConfigurations)
+		boundConfigurations = helpers.UniqueStrings(boundConfigurations)
 		manifest.Configuration.Configurations = boundConfigurations
 	}
 
@@ -398,21 +399,6 @@ func instances(cmd *cobra.Command) (*int32, error) {
 	})
 
 	return i, nil
-}
-
-// uniqueStrings process the string slice and returns a slice where
-// duplicate strings are removed. The order of strings is not touched.
-// It does not assume a specific order.
-func uniqueStrings(stringSlice []string) []string {
-	keys := make(map[string]bool)
-	list := []string{}
-	for _, entry := range stringSlice {
-		if _, value := keys[entry]; !value {
-			keys[entry] = true
-			list = append(list, entry)
-		}
-	}
-	return list
 }
 
 func fileExists(path string) (bool, error) {

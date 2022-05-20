@@ -9,6 +9,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,7 +27,9 @@ var _ = Describe("ServiceList Endpoint", func() {
 		env.SetupAndTargetNamespace(namespace2)
 
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -34,11 +37,11 @@ var _ = Describe("ServiceList Endpoint", func() {
 			},
 			Values: "{'service': {'type': 'ClusterIP'}}",
 		}
-		createCatalogService(catalogService)
+		catalog.CreateCatalogService(catalogService)
 	})
 
 	AfterEach(func() {
-		deleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(namespace1)
 		env.DeleteNamespace(namespace2)
 	})
@@ -69,11 +72,11 @@ var _ = Describe("ServiceList Endpoint", func() {
 		When("it is in another namespace", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace2)
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace2))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace2))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -95,11 +98,11 @@ var _ = Describe("ServiceList Endpoint", func() {
 		When("it is in the targeted namespace", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace1)
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace1))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace1))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -115,7 +118,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(serviceListResponse.Services).Should(HaveLen(1))
-				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName1))
+				Expect(serviceListResponse.Services[0].Meta.Name).To(Equal(serviceName1))
 			})
 		})
 	})
@@ -132,15 +135,15 @@ var _ = Describe("ServiceList Endpoint", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace2)
 
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
-				env.MakeServiceInstance(serviceName2, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace2))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace2))
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName2, namespace2))
+				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName2, namespace2))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -162,17 +165,17 @@ var _ = Describe("ServiceList Endpoint", func() {
 		When("they are in two different namespace", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace1)
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
 
 				env.TargetNamespace(namespace2)
-				env.MakeServiceInstance(serviceName2, catalogService.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace1))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace1))
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName2, namespace2))
+				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName2, namespace2))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
@@ -188,7 +191,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(serviceListResponse.Services).Should(HaveLen(1))
-				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName1))
+				Expect(serviceListResponse.Services[0].Meta.Name).To(Equal(serviceName1))
 			})
 
 			It("returns a list with service2 in namespace2", func() {
@@ -203,7 +206,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(serviceListResponse.Services).Should(HaveLen(1))
-				Expect(serviceListResponse.Services[0].Name).To(Equal(serviceName2))
+				Expect(serviceListResponse.Services[0].Meta.Name).To(Equal(serviceName2))
 			})
 		})
 
@@ -211,15 +214,15 @@ var _ = Describe("ServiceList Endpoint", func() {
 			BeforeEach(func() {
 				env.TargetNamespace(namespace1)
 
-				env.MakeServiceInstance(serviceName1, catalogService.Name)
-				env.MakeServiceInstance(serviceName2, catalogService.Name)
+				env.MakeServiceInstance(serviceName1, catalogService.Meta.Name)
+				env.MakeServiceInstance(serviceName2, catalogService.Meta.Name)
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName1, namespace1))
+				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace1))
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName2, namespace1))
+				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName2, namespace1))
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 

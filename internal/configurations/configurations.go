@@ -15,6 +15,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,6 +38,7 @@ type Configuration struct {
 	Name       string
 	Namespace  string
 	Username   string
+	CreatedAt  metav1.Time
 	kubeClient *kubernetes.Cluster
 }
 
@@ -54,6 +56,7 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 		return nil, err
 	}
 	c.Username = s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+	c.CreatedAt = s.ObjectMeta.CreationTimestamp
 
 	return c, nil
 }
@@ -93,6 +96,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 		username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 		result = append(result, &Configuration{
+			CreatedAt:  s.ObjectMeta.CreationTimestamp,
 			Name:       name,
 			Namespace:  namespace,
 			Username:   username,
@@ -219,7 +223,7 @@ func (s *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   models.ServiceHelmChartName(name, namespace),
+		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
 		ConfigurationLabelKey:          "true",
 		ConfigurationTypeLabelKey:      "service",
 	}).AsSelector()
@@ -242,7 +246,7 @@ func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, 
 func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   models.ServiceHelmChartName(name, namespace),
+		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
 	}).AsSelector()
 
 	listOptions := metav1.ListOptions{

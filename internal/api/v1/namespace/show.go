@@ -40,8 +40,16 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	space, err := namespaces.Get(ctx, cluster, namespace)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	response.OKReturn(c, models.Namespace{
-		Name:           namespace,
+		Meta: models.MetaLite{
+			Name:      namespace,
+			CreatedAt: space.CreatedAt,
+		},
 		Apps:           appNames,
 		Configurations: configurationNames,
 	})

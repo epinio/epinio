@@ -71,13 +71,14 @@ func (c *EpinioClient) Namespaces() error {
 	}
 
 	sort.Sort(namespaces)
-	msg := c.ui.Success().WithTable("Name", "Applications", "Configurations")
+	msg := c.ui.Success().WithTable("Name", "Created", "Applications", "Configurations")
 
 	for _, namespace := range namespaces {
 		sort.Strings(namespace.Apps)
 		sort.Strings(namespace.Configurations)
 		msg = msg.WithTableRow(
-			namespace.Name,
+			namespace.Meta.Name,
+			fmt.Sprintf("%v", namespace.Meta.CreatedAt),
 			strings.Join(namespace.Apps, ", "),
 			strings.Join(namespace.Configurations, ", "))
 	}
@@ -165,7 +166,9 @@ func (c *EpinioClient) ShowNamespace(namespace string) error {
 	sort.Strings(space.Apps)
 	sort.Strings(space.Configurations)
 
-	msg = msg.WithTableRow("Name", space.Name).
+	msg = msg.
+		WithTableRow("Name", space.Meta.Name).
+		WithTableRow("Created", fmt.Sprintf("%v", space.Meta.CreatedAt)).
 		WithTableRow("Applications", strings.Join(space.Apps, "\n")).
 		WithTableRow("Configurations", strings.Join(space.Configurations, "\n"))
 

@@ -69,8 +69,10 @@ var _ = Describe("AppStage Endpoint", func() {
 
 			request := models.StageRequest{
 				App: models.AppRef{
-					Name:      appName, // App 1
-					Namespace: namespace,
+					Meta: models.Meta{
+						Name:      appName, // App 1
+						Namespace: namespace,
+					},
 				},
 				BlobUID:      uploadResponse2.BlobUID, // Code 2
 				BuilderImage: "paketobuildpacks/builder:full",
@@ -105,7 +107,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			oldBlob := uploadResponse.BlobUID
 
 			stageRequest := models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
+				App: models.AppRef{
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
+				},
 				BlobUID:      oldBlob,
 				BuilderImage: "paketobuildpacks/builder:full",
 			}
@@ -121,7 +128,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			Expect(stagingBlobUID).To(Equal(oldBlob))
 
 			stageRequest = models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
+				App: models.AppRef{
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
+				},
 				BuilderImage: "paketobuildpacks/builder:full",
 			}
 			By("staging the application again")
@@ -144,7 +156,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			builderImage := "paketobuildpacks/builder:full"
 
 			stageRequest := models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
+				App: models.AppRef{
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
+				},
 				BlobUID:      oldBlob,
 				BuilderImage: builderImage,
 			}
@@ -159,7 +176,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			Expect(stagingBuilderImage).To(Equal(builderImage))
 
 			stageRequest = models.StageRequest{
-				App: models.AppRef{Name: appName, Namespace: namespace},
+				App: models.AppRef{
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
+				},
 			}
 			By("staging the application again")
 			stageResponse = stageApplication(appName, namespace, stageRequest)
@@ -178,7 +200,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			uploadResponse := uploadApplication(appName, namespace)
 
 			stageRequest := models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
+				App: models.AppRef{
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
+				},
 				BlobUID:      uploadResponse.BlobUID,
 				BuilderImage: "paketobuildpacks/builder:full",
 			}
@@ -189,8 +216,10 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("deploying the staged resource")
 			request = models.DeployRequest{
 				App: models.AppRef{
-					Name:      appName,
-					Namespace: namespace,
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
 				},
 				Stage: models.StageRef{
 					ID: stageResponse.Stage.ID,
@@ -243,7 +272,12 @@ var _ = Describe("AppStage Endpoint", func() {
 			uploadResponse := uploadApplication(appName, namespace)
 
 			stageRequest := models.StageRequest{
-				App:          models.AppRef{Name: appName, Namespace: namespace},
+				App: models.AppRef{
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
+				},
 				BlobUID:      uploadResponse.BlobUID,
 				BuilderImage: "paketobuildpacks/builder:full",
 			}
@@ -254,8 +288,10 @@ var _ = Describe("AppStage Endpoint", func() {
 			By("deploying the staged resource")
 			request = models.DeployRequest{
 				App: models.AppRef{
-					Name:      appName,
-					Namespace: namespace,
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
 				},
 				Stage: models.StageRef{
 					ID: stageResponse.Stage.ID,

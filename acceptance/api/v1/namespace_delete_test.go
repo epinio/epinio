@@ -8,6 +8,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -24,7 +25,9 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 
 		// Create a Catalog Service
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -32,19 +35,19 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 			},
 			Values: "{'service': {'type': 'ClusterIP'}}",
 		}
-		createCatalogService(catalogService)
+		catalog.CreateCatalogService(catalogService)
 
 		// Irrelevant namespace and service instance
 		otherNamespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(otherNamespace)
 		otherService = catalog.NewServiceName()
-		env.MakeServiceInstance(otherService, catalogService.Name)
+		env.MakeServiceInstance(otherService, catalogService.Meta.Name)
 
 		// The namespace under test
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 		serviceName = catalog.NewServiceName()
-		env.MakeServiceInstance(serviceName, catalogService.Name)
+		env.MakeServiceInstance(serviceName, catalogService.Meta.Name)
 
 		// An app
 		app1 := catalog.NewAppName()
@@ -57,10 +60,10 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 	})
 
 	AfterEach(func() {
-		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(otherService, otherNamespace))
+		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(otherService, otherNamespace))
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		deleteCatalogService(catalogService.Name)
+		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(otherNamespace)
 	})
 
@@ -76,16 +79,16 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 		Expect(string(bodyBytes)).To(Equal(jsOK))
 
 		env.VerifyNamespaceNotExist(namespace)
-		out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+		out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 		Expect(err).To(HaveOccurred(), out)
 		Expect(out).To(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
 
 		// Doesn't delete service from other namespace
 		Consistently(func() string {
-			out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", models.ServiceHelmChartName(otherService, otherNamespace))
+			out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(otherService, otherNamespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 			return out
-		}, "1m", "5s").Should(MatchRegexp(models.ServiceHelmChartName(otherService, otherNamespace))) // Expect not deleted
+		}, "1m", "5s").Should(MatchRegexp(names.ServiceHelmChartName(otherService, otherNamespace))) // Expect not deleted
 
 	})
 })

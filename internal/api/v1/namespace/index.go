@@ -48,7 +48,10 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 		}
 
 		namespaces = append(namespaces, models.Namespace{
-			Name:           namespace.Name,
+			Meta: models.MetaLite{
+				Name:      namespace.Name,
+				CreatedAt: namespace.CreatedAt,
+			},
 			Apps:           appNames,
 			Configurations: configurationNames,
 		})

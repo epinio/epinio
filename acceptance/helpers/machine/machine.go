@@ -58,7 +58,7 @@ func (m *Machine) EpinioPush(dir string, name string, arg ...string) (string, er
 }
 
 func (m *Machine) SetupAndTargetNamespace(namespace string) {
-	By("creating a namespace")
+	By(fmt.Sprintf("creating a namespace: %s", namespace))
 
 	out, err := m.Epinio("", "namespace", "create", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
@@ -71,7 +71,7 @@ func (m *Machine) SetupAndTargetNamespace(namespace string) {
 }
 
 func (m *Machine) TargetNamespace(namespace string) {
-	By("targeting a namespace")
+	By(fmt.Sprintf("targeting a namespace: %s", namespace))
 
 	out, err := m.Epinio(m.nodeTmpDir, "target", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
@@ -82,7 +82,7 @@ func (m *Machine) TargetNamespace(namespace string) {
 }
 
 func (m *Machine) DeleteNamespace(namespace string) {
-	By("deleting a namespace")
+	By(fmt.Sprintf("deleting a namespace: %s", namespace))
 
 	out, err := m.Epinio("", "namespace", "delete", "-f", namespace)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)

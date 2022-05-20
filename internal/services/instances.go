@@ -7,6 +7,7 @@ import (
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -23,7 +24,7 @@ import (
 func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*models.Service, error) {
 	var service models.Service
 
-	helmChartName := models.ServiceHelmChartName(name, namespace)
+	helmChartName := names.ServiceHelmChartName(name, namespace)
 	srv, err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Get(ctx, helmChartName, metav1.GetOptions{})
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -58,8 +59,11 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	}
 
 	service = models.Service{
-		Name:           name,
-		Namespace:      targetNamespace,
+		Meta: models.Meta{
+			Name:      name,
+			Namespace: targetNamespace,
+			CreatedAt: srv.GetCreationTimestamp(),
+		},
 		CatalogService: fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
 	}
 
@@ -86,10 +90,10 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Kind:       "HelmChart",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      models.ServiceHelmChartName(name, namespace),
+			Name:      names.ServiceHelmChartName(name, namespace),
 			Namespace: helmchart.Namespace(),
 			Labels: map[string]string{
-				CatalogServiceLabelKey:  catalogService.Name,
+				CatalogServiceLabelKey:  catalogService.Meta.Name,
 				TargetNamespaceLabelKey: namespace,
 				ServiceNameLabelKey:     name,
 			},
@@ -120,7 +124,7 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 // installed on the namespace (that's the targetNamespace).
 func (s *ServiceClient) Delete(ctx context.Context, namespace, service string) error {
 	err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Delete(ctx,
-		models.ServiceHelmChartName(service, namespace),
+		names.ServiceHelmChartName(service, namespace),
 		metav1.DeleteOptions{},
 	)
 
@@ -176,7 +180,7 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 	// catalogServiceNameMap is a lookup map to check the available Catalog Services
 	catalogServiceNameMap := map[string]struct{}{}
 	for _, catalogService := range catalogServices {
-		catalogServiceNameMap[catalogService.Name] = struct{}{}
+		catalogServiceNameMap[catalogService.Meta.Name] = struct{}{}
 	}
 
 	for _, srv := range helmChartList {
@@ -187,8 +191,11 @@ func (s *ServiceClient) List(ctx context.Context, namespace string) ([]*models.S
 		}
 
 		service := models.Service{
-			Name:           srv.GetLabels()[ServiceNameLabelKey],
-			Namespace:      namespace,
+			Meta: models.Meta{
+				Name:      srv.GetLabels()[ServiceNameLabelKey],
+				Namespace: namespace,
+				CreatedAt: srv.GetCreationTimestamp(),
+			},
 			CatalogService: catalogServiceName,
 		}
 

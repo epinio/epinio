@@ -101,12 +101,14 @@ type ServiceDeleteParam struct {
 	Namespace string
 	// in: path
 	Service string
+	// in: body
+	Body models.ServiceDeleteRequest
 }
 
 // swagger:response ServiceDeleteResponse
 type ServiceDeleteResponse struct {
 	// in: body
-	Body models.Response
+	Body models.ServiceDeleteResponse
 }
 
 // swagger:route POST /namespaces/{Namespace}/services/{Service}/bind service ServiceBind

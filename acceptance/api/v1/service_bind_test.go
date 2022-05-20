@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,7 +27,9 @@ var _ = Describe("ServiceBind Endpoint", func() {
 		env.SetupAndTargetNamespace(namespace)
 
 		catalogService = models.CatalogService{
-			Name:      catalog.NewCatalogServiceName(),
+			Meta: models.MetaLite{
+				Name: catalog.NewCatalogServiceName(),
+			},
 			HelmChart: "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
@@ -74,18 +77,18 @@ var _ = Describe("ServiceBind Endpoint", func() {
 		var serviceName string
 
 		BeforeEach(func() {
-			createCatalogService(catalogService)
+			catalog.CreateCatalogService(catalogService)
 
 			// Let's create a service so that only app is missing
 			serviceName = catalog.NewServiceName()
-			createService(serviceName, namespace, catalogService)
+			catalog.CreateService(serviceName, namespace, catalogService)
 		})
 
 		AfterEach(func() {
-			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			deleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
 		})
 
 		It("returns 404", func() {
@@ -106,27 +109,28 @@ var _ = Describe("ServiceBind Endpoint", func() {
 	})
 
 	When("both app and service exist", func() {
-		var app, serviceName string
+		var app, serviceName, chartName string
 
 		BeforeEach(func() {
 			// Use a chart that creates some secret (nginx doesn't)
 			catalogService.HelmChart = "mysql"
 			catalogService.Values = ""
-			createCatalogService(catalogService)
+			catalog.CreateCatalogService(catalogService)
 
 			app = catalog.NewAppName()
 			serviceName = catalog.NewServiceName()
+			chartName = names.ServiceHelmChartName(serviceName, namespace)
 
 			env.MakeContainerImageApp(app, 1, containerImageURL)
-			createService(serviceName, namespace, catalogService)
+			catalog.CreateService(serviceName, namespace, catalogService)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(app)
-			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", models.ServiceHelmChartName(serviceName, namespace))
+			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			deleteCatalogService(catalogService.Name)
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
 		})
 
 		It("binds the service's secrets", func() {
@@ -146,7 +150,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", serviceName)
+			matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 			Expect(appShowOut).To(MatchRegexp(matchString))
 		})
 	})

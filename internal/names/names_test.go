@@ -67,10 +67,10 @@ var _ = Describe("Names", func() {
 			sum := hex.EncodeToString(sumArray[:])
 
 			result := GenerateResourceNameTruncated(originalName, 41)
-			Expect(result).To(Equal(sum))
+			Expect(result).To(Equal(fmt.Sprintf("x%s", sum[1:40])))
 
 			result = GenerateResourceNameTruncated(originalName, 40)
-			Expect(result).To(Equal(sum))
+			Expect(result).To(Equal(fmt.Sprintf("x%s", sum[1:39])))
 		})
 	})
 

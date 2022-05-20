@@ -41,8 +41,10 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		BeforeEach(func() {
 			deployRequest = models.DeployRequest{
 				App: models.AppRef{
-					Name:      appName,
-					Namespace: namespace,
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
 				},
 				Origin: models.ApplicationOrigin{
 					Kind: models.OriginPath,
@@ -58,7 +60,12 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				oldBlob := uploadResponse.BlobUID
 
 				stageRequest := models.StageRequest{
-					App:          models.AppRef{Name: appName, Namespace: namespace},
+					App: models.AppRef{
+						Meta: models.Meta{
+							Name:      appName,
+							Namespace: namespace,
+						},
+					},
 					BlobUID:      oldBlob,
 					BuilderImage: "paketobuildpacks/builder:full",
 				}
@@ -72,7 +79,12 @@ var _ = Describe("AppDeploy Endpoint", func() {
 
 				By("staging the application again")
 				stageRequest = models.StageRequest{
-					App:          models.AppRef{Name: appName, Namespace: namespace},
+					App: models.AppRef{
+						Meta: models.Meta{
+							Name:      appName,
+							Namespace: namespace,
+						},
+					},
 					BlobUID:      newBlob,
 					BuilderImage: "paketobuildpacks/builder:full",
 				}
@@ -98,7 +110,12 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				theOnlyBlob := uploadResponse.BlobUID
 
 				stageRequest := models.StageRequest{
-					App:          models.AppRef{Name: appName, Namespace: namespace},
+					App: models.AppRef{
+						Meta: models.Meta{
+							Name:      appName,
+							Namespace: namespace,
+						},
+					},
 					BlobUID:      theOnlyBlob,
 					BuilderImage: "paketobuildpacks/builder:full",
 				}
@@ -137,8 +154,10 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		BeforeEach(func() {
 			request = models.DeployRequest{
 				App: models.AppRef{
-					Name:      appName,
-					Namespace: namespace,
+					Meta: models.Meta{
+						Name:      appName,
+						Namespace: namespace,
+					},
 				},
 				ImageURL: "splatform/sample-app",
 				Origin: models.ApplicationOrigin{

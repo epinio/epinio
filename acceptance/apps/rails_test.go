@@ -116,7 +116,8 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Update the configuration
-		configurationName = fmt.Sprintf("%s-%s-postgresql", rails.Namespace, serviceName)
+		configurationName = fmt.Sprintf("%s-postgresql",
+			names.ServiceHelmChartName(serviceName, rails.Namespace))
 		newHost = fmt.Sprintf("%s.%s.svc.cluster.local", configurationName, rails.Namespace)
 
 		out, err = env.Epinio("", "configurations", "update", configurationName,
@@ -137,8 +138,8 @@ var _ = Describe("RubyOnRails", func() {
 		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/%s/myname/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		env.DeleteService(serviceName)
 		env.DeleteApp(rails.Name)
+		env.DeleteService(serviceName)
 		env.DeleteNamespace(rails.Namespace)
 	})
 

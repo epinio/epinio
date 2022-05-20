@@ -10,8 +10,28 @@ package models
 import (
 	"fmt"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	helmrelease "helm.sh/helm/v3/pkg/release"
 )
+
+// Note: Meta is an extension of `ConfigurationRef` later in the file. Users of
+// `ConfigurationRef` should be incrementally switched over to `Meta`.
+
+// Meta holds the information needed to reference a resource (name and namespace), plus
+// general descriptive things (creation timestamp).
+type Meta struct {
+	Name      string      `json:"name"`
+	Namespace string      `json:"namespace,omitempty"`
+	CreatedAt metav1.Time `json:"createdAt,omitempty"`
+}
+
+// MetaLite holds the information needed to reference a non-namespaced resource (name),
+// plus general descriptive things (creation timestamp).
+type MetaLite struct {
+	Name      string      `json:"name"`
+	CreatedAt metav1.Time `json:"createdAt,omitempty"`
+}
 
 type Response struct {
 	Status string `json:"status"`
@@ -24,8 +44,7 @@ type Request struct {
 
 // ConfigurationRef references a Configuration by name and namespace
 type ConfigurationRef struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
+	Meta
 }
 
 // ConfigurationResponse represents the data of a single configuration instance
@@ -251,10 +270,10 @@ type ServiceCreateRequest struct {
 	Name           string `json:"name,omitempty"`
 }
 
-// CatalogService matches github.com/epinio/application/api/v1 ServiceSpec
+// CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
-	Name             string   `json:"name,omitempty"`
+	Meta             MetaLite `json:"meta,omitempty"`
 	Description      string   `json:"description,omitempty"`
 	ShortDescription string   `json:"short_description,omitempty"`
 	HelmChart        string   `json:"chart,omitempty"`
@@ -269,6 +288,16 @@ type CatalogService struct {
 type HelmRepo struct {
 	Name string `json:"name,omitempty"`
 	URL  string `json:"url,omitempty"`
+}
+
+// ServiceDeleteRequest represents and contains the data needed to delete a service
+type ServiceDeleteRequest struct {
+	Unbind bool `json:"unbind"`
+}
+
+// ServiceDeleteResponse represents the server's response to a successful service deletion
+type ServiceDeleteResponse struct {
+	BoundApps []string `json:"boundapps"`
 }
 
 type ServiceBindRequest struct {
@@ -288,8 +317,7 @@ type ServiceShowResponse struct {
 }
 
 type Service struct {
-	Name           string        `json:"name,omitempty"`
-	Namespace      string        `json:"namespace,omitempty"`
+	Meta           Meta          `json:"meta,omitempty"`
 	CatalogService string        `json:"catalog_service,omitempty"`
 	Status         ServiceStatus `json:"status,omitempty"`
 }
@@ -313,10 +341,6 @@ func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
 
 func (s ServiceStatus) String() string { return string(s) }
 
-func ServiceHelmChartName(name, namespace string) string {
-	return fmt.Sprintf("%s-%s", namespace, name)
-}
-
 type ServiceListResponse struct {
 	Services []*Service `json:"services,omitempty"`
 }
@@ -324,11 +348,11 @@ type ServiceListResponse struct {
 // AppChart matches github.com/epinio/application/api/v1 AppChartSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type AppChart struct {
-	Name             string `json:"name,omitempty"`
-	Description      string `json:"description,omitempty"`
-	ShortDescription string `json:"short_description,omitempty"`
-	HelmChart        string `json:"helm_chart,omitempty"`
-	HelmRepo         string `json:"helm_repo,omitempty"`
+	Meta             MetaLite `json:"meta,omitempty"`
+	Description      string   `json:"description,omitempty"`
+	ShortDescription string   `json:"short_description,omitempty"`
+	HelmChart        string   `json:"helm_chart,omitempty"`
+	HelmRepo         string   `json:"helm_repo,omitempty"`
 }
 
 // AppChartList is a collection of app charts

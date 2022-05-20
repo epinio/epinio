@@ -52,10 +52,13 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				err = json.Unmarshal(bodyBytes, &namespaces)
 				Expect(err).ToNot(HaveOccurred())
 
+				// Reduce to relevant parts (i.e. just names, and ignoring creation time)
+				namespaceNames := []string{}
+				for _, n := range namespaces {
+					namespaceNames = append(namespaceNames, n.Meta.Name)
+				}
 				// See global BeforeEach for where this namespace is set up.
-				Expect(namespaces).Should(ContainElements(models.Namespace{
-					Name: namespace,
-				}))
+				Expect(namespaceNames).Should(ContainElements(namespace))
 			})
 			When("basic auth credentials are not provided", func() {
 				It("returns a 401 response", func() {
@@ -202,11 +205,11 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				var responseSpace models.Namespace
 				err = json.Unmarshal(bodyBytes, &responseSpace)
 				Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
-				Expect(responseSpace).To(Equal(models.Namespace{
-					Name:           namespace,
-					Apps:           nil,
-					Configurations: nil,
-				}))
+
+				// check - only relevant fields - skip: creation time
+				Expect(responseSpace.Meta.Name).To(Equal(namespace))
+				Expect(responseSpace.Apps).To(BeNil())
+				Expect(responseSpace.Configurations).To(BeNil())
 			})
 		})
 
