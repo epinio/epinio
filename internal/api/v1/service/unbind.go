@@ -68,9 +68,9 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 	username := requestctx.User(ctx).Username
 
-	apiErr = UnbindService(ctx, cluster, logger, namespace, app.AppRef().Name, username, serviceConfigurations)
+	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
-		return apiErr // already apierror.MultiError
+		return apiErr
 	}
 
 	response.OK(c)
@@ -79,7 +79,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 func UnbindService(
 	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
-	namespace, appName, userName string,
+	namespace, serviceName, appName, userName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
 	logger.Info("unbinding service configurations")
@@ -95,5 +95,13 @@ func UnbindService(
 	}
 
 	logger.Info("unbound service configurations")
+
+	appRef := models.NewAppRef(appName, namespace)
+	err := application.BoundServicesUnset(ctx, cluster, appRef, serviceName)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	logger.Info("unbound service")
 	return nil
 }

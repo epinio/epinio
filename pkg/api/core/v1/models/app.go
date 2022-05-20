@@ -139,6 +139,13 @@ func (ar *AppRef) MakeConfigurationSecretName() string {
 	return names.GenerateResourceName(ar.Name + "-config")
 }
 
+// MakeServiceSecretName returns the name of the kube secret holding the bound
+// services of the referenced application
+func (ar *AppRef) MakeServiceSecretName() string {
+	// TODO: This needs tests for service operations on an app with a long name
+	return names.GenerateResourceName(ar.Name + "-svc")
+}
+
 // MakeScaleSecretName returns the name of the kube secret holding the number
 // of desired instances for referenced application
 func (ar *AppRef) MakeScaleSecretName() string {
