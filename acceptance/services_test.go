@@ -207,21 +207,24 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(MatchRegexp("Listing all Services"))
 
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace1, service1, "mysql-dev", "not-ready")))
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace2, service2, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(regex.TableRow(namespace1, service1, regex.DateRegex, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "not-ready")))
 
-			By("wait for deployment")
+			By("wait for deployment of " + service1)
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
-			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace1, service1, "mysql-dev", "deployed")))
-
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all")
-				return out
-			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace2, service2, "mysql-dev", "deployed")))
+			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace1, service1, regex.DateRegex, "mysql-dev", "deployed")))
 
 			By(fmt.Sprintf("%s/%s up", namespace1, service1))
+
+			By("wait for deployment of " + service2)
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "list", "--all")
+				return out
+			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "deployed")))
+
+			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
 
 		It("list only the services in the user namespace", func() {
@@ -249,16 +252,16 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(MatchRegexp("Listing all Services"))
 
-			Expect(out).NotTo(MatchRegexp(regex.TableRow(namespace1, service1, "mysql-dev", "not-ready")))
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace2, service2, "mysql-dev", "not-ready")))
+			Expect(out).NotTo(MatchRegexp(regex.TableRow(namespace1, service1, regex.DateRegex, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "not-ready")))
 
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
 				return out
-			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace2, service2, "mysql-dev", "deployed")))
+			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "deployed")))
 
-			By(fmt.Sprintf("%s/%s up", namespace1, service1))
+			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
 	})
 
