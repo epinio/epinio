@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -140,27 +139,6 @@ func ConfigurationKey(name, namespace string) string {
 func DecodeConfigurationKey(key string) (string, string) {
 	parts := strings.Split(key, "\0000")
 	return parts[0], parts[1]
-}
-
-// BoundConfigurations returns the set of configurations bound to the application. Ordered by name.
-func BoundConfigurations(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (configurations.ConfigurationList, error) {
-
-	names, err := BoundConfigurationNames(ctx, cluster, appRef)
-	if err != nil {
-		return nil, err
-	}
-
-	var bound = configurations.ConfigurationList{}
-
-	for _, name := range names {
-		configuration, err := configurations.Lookup(ctx, cluster, appRef.Namespace, name)
-		if err != nil {
-			return nil, err
-		}
-		bound = append(bound, configuration)
-	}
-
-	return bound, nil
 }
 
 // BoundConfigurationNameSet returns the configuration names for the configurations bound to the application by a user, as a map/set
