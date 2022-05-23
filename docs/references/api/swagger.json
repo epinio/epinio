@@ -1176,6 +1176,28 @@
         }
       }
     },
+    "/namespaces/{Namespace}/serviceapps": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return map from services in the `Namespace`, to the apps in the same.",
+        "operationId": "ServiceApps",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceAppsResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/services": {
       "get": {
         "tags": [
@@ -2147,6 +2169,13 @@
     "Service": {
       "type": "object",
       "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        },
         "catalog_service": {
           "type": "string",
           "x-go-name": "CatalogService"
@@ -2233,15 +2262,19 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ServiceList": {
+      "description": "ServiceList represents a collection of service instances",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Service"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ServiceListResponse": {
       "type": "object",
       "properties": {
         "services": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Service"
-          },
-          "x-go-name": "Services"
+          "$ref": "#/definitions/ServiceList"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2555,6 +2588,15 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/NamespaceList"
+      }
+    },
+    "ServiceAppsResponse": {
+      "description": "",
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/definitions/AppList"
+        }
       }
     },
     "ServiceBindResponse": {
