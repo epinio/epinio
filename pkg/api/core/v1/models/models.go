@@ -255,6 +255,11 @@ type ConfigurationAppsResponse struct {
 	AppsOf map[string]AppList `json:"apps_of,omitempty"`
 }
 
+// ServiceAppsResponse returns a list of apps per service
+type ServiceAppsResponse struct {
+	AppsOf map[string]AppList `json:"apps_of,omitempty"`
+}
+
 // ServiceCatalogResponse
 type ServiceCatalogResponse struct {
 	CatalogServices []*CatalogService `json:"catalog_services,omitempty"`

@@ -148,3 +148,21 @@ func (c *Client) ServiceList(namespace string) (*models.ServiceListResponse, err
 
 	return &resp, err
 }
+
+// ServiceApps lists a map from services to bound apps, for the namespace
+func (c *Client) ServiceApps(namespace string) (models.ServiceAppsResponse, error) {
+	resp := models.ServiceAppsResponse{}
+
+	data, err := c.get(api.Routes.Path("ServiceApps", namespace))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, errors.Wrap(err, "response body is not JSON")
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
+}

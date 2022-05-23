@@ -116,6 +116,23 @@ type ServiceDeleteResponse struct {
 	Body models.ServiceDeleteResponse
 }
 
+// swagger:route GET /namespaces/{Namespace}/serviceapps service ServiceApps
+// Return map from services in the `Namespace`, to the apps in the same.
+// responses:
+//   200: ServiceAppsResponse
+
+// swagger:parameters ServiceApps
+type ServiceAppsParam struct {
+	// in: path
+	Namespace string
+}
+
+// swagger:response ServiceAppsResponse
+type ServiceAppsResponse struct {
+	// in: body
+	Body map[string]models.AppList
+}
+
 // swagger:route POST /namespaces/{Namespace}/services/{Service}/bind service ServiceBind
 // Bind the named `Service` in the `Namespace` to an App.
 // responses:
