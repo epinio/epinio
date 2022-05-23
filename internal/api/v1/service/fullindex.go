@@ -37,11 +37,7 @@ func (ctr Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	resp := models.ServiceListResponse{
-		Services: extendWithBoundApps(filterServices(user, serviceList), appsOf),
-	}
-
-	response.OKReturn(c, resp)
+	response.OKReturn(c, extendWithBoundApps(filterServices(user, serviceList), appsOf))
 	return nil
 }
 

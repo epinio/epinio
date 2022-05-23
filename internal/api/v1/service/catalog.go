@@ -7,7 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	k8sapierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -29,9 +28,7 @@ func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, models.ServiceCatalogResponse{
-		CatalogServices: serviceList,
-	})
+	response.OKReturn(c, serviceList)
 	return nil
 }
 
@@ -58,8 +55,6 @@ func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, models.ServiceCatalogShowResponse{
-		CatalogService: service,
-	})
+	response.OKReturn(c, service)
 	return nil
 }

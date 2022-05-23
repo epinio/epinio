@@ -2,7 +2,6 @@ package usercmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
@@ -79,7 +78,7 @@ func (c *EpinioClient) ChartList(ctx context.Context) error {
 	for _, chart := range charts {
 		mark := ""
 		name := chart.Meta.Name
-		created := fmt.Sprintf("%v", chart.Meta.CreatedAt)
+		created := chart.Meta.CreatedAt.String()
 		short := chart.ShortDescription
 		if chart.Meta.Name == c.Settings.AppChart {
 			mark = color.BlueString("*")
@@ -112,7 +111,7 @@ func (c *EpinioClient) ChartShow(ctx context.Context, name string) error {
 
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", chart.Meta.Name).
-		WithTableRow("Created", fmt.Sprintf("%v", chart.Meta.CreatedAt)).
+		WithTableRow("Created", chart.Meta.CreatedAt.String()).
 		WithTableRow("Short", chart.ShortDescription).
 		WithTableRow("Description", chart.Description).
 		WithTableRow("Helm Repository", chart.HelmRepo).

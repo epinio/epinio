@@ -2,7 +2,6 @@ package usercmd
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sort"
 	"strings"
@@ -27,10 +26,10 @@ func (c *EpinioClient) ServiceCatalog() error {
 
 	msg := c.ui.Success().WithTable("Name", "Created", "Version", "Description")
 
-	for _, service := range catalog.CatalogServices {
+	for _, service := range catalog {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
-			fmt.Sprintf("%v", service.Meta.CreatedAt),
+			service.Meta.CreatedAt.String(),
 			service.AppVersion,
 			service.ShortDescription,
 		)
@@ -51,19 +50,17 @@ func (c *EpinioClient) ServiceCatalogShow(serviceName string) error {
 		WithStringValue("Service", serviceName).
 		Msg("Show service details")
 
-	catalogShowResponse, err := c.API.ServiceCatalogShow(serviceName)
+	catalogService, err := c.API.ServiceCatalogShow(serviceName)
 	if err != nil {
 		return err
 	}
 
-	service := catalogShowResponse.CatalogService
-
 	c.ui.Success().WithTable("Key", "Value").
-		WithTableRow("Name", service.Meta.Name).
-		WithTableRow("Created", fmt.Sprintf("%v", service.Meta.CreatedAt)).
-		WithTableRow("Version", service.AppVersion).
-		WithTableRow("Short Description", service.ShortDescription).
-		WithTableRow("Description", service.Description).
+		WithTableRow("Name", catalogService.Meta.Name).
+		WithTableRow("Created", catalogService.Meta.CreatedAt.String()).
+		WithTableRow("Version", catalogService.AppVersion).
+		WithTableRow("Short Description", catalogService.ShortDescription).
+		WithTableRow("Description", catalogService.Description).
 		Msg("Epinio Service:")
 
 	return nil
@@ -102,23 +99,23 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		Name: serviceName,
 	}
 
-	resp, err := c.API.ServiceShow(request, c.Settings.Namespace)
+	service, err := c.API.ServiceShow(request, c.Settings.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "service show failed")
 	}
 
-	if resp.Service == nil {
+	if service == nil {
 		return errors.New("Service not found")
 	}
 
-	boundApps := resp.Service.BoundApps
+	boundApps := service.BoundApps
 	sort.Strings(boundApps)
 
 	c.ui.Success().WithTable("Key", "Value").
-		WithTableRow("Name", resp.Service.Meta.Name).
-		WithTableRow("Created", fmt.Sprintf("%v", resp.Service.Meta.CreatedAt)).
-		WithTableRow("Catalog Service", resp.Service.CatalogService).
-		WithTableRow("Status", resp.Service.Status.String()).
+		WithTableRow("Name", service.Meta.Name).
+		WithTableRow("Created", service.Meta.CreatedAt.String()).
+		WithTableRow("Catalog Service", service.CatalogService).
+		WithTableRow("Status", service.Status.String()).
 		WithTableRow("Used-By", strings.Join(boundApps, ", ")).
 		Msg("Details:")
 
@@ -236,20 +233,20 @@ func (c *EpinioClient) ServiceList() error {
 		WithStringValue("Namespace", c.Settings.Namespace).
 		Msg("Listing Services...")
 
-	resp, err := c.API.ServiceList(c.Settings.Namespace)
+	services, err := c.API.ServiceList(c.Settings.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if len(resp.Services) == 0 {
+	if len(services) == 0 {
 		c.ui.Normal().Msg("No services found")
 		return nil
 	}
 
-	sort.Sort(resp.Services)
+	sort.Sort(services)
 
 	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Status", "Applications")
-	for _, service := range resp.Services {
+	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
 			service.Meta.CreatedAt.String(),
@@ -271,20 +268,20 @@ func (c *EpinioClient) ServiceListAll() error {
 
 	c.ui.Note().Msg("Listing all Services...")
 
-	resp, err := c.API.AllServices()
+	services, err := c.API.AllServices()
 	if err != nil {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if len(resp.Services) == 0 {
+	if len(services) == 0 {
 		c.ui.Normal().Msg("No services found")
 		return nil
 	}
 
-	sort.Sort(resp.Services)
+	sort.Sort(services)
 
 	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Status", "Application")
-	for _, service := range resp.Services {
+	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
 			service.Meta.Name,

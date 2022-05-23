@@ -6,7 +6,6 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,10 +38,6 @@ func (ctr Controller) List(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	resp := models.ServiceListResponse{
-		Services: extendWithBoundApps(serviceList, appsOf),
-	}
-
-	response.OKReturn(c, resp)
+	response.OKReturn(c, extendWithBoundApps(serviceList, appsOf))
 	return nil
 }

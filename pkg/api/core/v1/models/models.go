@@ -260,15 +260,8 @@ type ServiceAppsResponse struct {
 	AppsOf map[string]AppList `json:"apps_of,omitempty"`
 }
 
-// ServiceCatalogResponse
-type ServiceCatalogResponse struct {
-	CatalogServices []*CatalogService `json:"catalog_services,omitempty"`
-}
-
-// ServiceCatalogShowResponse
-type ServiceCatalogShowResponse struct {
-	CatalogService *CatalogService `json:"catalog_service,omitempty"`
-}
+// CatalogServices is a list of catalog service elements
+type CatalogServices []CatalogService
 
 type ServiceCreateRequest struct {
 	CatalogService string `json:"catalog_service,omitempty"`
@@ -317,10 +310,6 @@ type ServiceShowRequest struct {
 	Name string `json:"name,omitempty"`
 }
 
-type ServiceShowResponse struct {
-	Service *Service `json:"service,omitempty"`
-}
-
 type Service struct {
 	Meta           Meta          `json:"meta,omitempty"`
 	CatalogService string        `json:"catalog_service,omitempty"`
@@ -349,10 +338,6 @@ func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
 }
 
 func (s ServiceStatus) String() string { return string(s) }
-
-type ServiceListResponse struct {
-	Services ServiceList `json:"services,omitempty"`
-}
 
 // AppChart matches github.com/epinio/application/api/v1 AppChartSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.

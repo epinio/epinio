@@ -6,7 +6,6 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 )
 
@@ -29,12 +28,12 @@ func (ctr Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	srv, err := kubeServiceClient.Get(ctx, namespace, serviceName)
+	service, err := kubeServiceClient.Get(ctx, namespace, serviceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	if srv == nil {
+	if service == nil {
 		return apierror.ServiceIsNotKnown(serviceName)
 	}
 
@@ -43,13 +42,9 @@ func (ctr Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	srv.BoundApps = appNames
+	service.BoundApps = appNames
 
-	resp := models.ServiceShowResponse{
-		Service: srv,
-	}
-
-	response.OKReturn(c, resp)
+	response.OKReturn(c, service)
 
 	return nil
 }

@@ -71,16 +71,16 @@ type APIClient interface {
 	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)
 	ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error)
 	// services
-	ServiceCatalog() (*models.ServiceCatalogResponse, error)
-	ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error)
+	ServiceCatalog() (models.CatalogServices, error)
+	ServiceCatalogShow(serviceName string) (*models.CatalogService, error)
 
-	AllServices() (*models.ServiceListResponse, error)
-	ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.ServiceShowResponse, error)
+	AllServices() (models.ServiceList, error)
+	ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.Service, error)
 	ServiceCreate(req *models.ServiceCreateRequest, namespace string) error
 	ServiceBind(req *models.ServiceBindRequest, namespace, name string) error
 	ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name string) error
 	ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f epinioapi.ErrorFunc) (models.ServiceDeleteResponse, error)
-	ServiceList(namespace string) (*models.ServiceListResponse, error)
+	ServiceList(namespace string) (models.ServiceList, error)
 
 	// application charts
 	ChartList() ([]models.AppChart, error)
