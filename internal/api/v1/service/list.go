@@ -3,9 +3,11 @@ package service
 import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,8 +34,13 @@ func (ctr Controller) List(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	appsOf, err := application.ServicesBoundAppsNames(ctx, cluster, "")
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	resp := models.ServiceListResponse{
-		Services: serviceList,
+		Services: extendWithBoundApps(serviceList, appsOf),
 	}
 
 	response.OKReturn(c, resp)

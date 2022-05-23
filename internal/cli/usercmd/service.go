@@ -111,11 +111,15 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		return errors.New("Service not found")
 	}
 
+	boundApps := resp.Service.BoundApps
+	sort.Strings(boundApps)
+
 	c.ui.Success().WithTable("Key", "Value").
 		WithTableRow("Name", resp.Service.Meta.Name).
 		WithTableRow("Created", fmt.Sprintf("%v", resp.Service.Meta.CreatedAt)).
 		WithTableRow("Catalog Service", resp.Service.CatalogService).
 		WithTableRow("Status", resp.Service.Status.String()).
+		WithTableRow("Used-By", strings.Join(boundApps, ", ")).
 		Msg("Details:")
 
 	return nil
@@ -242,13 +246,16 @@ func (c *EpinioClient) ServiceList() error {
 		return nil
 	}
 
-	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Status")
+	sort.Sort(resp.Services)
+
+	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Status", "Applications")
 	for _, service := range resp.Services {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
 			service.Meta.CreatedAt.String(),
 			service.CatalogService,
 			service.Status.String(),
+			strings.Join(service.BoundApps, ", "),
 		)
 	}
 	msg.Msg("Details:")
@@ -274,7 +281,9 @@ func (c *EpinioClient) ServiceListAll() error {
 		return nil
 	}
 
-	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Status")
+	sort.Sort(resp.Services)
+
+	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Status", "Application")
 	for _, service := range resp.Services {
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
@@ -282,6 +291,7 @@ func (c *EpinioClient) ServiceListAll() error {
 			service.Meta.CreatedAt.String(),
 			service.CatalogService,
 			service.Status.String(),
+			strings.Join(service.BoundApps, ", "),
 		)
 	}
 	msg.Msg("Details:")

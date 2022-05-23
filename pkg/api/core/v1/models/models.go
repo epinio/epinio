@@ -325,9 +325,13 @@ type Service struct {
 	Meta           Meta          `json:"meta,omitempty"`
 	CatalogService string        `json:"catalog_service,omitempty"`
 	Status         ServiceStatus `json:"status,omitempty"`
+	BoundApps      []string      `json:"boundapps"`
 }
 
 type ServiceStatus string
+
+// ServiceList represents a collection of service instances
+type ServiceList []Service
 
 const (
 	ServiceStatusDeployed ServiceStatus = "deployed"
@@ -347,7 +351,7 @@ func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
 func (s ServiceStatus) String() string { return string(s) }
 
 type ServiceListResponse struct {
-	Services []*Service `json:"services,omitempty"`
+	Services ServiceList `json:"services,omitempty"`
 }
 
 // AppChart matches github.com/epinio/application/api/v1 AppChartSpec
