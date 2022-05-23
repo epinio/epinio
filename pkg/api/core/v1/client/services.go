@@ -9,7 +9,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-func (c *Client) ServiceCatalog() (*models.ServiceCatalogResponse, error) {
+func (c *Client) ServiceCatalog() (models.ServiceCatalogResponse, error) {
 	data, err := c.get(api.Routes.Path("ServiceCatalog"))
 	if err != nil {
 		return nil, err
@@ -22,7 +22,7 @@ func (c *Client) ServiceCatalog() (*models.ServiceCatalogResponse, error) {
 
 	c.log.V(1).Info("response decoded", "response", resp)
 
-	return &resp, nil
+	return resp, nil
 }
 
 func (c *Client) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error) {
@@ -41,7 +41,7 @@ func (c *Client) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogS
 	return &resp, nil
 }
 
-func (c *Client) AllServices() (*models.ServiceListResponse, error) {
+func (c *Client) AllServices() (models.ServiceListResponse, error) {
 	data, err := c.get(api.Routes.Path("AllServices"))
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (c *Client) AllServices() (*models.ServiceListResponse, error) {
 
 	c.log.V(1).Info("response decoded", "response", resp)
 
-	return &resp, err
+	return resp, err
 }
 
 func (c *Client) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
@@ -133,7 +133,7 @@ func (c *Client) ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name
 	return err
 }
 
-func (c *Client) ServiceList(namespace string) (*models.ServiceListResponse, error) {
+func (c *Client) ServiceList(namespace string) (models.ServiceListResponse, error) {
 	data, err := c.get(api.Routes.Path("ServiceList", namespace))
 	if err != nil {
 		return nil, err
@@ -146,5 +146,5 @@ func (c *Client) ServiceList(namespace string) (*models.ServiceListResponse, err
 
 	c.log.V(1).Info("response decoded", "response", resp)
 
-	return &resp, err
+	return resp, err
 }

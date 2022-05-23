@@ -30,8 +30,10 @@ func (ctr Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	resp := models.ServiceListResponse{
-		Services: filterServices(user, serviceList),
+	resp := models.ServiceListResponse{}
+
+	for _, s := range filterServices(user, serviceList) {
+		resp = append(resp, *s)
 	}
 
 	response.OKReturn(c, resp)

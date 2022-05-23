@@ -32,8 +32,9 @@ func (ctr Controller) List(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	resp := models.ServiceListResponse{
-		Services: serviceList,
+	resp := models.ServiceListResponse{}
+	for _, s := range serviceList {
+		resp = append(resp, *s)
 	}
 
 	response.OKReturn(c, resp)

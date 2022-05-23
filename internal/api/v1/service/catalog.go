@@ -29,9 +29,13 @@ func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, models.ServiceCatalogResponse{
-		CatalogServices: serviceList,
-	})
+	result := models.ServiceCatalogResponse{}
+	for _, s := range serviceList {
+		result = append(result, *s)
+	}
+
+	response.OKReturn(c, result)
+
 	return nil
 }
 

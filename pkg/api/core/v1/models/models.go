@@ -256,9 +256,7 @@ type ConfigurationAppsResponse struct {
 }
 
 // ServiceCatalogResponse
-type ServiceCatalogResponse struct {
-	CatalogServices []*CatalogService `json:"catalog_services,omitempty"`
-}
+type ServiceCatalogResponse []CatalogService
 
 // ServiceCatalogShowResponse
 type ServiceCatalogShowResponse struct {
@@ -341,9 +339,7 @@ func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
 
 func (s ServiceStatus) String() string { return string(s) }
 
-type ServiceListResponse struct {
-	Services []*Service `json:"services,omitempty"`
-}
+type ServiceListResponse []Service
 
 // AppChart matches github.com/epinio/application/api/v1 AppChartSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.

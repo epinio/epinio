@@ -20,14 +20,14 @@ func (c *EpinioClient) ServiceCatalog() error {
 
 	c.ui.Note().Msg("Getting catalog...")
 
-	catalog, err := c.API.ServiceCatalog()
+	catalogServices, err := c.API.ServiceCatalog()
 	if err != nil {
 		return errors.Wrap(err, "service catalog failed")
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Created", "Version", "Description")
 
-	for _, service := range catalog.CatalogServices {
+	for _, service := range catalogServices {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
 			fmt.Sprintf("%v", service.Meta.CreatedAt),
@@ -237,13 +237,13 @@ func (c *EpinioClient) ServiceList() error {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if len(resp.Services) == 0 {
+	if len(resp) == 0 {
 		c.ui.Normal().Msg("No services found")
 		return nil
 	}
 
 	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Status")
-	for _, service := range resp.Services {
+	for _, service := range resp {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
 			service.Meta.CreatedAt.String(),
@@ -269,13 +269,13 @@ func (c *EpinioClient) ServiceListAll() error {
 		return errors.Wrap(err, "service list failed")
 	}
 
-	if len(resp.Services) == 0 {
+	if len(resp) == 0 {
 		c.ui.Normal().Msg("No services found")
 		return nil
 	}
 
 	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Status")
-	for _, service := range resp.Services {
+	for _, service := range resp {
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
 			service.Meta.Name,

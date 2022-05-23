@@ -53,9 +53,9 @@ var _ = Describe("ServiceCatalog Endpoint", func() {
 		catalog.CreateCatalogService(catalogService)
 		defer catalog.DeleteCatalogService(catalogService.Meta.Name)
 
-		catalog := catalogResponse()
+		catalogServices := catalogResponse()
 		serviceNames := []string{}
-		for _, s := range catalog.CatalogServices {
+		for _, s := range catalogServices {
 			serviceNames = append(serviceNames, s.Meta.Name)
 		}
 		Expect(serviceNames).To(ContainElement(catalogService.Meta.Name))
@@ -65,9 +65,9 @@ var _ = Describe("ServiceCatalog Endpoint", func() {
 		catalog.CreateCatalogServiceInNamespace("default", catalogService)
 		defer catalog.DeleteCatalogServiceFromNamespace("default", catalogService.Meta.Name)
 
-		catalog := catalogResponse()
+		catalogServices := catalogResponse()
 		serviceNames := []string{}
-		for _, s := range catalog.CatalogServices {
+		for _, s := range catalogServices {
 			serviceNames = append(serviceNames, s.Meta.Name)
 		}
 		Expect(serviceNames).ToNot(ContainElement(catalogService.Meta.Name))
