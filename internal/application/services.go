@@ -3,7 +3,6 @@ package application
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -135,41 +134,6 @@ func ServiceKey(name, namespace string) string {
 func DecodeServiceKey(key string) (string, string) {
 	parts := strings.Split(key, "\0000")
 	return parts[0], parts[1]
-}
-
-// BoundServiceNameSet returns the service names for the services bound to the application by a
-// user, as a map/set
-func BoundServiceNameSet(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) (NameSet, error) {
-	svcSecret, err := svcLoad(ctx, cluster, appRef)
-	if err != nil {
-		return nil, err
-	}
-
-	result := NameSet{}
-	for name := range svcSecret.Data {
-		result[name] = struct{}{}
-	}
-
-	return result, nil
-}
-
-// BoundServiceNames returns the service names for the services bound to the application by a user,
-// as a slice. Ordered by name.
-func BoundServiceNames(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) ([]string, error) {
-	svcSecret, err := svcLoad(ctx, cluster, appRef)
-	if err != nil {
-		return nil, err
-	}
-
-	result := []string{}
-	for name := range svcSecret.Data {
-		result = append(result, name)
-	}
-
-	// Normalize to lexicographic order.
-	sort.Strings(result)
-
-	return result, nil
 }
 
 // BoundServicesSet replaces or adds the specified service names to the named application.  When the
