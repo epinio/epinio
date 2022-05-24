@@ -483,11 +483,26 @@ var _ = Describe("Services", func() {
 			out, err := env.Epinio("", "service", "bind", service, app)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			By("verify binding")
+			By("verify binding /app")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
 			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
 			Expect(appShowOut).To(MatchRegexp(matchString))
+
+			By("verify binding /show")
+			out, err = env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp(fmt.Sprintf("Used-By.*\\|.*%s", app)))
+
+			By("verify binding /list")
+			out, err = env.Epinio("", "service", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", app)))
+
+			By("verify binding /list-all")
+			out, err = env.Epinio("", "service", "list", "--all")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", app)))
 		})
 	})
 
@@ -552,6 +567,24 @@ var _ = Describe("Services", func() {
 			Expect(err).ToNot(HaveOccurred())
 			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
 			Expect(appShowOut).ToNot(MatchRegexp(matchString))
+
+			By("verify unbinding /show")
+			out, err = env.Epinio("", "service", "show", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).ToNot(MatchRegexp(fmt.Sprintf("Used-By.*\\|.*%s", app)))
+			Expect(out).To(MatchRegexp(fmt.Sprintf("Used-By.*\\| +\\|")))
+
+			By("verify unbinding /list")
+			out, err = env.Epinio("", "service", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).ToNot(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", app)))
+			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", "")))
+
+			By("verify unbinding /list-all")
+			out, err = env.Epinio("", "service", "list", "--all")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).ToNot(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", app)))
+			Expect(out).To(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", "")))
 		})
 	})
 })
