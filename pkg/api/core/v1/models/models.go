@@ -317,6 +317,10 @@ type Service struct {
 	BoundApps      []string      `json:"boundapps"`
 }
 
+func (s *Service) Namespace() string {
+	return s.Meta.Namespace
+}
+
 type ServiceStatus string
 
 // ServiceList represents a collection of service instances

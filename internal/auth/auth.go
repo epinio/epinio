@@ -160,3 +160,27 @@ func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 		return err
 	}), fmt.Sprintf("error updating the user secret [%s]", user))
 }
+
+type NamespacedResource interface {
+	Namespace() string
+}
+
+func FilterResources[T NamespacedResource](user User, resources []T) []T {
+	if user.Role == "admin" {
+		return resources
+	}
+
+	namespacesMap := make(map[string]struct{})
+	for _, ns := range user.Namespaces {
+		namespacesMap[ns] = struct{}{}
+	}
+
+	filteredResources := []T{}
+	for _, resource := range resources {
+		if _, allowed := namespacesMap[resource.Namespace()]; allowed {
+			filteredResources = append(filteredResources, resource)
+		}
+	}
+
+	return filteredResources
+}
