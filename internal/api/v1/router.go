@@ -135,6 +135,10 @@ var Routes = routes.NamedRoutes{
 	"ServiceCatalog":     get("/catalogservices", errorHandler(service.Controller{}.Catalog)),
 	"ServiceCatalogShow": get("/catalogservices/:catalogservice", errorHandler(service.Controller{}.CatalogShow)),
 
+	// Note, the second registration catches calls with an empty pattern!
+	"ServiceCatalogMatch":  get("catalogservicesmatches/:pattern", errorHandler(service.Controller{}.CatalogMatch)),
+	"ServiceCatalogMatch0": get("catalogservicesmatches", errorHandler(service.Controller{}.CatalogMatch)),
+
 	// Services
 	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
 	//
@@ -143,6 +147,9 @@ var Routes = routes.NamedRoutes{
 	"ServiceList":   get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
 	"ServiceShow":   get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
 	"ServiceDelete": delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
+
+	"ServiceMatch":  get("/namespaces/:namespace/servicesmatches/:pattern", errorHandler(service.Controller{}.Match)),
+	"ServiceMatch0": get("/namespaces/:namespace/servicesmatches", errorHandler(service.Controller{}.Match)),
 
 	// Bind a service to/from applications
 	"ServiceBind": post(

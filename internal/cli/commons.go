@@ -93,3 +93,35 @@ func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) (
 
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
+
+// matchingServiceFinder returns a list of matching services from the provided partial command
+func matchingServiceFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	app, err := usercmd.New()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	matches := app.ServiceMatching(toComplete)
+
+	return matches, cobra.ShellCompDirectiveNoFileComp
+}
+
+// matchingCatalogFinder returns a list of matching catalogs from the provided partial command
+func matchingCatalogFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	app, err := usercmd.New()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	matches := app.CatalogMatching(toComplete)
+
+	return matches, cobra.ShellCompDirectiveNoFileComp
+}

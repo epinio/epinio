@@ -73,6 +73,7 @@ type APIClient interface {
 	// services
 	ServiceCatalog() (models.CatalogServices, error)
 	ServiceCatalogShow(serviceName string) (*models.CatalogService, error)
+	ServiceCatalogMatch(prefix string) (models.CatalogMatchResponse, error)
 
 	AllServices() (models.ServiceList, error)
 	ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.Service, error)
@@ -81,6 +82,7 @@ type APIClient interface {
 	ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name string) error
 	ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f epinioapi.ErrorFunc) (models.ServiceDeleteResponse, error)
 	ServiceList(namespace string) (models.ServiceList, error)
+	ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error)
 
 	// application charts
 	ChartList() ([]models.AppChart, error)
