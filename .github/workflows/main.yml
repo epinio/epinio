@@ -42,7 +42,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v3.0.1
+        uses: actions/cache@v3.0.2
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -61,7 +61,7 @@ jobs:
         run: make test
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./coverprofile.out
           flags: unittests
@@ -96,7 +96,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v3.0.1
+        uses: actions/cache@v3.0.2
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -122,7 +122,7 @@ jobs:
           scripts/collect-coverage.sh
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./coverprofile.out
           flags: acceptance-cli
@@ -161,7 +161,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v3.0.1
+        uses: actions/cache@v3.0.2
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -187,7 +187,7 @@ jobs:
           scripts/collect-coverage.sh
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./coverprofile.out
           flags: acceptance-api
@@ -226,7 +226,7 @@ jobs:
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
       - name: Cache Tools
-        uses: actions/cache@v3.0.1
+        uses: actions/cache@v3.0.2
         with:
           path: ${{ github.workspace }}/tools
           key: ${{ runner.os }}-tools
@@ -252,7 +252,7 @@ jobs:
           scripts/collect-coverage.sh
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
+        uses: codecov/codecov-action@v3
         with:
           files: ./coverprofile.out
           flags: acceptance-apps
@@ -269,7 +269,7 @@ jobs:
           docker exec k3d-epinio-acceptance-server-0 sh -c 'cd /var/log/containers; grep -r "." .' > tmp/containers.log
 
       - name: Upload Logs
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: acceptance-logs-${{ github.sha }}-${{ github.run_id }}
