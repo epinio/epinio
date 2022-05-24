@@ -165,6 +165,7 @@ type NamespacedResource interface {
 	Namespace() string
 }
 
+// FilterResources returns only the NamespacedResources where the user has permissions
 func FilterResources[T NamespacedResource](user User, resources []T) []T {
 	if user.Role == "admin" {
 		return resources
