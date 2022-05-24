@@ -572,7 +572,7 @@ var _ = Describe("Services", func() {
 			out, err = env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).ToNot(MatchRegexp(fmt.Sprintf("Used-By.*\\|.*%s", app)))
-			Expect(out).To(MatchRegexp(fmt.Sprintf("Used-By.*\\| +\\|")))
+			Expect(out).To(MatchRegexp("Used-By.*\\| +\\|"))
 
 			By("verify unbinding /list")
 			out, err = env.Epinio("", "service", "list")
