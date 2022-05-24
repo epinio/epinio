@@ -226,7 +226,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
 
-			It("returns a list with both the service", func() {
+			It("returns a list with both services", func() {
 				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace1)
 				response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 				Expect(err).ToNot(HaveOccurred())

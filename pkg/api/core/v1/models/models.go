@@ -216,7 +216,7 @@ type ApplicationDeleteResponse struct {
 	UnboundConfigurations []string `json:"unboundconfigurations"`
 }
 
-// EnvMatchResponse contains the list of names for matching envs
+// EnvMatchResponse contains the list of names for matching env variables
 type EnvMatchResponse struct {
 	Names []string `json:"names,omitempty"`
 }
@@ -262,6 +262,11 @@ type ServiceAppsResponse struct {
 
 // CatalogServices is a list of catalog service elements
 type CatalogServices []CatalogService
+
+// CatalogMatchResponse contains the list of names for matching catalog entries
+type CatalogMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
 
 type ServiceCreateRequest struct {
 	CatalogService string `json:"catalog_service,omitempty"`
@@ -325,6 +330,11 @@ type ServiceStatus string
 
 // ServiceList represents a collection of service instances
 type ServiceList []Service
+
+// ServiceMatchResponse contains the list of names for matching services
+type ServiceMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
 
 const (
 	ServiceStatusDeployed ServiceStatus = "deployed"

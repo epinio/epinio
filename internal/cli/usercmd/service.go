@@ -295,3 +295,41 @@ func (c *EpinioClient) ServiceListAll() error {
 
 	return nil
 }
+
+// ServiceMatching returns all Epinio services having the specified prefix in their name
+func (c *EpinioClient) ServiceMatching(prefix string) []string {
+	log := c.Log.WithName("NamespaceMatching").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+
+	result := []string{}
+
+	resp, err := c.API.ServiceMatch(c.Settings.Namespace, prefix)
+	if err != nil {
+		return result
+	}
+
+	result = resp.Names
+
+	log.Info("matches", "found", result)
+	return result
+}
+
+// CatalogMatching returns all Epinio catalog entries having the specified prefix in their name
+func (c *EpinioClient) CatalogMatching(prefix string) []string {
+	log := c.Log.WithName("NamespaceMatching").WithValues("PrefixToMatch", prefix)
+	log.Info("start")
+	defer log.Info("return")
+
+	result := []string{}
+
+	resp, err := c.API.ServiceCatalogMatch(prefix)
+	if err != nil {
+		return result
+	}
+
+	result = resp.Names
+
+	log.Info("matches", "found", result)
+	return result
+}

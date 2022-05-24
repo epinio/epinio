@@ -41,6 +41,24 @@ func (c *Client) ServiceCatalogShow(serviceName string) (*models.CatalogService,
 	return &resp, nil
 }
 
+// ServiceCatalogMatch returns all matching namespaces for the prefix
+func (c *Client) ServiceCatalogMatch(prefix string) (models.CatalogMatchResponse, error) {
+	resp := models.CatalogMatchResponse{}
+
+	data, err := c.get(api.Routes.Path("ServiceCatalogMatch", prefix))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
+}
+
 func (c *Client) AllServices() (models.ServiceList, error) {
 	data, err := c.get(api.Routes.Path("AllServices"))
 	if err != nil {
@@ -81,6 +99,24 @@ func (c *Client) ServiceShow(req *models.ServiceShowRequest, namespace string) (
 	c.log.V(1).Info("response decoded", "response", resp)
 
 	return &resp, nil
+}
+
+// ServiceMatch returns all matching namespaces for the prefix
+func (c *Client) ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error) {
+	resp := models.ServiceMatchResponse{}
+
+	data, err := c.get(api.Routes.Path("ServiceMatch", namespace, prefix))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
 }
 
 func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f ErrorFunc) (models.ServiceDeleteResponse, error) {

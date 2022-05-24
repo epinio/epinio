@@ -22,7 +22,7 @@ func init() {
 	CmdServiceDelete.Flags().Bool("unbind", false, "Unbind from applications before deleting")
 	CmdServices.AddCommand(CmdServiceCatalog)
 	CmdServices.AddCommand(CmdServiceCreate)
-	CmdServices.AddCommand(CmdServiceBindCreate)
+	CmdServices.AddCommand(CmdServiceBind)
 	CmdServices.AddCommand(CmdServiceUnbind)
 	CmdServices.AddCommand(CmdServiceShow)
 	CmdServices.AddCommand(CmdServiceDelete)
@@ -32,9 +32,10 @@ func init() {
 }
 
 var CmdServiceCatalog = &cobra.Command{
-	Use:   "catalog [NAME]",
-	Short: "Lists all available Epinio catalog services, or show the details of the specified one",
-	Args:  cobra.MaximumNArgs(1),
+	Use:               "catalog [NAME]",
+	Short:             "Lists all available Epinio catalog services, or show the details of the specified one",
+	ValidArgsFunction: matchingCatalogFinder,
+	Args:              cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -59,9 +60,10 @@ var CmdServiceCatalog = &cobra.Command{
 }
 
 var CmdServiceCreate = &cobra.Command{
-	Use:   "create CATALOGSERVICENAME SERVICENAME",
-	Short: "Create a service SERVICENAME of an Epinio catalog service CATALOGSERVICENAME",
-	Args:  cobra.ExactArgs(2),
+	Use:               "create CATALOGSERVICENAME SERVICENAME",
+	Short:             "Create a service SERVICENAME of an Epinio catalog service CATALOGSERVICENAME",
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: matchingCatalogFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -79,9 +81,10 @@ var CmdServiceCreate = &cobra.Command{
 }
 
 var CmdServiceShow = &cobra.Command{
-	Use:   "show SERVICENAME",
-	Short: "Show details of a service SERVICENAME",
-	Args:  cobra.ExactArgs(1),
+	Use:               "show SERVICENAME",
+	Short:             "Show details of a service SERVICENAME",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingServiceFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -98,9 +101,10 @@ var CmdServiceShow = &cobra.Command{
 }
 
 var CmdServiceDelete = &cobra.Command{
-	Use:   "delete SERVICENAME",
-	Short: "Delete service SERVICENAME",
-	Args:  cobra.ExactArgs(1),
+	Use:               "delete SERVICENAME",
+	Short:             "Delete service SERVICENAME",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingServiceFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -120,10 +124,11 @@ var CmdServiceDelete = &cobra.Command{
 		return errors.Wrap(err, "error deleting service")
 	},
 }
-var CmdServiceBindCreate = &cobra.Command{
-	Use:   "bind SERVICENAME APPNAME",
-	Short: "Bind a service SERVICENAME to an Epinio app APPNAME",
-	Args:  cobra.ExactArgs(2),
+var CmdServiceBind = &cobra.Command{
+	Use:               "bind SERVICENAME APPNAME",
+	Short:             "Bind a service SERVICENAME to an Epinio app APPNAME",
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: findServiceApp,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -141,9 +146,10 @@ var CmdServiceBindCreate = &cobra.Command{
 }
 
 var CmdServiceUnbind = &cobra.Command{
-	Use:   "unbind SERVICENAME APPNAME",
-	Short: "Unbinds a service SERVICENAME from an Epinio app APPNAME",
-	Args:  cobra.ExactArgs(2),
+	Use:               "unbind SERVICENAME APPNAME",
+	Short:             "Unbinds a service SERVICENAME from an Epinio app APPNAME",
+	Args:              cobra.ExactArgs(2),
+	ValidArgsFunction: findServiceApp,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -185,4 +191,26 @@ var CmdServiceList = &cobra.Command{
 
 		return errors.Wrap(err, "error listing services")
 	},
+}
+
+func findServiceApp(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 1 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	app, err := usercmd.New()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	if len(args) == 1 {
+		// #args == 1: app name.
+		matches := app.AppsMatching(toComplete)
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	// #args == 0: configuration name.
+
+	matches := app.ServiceMatching(toComplete)
+	return matches, cobra.ShellCompDirectiveNoFileComp
 }

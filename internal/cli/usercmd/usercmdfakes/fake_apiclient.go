@@ -596,6 +596,19 @@ type FakeAPIClient struct {
 		result1 models.CatalogServices
 		result2 error
 	}
+	ServiceCatalogMatchStub        func(string) (models.CatalogMatchResponse, error)
+	serviceCatalogMatchMutex       sync.RWMutex
+	serviceCatalogMatchArgsForCall []struct {
+		arg1 string
+	}
+	serviceCatalogMatchReturns struct {
+		result1 models.CatalogMatchResponse
+		result2 error
+	}
+	serviceCatalogMatchReturnsOnCall map[int]struct {
+		result1 models.CatalogMatchResponse
+		result2 error
+	}
 	ServiceCatalogShowStub        func(string) (*models.CatalogService, error)
 	serviceCatalogShowMutex       sync.RWMutex
 	serviceCatalogShowArgsForCall []struct {
@@ -648,6 +661,20 @@ type FakeAPIClient struct {
 	}
 	serviceListReturnsOnCall map[int]struct {
 		result1 models.ServiceList
+		result2 error
+	}
+	ServiceMatchStub        func(string, string) (models.ServiceMatchResponse, error)
+	serviceMatchMutex       sync.RWMutex
+	serviceMatchArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	serviceMatchReturns struct {
+		result1 models.ServiceMatchResponse
+		result2 error
+	}
+	serviceMatchReturnsOnCall map[int]struct {
+		result1 models.ServiceMatchResponse
 		result2 error
 	}
 	ServiceShowStub        func(*models.ServiceShowRequest, string) (*models.Service, error)
@@ -3409,6 +3436,70 @@ func (fake *FakeAPIClient) ServiceCatalogReturnsOnCall(i int, result1 models.Cat
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) ServiceCatalogMatch(arg1 string) (models.CatalogMatchResponse, error) {
+	fake.serviceCatalogMatchMutex.Lock()
+	ret, specificReturn := fake.serviceCatalogMatchReturnsOnCall[len(fake.serviceCatalogMatchArgsForCall)]
+	fake.serviceCatalogMatchArgsForCall = append(fake.serviceCatalogMatchArgsForCall, struct {
+		arg1 string
+	}{arg1})
+	stub := fake.ServiceCatalogMatchStub
+	fakeReturns := fake.serviceCatalogMatchReturns
+	fake.recordInvocation("ServiceCatalogMatch", []interface{}{arg1})
+	fake.serviceCatalogMatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceCatalogMatchCallCount() int {
+	fake.serviceCatalogMatchMutex.RLock()
+	defer fake.serviceCatalogMatchMutex.RUnlock()
+	return len(fake.serviceCatalogMatchArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceCatalogMatchCalls(stub func(string) (models.CatalogMatchResponse, error)) {
+	fake.serviceCatalogMatchMutex.Lock()
+	defer fake.serviceCatalogMatchMutex.Unlock()
+	fake.ServiceCatalogMatchStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceCatalogMatchArgsForCall(i int) string {
+	fake.serviceCatalogMatchMutex.RLock()
+	defer fake.serviceCatalogMatchMutex.RUnlock()
+	argsForCall := fake.serviceCatalogMatchArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *FakeAPIClient) ServiceCatalogMatchReturns(result1 models.CatalogMatchResponse, result2 error) {
+	fake.serviceCatalogMatchMutex.Lock()
+	defer fake.serviceCatalogMatchMutex.Unlock()
+	fake.ServiceCatalogMatchStub = nil
+	fake.serviceCatalogMatchReturns = struct {
+		result1 models.CatalogMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceCatalogMatchReturnsOnCall(i int, result1 models.CatalogMatchResponse, result2 error) {
+	fake.serviceCatalogMatchMutex.Lock()
+	defer fake.serviceCatalogMatchMutex.Unlock()
+	fake.ServiceCatalogMatchStub = nil
+	if fake.serviceCatalogMatchReturnsOnCall == nil {
+		fake.serviceCatalogMatchReturnsOnCall = make(map[int]struct {
+			result1 models.CatalogMatchResponse
+			result2 error
+		})
+	}
+	fake.serviceCatalogMatchReturnsOnCall[i] = struct {
+		result1 models.CatalogMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
 func (fake *FakeAPIClient) ServiceCatalogShow(arg1 string) (*models.CatalogService, error) {
 	fake.serviceCatalogShowMutex.Lock()
 	ret, specificReturn := fake.serviceCatalogShowReturnsOnCall[len(fake.serviceCatalogShowArgsForCall)]
@@ -3662,6 +3753,71 @@ func (fake *FakeAPIClient) ServiceListReturnsOnCall(i int, result1 models.Servic
 	}
 	fake.serviceListReturnsOnCall[i] = struct {
 		result1 models.ServiceList
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceMatch(arg1 string, arg2 string) (models.ServiceMatchResponse, error) {
+	fake.serviceMatchMutex.Lock()
+	ret, specificReturn := fake.serviceMatchReturnsOnCall[len(fake.serviceMatchArgsForCall)]
+	fake.serviceMatchArgsForCall = append(fake.serviceMatchArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.ServiceMatchStub
+	fakeReturns := fake.serviceMatchReturns
+	fake.recordInvocation("ServiceMatch", []interface{}{arg1, arg2})
+	fake.serviceMatchMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) ServiceMatchCallCount() int {
+	fake.serviceMatchMutex.RLock()
+	defer fake.serviceMatchMutex.RUnlock()
+	return len(fake.serviceMatchArgsForCall)
+}
+
+func (fake *FakeAPIClient) ServiceMatchCalls(stub func(string, string) (models.ServiceMatchResponse, error)) {
+	fake.serviceMatchMutex.Lock()
+	defer fake.serviceMatchMutex.Unlock()
+	fake.ServiceMatchStub = stub
+}
+
+func (fake *FakeAPIClient) ServiceMatchArgsForCall(i int) (string, string) {
+	fake.serviceMatchMutex.RLock()
+	defer fake.serviceMatchMutex.RUnlock()
+	argsForCall := fake.serviceMatchArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) ServiceMatchReturns(result1 models.ServiceMatchResponse, result2 error) {
+	fake.serviceMatchMutex.Lock()
+	defer fake.serviceMatchMutex.Unlock()
+	fake.ServiceMatchStub = nil
+	fake.serviceMatchReturns = struct {
+		result1 models.ServiceMatchResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) ServiceMatchReturnsOnCall(i int, result1 models.ServiceMatchResponse, result2 error) {
+	fake.serviceMatchMutex.Lock()
+	defer fake.serviceMatchMutex.Unlock()
+	fake.ServiceMatchStub = nil
+	if fake.serviceMatchReturnsOnCall == nil {
+		fake.serviceMatchReturnsOnCall = make(map[int]struct {
+			result1 models.ServiceMatchResponse
+			result2 error
+		})
+	}
+	fake.serviceMatchReturnsOnCall[i] = struct {
+		result1 models.ServiceMatchResponse
 		result2 error
 	}{result1, result2}
 }
@@ -3948,6 +4104,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.serviceBindMutex.RUnlock()
 	fake.serviceCatalogMutex.RLock()
 	defer fake.serviceCatalogMutex.RUnlock()
+	fake.serviceCatalogMatchMutex.RLock()
+	defer fake.serviceCatalogMatchMutex.RUnlock()
 	fake.serviceCatalogShowMutex.RLock()
 	defer fake.serviceCatalogShowMutex.RUnlock()
 	fake.serviceCreateMutex.RLock()
@@ -3956,6 +4114,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.serviceDeleteMutex.RUnlock()
 	fake.serviceListMutex.RLock()
 	defer fake.serviceListMutex.RUnlock()
+	fake.serviceMatchMutex.RLock()
+	defer fake.serviceMatchMutex.RUnlock()
 	fake.serviceShowMutex.RLock()
 	defer fake.serviceShowMutex.RUnlock()
 	fake.serviceUnbindMutex.RLock()

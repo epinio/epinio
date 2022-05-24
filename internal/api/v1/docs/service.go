@@ -35,6 +35,23 @@ type ServiceCatalogShowResponse struct {
 	Body models.CatalogService
 }
 
+// swagger:route GET /catalogservicematches/{Pattern} catalogservice CatalogServiceMatch
+// Return list of names for all catalog entries whose name matches the prefix `Pattern`.
+// responses:
+//   200: CatalogMatchResponse
+
+// swagger:parameters CatalogServiceMatch
+type CatalogServiceMatchParam struct {
+	// in: path
+	Pattern string
+}
+
+// swagger:response CatalogMatchResponse
+type CatalogMatchResponse struct {
+	// in: body
+	Body models.CatalogMatchResponse
+}
+
 // swagger:route GET /services service AllServices
 // Return all the `Services` where the User has authorization.
 // responses:
@@ -93,6 +110,23 @@ type ServiceShowParam struct {
 	Namespace string
 	// in: path
 	Service string
+}
+
+// swagger:route GET /servicematches/{Pattern} service ServiceMatch
+// Return list of names for all serives whose name matches the prefix `Pattern`.
+// responses:
+//   200: ServiceMatchResponse
+
+// swagger:parameters ServiceMatch
+type ServiceMatchParam struct {
+	// in: path
+	Pattern string
+}
+
+// swagger:response ServiceMatchResponse
+type ServiceMatchResponse struct {
+	// in: body
+	Body models.ServiceMatchResponse
 }
 
 // swagger:route DELETE /namespaces/{Namespace}/services/{Service} service ServiceDelete
