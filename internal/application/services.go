@@ -16,7 +16,6 @@ import (
 // ServicesBoundApps is an extension of ServicesBoundAppsNames after it, to retrieve a map from
 // services to the full data of the applications bound to them. It uses ServicesBoundAppsNames
 // internally to quickly determine the applications to fetch.
-
 func ServicesBoundApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string]models.AppList, error) {
 
 	result := map[string]models.AppList{}
@@ -92,7 +91,6 @@ func ServicesBoundAppsNamesFor(ctx context.Context, cluster *kubernetes.Cluster,
 // namespace name and service name, to distinguish same-named services in different namespaces (See
 // `ServiceKey` below). The application names never contain namespace information, as they are
 // always in the same namespace as the service referencing them.
-
 func ServicesBoundAppsNames(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (map[string][]string, error) {
 
 	result := map[string][]string{}
