@@ -9,29 +9,29 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
 
-func (c *Client) ServiceCatalog() (*models.ServiceCatalogResponse, error) {
+func (c *Client) ServiceCatalog() (models.CatalogServices, error) {
 	data, err := c.get(api.Routes.Path("ServiceCatalog"))
 	if err != nil {
 		return nil, err
 	}
 
-	var resp models.ServiceCatalogResponse
+	var resp models.CatalogServices
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
 
 	c.log.V(1).Info("response decoded", "response", resp)
 
-	return &resp, nil
+	return resp, nil
 }
 
-func (c *Client) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogShowResponse, error) {
+func (c *Client) ServiceCatalogShow(serviceName string) (*models.CatalogService, error) {
 	data, err := c.get(api.Routes.Path("ServiceCatalogShow", serviceName))
 	if err != nil {
 		return nil, err
 	}
 
-	var resp models.ServiceCatalogShowResponse
+	var resp models.CatalogService
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
@@ -41,20 +41,20 @@ func (c *Client) ServiceCatalogShow(serviceName string) (*models.ServiceCatalogS
 	return &resp, nil
 }
 
-func (c *Client) AllServices() (*models.ServiceListResponse, error) {
+func (c *Client) AllServices() (models.ServiceList, error) {
 	data, err := c.get(api.Routes.Path("AllServices"))
 	if err != nil {
 		return nil, err
 	}
 
-	var resp models.ServiceListResponse
+	var resp models.ServiceList
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
 
 	c.log.V(1).Info("response decoded", "response", resp)
 
-	return &resp, err
+	return resp, err
 }
 
 func (c *Client) ServiceCreate(req *models.ServiceCreateRequest, namespace string) error {
@@ -67,13 +67,13 @@ func (c *Client) ServiceCreate(req *models.ServiceCreateRequest, namespace strin
 	return err
 }
 
-func (c *Client) ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.ServiceShowResponse, error) {
+func (c *Client) ServiceShow(req *models.ServiceShowRequest, namespace string) (*models.Service, error) {
 	data, err := c.get(api.Routes.Path("ServiceShow", namespace, req.Name))
 	if err != nil {
 		return nil, err
 	}
 
-	var resp models.ServiceShowResponse
+	var resp models.Service
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
@@ -133,18 +133,36 @@ func (c *Client) ServiceUnbind(req *models.ServiceUnbindRequest, namespace, name
 	return err
 }
 
-func (c *Client) ServiceList(namespace string) (*models.ServiceListResponse, error) {
+func (c *Client) ServiceList(namespace string) (models.ServiceList, error) {
 	data, err := c.get(api.Routes.Path("ServiceList", namespace))
 	if err != nil {
 		return nil, err
 	}
 
-	var resp models.ServiceListResponse
+	var resp models.ServiceList
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return nil, err
 	}
 
 	c.log.V(1).Info("response decoded", "response", resp)
 
-	return &resp, err
+	return resp, err
+}
+
+// ServiceApps lists a map from services to bound apps, for the namespace
+func (c *Client) ServiceApps(namespace string) (models.ServiceAppsResponse, error) {
+	resp := models.ServiceAppsResponse{}
+
+	data, err := c.get(api.Routes.Path("ServiceApps", namespace))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, errors.Wrap(err, "response body is not JSON")
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
 }

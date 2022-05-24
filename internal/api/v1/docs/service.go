@@ -15,7 +15,7 @@ type ServiceCatalogParam struct{}
 // swagger:response ServiceCatalogResponse
 type ServiceCatalogResponse struct {
 	// in: body
-	Body models.ServiceCatalogResponse
+	Body models.CatalogServices
 }
 
 // swagger:route GET /catalogservices/{CatalogService} service ServiceCatalogShow
@@ -32,7 +32,7 @@ type ServiceCatalogShowParam struct {
 // swagger:response ServiceCatalogShowResponse
 type ServiceCatalogShowResponse struct {
 	// in: body
-	Body models.ServiceCatalogShowResponse
+	Body models.CatalogService
 }
 
 // swagger:route GET /services service AllServices
@@ -73,7 +73,7 @@ type ServiceListParam struct {
 // swagger:response ServiceListResponse
 type ServiceListResponse struct {
 	// in: body
-	Body models.ServiceListResponse
+	Body models.ServiceList
 }
 
 // swagger:route GET /namespaces/{Namespace}/services/{Service} service ServiceShow
@@ -84,7 +84,7 @@ type ServiceListResponse struct {
 // swagger:response ServiceShowResponse
 type ServiceShowResponse struct {
 	// in: body
-	Body models.ServiceShowResponse
+	Body models.Service
 }
 
 // swagger:parameters ServiceShow
@@ -114,6 +114,23 @@ type ServiceDeleteParam struct {
 type ServiceDeleteResponse struct {
 	// in: body
 	Body models.ServiceDeleteResponse
+}
+
+// swagger:route GET /namespaces/{Namespace}/serviceapps service ServiceApps
+// Return map from services in the `Namespace`, to the apps in the same.
+// responses:
+//   200: ServiceAppsResponse
+
+// swagger:parameters ServiceApps
+type ServiceAppsParam struct {
+	// in: path
+	Namespace string
+}
+
+// swagger:response ServiceAppsResponse
+type ServiceAppsResponse struct {
+	// in: body
+	Body map[string]models.AppList
 }
 
 // swagger:route POST /namespaces/{Namespace}/services/{Service}/bind service ServiceBind

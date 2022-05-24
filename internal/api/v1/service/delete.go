@@ -88,7 +88,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 		// Unbind all the services' configurations from the found applications.
 		for _, appName := range boundAppNames {
-			apiErr := UnbindService(ctx, cluster, logger, namespace, appName, username, serviceConfigurations)
+			apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName, appName, username, serviceConfigurations)
 			if apiErr != nil {
 				return apiErr
 			}

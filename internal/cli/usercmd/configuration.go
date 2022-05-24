@@ -57,23 +57,19 @@ func (c *EpinioClient) Configurations(all bool) error {
 		msg = msg.WithTable("Namespace", "Name", "Created", "Applications")
 
 		for _, configuration := range configurations {
-			created := fmt.Sprintf("%v", configuration.Meta.CreatedAt)
-
 			msg = msg.WithTableRow(
 				configuration.Meta.Namespace,
 				configuration.Meta.Name,
-				created,
+				configuration.Meta.CreatedAt.String(),
 				strings.Join(configuration.Configuration.BoundApps, ", "))
 		}
 	} else {
 		msg = msg.WithTable("Name", "Created", "Applications")
 
 		for _, configuration := range configurations {
-			created := fmt.Sprintf("%v", configuration.Meta.CreatedAt)
-
 			msg = msg.WithTableRow(
 				configuration.Meta.Name,
-				created,
+				configuration.Meta.CreatedAt.String(),
 				strings.Join(configuration.Configuration.BoundApps, ", "))
 		}
 	}
@@ -379,7 +375,7 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 	sort.Strings(boundApps)
 
 	c.ui.Note().
-		WithStringValue("Created", fmt.Sprintf("%v", resp.Meta.CreatedAt)).
+		WithStringValue("Created", resp.Meta.CreatedAt.String()).
 		WithStringValue("User", resp.Configuration.Username).
 		WithStringValue("Used-By", strings.Join(boundApps, ", ")).
 		Msg("")

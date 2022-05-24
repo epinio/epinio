@@ -147,19 +147,19 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, targetNamespace string) e
 }
 
 // ListAll will return all the Epinio Service instances
-func (s *ServiceClient) ListAll(ctx context.Context) ([]*models.Service, error) {
+func (s *ServiceClient) ListAll(ctx context.Context) (models.ServiceList, error) {
 	return s.list(ctx, "")
 }
 
 // ListInNamespace will return all the Epinio Services available in the targeted namespace
-func (s *ServiceClient) ListInNamespace(ctx context.Context, namespace string) ([]*models.Service, error) {
+func (s *ServiceClient) ListInNamespace(ctx context.Context, namespace string) (models.ServiceList, error) {
 	return s.list(ctx, namespace)
 }
 
 // list will return all the Epinio Services available in the targeted namespace.
 // If the namespace is blank it will return all the instances from all the namespaces
-func (s *ServiceClient) list(ctx context.Context, namespace string) ([]*models.Service, error) {
-	serviceList := []*models.Service{}
+func (s *ServiceClient) list(ctx context.Context, namespace string) (models.ServiceList, error) {
+	serviceList := models.ServiceList{}
 
 	listOpts := metav1.ListOptions{}
 	if namespace == "" {
@@ -225,7 +225,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) ([]*models.S
 
 		service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
 
-		serviceList = append(serviceList, &service)
+		serviceList = append(serviceList, service)
 	}
 
 	return serviceList, nil

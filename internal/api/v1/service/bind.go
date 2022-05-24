@@ -77,6 +77,19 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 		return apierror.NewMultiError(errors.Errors())
 	}
 
+	logger.Info("binding service")
+
+	// And track the service binding itself as well.
+	okToBind := []string{serviceName}
+
+	logger.Info("BoundServicesSet")
+	err = application.BoundServicesSet(ctx, cluster, app.Meta, okToBind, false)
+	if err != nil {
+		// TODO: Rewind the configuration bindings made above.
+		// DANGER: This work here is not transactional :(
+		return apierror.InternalError(err)
+	}
+
 	response.OK(c)
 	return nil
 }

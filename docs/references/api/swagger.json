@@ -1176,6 +1176,28 @@
         }
       }
     },
+    "/namespaces/{Namespace}/serviceapps": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return map from services in the `Namespace`, to the apps in the same.",
+        "operationId": "ServiceApps",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceAppsResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/services": {
       "get": {
         "tags": [
@@ -1732,6 +1754,14 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "CatalogServices": {
+      "description": "CatalogServices is a list of catalog service elements",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/CatalogService"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ChartMatchResponse": {
       "description": "ChartMatchResponse contains the list of names for matching application charts",
       "type": "object",
@@ -2147,6 +2177,13 @@
     "Service": {
       "type": "object",
       "properties": {
+        "boundapps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "BoundApps"
+        },
         "catalog_service": {
           "type": "string",
           "x-go-name": "CatalogService"
@@ -2166,30 +2203,6 @@
         "app_name": {
           "type": "string",
           "x-go-name": "AppName"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ServiceCatalogResponse": {
-      "description": "ServiceCatalogResponse",
-      "type": "object",
-      "properties": {
-        "catalog_services": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/CatalogService"
-          },
-          "x-go-name": "CatalogServices"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ServiceCatalogShowResponse": {
-      "description": "ServiceCatalogShowResponse",
-      "type": "object",
-      "properties": {
-        "catalog_service": {
-          "$ref": "#/definitions/CatalogService"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2233,25 +2246,11 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
-    "ServiceListResponse": {
-      "type": "object",
-      "properties": {
-        "services": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Service"
-          },
-          "x-go-name": "Services"
-        }
-      },
-      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
-    },
-    "ServiceShowResponse": {
-      "type": "object",
-      "properties": {
-        "service": {
-          "$ref": "#/definitions/Service"
-        }
+    "ServiceList": {
+      "description": "ServiceList represents a collection of service instances",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Service"
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
@@ -2557,6 +2556,15 @@
         "$ref": "#/definitions/NamespaceList"
       }
     },
+    "ServiceAppsResponse": {
+      "description": "",
+      "schema": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/definitions/AppList"
+        }
+      }
+    },
     "ServiceBindResponse": {
       "description": "",
       "schema": {
@@ -2566,13 +2574,13 @@
     "ServiceCatalogResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceCatalogResponse"
+        "$ref": "#/definitions/CatalogServices"
       }
     },
     "ServiceCatalogShowResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceCatalogShowResponse"
+        "$ref": "#/definitions/CatalogService"
       }
     },
     "ServiceCreateResponse": {
@@ -2590,13 +2598,13 @@
     "ServiceListResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceListResponse"
+        "$ref": "#/definitions/ServiceList"
       }
     },
     "ServiceShowResponse": {
       "description": "",
       "schema": {
-        "$ref": "#/definitions/ServiceShowResponse"
+        "$ref": "#/definitions/Service"
       }
     },
     "ServiceUnbindResponse": {

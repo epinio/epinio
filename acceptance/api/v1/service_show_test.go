@@ -149,12 +149,12 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						respBody, err := ioutil.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
 
-						var showResponse models.ServiceShowResponse
+						var showResponse models.Service
 						err = json.Unmarshal(respBody, &showResponse)
 						Expect(err).ToNot(HaveOccurred())
-						Expect(showResponse.Service).ToNot(BeNil())
+						Expect(showResponse).ToNot(BeNil())
 
-						return showResponse.Service.Status
+						return showResponse.Status
 					}, "1m", "5s").Should(Equal(models.ServiceStatusDeployed))
 				})
 			})
@@ -179,12 +179,12 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						respBody, err := ioutil.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
 
-						var showResponse models.ServiceShowResponse
+						var showResponse models.Service
 						err = json.Unmarshal(respBody, &showResponse)
 						Expect(err).ToNot(HaveOccurred())
-						Expect(showResponse.Service).ToNot(BeNil())
+						Expect(showResponse).ToNot(BeNil())
 
-						return showResponse.Service.CatalogService
+						return showResponse.CatalogService
 					}, "1m", "5s").Should(MatchRegexp("^\\[Missing\\].*"))
 				})
 			})
@@ -202,12 +202,12 @@ var _ = Describe("ServiceShow Endpoint", func() {
 
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 
-					var showResponse models.ServiceShowResponse
+					var showResponse models.Service
 					err = json.NewDecoder(response.Body).Decode(&showResponse)
 					Expect(err).ToNot(HaveOccurred())
-					Expect(showResponse.Service).ToNot(BeNil())
+					Expect(showResponse).ToNot(BeNil())
 
-					Expect(showResponse.Service.Status).To(Equal(models.ServiceStatusNotReady))
+					Expect(showResponse.Status).To(Equal(models.ServiceStatusNotReady))
 				})
 			})
 		})

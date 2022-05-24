@@ -37,16 +37,16 @@ type FakeAPIClient struct {
 		result1 models.ConfigurationResponseList
 		result2 error
 	}
-	AllServicesStub        func() (*models.ServiceListResponse, error)
+	AllServicesStub        func() (models.ServiceList, error)
 	allServicesMutex       sync.RWMutex
 	allServicesArgsForCall []struct {
 	}
 	allServicesReturns struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}
 	allServicesReturnsOnCall map[int]struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}
 	AppCreateStub        func(models.ApplicationCreateRequest, string) (models.Response, error)
@@ -584,29 +584,29 @@ type FakeAPIClient struct {
 	serviceBindReturnsOnCall map[int]struct {
 		result1 error
 	}
-	ServiceCatalogStub        func() (*models.ServiceCatalogResponse, error)
+	ServiceCatalogStub        func() (models.CatalogServices, error)
 	serviceCatalogMutex       sync.RWMutex
 	serviceCatalogArgsForCall []struct {
 	}
 	serviceCatalogReturns struct {
-		result1 *models.ServiceCatalogResponse
+		result1 models.CatalogServices
 		result2 error
 	}
 	serviceCatalogReturnsOnCall map[int]struct {
-		result1 *models.ServiceCatalogResponse
+		result1 models.CatalogServices
 		result2 error
 	}
-	ServiceCatalogShowStub        func(string) (*models.ServiceCatalogShowResponse, error)
+	ServiceCatalogShowStub        func(string) (*models.CatalogService, error)
 	serviceCatalogShowMutex       sync.RWMutex
 	serviceCatalogShowArgsForCall []struct {
 		arg1 string
 	}
 	serviceCatalogShowReturns struct {
-		result1 *models.ServiceCatalogShowResponse
+		result1 *models.CatalogService
 		result2 error
 	}
 	serviceCatalogShowReturnsOnCall map[int]struct {
-		result1 *models.ServiceCatalogShowResponse
+		result1 *models.CatalogService
 		result2 error
 	}
 	ServiceCreateStub        func(*models.ServiceCreateRequest, string) error
@@ -637,31 +637,31 @@ type FakeAPIClient struct {
 		result1 models.ServiceDeleteResponse
 		result2 error
 	}
-	ServiceListStub        func(string) (*models.ServiceListResponse, error)
+	ServiceListStub        func(string) (models.ServiceList, error)
 	serviceListMutex       sync.RWMutex
 	serviceListArgsForCall []struct {
 		arg1 string
 	}
 	serviceListReturns struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}
 	serviceListReturnsOnCall map[int]struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}
-	ServiceShowStub        func(*models.ServiceShowRequest, string) (*models.ServiceShowResponse, error)
+	ServiceShowStub        func(*models.ServiceShowRequest, string) (*models.Service, error)
 	serviceShowMutex       sync.RWMutex
 	serviceShowArgsForCall []struct {
 		arg1 *models.ServiceShowRequest
 		arg2 string
 	}
 	serviceShowReturns struct {
-		result1 *models.ServiceShowResponse
+		result1 *models.Service
 		result2 error
 	}
 	serviceShowReturnsOnCall map[int]struct {
-		result1 *models.ServiceShowResponse
+		result1 *models.Service
 		result2 error
 	}
 	ServiceUnbindStub        func(*models.ServiceUnbindRequest, string, string) error
@@ -807,7 +807,7 @@ func (fake *FakeAPIClient) AllConfigurationsReturnsOnCall(i int, result1 models.
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AllServices() (*models.ServiceListResponse, error) {
+func (fake *FakeAPIClient) AllServices() (models.ServiceList, error) {
 	fake.allServicesMutex.Lock()
 	ret, specificReturn := fake.allServicesReturnsOnCall[len(fake.allServicesArgsForCall)]
 	fake.allServicesArgsForCall = append(fake.allServicesArgsForCall, struct {
@@ -831,34 +831,34 @@ func (fake *FakeAPIClient) AllServicesCallCount() int {
 	return len(fake.allServicesArgsForCall)
 }
 
-func (fake *FakeAPIClient) AllServicesCalls(stub func() (*models.ServiceListResponse, error)) {
+func (fake *FakeAPIClient) AllServicesCalls(stub func() (models.ServiceList, error)) {
 	fake.allServicesMutex.Lock()
 	defer fake.allServicesMutex.Unlock()
 	fake.AllServicesStub = stub
 }
 
-func (fake *FakeAPIClient) AllServicesReturns(result1 *models.ServiceListResponse, result2 error) {
+func (fake *FakeAPIClient) AllServicesReturns(result1 models.ServiceList, result2 error) {
 	fake.allServicesMutex.Lock()
 	defer fake.allServicesMutex.Unlock()
 	fake.AllServicesStub = nil
 	fake.allServicesReturns = struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AllServicesReturnsOnCall(i int, result1 *models.ServiceListResponse, result2 error) {
+func (fake *FakeAPIClient) AllServicesReturnsOnCall(i int, result1 models.ServiceList, result2 error) {
 	fake.allServicesMutex.Lock()
 	defer fake.allServicesMutex.Unlock()
 	fake.AllServicesStub = nil
 	if fake.allServicesReturnsOnCall == nil {
 		fake.allServicesReturnsOnCall = make(map[int]struct {
-			result1 *models.ServiceListResponse
+			result1 models.ServiceList
 			result2 error
 		})
 	}
 	fake.allServicesReturnsOnCall[i] = struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}{result1, result2}
 }
@@ -3353,7 +3353,7 @@ func (fake *FakeAPIClient) ServiceBindReturnsOnCall(i int, result1 error) {
 	}{result1}
 }
 
-func (fake *FakeAPIClient) ServiceCatalog() (*models.ServiceCatalogResponse, error) {
+func (fake *FakeAPIClient) ServiceCatalog() (models.CatalogServices, error) {
 	fake.serviceCatalogMutex.Lock()
 	ret, specificReturn := fake.serviceCatalogReturnsOnCall[len(fake.serviceCatalogArgsForCall)]
 	fake.serviceCatalogArgsForCall = append(fake.serviceCatalogArgsForCall, struct {
@@ -3377,39 +3377,39 @@ func (fake *FakeAPIClient) ServiceCatalogCallCount() int {
 	return len(fake.serviceCatalogArgsForCall)
 }
 
-func (fake *FakeAPIClient) ServiceCatalogCalls(stub func() (*models.ServiceCatalogResponse, error)) {
+func (fake *FakeAPIClient) ServiceCatalogCalls(stub func() (models.CatalogServices, error)) {
 	fake.serviceCatalogMutex.Lock()
 	defer fake.serviceCatalogMutex.Unlock()
 	fake.ServiceCatalogStub = stub
 }
 
-func (fake *FakeAPIClient) ServiceCatalogReturns(result1 *models.ServiceCatalogResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceCatalogReturns(result1 models.CatalogServices, result2 error) {
 	fake.serviceCatalogMutex.Lock()
 	defer fake.serviceCatalogMutex.Unlock()
 	fake.ServiceCatalogStub = nil
 	fake.serviceCatalogReturns = struct {
-		result1 *models.ServiceCatalogResponse
+		result1 models.CatalogServices
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceCatalogReturnsOnCall(i int, result1 *models.ServiceCatalogResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceCatalogReturnsOnCall(i int, result1 models.CatalogServices, result2 error) {
 	fake.serviceCatalogMutex.Lock()
 	defer fake.serviceCatalogMutex.Unlock()
 	fake.ServiceCatalogStub = nil
 	if fake.serviceCatalogReturnsOnCall == nil {
 		fake.serviceCatalogReturnsOnCall = make(map[int]struct {
-			result1 *models.ServiceCatalogResponse
+			result1 models.CatalogServices
 			result2 error
 		})
 	}
 	fake.serviceCatalogReturnsOnCall[i] = struct {
-		result1 *models.ServiceCatalogResponse
+		result1 models.CatalogServices
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceCatalogShow(arg1 string) (*models.ServiceCatalogShowResponse, error) {
+func (fake *FakeAPIClient) ServiceCatalogShow(arg1 string) (*models.CatalogService, error) {
 	fake.serviceCatalogShowMutex.Lock()
 	ret, specificReturn := fake.serviceCatalogShowReturnsOnCall[len(fake.serviceCatalogShowArgsForCall)]
 	fake.serviceCatalogShowArgsForCall = append(fake.serviceCatalogShowArgsForCall, struct {
@@ -3434,7 +3434,7 @@ func (fake *FakeAPIClient) ServiceCatalogShowCallCount() int {
 	return len(fake.serviceCatalogShowArgsForCall)
 }
 
-func (fake *FakeAPIClient) ServiceCatalogShowCalls(stub func(string) (*models.ServiceCatalogShowResponse, error)) {
+func (fake *FakeAPIClient) ServiceCatalogShowCalls(stub func(string) (*models.CatalogService, error)) {
 	fake.serviceCatalogShowMutex.Lock()
 	defer fake.serviceCatalogShowMutex.Unlock()
 	fake.ServiceCatalogShowStub = stub
@@ -3447,28 +3447,28 @@ func (fake *FakeAPIClient) ServiceCatalogShowArgsForCall(i int) string {
 	return argsForCall.arg1
 }
 
-func (fake *FakeAPIClient) ServiceCatalogShowReturns(result1 *models.ServiceCatalogShowResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceCatalogShowReturns(result1 *models.CatalogService, result2 error) {
 	fake.serviceCatalogShowMutex.Lock()
 	defer fake.serviceCatalogShowMutex.Unlock()
 	fake.ServiceCatalogShowStub = nil
 	fake.serviceCatalogShowReturns = struct {
-		result1 *models.ServiceCatalogShowResponse
+		result1 *models.CatalogService
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceCatalogShowReturnsOnCall(i int, result1 *models.ServiceCatalogShowResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceCatalogShowReturnsOnCall(i int, result1 *models.CatalogService, result2 error) {
 	fake.serviceCatalogShowMutex.Lock()
 	defer fake.serviceCatalogShowMutex.Unlock()
 	fake.ServiceCatalogShowStub = nil
 	if fake.serviceCatalogShowReturnsOnCall == nil {
 		fake.serviceCatalogShowReturnsOnCall = make(map[int]struct {
-			result1 *models.ServiceCatalogShowResponse
+			result1 *models.CatalogService
 			result2 error
 		})
 	}
 	fake.serviceCatalogShowReturnsOnCall[i] = struct {
-		result1 *models.ServiceCatalogShowResponse
+		result1 *models.CatalogService
 		result2 error
 	}{result1, result2}
 }
@@ -3602,7 +3602,7 @@ func (fake *FakeAPIClient) ServiceDeleteReturnsOnCall(i int, result1 models.Serv
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceList(arg1 string) (*models.ServiceListResponse, error) {
+func (fake *FakeAPIClient) ServiceList(arg1 string) (models.ServiceList, error) {
 	fake.serviceListMutex.Lock()
 	ret, specificReturn := fake.serviceListReturnsOnCall[len(fake.serviceListArgsForCall)]
 	fake.serviceListArgsForCall = append(fake.serviceListArgsForCall, struct {
@@ -3627,7 +3627,7 @@ func (fake *FakeAPIClient) ServiceListCallCount() int {
 	return len(fake.serviceListArgsForCall)
 }
 
-func (fake *FakeAPIClient) ServiceListCalls(stub func(string) (*models.ServiceListResponse, error)) {
+func (fake *FakeAPIClient) ServiceListCalls(stub func(string) (models.ServiceList, error)) {
 	fake.serviceListMutex.Lock()
 	defer fake.serviceListMutex.Unlock()
 	fake.ServiceListStub = stub
@@ -3640,33 +3640,33 @@ func (fake *FakeAPIClient) ServiceListArgsForCall(i int) string {
 	return argsForCall.arg1
 }
 
-func (fake *FakeAPIClient) ServiceListReturns(result1 *models.ServiceListResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceListReturns(result1 models.ServiceList, result2 error) {
 	fake.serviceListMutex.Lock()
 	defer fake.serviceListMutex.Unlock()
 	fake.ServiceListStub = nil
 	fake.serviceListReturns = struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceListReturnsOnCall(i int, result1 *models.ServiceListResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceListReturnsOnCall(i int, result1 models.ServiceList, result2 error) {
 	fake.serviceListMutex.Lock()
 	defer fake.serviceListMutex.Unlock()
 	fake.ServiceListStub = nil
 	if fake.serviceListReturnsOnCall == nil {
 		fake.serviceListReturnsOnCall = make(map[int]struct {
-			result1 *models.ServiceListResponse
+			result1 models.ServiceList
 			result2 error
 		})
 	}
 	fake.serviceListReturnsOnCall[i] = struct {
-		result1 *models.ServiceListResponse
+		result1 models.ServiceList
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceShow(arg1 *models.ServiceShowRequest, arg2 string) (*models.ServiceShowResponse, error) {
+func (fake *FakeAPIClient) ServiceShow(arg1 *models.ServiceShowRequest, arg2 string) (*models.Service, error) {
 	fake.serviceShowMutex.Lock()
 	ret, specificReturn := fake.serviceShowReturnsOnCall[len(fake.serviceShowArgsForCall)]
 	fake.serviceShowArgsForCall = append(fake.serviceShowArgsForCall, struct {
@@ -3692,7 +3692,7 @@ func (fake *FakeAPIClient) ServiceShowCallCount() int {
 	return len(fake.serviceShowArgsForCall)
 }
 
-func (fake *FakeAPIClient) ServiceShowCalls(stub func(*models.ServiceShowRequest, string) (*models.ServiceShowResponse, error)) {
+func (fake *FakeAPIClient) ServiceShowCalls(stub func(*models.ServiceShowRequest, string) (*models.Service, error)) {
 	fake.serviceShowMutex.Lock()
 	defer fake.serviceShowMutex.Unlock()
 	fake.ServiceShowStub = stub
@@ -3705,28 +3705,28 @@ func (fake *FakeAPIClient) ServiceShowArgsForCall(i int) (*models.ServiceShowReq
 	return argsForCall.arg1, argsForCall.arg2
 }
 
-func (fake *FakeAPIClient) ServiceShowReturns(result1 *models.ServiceShowResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceShowReturns(result1 *models.Service, result2 error) {
 	fake.serviceShowMutex.Lock()
 	defer fake.serviceShowMutex.Unlock()
 	fake.ServiceShowStub = nil
 	fake.serviceShowReturns = struct {
-		result1 *models.ServiceShowResponse
+		result1 *models.Service
 		result2 error
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ServiceShowReturnsOnCall(i int, result1 *models.ServiceShowResponse, result2 error) {
+func (fake *FakeAPIClient) ServiceShowReturnsOnCall(i int, result1 *models.Service, result2 error) {
 	fake.serviceShowMutex.Lock()
 	defer fake.serviceShowMutex.Unlock()
 	fake.ServiceShowStub = nil
 	if fake.serviceShowReturnsOnCall == nil {
 		fake.serviceShowReturnsOnCall = make(map[int]struct {
-			result1 *models.ServiceShowResponse
+			result1 *models.Service
 			result2 error
 		})
 	}
 	fake.serviceShowReturnsOnCall[i] = struct {
-		result1 *models.ServiceShowResponse
+		result1 *models.Service
 		result2 error
 	}{result1, result2}
 }
