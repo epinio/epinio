@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/helpers/route53"
 	"github.com/epinio/epinio/acceptance/testenv"
+	"github.com/epinio/epinio/internal/names"
 )
 
 // This test uses AWS route53 to update the system domain's records
@@ -151,11 +152,14 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		By("Bind the database to the app", func() {
 			out, err := epinioHelper.Run("service", "bind", serviceName, appName)
 			Expect(err).ToNot(HaveOccurred(), out)
+
+			chart := names.ServiceHelmChartName(serviceName, testenv.DefaultWorkspace)
+
 			Eventually(func() string {
 				out, err := epinioHelper.Run("app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "2m", "5s").Should(MatchRegexp("Bound Configurations.*\\|.*%s-%s-mysql", testenv.DefaultWorkspace, serviceName))
+			}, "2m", "5s").Should(MatchRegexp("Bound Configurations.*\\|.*%s", chart))
 		})
 
 		By("Pushing an app with Env vars", func() {
