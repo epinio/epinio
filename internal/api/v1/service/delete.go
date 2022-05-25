@@ -38,10 +38,6 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if err := ctr.validateNamespace(ctx, cluster, namespace); err != nil {
-		return err
-	}
-
 	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr

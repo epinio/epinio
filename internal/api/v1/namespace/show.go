@@ -21,15 +21,6 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := namespaces.Exists(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	if !exists {
-		return apierror.NamespaceIsNotKnown(namespace)
-	}
-
 	appNames, err := namespaceApps(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)

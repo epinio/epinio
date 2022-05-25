@@ -97,13 +97,22 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// Register api routes
 	{
-		apiRoutesGroup := router.Group(apiv1.Root, authMiddleware, sessionMiddleware, apiv1.AuthorizationMiddleware)
+		apiRoutesGroup := router.Group(apiv1.Root,
+			apiv1.NamespaceMiddleware,
+			authMiddleware,
+			sessionMiddleware,
+			apiv1.AuthorizationMiddleware,
+		)
 		apiv1.Lemon(apiRoutesGroup)
 	}
 
 	// Register web socket routes
 	{
-		wapiRoutesGroup := router.Group(apiv1.WsRoot, tokenAuthMiddleware, apiv1.AuthorizationMiddleware)
+		wapiRoutesGroup := router.Group(apiv1.WsRoot,
+			apiv1.NamespaceMiddleware,
+			tokenAuthMiddleware,
+			apiv1.AuthorizationMiddleware,
+		)
 		apiv1.Spice(wapiRoutesGroup)
 	}
 

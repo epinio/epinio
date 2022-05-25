@@ -9,7 +9,6 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
-	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -25,15 +24,6 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
-	}
-
-	exists, err := namespaces.Exists(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	if !exists {
-		return apierror.NamespaceIsNotKnown(namespace)
 	}
 
 	configuration, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
