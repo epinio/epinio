@@ -123,6 +123,28 @@
         }
       }
     },
+    "/catalogservicesmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "catalogservice"
+        ],
+        "summary": "Return list of names for all catalog entries whose name matches the prefix `Pattern`.",
+        "operationId": "CatalogServiceMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/CatalogMatchResponse"
+          }
+        }
+      }
+    },
     "/configurations": {
       "get": {
         "tags": [
@@ -147,6 +169,33 @@
         "responses": {
           "200": {
             "$ref": "#/responses/InfoResponse"
+          }
+        }
+      }
+    },
+    "/namespace/{Namespace}/servicesmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "service"
+        ],
+        "summary": "Return list of names for all serives whose name matches the prefix `Pattern`.",
+        "operationId": "ServiceMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceMatchResponse"
           }
         }
       }
@@ -1717,6 +1766,20 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "CatalogMatchResponse": {
+      "description": "CatalogMatchResponse contains the list of names for matching catalog entries",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "CatalogService": {
       "description": "CatalogService mostly matches github.com/epinio/application/api/v1 ServiceSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "type": "object",
@@ -1947,7 +2010,7 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "EnvMatchResponse": {
-      "description": "EnvMatchResponse contains the list of names for matching envs",
+      "description": "EnvMatchResponse contains the list of names for matching env variables",
       "type": "object",
       "properties": {
         "names": {
@@ -2254,6 +2317,20 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "ServiceMatchResponse": {
+      "description": "ServiceMatchResponse contains the list of names for matching services",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ServiceStatus": {
       "type": "string",
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2419,6 +2496,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/AppList"
+      }
+    },
+    "CatalogMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/CatalogMatchResponse"
       }
     },
     "ChartMatchResponse": {
@@ -2599,6 +2682,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/ServiceList"
+      }
+    },
+    "ServiceMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ServiceMatchResponse"
       }
     },
     "ServiceShowResponse": {

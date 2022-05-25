@@ -35,7 +35,7 @@ type ServiceCatalogShowResponse struct {
 	Body models.CatalogService
 }
 
-// swagger:route GET /catalogservicematches/{Pattern} catalogservice CatalogServiceMatch
+// swagger:route GET /catalogservicesmatches/{Pattern} catalogservice CatalogServiceMatch
 // Return list of names for all catalog entries whose name matches the prefix `Pattern`.
 // responses:
 //   200: CatalogMatchResponse
@@ -112,7 +112,7 @@ type ServiceShowParam struct {
 	Service string
 }
 
-// swagger:route GET /servicematches/{Pattern} service ServiceMatch
+// swagger:route GET /namespace/{Namespace}/servicesmatches/{Pattern} service ServiceMatch
 // Return list of names for all serives whose name matches the prefix `Pattern`.
 // responses:
 //   200: ServiceMatchResponse
@@ -120,7 +120,8 @@ type ServiceShowParam struct {
 // swagger:parameters ServiceMatch
 type ServiceMatchParam struct {
 	// in: path
-	Pattern string
+	Namespace string
+	Pattern   string
 }
 
 // swagger:response ServiceMatchResponse
