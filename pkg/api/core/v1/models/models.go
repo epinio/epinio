@@ -317,7 +317,7 @@ type Service struct {
 	BoundApps      []string      `json:"boundapps"`
 }
 
-func (s *Service) Namespace() string {
+func (s Service) Namespace() string {
 	return s.Meta.Namespace
 }
 
