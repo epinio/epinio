@@ -228,6 +228,11 @@ type ConfigurationShowResponse struct {
 	BoundApps []string          `json:"boundapps"`
 }
 
+// ConfigurationMatchResponse contains the list of names for matching configurations
+type ConfigurationMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
 // InfoResponse contains information about Epinio and its components
 type InfoResponse struct {
 	Version     string `json:"version,omitempty"`

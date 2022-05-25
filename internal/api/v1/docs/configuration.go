@@ -80,6 +80,25 @@ type ConfigurationShowResponse struct {
 	Body models.ConfigurationResponse
 }
 
+// swagger:route GET /namespace/{Namespace}/configurationsmatches/{Pattern} configuration ConfigurationMatch
+// Return list of names for all configurations whose name matches the prefix `Pattern`.
+// responses:
+//   200: ConfigurationMatchResponse
+
+// swagger:parameters ConfigurationMatch
+type ConfigurationMatchParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Pattern string
+}
+
+// swagger:response ConfigurationMatchResponse
+type ConfigurationMatchResponse struct {
+	// in: body
+	Body models.ConfigurationMatchResponse
+}
+
 // swagger:route POST /namespaces/{Namespace}/configurations configuration ConfigurationCreate
 // Create the posted new configuration in the `Namespace`.
 // responses:

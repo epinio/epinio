@@ -93,6 +93,9 @@ var Routes = routes.NamedRoutes{
 	"AppRunning":      get("/namespaces/:namespace/applications/:app/running", errorHandler(application.Controller{}.Running)),
 	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.Controller{}.GetPart)),
 
+	"AppMatch":  get("/namespaces/:namespace/appsmatches/:pattern", errorHandler(application.Controller{}.Match)),
+	"AppMatch0": get("/namespaces/:namespace/appsmatches", errorHandler(application.Controller{}.Match)),
+
 	// See env.go
 	"EnvList": get("/namespaces/:namespace/applications/:app/environment", errorHandler(env.Controller{}.Index)),
 
@@ -130,6 +133,9 @@ var Routes = routes.NamedRoutes{
 	"ConfigurationDelete":  delete("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Delete)),
 	"ConfigurationUpdate":  patch("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Update)),
 	"ConfigurationReplace": put("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Replace)),
+
+	"ConfigurationMatch":  get("/namespaces/:namespace/configurationsmatches/:pattern", errorHandler(configuration.Controller{}.Match)),
+	"ConfigurationMatch0": get("/namespaces/:namespace/configurationsmatches", errorHandler(configuration.Controller{}.Match)),
 
 	// Service Catalog
 	"ServiceCatalog":     get("/catalogservices", errorHandler(service.Controller{}.Catalog)),

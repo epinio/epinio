@@ -113,7 +113,7 @@ type ServiceShowParam struct {
 }
 
 // swagger:route GET /namespace/{Namespace}/servicesmatches/{Pattern} service ServiceMatch
-// Return list of names for all serives whose name matches the prefix `Pattern`.
+// Return list of names for all services whose name matches the prefix `Pattern`.
 // responses:
 //   200: ServiceMatchResponse
 
@@ -121,7 +121,8 @@ type ServiceShowParam struct {
 type ServiceMatchParam struct {
 	// in: path
 	Namespace string
-	Pattern   string
+	// in: path
+	Pattern string
 }
 
 // swagger:response ServiceMatchResponse
