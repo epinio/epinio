@@ -1,7 +1,7 @@
 name: golangci-lint
 
 env:
-  SETUP_GO_VERSION: '^1.17.2'
+  SETUP_GO_VERSION: '^1.18.2'
 
 on:
   schedule:
@@ -22,7 +22,7 @@ jobs:
           submodules: recursive
 
       - name: Setup Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
@@ -43,7 +43,7 @@ jobs:
         uses: golangci/golangci-lint-action@v3.1.0
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.45
+          version: v1.46
 
           args: --timeout=10m --config=${{ steps.configfile.outputs.file }}
 

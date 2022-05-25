@@ -1,5 +1,5 @@
 run:
-  go: 1.17
+  go: "1.18"
   deadline: 20s
 
   # don't report issues from these dirs
