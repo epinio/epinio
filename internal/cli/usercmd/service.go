@@ -298,7 +298,7 @@ func (c *EpinioClient) ServiceListAll() error {
 
 // ServiceMatching returns all Epinio services having the specified prefix in their name
 func (c *EpinioClient) ServiceMatching(prefix string) []string {
-	log := c.Log.WithName("NamespaceMatching").WithValues("PrefixToMatch", prefix)
+	log := c.Log.WithName("ServiceMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
 
@@ -311,13 +311,15 @@ func (c *EpinioClient) ServiceMatching(prefix string) []string {
 
 	result = resp.Names
 
+	sort.Strings(result)
+
 	log.Info("matches", "found", result)
 	return result
 }
 
 // CatalogMatching returns all Epinio catalog entries having the specified prefix in their name
 func (c *EpinioClient) CatalogMatching(prefix string) []string {
-	log := c.Log.WithName("NamespaceMatching").WithValues("PrefixToMatch", prefix)
+	log := c.Log.WithName("CatalogMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
 
@@ -329,6 +331,8 @@ func (c *EpinioClient) CatalogMatching(prefix string) []string {
 	}
 
 	result = resp.Names
+
+	sort.Strings(result)
 
 	log.Info("matches", "found", result)
 	return result

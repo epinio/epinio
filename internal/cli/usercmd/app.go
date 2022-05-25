@@ -61,29 +61,19 @@ func (c *EpinioClient) AppsMatching(prefix string) []string {
 	log := c.Log.WithName("AppsMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
 
-	// Ask for all apps. Filtering is local.
-	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
-
-	apps, err := c.API.Apps(c.Settings.Namespace)
+	resp, err := c.API.AppMatch(c.Settings.Namespace, prefix)
 	if err != nil {
 		return result
 	}
 
-	for _, app := range apps {
-		details.Info("Found", "Name", app.Meta.Name)
-
-		if strings.HasPrefix(app.Meta.Name, prefix) {
-			details.Info("Matched", "Name", app.Meta.Name)
-			result = append(result, app.Meta.Name)
-		}
-	}
+	result = resp.Names
 
 	sort.Strings(result)
 
+	log.Info("matches", "found", result)
 	return result
 }
 

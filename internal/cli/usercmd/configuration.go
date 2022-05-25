@@ -85,27 +85,19 @@ func (c *EpinioClient) ConfigurationMatching(ctx context.Context, prefix string)
 	log := c.Log.WithName("ConfigurationMatching").WithValues("PrefixToMatch", prefix)
 	log.Info("start")
 	defer log.Info("return")
-	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	result := []string{}
 
-	// Ask for all configurations. Filtering is local.
-	// TODO: Create new endpoint (compare `EnvMatch`) and move filtering to the server.
-
-	response, err := c.API.Configurations(c.Settings.Namespace)
+	resp, err := c.API.ConfigurationMatch(c.Settings.Namespace, prefix)
 	if err != nil {
 		return result
 	}
 
-	for _, s := range response {
-		configuration := s.Meta.Name
-		details.Info("Found", "Name", configuration)
-		if strings.HasPrefix(configuration, prefix) {
-			details.Info("Matched", "Name", configuration)
-			result = append(result, configuration)
-		}
-	}
+	result = resp.Names
 
+	sort.Strings(result)
+
+	log.Info("matches", "found", result)
 	return result
 }
 

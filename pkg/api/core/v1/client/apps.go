@@ -222,6 +222,24 @@ func (c *Client) AppUpdate(req models.ApplicationUpdateRequest, namespace string
 	return resp, nil
 }
 
+// AppMatch returns all matching namespaces for the prefix
+func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, error) {
+	resp := models.AppMatchResponse{}
+
+	data, err := c.get(api.Routes.Path("AppMatch", namespace, prefix))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
+}
+
 // AppDelete deletes an app
 func (c *Client) AppDelete(namespace string, name string) (models.ApplicationDeleteResponse, error) {
 	resp := models.ApplicationDeleteResponse{}

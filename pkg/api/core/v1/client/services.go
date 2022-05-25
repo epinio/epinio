@@ -101,7 +101,7 @@ func (c *Client) ServiceShow(req *models.ServiceShowRequest, namespace string) (
 	return &resp, nil
 }
 
-// ServiceMatch returns all matching namespaces for the prefix
+// ServiceMatch returns all matching services for the prefix
 func (c *Client) ServiceMatch(namespace, prefix string) (models.ServiceMatchResponse, error) {
 	resp := models.ServiceMatchResponse{}
 
