@@ -182,14 +182,12 @@ var CmdAppLogs = &cobra.Command{
 			return errors.Wrap(err, "error reading option --staging")
 		}
 
-		stageID, err := client.AppStageID(args[0])
-		if err != nil {
-			return errors.Wrap(err, "error checking app")
-		}
+		stageID := ""
 		if staging {
-			follow = false
-		} else {
-			stageID = ""
+			stageID, err = client.AppStageID(args[0])
+			if err != nil {
+				return errors.Wrap(err, "error checking app")
+			}
 		}
 
 		err = client.AppLogs(args[0], stageID, follow)

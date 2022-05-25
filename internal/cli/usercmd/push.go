@@ -14,8 +14,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -265,17 +263,7 @@ func (c *EpinioClient) stageLogs(logger logr.Logger, appRef models.AppRef, stage
 		Msg("Streaming application logs")
 
 	go func() {
-		printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
-		callback := func(logLine tailer.ContainerLogLine) {
-			printer.Print(logprinter.Log{
-				Message:       logLine.Message,
-				Namespace:     logLine.Namespace,
-				PodName:       logLine.PodName,
-				ContainerName: logLine.ContainerName,
-			}, c.ui.ProgressNote().Compact())
-		}
-
-		err := c.API.AppLogs(c.Settings.Namespace, appRef.Name, stageID, true, callback)
+		err := c.AppLogs(appRef.Name, stageID, true)
 		if err != nil {
 			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		}
