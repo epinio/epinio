@@ -92,11 +92,13 @@ func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp,
 							continue
 						}
 
-						logger.Info("report added", "container", c.Name, "pod", pod.Name, "namespace", pod.Namespace)
-						added <- &Target{
-							Namespace: pod.Namespace,
-							Pod:       pod.Name,
-							Container: c.Name,
+						if c.State.Running != nil || c.State.Terminated != nil { // There are logs to read
+							logger.Info("report added", "container", c.Name, "pod", pod.Name, "namespace", pod.Namespace)
+							added <- &Target{
+								Namespace: pod.Namespace,
+								Pod:       pod.Name,
+								Container: c.Name,
+							}
 						}
 					}
 				case watch.Deleted:

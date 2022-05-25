@@ -176,7 +176,7 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		case p := <-added:
 			id := p.GetID()
 			if tails[id] != nil {
-				break
+				continue
 			}
 
 			logger.Info("tailer add", "id", id)
@@ -207,7 +207,7 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		case p := <-removed:
 			id := p.GetID()
 			if tails[id] == nil {
-				break
+				continue
 			}
 
 			logger.Info("tailer remove", "id", id)
