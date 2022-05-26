@@ -9,6 +9,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// NamespaceMiddleware is a gin middleware used to check if a namespaced route is valid.
+// It checks the validity of the requested namespace, returning a 404 if it doesn't exists
 func NamespaceMiddleware(c *gin.Context) {
 	_ = requestctx.Logger(c.Request.Context()).WithName("NamespaceMiddleware")
 	ctx := c.Request.Context()
