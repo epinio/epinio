@@ -154,7 +154,7 @@ var _ = Describe("Users", func() {
 			resp, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+			Expect(resp.StatusCode).To(Equal(http.StatusForbidden))
 		})
 	})
 
