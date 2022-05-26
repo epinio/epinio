@@ -159,7 +159,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			))
 		})
 
-		It("will not lists all configurations belonging to other namespaces", func() {
+		It("doesn't list configurations belonging to non-accessible namespaces", func() {
 			endpoint := fmt.Sprintf("%s%s/configurations", serverURL, api.Root)
 			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 			Expect(err).ToNot(HaveOccurred())

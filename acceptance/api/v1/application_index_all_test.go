@@ -84,7 +84,7 @@ var _ = Describe("AllApps Endpoints", func() {
 			[]string{app2, namespace2}))
 	})
 
-	It("will not lists the applications belonging to other namespaces", func() {
+	It("doesn't list applications belonging to non-accessible namespaces", func() {
 		endpoint := fmt.Sprintf("%s%s/applications", serverURL, v1.Root)
 		request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 		Expect(err).ToNot(HaveOccurred())
