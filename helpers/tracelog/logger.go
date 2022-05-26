@@ -43,7 +43,6 @@ func NewLogger() logr.Logger {
 
 // NewStdrLogger returns a stdr logger
 func NewStdrLogger() logr.Logger {
-	stdr.SetVerbosity(TraceLevel())
 	return stdr.New(log.New(os.Stderr, "", log.LstdFlags)).V(1) // NOTE: Increment of level, not absolute.
 }
 

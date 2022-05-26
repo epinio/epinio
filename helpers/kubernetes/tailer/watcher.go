@@ -92,7 +92,7 @@ func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp,
 							continue
 						}
 
-						if containerState.Match(c.State) {
+						if c.State.Running != nil || c.State.Terminated != nil { // There are logs to read
 							logger.Info("report added", "container", c.Name, "pod", pod.Name, "namespace", pod.Namespace)
 							added <- &Target{
 								Namespace: pod.Namespace,
@@ -100,8 +100,6 @@ func Watch(ctx context.Context, i v1.PodInterface, podFilter *regexp.Regexp,
 								Container: c.Name,
 							}
 						}
-
-						logger.Info("state mismatch", "container", c.Name, "pod", pod.Name, "namespace", pod.Namespace, "actual", c.State, "desired", containerState)
 					}
 				case watch.Deleted:
 					logger.Info("pod deleted", "name", pod.Name)

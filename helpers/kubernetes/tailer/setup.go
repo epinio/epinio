@@ -156,7 +156,6 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		"pods", config.PodQuery.String(),
 		"containers", config.ContainerQuery.String(),
 		"excluded", config.ExcludeContainerQuery.String(),
-		"state", config.ContainerState,
 		"selector", config.LabelSelector.String())
 	added, removed, err := Watch(ctx, cluster.Kubectl.CoreV1().Pods(namespace),
 		config.PodQuery, config.ContainerQuery, config.ExcludeContainerQuery, config.ContainerState, config.LabelSelector)
@@ -177,7 +176,7 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		case p := <-added:
 			id := p.GetID()
 			if tails[id] != nil {
-				break
+				continue
 			}
 
 			logger.Info("tailer add", "id", id)
@@ -208,7 +207,7 @@ func StreamLogs(ctx context.Context, logChan chan ContainerLogLine, wg *sync.Wai
 		case p := <-removed:
 			id := p.GetID()
 			if tails[id] == nil {
-				break
+				continue
 			}
 
 			logger.Info("tailer remove", "id", id)

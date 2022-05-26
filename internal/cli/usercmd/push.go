@@ -9,13 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/helpers"
-	"github.com/epinio/epinio/helpers/kubernetes/tailer"
-	"github.com/epinio/epinio/internal/cli/logprinter"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -187,6 +184,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	var stageResponse *models.StageResponse
 	if params.Origin.Kind != models.OriginContainer {
 		c.ui.Normal().Msg("Staging application with code...")
+		c.ui.ProgressNote().Msg("Running staging")
 
 		req := models.StageRequest{
 			App:          appRef,
@@ -202,9 +200,13 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		log.V(3).Info("stage response", "response", stageResponse)
 
 		details.Info("start tailing logs", "StageID", stageResponse.Stage.ID)
-		err = c.stageLogs(details, appRef, stageResponse.Stage.ID)
+		c.stageLogs(appRef, stageResponse.Stage.ID)
+
+		details.Info("wait for job", "StageID", stageID)
+		// blocking function that wait until the staging is done
+		_, err := c.API.StagingComplete(appRef.Namespace, stageID)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "waiting for staging failed")
 		}
 	}
 
@@ -258,37 +260,11 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	return nil
 }
 
-func (c *EpinioClient) stageLogs(logger logr.Logger, appRef models.AppRef, stageID string) error {
-	c.ui.Note().
-		WithStringValue("Namespace", c.Settings.Namespace).
-		WithStringValue("Application", appRef.Name).
-		Msg("Streaming application logs")
-
+func (c *EpinioClient) stageLogs(appRef models.AppRef, stageID string) {
 	go func() {
-		printer := logprinter.LogPrinter{Tmpl: logprinter.DefaultSingleNamespaceTemplate()}
-		callback := func(logLine tailer.ContainerLogLine) {
-			printer.Print(logprinter.Log{
-				Message:       logLine.Message,
-				Namespace:     logLine.Namespace,
-				PodName:       logLine.PodName,
-				ContainerName: logLine.ContainerName,
-			}, c.ui.ProgressNote().Compact())
-		}
-
-		err := c.API.AppLogs(c.Settings.Namespace, appRef.Name, stageID, true, callback)
+		err := c.AppLogs(appRef.Name, stageID, true)
 		if err != nil {
 			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		}
 	}()
-
-	logger.Info("wait for job", "StageID", stageID)
-	c.ui.ProgressNote().Msg("Running staging")
-
-	// blocking function that wait until the staging is done
-	_, err := c.API.StagingComplete(appRef.Namespace, stageID)
-	if err != nil {
-		return errors.Wrap(err, "waiting for staging failed")
-	}
-
-	return err
 }

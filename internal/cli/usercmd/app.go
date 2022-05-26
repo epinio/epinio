@@ -618,9 +618,13 @@ func (c *EpinioClient) AppRestage(appName string) error {
 	}
 
 	log.V(3).Info("stage response", "response", stageResponse)
-
 	stageID := stageResponse.Stage.ID
-	log.V(1).Info("start tailing logs", "StageID", stageID)
 
-	return c.stageLogs(log.V(1), app.Meta, stageID)
+	log.V(1).Info("start tailing logs", "StageID", stageID)
+	c.stageLogs(app.Meta, stageID)
+
+	log.V(1).Info("wait for job", "StageID", stageID)
+	// blocking function that wait until the staging is done
+	_, err = c.API.StagingComplete(app.Meta.Namespace, stageID)
+	return errors.Wrap(err, "waiting for staging failed")
 }

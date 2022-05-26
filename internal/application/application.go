@@ -414,7 +414,6 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	config := &tailer.Config{
 		ContainerQuery:        regexp.MustCompile(".*"),
 		ExcludeContainerQuery: regexp.MustCompile("linkerd-(proxy|init)"),
-		ContainerState:        "running",
 		Exclude:               nil,
 		Include:               nil,
 		Timestamps:            false,

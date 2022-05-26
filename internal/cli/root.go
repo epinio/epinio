@@ -13,6 +13,7 @@ import (
 	settings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
+	"github.com/go-logr/stdr"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -37,6 +38,7 @@ var rootCmd = &cobra.Command{
 // Execute executes the root command.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
+	stdr.SetVerbosity(tracelog.TraceLevel())
 	if err := rootCmd.Execute(); err != nil {
 		termui.NewUI().Problem().Msg(err.Error())
 		os.Exit(-1)
