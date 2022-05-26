@@ -201,9 +201,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 
 		details.Info("start tailing logs", "StageID", stageResponse.Stage.ID)
 		c.stageLogs(appRef, stageResponse.Stage.ID)
-		if err != nil {
-			return err
-		}
 
 		details.Info("wait for job", "StageID", stageID)
 		// blocking function that wait until the staging is done

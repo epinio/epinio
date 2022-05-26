@@ -626,9 +626,5 @@ func (c *EpinioClient) AppRestage(appName string) error {
 	log.V(1).Info("wait for job", "StageID", stageID)
 	// blocking function that wait until the staging is done
 	_, err = c.API.StagingComplete(app.Meta.Namespace, stageID)
-	if err != nil {
-		return errors.Wrap(err, "waiting for staging failed")
-	}
-
-	return nil
+	return errors.Wrap(err, "waiting for staging failed")
 }
