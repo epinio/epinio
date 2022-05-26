@@ -240,8 +240,8 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 
 		It("returns a 'not found' when the namespace does not exist", func() {
 			endpoint := fmt.Sprintf(
-				"%s%s/namespaces/%s/configurations/%s",
-				serverURL, api.Root, namespace, configuration,
+				"%s%s/namespaces/idontexist/configurations/%s",
+				serverURL, api.Root, configuration,
 			)
 			response, err := env.Curl("DELETE", endpoint, strings.NewReader(`{ "unbind": false }`))
 			Expect(err).ToNot(HaveOccurred())
