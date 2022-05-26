@@ -76,11 +76,12 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 	})
 
 	Describe("GET /api/v1/configurations", func() {
-		var namespace1 string
-		var namespace2 string
-		var configuration1 string
-		var configuration2 string
-		var app1 string
+		var (
+			namespace1, namespace2         string
+			configuration1, configuration2 string
+			user, password                 string
+			app1                           string
+		)
 
 		// Setting up:
 		// namespace1 configuration1 app1
@@ -102,6 +103,8 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			env.SetupAndTargetNamespace(namespace2)
 			env.MakeConfiguration(configuration1) // separate from namespace1.configuration1
 			env.MakeConfiguration(configuration2)
+
+			user, password = env.CreateEpinioUser("user", nil)
 		})
 
 		AfterEach(func() {
@@ -114,6 +117,8 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			env.DeleteConfiguration(configuration1)
 			env.DeleteNamespace(namespace1)
 			env.DeleteNamespace(namespace2)
+
+			env.DeleteEpinioUser(user)
 		})
 
 		It("lists all configurations belonging to all namespaces", func() {
@@ -152,7 +157,27 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 				[]string{configuration1, namespace2, ""},
 				[]string{configuration2, namespace2, ""},
 			))
+		})
 
+		It("doesn't list configurations belonging to non-accessible namespaces", func() {
+			endpoint := fmt.Sprintf("%s%s/configurations", serverURL, api.Root)
+			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+			Expect(err).ToNot(HaveOccurred())
+			request.SetBasicAuth(user, password)
+
+			response, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var configurations models.ConfigurationResponseList
+			err = json.Unmarshal(bodyBytes, &configurations)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(configurations).To(BeEmpty())
 		})
 	})
 

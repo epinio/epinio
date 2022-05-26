@@ -36,7 +36,7 @@ type ConfigurationList []*Configuration
 // Configuration contains the information needed for Epinio to address a specific configuration.
 type Configuration struct {
 	Name       string
-	Namespace  string
+	namespace  string
 	Username   string
 	CreatedAt  metav1.Time
 	kubeClient *kubernetes.Cluster
@@ -47,7 +47,7 @@ type Configuration struct {
 func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, configuration string) (*Configuration, error) {
 	c := &Configuration{
 		Name:       configuration,
-		Namespace:  namespace,
+		namespace:  namespace,
 		kubeClient: kubeClient,
 	}
 
@@ -90,15 +90,15 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 
 	result := ConfigurationList{}
 
-	for _, s := range secrets.Items {
-		name := s.Name
-		namespace := s.Namespace
-		username := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+	for _, c := range secrets.Items {
+		name := c.Name
+		namespace := c.Namespace
+		username := c.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 		result = append(result, &Configuration{
-			CreatedAt:  s.ObjectMeta.CreationTimestamp,
+			CreatedAt:  c.ObjectMeta.CreationTimestamp,
 			Name:       name,
-			Namespace:  namespace,
+			namespace:  namespace,
 			Username:   username,
 			kubeClient: cluster,
 		})
@@ -141,7 +141,7 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 
 	return &Configuration{
 		Name:       name,
-		Namespace:  namespace,
+		namespace:  namespace,
 		kubeClient: cluster,
 	}, nil
 }
@@ -162,7 +162,7 @@ func UpdateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, confi
 			secret.Data[key] = []byte(value)
 		}
 
-		_, err = cluster.Kubectl.CoreV1().Secrets(configuration.Namespace).Update(
+		_, err = cluster.Kubectl.CoreV1().Secrets(configuration.Namespace()).Update(
 			ctx, secret, metav1.UpdateOptions{})
 		return err
 	})
@@ -186,7 +186,7 @@ func ReplaceConfiguration(ctx context.Context, cluster *kubernetes.Cluster, conf
 	}
 
 	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		_, err = cluster.Kubectl.CoreV1().Secrets(configuration.Namespace).Update(
+		_, err = cluster.Kubectl.CoreV1().Secrets(configuration.Namespace()).Update(
 			ctx, secret, metav1.UpdateOptions{})
 		return err
 	})
@@ -198,14 +198,19 @@ func ReplaceConfiguration(ctx context.Context, cluster *kubernetes.Cluster, conf
 }
 
 // User returns the configuration's username
-func (s *Configuration) User() string {
-	return s.Username
+func (c *Configuration) User() string {
+	return c.Username
 }
 
-func (s *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
+// Namespace returns the configuration's namespace
+func (c *Configuration) Namespace() string {
+	return c.namespace
+}
+
+func (c *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 	notFoundError := errors.New("configuration not found")
 
-	secret, err := s.kubeClient.GetSecret(ctx, s.Namespace, s.Name)
+	secret, err := c.kubeClient.GetSecret(ctx, c.Namespace(), c.Name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return nil, notFoundError
@@ -278,14 +283,14 @@ func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, na
 
 // Delete destroys the configuration instance, i.e. its underlying secret
 // holding the instance's parameters
-func (s *Configuration) Delete(ctx context.Context) error {
-	return s.kubeClient.DeleteSecret(ctx, s.Namespace, s.Name)
+func (c *Configuration) Delete(ctx context.Context) error {
+	return c.kubeClient.DeleteSecret(ctx, c.Namespace(), c.Name)
 }
 
 // Details returns the configuration instance's configuration.
 // I.e. the parameter data.
-func (s *Configuration) Details(ctx context.Context) (map[string]string, error) {
-	secret, err := s.GetSecret(ctx)
+func (c *Configuration) Details(ctx context.Context) (map[string]string, error) {
+	secret, err := c.GetSecret(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,8 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +15,7 @@ import (
 // It lists all the known applications in all namespaces, with and without workload.
 func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -24,6 +27,8 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, allApps)
+	filteredApps := auth.FilterResources(user, allApps)
+
+	response.OKReturn(c, filteredApps)
 	return nil
 }

@@ -66,7 +66,7 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 			}
 		}
 
-		key := application.ConfigurationKey(configuration.Name, configuration.Namespace)
+		key := application.ConfigurationKey(configuration.Name, configuration.Namespace())
 		appNames := appsOf[key]
 
 		response = append(response, models.ConfigurationResponse{
@@ -74,7 +74,7 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 				Meta: models.Meta{
 					CreatedAt: configuration.CreatedAt,
 					Name:      configuration.Name,
-					Namespace: configuration.Namespace,
+					Namespace: configuration.Namespace(),
 				},
 			},
 			Configuration: models.ConfigurationShowResponse{

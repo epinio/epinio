@@ -17,11 +17,10 @@ import (
 
 var _ = Describe("AllApps Endpoints", func() {
 	var (
-		namespace1        string
-		namespace2        string
-		app1              string
-		app2              string
-		containerImageURL string
+		namespace1, namespace2 string
+		app1, app2             string
+		user, password         string
+		containerImageURL      string
 	)
 
 	BeforeEach(func() {
@@ -38,6 +37,8 @@ var _ = Describe("AllApps Endpoints", func() {
 
 		app2 = catalog.NewAppName()
 		env.MakeContainerImageApp(app2, 1, containerImageURL)
+
+		user, password = env.CreateEpinioUser("user", nil)
 	})
 
 	AfterEach(func() {
@@ -49,6 +50,8 @@ var _ = Describe("AllApps Endpoints", func() {
 
 		env.DeleteNamespace(namespace1)
 		env.DeleteNamespace(namespace2)
+
+		env.DeleteEpinioUser(user)
 	})
 
 	It("lists all applications belonging to all namespaces", func() {
@@ -79,5 +82,26 @@ var _ = Describe("AllApps Endpoints", func() {
 		Expect(appRefs).To(ContainElements(
 			[]string{app1, namespace1},
 			[]string{app2, namespace2}))
+	})
+
+	It("doesn't list applications belonging to non-accessible namespaces", func() {
+		endpoint := fmt.Sprintf("%s%s/applications", serverURL, v1.Root)
+		request, err := http.NewRequest(http.MethodGet, endpoint, nil)
+		Expect(err).ToNot(HaveOccurred())
+		request.SetBasicAuth(user, password)
+
+		response, err := env.Client().Do(request)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+
+		defer response.Body.Close()
+		bodyBytes, err := ioutil.ReadAll(response.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+		var apps models.AppList
+		err = json.Unmarshal(bodyBytes, &apps)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(apps).To(BeEmpty())
 	})
 })

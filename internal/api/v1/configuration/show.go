@@ -56,7 +56,7 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 			Meta: models.Meta{
 				CreatedAt: configuration.CreatedAt,
 				Name:      configuration.Name,
-				Namespace: configuration.Namespace,
+				Namespace: configuration.Namespace(),
 			},
 		},
 		Configuration: models.ConfigurationShowResponse{

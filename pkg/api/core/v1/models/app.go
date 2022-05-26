@@ -76,6 +76,11 @@ func NewApp(name string, namespace string) *App {
 }
 
 // AppRef returns a reference to the app (name, namespace)
+func (a App) Namespace() string {
+	return a.Meta.Namespace
+}
+
+// AppRef returns a reference to the app (name, namespace)
 func (a *App) AppRef() AppRef {
 	return a.Meta
 }

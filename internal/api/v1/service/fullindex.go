@@ -37,28 +37,10 @@ func (ctr Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	response.OKReturn(c, extendWithBoundApps(filterServices(user, serviceList), appsOf))
+	filteredServices := auth.FilterResources(user, serviceList)
+
+	response.OKReturn(c, extendWithBoundApps(filteredServices, appsOf))
 	return nil
-}
-
-func filterServices(user auth.User, services models.ServiceList) models.ServiceList {
-	if user.Role == "admin" {
-		return services
-	}
-
-	namespacesMap := make(map[string]struct{})
-	for _, ns := range user.Namespaces {
-		namespacesMap[ns] = struct{}{}
-	}
-
-	filteredServices := models.ServiceList{}
-	for _, service := range services {
-		if _, allowed := namespacesMap[service.Meta.Namespace]; allowed {
-			filteredServices = append(filteredServices, service)
-		}
-	}
-
-	return filteredServices
 }
 
 func extendWithBoundApps(services models.ServiceList, appsOf map[string][]string) models.ServiceList {
