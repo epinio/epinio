@@ -21,10 +21,10 @@ var _ = Describe("ConfigurationMatch Endpoint", func() {
 		It("returns an error", func() {
 			endpoint := fmt.Sprintf("%s%s/namespaces/doesntexist/configurationsmatches",
 				serverURL, v1.Root)
-			response, err := env.Curl("POST", endpoint, strings.NewReader(""))
+			response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(response.StatusCode).To(Equal(http.StatusMethodNotAllowed))
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound))
 		})
 	})
 
