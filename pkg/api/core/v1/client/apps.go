@@ -490,10 +490,8 @@ func (c *Client) AppExec(namespace string, appName, instance string, tty kubectl
 		c.URL, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
 	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
-		TLS:                      http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
-		FollowRedirects:          true,
-		RequireSameHostRedirects: false,
-		PingPeriod:               time.Second * 5,
+		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		PingPeriod: time.Second * 5,
 	})
 
 	execURL, err := url.Parse(endpoint)
@@ -584,10 +582,8 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 	}
 
 	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
-		TLS:                      http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
-		FollowRedirects:          true,
-		RequireSameHostRedirects: false,
-		PingPeriod:               time.Second * 5,
+		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		PingPeriod: time.Second * 5,
 	})
 
 	wrapper := transport.NewBasicAuthRoundTripper(c.user, c.password, upgradeRoundTripper)

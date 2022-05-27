@@ -163,10 +163,8 @@ func setupConnection(namespace, appName, instance string) (httpstream.Connection
 
 	// we need to use the spdy client to handle this connection
 	upgradeRoundTripper := client.NewUpgrader(spdy.RoundTripperConfig{
-		TLS:                      http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
-		FollowRedirects:          true,
-		RequireSameHostRedirects: false,
-		PingPeriod:               time.Second * 5,
+		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
+		PingPeriod: time.Second * 5,
 	})
 
 	dialer := gospdy.NewDialer(upgradeRoundTripper, &http.Client{Transport: upgradeRoundTripper}, "GET", portForwardURL)
