@@ -13,6 +13,7 @@ var _ = Describe("apps chart", func() {
 			out, err := env.Epinio("", "apps", "chart", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show Application Charts"))
+
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("DEFAULT", "NAME", "CREATED", "DESCRIPTION"),
