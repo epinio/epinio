@@ -45,7 +45,7 @@ var _ = Describe("ConfigurationMatch Endpoint", func() {
 			env.DeleteNamespace(namespace)
 		})
 
-		It("lists all apps for empty prefix", func() {
+		It("lists all configurations for empty prefix", func() {
 			By("querying matches")
 			response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/configurationsmatches",
 				serverURL, v1.Root, namespace),
@@ -66,7 +66,7 @@ var _ = Describe("ConfigurationMatch Endpoint", func() {
 			Expect(resp.Names).Should(ContainElements(configurationName))
 		})
 
-		It("lists no apps matching the prefix", func() {
+		It("lists no configurations matching the prefix", func() {
 			response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/configurationsmatches/bogus",
 				serverURL, v1.Root, namespace),
 				strings.NewReader(""))
@@ -85,7 +85,7 @@ var _ = Describe("ConfigurationMatch Endpoint", func() {
 			Expect(resp.Names).Should(BeEmpty())
 		})
 
-		It("lists all apps matching the prefix", func() {
+		It("lists all configurations matching the prefix", func() {
 			By("querying matches")
 			response, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/configurationsmatches/%s",
 				serverURL, v1.Root, namespace, configurationName[:len(configurationName)-4]),

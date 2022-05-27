@@ -13,7 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Match handles the API endpoint /namespace/:namespace/servicesmatches/:pattern (GET)
+// Match handles the API endpoint /namespace/:namespace/appsmatches/:pattern (GET)
 // It returns a list of all Epinio-controlled applications matching the prefix pattern.
 func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
