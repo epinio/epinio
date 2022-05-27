@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -23,6 +24,7 @@ var _ = Describe("Bounds between Apps & Configurations", func() {
 	Describe("Display", func() {
 		var appName string
 		var configurationName string
+
 		BeforeEach(func() {
 			appName = catalog.NewAppName()
 			configurationName = catalog.NewConfigurationName()
@@ -31,10 +33,23 @@ var _ = Describe("Bounds between Apps & Configurations", func() {
 			env.MakeConfiguration(configurationName)
 			env.BindAppConfiguration(appName, configurationName, namespace)
 		})
+
+		AfterEach(func() {
+			// Delete app first, as this also unbinds the configuration
+			env.CleanupApp(appName)
+			env.CleanupConfiguration(configurationName)
+		})
+
 		It("shows the bound app for configurations list, and vice versa", func() {
 			out, err := env.Epinio("", "configuration", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(configurationName + `.*` + appName))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "APPLICATIONS"),
+					WithRow(configurationName, WithDate(), appName),
+				),
+			)
 
 			// The next check uses `Eventually` because binding the
 			// configuration to the app forces a restart of the app's
@@ -48,12 +63,12 @@ var _ = Describe("Bounds between Apps & Configurations", func() {
 				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + configurationName))
-		})
-		AfterEach(func() {
-			// Delete app first, as this also unbinds the configuration
-			env.CleanupApp(appName)
-			env.CleanupConfiguration(configurationName)
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ""),
+				),
+			)
 		})
 	})
 })
