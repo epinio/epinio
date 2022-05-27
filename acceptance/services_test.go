@@ -15,6 +15,29 @@ import (
 )
 
 var _ = Describe("Services", func() {
+	var catalogService models.CatalogService
+
+	BeforeEach(func() {
+		serviceName := catalog.NewCatalogServiceName()
+
+		catalogService = models.CatalogService{
+			Meta: models.MetaLite{
+				Name: serviceName,
+			},
+			HelmChart: "nginx",
+			HelmRepo: models.HelmRepo{
+				Name: "",
+				URL:  "https://charts.bitnami.com/bitnami",
+			},
+			Values: "{'service': {'type': 'ClusterIP'}}",
+		}
+
+		catalog.CreateCatalogService(catalogService)
+	})
+
+	AfterEach(func() {
+		catalog.DeleteCatalogService(catalogService.Meta.Name)
+	})
 
 	Describe("Catalog", func() {
 		It("lists the standard catalog", func() {
@@ -39,44 +62,22 @@ var _ = Describe("Services", func() {
 		})
 
 		When("Adding a catalog entry", func() {
-			var catalogService models.CatalogService
-			var serviceName string
-
-			BeforeEach(func() {
-				serviceName = catalog.NewCatalogServiceName()
-
-				catalogService = models.CatalogService{
-					Meta: models.MetaLite{
-						Name: serviceName,
-					},
-					HelmChart: "nginx",
-					HelmRepo: models.HelmRepo{
-						Name: "",
-						URL:  "https://charts.bitnami.com/bitnami",
-					},
-					Values: "{'service': {'type': 'ClusterIP'}}",
-				}
-
-				catalog.CreateCatalogService(catalogService)
-			})
-
-			AfterEach(func() {
-				catalog.DeleteCatalogService(serviceName)
-			})
+			// Already added an nginx catalog service in the top level before block
+			// It's meant to be used by other tests too to make tests faster, because
+			// mysql takes more time to provision.
 
 			It("lists the extended catalog", func() {
 				out, err := env.Epinio("", "service", "catalog")
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				Expect(out).To(MatchRegexp("Getting catalog"))
-				Expect(out).To(MatchRegexp(serviceName))
+				Expect(out).To(MatchRegexp(catalogService.Meta.Name))
 			})
 
 			It("lists the extended catalog details", func() {
-				out, err := env.Epinio("", "service", "catalog", serviceName)
+				out, err := env.Epinio("", "service", "catalog", catalogService.Meta.Name)
 				Expect(err).ToNot(HaveOccurred(), out)
-
-				Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", serviceName)))
+				Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", catalogService.Meta.Name)))
 			})
 		})
 	})
@@ -113,7 +114,7 @@ var _ = Describe("Services", func() {
 
 		It("list a service", func() {
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			By("show it")
@@ -123,7 +124,8 @@ var _ = Describe("Services", func() {
 			Expect(out).To(MatchRegexp("Listing Services"))
 			Expect(out).To(MatchRegexp("Namespace: " + namespace))
 
-			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(
+				regex.TableRow(service, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
 
 			By("wait for deployment")
 			Eventually(func() string {
@@ -192,12 +194,12 @@ var _ = Describe("Services", func() {
 			By("create them in different namespaces")
 			// create service1 in namespace1
 			env.TargetNamespace(namespace1)
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service1)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// create service2 in namespace2
 			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", "mysql-dev", service2)
+			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// show all the services (we are admin, good to go)
@@ -207,14 +209,17 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(MatchRegexp("Listing all Services"))
 
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace1, service1, regex.DateRegex, "mysql-dev", "not-ready")))
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "not-ready")))
+			Expect(out).To(MatchRegexp(
+				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).To(MatchRegexp(
+				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
 
 			By("wait for deployment of " + service1)
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
-			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace1, service1, regex.DateRegex, "mysql-dev", "deployed")))
+			}, "2m", "5s").Should(MatchRegexp(
+				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "deployed")))
 
 			By(fmt.Sprintf("%s/%s up", namespace1, service1))
 
@@ -222,7 +227,8 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
-			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "deployed")))
+			}, "2m", "5s").Should(MatchRegexp(
+				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "deployed")))
 
 			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
@@ -234,7 +240,7 @@ var _ = Describe("Services", func() {
 			updateSettings(user1, password1, namespace1)
 
 			// create service1 in namespace1
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service1, "--settings-file", tmpSettingsPath)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred(), out, tmpSettingsPath)
 
 			// impersonate user2
@@ -242,7 +248,7 @@ var _ = Describe("Services", func() {
 
 			// create service2 in namespace2
 			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", "mysql-dev", service2, "--settings-file", tmpSettingsPath)
+			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// show only owned namespaces (we are user2, only namespace2)
@@ -252,14 +258,17 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(MatchRegexp("Listing all Services"))
 
-			Expect(out).NotTo(MatchRegexp(regex.TableRow(namespace1, service1, regex.DateRegex, "mysql-dev", "not-ready")))
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "not-ready")))
+			Expect(out).NotTo(MatchRegexp(
+				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).To(MatchRegexp(
+				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
 
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
 				return out
-			}, "2m", "5s").Should(MatchRegexp(regex.TableRow(namespace2, service2, regex.DateRegex, "mysql-dev", "deployed")))
+			}, "2m", "5s").Should(MatchRegexp(
+				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "deployed")))
 
 			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
@@ -291,7 +300,7 @@ var _ = Describe("Services", func() {
 
 		It("creates a service", func() {
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			By("show it")
@@ -319,7 +328,7 @@ var _ = Describe("Services", func() {
 			service = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			By("show it")
