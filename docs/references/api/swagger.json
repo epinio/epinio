@@ -173,12 +173,68 @@
         }
       }
     },
+    "/namespace/{Namespace}/appsmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "application"
+        ],
+        "summary": "Return list of names for all applications whose name matches the prefix `Pattern`.",
+        "operationId": "AppMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppMatchResponse"
+          }
+        }
+      }
+    },
+    "/namespace/{Namespace}/configurationsmatches/{Pattern}": {
+      "get": {
+        "tags": [
+          "configuration"
+        ],
+        "summary": "Return list of names for all configurations whose name matches the prefix `Pattern`.",
+        "operationId": "ConfigurationMatch",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "Pattern",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationMatchResponse"
+          }
+        }
+      }
+    },
     "/namespace/{Namespace}/servicesmatches/{Pattern}": {
       "get": {
         "tags": [
           "service"
         ],
-        "summary": "Return list of names for all serives whose name matches the prefix `Pattern`.",
+        "summary": "Return list of names for all services whose name matches the prefix `Pattern`.",
         "operationId": "ServiceMatch",
         "parameters": [
           {
@@ -190,7 +246,8 @@
           {
             "type": "string",
             "name": "Pattern",
-            "in": "query"
+            "in": "path",
+            "required": true
           }
         ],
         "responses": {
@@ -1632,6 +1689,20 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppMatchResponse": {
+      "description": "AppMatchResponse contains the list of names for matching apps",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "AppRef": {
       "description": "AppRef references an App by name and namespace",
       "type": "object",
@@ -1878,6 +1949,20 @@
             "type": "string"
           },
           "x-go-name": "BoundApps"
+        }
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "ConfigurationMatchResponse": {
+      "description": "ConfigurationMatchResponse contains the list of names for matching configurations",
+      "type": "object",
+      "properties": {
+        "names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Names"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -2443,6 +2528,12 @@
     "AppLogsResponse": {
       "description": ""
     },
+    "AppMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/AppMatchResponse"
+      }
+    },
     "AppPartResponse": {
       "description": "",
       "schema": {
@@ -2541,6 +2632,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/ConfigurationDeleteResponse"
+      }
+    },
+    "ConfigurationMatchResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/ConfigurationMatchResponse"
       }
     },
     "ConfigurationReplaceResponse": {

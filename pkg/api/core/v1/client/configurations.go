@@ -205,3 +205,21 @@ func (c *Client) ConfigurationApps(namespace string) (models.ConfigurationAppsRe
 
 	return resp, nil
 }
+
+// ConfigurationMatch returns all matching configurations for the prefix
+func (c *Client) ConfigurationMatch(namespace, prefix string) (models.ConfigurationMatchResponse, error) {
+	resp := models.ConfigurationMatchResponse{}
+
+	data, err := c.get(api.Routes.Path("ConfigurationMatch", namespace, prefix))
+	if err != nil {
+		return resp, err
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, err
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
+}

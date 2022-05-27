@@ -28,6 +28,7 @@ type EpinioClient struct {
 //counterfeiter:generate . APIClient
 type APIClient interface {
 	AuthToken() (string, error)
+
 	// app
 	AppCreate(req models.ApplicationCreateRequest, namespace string) (models.Response, error)
 	Apps(namespace string) (models.AppList, error)
@@ -46,20 +47,25 @@ type APIClient interface {
 	AppPortForward(namespace string, appName, instance string, opts *epinioapi.PortForwardOpts) error
 	AppRestart(namespace string, appName string) error
 	AppGetPart(namespace, appName, part, destinationPath string) error
+	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
+
 	// env
 	EnvList(namespace string, appName string) (models.EnvVariableMap, error)
 	EnvSet(req models.EnvVariableMap, namespace string, appName string) (models.Response, error)
 	EnvShow(namespace string, appName string, envName string) (models.EnvVariable, error)
 	EnvUnset(namespace string, appName string, envName string) (models.Response, error)
 	EnvMatch(namespace string, appName string, prefix string) (models.EnvMatchResponse, error)
+
 	// info
 	Info() (models.InfoResponse, error)
+
 	// namespaces
 	NamespaceCreate(req models.NamespaceCreateRequest) (models.Response, error)
 	NamespaceDelete(namespace string) (models.Response, error)
 	NamespaceShow(namespace string) (models.Namespace, error)
 	NamespacesMatch(prefix string) (models.NamespacesMatchResponse, error)
 	Namespaces() (models.NamespaceList, error)
+
 	// configurations
 	Configurations(namespace string) (models.ConfigurationResponseList, error)
 	AllConfigurations() (models.ConfigurationResponseList, error)
@@ -70,6 +76,8 @@ type APIClient interface {
 	ConfigurationUpdate(req models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error)
 	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)
 	ConfigurationApps(namespace string) (models.ConfigurationAppsResponse, error)
+	ConfigurationMatch(namespace, prefix string) (models.ConfigurationMatchResponse, error)
+
 	// services
 	ServiceCatalog() (models.CatalogServices, error)
 	ServiceCatalogShow(serviceName string) (*models.CatalogService, error)

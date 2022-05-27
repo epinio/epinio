@@ -69,6 +69,25 @@ type AppShowResponse struct {
 	Body models.App
 }
 
+// swagger:route GET /namespace/{Namespace}/appsmatches/{Pattern} application AppMatch
+// Return list of names for all applications whose name matches the prefix `Pattern`.
+// responses:
+//   200: AppMatchResponse
+
+// swagger:parameters AppMatch
+type AppMatchParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	Pattern string
+}
+
+// swagger:response AppMatchResponse
+type AppMatchResponse struct {
+	// in: body
+	Body models.AppMatchResponse
+}
+
 // swagger:route GET /namespaces/{Namespace}/applications/{App}/part/{Part} application AppPart
 // Return parts of the named `App` in the `Namespace`.
 // responses:

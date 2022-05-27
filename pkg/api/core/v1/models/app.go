@@ -63,6 +63,11 @@ type AppDeployment struct {
 	Routes          []string            `json:"routes,omitempty"`   // app routes
 }
 
+// AppMatchResponse contains the list of names for matching apps
+type AppMatchResponse struct {
+	Names []string `json:"names,omitempty"`
+}
+
 // NewApp returns a new app for name and namespace
 func NewApp(name string, namespace string) *App {
 	return &App{
