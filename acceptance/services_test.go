@@ -5,11 +5,11 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/acceptance/helpers/regex"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -124,8 +124,7 @@ var _ = Describe("Services", func() {
 			Expect(out).To(MatchRegexp("Listing Services"))
 			Expect(out).To(MatchRegexp("Namespace: " + namespace))
 
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(service, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).To(HaveATable(WithRow(service, WithDate(), "mysql-dev", "not-ready")))
 
 			By("wait for deployment")
 			Eventually(func() string {
@@ -209,17 +208,14 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(MatchRegexp("Listing all Services"))
 
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).To(HaveATable(WithRow(namespace1, service1, WithDate(), "mysql-dev", "not-ready")))
+			Expect(out).To(HaveATable(WithRow(namespace2, service2, WithDate(), "mysql-dev", "not-ready")))
 
 			By("wait for deployment of " + service1)
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
-			}, "2m", "5s").Should(MatchRegexp(
-				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "deployed")))
+			}, "2m", "5s").Should(HaveATable(WithRow(namespace1, service1, WithDate(), "mysql-dev", "deployed")))
 
 			By(fmt.Sprintf("%s/%s up", namespace1, service1))
 
@@ -227,8 +223,7 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
-			}, "2m", "5s").Should(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "deployed")))
+			}, "2m", "5s").Should(HaveATable(WithRow(namespace2, service2, WithDate(), "mysql-dev", "deployed")))
 
 			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
@@ -258,17 +253,14 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(MatchRegexp("Listing all Services"))
 
-			Expect(out).NotTo(MatchRegexp(
-				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).NotTo(HaveATable(WithRow(namespace1, service1, WithDate(), "mysql-dev", "not-ready")))
+			Expect(out).To(HaveATable(WithRow(namespace2, service2, WithDate(), "mysql-dev", "not-ready")))
 
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
 				return out
-			}, "2m", "5s").Should(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "deployed")))
+			}, "2m", "5s").Should(HaveATable(WithRow(namespace2, service2, WithDate(), "mysql-dev", "deployed")))
 
 			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
@@ -506,12 +498,12 @@ var _ = Describe("Services", func() {
 			By("verify binding /list")
 			out, err = env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", app)))
+			Expect(out).To(HaveATable(WithRow(service, WithDate(), "mysql-dev", ".*", app)))
 
 			By("verify binding /list-all")
 			out, err = env.Epinio("", "service", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", app)))
+			Expect(out).To(HaveATable(WithRow(namespace, service, WithDate(), "mysql-dev", ".*", app)))
 		})
 	})
 
@@ -586,14 +578,14 @@ var _ = Describe("Services", func() {
 			By("verify unbinding /list")
 			out, err = env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", app)))
-			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", "")))
+			Expect(out).ToNot(HaveATable(WithRow(service, WithDate(), "mysql-dev", ".*", app)))
+			Expect(out).To(HaveATable(WithRow(service, WithDate(), "mysql-dev", ".*", "")))
 
 			By("verify unbinding /list-all")
 			out, err = env.Epinio("", "service", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", app)))
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", "")))
+			Expect(out).ToNot(HaveATable(WithRow(namespace, service, WithDate(), "mysql-dev", ".*", app)))
+			Expect(out).To(HaveATable(WithRow(namespace, service, WithDate(), "mysql-dev", ".*", "")))
 		})
 	})
 })
