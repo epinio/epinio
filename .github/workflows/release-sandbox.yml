@@ -32,6 +32,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v1
 
+      # Login to avoid quota
+      - name: Login to Docker Hub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+          password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v2
         with:
