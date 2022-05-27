@@ -30,15 +30,29 @@ var _ = Describe("ServiceMatch Endpoint", func() {
 
 	When("namespace exists", func() {
 		var serviceName string
+		var catalogService models.CatalogService
 
 		BeforeEach(func() {
 			namespace = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespace)
 
+			catalogService = models.CatalogService{
+				Meta: models.MetaLite{
+					Name: catalog.NewCatalogServiceName(),
+				},
+				HelmChart: "nginx",
+				HelmRepo: models.HelmRepo{
+					Name: "",
+					URL:  "https://charts.bitnami.com/bitnami",
+				},
+				Values: "{'service': {'type': 'ClusterIP'}}",
+			}
+			catalog.CreateCatalogService(catalogService)
+
 			serviceName = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", serviceName)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, serviceName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			By("show it")
@@ -57,14 +71,7 @@ var _ = Describe("ServiceMatch Endpoint", func() {
 		})
 
 		AfterEach(func() {
-			// out, err := env.Epinio("", "service", "delete", service)
-			// Expect(err).ToNot(HaveOccurred(), out)
-
-			// Eventually(func() string {
-			// 	out, _ := env.Epinio("", "service", "delete", service)
-			// 	return out
-			// }, "1m", "5s").Should(MatchRegexp("service not found"))
-
+			catalog.DeleteCatalogService(catalogService.Meta.Name)
 			env.DeleteNamespace(namespace)
 		})
 
