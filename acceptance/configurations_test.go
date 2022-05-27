@@ -1,10 +1,9 @@
 package acceptance_test
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -27,22 +26,30 @@ var _ = Describe("Configurations", func() {
 	})
 
 	Describe("configuration list", func() {
+
 		BeforeEach(func() {
 			env.MakeConfiguration(configurationName1)
 			env.MakeConfiguration(configurationName2)
-		})
-
-		It("shows all created configurations", func() {
-			out, err := env.Epinio("", "configuration", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(configurationName1))
-			Expect(out).To(MatchRegexp(configurationName2))
 		})
 
 		AfterEach(func() {
 			env.CleanupConfiguration(configurationName1)
 			env.CleanupConfiguration(configurationName2)
 		})
+
+		It("shows all created configurations", func() {
+			out, err := env.Epinio("", "configuration", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "APPLICATIONS"),
+					WithRow(configurationName1, WithDate(), ""),
+					WithRow(configurationName2, WithDate(), ""),
+				),
+			)
+		})
+
 	})
 
 	Describe("list across namespaces", func() {
@@ -92,11 +99,16 @@ var _ = Describe("Configurations", func() {
 
 			out, err := env.Epinio("", "configuration", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Listing all configurations"))
+			Expect(out).To(ContainSubstring("Listing all configurations"))
 
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\|[^|]*\| *%s *\|`, namespace1, configuration1, app1)))
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\|[^|]*\| *\|`, namespace2, configuration1)))
-			Expect(out).To(MatchRegexp(fmt.Sprintf(`\| *%s *\| *%s *\|[^|]*\| *\|`, namespace2, configuration2)))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "APPLICATIONS"),
+					WithRow(namespace1, configuration1, WithDate(), app1),
+					WithRow(namespace2, configuration1, WithDate(), ""),
+					WithRow(namespace2, configuration2, WithDate(), ""),
+				),
+			)
 		})
 	})
 
@@ -104,16 +116,17 @@ var _ = Describe("Configurations", func() {
 		// Note: Configurations provision instantly.
 		// No testing of wait/don't wait required.
 
-		It("creates a configuration", func() {
-			env.MakeConfiguration(configurationName1)
-		})
-
 		AfterEach(func() {
 			env.CleanupConfiguration(configurationName1)
+		})
+
+		It("creates a configuration", func() {
+			env.MakeConfiguration(configurationName1)
 		})
 	})
 
 	Describe("configuration delete", func() {
+
 		BeforeEach(func() {
 			env.MakeConfiguration(configurationName1)
 		})
@@ -130,9 +143,14 @@ var _ = Describe("Configurations", func() {
 			out, err := env.Epinio("", "configuration", "delete", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Unable to delete configuration. It is still used by"))
-			Expect(out).To(MatchRegexp(appName))
-			Expect(out).To(MatchRegexp("Use --unbind to force the issue"))
+			Expect(out).To(ContainSubstring("Unable to delete configuration. It is still used by"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("BOUND APPLICATIONS"),
+					WithRow(appName),
+				),
+			)
+			Expect(out).To(ContainSubstring("Use --unbind to force the issue"))
 
 			env.VerifyAppConfigurationBound(appName, configurationName1, namespace, 1)
 
@@ -140,8 +158,7 @@ var _ = Describe("Configurations", func() {
 
 			out, err = env.Epinio("", "configuration", "delete", "--unbind", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
-
-			Expect(out).To(MatchRegexp("Configuration Removed"))
+			Expect(out).To(ContainSubstring("Configuration Removed"))
 
 			env.VerifyAppConfigurationNotbound(appName, configurationName1, namespace, 1)
 
@@ -150,12 +167,18 @@ var _ = Describe("Configurations", func() {
 				out, err = env.Epinio("", "configuration", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "2m").ShouldNot(MatchRegexp(configurationName1))
+			}, "2m").ShouldNot(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "APPLICATIONS"),
+					WithRow(configurationName1, WithDate(), ""),
+				),
+			)
 		})
 	})
 
 	Describe("configuration bind", func() {
 		var appName string
+
 		BeforeEach(func() {
 			appName = catalog.NewAppName()
 
@@ -175,6 +198,7 @@ var _ = Describe("Configurations", func() {
 
 	Describe("configuration unbind", func() {
 		var appName string
+
 		BeforeEach(func() {
 			appName = catalog.NewAppName()
 
@@ -194,19 +218,26 @@ var _ = Describe("Configurations", func() {
 	})
 
 	Describe("configuration show", func() {
+
 		BeforeEach(func() {
 			env.MakeConfiguration(configurationName1)
+		})
+
+		AfterEach(func() {
+			env.CleanupConfiguration(configurationName1)
 		})
 
 		It("it shows configuration details", func() {
 			out, err := env.Epinio("", "configuration", "show", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Configuration Details"))
-			Expect(out).To(MatchRegexp(`username .*\|.* epinio-user`))
-		})
+			Expect(out).To(ContainSubstring("Configuration Details"))
 
-		AfterEach(func() {
-			env.CleanupConfiguration(configurationName1)
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+					WithRow("username", "epinio-user", "\\/configurations\\/"+configurationName1+"\\/username"),
+				),
+			)
 		})
 	})
 
@@ -215,6 +246,7 @@ var _ = Describe("Configurations", func() {
 
 		BeforeEach(func() {
 			appName = catalog.NewAppName()
+
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 			env.MakeConfiguration(configurationName1)
 			env.BindAppConfiguration(appName, configurationName1, namespace)
@@ -224,7 +256,18 @@ var _ = Describe("Configurations", func() {
 				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + configurationName1))
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName1, ""),
+				),
+			)
+		})
+
+		AfterEach(func() {
+			env.TargetNamespace(namespace)
+			env.DeleteApp(appName)
+			env.CleanupConfiguration(configurationName1)
 		})
 
 		It("it edits the configuration, and restarts the app", func() {
@@ -235,17 +278,29 @@ var _ = Describe("Configurations", func() {
 				"--set", "user=ci/cd",
 			)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Update Configuration"))
-			Expect(out).To(MatchRegexp(`username .*\|.* remove`))
-			Expect(out).To(MatchRegexp(`user .*\|.* add/change .*\|.* ci/cd`))
-			Expect(out).To(MatchRegexp("Configuration Changes Saved"))
+
+			Expect(out).To(ContainSubstring("Update Configuration"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "OP", "VALUE"),
+					WithRow("username", "remove", ""),
+					WithRow("user", "add\\/change", "ci\\/cd"),
+				),
+			)
+			Expect(out).To(ContainSubstring("Configuration Changes Saved"))
 
 			// Confirm the changes ...
 
 			out, err = env.Epinio("", "configuration", "show", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Configuration Details"))
-			Expect(out).To(MatchRegexp(`user .*\|.* ci/cd`))
+
+			Expect(out).To(ContainSubstring("Configuration Details"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("PARAMETER", "VALUE", "ACCESS PATH"),
+					WithRow("user", "ci\\/cd", "\\/configurations\\/"+configurationName1+"\\/user"),
+				),
+			)
 
 			// Wait for app to resettle ...
 
@@ -253,13 +308,12 @@ var _ = Describe("Configurations", func() {
 				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "5m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + configurationName1))
-		})
-
-		AfterEach(func() {
-			env.TargetNamespace(namespace)
-			env.DeleteApp(appName)
-			env.CleanupConfiguration(configurationName1)
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName1, ""),
+				),
+			)
 		})
 	})
 })
