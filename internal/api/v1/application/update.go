@@ -30,10 +30,6 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return apierror.InternalError(err)
 	}
 
-	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
-		return err
-	}
-
 	appRef := models.NewAppRef(appName, namespace)
 	exists, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {

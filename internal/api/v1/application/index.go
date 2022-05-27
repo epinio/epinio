@@ -19,10 +19,6 @@ func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
-		return err
-	}
-
 	apps, err := application.List(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)

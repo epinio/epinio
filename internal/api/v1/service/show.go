@@ -19,10 +19,6 @@ func (ctr Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if err := ctr.validateNamespace(ctx, cluster, namespace); err != nil {
-		return err
-	}
-
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
 		return apierror.InternalError(err)

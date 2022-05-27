@@ -5,7 +5,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
-	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -31,18 +30,9 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := namespaces.Exists(ctx, cluster, namespaceName)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	if !exists {
-		return apierror.NamespaceIsNotKnown(namespaceName)
-	}
-
 	app := models.NewAppRef(appName, namespaceName)
 
-	exists, err = application.Exists(ctx, cluster, app)
+	exists, err := application.Exists(ctx, cluster, app)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

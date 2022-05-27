@@ -21,10 +21,6 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
-		return err
-	}
-
 	app := models.NewAppRef(appName, namespace)
 
 	found, err := application.Exists(ctx, cluster, app)

@@ -86,13 +86,13 @@ var _ = Describe("Users Namespace", func() {
 
 				It("doesn't show the other user's namespace", func() {
 					response := showNamespace(user1, passwordUser1, namespaceUser2)
-					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
+					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
 					response.Body.Close()
 				})
 
 				It("doesn't show the admin's namespace", func() {
 					response := showNamespace(user1, passwordUser1, namespaceAdmin)
-					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
+					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
 					response.Body.Close()
 				})
 			})
@@ -131,7 +131,7 @@ var _ = Describe("Users Namespace", func() {
 
 				It("doesn't show the other user's namespace", func() {
 					response := showNamespace(user1, passwordUser1, commonNamespace)
-					Expect(response.StatusCode).To(Equal(http.StatusUnauthorized))
+					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
 					response.Body.Close()
 				})
 			})

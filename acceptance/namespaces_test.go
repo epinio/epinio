@@ -127,4 +127,32 @@ var _ = Describe("Namespaces", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 	})
+
+	Describe("namespace target", func() {
+		It("rejects targeting an unknown namespace", func() {
+			out, err := env.Epinio("", "target", "missing-namespace")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(MatchRegexp("namespace 'missing-namespace' does not exist"))
+		})
+
+		Context("existing namespace", func() {
+			var namespaceName string
+
+			BeforeEach(func() {
+				namespaceName = catalog.NewNamespaceName()
+				env.SetupAndTargetNamespace(namespaceName)
+			})
+
+			AfterEach(func() {
+				env.DeleteNamespace(namespaceName)
+			})
+
+			It("shows a namespace", func() {
+				out, err := env.Epinio("", "target", namespaceName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(MatchRegexp(`Name: %s`, namespaceName))
+				Expect(out).To(ContainSubstring(`Namespace targeted.`))
+			})
+		})
+	})
 })

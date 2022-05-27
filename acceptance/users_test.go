@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -119,13 +120,17 @@ var _ = Describe("Users", func() {
 
 	Describe("a regular user", func() {
 		var user, password string
+		var namespace string
 
 		BeforeEach(func() {
+			namespace = catalog.NewNamespaceName()
+			env.SetupNamespace(namespace)
 			user, password = env.CreateEpinioUser("user", []string{"workspace", "workspace2"})
 		})
 
 		AfterEach(func() {
 			env.DeleteEpinioUser(user)
+			env.DeleteNamespace(namespace)
 		})
 
 		Specify("can describe its namespace", func() {
@@ -141,7 +146,7 @@ var _ = Describe("Users", func() {
 		})
 
 		Specify("cannot describe another namespace", func() {
-			uri := fmt.Sprintf("%s%s/namespaces/another", serverURL, v1.Root)
+			uri := fmt.Sprintf("%s%s/namespaces/%s", serverURL, v1.Root, namespace)
 			request, err := http.NewRequest("GET", uri, nil)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -149,7 +154,7 @@ var _ = Describe("Users", func() {
 			resp, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
+			Expect(resp.StatusCode).To(Equal(http.StatusForbidden))
 		})
 	})
 

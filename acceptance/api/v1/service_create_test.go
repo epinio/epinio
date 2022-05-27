@@ -24,8 +24,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 			endpoint := fmt.Sprintf("%s%s/namespaces/doesntexist/services", serverURL, v1.Root)
 			response, err := env.Curl("POST", endpoint, strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
-
-			Expect(response.StatusCode).To(Equal(http.StatusBadRequest))
+			Expect(response.StatusCode).To(Equal(http.StatusNotFound))
 		})
 	})
 

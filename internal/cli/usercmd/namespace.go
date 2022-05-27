@@ -107,9 +107,15 @@ func (c *EpinioClient) Target(namespace string) error {
 		WithStringValue("Name", namespace).
 		Msg("Targeting namespace...")
 
+	// we don't need anything, just checking if the namespace exist and we have permissions
+	_, err := c.API.NamespaceShow(namespace)
+	if err != nil {
+		return errors.Wrap(err, "error targeting namespace")
+	}
+
 	details.Info("set settings")
 	c.Settings.Namespace = namespace
-	err := c.Settings.Save()
+	err = c.Settings.Save()
 	if err != nil {
 		return errors.Wrap(err, "failed to save settings")
 	}

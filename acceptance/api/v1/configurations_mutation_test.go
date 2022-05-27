@@ -197,27 +197,31 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 		})
 
 		It("returns a 'bad request' for a non JSON body", func() {
-			response, err := env.Curl("DELETE",
-				fmt.Sprintf("%s%s/namespaces/idontexist/configurations/%s",
-					serverURL, api.Root, configuration),
-				strings.NewReader(""))
+			endpoint := fmt.Sprintf(
+				"%s%s/namespaces/%s/configurations/%s",
+				serverURL, api.Root, namespace, configuration,
+			)
+			response, err := env.Curl("DELETE", endpoint, nil)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
+
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(Equal("EOF"))
 		})
 
 		It("returns a 'bad request' for a non-object JSON body", func() {
-			response, err := env.Curl("DELETE",
-				fmt.Sprintf("%s%s/namespaces/idontexist/configurations/%s",
-					serverURL, api.Root, configuration),
-				strings.NewReader(`[]`))
+			endpoint := fmt.Sprintf(
+				"%s%s/namespaces/%s/configurations/%s",
+				serverURL, api.Root, namespace, configuration,
+			)
+			response, err := env.Curl("DELETE", endpoint, strings.NewReader(`[]`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -225,17 +229,21 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
 			var responseBody map[string][]errors.APIError
-			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0].Title).To(
-				Equal("json: cannot unmarshal array into Go value of type models.ConfigurationDeleteRequest"))
+			err = json.Unmarshal(bodyBytes, &responseBody)
+			Expect(err).ToNot(HaveOccurred())
+
+			expectedErrorMsg := "json: cannot unmarshal array into Go value of type models.ConfigurationDeleteRequest"
+			Expect(responseBody["errors"][0].Title).To(Equal(expectedErrorMsg))
 		})
 
 		It("returns a 'not found' when the namespace does not exist", func() {
-			response, err := env.Curl("DELETE",
-				fmt.Sprintf("%s%s/namespaces/idontexist/configurations/%s",
-					serverURL, api.Root, configuration),
-				strings.NewReader(`{ "unbind": false }`))
+			endpoint := fmt.Sprintf(
+				"%s%s/namespaces/idontexist/configurations/%s",
+				serverURL, api.Root, configuration,
+			)
+			response, err := env.Curl("DELETE", endpoint, strings.NewReader(`{ "unbind": false }`))
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 
@@ -243,10 +251,13 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			bodyBytes, err := ioutil.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
+
 			var responseBody map[string][]errors.APIError
-			json.Unmarshal(bodyBytes, &responseBody)
-			Expect(responseBody["errors"][0].Title).To(
-				Equal("Targeted namespace 'idontexist' does not exist"))
+			err = json.Unmarshal(bodyBytes, &responseBody)
+			Expect(err).ToNot(HaveOccurred())
+
+			expectedErrorMsg := "Targeted namespace 'idontexist' does not exist"
+			Expect(responseBody["errors"][0].Title).To(Equal(expectedErrorMsg))
 		})
 
 		It("returns a 'not found' when the configuration does not exist", func() {

@@ -35,14 +35,6 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	exists, err := namespaces.Exists(ctx, cluster, namespace)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if !exists {
-		return apierror.NamespaceIsNotKnown(namespace)
-	}
-
 	err = deleteApps(ctx, cluster, namespace)
 	if err != nil {
 		return apierror.InternalError(err)

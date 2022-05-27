@@ -41,12 +41,6 @@ func (hc Controller) Logs(c *gin.Context) {
 		return
 	}
 
-	log.Info("validate namespace", "name", namespace)
-	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
-		response.Error(c, err)
-		return
-	}
-
 	if appName != "" {
 		log.Info("retrieve application", "name", appName, "namespace", namespace)
 

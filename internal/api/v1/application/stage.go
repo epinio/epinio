@@ -270,10 +270,6 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	if err := hc.validateNamespace(ctx, cluster, namespace); err != nil {
-		return err
-	}
-
 	// Wait for the staging to be done, then check if it ended in failure.
 	// Select the job for this stage `id`.
 	selector := fmt.Sprintf("app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.suse.org/stage-id=%s",
