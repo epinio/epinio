@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/gin-gonic/gin"
 
 	corev1 "k8s.io/api/core/v1"
 )
@@ -79,16 +78,6 @@ func (u *User) RemoveNamespace(namespace string) bool {
 
 	u.Namespaces = updatedNamespaces
 	return removed
-}
-
-// MakeGinAccountsFromUsers is a utility func to convert the Epinio users to gin.Accounts,
-// that can be passed to the BasicAuth middleware.
-func MakeGinAccountsFromUsers(users []User) gin.Accounts {
-	accounts := gin.Accounts{}
-	for _, user := range users {
-		accounts[user.Username] = user.Password
-	}
-	return accounts
 }
 
 // ByCreationTime can be used to sort Users by CreationTime

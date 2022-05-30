@@ -2,8 +2,8 @@
 package server
 
 import (
+	"context"
 	"encoding/gob"
-	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,6 +16,8 @@ import (
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/alron/ginlogr"
 	"github.com/gin-contrib/sessions"
@@ -146,67 +148,38 @@ func authMiddleware(ctx *gin.Context) {
 	reqCtx := ctx.Request.Context()
 	logger := requestctx.Logger(reqCtx).WithName("AuthMiddleware")
 
-	authService, err := auth.NewAuthServiceFromContext(ctx)
+	userMap, err := loadUsersMap(ctx)
 	if err != nil {
 		response.Error(ctx, apierrors.InternalError(err))
 		ctx.Abort()
 		return
 	}
 
-	// First get the available users
-	users, err := authService.GetUsers(ctx)
-	if err != nil {
-		response.Error(ctx, apierrors.InternalError(err))
-		ctx.Abort()
-		return
-	}
-
-	if len(users) == 0 {
+	if len(userMap) == 0 {
 		response.Error(ctx, apierrors.NewAPIError("no user found", "", http.StatusUnauthorized))
 		ctx.Abort()
 		return
 	}
 
-	accounts := auth.MakeGinAccountsFromUsers(users)
-
 	// We set this to the current user after successful authentication.
 	// This is also added to the context for controllers to use.
-	var username string
+	var user auth.User
 
 	session := sessions.Default(ctx)
 	sessionUser := session.Get("user")
-	if sessionUser == nil { // no session exists, try basic auth
-		logger.V(1).Info("Basic auth authentication")
-
-		// we need this check to return a 401 instead of an error
-		auth := ctx.Request.Header.Get("Authorization")
-		if auth != "" {
-			var ok bool
-			username, _, ok = ctx.Request.BasicAuth()
-			if !ok {
-				response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
-				ctx.Abort()
-				return
-			}
-		}
-
-		// Perform basic auth authentication
-		gin.BasicAuth(accounts)(ctx)
-	} else {
+	if sessionUser != nil {
 		logger.V(1).Info("Session authentication")
-		var ok bool
-		user, ok := sessionUser.(auth.User)
+
+		userInSession, ok := sessionUser.(auth.User)
 		if !ok {
 			response.Error(ctx, apierrors.NewInternalError("Couldn't parse user from session"))
 			ctx.Abort()
 			return
 		}
-		username = user.Username
 
 		// Check if that user still exists. If not delete the session and block the request!
 		// This allows us to kick out users even if they keep their browser open.
-		_, found := accounts[user.Username]
-
+		_, found := userMap[userInSession.Username]
 		if !found {
 			session.Clear()
 			session.Options(sessions.Options{MaxAge: -1})
@@ -221,19 +194,62 @@ func authMiddleware(ctx *gin.Context) {
 			ctx.Abort()
 			return
 		}
+
+		user = userInSession
+
+	} else {
+		// no session exists, try basic auth
+		logger.V(1).Info("Basic auth authentication")
+
+		// we need this check to return a 401 instead of an error
+		auth := ctx.Request.Header.Get("Authorization")
+		if auth == "" {
+			response.Error(ctx, apierrors.NewAPIError("missing credentials", "", http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+
+		username, password, ok := ctx.Request.BasicAuth()
+		if !ok {
+			response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
+			ctx.Abort()
+			return
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
+		if err != nil {
+			response.Error(ctx, apierrors.NewAPIError("wrong password", "", http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+
+		user = userMap[username]
 	}
 
 	// Write the user info in the context. It's needed by the next middleware
 	// to write it into the session.
-	for _, user := range users {
-		if user.Username == username {
-			newCtx := ctx.Request.Context()
-			newCtx = requestctx.WithUser(newCtx, user)
-			ctx.Request = ctx.Request.Clone(newCtx)
+	newCtx := ctx.Request.Context()
+	newCtx = requestctx.WithUser(newCtx, user)
+	ctx.Request = ctx.Request.Clone(newCtx)
+}
 
-			break
-		}
+func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create auth service from context")
 	}
+
+	users, err := authService.GetUsers(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't get users")
+	}
+
+	userMap := make(map[string]auth.User)
+	for _, user := range users {
+		userMap[user.Username] = user
+	}
+
+	return userMap, nil
 }
 
 // sessionMiddleware creates a new session for a logged in user.
