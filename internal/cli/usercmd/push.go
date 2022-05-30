@@ -104,12 +104,10 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	// AppCreate
 	c.ui.Normal().Msg("Create the application resource ...")
 
-	request := models.ApplicationCreateRequest{
+	_, err := c.API.AppCreate(models.ApplicationCreateRequest{
 		Name:          appRef.Name,
 		Configuration: params.Configuration,
-	}
-
-	_, err := c.API.AppCreate(request, appRef.Namespace)
+	}, appRef.Namespace)
 	if err != nil {
 		// try to recover if it's a response type Conflict error and not a http connection error
 		rerr, ok := err.(interface{ StatusCode() int })
@@ -243,20 +241,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		routes = append(routes, fmt.Sprintf("https://%s", d))
 	}
 
-	msg = c.ui.Success().
-		WithStringValue("Name", appRef.Name).
-		WithStringValue("Namespace", appRef.Namespace).
-		WithStringValue("Builder Image", params.Staging.Builder).
-		WithStringValue("Routes", "")
-
-	if len(routes) > 0 {
-		sort.Strings(routes)
-		for i, r := range routes {
-			msg = msg.WithStringValue(strconv.Itoa(i+1), r)
-		}
-	}
-	msg.Msg("App is online.")
-
+	c.reportOK(appRef, params.Staging.Builder, routes)
 	return nil
 }
 
@@ -267,4 +252,20 @@ func (c *EpinioClient) stageLogs(appRef models.AppRef, stageID string) {
 			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		}
 	}()
+}
+
+func (c *EpinioClient) reportOK(appRef models.AppRef, builder string, routes []string) {
+	msg := c.ui.Success().
+		WithStringValue("Name", appRef.Name).
+		WithStringValue("Namespace", appRef.Namespace).
+		WithStringValue("Builder Image", builder).
+		WithStringValue("Routes", "")
+
+	if len(routes) > 0 {
+		sort.Strings(routes)
+		for i, r := range routes {
+			msg = msg.WithStringValue(strconv.Itoa(i+1), r)
+		}
+	}
+	msg.Msg("App is online.")
 }
