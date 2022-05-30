@@ -75,7 +75,6 @@ var _ = Describe("Services", func() {
 			)
 		})
 
-		// FIXME: the service was already added
 		When("Adding a catalog entry", func() {
 			// Already added an nginx catalog service in the top level before block
 			// It's meant to be used by other tests too to make tests faster, because
@@ -237,7 +236,7 @@ var _ = Describe("Services", func() {
 			out, err = env.Epinio("", "service", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Listing all Services"))
+			Expect(out).To(ContainSubstring("Listing all Services"))
 
 			Expect(out).To(
 				HaveATable(
@@ -562,7 +561,7 @@ var _ = Describe("Services", func() {
 		AfterEach(func() {
 			out, err := env.Epinio("", "service", "unbind", service, app)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp("Available Commands:")) // Command should exist
+			Expect(out).ToNot(ContainSubstring("Available Commands:")) // Command should exist
 
 			By("verify unbinding")
 			appShowOut, err := env.Epinio("", "app", "show", app)

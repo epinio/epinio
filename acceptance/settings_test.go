@@ -50,7 +50,7 @@ var _ = Describe("Settings", func() {
 		It("changes the settings when enabling colors", func() {
 			settings, err := env.Epinio("", "settings", "colors", "1", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(settings).To(MatchRegexp(`Colors: true`))
+			Expect(settings).To(ContainSubstring(`Colors: true`))
 
 			settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())

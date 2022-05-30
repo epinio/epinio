@@ -666,7 +666,7 @@ configuration:
 
 				out, err := env.EpinioPush("", appName, manifestPath)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(`Manifest: ` + absManifestPath))
+				Expect(out).To(ContainSubstring(`Manifest: ` + absManifestPath))
 
 				// TODO : Match push output lines ?
 
@@ -911,7 +911,7 @@ configuration:
 
 				out, err := env.Epinio("", "app", "update", appName, "--bind", configurationName)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp("Successfully updated application"))
+				Expect(out).To(ContainSubstring("Successfully updated application"))
 
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
