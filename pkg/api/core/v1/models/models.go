@@ -226,6 +226,8 @@ type ConfigurationShowResponse struct {
 	Username  string            `json:"user"`
 	Details   map[string]string `json:"details,omitempty"`
 	BoundApps []string          `json:"boundapps"`
+	Type      string            `json:"type,omitempty"`
+	Origin    string            `json:"origin,omitempty"`
 }
 
 // ConfigurationMatchResponse contains the list of names for matching configurations

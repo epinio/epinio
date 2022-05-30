@@ -2032,6 +2032,14 @@
           },
           "x-go-name": "Details"
         },
+        "origin": {
+          "type": "string",
+          "x-go-name": "Origin"
+        },
+        "type": {
+          "type": "string",
+          "x-go-name": "Type"
+        },
         "user": {
           "type": "string",
           "x-go-name": "Username"

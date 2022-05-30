@@ -72,6 +72,8 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 				Username:  configuration.User(),
 				Details:   configurationDetails,
 				BoundApps: appNames,
+				Type:      configuration.Type,
+				Origin:    configuration.Origin,
 			},
 		})
 	}

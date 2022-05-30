@@ -100,13 +100,12 @@ var _ = Describe("Configurations", func() {
 			out, err := env.Epinio("", "configuration", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Listing all configurations"))
-
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "APPLICATIONS"),
-					WithRow(namespace1, configuration1, WithDate(), app1),
-					WithRow(namespace2, configuration1, WithDate(), ""),
-					WithRow(namespace2, configuration2, WithDate(), ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "TYPE", "ORIGIN", "APPLICATIONS"),
+					WithRow(namespace1, configuration1, WithDate(), "custom", "", app1),
+					WithRow(namespace2, configuration1, WithDate(), "custom", "", ""),
+					WithRow(namespace2, configuration2, WithDate(), "custom", "", ""),
 				),
 			)
 		})

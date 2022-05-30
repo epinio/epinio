@@ -54,6 +54,8 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 			Username:  configuration.User(),
 			Details:   configurationDetails,
 			BoundApps: appNames,
+			Type:      configuration.Type,
+			Origin:    configuration.Origin,
 		},
 	})
 	return nil
