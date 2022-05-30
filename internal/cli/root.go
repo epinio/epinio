@@ -83,6 +83,8 @@ func init() {
 	rootCmd.AddCommand(CmdServer)
 	rootCmd.AddCommand(cmdVersion)
 	rootCmd.AddCommand(CmdServices)
+	rootCmd.AddCommand(CmdLogin)
+
 	// Hidden command providing developer tools
 	rootCmd.AddCommand(CmdDebug)
 }
