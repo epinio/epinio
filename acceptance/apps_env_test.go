@@ -4,8 +4,9 @@ import (
 	"fmt"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -124,8 +125,7 @@ var _ = Describe("apps env", func() {
 				appDir := "../assets/sample-app"
 				out, err := env.EpinioPush(appDir, appName, "--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
-
-				Expect(deployedEnv(namespace, appName)).To(MatchRegexp("MYVAR"))
+				Expect(deployedEnv(namespace, appName)).To(ContainSubstring("MYVAR"))
 			})
 		})
 	})
