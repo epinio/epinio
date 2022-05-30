@@ -5,11 +5,11 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/acceptance/helpers/regex"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -40,25 +40,39 @@ var _ = Describe("Services", func() {
 	})
 
 	Describe("Catalog", func() {
+
 		It("lists the standard catalog", func() {
 			out, err := env.Epinio("", "service", "catalog")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Getting catalog"))
-			Expect(out).To(MatchRegexp("mysql-dev"))
-			Expect(out).To(MatchRegexp("postgresql-dev"))
-			Expect(out).To(MatchRegexp("rabbitmq-dev"))
-			Expect(out).To(MatchRegexp("redis-dev"))
+			Expect(out).To(ContainSubstring("Getting catalog"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "VERSION", "DESCRIPTION"),
+					WithRow("mysql-dev", WithDate(), ".*", ".*"),
+					WithRow("postgresql-dev", WithDate(), ".*", ".*"),
+					WithRow("rabbitmq-dev", WithDate(), ".*", ".*"),
+					WithRow("redis-dev", WithDate(), ".*", ".*"),
+					WithRow(catalogService.Meta.Name, WithDate(), "", ".*"),
+				),
+			)
 		})
 
 		It("lists the catalog details", func() {
 			out, err := env.Epinio("", "service", "catalog", "redis-dev")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Name.*\\|.*redis-dev"))
-			Expect(out).To(MatchRegexp("Short Description.*\\|.*A Redis service"))
-			Expect(out).To(MatchRegexp("Bitnami Redis instance"))
-			Expect(out).To(MatchRegexp("Version.*\\|.*6.2.7"))
+			Expect(out).To(ContainSubstring("Show service details"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", "redis-dev"),
+					WithRow("Created", WithDate()),
+					WithRow("Version", "[0-9]+\\.[0-9]+\\.[0-9]+"),
+					WithRow("Short Description", ".*"),
+					WithRow("Description", ".*"),
+				),
+			)
 		})
 
 		When("Adding a catalog entry", func() {
@@ -70,14 +84,20 @@ var _ = Describe("Services", func() {
 				out, err := env.Epinio("", "service", "catalog")
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(out).To(MatchRegexp("Getting catalog"))
-				Expect(out).To(MatchRegexp(catalogService.Meta.Name))
+				Expect(out).To(ContainSubstring("Getting catalog"))
+				Expect(out).To(ContainSubstring(catalogService.Meta.Name))
 			})
 
 			It("lists the extended catalog details", func() {
 				out, err := env.Epinio("", "service", "catalog", catalogService.Meta.Name)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", catalogService.Meta.Name)))
+
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Name", catalogService.Meta.Name),
+					),
+				)
 			})
 		})
 	})
@@ -87,12 +107,12 @@ var _ = Describe("Services", func() {
 
 		out, err := env.Epinio("", "service", "delete", service)
 		Expect(err).ToNot(HaveOccurred(), out)
-		Expect(out).To(MatchRegexp("Service Removed"))
+		Expect(out).To(ContainSubstring("Service Removed"))
 
 		Eventually(func() string {
 			out, _ := env.Epinio("", "service", "delete", service)
 			return out
-		}, "1m", "5s").Should(MatchRegexp("service not found"))
+		}, "1m", "5s").Should(ContainSubstring("service not found"))
 
 	}
 
@@ -121,17 +141,26 @@ var _ = Describe("Services", func() {
 			out, err = env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Listing Services"))
-			Expect(out).To(MatchRegexp("Namespace: " + namespace))
+			Expect(out).To(ContainSubstring("Listing Services"))
+			Expect(out).To(ContainSubstring("Namespace: " + namespace))
 
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(service, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+				),
+			)
 
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list")
 				return out
-			}, "2m", "5s").Should(MatchRegexp("deployed"))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), catalogService.Meta.Name, "deployed", ""),
+				),
+			)
 
 			By(fmt.Sprintf("%s/%s up", namespace, service))
 		})
@@ -207,19 +236,26 @@ var _ = Describe("Services", func() {
 			out, err = env.Epinio("", "service", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Listing all Services"))
+			Expect(out).To(ContainSubstring("Listing all Services"))
 
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+				),
+			)
 
 			By("wait for deployment of " + service1)
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
-			}, "2m", "5s").Should(MatchRegexp(
-				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "deployed")))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "deployed", ""),
+				),
+			)
 
 			By(fmt.Sprintf("%s/%s up", namespace1, service1))
 
@@ -227,8 +263,12 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
-			}, "2m", "5s").Should(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "deployed")))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "deployed", ""),
+				),
+			)
 
 			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
@@ -256,19 +296,31 @@ var _ = Describe("Services", func() {
 			out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Listing all Services"))
+			Expect(out).To(ContainSubstring("Listing all Services"))
 
-			Expect(out).NotTo(MatchRegexp(
-				regex.TableRow(namespace1, service1, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
-			Expect(out).To(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "not-ready")))
+			Expect(out).NotTo(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+				),
+			)
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+				),
+			)
 
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
 				return out
-			}, "2m", "5s").Should(MatchRegexp(
-				regex.TableRow(namespace2, service2, regex.DateRegex, catalogService.Meta.Name, "deployed")))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "deployed", ""),
+				),
+			)
 
 			By(fmt.Sprintf("%s/%s up", namespace2, service2))
 		})
@@ -288,12 +340,12 @@ var _ = Describe("Services", func() {
 			By("delete it")
 			out, err := env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Service Removed"))
+			Expect(out).To(ContainSubstring("Service Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(MatchRegexp("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service not found"))
 
 			env.DeleteNamespace(namespace)
 		})
@@ -306,13 +358,27 @@ var _ = Describe("Services", func() {
 			By("show it")
 			out, err = env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", service)))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", service),
+					WithRow("Created", WithDate()),
+					WithRow("Catalog Service", catalogService.Meta.Name),
+					WithRow("Status", "not-ready"),
+				),
+			)
 
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "deployed"),
+				),
+			)
 
 			By(fmt.Sprintf("%s/%s up", namespace, service))
 		})
@@ -334,13 +400,27 @@ var _ = Describe("Services", func() {
 			By("show it")
 			out, err = env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", service)))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", service),
+					WithRow("Created", WithDate()),
+					WithRow("Catalog Service", catalogService.Meta.Name),
+					WithRow("Status", "not-ready"),
+				),
+			)
 
 			By("wait for deployment")
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "deployed"),
+				),
+			)
 
 			By(fmt.Sprintf("%s/%s up", namespace, service))
 		})
@@ -356,7 +436,7 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(MatchRegexp("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service not found"))
 		})
 
 		When("bound to an app", func() {
@@ -383,7 +463,12 @@ var _ = Describe("Services", func() {
 				Eventually(func() string {
 					out, _ := env.Epinio("", "service", "show", service)
 					return out
-				}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+				}, "2m", "5s").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "deployed"),
+					),
+				)
 
 				By("bind it")
 				out, err = env.Epinio("", "service", "bind", service, app)
@@ -392,8 +477,13 @@ var _ = Describe("Services", func() {
 				By("verify binding")
 				appShowOut, err := env.Epinio("", "app", "show", app)
 				Expect(err).ToNot(HaveOccurred())
-				matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
-				Expect(appShowOut).To(MatchRegexp(matchString))
+
+				Expect(appShowOut).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Bound Configurations", chart+".*"),
+					),
+				)
 			})
 
 			AfterEach(func() {
@@ -403,8 +493,8 @@ var _ = Describe("Services", func() {
 			It("fails to delete a bound service", func() {
 				out, err := env.Epinio("", "service", "delete", service)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp("Unable to delete service. It is still used by"))
-				Expect(out).To(MatchRegexp(app))
+				Expect(out).To(ContainSubstring("Unable to delete service. It is still used by"))
+				Expect(out).To(ContainSubstring(app))
 
 				// Enable deletion by getting rid of the binding first.
 
@@ -414,24 +504,24 @@ var _ = Describe("Services", func() {
 				By("delete it")
 				out, err = env.Epinio("", "service", "delete", service)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp("Service Removed"))
+				Expect(out).To(ContainSubstring("Service Removed"))
 
 				Eventually(func() string {
 					out, _ := env.Epinio("", "service", "delete", service)
 					return out
-				}, "1m", "5s").Should(MatchRegexp("service not found"))
+				}, "1m", "5s").Should(ContainSubstring("service not found"))
 
 			})
 
 			It("unbinds and deletes a bound service when forced", func() {
 				out, err := env.Epinio("", "service", "delete", "--unbind", service)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp("Service Removed"))
+				Expect(out).To(ContainSubstring("Service Removed"))
 
 				Eventually(func() string {
 					out, _ := env.Epinio("", "service", "delete", service)
 					return out
-				}, "1m", "5s").Should(MatchRegexp("service not found"))
+				}, "1m", "5s").Should(ContainSubstring("service not found"))
 			})
 		})
 	})
@@ -460,29 +550,38 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "deployed"),
+				),
+			)
 		})
 
 		AfterEach(func() {
 			out, err := env.Epinio("", "service", "unbind", service, app)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp("Available Commands:")) // Command should exist
+			Expect(out).ToNot(ContainSubstring("Available Commands:")) // Command should exist
 
 			By("verify unbinding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
-			Expect(appShowOut).ToNot(MatchRegexp(matchString))
+			Expect(appShowOut).ToNot(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Bound Configurations", chart),
+				),
+			)
 
 			By("delete it")
 			out, err = env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Service Removed"))
+			Expect(out).To(ContainSubstring("Service Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(MatchRegexp("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service not found"))
 
 			env.DeleteNamespace(namespace)
 		})
@@ -495,23 +594,42 @@ var _ = Describe("Services", func() {
 			By("verify binding /app")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
-			Expect(appShowOut).To(MatchRegexp(matchString))
+			Expect(appShowOut).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Bound Configurations", chart+".*"),
+				),
+			)
 
 			By("verify binding /show")
 			out, err = env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(fmt.Sprintf("Used-By.*\\|.*%s", app)))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Used-By", app),
+				),
+			)
 
 			By("verify binding /list")
 			out, err = env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", app)))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), "mysql-dev", "not-ready|deployed", app),
+				),
+			)
 
 			By("verify binding /list-all")
 			out, err = env.Epinio("", "service", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", app)))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace, service, WithDate(), "mysql-dev", "not-ready|deployed", app),
+				),
+			)
 		})
 	})
 
@@ -539,7 +657,12 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "show", service)
 				return out
-			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "deployed"),
+				),
+			)
 
 			By("bind it")
 			out, err = env.Epinio("", "service", "bind", service, app)
@@ -548,20 +671,24 @@ var _ = Describe("Services", func() {
 			By("verify binding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
-			Expect(appShowOut).To(MatchRegexp(matchString))
+			Expect(appShowOut).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Bound Configurations", chart+".*"),
+				),
+			)
 		})
 
 		AfterEach(func() {
 			By("delete it")
 			out, err := env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Service Removed"))
+			Expect(out).To(ContainSubstring("Service Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(MatchRegexp("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service not found"))
 
 			env.DeleteNamespace(namespace)
 		})
@@ -569,31 +696,48 @@ var _ = Describe("Services", func() {
 		It("unbinds the service", func() {
 			out, err := env.Epinio("", "service", "unbind", service, app)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp("Available Commands:")) // Command should exist
+			Expect(out).ToNot(ContainSubstring("Available Commands:")) // Command should exist
 
 			By("verify unbinding")
 			appShowOut, err := env.Epinio("", "app", "show", app)
 			Expect(err).ToNot(HaveOccurred())
-			matchString := fmt.Sprintf("Bound Configurations.*%s", chart)
-			Expect(appShowOut).ToNot(MatchRegexp(matchString))
+			Expect(appShowOut).ToNot(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Bound Configurations", chart+".*"),
+				),
+			)
 
 			By("verify unbinding /show")
 			out, err = env.Epinio("", "service", "show", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp(fmt.Sprintf("Used-By.*\\|.*%s", app)))
-			Expect(out).To(MatchRegexp("Used-By.*\\| +\\|"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Used-By", ""),
+				),
+			)
 
 			By("verify unbinding /list")
 			out, err = env.Epinio("", "service", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", app)))
-			Expect(out).To(MatchRegexp(regex.TableRow(service, regex.DateRegex, "mysql-dev", ".*", "")))
+			Expect(out).ToNot(HaveATable(WithRow(service, WithDate(), "mysql-dev", ".*", app)))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), "mysql-dev", "not-ready|deployed", ""),
+				),
+			)
 
 			By("verify unbinding /list-all")
 			out, err = env.Epinio("", "service", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).ToNot(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", app)))
-			Expect(out).To(MatchRegexp(regex.TableRow(namespace, service, regex.DateRegex, "mysql-dev", ".*", "")))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
+					WithRow(namespace, service, WithDate(), "mysql-dev", "not-ready|deployed", ""),
+				),
+			)
 		})
 	})
 })

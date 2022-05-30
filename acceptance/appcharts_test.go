@@ -1,6 +1,7 @@
 package acceptance_test
 
 import (
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -12,8 +13,13 @@ var _ = Describe("apps chart", func() {
 			out, err := env.Epinio("", "apps", "chart", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show Application Charts"))
-			Expect(out).To(MatchRegexp(`DEFAULT *| *NAME *| *DESCRIPTION`))
-			Expect(out).To(MatchRegexp(`standard *| *Epinio standard deployment`))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("DEFAULT", "NAME", "CREATED", "DESCRIPTION"),
+					WithRow("standard", WithDate(), "Epinio standard deployment"),
+				),
+			)
 		})
 	})
 
@@ -22,13 +28,19 @@ var _ = Describe("apps chart", func() {
 			out, err := env.Epinio("", "apps", "chart", "show", "standard")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show application chart details"))
-			Expect(out).To(MatchRegexp(`Key *| *VALUE`))
-			Expect(out).To(MatchRegexp(`Name *| *standard`))
-			Expect(out).To(MatchRegexp(`Short *| *Epinio standard deployment`))
-			Expect(out).To(MatchRegexp(`Description *| *Epinio standard support chart`))
-			Expect(out).To(MatchRegexp(`for application deployment`))
-			Expect(out).To(MatchRegexp(`Helm Repository *| *|`))
-			Expect(out).To(MatchRegexp(`Helm Chart *| *epinio-application*`))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", "standard"),
+					WithRow("Created", WithDate()),
+					WithRow("Short", "Epinio standard deployment"),
+					WithRow("Description", "Epinio standard support chart"),
+					WithRow("", "for application deployment"),
+					WithRow("Helm Repository", ""),
+					WithRow("Helm Chart", "https.*epinio-application.*tgz"),
+				),
+			)
 		})
 
 		It("fails to show the details of bogus app chart", func() {

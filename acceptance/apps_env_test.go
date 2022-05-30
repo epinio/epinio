@@ -5,6 +5,8 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -68,14 +70,15 @@ var _ = Describe("apps env", func() {
 			It("is not shown in the environment listing", func() {
 				out, err := env.Epinio("", "apps", "env", "list", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).ToNot(ContainSubstring(`MYVAR`))
-				Expect(out).ToNot(ContainSubstring(`myvalue`))
+
+				Expect(out).To(HaveATable(WithHeaders("VARIABLE", "VALUE")))
+				Expect(out).ToNot(HaveATable(WithRow("MYVAR", "myvalue")))
 			})
 
 			It("is retrieved as empty string with show", func() {
 				out, err := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(`MYVAR`)) // Var name is shown, value is empty
+				Expect(out).To(ContainSubstring(`Variable: MYVAR`)) // Var name is shown, value is empty
 				Expect(out).ToNot(ContainSubstring(`myvalue`))
 			})
 
@@ -84,7 +87,7 @@ var _ = Describe("apps env", func() {
 				out, err := env.EpinioPush(appDir, appName, "--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(deployedEnv(namespace, appName)).ToNot(MatchRegexp("MYVAR"))
+				Expect(deployedEnv(namespace, appName)).ToNot(ContainSubstring("MYVAR"))
 			})
 		})
 
@@ -102,23 +105,27 @@ var _ = Describe("apps env", func() {
 			It("is shown in the environment listing", func() {
 				out, err := env.Epinio("", "apps", "env", "list", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(`MYVAR`))
-				Expect(out).To(ContainSubstring(`myvalue`))
+
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("VARIABLE", "VALUE"),
+						WithRow("MYVAR", "myvalue"),
+					),
+				)
 			})
 
 			It("is retrieved with show", func() {
 				out, err := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring(`MYVAR`))
-				Expect(out).To(ContainSubstring(`myvalue`))
+				Expect(out).To(ContainSubstring(`Variable: MYVAR`))
+				Expect(out).To(ContainSubstring(`Value: myvalue`))
 			})
 
 			It("is injected into the pushed workload", func() {
 				appDir := "../assets/sample-app"
 				out, err := env.EpinioPush(appDir, appName, "--name", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
-
-				Expect(deployedEnv(namespace, appName)).To(MatchRegexp("MYVAR"))
+				Expect(deployedEnv(namespace, appName)).To(ContainSubstring("MYVAR"))
 			})
 		})
 	})
@@ -143,7 +150,7 @@ var _ = Describe("apps env", func() {
 				// removal
 				Eventually(func() string {
 					return deployedEnv(namespace, appName)
-				}).Should(MatchRegexp("MYVAR"))
+				}).Should(ContainSubstring("MYVAR"))
 			})
 
 			It("modifies and restarts the app", func() {
@@ -156,7 +163,7 @@ var _ = Describe("apps env", func() {
 
 				Eventually(func() string {
 					return deployedEnv(namespace, appName)
-				}).ShouldNot(MatchRegexp("MYVAR"))
+				}).ShouldNot(ContainSubstring("MYVAR"))
 			})
 		})
 
@@ -171,7 +178,7 @@ var _ = Describe("apps env", func() {
 
 				Eventually(func() string {
 					return deployedEnv(namespace, appName)
-				}).Should(MatchRegexp("MYVAR"))
+				}).Should(ContainSubstring("MYVAR"))
 			})
 		})
 	})

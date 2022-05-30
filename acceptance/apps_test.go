@@ -22,6 +22,7 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -53,7 +54,7 @@ var _ = Describe("Apps", func() {
 		It("creates the app", func() {
 			out, err := env.Epinio("", "app", "create", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Ok"))
+			Expect(out).To(ContainSubstring("Ok"))
 		})
 
 		Context("with configuration", func() {
@@ -79,16 +80,28 @@ var _ = Describe("Apps", func() {
 					"--env", "COMPLEX=-X foo=bar",
 				)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp("Ok"))
+				Expect(out).To(ContainSubstring("Ok"))
 
 				out, err = env.Epinio("", "app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
-				Expect(out).To(MatchRegexp(`App Chart\s*\|\s*standard\s*\|`))
-				Expect(out).To(MatchRegexp(`Configurations\s*\|\s*` + configurationName + `\s*\|`))
-				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
-				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
-				Expect(out).To(MatchRegexp(`- COMPLEX\s*\|\s*-X foo=bar\s*\|`))
+
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Origin", "<<undefined>>"),
+						WithRow("Created", WithDate()),
+						WithRow("Status", "not deployed"),
+						WithRow("Desired Routes", ""),
+						WithRow("", appName+".*"),
+						WithRow("App Chart", "standard"),
+						WithRow("Desired Instances", "2"),
+						WithRow("Bound Configurations", configurationName),
+						WithRow("Environment", ""),
+						WithRow("- COMPLEX", "-X foo=bar"),
+						WithRow("- CREDO", "up"),
+						WithRow("- DOGMA", "no"),
+					),
+				)
 			})
 
 			Context("manifest", func() {
@@ -108,7 +121,7 @@ var _ = Describe("Apps", func() {
 						"--env", "CREDO=up",
 						"--env", "DOGMA=no")
 					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(out).To(MatchRegexp("Ok"))
+					Expect(out).To(ContainSubstring("Ok"))
 
 					out, err = env.Epinio("", "app", "manifest", appName, destinationPath)
 					Expect(err).ToNot(HaveOccurred(), out)
@@ -135,7 +148,7 @@ configuration:
 		It("creates the app with environment variables", func() {
 			out, err := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Ok"))
+			Expect(out).To(ContainSubstring("Ok"))
 
 			out, err = env.Epinio("", "apps", "env", "list", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -174,7 +187,12 @@ configuration:
 				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+				),
+			)
 
 			By("deleting the app")
 			env.DeleteApp(appName)
@@ -196,14 +214,23 @@ configuration:
 					out, err := env.Epinio("", "app", "list")
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
-				}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*1\/1.*\|.*`, appName)))
+				}, "5m").Should(
+					HaveATable(
+						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+						WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+					),
+				)
 
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
 					return out
-				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "1/1"),
+					),
+				)
 			})
 
 			It("respects the desired number of instances", func() {
@@ -213,9 +240,13 @@ configuration:
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
 					return out
-				}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "3/3"),
+					),
+				)
 			})
 
 			Context("app charts", func() {
@@ -266,11 +297,17 @@ spec:
 
 						out, err := env.Epinio("", "app", "create", appName1, "--app-chart", chartName)
 						Expect(err).ToNot(HaveOccurred(), out)
-						Expect(out).To(MatchRegexp("Ok"))
+						Expect(out).To(ContainSubstring("Ok"))
 
 						out, err = env.Epinio("", "app", "show", appName1)
 						Expect(err).ToNot(HaveOccurred(), out)
-						Expect(out).To(MatchRegexp(`App Chart\s*\|\s*%s\s*\|`, chartName))
+
+						Expect(out).To(
+							HaveATable(
+								WithHeaders("KEY", "VALUE"),
+								WithRow("App Chart", chartName),
+							),
+						)
 					})
 
 					AfterEach(func() {
@@ -287,7 +324,12 @@ spec:
 							ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 							return out
-						}, "1m").Should(MatchRegexp(`App Chart\s*\|\s*standard\s*\|`))
+						}, "1m").Should(
+							HaveATable(
+								WithHeaders("KEY", "VALUE"),
+								WithRow("App Chart", "standard"),
+							),
+						)
 					})
 				})
 			})
@@ -300,7 +342,12 @@ spec:
 					out, err := env.Epinio("", "apps", "env", "list", appName)
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
-				}, "2m").Should(MatchRegexp("MYVAR.*myvalue"))
+				}, "2m").Should(
+					HaveATable(
+						WithHeaders("VARIABLE", "VALUE"),
+						WithRow("MYVAR", "myvalue"),
+					),
+				)
 			})
 
 			AfterEach(func() {
@@ -335,7 +382,7 @@ spec:
 
 				restageLogs, err := env.Epinio("", "app", "restage", appName)
 				Expect(err).ToNot(HaveOccurred(), restageLogs)
-				Expect(restageLogs).Should(MatchRegexp("Unable to restage container-based application"))
+				Expect(restageLogs).Should(ContainSubstring("Unable to restage container-based application"))
 
 				By("deleting the app")
 				env.DeleteApp(appName)
@@ -498,7 +545,7 @@ spec:
 				out, err = push()
 				Expect(err).ToNot(HaveOccurred(), out)
 
-				Expect(out).To(MatchRegexp("Reusing cached layer"))
+				Expect(out).To(ContainSubstring("Reusing cached layer"))
 			})
 		})
 		When("deleting the app", func() {
@@ -511,7 +558,7 @@ spec:
 				out, err = proc.Kubectl("get", "pvc", "--namespace",
 					testenv.Namespace, names.GenerateResourceName(namespace, appName))
 				Expect(err).To(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(fmt.Sprintf(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName))))
+				Expect(out).To(ContainSubstring(`persistentvolumeclaims "%s" not found`, names.GenerateResourceName(namespace, appName)))
 			})
 		})
 	})
@@ -521,9 +568,9 @@ spec:
 			By("pushing the app")
 			out := env.MakeApp(appName, 1, true)
 
-			Expect(out).To(MatchRegexp(`.*Generating default PHP configuration.*`))
+			Expect(out).To(ContainSubstring(`Generating default PHP configuration`))
 			// Doesn't include linkerd sidecar logs
-			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
+			Expect(out).ToNot(ContainSubstring(`linkerd-`))
 		})
 
 		It("deploys a golang app", func() {
@@ -619,18 +666,30 @@ configuration:
 
 				out, err := env.EpinioPush("", appName, manifestPath)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(`Manifest: ` + absManifestPath))
+				Expect(out).To(ContainSubstring(`Manifest: ` + absManifestPath))
 
 				// TODO : Match push output lines ?
 
 				By("verifying the stored settings")
 				out, err = env.Epinio("", "app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp(`Instances\s*\|\s*2\s*\|`))
-				Expect(out).To(MatchRegexp(`App Chart\s*\|\s*standard\s*\|`))
-				Expect(out).To(MatchRegexp(`- CREDO\s*\|\s*up\s*\|`))
-				Expect(out).To(MatchRegexp(`- DOGMA\s*\|\s*no\s*\|`))
-				Expect(out).To(MatchRegexp(fmt.Sprintf(" %s-.*|\\s+true\\s+|.*|.*|.*|.*|", appName)))
+
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Desired Instances", "2"),
+						WithRow("App Chart", "standard"),
+						WithRow("- CREDO", "up"),
+						WithRow("- DOGMA", "no"),
+					),
+				)
+
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("NAME", "READY", "MEMORY", "MILLICPUS", "RESTARTS", "AGE"),
+						WithRow("r"+appName+"-.*", "true", ".*", ".*", ".*", ".*"),
+					),
+				)
 
 				By("deleting the app")
 				env.DeleteApp(appName)
@@ -683,7 +742,12 @@ configuration:
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
-			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+			}, "1m").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "3/3"),
+				),
+			)
 		})
 
 		Context("with configuration", func() {
@@ -714,7 +778,12 @@ configuration:
 					out, err := env.Epinio("", "app", "list")
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
-				}, "2m").Should(MatchRegexp(appName + `.*\|.*1\/1.*\|.*` + configurationName))
+				}, "2m").Should(
+					HaveATable(
+						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+						WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ""),
+					),
+				)
 			})
 		})
 
@@ -729,14 +798,18 @@ configuration:
 			out, err := env.Epinio("", "app", "delete", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("UNBOUND CONFIGURATIONS"))
-			Expect(out).To(MatchRegexp(configurationName))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("UNBOUND CONFIGURATIONS"),
+					WithRow(configurationName),
+				),
+			)
 
 			Eventually(func() string {
 				out, err := env.Epinio("", "app", "list")
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
+			}, "1m").ShouldNot(ContainSubstring(appName))
 
 			env.DeleteConfiguration(configurationName)
 		})
@@ -761,7 +834,12 @@ configuration:
 					out, err := env.Epinio("", "apps", "env", "list", appName)
 					Expect(err).ToNot(HaveOccurred(), out)
 					return out
-				}, "2m").Should(MatchRegexp("MYVAR.*myvalue"))
+				}, "2m").Should(
+					HaveATable(
+						WithHeaders("VARIABLE", "VALUE"),
+						WithRow("MYVAR", "myvalue"),
+					),
+				)
 			})
 		})
 	})
@@ -779,7 +857,12 @@ configuration:
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
-			}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+			}, "1m").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "1/1"),
+				),
+			)
 
 			out, err := env.Epinio("", "app", "update", appName, "-i", "3")
 			Expect(err).ToNot(HaveOccurred(), out)
@@ -789,7 +872,12 @@ configuration:
 				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 				return out
-			}, "1m").Should(MatchRegexp(`Status\s*\|\s*3\/3\s*\|`))
+			}, "1m").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "3/3"),
+				),
+			)
 		})
 
 		Context("with configuration", func() {
@@ -814,18 +902,28 @@ configuration:
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
-				}, "1m").Should(MatchRegexp(`Status\s*\|\s*1\/1\s*\|`))
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "1/1"),
+					),
+				)
 
 				out, err := env.Epinio("", "app", "update", appName, "--bind", configurationName)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(MatchRegexp("Successfully updated application"))
+				Expect(out).To(ContainSubstring("Successfully updated application"))
 
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
-				}, "1m").Should(MatchRegexp(`Configurations\s*\|\s*` + configurationName + `\s*\|`))
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Bound Configurations", configurationName),
+					),
+				)
 			})
 		})
 	})
@@ -847,26 +945,47 @@ configuration:
 		It("lists all apps in the namespace", func() {
 			out, err := env.Epinio("", "app", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Listing applications"))
-			Expect(out).To(MatchRegexp(" " + appName + " "))
-			Expect(out).To(MatchRegexp(" " + configurationName + " "))
+
+			By(out)
+
+			Expect(out).To(ContainSubstring("Listing applications"))
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ""),
+				),
+			)
 		})
 
 		It("shows the details of an app", func() {
 			out, err := env.Epinio("", "app", "show", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp("Show application details"))
-			Expect(out).To(MatchRegexp("Application: " + appName))
-			Expect(out).To(MatchRegexp(`Origin .*\|.* ` + containerImageURL))
-			Expect(out).To(MatchRegexp(`Configurations .*\|.* ` + configurationName))
-			Expect(out).To(MatchRegexp("Routes .*\n|.* " + appName))
+			By(out)
+
+			Expect(out).To(ContainSubstring("Show application details"))
+			Expect(out).To(ContainSubstring("Application: " + appName))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Origin", containerImageURL),
+					WithRow("Bound Configurations", configurationName),
+					WithRow("Active Routes", ""),
+					WithRow("", appName+".*"),
+				),
+			)
 
 			Eventually(func() string {
 				out, err := env.Epinio("", "app", "show", appName)
 				Expect(err).ToNot(HaveOccurred(), out)
 				return out
-			}, "1m").Should(MatchRegexp(`Status .*\|.* 1\/1`))
+			}, "1m").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "1/1"),
+				),
+			)
 		})
 
 		Context("", func() {
@@ -922,24 +1041,37 @@ configuration:
 		})
 
 		Describe("no instances", func() {
+
 			BeforeEach(func() {
 				out, err := env.Epinio("", "app", "update", appName, "--instances", "0")
 				Expect(err).ToNot(HaveOccurred(), out)
 			})
+
 			It("lists apps without instances", func() {
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "list")
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
-				}, "1m").Should(MatchRegexp("0/0"))
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+						WithRow(appName, WithDate(), "0/0", appName+".*", configurationName, ""),
+					),
+				)
 			})
+
 			It("shows the details of an app without instances", func() {
 				Eventually(func() string {
 					out, err := env.Epinio("", "app", "show", appName)
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
-				}, "1m").Should(MatchRegexp(`Status\s*\|\s*0\/0\s*\|`))
+				}, "1m").Should(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Status", "0/0"),
+					),
+				)
 			})
 		})
 	})
@@ -979,10 +1111,17 @@ configuration:
 
 			out, err := env.Epinio("", "app", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(MatchRegexp("Listing all applications"))
+			Expect(out).To(ContainSubstring("Listing all applications"))
 
-			Expect(out).To(MatchRegexp(" " + app1 + " "))
-			Expect(out).To(MatchRegexp(" " + app2 + " "))
+			By(out)
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(namespace1, app1, WithDate(), "1/1", app1+".*", "", ""),
+					WithRow(namespace2, app2, WithDate(), "1/1", app2+".*", "", ""),
+				),
+			)
 		})
 	})
 
@@ -1035,9 +1174,9 @@ configuration:
 			out, err := env.Epinio("", "app", "logs", "--staging", appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			Expect(out).To(MatchRegexp(`.*Generating default PHP configuration.*`))
+			Expect(out).To(ContainSubstring(`Generating default PHP configuration`))
 			// Doesn't include linkerd sidecar logs
-			Expect(out).ToNot(MatchRegexp(`linkerd-.*`))
+			Expect(out).ToNot(ContainSubstring(`linkerd-`))
 		})
 
 		It("follows logs", func() {
@@ -1109,7 +1248,7 @@ configuration:
 			err := cmd.Run()
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(out.String()).To(MatchRegexp("Executing a shell"))
+			Expect(out.String()).To(ContainSubstring("Executing a shell"))
 
 			podName, err := proc.Kubectl("get", "pods",
 				"-l", fmt.Sprintf("app.kubernetes.io/name=%s", appName),

@@ -1,11 +1,11 @@
 package acceptance_test
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
+
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -27,7 +27,7 @@ var _ = Describe("Settings", func() {
 		It("fails for a bogus sub command", func() {
 			out, err := env.Epinio("", "settings", "bogus", "...")
 			Expect(err).To(HaveOccurred())
-			Expect(out).To(MatchRegexp(`Unknown method "bogus"`))
+			Expect(out).To(ContainSubstring(`Unknown method "bogus"`))
 		})
 	})
 
@@ -35,21 +35,31 @@ var _ = Describe("Settings", func() {
 		It("changes the settings when disabling colors", func() {
 			settings, err := env.Epinio("", "settings", "colors", "0", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(settings).To(MatchRegexp(`Colors: false`))
+			Expect(settings).To(ContainSubstring(`Colors: false`))
 
 			settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(settings).To(MatchRegexp(`Colorized Output.*\|.*false`))
+			Expect(settings).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Colorized Output", "false"),
+				),
+			)
 		})
 
 		It("changes the settings when enabling colors", func() {
 			settings, err := env.Epinio("", "settings", "colors", "1", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(settings).To(MatchRegexp(`Colors: true`))
+			Expect(settings).To(ContainSubstring(`Colors: true`))
 
 			settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(settings).To(MatchRegexp(`Colorized Output.*\|.*true`))
+			Expect(settings).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Colorized Output", "true"),
+				),
+			)
 		})
 	})
 
@@ -57,13 +67,18 @@ var _ = Describe("Settings", func() {
 		It("shows the settings", func() {
 			settings, err := env.Epinio("", "settings", "show")
 			Expect(err).ToNot(HaveOccurred())
-			Expect(settings).To(MatchRegexp(`Colorized Output.*\|`))  // Exact state not relevant
-			Expect(settings).To(MatchRegexp(`Current Namespace.*\|`)) // Exact name of namespace is not relevant, and varies
-			Expect(settings).To(MatchRegexp(`Certificates.*\|.*Present`))
-			Expect(settings).To(MatchRegexp(fmt.Sprintf(`API User Name.*\|.*%s`, env.EpinioUser)))
-			Expect(settings).To(MatchRegexp(fmt.Sprintf(`API Password.*\|.*%s`, env.EpinioPassword)))
-			Expect(settings).To(MatchRegexp(`API Url.*\| https://epinio.*`))
-			Expect(settings).To(MatchRegexp(`WSS Url.*\| wss://epinio.*`))
+			Expect(settings).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Colorized Output", "true|false"),
+					WithRow("Current Namespace", ".*"),
+					WithRow("Certificates", "Present"),
+					WithRow("API User Name", env.EpinioUser),
+					WithRow("API Password", env.EpinioPassword),
+					WithRow("API Url", "https://epinio.*"),
+					WithRow("WSS Url", "wss://epinio.*"),
+				),
+			)
 		})
 	})
 
@@ -76,7 +91,7 @@ var _ = Describe("Settings", func() {
 
 			out, err := env.Epinio("", "settings", "update", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchRegexp(`Updating the stored credentials`))
+			Expect(out).To(ContainSubstring(`Updating the stored credentials`))
 
 			oldSettings, err := env.GetSettingsFrom(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
