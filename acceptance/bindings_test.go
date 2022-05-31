@@ -46,8 +46,8 @@ var _ = Describe("Bounds between Apps & Configurations", func() {
 
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAME", "CREATED", "APPLICATIONS"),
-					WithRow(configurationName, WithDate(), appName),
+					WithHeaders("NAME", "CREATED", "TYPE", "ORIGIN", "APPLICATIONS"),
+					WithRow(configurationName, WithDate(), "custom", "", appName),
 				),
 			)
 
