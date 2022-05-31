@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -78,6 +79,13 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 		return nil
 	}
 	user := users[0]
+
+	// TEMP FIX! Check if the default user password is 'password' and use that
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(`password`))
+	if err != nil {
+		return err
+	}
+	user.Password = "password"
 
 	details.Info("retrieved credentials", "user", user.Username, "password", user.Password)
 	details.Info("retrieving server locations")
