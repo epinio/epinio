@@ -7,7 +7,7 @@ import (
 
 // CmdLogin implements the command: epinio login
 var CmdLogin = &cobra.Command{
-	Use:           "login [address]",
+	Use:           "login [URL]",
 	Short:         "Epinio login to the server",
 	Long:          `The login command will setup the settings file with the provided credentials`,
 	SilenceErrors: true,
