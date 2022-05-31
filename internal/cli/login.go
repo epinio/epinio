@@ -5,20 +5,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// CmdSettings implements the command: epinio settings
+// CmdLogin implements the command: epinio login
 var CmdLogin = &cobra.Command{
-	Use:           "login",
-	Short:         "Epinio login",
-	Long:          `MASKJMLSs`,
+	Use:           "login [address]",
+	Short:         "Epinio login to the server",
+	Long:          `The login command will setup the settings file with the provided credentials`,
 	SilenceErrors: true,
 	SilenceUsage:  true,
-	//Args:          cobra.MinimumNArgs(1),
+	Args:          cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, _ := usercmd.New()
-		client.Login(cmd.Context(), cmd)
+		client, err := usercmd.New()
+		if err != nil {
+			return err
+		}
 
-		return nil
+		return client.Login(args[0])
 	},
 }
