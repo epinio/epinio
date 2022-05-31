@@ -130,7 +130,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 				// sanity check
 				out, err := proc.Kubectl("get", "Jobs",
 					"--namespace", testenv.Namespace,
-					"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
+					"-o", "jsonpath={.items[*].metadata.labels['epinio\\.io/blob-uid']}")
 				Expect(err).NotTo(HaveOccurred(), out)
 				blobUIDs := strings.Split(out, " ")
 				count := 0

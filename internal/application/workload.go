@@ -201,7 +201,7 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 
 	status := fmt.Sprintf("%d/%d", deployment.Status.ReadyReplicas, deployment.Status.Replicas)
 
-	stageID := deployment.Spec.Template.ObjectMeta.Labels["epinio.suse.org/stage-id"]
+	stageID := deployment.Spec.Template.ObjectMeta.Labels["epinio.io/stage-id"]
 	username := deployment.Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 
 	routes, err := ListRoutes(ctx, a.cluster, a.app)

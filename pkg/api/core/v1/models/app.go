@@ -5,9 +5,9 @@ import (
 )
 
 const (
-	EpinioStageIDPrevious   = "epinio.suse.org/previous-stage-id"
-	EpinioStageIDLabel      = "epinio.suse.org/stage-id"
-	EpinioStageBlobUIDLabel = "epinio.suse.org/blob-uid"
+	EpinioStageIDPrevious   = "epinio.io/previous-stage-id"
+	EpinioStageIDLabel      = "epinio.io/stage-id"
+	EpinioStageBlobUIDLabel = "epinio.io/blob-uid"
 
 	ApplicationCreated = "created"
 	ApplicationStaging = "staging"

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	RegistrySecretNamespaceAnnotationKey = "epinio.suse.org/registry-namespace" // nolint:gosec // not credentials
+	RegistrySecretNamespaceAnnotationKey = "epinio.io/registry-namespace" // nolint:gosec // not credentials
 	CredentialsSecretName                = "registry-creds"
 )
 

@@ -27,9 +27,9 @@ import (
 )
 
 const (
-	ConfigurationLabelKey       = "epinio.suse.org/configuration"
-	ConfigurationTypeLabelKey   = "epinio.suse.org/configuration-type"
-	ConfigurationOriginLabelKey = "epinio.suse.org/configuration-origin"
+	ConfigurationLabelKey       = "epinio.io/configuration"
+	ConfigurationTypeLabelKey   = "epinio.io/configuration-type"
+	ConfigurationOriginLabelKey = "epinio.io/configuration-origin"
 )
 
 type ConfigurationList []*Configuration
@@ -59,8 +59,8 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 		return nil, err
 	}
 	c.Username = s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
-	c.Type = s.ObjectMeta.Labels["epinio.suse.org/configuration-type"]
-	c.Origin = s.ObjectMeta.Labels["epinio.suse.org/configuration-origin"]
+	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
+	c.Origin = s.ObjectMeta.Labels["epinio.io/configuration-origin"]
 	c.CreatedAt = s.ObjectMeta.CreationTimestamp
 
 	return c, nil
@@ -99,8 +99,8 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 		name := c.Name
 		namespace := c.Namespace
 		username := c.ObjectMeta.Labels["app.kubernetes.io/created-by"]
-		ctype := c.ObjectMeta.Labels["epinio.suse.org/configuration-type"]
-		origin := c.ObjectMeta.Labels["epinio.suse.org/configuration-origin"]
+		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
+		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
 
 		result = append(result, &Configuration{
 			CreatedAt:  c.ObjectMeta.CreationTimestamp,

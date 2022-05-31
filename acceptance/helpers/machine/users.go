@@ -28,8 +28,8 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 			Name:      "epinio-user-" + user,
 			Namespace: "epinio",
 			Labels: map[string]string{
-				"epinio.suse.org/api-user-credentials": "true",
-				"epinio.suse.org/role":                 role,
+				"epinio.io/api-user-credentials": "true",
+				"epinio.io/role":                 role,
 			},
 		},
 		StringData: map[string]string{
