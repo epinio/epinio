@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -20,25 +19,31 @@ import (
 )
 
 // Login will ask the user for a username and password, and then it will update the settings file accordingly
-func (c *EpinioClient) Login(address string) error {
+func (c *EpinioClient) Login(username, password, address string, trustCA bool) error {
+	var err error
+
 	log := c.Log.WithName("Login")
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().Msgf("Login to your Epinio cluster [%s]", address)
 
-	username, err := askUsername(c.ui)
-	if err != nil {
-		return errors.Wrap(err, "error while asking for username")
+	if username == "" {
+		username, err = askUsername(c.ui)
+		if err != nil {
+			return errors.Wrap(err, "error while asking for username")
+		}
 	}
 
-	password, err := askPassword(c.ui)
-	if err != nil {
-		return errors.Wrap(err, "error while asking for password")
+	if password == "" {
+		password, err = askPassword(c.ui)
+		if err != nil {
+			return errors.Wrap(err, "error while asking for password")
+		}
 	}
 
 	// check if the server has a trusted authority, or if we want to trust it anyway
-	serverCertificate, err := checkAndAskCA(c.ui, address)
+	serverCertificate, err := checkAndAskCA(c.ui, address, trustCA)
 	if err != nil {
 		return errors.Wrap(err, "error while checking CA")
 	}
@@ -109,7 +114,7 @@ func readUserInput() (string, error) {
 // checkAndAskCA will check if the server has a trusted authority
 // if the authority is unknown then we will prompt the user if he wants to trust it anyway
 // and the func will return the PEM encoded certificate to trust
-func checkAndAskCA(ui *termui.UI, address string) (string, error) {
+func checkAndAskCA(ui *termui.UI, address string, trustCA bool) (string, error) {
 	var serverCertificate string
 
 	cert, err := checkCA(address)
@@ -123,9 +128,11 @@ func checkAndAskCA(ui *termui.UI, address string) (string, error) {
 
 		// certificate is signed by unknown authority
 		// ask to the user if we want to trust it
-		trustCA, err := askTrustCA(ui, cert)
-		if err != nil {
-			return "", errors.Wrap(err, "error while asking for trusting the CA")
+		if !trustCA {
+			trustCA, err = askTrustCA(ui, cert)
+			if err != nil {
+				return "", errors.Wrap(err, "error while asking for trusting the CA")
+			}
 		}
 
 		// if yes then encode the certificate to PEM format and save it in the settings
@@ -142,19 +149,19 @@ func checkAndAskCA(ui *termui.UI, address string) (string, error) {
 func checkCA(address string) (*x509.Certificate, error) {
 	parsedURL, err := url.Parse(address)
 	if err != nil {
-		return nil, err
+		return nil, errors.New("no certificates to verify")
 	}
 
 	tlsConfig := &tls.Config{InsecureSkipVerify: true} // nolint:gosec // We need to check the validity
 	conn, err := tls.Dial("tcp", parsedURL.Hostname()+":443", tlsConfig)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error while dialing the server")
 	}
 	defer conn.Close()
 
 	certs := conn.ConnectionState().PeerCertificates
 	if len(certs) == 0 {
-		return nil, fmt.Errorf("no certificates to verify")
+		return nil, errors.New("no certificates to verify")
 	}
 
 	// check if at least one certificate in the chain is valid
