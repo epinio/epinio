@@ -36,7 +36,7 @@ import (
 
 const (
 	// APISGroupName is the api name used for epinio
-	APISGroupName = "epinio.suse.org"
+	APISGroupName = "epinio.io"
 )
 
 var (

@@ -122,8 +122,8 @@ var _ = Describe("AppStage Endpoint", func() {
 
 			stagingBlobUID, err := proc.Kubectl("get", "Jobs",
 				"--namespace", testenv.Namespace,
-				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
-				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
+				"-l", fmt.Sprintf("epinio.io/stage-id=%s", stageResponse.Stage.ID),
+				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.io/blob-uid']}")
 			Expect(err).NotTo(HaveOccurred(), stagingBlobUID)
 			Expect(stagingBlobUID).To(Equal(oldBlob))
 
@@ -141,8 +141,8 @@ var _ = Describe("AppStage Endpoint", func() {
 
 			stagingBlobUID, err = proc.Kubectl("get", "Jobs",
 				"--namespace", testenv.Namespace,
-				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
-				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.suse\\.org/blob-uid']}")
+				"-l", fmt.Sprintf("epinio.io/stage-id=%s", stageResponse.Stage.ID),
+				"-o", "jsonpath={.items[*].metadata.labels['epinio\\.io/blob-uid']}")
 			Expect(err).NotTo(HaveOccurred(), stagingBlobUID)
 			Expect(stagingBlobUID).To(Equal(oldBlob))
 		})
@@ -170,7 +170,7 @@ var _ = Describe("AppStage Endpoint", func() {
 
 			stagingBuilderImage, err := proc.Kubectl("get", "Pods",
 				"--namespace", testenv.Namespace,
-				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
+				"-l", fmt.Sprintf("epinio.io/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].spec.containers[0].image}")
 			Expect(err).NotTo(HaveOccurred(), stagingBuilderImage)
 			Expect(stagingBuilderImage).To(Equal(builderImage))
@@ -188,7 +188,7 @@ var _ = Describe("AppStage Endpoint", func() {
 
 			stagingBuilderImage, err = proc.Kubectl("get", "Pods",
 				"--namespace", testenv.Namespace,
-				"-l", fmt.Sprintf("epinio.suse.org/stage-id=%s", stageResponse.Stage.ID),
+				"-l", fmt.Sprintf("epinio.io/stage-id=%s", stageResponse.Stage.ID),
 				"-o", "jsonpath={.items[*].spec.containers[0].image}")
 			Expect(err).NotTo(HaveOccurred(), stagingBuilderImage)
 			Expect(stagingBuilderImage).To(Equal(builderImage))

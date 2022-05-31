@@ -272,7 +272,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 
 	// Wait for the staging to be done, then check if it ended in failure.
 	// Select the job for this stage `id`.
-	selector := fmt.Sprintf("app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.suse.org/stage-id=%s",
+	selector := fmt.Sprintf("app.kubernetes.io/component=staging,app.kubernetes.io/part-of=%s,epinio.io/stage-id=%s",
 		namespace, id)
 
 	jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
