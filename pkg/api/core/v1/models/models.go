@@ -288,6 +288,7 @@ type CatalogService struct {
 	ShortDescription string   `json:"short_description,omitempty"`
 	HelmChart        string   `json:"chart,omitempty"`
 	ChartVersion     string   `json:"chartVersion,omitempty"`
+	ServiceIcon      string   `json:"serviceIcon,omitempty"`
 	AppVersion       string   `json:"appVersion,omitempty"`
 	HelmRepo         HelmRepo `json:"helm_repo,omitempty"`
 	Values           string   `json:"values,omitempty"`
