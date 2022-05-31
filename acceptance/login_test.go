@@ -23,51 +23,66 @@ var _ = FDescribe("Login", func() {
 	})
 
 	It("succeed with a valid user", func() {
-		// check the old settings
-		settings, err := env.Epinio("", "settings", "show")
+		// check that the initial settings are empty
+		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(err).ToNot(HaveOccurred(), settings)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", "admin"),
-				WithRow("API Password", "password"),
+				WithRow("API User Name", ""),
+				WithRow("API Password", ""),
+				WithRow("Certificates", "None defined"),
 			),
 		)
 
 		// login with a different user
-		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword, "--trust-ca", serverURL)
+		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword, "--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(out).To(ContainSubstring(`Login to your Epinio cluster`))
 		Expect(out).To(ContainSubstring(`Trusting certificate...`))
 		Expect(out).To(ContainSubstring(`Login successful`))
 
 		// check that the settings are now updated
-		settings, err = env.Epinio("", "settings", "show")
+		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(err).ToNot(HaveOccurred(), settings)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
 				WithRow("API User Name", "epinio"),
 				WithRow("API Password", "password"),
+				WithRow("Certificates", "Present"),
 			),
 		)
 	})
 
 	It("fails with a non existing user", func() {
-		// check the old settings
-		settings, err := env.Epinio("", "settings", "show")
+		// check that the initial settings are empty
+		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(err).ToNot(HaveOccurred(), settings)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
-				WithRow("API User Name", "admin"),
-				WithRow("API Password", "password"),
+				WithRow("API User Name", ""),
+				WithRow("API Password", ""),
+				WithRow("Certificates", "None defined"),
 			),
 		)
 
 		// login with a non existing user
-		out, err := env.Epinio("", "login", "-u", "unknown", "-p", env.EpinioPassword, "--trust-ca", serverURL)
+		out, err := env.Epinio("", "login", "-u", "unknown", "-p", env.EpinioPassword, "--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
 		Expect(err).To(HaveOccurred(), out)
 		Expect(out).To(ContainSubstring(`error verifying credentials`))
+
+		// check that the initial settings are still empty
+		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
+		Expect(err).ToNot(HaveOccurred(), settings)
+		Expect(settings).To(
+			HaveATable(
+				WithHeaders("KEY", "VALUE"),
+				WithRow("API User Name", ""),
+				WithRow("API Password", ""),
+				WithRow("Certificates", "None defined"),
+			),
+		)
 	})
 })
