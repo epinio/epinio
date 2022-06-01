@@ -68,8 +68,6 @@ if [ -n "$EPINIO_COVERAGE" ]; then
     { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
 fi
 
-"${EPINIO_BINARY}" login -u admin -p password --trust-ca http://epinio.$EPINIO_SYSTEM_DOMAIN
-
 # Check Epinio Installation
 # Retry 5 times because sometimes it takes a while before epinio server
 # is ready after patching.
@@ -78,7 +76,7 @@ maxRetries=5
 retryInterval=1
 until [ ${retry} -ge ${maxRetries} ]
 do
-	${EPINIO_BINARY} info && break
+	"${EPINIO_BINARY}" login -u admin -p password --trust-ca http://epinio.$EPINIO_SYSTEM_DOMAIN && break
 	retry=$[${retry}+1]
 	echo "Retrying [${retry}/${maxRetries}] in ${retryInterval}(s) "
 	sleep ${retryInterval}
@@ -88,5 +86,7 @@ if [ ${retry} -ge ${maxRetries} ]; then
   echo "Failed to reach epinio endpoint after ${maxRetries} attempts!"
   exit 1
 fi
+
+"${EPINIO_BINARY}" info
 
 echo "Done preparing k3d environment!"
