@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/epinio/epinio/internal/cli"
 	"github.com/spf13/cobra/doc"
@@ -22,7 +24,14 @@ func main() {
 
 func filePrepender(docDir string) func(string) string {
 	return func(file string) string {
-		return "---\ntitle: \"\"\n---\n"
+		title := strings.ReplaceAll(file, docDir+"/", "")
+		title = strings.ReplaceAll(title, ".md", "")
+		title = strings.ReplaceAll(title, "_", " ")
+		return fmt.Sprintf(`---
+title: ""
+sidebar_label: "%s"
+---
+`, title)
 	}
 }
 
