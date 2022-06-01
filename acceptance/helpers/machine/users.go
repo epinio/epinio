@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	. "github.com/onsi/gomega"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -17,6 +18,8 @@ import (
 // CreateEpinioUser creates a new "user" BasicAuth Secret labeled as an Epinio User.
 func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, string) {
 	user, password := catalog.NewUserCredentials()
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	Expect(err).ToNot(HaveOccurred())
 
 	secret := &corev1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -34,7 +37,7 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 		},
 		StringData: map[string]string{
 			"username":   user,
-			"password":   password,
+			"password":   string(hashedPassword),
 			"namespaces": strings.Join(namespaces, "\n"),
 		},
 	}
