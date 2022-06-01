@@ -68,7 +68,7 @@ if [ -n "$EPINIO_COVERAGE" ]; then
     { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
 fi
 
-"${EPINIO_BINARY}" settings update
+"${EPINIO_BINARY}" login -u admin -p password --trust-ca http://epinio.$EPINIO_SYSTEM_DOMAIN
 
 # Check Epinio Installation
 # Retry 5 times because sometimes it takes a while before epinio server

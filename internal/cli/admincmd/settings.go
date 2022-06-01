@@ -103,7 +103,7 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 }
 
 func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
-	// This is called only by the admin command `settings update`
+	// This is called only by the admin command `settings update-ca`
 	// which has to talk to the cluster to retrieve the
 	// information. This is allowed.
 
@@ -123,7 +123,7 @@ func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 }
 
 func getCerts(ctx context.Context, log logr.Logger) (string, error) {
-	// This is called only by the admin command `settings update`
+	// This is called only by the admin command `settings update-ca`
 	// which has to talk to the cluster to retrieve the
 	// information. This is allowed.
 
