@@ -9,11 +9,9 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
-	"golang.org/x/crypto/bcrypt"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -50,44 +48,18 @@ func New() (*Admin, error) {
 	}, nil
 }
 
-// SettingsUpdate updates the credentials stored in the settings from the
+// SettingsUpdateCA updates the CA credentials stored in the settings from the
 // currently targeted kube cluster. It does not use the API server.
-func (a *Admin) SettingsUpdate(ctx context.Context) error {
-	log := a.Log.WithName("SettingsUpdate")
+func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
+	log := a.Log.WithName("SettingsUpdateCA")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	a.ui.Note().
 		WithStringValue("Settings", a.Settings.Location).
-		Msg("Updating the stored credentials from the current cluster")
+		Msg("Updating CA in the stored credentials from the current cluster")
 
-	details.Info("retrieving credentials")
-
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	users, err := authService.GetUsersByAge(ctx)
-	if err != nil {
-		a.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-	if len(users) == 0 {
-		a.ui.Exclamation().Msg("no user account found")
-		return nil
-	}
-	user := users[0]
-
-	// TEMP FIX! Check if the default user password is 'password' and use that
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(`password`))
-	if err != nil {
-		return err
-	}
-	user.Password = "password"
-
-	details.Info("retrieved credentials", "user", user.Username, "password", user.Password)
 	details.Info("retrieving server locations")
 
 	api, wss, err := getAPI(ctx, details)
@@ -107,8 +79,6 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 
 	details.Info("retrieved certs", "certs", certs)
 
-	a.Settings.User = user.Username
-	a.Settings.Password = user.Password
 	a.Settings.API = api
 	a.Settings.WSS = wss
 	a.Settings.Certs = certs

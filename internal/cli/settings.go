@@ -32,7 +32,7 @@ var CmdSettings = &cobra.Command{
 }
 
 func init() {
-	flags := CmdSettingsUpdate.Flags()
+	flags := CmdSettingsUpdateCA.Flags()
 	flags.StringP("namespace", "n", "epinio", "(NAMESPACE) The namespace to use")
 	viper.BindPFlag("namespace", flags.Lookup("namespace"))
 	viper.BindEnv("namespace", "NAMESPACE")
@@ -40,7 +40,7 @@ func init() {
 	CmdSettingsShow.Flags().Bool("show-password", false, "Show hidden password")
 	viper.BindPFlag("show-password", CmdSettingsShow.Flags().Lookup("show-password"))
 
-	CmdSettings.AddCommand(CmdSettingsUpdate)
+	CmdSettings.AddCommand(CmdSettingsUpdateCA)
 	CmdSettings.AddCommand(CmdSettingsShow)
 	CmdSettings.AddCommand(CmdSettingsColors)
 }
@@ -134,11 +134,11 @@ var CmdSettingsShow = &cobra.Command{
 	},
 }
 
-// CmdSettingsUpdate implements the command: epinio settings update
-var CmdSettingsUpdate = &cobra.Command{
-	Use:   "update",
-	Short: "Update the api location & stored credentials",
-	Long:  "Update the api location and stored credentials from the current cluster",
+// CmdSettingsUpdateCA implements the command: epinio settings update-ca
+var CmdSettingsUpdateCA = &cobra.Command{
+	Use:   "update-ca",
+	Short: "Update the api location and CA certificate",
+	Long:  "Update the api location and CA certificate from the current cluster",
 	Args:  cobra.ExactArgs(0),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -149,7 +149,7 @@ var CmdSettingsUpdate = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.SettingsUpdate(cmd.Context())
+		err = client.SettingsUpdateCA(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "failed to update the settings")
 		}
