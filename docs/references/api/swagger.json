@@ -1877,6 +1877,10 @@
         "meta": {
           "$ref": "#/definitions/MetaLite"
         },
+        "serviceIcon": {
+          "type": "string",
+          "x-go-name": "ServiceIcon"
+        },
         "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
