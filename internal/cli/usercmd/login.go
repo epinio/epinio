@@ -149,7 +149,7 @@ func checkAndAskCA(ui *termui.UI, address string, trustCA bool) (string, error) 
 func checkCA(address string) (*x509.Certificate, error) {
 	parsedURL, err := url.Parse(address)
 	if err != nil {
-		return nil, errors.New("no certificates to verify")
+		return nil, errors.New("error parsing the address")
 	}
 
 	tlsConfig := &tls.Config{InsecureSkipVerify: true} // nolint:gosec // We need to check the validity
