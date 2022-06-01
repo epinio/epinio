@@ -3,6 +3,7 @@ package machine
 import (
 	"fmt"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -17,10 +18,15 @@ func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
 	Eventually(func() string {
 		out, err = m.Epinio("", "service", "show", serviceName)
 		Expect(err).ToNot(HaveOccurred(), out)
-		Expect(out).To(MatchRegexp(serviceName))
+		Expect(out).To(ContainSubstring(serviceName))
 
 		return out
-	}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+	}, "2m", "5s").Should(
+		HaveATable(
+			WithHeaders("KEY", "VALUE"),
+			WithRow("Status", "deployed"),
+		),
+	)
 
 	By("MSI/ok")
 }
@@ -34,5 +40,10 @@ func (m *Machine) DeleteService(serviceName string) {
 		out, err := m.Epinio("", "service", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
-	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, serviceName))
+	}, "1m").ShouldNot(
+		HaveATable(
+			WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
+			WithRow(serviceName, WithDate(), "mysql-dev", "not-ready|deployed", ""),
+		),
+	)
 }
