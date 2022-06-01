@@ -793,8 +793,8 @@ github.com/mitchellh/mapstructure v1.5.0/go.mod h1:bFUtVrKA4DC2yAKiSyO/QUcy7e+RR
 github.com/mitchellh/reflectwalk v1.0.0/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
 github.com/mitchellh/reflectwalk v1.0.2 h1:G2LzWKi524PWgd3mLHV8Y5k7s6XUvT0Gef6zxSIeXaQ=
 github.com/mitchellh/reflectwalk v1.0.2/go.mod h1:mSTlrgnPZtwu0c4WaC2kGObEpuNDbx0jmZXqmk4esnw=
-github.com/mittwald/go-helm-client v0.9.0 h1:QeTECyr58p7TUwnZX66jRb/+NVEBuGEby+fXgAarYAw=
-github.com/mittwald/go-helm-client v0.9.0/go.mod h1:Ze5UQI93LeGt6VCE9UqaIxJLqJaqoBfc1BD+QA18Urs=
+github.com/mittwald/go-helm-client v0.11.1 h1:tsNgk5QKRwqx7mrDvvVvh4gMuxSKJikNAfUMh47vDTc=
+github.com/mittwald/go-helm-client v0.11.1/go.mod h1:Zs+xgOODq1/ILHj61foCI07EBNB7IoBHaW+VjJN2bcU=
 github.com/moby/locker v1.0.1 h1:fOXqR41zeveg4fFODix+1Ch4mj/gT0NE1XJbp/epuBg=
 github.com/moby/locker v1.0.1/go.mod h1:S7SDdo5zpBK84bzzVlKr2V0hz+7x9hWbYC/kq7oQppc=
 github.com/moby/spdystream v0.2.0 h1:cjW1zVyyoiM0T7b6UoySUFqzXMoqRckQtXwGPiBhOM8=
