@@ -110,9 +110,12 @@ var CmdSettingsShow = &cobra.Command{
 			certInfo = color.BlueString("Present")
 		}
 
-		password := "***********"
-		if viper.GetBool("show-password") {
-			password = theSettings.Password
+		var password string
+		if theSettings.Password != "" {
+			password = "***********"
+			if viper.GetBool("show-password") {
+				password = theSettings.Password
+			}
 		}
 
 		ui.Success().

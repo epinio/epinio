@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Login", func() {
+var _ = Describe("Login", func() {
 	var tmpSettingsPath string
 
 	BeforeEach(func() {
@@ -49,7 +49,7 @@ var _ = FDescribe("Login", func() {
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
 				WithRow("API User Name", "epinio"),
-				WithRow("API Password", "password"),
+				WithRow("API Password", "[*]+"),
 				WithRow("Certificates", "Present"),
 			),
 		)
