@@ -72,11 +72,30 @@ var _ = Describe("Settings", func() {
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Colorized Output", "true|false"),
 					WithRow("Current Namespace", ".*"),
-					WithRow("Certificates", "Present"),
+					WithRow("Default App Chart", ""),
 					WithRow("API User Name", env.EpinioUser),
 					WithRow("API Password", "[*]+"),
 					WithRow("API Url", "https://epinio.*"),
 					WithRow("WSS Url", "wss://epinio.*"),
+					WithRow("Certificates", "Present"),
+				),
+			)
+		})
+
+		It("shows empty settings", func() {
+			settings, err := env.Epinio("", "settings", "show", "--settings-file", "/tmp/empty")
+			Expect(err).ToNot(HaveOccurred())
+			Expect(settings).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Colorized Output", "true|false"),
+					WithRow("Current Namespace", ".*"),
+					WithRow("Default App Chart", ""),
+					WithRow("API User Name", ""),
+					WithRow("API Password", ""),
+					WithRow("API Url", ""),
+					WithRow("WSS Url", ""),
+					WithRow("Certificates", "None defined"),
 				),
 			)
 		})
