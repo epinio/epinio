@@ -79,16 +79,3 @@ func (u *User) RemoveNamespace(namespace string) bool {
 	u.Namespaces = updatedNamespaces
 	return removed
 }
-
-// ByCreationTime can be used to sort Users by CreationTime
-type ByCreationTime []User
-
-func (c ByCreationTime) Len() int      { return len(c) }
-func (a ByCreationTime) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-func (c ByCreationTime) Less(i, j int) bool {
-	if c[i].CreatedAt == c[j].CreatedAt {
-		return c[i].Username < c[j].Username
-	}
-	return c[i].CreatedAt.Before(c[j].CreatedAt)
-}

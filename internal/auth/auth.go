@@ -7,7 +7,6 @@ package auth
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -73,17 +72,6 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 		}
 	}
 	return User{}, ErrUserNotFound
-}
-
-// GetUsersByAge returns the Epinio Users BasicAuth sorted from older to younger by CreationTime.
-func (s *AuthService) GetUsersByAge(ctx context.Context) ([]User, error) {
-	users, err := s.GetUsers(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting users")
-	}
-	sort.Sort(ByCreationTime(users))
-
-	return users, nil
 }
 
 // AddNamespaceToUser will add to the User the specified namespace
