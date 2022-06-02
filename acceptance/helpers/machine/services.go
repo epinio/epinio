@@ -50,7 +50,7 @@ func (m *Machine) DeleteService(serviceName string) {
 	}, "1m").ShouldNot(
 		HaveATable(
 			WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
-			WithRow(serviceName, WithDate(), "mysql-dev", "not-ready|deployed", ""),
+			WithRow(serviceName, WithDate(), "mysql-dev", "(not-ready|deployed)", ""),
 		),
 	)
 }
