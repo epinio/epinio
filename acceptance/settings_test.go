@@ -1,6 +1,10 @@
 package acceptance_test
 
 import (
+	"encoding/base64"
+	"fmt"
+	"io/ioutil"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
@@ -140,6 +144,20 @@ var _ = Describe("Settings", func() {
 			Expect(newSettings.API).To(Equal(oldSettings.API))
 			Expect(newSettings.WSS).To(Equal(oldSettings.WSS))
 			Expect(newSettings.Certs).To(Equal(oldSettings.Certs))
+		})
+
+		It("stores the password in base64", func() {
+			out, err := env.Epinio("", "settings", "update", "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(ContainSubstring(`Updating the stored credentials`))
+
+			settings, err := env.GetSettingsFrom(oldSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+
+			fileContents, err := ioutil.ReadFile(oldSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+			encodedPass := base64.StdEncoding.EncodeToString([]byte(settings.Password))
+			Expect(string(fileContents)).To(MatchRegexp(fmt.Sprintf("pass: %s", encodedPass)))
 		})
 	})
 })
