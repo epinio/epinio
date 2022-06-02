@@ -83,12 +83,12 @@ func WaitForHelmRelease(namespace, name string) {
 	Eventually(func() error {
 		_, err := cmd()
 		return err
-	}, "1m", "5s").Should(BeNil())
+	}, "5m", "5s").Should(BeNil())
 
 	Eventually(func() string {
 		out, _ := cmd()
 		return out
-	}, "1m", "5s").ShouldNot(MatchRegexp(".*release: not found.*"))
+	}, "5m", "5s").ShouldNot(MatchRegexp(".*release: not found.*"))
 }
 
 func CreateHelmChart(helmChart helmapiv1.HelmChart, wait bool) {
