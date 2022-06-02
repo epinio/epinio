@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
+	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -21,11 +22,17 @@ func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
 		Expect(out).To(ContainSubstring(serviceName))
 
 		return out
-	}, "2m", "5s").Should(
+	}, "5m", "5s").Should(
 		HaveATable(
 			WithHeaders("KEY", "VALUE"),
 			WithRow("Status", "deployed"),
 		),
+		func() string {
+			outNamespace, _ := m.Epinio(m.nodeTmpDir, "target")
+			outPods, _ := proc.Kubectl("get", "pods", "-A")
+			outHelm, _ := proc.Run("", false, "helm", "list", "-a", "-A")
+			return fmt.Sprintf("%s\nPods:\n%s\nHelm releases:\n%s\n", outNamespace, outPods, outHelm)
+		}(),
 	)
 
 	By("MSI/ok")
