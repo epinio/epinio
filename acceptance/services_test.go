@@ -147,7 +147,7 @@ var _ = Describe("Services", func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+					WithRow(service, WithDate(), catalogService.Meta.Name, "not-ready|deployed", ""),
 				),
 			)
 
@@ -241,8 +241,8 @@ var _ = Describe("Services", func() {
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "not-ready", ""),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "not-ready|deployed", ""),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "not-ready|deployed", ""),
 				),
 			)
 
@@ -301,13 +301,13 @@ var _ = Describe("Services", func() {
 			Expect(out).NotTo(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "not-ready|deployed", ""),
 				),
 			)
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "not-ready", ""),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "not-ready|deployed", ""),
 				),
 			)
 
@@ -365,7 +365,7 @@ var _ = Describe("Services", func() {
 					WithRow("Name", service),
 					WithRow("Created", WithDate()),
 					WithRow("Catalog Service", catalogService.Meta.Name),
-					WithRow("Status", "not-ready"),
+					WithRow("Status", "not-ready|deployed"),
 				),
 			)
 
@@ -407,7 +407,7 @@ var _ = Describe("Services", func() {
 					WithRow("Name", service),
 					WithRow("Created", WithDate()),
 					WithRow("Catalog Service", catalogService.Meta.Name),
-					WithRow("Status", "not-ready"),
+					WithRow("Status", "not-ready|deployed"),
 				),
 			)
 
