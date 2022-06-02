@@ -2,6 +2,7 @@ package settings
 
 import (
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -123,6 +124,13 @@ func LoadFrom(file string) (*Settings, error) {
 		color.NoColor = true
 	}
 
+	// Decode base64 password
+	decodedPassword, err := base64.StdEncoding.DecodeString(cfg.Password)
+	if err != nil {
+		return cfg, err
+	}
+	cfg.Password = string(decodedPassword)
+
 	cfg.log = log
 	log.Info("Loaded", "value", cfg.String())
 	return cfg, nil
@@ -140,7 +148,7 @@ func (c *Settings) Save() error {
 	c.v.Set("namespace", c.Namespace)
 	c.v.Set("appchart", c.AppChart)
 	c.v.Set("user", c.User)
-	c.v.Set("pass", c.Password)
+	c.v.Set("pass", base64.StdEncoding.EncodeToString([]byte(c.Password)))
 	c.v.Set("api", c.API)
 	c.v.Set("wss", c.WSS)
 	c.v.Set("certs", c.Certs)
