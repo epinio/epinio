@@ -76,7 +76,7 @@ maxRetries=5
 retryInterval=1
 until [ ${retry} -ge ${maxRetries} ]
 do
-	"${EPINIO_BINARY}" login -u admin -p password --trust-ca http://epinio.$EPINIO_SYSTEM_DOMAIN && break
+	"${EPINIO_BINARY}" login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN && break
 	retry=$[${retry}+1]
 	echo "Retrying [${retry}/${maxRetries}] in ${retryInterval}(s) "
 	sleep ${retryInterval}
