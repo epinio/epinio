@@ -186,7 +186,7 @@ epinio:
 		ReuseValues: true,
 	}
 
-	if _, err := client.InstallOrUpgradeChart(context.Background(), &chartSpec); err != nil {
+	if _, err := client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil); err != nil {
 		return err
 	}
 
