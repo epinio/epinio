@@ -13,7 +13,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
       - id: setup-pack
-        uses: buildpacks/github-actions/setup-pack@v4.5.0
+        uses: buildpacks/github-actions/setup-pack@v4.7.0
       - name: Pack Remote Build
         run: pack build splatform/sample-app:latest --builder paketobuildpacks/builder:full --path ./assets/sample-app
       - name: Docker push image
