@@ -20,6 +20,10 @@ type Namespace struct {
 	CreatedAt metav1.Time
 }
 
+func (n Namespace) Namespace() string {
+	return n.Name
+}
+
 func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, error) {
 	listOptions := metav1.ListOptions{
 		LabelSelector: kubernetes.EpinioNamespaceLabelKey + "=" + kubernetes.EpinioNamespaceLabelValue,

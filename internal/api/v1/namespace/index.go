@@ -6,6 +6,8 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
+	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/namespaces"
@@ -21,6 +23,8 @@ import (
 // special Label (Look at the code to see which).
 func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	user := requestctx.User(ctx)
+
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -30,6 +34,7 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		return apierror.InternalError(err)
 	}
+	namespaceList = auth.FilterResources(user, namespaceList)
 
 	namespaces := make(models.NamespaceList, 0, len(namespaceList))
 	for _, namespace := range namespaceList {
