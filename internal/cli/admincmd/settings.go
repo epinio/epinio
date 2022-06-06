@@ -9,7 +9,6 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -49,37 +48,18 @@ func New() (*Admin, error) {
 	}, nil
 }
 
-// SettingsUpdate updates the credentials stored in the settings from the
+// SettingsUpdateCA updates the CA credentials stored in the settings from the
 // currently targeted kube cluster. It does not use the API server.
-func (a *Admin) SettingsUpdate(ctx context.Context) error {
-	log := a.Log.WithName("SettingsUpdate")
+func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
+	log := a.Log.WithName("SettingsUpdateCA")
 	log.Info("start")
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	a.ui.Note().
 		WithStringValue("Settings", a.Settings.Location).
-		Msg("Updating the stored credentials from the current cluster")
+		Msg("Updating CA in the stored credentials from the current cluster")
 
-	details.Info("retrieving credentials")
-
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	users, err := authService.GetUsersByAge(ctx)
-	if err != nil {
-		a.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-	if len(users) == 0 {
-		a.ui.Exclamation().Msg("no user account found")
-		return nil
-	}
-	user := users[0]
-
-	details.Info("retrieved credentials", "user", user.Username, "password", user.Password)
 	details.Info("retrieving server locations")
 
 	api, wss, err := getAPI(ctx, details)
@@ -99,8 +79,6 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 
 	details.Info("retrieved certs", "certs", certs)
 
-	a.Settings.User = user.Username
-	a.Settings.Password = user.Password
 	a.Settings.API = api
 	a.Settings.WSS = wss
 	a.Settings.Certs = certs
@@ -125,7 +103,7 @@ func (a *Admin) SettingsUpdate(ctx context.Context) error {
 }
 
 func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
-	// This is called only by the admin command `settings update`
+	// This is called only by the admin command `settings update-ca`
 	// which has to talk to the cluster to retrieve the
 	// information. This is allowed.
 
@@ -145,7 +123,7 @@ func getAPI(ctx context.Context, log logr.Logger) (string, string, error) {
 }
 
 func getCerts(ctx context.Context, log logr.Logger) (string, error) {
-	// This is called only by the admin command `settings update`
+	// This is called only by the admin command `settings update-ca`
 	// which has to talk to the cluster to retrieve the
 	// information. This is allowed.
 

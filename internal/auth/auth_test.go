@@ -70,69 +70,6 @@ var _ = Describe("Auth users", func() {
 		})
 	})
 
-	Describe("GetUsersByAge", func() {
-
-		When("kubernetes returns some user secrets", func() {
-			It("returns a list of users ordered by CreationTime", func() {
-				userSecrets := []corev1.Secret{
-					newUserSecret("user1", "password", "admin", ""),
-					newUserSecret("user2", "password", "user", "workspace\nworkspace2"),
-					newUserSecret("user3", "password", "admin", ""),
-					newUserSecret("user4", "password", "user", "workspace"),
-					newUserSecret("user5", "password", "admin", ""),
-					newUserSecret("user6", "password", "user", "workspace2"),
-				}
-
-				// shuffle secrets
-				for i := range userSecrets {
-					j := rand.Intn(i + 1)
-					userSecrets[i], userSecrets[j] = userSecrets[j], userSecrets[i]
-				}
-
-				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
-
-				users, err := authService.GetUsersByAge(context.Background())
-				Expect(err).ToNot(HaveOccurred())
-
-				for i := 0; i < len(userSecrets)-1; i++ {
-					Expect(users[i].CreatedAt).To(BeTemporally("<=", users[i+1].CreatedAt))
-				}
-			})
-		})
-
-		When("kubernetes returns some user secrets created at the same time", func() {
-			now := metav1.NewTime(time.Now())
-
-			It("returns a list of users ordered by Username", func() {
-				userSecrets := []corev1.Secret{
-					newUserSecret("user1", "password", "admin", ""),
-					newUserSecret("user2", "password", "user", "workspace\nworkspace2"),
-					newUserSecret("user3", "password", "admin", ""),
-					newUserSecret("user4", "password", "user", "workspace"),
-					newUserSecret("user5", "password", "admin", ""),
-					newUserSecret("user6", "password", "user", "workspace2"),
-				}
-
-				// shuffle secrets
-				for i := range userSecrets {
-					userSecrets[i].CreationTimestamp = now
-
-					j := rand.Intn(i + 1)
-					userSecrets[i], userSecrets[j] = userSecrets[j], userSecrets[i]
-				}
-
-				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
-
-				users, err := authService.GetUsersByAge(context.Background())
-				Expect(err).ToNot(HaveOccurred())
-
-				for i := 0; i < len(userSecrets)-1; i++ {
-					Expect(users[i].Username < users[i+1].Username).To(BeTrue())
-				}
-			})
-		})
-	})
-
 	Describe("AddNamespaceToUser", func() {
 
 		When("user doesn't have the namespace", func() {

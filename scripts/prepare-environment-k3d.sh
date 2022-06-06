@@ -33,6 +33,27 @@ function create_docker_pull_secret {
 	fi
 }
 
+function retry {
+  retry=0
+  maxRetries=$1
+  retryInterval=$2
+  local result
+  until [ ${retry} -ge ${maxRetries} ]
+  do
+    echo -n "."
+    result=$(eval "$3") && break
+    retry=$[${retry}+1]
+    sleep ${retryInterval}
+  done
+
+  if [ ${retry} -ge ${maxRetries} ]; then
+    echo "Failed to run "$3" after ${maxRetries} attempts!"
+    exit 1
+  fi
+
+  echo " ✔️"
+}
+
 # Ensure we have a value for --system-domain
 prepare_system_domain
 # Check Dependencies
@@ -68,25 +89,18 @@ if [ -n "$EPINIO_COVERAGE" ]; then
     { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
 fi
 
-"${EPINIO_BINARY}" settings update
-
 # Check Epinio Installation
-# Retry 5 times because sometimes it takes a while before epinio server
-# is ready after patching.
-retry=0
-maxRetries=5
-retryInterval=1
-until [ ${retry} -ge ${maxRetries} ]
-do
-	${EPINIO_BINARY} info && break
-	retry=$[${retry}+1]
-	echo "Retrying [${retry}/${maxRetries}] in ${retryInterval}(s) "
-	sleep ${retryInterval}
-done
+# Retry 5 times and sleep 1s because sometimes it takes a while before epinio server is ready
 
-if [ ${retry} -ge ${maxRetries} ]; then
-  echo "Failed to reach epinio endpoint after ${maxRetries} attempts!"
-  exit 1
-fi
+echo "-------------------------------------"
+echo -n "Trying to login"
+retry 5 1 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN"
+echo "-------------------------------------"
+echo -n "Trying to getting info"
+retry 5 1 "${EPINIO_BINARY} info"
+echo "-------------------------------------"
 
+${EPINIO_BINARY} info
+
+echo
 echo "Done preparing k3d environment!"

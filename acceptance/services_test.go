@@ -195,7 +195,7 @@ var _ = Describe("Services", func() {
 
 			// create temp settings that we can use to switch users
 			tmpSettingsPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
-			out, err := env.Epinio("", "settings", "update", "--settings-file", tmpSettingsPath)
+			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// create users with permissions in different namespaces

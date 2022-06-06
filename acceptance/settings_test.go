@@ -122,16 +122,16 @@ var _ = Describe("Settings", func() {
 		})
 	})
 
-	Describe("Update", func() {
+	Describe("UpdateCA", func() {
 		oldSettingsPath := testenv.EpinioYAML()
 
 		It("regenerates certs and credentials", func() {
 			// Get back the certs and credentials
 			// Note that `namespace`, as a purely local setting, is not restored
 
-			out, err := env.Epinio("", "settings", "update", "--settings-file", tmpSettingsPath)
+			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(ContainSubstring(`Updating the stored credentials`))
+			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
 
 			oldSettings, err := env.GetSettingsFrom(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
@@ -139,17 +139,15 @@ var _ = Describe("Settings", func() {
 			newSettings, err := env.GetSettingsFrom(tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
 
-			Expect(newSettings.User).To(Equal(oldSettings.User))
-			Expect(newSettings.Password).To(Equal(oldSettings.Password))
 			Expect(newSettings.API).To(Equal(oldSettings.API))
 			Expect(newSettings.WSS).To(Equal(oldSettings.WSS))
 			Expect(newSettings.Certs).To(Equal(oldSettings.Certs))
 		})
 
 		It("stores the password in base64", func() {
-			out, err := env.Epinio("", "settings", "update", "--settings-file", tmpSettingsPath)
+			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(ContainSubstring(`Updating the stored credentials`))
+			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
 
 			settings, err := env.GetSettingsFrom(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
