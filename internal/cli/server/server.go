@@ -129,7 +129,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// setup routes
 	apiv1.Routes.SetRoutes(apiv1.MakeRoutes()...)
 	apiv1.Routes.SetRoutes(apiv1.MakeNamespaceRoutes(namespaceController)...)
-	apiv1.Routes.SetRoutes(apiv1.MakeWsRoutes()...)
+	apiv1.WsRoutes.SetRoutes(apiv1.MakeWsRoutes()...)
 
 	// Register api routes
 	{

@@ -63,7 +63,7 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 	// we don't need the controllers in the CLI, but we just need the routes endpoints
 	apiv1.Routes.SetRoutes(apiv1.MakeRoutes()...)
 	apiv1.Routes.SetRoutes(apiv1.MakeNamespaceRoutes(nil)...)
-	apiv1.Routes.SetRoutes(apiv1.MakeWsRoutes()...)
+	apiv1.WsRoutes.SetRoutes(apiv1.MakeWsRoutes()...)
 
 	return &Client{
 		log:        log,
