@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/epinio/epinio/helpers/tracelog"
+	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/auth"
 	epiniosettings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/dex"
@@ -57,6 +58,12 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 	if settings.Certs != "" {
 		auth.ExtendLocalTrust(settings.Certs)
 	}
+
+	// init routes
+	// we don't need the controllers in the CLI, but we just need the routes endpoints
+	apiv1.Routes.SetRoutes(apiv1.MakeRoutes()...)
+	apiv1.Routes.SetRoutes(apiv1.MakeNamespaceRoutes(nil)...)
+	apiv1.Routes.SetRoutes(apiv1.MakeWsRoutes()...)
 
 	return &Client{
 		log:        log,
