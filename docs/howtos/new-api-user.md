@@ -7,7 +7,7 @@ of that type in the `epinio` namespace, can be used to authenticate with
 the Epinio API, as long as it has the following label:
 
 ```
-epinio.suse.org/api-user-credentials=true
+epinio.io/api-user-credentials=true
 ```
 
 The `epinio install` command creates a default user for you with auto-generated
@@ -34,7 +34,7 @@ stringData:
 kind: Secret
 metadata:
   labels:
-    epinio.suse.org/api-user-credentials: "true"
+    epinio.io/api-user-credentials: "true"
   name: fantastic-epinio-user
   namespace: epinio
 type: BasicAuth
