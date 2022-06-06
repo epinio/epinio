@@ -121,8 +121,10 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		return nil, errors.Wrap(err, "cannot create Kubernetes Client")
 	}
 
+	authService := auth.NewAuthService(cluster.Kubectl)
+
 	// create the needed controllers
-	namespaceController := namespace.NewController(namespaces.NewKubernetesService(cluster))
+	namespaceController := namespace.NewController(namespaces.NewKubernetesService(cluster), authService)
 
 	// setup routes
 	apiv1.Routes.SetRoutes(apiv1.MakeRoutes()...)

@@ -1,11 +1,7 @@
 package namespace
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/epinio/epinio/internal/api/v1/response"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -43,27 +39,12 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	err = addNamespaceToUser(ctx, namespaceName)
+	user := requestctx.User(ctx)
+	err = oc.authService.AddNamespaceToUser(ctx, user.Username, namespaceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	response.Created(c)
-	return nil
-}
-
-// addNamespaceToUser will add the namespace to the User namespaces
-func addNamespaceToUser(ctx context.Context, namespace string) error {
-	user := requestctx.User(ctx)
-
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return errors.Wrap(err, "error creating auth service")
-	}
-
-	err = authService.AddNamespaceToUser(ctx, user.Username, namespace)
-	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error adding namespace [%s] to user [%s]", namespace, user.Username))
-	}
 	return nil
 }
