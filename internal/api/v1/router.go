@@ -206,15 +206,28 @@ func MakeRoutes() []routes.Route {
 func MakeNamespaceRoutes(controller *namespace.Controller) []routes.Route {
 	routes := []routes.Route{}
 
-	// List, create, show and delete namespaces
-	routes = append(routes, get("Namespaces", "/namespaces", errorHandler(controller.Index)))
-	routes = append(routes, post("NamespaceCreate", "/namespaces", errorHandler(controller.Create)))
-	routes = append(routes, delete("NamespaceDelete", "/namespaces/:namespace", errorHandler(controller.Delete)))
-	routes = append(routes, get("NamespaceShow", "/namespaces/:namespace", errorHandler(controller.Show)))
+	if controller == nil {
+		// List, create, show and delete namespaces
+		routes = append(routes, get("Namespaces", "/namespaces", nil))
+		routes = append(routes, post("NamespaceCreate", "/namespaces", nil))
+		routes = append(routes, delete("NamespaceDelete", "/namespaces/:namespace", nil))
+		routes = append(routes, get("NamespaceShow", "/namespaces/:namespace", nil))
 
-	// Note, the second registration catches calls with an empty pattern!
-	routes = append(routes, get("NamespacesMatch", "/namespacematches/:pattern", errorHandler(controller.Match)))
-	routes = append(routes, get("NamespacesMatch0", "/namespacematches", errorHandler(controller.Match)))
+		// Note, the second registration catches calls with an empty pattern!
+		routes = append(routes, get("NamespacesMatch", "/namespacematches/:pattern", nil))
+		routes = append(routes, get("NamespacesMatch0", "/namespacematches", nil))
+
+	} else {
+		// List, create, show and delete namespaces
+		routes = append(routes, get("Namespaces", "/namespaces", errorHandler(controller.Index)))
+		routes = append(routes, post("NamespaceCreate", "/namespaces", errorHandler(controller.Create)))
+		routes = append(routes, delete("NamespaceDelete", "/namespaces/:namespace", errorHandler(controller.Delete)))
+		routes = append(routes, get("NamespaceShow", "/namespaces/:namespace", errorHandler(controller.Show)))
+
+		// Note, the second registration catches calls with an empty pattern!
+		routes = append(routes, get("NamespacesMatch", "/namespacematches/:pattern", errorHandler(controller.Match)))
+		routes = append(routes, get("NamespacesMatch0", "/namespacematches", errorHandler(controller.Match)))
+	}
 
 	return routes
 }

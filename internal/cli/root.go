@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes/config"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
+	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	settings "github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/version"
@@ -107,6 +108,12 @@ func init() {
 
 	// Hidden command providing developer tools
 	rootCmd.AddCommand(CmdDebug)
+
+	// init routes
+	// we don't need the controllers in the CLI, but we just need the routes endpoints
+	apiv1.Routes.SetRoutes(apiv1.MakeRoutes()...)
+	apiv1.Routes.SetRoutes(apiv1.MakeNamespaceRoutes(nil)...)
+	apiv1.Routes.SetRoutes(apiv1.MakeWsRoutes()...)
 }
 
 var cmdVersion = &cobra.Command{
