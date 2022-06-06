@@ -1830,8 +1830,9 @@ k8s.io/kubectl v0.0.0-20191219154910-1528d4eea6dd/go.mod h1:9ehGcuUGjXVZh0qbYSB0
 k8s.io/kubectl v0.24.0 h1:nA+WtMLVdXUs4wLogGd1mPTAesnLdBpCVgCmz3I7dXo=
 k8s.io/kubectl v0.24.0/go.mod h1:pdXkmCyHiRTqjYfyUJiXtbVNURhv0/Q1TyRhy2d5ic0=
 k8s.io/metrics v0.0.0-20191214191643-6b1944c9f765/go.mod h1:5V7rewilItwK0cz4nomU0b3XCcees2Ka5EBYWS1HBeM=
-k8s.io/metrics v0.24.0 h1:nsFLJBDgj+B8mXvVBWFxTZBRRDJ8uTdf4C/Gedjy9BA=
 k8s.io/metrics v0.24.0/go.mod h1:jrLlFGdKl3X+szubOXPG0Lf2aVxuV3QJcbsgVRAM6fI=
+k8s.io/metrics v0.24.1 h1:aHJbmVvftDdoDK2fZaHXMNr8pnXgtZ2n/1ogZFg/8RY=
+k8s.io/metrics v0.24.1/go.mod h1:vMs5xpcOyY9D+/XVwlaw8oUHYCo6JTGBCZfyXOOkAhE=
 k8s.io/utils v0.0.0-20190801114015-581e00157fb1/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
 k8s.io/utils v0.0.0-20191114184206-e782cd3c129f/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
 k8s.io/utils v0.0.0-20200324210504-a9aa75ae1b89/go.mod h1:sZAwmy6armz5eXlNoLmJcl4F1QuKu7sr+mFQ0byX7Ew=
