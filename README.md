@@ -78,7 +78,7 @@ Our [developer documentation](./docs) explains how to build and run Epinio from 
 
 ## Usage
 
-- [QuickStart](https://docs.epinio.io/tutorials/quickstart.html) - Tutorial on how to create a namespace and push an application.
+- [QuickStart](https://docs.epinio.io/tutorials/quickstart) - Tutorial on how to create a namespace and push an application.
 
 ## Buildpacks
 
