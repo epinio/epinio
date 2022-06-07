@@ -2,14 +2,6 @@ module github.com/epinio/epinio
 
 go 1.18
 
-replace github.com/containerd/containerd => github.com/containerd/containerd v1.5.11
-
-replace github.com/opencontainers/image-spec v1.0.1 => github.com/opencontainers/image-spec v1.0.2
-
-replace github.com/docker/distribution v2.7.1+incompatible => github.com/docker/distribution v2.8.1+incompatible
-
-replace github.com/opencontainers/runc v1.0.2 => github.com/opencontainers/runc v1.0.3
-
 require (
 	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
@@ -37,7 +29,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/onsi/ginkgo/v2 v2.1.4
 	github.com/onsi/gomega v1.19.0
-	github.com/panjf2000/ants/v2 v2.4.8
+	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.4.0
 	github.com/spf13/pflag v1.0.5
@@ -83,7 +75,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chai2010/gettext-go v0.0.0-20160711120539-c6fed771bfd5 // indirect
-	github.com/containerd/containerd v1.6.3 // indirect
+	github.com/containerd/containerd v1.6.6 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
