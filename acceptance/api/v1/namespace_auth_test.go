@@ -1,12 +1,14 @@
 package v1_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	api "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -28,8 +30,7 @@ var _ = Describe("Users Namespace", func() {
 		Expect(response.StatusCode).To(Equal(http.StatusCreated))
 	}
 
-	showNamespace := func(user, password, namespace string) *http.Response {
-		endpoint := fmt.Sprintf("%s%s/namespaces/%s", serverURL, api.Root, namespace)
+	namespaceRequest := func(user, password, endpoint string) *http.Response {
 		request, err = http.NewRequest(http.MethodGet, endpoint, nil)
 		Expect(err).ToNot(HaveOccurred())
 		request.SetBasicAuth(user, password)
@@ -38,6 +39,16 @@ var _ = Describe("Users Namespace", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		return response
+	}
+
+	showNamespace := func(user, password, namespace string) *http.Response {
+		endpoint := fmt.Sprintf("%s%s/namespaces/%s", serverURL, api.Root, namespace)
+		return namespaceRequest(user, password, endpoint)
+	}
+
+	listNamespaces := func(user, password string) *http.Response {
+		endpoint := fmt.Sprintf("%s%s/namespaces", serverURL, api.Root)
+		return namespaceRequest(user, password, endpoint)
 	}
 
 	Describe("having two user with 'user' role and an admin user", func() {
@@ -97,6 +108,21 @@ var _ = Describe("Users Namespace", func() {
 				})
 			})
 
+			When("user1 tries to list all the namespaces", func() {
+				It("list only the user1 namespace", func() {
+					response := listNamespaces(user1, passwordUser1)
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
+					defer response.Body.Close()
+
+					var namespaceList models.NamespaceList
+					err := json.NewDecoder(response.Body).Decode(&namespaceList)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(namespaceList).To(HaveLen(1))
+					Expect(namespaceList[0].Meta.Name).To(Equal(namespaceUser1))
+				})
+			})
+
 			When("an admin user tries to show a namespace", func() {
 				It("shows every namespace", func() {
 					response := showNamespace(userAdmin, passwordAdmin, namespaceUser1)
@@ -110,6 +136,30 @@ var _ = Describe("Users Namespace", func() {
 					response = showNamespace(userAdmin, passwordAdmin, namespaceAdmin)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
+				})
+			})
+
+			When("an admin user tries to list all the namespaces", func() {
+				It("list every namespace", func() {
+					response := listNamespaces(userAdmin, passwordAdmin)
+					Expect(response.StatusCode).To(Equal(http.StatusOK))
+					defer response.Body.Close()
+
+					var namespaceList models.NamespaceList
+					err := json.NewDecoder(response.Body).Decode(&namespaceList)
+					Expect(err).ToNot(HaveOccurred())
+
+					Expect(len(namespaceList)).To(BeNumerically(">=", 3))
+
+					// check that within the namespaces returned there are the one that we created
+					namespaceListMap := make(map[string]struct{})
+					for _, namespace := range namespaceList {
+						namespaceListMap[namespace.Meta.Name] = struct{}{}
+					}
+
+					Expect(namespaceListMap).To(HaveKey(namespaceUser1))
+					Expect(namespaceListMap).To(HaveKey(namespaceUser2))
+					Expect(namespaceListMap).To(HaveKey(namespaceAdmin))
 				})
 			})
 
