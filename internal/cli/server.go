@@ -17,11 +17,19 @@ import (
 	"github.com/epinio/epinio/internal/cli/server"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/sdk/resource"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
+
+const name = "epinio"
 
 func init() {
 	flags := CmdServer.Flags()
@@ -67,6 +75,19 @@ var CmdServer = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 		logger := tracelog.NewLogger().WithName("EpinioServer")
+
+		// otel
+		tp, err := tracerProvider("http://jaeger-collector.default.svc.cluster.local:14268/api/traces")
+		if err != nil {
+			return err
+		}
+		otel.SetTracerProvider(tp)
+
+		defer func() {
+			if err := tp.Shutdown(context.Background()); err != nil {
+				logger.Info(fmt.Sprintf("%-6s %s", err.Error(), "Error shutting down tracer"))
+			}
+		}()
 
 		handler, err := server.NewHandler(logger)
 		if err != nil {
@@ -126,4 +147,22 @@ func startServerGracefully(listener net.Listener, handler http.Handler) error {
 
 	log.Println("Server exiting")
 	return nil
+}
+
+func tracerProvider(url string) (*tracesdk.TracerProvider, error) {
+	// Create the Jaeger exporter
+	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(jaeger.WithEndpoint(url)))
+	if err != nil {
+		return nil, err
+	}
+	tp := tracesdk.NewTracerProvider(
+		// Always be sure to batch in production.
+		tracesdk.WithBatcher(exp),
+		tracesdk.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("epinio"),
+			attribute.String("version", version.Version),
+		)),
+	)
+	return tp, nil
 }

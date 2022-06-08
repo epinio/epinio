@@ -12,6 +12,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,6 +21,8 @@ import (
 // It creates a namespace with the specified name.
 func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("").Start(ctx, "NamespaceCreate")
+	defer span.End()
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -62,6 +65,9 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 // addNamespaceToUser will add the namespace to the User namespaces
 func addNamespaceToUser(ctx context.Context, namespace string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "addNamespaceToUser")
+	defer span.End()
+
 	user := requestctx.User(ctx)
 
 	authService, err := auth.NewAuthServiceFromContext(ctx)

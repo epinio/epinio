@@ -9,6 +9,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,6 +26,9 @@ func (n Namespace) Namespace() string {
 }
 
 func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "namespaces.List")
+	defer span.End()
+
 	listOptions := metav1.ListOptions{
 		LabelSelector: kubernetes.EpinioNamespaceLabelKey + "=" + kubernetes.EpinioNamespaceLabelValue,
 	}
@@ -48,6 +52,9 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, err
 // Exists checks if the named epinio-controlled namespace exists or
 // not, and returns an appropriate boolean flag
 func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace string) (bool, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "namespaces.Exists")
+	defer span.End()
+
 	namespaces, err := List(ctx, kubeClient)
 	if err != nil {
 		return false, err
@@ -63,6 +70,9 @@ func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace
 
 // Get returns the meta data of  the named epinio-controlled namespace
 func Get(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace string) (*Namespace, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "namespaces.Get")
+	defer span.End()
+
 	namespaces, err := List(ctx, kubeClient)
 	if err != nil {
 		return nil, err
@@ -79,6 +89,9 @@ func Get(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace st
 // Create generates a new epinio-controlled namespace, i.e. a kube
 // namespace plus a configuration account.
 func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "namespaces.Create")
+	defer span.End()
+
 	if _, err := kubeClient.Kubectl.CoreV1().Namespaces().Create(
 		ctx,
 		&corev1.Namespace{
@@ -115,6 +128,9 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 // Delete destroys an epinio-controlled namespace, i.e. the associated
 // kube namespace and configuration account.
 func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, namespace string) error {
+	ctx, span := otel.Tracer("").Start(ctx, "namespaces.Delete")
+	defer span.End()
+
 	err := kubeClient.Kubectl.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
 	if err != nil {
 		return err

@@ -17,6 +17,8 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/alron/ginlogr"
@@ -29,6 +31,10 @@ import (
 	"github.com/mattn/go-colorable"
 	"github.com/spf13/viper"
 )
+
+type responseWriter struct {
+	gin.ResponseWriter
+}
 
 // NewHandler creates and setup the gin router
 func NewHandler(logger logr.Logger) (*gin.Engine, error) {
@@ -45,6 +51,26 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// | /namespaces/target/:namespace | ditto      | ditto
 
 	router := gin.New()
+
+	router.Use(func(c *gin.Context) {
+		rootSpanName := fmt.Sprintf("%s %s", c.Request.Method, c.FullPath())
+		ctx, span := otel.Tracer("").Start(c.Request.Context(), rootSpanName)
+		c.Request = c.Request.Clone(ctx)
+
+		blw := &responseWriter{ResponseWriter: c.Writer}
+		c.Writer = blw
+
+		c.Next()
+
+		defer func() {
+			span.SetAttributes([]attribute.KeyValue{
+				attribute.Key("http.status_code").Int(blw.Status()),
+			}...)
+
+			span.End()
+		}()
+	})
+
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(func(ctx *gin.Context) {
 		response.Error(ctx, apierrors.NewAPIError("Method not allowed", "", http.StatusMethodNotAllowed))
@@ -144,20 +170,22 @@ func initContextMiddleware(logger logr.Logger) gin.HandlerFunc {
 
 // authMiddleware authenticates the user either using the session or if one
 // doesn't exist, it authenticates with basic auth.
-func authMiddleware(ctx *gin.Context) {
-	reqCtx := ctx.Request.Context()
-	logger := requestctx.Logger(reqCtx).WithName("AuthMiddleware")
+func authMiddleware(c *gin.Context) {
+	ctx, span := otel.Tracer("").Start(c.Request.Context(), "authMiddleware")
+	defer span.End()
+
+	logger := requestctx.Logger(ctx).WithName("AuthMiddleware")
 
 	userMap, err := loadUsersMap(ctx)
 	if err != nil {
-		response.Error(ctx, apierrors.InternalError(err))
-		ctx.Abort()
+		response.Error(c, apierrors.InternalError(err))
+		c.Abort()
 		return
 	}
 
 	if len(userMap) == 0 {
-		response.Error(ctx, apierrors.NewAPIError("no user found", "", http.StatusUnauthorized))
-		ctx.Abort()
+		response.Error(c, apierrors.NewAPIError("no user found", "", http.StatusUnauthorized))
+		c.Abort()
 		return
 	}
 
@@ -165,15 +193,15 @@ func authMiddleware(ctx *gin.Context) {
 	// This is also added to the context for controllers to use.
 	var user auth.User
 
-	session := sessions.Default(ctx)
+	session := sessions.Default(c)
 	sessionUser := session.Get("user")
 	if sessionUser != nil {
 		logger.V(1).Info("Session authentication")
 
 		userInSession, ok := sessionUser.(auth.User)
 		if !ok {
-			response.Error(ctx, apierrors.NewInternalError("Couldn't parse user from session"))
-			ctx.Abort()
+			response.Error(c, apierrors.NewInternalError("Couldn't parse user from session"))
+			c.Abort()
 			return
 		}
 
@@ -185,13 +213,13 @@ func authMiddleware(ctx *gin.Context) {
 			session.Options(sessions.Options{MaxAge: -1})
 
 			if err := session.Save(); err != nil {
-				response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
-				ctx.Abort()
+				response.Error(c, apierrors.NewInternalError("Couldn't save the session"))
+				c.Abort()
 				return
 			}
 
-			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
-			ctx.Abort()
+			response.Error(c, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
+			c.Abort()
 			return
 		}
 
@@ -202,24 +230,24 @@ func authMiddleware(ctx *gin.Context) {
 		logger.V(1).Info("Basic auth authentication")
 
 		// we need this check to return a 401 instead of an error
-		auth := ctx.Request.Header.Get("Authorization")
+		auth := c.Request.Header.Get("Authorization")
 		if auth == "" {
-			response.Error(ctx, apierrors.NewAPIError("missing credentials", "", http.StatusUnauthorized))
-			ctx.Abort()
+			response.Error(c, apierrors.NewAPIError("missing credentials", "", http.StatusUnauthorized))
+			c.Abort()
 			return
 		}
 
-		username, password, ok := ctx.Request.BasicAuth()
+		username, password, ok := c.Request.BasicAuth()
 		if !ok {
-			response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
-			ctx.Abort()
+			response.Error(c, apierrors.NewInternalError("Couldn't extract user from the auth header"))
+			c.Abort()
 			return
 		}
 
 		err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
 		if err != nil {
-			response.Error(ctx, apierrors.NewAPIError("wrong password", "", http.StatusUnauthorized))
-			ctx.Abort()
+			response.Error(c, apierrors.NewAPIError("wrong password", "", http.StatusUnauthorized))
+			c.Abort()
 			return
 		}
 
@@ -228,9 +256,8 @@ func authMiddleware(ctx *gin.Context) {
 
 	// Write the user info in the context. It's needed by the next middleware
 	// to write it into the session.
-	newCtx := ctx.Request.Context()
-	newCtx = requestctx.WithUser(newCtx, user)
-	ctx.Request = ctx.Request.Clone(newCtx)
+	ctx = requestctx.WithUser(ctx, user)
+	c.Request = c.Request.Clone(ctx)
 }
 
 func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
