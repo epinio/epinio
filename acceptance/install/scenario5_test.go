@@ -124,10 +124,11 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
 
-		By("Updating Epinio settings", func() {
-			out, err := epinioHelper.Run("settings", "update")
-			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Ok"))
+		By("Connecting to Epinio", func() {
+			Eventually(func() string {
+				out, _ := epinioHelper.Run("login", "-u", "admin", "-p", "password", "--trust-ca", "https://epinio."+domain)
+				return out
+			}, "2m", "5s").Should(ContainSubstring("Login successful"))
 		})
 
 		By("Checking Epinio info command", func() {
