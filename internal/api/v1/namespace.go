@@ -9,13 +9,17 @@ import (
 	"github.com/epinio/epinio/internal/namespaces"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+	"go.opentelemetry.io/otel"
 )
 
 // NamespaceMiddleware is a gin middleware used to check if a namespaced route is valid.
 // It checks the validity of the requested namespace, returning a 404 if it doesn't exists
 func NamespaceMiddleware(c *gin.Context) {
-	logger := requestctx.Logger(c.Request.Context()).WithName("NamespaceMiddleware")
 	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("").Start(ctx, "NamespaceMiddleware")
+	defer span.End()
+
+	logger := requestctx.Logger(ctx).WithName("NamespaceMiddleware")
 
 	namespace := c.Param("namespace")
 	if namespace == "" {

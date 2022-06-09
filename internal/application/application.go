@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/internal/s3manager"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/pkg/errors"
+	"go.opentelemetry.io/otel"
 
 	epinioappv1 "github.com/epinio/application/api/v1"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
@@ -167,6 +168,9 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName
 // namespace. If no namespace is specified (empty string) then apps across all namespaces are
 // returned.
 func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]models.AppRef, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "application.ListAppRefs")
+	defer span.End()
+
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return nil, err

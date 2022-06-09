@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -13,6 +14,7 @@ import (
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"go.opentelemetry.io/otel"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,7 +24,9 @@ import (
 // An Epinio namespace is nothing but a kubernetes namespace which has a
 // special Label (Look at the code to see which).
 func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
-	ctx := c.Request.Context()
+	ctx, span := otel.Tracer("").Start(c.Request.Context(), "Controller.Index")
+	defer span.End()
+
 	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -36,8 +40,14 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	}
 	namespaceList = auth.FilterResources(user, namespaceList)
 
+	ctx, loopSpan := otel.Tracer("").Start(ctx, "Controller.Index.namespaceList")
+	loopSpan.AddEvent(fmt.Sprintf("looping namespace list [%d]", len(namespaceList)))
+
 	namespaces := make(models.NamespaceList, 0, len(namespaceList))
 	for _, namespace := range namespaceList {
+		ctx, insideLoopSpan := otel.Tracer("").Start(ctx, "Controller.Index.namespaceListInside")
+		insideLoopSpan.AddEvent(fmt.Sprintf("namespace [%s]", namespace.Name))
+
 		appNames, err := namespaceApps(ctx, cluster, namespace.Name)
 		if err != nil {
 			return apierror.InternalError(err)
@@ -60,13 +70,19 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 			Apps:           appNames,
 			Configurations: configurationNames,
 		})
+
+		insideLoopSpan.End()
 	}
+	loopSpan.End()
 
 	response.OKReturn(c, namespaces)
 	return nil
 }
 
 func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "namespaceApps")
+	defer span.End()
+
 	// Retrieve app references for namespace, and reduce to their names.
 	appRefs, err := application.ListAppRefs(ctx, cluster, namespace)
 	if err != nil {
@@ -81,6 +97,9 @@ func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, namespace s
 }
 
 func namespaceConfigurations(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "namespaceConfigurations")
+	defer span.End()
+
 	// Retrieve configurations for namespace, and reduce to their names.
 	configurations, err := configurations.List(ctx, cluster, namespace)
 	if err != nil {

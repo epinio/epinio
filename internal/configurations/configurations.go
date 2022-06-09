@@ -18,6 +18,8 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
 
@@ -69,6 +71,10 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 // List returns a ConfigurationList of all available Configurations in the specified namespace. If no namespace is
 // specified (empty string) then configurations across all namespaces are returned.
 func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (ConfigurationList, error) {
+	ctx, span := otel.Tracer("").Start(ctx, "configurations.List")
+	defer span.End()
+	span.SetAttributes(attribute.String("namespace", namespace))
+
 	// Verify namespace, if specified
 	if namespace != "" {
 		exists, err := namespaces.Exists(ctx, cluster, namespace)
@@ -82,6 +88,8 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 		}
 	}
 
+	ctx, getSecretsSpan := otel.Tracer("").Start(ctx, "configurations.List.getSecrets")
+
 	secretSelector := labels.Set(map[string]string{
 		ConfigurationLabelKey: "true",
 	}).AsSelector()
@@ -92,6 +100,8 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 	if err != nil {
 		return nil, err
 	}
+
+	getSecretsSpan.End()
 
 	result := ConfigurationList{}
 
