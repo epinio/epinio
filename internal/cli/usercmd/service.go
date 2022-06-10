@@ -115,6 +115,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		WithTableRow("Name", service.Meta.Name).
 		WithTableRow("Created", service.Meta.CreatedAt.String()).
 		WithTableRow("Catalog Service", service.CatalogService).
+		WithTableRow("Version", service.CatalogServiceVersion).
 		WithTableRow("Status", service.Status.String()).
 		WithTableRow("Used-By", strings.Join(boundApps, ", ")).
 		Msg("Details:")
@@ -245,12 +246,13 @@ func (c *EpinioClient) ServiceList() error {
 
 	sort.Sort(services)
 
-	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Status", "Applications")
+	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Version", "Status", "Applications")
 	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Name,
 			service.Meta.CreatedAt.String(),
 			service.CatalogService,
+			service.CatalogServiceVersion,
 			service.Status.String(),
 			strings.Join(service.BoundApps, ", "),
 		)
@@ -280,13 +282,14 @@ func (c *EpinioClient) ServiceListAll() error {
 
 	sort.Sort(services)
 
-	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Status", "Application")
+	msg := c.ui.Success().WithTable("Namespace", "Name", "Created", "Catalog Service", "Version", "Status", "Application")
 	for _, service := range services {
 		msg = msg.WithTableRow(
 			service.Meta.Namespace,
 			service.Meta.Name,
 			service.Meta.CreatedAt.String(),
 			service.CatalogService,
+			service.CatalogServiceVersion,
 			service.Status.String(),
 			strings.Join(service.BoundApps, ", "),
 		)
