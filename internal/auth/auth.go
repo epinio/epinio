@@ -23,13 +23,10 @@ var (
 	ErrUserNotFound = errors.New("user not found")
 )
 
-//counterfeiter:generate . SecretInterface
-type SecretInterface interface {
-	typedcorev1.SecretInterface
-}
+//counterfeiter:generate k8s.io/client-go/kubernetes/typed/core/v1.SecretInterface
 
 type AuthService struct {
-	SecretInterface
+	typedcorev1.SecretInterface
 }
 
 func NewAuthServiceFromContext(ctx context.Context) (*AuthService, error) {
