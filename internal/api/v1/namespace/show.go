@@ -1,8 +1,12 @@
 package namespace
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -45,4 +49,32 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		Configurations: configurationNames,
 	})
 	return nil
+}
+
+func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
+	// Retrieve app references for namespace, and reduce to their names.
+	appRefs, err := application.ListAppRefs(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+	appNames := make([]string, 0, len(appRefs))
+	for _, app := range appRefs {
+		appNames = append(appNames, app.Name)
+	}
+
+	return appNames, nil
+}
+
+func namespaceConfigurations(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
+	// Retrieve configurations for namespace, and reduce to their names.
+	configurations, err := configurations.List(ctx, cluster, namespace)
+	if err != nil {
+		return nil, err
+	}
+	configurationNames := make([]string, 0, len(configurations))
+	for _, configuration := range configurations {
+		configurationNames = append(configurationNames, configuration.Name)
+	}
+
+	return configurationNames, nil
 }
