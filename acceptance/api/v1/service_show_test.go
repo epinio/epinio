@@ -32,7 +32,8 @@ var _ = Describe("ServiceShow Endpoint", func() {
 			Meta: models.MetaLite{
 				Name: catalog.NewCatalogServiceName(),
 			},
-			HelmChart: "nginx",
+			AppVersion: "1.2.3",
+			HelmChart:  "nginx",
 			HelmRepo: models.HelmRepo{
 				Name: "",
 				URL:  "https://charts.bitnami.com/bitnami",
@@ -77,6 +78,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 					},
 					Spec: helmapiv1.HelmChartSpec{
 						TargetNamespace: namespace,
+						ValuesContent:   catalogService.Values,
 						Chart:           catalogService.HelmChart,
 						Repo:            catalogService.HelmRepo.URL,
 					},
@@ -111,8 +113,10 @@ var _ = Describe("ServiceShow Endpoint", func() {
 						Name:      names.ServiceHelmChartName(serviceName, namespace),
 						Namespace: "epinio",
 						Labels: map[string]string{
-							services.CatalogServiceLabelKey:  catalogService.Meta.Name,
-							services.TargetNamespaceLabelKey: namespace,
+							services.CatalogServiceLabelKey:        catalogService.Meta.Name,
+							services.TargetNamespaceLabelKey:       namespace,
+							services.CatalogServiceVersionLabelKey: catalogService.AppVersion,
+							services.ServiceNameLabelKey:           serviceName,
 						},
 					},
 					Spec: helmapiv1.HelmChartSpec{
@@ -136,26 +140,31 @@ var _ = Describe("ServiceShow Endpoint", func() {
 				})
 
 				It("returns the service with status Ready", func() {
+					var showResponse models.Service
+
 					Eventually(func() models.ServiceStatus {
 						endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceName)
 						response, err := env.Curl("GET", endpoint, strings.NewReader(""))
 						Expect(err).ToNot(HaveOccurred())
 
-						Expect(response.StatusCode).To(
-							Equal(http.StatusOK),
-							fmt.Sprintf("respose status was %d, not 200", response.StatusCode),
-						)
+						if response.StatusCode == http.StatusNotFound {
+							return models.ServiceStatus(
+								fmt.Sprintf("respose status was %d, not 200", response.StatusCode))
+						}
 
 						respBody, err := ioutil.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
 
-						var showResponse models.Service
 						err = json.Unmarshal(respBody, &showResponse)
 						Expect(err).ToNot(HaveOccurred())
 						Expect(showResponse).ToNot(BeNil())
 
 						return showResponse.Status
 					}, "1m", "5s").Should(Equal(models.ServiceStatusDeployed))
+
+					By("checking the catalog fields")
+					Expect(showResponse.CatalogService).To(Equal(catalogService.Meta.Name))
+					Expect(showResponse.CatalogServiceVersion).To(Equal(catalogService.AppVersion))
 				})
 			})
 

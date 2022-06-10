@@ -324,10 +324,11 @@ type ServiceShowRequest struct {
 }
 
 type Service struct {
-	Meta           Meta          `json:"meta,omitempty"`
-	CatalogService string        `json:"catalog_service,omitempty"`
-	Status         ServiceStatus `json:"status,omitempty"`
-	BoundApps      []string      `json:"boundapps"`
+	Meta                  Meta          `json:"meta,omitempty"`
+	CatalogService        string        `json:"catalog_service,omitempty"`
+	CatalogServiceVersion string        `json:"catalog_service_version,omitempty"`
+	Status                ServiceStatus `json:"status,omitempty"`
+	BoundApps             []string      `json:"boundapps"`
 }
 
 func (s Service) Namespace() string {

@@ -115,8 +115,10 @@ func CreateService(name, namespace string, catalogService models.CatalogService)
 			Name:      names.ServiceHelmChartName(name, namespace),
 			Namespace: "epinio",
 			Labels: map[string]string{
-				services.CatalogServiceLabelKey:  catalogService.Meta.Name,
-				services.TargetNamespaceLabelKey: namespace,
+				services.CatalogServiceLabelKey:        catalogService.Meta.Name,
+				services.TargetNamespaceLabelKey:       namespace,
+				services.CatalogServiceVersionLabelKey: catalogService.AppVersion,
+				services.ServiceNameLabelKey:           name,
 			},
 		},
 		Spec: helmapiv1.HelmChartSpec{

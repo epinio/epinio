@@ -34,11 +34,12 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	}
 
 	catalogServiceName, found := srv.GetLabels()[CatalogServiceLabelKey]
-
 	// Helmchart is not labeled, act as if service is "not found"
 	if !found {
 		return nil, nil
 	}
+
+	catalogServiceVersion := srv.GetLabels()[CatalogServiceVersionLabelKey]
 
 	var catalogServicePrefix string
 	_, err = s.GetCatalogService(ctx, catalogServiceName)
@@ -64,7 +65,8 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 			Namespace: targetNamespace,
 			CreatedAt: srv.GetCreationTimestamp(),
 		},
-		CatalogService: fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
+		CatalogService:        fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
+		CatalogServiceVersion: catalogServiceVersion,
 	}
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
@@ -93,9 +95,10 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Name:      names.ServiceHelmChartName(name, namespace),
 			Namespace: helmchart.Namespace(),
 			Labels: map[string]string{
-				CatalogServiceLabelKey:  catalogService.Meta.Name,
-				TargetNamespaceLabelKey: namespace,
-				ServiceNameLabelKey:     name,
+				CatalogServiceLabelKey:        catalogService.Meta.Name,
+				CatalogServiceVersionLabelKey: catalogService.AppVersion,
+				TargetNamespaceLabelKey:       namespace,
+				ServiceNameLabelKey:           name,
 			},
 		},
 		Spec: helmapiv1.HelmChartSpec{

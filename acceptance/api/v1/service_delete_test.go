@@ -97,6 +97,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 						},
 						Spec: helmapiv1.HelmChartSpec{
 							TargetNamespace: namespace,
+							ValuesContent:   catalogService.Values,
 							Chart:           catalogService.HelmChart,
 							Repo:            catalogService.HelmRepo.URL,
 						},

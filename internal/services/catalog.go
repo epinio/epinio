@@ -16,8 +16,9 @@ import (
 const (
 	// Only Helmcharts with this label are considered Epinio "Services".
 	// Used to filter out Helmcharts created by other means (manually, k3s etc).
-	CatalogServiceLabelKey  = "application.epinio.io/catalog-service-name"
-	TargetNamespaceLabelKey = "application.epinio.io/target-namespace"
+	CatalogServiceLabelKey        = "application.epinio.io/catalog-service-name"
+	CatalogServiceVersionLabelKey = "application.epinio.io/catalog-service-version"
+	TargetNamespaceLabelKey       = "application.epinio.io/target-namespace"
 	// ServiceNameLabelKey is used to keep the original name
 	// since the name in the metadata is combined with the namespace
 	ServiceNameLabelKey = "application.epinio.io/service-name"
