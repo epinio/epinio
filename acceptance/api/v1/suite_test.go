@@ -96,6 +96,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	serverURL = "https://" + out
 	websocketURL = "wss://" + out
+
+	// setup routes
+	v1.Routes.SetRoutes(v1.MakeRoutes()...)
+	v1.Routes.SetRoutes(v1.MakeNamespaceRoutes(nil)...)
+	v1.WsRoutes.SetRoutes(v1.MakeWsRoutes()...)
 })
 
 var _ = AfterSuite(func() {
