@@ -49,9 +49,15 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, err
 // not, and returns an appropriate boolean flag
 func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace string) (bool, error) {
 	ns, err := kubeClient.Kubectl.CoreV1().Namespaces().Get(ctx, lookupNamespace, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
 
 	exists := ns != nil
-	return exists, err
+	return exists, nil
 }
 
 // Get returns the meta data of  the named epinio-controlled namespace
