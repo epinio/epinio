@@ -58,8 +58,8 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 	})
 
 	AfterEach(func() {
-		out, err := epinioHelper.Uninstall()
-		Expect(err).NotTo(HaveOccurred(), out)
+		//out, err := epinioHelper.Uninstall()
+		//Expect(err).NotTo(HaveOccurred(), out)
 	})
 
 	It("Installs with loadbalancer IP, custom domain and pushes an app with env vars", func() {
@@ -120,12 +120,13 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			out, err = testenv.PatchEpinio()
 			Expect(err).ToNot(HaveOccurred(), out)
 		})
+		time.Sleep(5 * time.Minute)
 
 		By("Connecting to Epinio", func() {
 			Eventually(func() string {
 				out, _ := epinioHelper.Run("login", "-u", "admin", "-p", "password", "--trust-ca", "https://epinio."+domain)
 				return out
-			}, "2m", "5s").Should(ContainSubstring("Login successful"))
+			}, "5m", "5s").Should(ContainSubstring("Login successful"))
 		})
 
 		By("Checking Epinio info command", func() {
