@@ -213,7 +213,8 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 				Namespace: srv.GetLabels()[TargetNamespaceLabelKey],
 				CreatedAt: srv.GetCreationTimestamp(),
 			},
-			CatalogService: catalogServiceName,
+			CatalogService:        catalogServiceName,
+			CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
 		}
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")
