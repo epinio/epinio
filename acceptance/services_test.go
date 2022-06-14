@@ -14,6 +14,8 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+const mysqlVersion = "8.0.29" // Doesn't change too often
+
 var _ = Describe("Services", func() {
 	var catalogService models.CatalogService
 
@@ -116,6 +118,46 @@ var _ = Describe("Services", func() {
 
 	}
 
+	Describe("Show", func() {
+		var namespace, service string
+
+		BeforeEach(func() {
+			namespace = catalog.NewNamespaceName()
+			env.SetupAndTargetNamespace(namespace)
+
+			service = catalog.NewServiceName()
+
+			By("create it")
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
+			Expect(err).ToNot(HaveOccurred(), out)
+		})
+
+		AfterEach(func() {
+			By("delete it")
+			deleteServiceFromNamespace(namespace, service)
+			env.DeleteNamespace(namespace)
+		})
+
+		It("shows a service", func() {
+			By("show it")
+			Eventually(func() string {
+				out, err := env.Epinio("", "service", "show", service)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Showing Service"))
+
+				return out
+			}, "2m", "5s").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", service),
+					WithRow("Catalog Service", catalogService.Meta.Name),
+					WithRow("Version", catalogService.AppVersion),
+					WithRow("Status", "deployed"),
+				),
+			)
+		})
+	})
+
 	Describe("List", func() {
 		var namespace, service string
 
@@ -146,8 +188,8 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), catalogService.Meta.Name, "(not-ready|deployed)", ""),
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
 				),
 			)
 
@@ -157,8 +199,8 @@ var _ = Describe("Services", func() {
 				return out
 			}, "2m", "5s").Should(
 				HaveATable(
-					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), catalogService.Meta.Name, "deployed", ""),
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
 				),
 			)
 
@@ -240,9 +282,9 @@ var _ = Describe("Services", func() {
 
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "(not-ready|deployed)", ""),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "(not-ready|deployed)", ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
 				),
 			)
 
@@ -252,8 +294,8 @@ var _ = Describe("Services", func() {
 				return out
 			}, "2m", "5s").Should(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "deployed", ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
 				),
 			)
 
@@ -265,8 +307,8 @@ var _ = Describe("Services", func() {
 				return out
 			}, "2m", "5s").Should(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "deployed", ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
 				),
 			)
 
@@ -300,14 +342,14 @@ var _ = Describe("Services", func() {
 
 			Expect(out).NotTo(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, "(not-ready|deployed)", ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
 				),
 			)
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "(not-ready|deployed)", ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "(not-ready|deployed)", ""),
 				),
 			)
 
@@ -317,8 +359,8 @@ var _ = Describe("Services", func() {
 				return out
 			}, "2m", "5s").Should(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, "deployed", ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
 				),
 			)
 
@@ -616,8 +658,8 @@ var _ = Describe("Services", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), "mysql-dev", "(not-ready|deployed)", app),
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", app),
 				),
 			)
 
@@ -626,8 +668,8 @@ var _ = Describe("Services", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace, service, WithDate(), "mysql-dev", "(not-ready|deployed)", app),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace, service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", app),
 				),
 			)
 		})
@@ -724,8 +766,8 @@ var _ = Describe("Services", func() {
 			Expect(out).ToNot(HaveATable(WithRow(service, WithDate(), "mysql-dev", ".*", app)))
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATIONS"),
-					WithRow(service, WithDate(), "mysql-dev", "(not-ready|deployed)", ""),
+					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
+					WithRow(service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", ""),
 				),
 			)
 
@@ -734,8 +776,8 @@ var _ = Describe("Services", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "STATUS", "APPLICATION"),
-					WithRow(namespace, service, WithDate(), "mysql-dev", "(not-ready|deployed)", ""),
+					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
+					WithRow(namespace, service, WithDate(), "mysql-dev", mysqlVersion, "(not-ready|deployed)", ""),
 				),
 			)
 		})
