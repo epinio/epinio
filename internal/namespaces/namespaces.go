@@ -48,16 +48,17 @@ func List(ctx context.Context, kubeClient *kubernetes.Cluster) ([]Namespace, err
 // Exists checks if the named epinio-controlled namespace exists or
 // not, and returns an appropriate boolean flag
 func Exists(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace string) (bool, error) {
-	ns, err := kubeClient.Kubectl.CoreV1().Namespaces().Get(ctx, lookupNamespace, metav1.GetOptions{})
+	namespaces, err := List(ctx, kubeClient)
 	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return false, nil
-		}
 		return false, err
 	}
+	for _, namespace := range namespaces {
+		if namespace.Name == lookupNamespace {
+			return true, nil
+		}
+	}
 
-	exists := ns != nil
-	return exists, nil
+	return false, nil
 }
 
 // Get returns the meta data of  the named epinio-controlled namespace
@@ -76,7 +77,7 @@ func Get(ctx context.Context, kubeClient *kubernetes.Cluster, lookupNamespace st
 }
 
 // Create generates a new epinio-controlled namespace, i.e. a kube
-// namespace plus a configuration account.
+// namespace plus a service account.
 func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace string) error {
 	if _, err := kubeClient.Kubectl.CoreV1().Namespaces().Create(
 		ctx,
@@ -101,7 +102,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 	}
 
 	if err := createServiceAccount(ctx, kubeClient, namespace); err != nil {
-		return errors.Wrap(err, "failed to create a configuration account for apps")
+		return errors.Wrap(err, "failed to create a service account for apps")
 	}
 
 	if _, err := kubeClient.WaitForSecret(ctx, namespace, "registry-creds", duration.ToSecretCopied()); err != nil {
@@ -112,7 +113,7 @@ func Create(ctx context.Context, kubeClient *kubernetes.Cluster, namespace strin
 }
 
 // Delete destroys an epinio-controlled namespace, i.e. the associated
-// kube namespace and configuration account.
+// kube namespace and service account.
 func Delete(ctx context.Context, kubeClient *kubernetes.Cluster, namespace string) error {
 	err := kubeClient.Kubectl.CoreV1().Namespaces().Delete(ctx, namespace, metav1.DeleteOptions{})
 	if err != nil {
