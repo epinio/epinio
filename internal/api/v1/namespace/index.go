@@ -9,7 +9,6 @@ import (
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
-	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -36,29 +35,25 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	}
 	namespaceList = auth.FilterResources(user, namespaceList)
 
+	appNamesMap, err := getAppNamesByNamespaceMap(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	configNamesMap, err := getConfigurationNamesByNamespaceMap(ctx, cluster)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	namespaces := make(models.NamespaceList, 0, len(namespaceList))
 	for _, namespace := range namespaceList {
-		appNames, err := namespaceApps(ctx, cluster, namespace.Name)
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-
-		configurationNames, err := namespaceConfigurations(ctx, cluster, namespace.Name)
-		// Ignore namespace if deleted mid-flight
-		if _, ok := err.(epinioerrors.NamespaceMissingError); ok {
-			continue
-		}
-		if err != nil {
-			return apierror.InternalError(err)
-		}
-
 		namespaces = append(namespaces, models.Namespace{
 			Meta: models.MetaLite{
 				Name:      namespace.Name,
 				CreatedAt: namespace.CreatedAt,
 			},
-			Apps:           appNames,
-			Configurations: configurationNames,
+			Apps:           appNamesMap[namespace.Name],
+			Configurations: configNamesMap[namespace.Name],
 		})
 	}
 
@@ -66,30 +61,40 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func namespaceApps(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
-	// Retrieve app references for namespace, and reduce to their names.
-	appRefs, err := application.ListAppRefs(ctx, cluster, namespace)
+func getAppNamesByNamespaceMap(ctx context.Context, cluster *kubernetes.Cluster) (map[string][]string, error) {
+	// Retrieve app references for all namespaces, and map their name by namespace
+	allAppNamesMap := make(map[string][]string)
+
+	allAppsRefs, err := application.ListAppRefs(ctx, cluster, "")
 	if err != nil {
 		return nil, err
 	}
-	appNames := make([]string, 0, len(appRefs))
-	for _, app := range appRefs {
-		appNames = append(appNames, app.Name)
+
+	for _, appRef := range allAppsRefs {
+		if _, ok := allAppNamesMap[appRef.Namespace]; !ok {
+			allAppNamesMap[appRef.Namespace] = make([]string, 0)
+		}
+		allAppNamesMap[appRef.Namespace] = append(allAppNamesMap[appRef.Namespace], appRef.Name)
 	}
 
-	return appNames, nil
+	return allAppNamesMap, nil
 }
 
-func namespaceConfigurations(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]string, error) {
-	// Retrieve configurations for namespace, and reduce to their names.
-	configurations, err := configurations.List(ctx, cluster, namespace)
+func getConfigurationNamesByNamespaceMap(ctx context.Context, cluster *kubernetes.Cluster) (map[string][]string, error) {
+	configurationNamesMap := make(map[string][]string)
+
+	// Retrieve configurations for all namespaces, and map their name by namespace
+	allConfigs, err := configurations.List(ctx, cluster, "")
 	if err != nil {
 		return nil, err
 	}
-	configurationNames := make([]string, 0, len(configurations))
-	for _, configuration := range configurations {
-		configurationNames = append(configurationNames, configuration.Name)
+
+	for _, config := range allConfigs {
+		if _, ok := configurationNamesMap[config.Namespace()]; !ok {
+			configurationNamesMap[config.Namespace()] = make([]string, 0)
+		}
+		configurationNamesMap[config.Namespace()] = append(configurationNamesMap[config.Namespace()], config.Name)
 	}
 
-	return configurationNames, nil
+	return configurationNamesMap, nil
 }
