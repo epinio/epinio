@@ -39,7 +39,7 @@ template: |
 
   # Usage
 
-  More info can be found in the [installation instructions](https://docs.epinio.io/installation).
+  More info can be found in the [installation instructions](https://docs.epinio.io/installation/install_epinio).
 
 version-resolver:
   major:
