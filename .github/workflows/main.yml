@@ -41,19 +41,6 @@ jobs:
       - name: Setup Ginkgo Test Framework
         run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
 
-      - name: Cache Tools
-        uses: actions/cache@v3.0.2
-        with:
-          path: ${{ github.workspace }}/tools
-          key: ${{ runner.os }}-tools
-
-      - name: Install Tools
-        run: make tools-install
-
-      - name: Add Tools to PATH
-        run: |
-          echo "`pwd`/output/bin" >> $GITHUB_PATH
-
       - name: Lint Epinio
         run: make lint
 
