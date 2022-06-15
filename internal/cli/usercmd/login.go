@@ -119,9 +119,8 @@ func checkAndAskCA(ui *termui.UI, address string, trustCA bool) (string, error) 
 
 	cert, err := checkCA(address)
 	if err != nil {
-		_, isUnknownAuthority := err.(x509.UnknownAuthorityError)
 		// something bad happened while checking the certificates
-		if !isUnknownAuthority {
+		if cert == nil {
 			return "", errors.Wrap(err, "error while checking CA")
 		}
 
