@@ -114,7 +114,7 @@ var _ = Describe("Services", func() {
 		Eventually(func() string {
 			out, _ := env.Epinio("", "service", "delete", service)
 			return out
-		}, "1m", "5s").Should(ContainSubstring("service not found"))
+		}, "1m", "5s").Should(ContainSubstring("not found"))
 
 	}
 
