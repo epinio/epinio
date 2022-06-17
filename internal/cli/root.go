@@ -84,6 +84,7 @@ func init() {
 	rootCmd.AddCommand(cmdVersion)
 	rootCmd.AddCommand(CmdServices)
 	rootCmd.AddCommand(CmdLogin)
+	rootCmd.AddCommand(CmdEvents)
 
 	// Hidden command providing developer tools
 	rootCmd.AddCommand(CmdDebug)

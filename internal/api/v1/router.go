@@ -14,6 +14,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/configuration"
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/env"
+	"github.com/epinio/epinio/internal/api/v1/events"
 	"github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/api/v1/service"
@@ -179,6 +180,7 @@ var WsRoutes = routes.NamedRoutes{
 	"AppPortForward": get("/namespaces/:namespace/applications/:app/portforward", errorHandler(application.Controller{}.PortForward)),
 	"AppLogs":        get("/namespaces/:namespace/applications/:app/logs", application.Controller{}.Logs),
 	"StagingLogs":    get("/namespaces/:namespace/staging/:stage_id/logs", application.Controller{}.Logs),
+	"EventStream":    get("/events/stream", events.Controller{}.Stream),
 }
 
 // Lemon extends the specified router with the methods and urls
