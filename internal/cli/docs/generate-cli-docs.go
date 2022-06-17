@@ -155,6 +155,10 @@ func linkHandler(cmd *cobra.Command, dir string) func(link string) string {
 }
 
 func writeFileHeader(w io.Writer, sidebarLabel string) error {
+	if sidebarLabel == "epinio" {
+		sidebarLabel = "epinio cli"
+	}
+
 	_, err := fmt.Fprintf(w, `---
 title: ""
 sidebar_label: "%s"
