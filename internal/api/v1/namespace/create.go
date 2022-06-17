@@ -8,6 +8,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/events"
 	"github.com/epinio/epinio/internal/namespaces"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -52,6 +53,11 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	err = addNamespaceToUser(ctx, namespaceName)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	err = events.Send("namespaces", "created: "+namespaceName)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
