@@ -28,10 +28,13 @@ func (c *Client) EventStream() error {
 	}
 
 	for {
-		_, message, err := webSocketConn.ReadMessage()
+		msgType, message, err := webSocketConn.ReadMessage()
 		if err != nil {
 			return errors.Wrap(err, "receiving a message")
 		}
-		fmt.Println(string(message))
+
+		if msgType == websocket.TextMessage {
+			fmt.Println(string(message))
+		}
 	}
 }

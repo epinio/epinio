@@ -4,7 +4,9 @@ package events
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/streadway/amqp"
 )
 
@@ -48,6 +50,59 @@ func Send(queue, body string) error {
 			ContentType: "text/plain",
 			Body:        []byte(body),
 		})
+}
+
+func Receive(socketConn *websocket.Conn, queue string) error {
+	conn, err := GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		queue, // name
+		false, // durable
+		false, // delete when unused
+		false, // exclusive
+		false, // no-wait
+		nil,   // arguments
+	)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Consider returning some other type so that we don't expose
+	// Rabbitmq to consumers
+	msgs, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	if err != nil {
+		return err
+	}
+
+	for {
+		select {
+		case d := <-msgs:
+			err = socketConn.WriteMessage(websocket.TextMessage, d.Body)
+			if err != nil {
+				return err
+			}
+		default:
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
 }
 
 func GetConnection() (*amqp.Connection, error) {

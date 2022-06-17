@@ -11,6 +11,7 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/configurations"
+	"github.com/epinio/epinio/internal/events"
 	"github.com/epinio/epinio/internal/namespaces"
 	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
@@ -64,6 +65,11 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	// Deleting the namespace here. That will automatically delete the application resources.
 	err = namespaces.Delete(ctx, cluster, namespace)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	err = events.Send("namespaces", "deleted: "+namespace)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

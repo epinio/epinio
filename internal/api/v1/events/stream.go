@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/internal/api/v1/response"
+	"github.com/epinio/epinio/internal/events"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
@@ -32,8 +33,9 @@ func (hc Controller) Stream(c *gin.Context) {
 	// so we can filter user's namespaces.
 	// TODO: What happens if a user stays connected while an operator
 	// removes their access to some namespace?
-	msg := []byte("test")
-	err = conn.WriteMessage(websocket.TextMessage, msg)
+	// TODO: There are a lot of things to take into account, see here:
+	// https://github.com/rabbitmq/amqp091-go/blob/main/_examples/simple-consumer/consumer.go
+	err = events.Receive(conn, "namespaces")
 	if err != nil {
 		response.Error(c, apierror.InternalError(err))
 		return
