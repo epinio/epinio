@@ -52,6 +52,11 @@ func generateCmdDoc(cmd *cobra.Command, dir string) error {
 
 	// create the documentation for its subcommands
 	for _, subcmd := range cmd.Commands() {
+		// skip the 'epinio push' in the 'app' folder
+		if subcmd.CommandPath() == "epinio push" && filepath.Base(dir) == "app" {
+			continue
+		}
+
 		// if the subcommand does not have other subcommands, just generate the doc and continue
 		if !subcmd.HasSubCommands() {
 			err = createMarkdownFile(subcmd, dir)
@@ -142,8 +147,9 @@ func linkHandler(cmd *cobra.Command, dir string) func(link string) string {
 
 		// fix for alias
 		if link == "epinio_app_push.md" {
-			link = "epinio_push.md"
+			return "../epinio_push.md"
 		}
+
 		return "./" + link
 	}
 }
