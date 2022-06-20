@@ -389,7 +389,6 @@ func (c *EpinioClient) AppLogs(appName, stageID string, follow bool) error {
 
 	err := c.API.AppLogs(c.Settings.Namespace, appName, stageID, follow, callback)
 	if err != nil {
-		c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		return err
 	}
 
