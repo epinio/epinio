@@ -182,11 +182,6 @@ brews:
     folder: Formula
     url_template: "https://github.com/epinio/epinio/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
 
-    # If set to auto, the release will not be uploaded to the homebrew tap
-    # in case there is an indicator for prerelease in the tag e.g. v1.0.0-rc1
-    # Default is false.
-    skip_upload: "auto"
-
     test: |
       output = shell_output("#{bin}/epinio version 2>&1")
       assert_match "Epinio Version: #{version}", output
