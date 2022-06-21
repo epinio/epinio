@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/adrg/xdg"
 	"github.com/fatih/color"
 	"github.com/go-logr/logr"
 	"github.com/gorilla/websocket"
@@ -20,7 +21,7 @@ import (
 )
 
 var (
-	defaultSettingsFilePath = os.ExpandEnv("${HOME}/.config/epinio/settings.yaml")
+	defaultSettingsFilePath = "epinio/settings.yaml"
 )
 
 // Settings represents a epinio settings
@@ -41,8 +42,8 @@ type Settings struct {
 }
 
 // DefaultLocation returns the standard location for the settings file
-func DefaultLocation() string {
-	return defaultSettingsFilePath
+func DefaultLocation() (string, error) {
+	return xdg.ConfigFile(defaultSettingsFilePath)
 }
 
 // Load loads the Epinio settings from the default location

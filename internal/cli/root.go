@@ -49,7 +49,11 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	argToEnv := map[string]string{}
 
-	pf.StringVarP(&flagSettingsFile, "settings-file", "", settings.DefaultLocation(),
+	settingsLocation, err := settings.DefaultLocation()
+	if err != nil {
+		panic(err.Error()) // This shouldn't happen, nothing we can do
+	}
+	pf.StringVarP(&flagSettingsFile, "settings-file", "", settingsLocation,
 		"set path of settings file")
 	viper.BindPFlag("settings-file", pf.Lookup("settings-file"))
 	argToEnv["settings-file"] = "EPINIO_SETTINGS"
