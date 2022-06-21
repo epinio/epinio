@@ -5,8 +5,8 @@ package admincmd
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -57,14 +57,8 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 	defer log.Info("return")
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
-	location, err := filepath.Abs(a.Settings.Location)
-	if err != nil {
-		a.ui.Exclamation().Msg(err.Error())
-		return nil
-	}
-
 	a.ui.Note().
-		WithStringValue("Settings", location).
+		WithStringValue("Settings", helpers.AbsPath(a.Settings.Location)).
 		Msg("Updating CA in the stored credentials from the current cluster")
 
 	details.Info("retrieving server locations")

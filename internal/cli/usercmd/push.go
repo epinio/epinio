@@ -53,7 +53,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
 	msg := c.ui.Note().
-		WithStringValue("Manifest", params.Self).
+		WithStringValue("Manifest", params.Self). // This path is already platform-specific
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Source Origin", source).
 		WithStringValue("AppChart", params.Configuration.AppChart).

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/cli/admincmd"
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -70,7 +71,9 @@ var CmdSettingsColors = &cobra.Command{
 			return errors.Wrap(err, "failed to load settings")
 		}
 
-		ui.Note().WithStringValue("Settings", theSettings.Location).Msg("Edit Colorization Flag")
+		ui.Note().
+			WithStringValue("Settings", helpers.AbsPath(theSettings.Location)).
+			Msg("Edit Colorization Flag")
 
 		colors, err := strconv.ParseBool(args[0])
 		// assert: err == nil -- see args validation
@@ -103,7 +106,9 @@ var CmdSettingsShow = &cobra.Command{
 			return errors.Wrap(err, "failed to load settings")
 		}
 
-		ui.Note().WithStringValue("Settings", theSettings.Location).Msg("Show Settings")
+		ui.Note().
+			WithStringValue("Settings", helpers.AbsPath(theSettings.Location)).
+			Msg("Show Settings")
 
 		certInfo := color.CyanString("None defined")
 		if theSettings.Certs != "" {
