@@ -168,8 +168,16 @@ jobs:
 
       - name: Install things
         run: |
+          choco install kubernetes-cli -y
           choco install k3d -y
-          choco install helm -y
+          choco install kubernetes-helm -y
+      
+      - name: Setup env
+        run: |
+          k3d cluster create epinio-cluster
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
+          helm repo add epinio https://epinio.github.io/helm-charts
+          helm upgrade --install epinio epinio/epinio -n epinio --create-namespace --set global.domain=localhost.sslip.io
 
       - name: CLI Acceptance Tests
         env:
