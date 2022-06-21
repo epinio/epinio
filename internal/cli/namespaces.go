@@ -151,8 +151,7 @@ func askConfirmation(cmd *cobra.Command) bool {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		s, _ := reader.ReadString('\n')
-		s = strings.TrimSuffix(s, "\n")
-		s = strings.ToLower(s)
+		s = strings.TrimSpace(strings.ToLower(s))
 		if strings.Compare(s, "n") == 0 {
 			return false
 		} else if strings.Compare(s, "y") == 0 {
