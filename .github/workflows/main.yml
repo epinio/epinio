@@ -166,13 +166,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Install Tools
-        run: make tools-install
-
-      - name: Add Tools to PATH
-        run: |
-          echo "`pwd`/output/bin" >> $GITHUB_PATH
-
       - name: CLI Acceptance Tests
         env:
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -185,15 +178,6 @@ jobs:
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli
-          scripts/collect-coverage.sh
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverprofile.out
-          flags: acceptance-cli
-          name: codecov-epinio
-          verbose: true
 
       - name: Cleanup k3d cluster
         if: always()
