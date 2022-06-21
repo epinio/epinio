@@ -74,8 +74,8 @@ jobs:
       
       - name: Setup env
         run: |
-          docker network create --driver nat epinio
-          k3d cluster create epinio-cluster
+          docker network create --driver nat k3d-epinio-acceptance
+          k3d cluster create epinio-acceptance
           kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
           helm repo add epinio https://epinio.github.io/helm-charts
           helm upgrade --install epinio epinio/epinio -n epinio --create-namespace --set global.domain=localhost.sslip.io
@@ -95,10 +95,6 @@ jobs:
       - name: Cleanup k3d cluster
         if: always()
         run: make acceptance-cluster-delete
-
-      - name: Clean all
-        if: always()
-        uses: colpal/actions-clean@v1
 
   linter:
     runs-on: self-hosted
