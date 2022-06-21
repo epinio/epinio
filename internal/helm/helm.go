@@ -178,6 +178,7 @@ epinio:
 		ReleaseName: names.ReleaseName(parameters.Name),
 		ChartName:   helmChart,
 		Version:     helmVersion,
+		Recreate:    true,
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true,

@@ -226,6 +226,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		deployRequest.Stage = models.StageRef{ID: stageID}
 	}
 
+	s := c.ui.Progress("Waiting for deployment")
+	defer s.Stop()
+
 	deployResponse, err := c.API.AppDeploy(deployRequest)
 	if err != nil {
 		return err
