@@ -49,8 +49,18 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	argToEnv := map[string]string{}
 
-	pf.StringVarP(&flagSettingsFile, "settings-file", "", settings.DefaultLocation(),
-		"set path of settings file")
+	settingsLocation := ""
+	var err error
+	if pf.Lookup("settings-file") == nil && os.Getenv("EPINIO_SETTINGS") == "" {
+		settingsLocation, err = settings.DefaultLocation()
+		if err != nil {
+			// Error can happen on a read-only filesystem (like the one of the epinio
+			// server Pod). User should set a location explicitly.
+			errorMsg := fmt.Sprintf("A settings file wasn't set explicitly and the default location couldn't be used: %s", err.Error())
+			panic(errorMsg)
+		}
+	}
+	pf.StringVarP(&flagSettingsFile, "settings-file", "", settingsLocation, "set path of settings file")
 	viper.BindPFlag("settings-file", pf.Lookup("settings-file"))
 	argToEnv["settings-file"] = "EPINIO_SETTINGS"
 
