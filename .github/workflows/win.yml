@@ -1,68 +1,23 @@
-name: CI
+name: Win
 
 on:
-  push:
-    branches: [ main ]
-    paths-ignore:
-    - 'docs/**'
-    - 'README.md'
-    - '.goreleaser.yml'
-  pull_request:
-    branches: [ main ]
-    paths-ignore:
-    - 'docs/**'
-    - 'README.md'
-    - '.goreleaser.yml'
-  # nightly
-  schedule:
-    - cron:  '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      enable_tmate:
+        description: 'Enable debugging via tmate'
+        required: false
+        default: "false"
 
 env:
   SETUP_GO_VERSION: '^1.18'
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
 
-jobs:
-  linter:
-    runs-on: self-hosted
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          submodules: recursive
-          fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: ${{ env.SETUP_GO_VERSION }}
-
-      - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
-
-      - name: Lint Epinio
-        run: make lint
-
-      - name: Unit Tests
-        run: make test
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverprofile.out
-          flags: unittests
-          name: codecov-epinio
-          verbose: true
-
-      - name: Clean all
-        if: always()
-        uses: colpal/actions-clean@v1
-
-  acceptance-cli:
+jobs:  
+  acceptance-cli-win:
     needs:
       - linter
-    runs-on: self-hosted
+    runs-on: windows-latest
 
     env:
       EPINIO_COVERAGE: true
@@ -94,12 +49,26 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Install Tools
-        run: make tools-install
-
-      - name: Add Tools to PATH
+      - name: Install things
         run: |
-          echo "`pwd`/output/bin" >> $GITHUB_PATH
+          choco install kubernetes-cli -y
+          choco install k3d -y
+          choco install kubernetes-helm -y
+
+      - name: Set Up Tmate Debug Session
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_tmate }}
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 15
+        with:
+          limit-access-to-actor: true
+      
+      - name: Setup env
+        run: |
+          docker network create --driver nat epinio
+          k3d cluster create epinio-cluster
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
+          helm repo add epinio https://epinio.github.io/helm-charts
+          helm upgrade --install epinio epinio/epinio -n epinio --create-namespace --set global.domain=localhost.sslip.io
 
       - name: CLI Acceptance Tests
         env:
@@ -107,21 +76,11 @@ jobs:
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
         run: |
-          rm -f /tmp/cover*
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
           make test-acceptance-cli
-          scripts/collect-coverage.sh
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./coverprofile.out
-          flags: acceptance-cli
-          name: codecov-epinio
-          verbose: true
 
       - name: Cleanup k3d cluster
         if: always()
@@ -130,7 +89,7 @@ jobs:
       - name: Clean all
         if: always()
         uses: colpal/actions-clean@v1
-  
+
   acceptance-api:
     needs:
       - linter
