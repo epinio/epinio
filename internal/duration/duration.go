@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	deployment          = 2 * time.Minute
+	deployment          = 3 * time.Minute
 	namespaceDeletion   = 5 * time.Minute
 	configurationSecret = 5 * time.Minute
 	appBuilt            = 10 * time.Minute
