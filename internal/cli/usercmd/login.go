@@ -195,7 +195,7 @@ func askTrustCA(ui *termui.UI, cert *x509.Certificate) (bool, error) {
 			return false, err
 		}
 
-		switch strings.ToLower(input) {
+		switch strings.TrimSpace(strings.ToLower(input)) {
 		case "y", "yes":
 			return true, nil
 		case "n", "no":
