@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -57,7 +58,7 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 	details := log.V(1) // NOTE: Increment of level, not absolute.
 
 	a.ui.Note().
-		WithStringValue("Settings", a.Settings.Location).
+		WithStringValue("Settings", helpers.AbsPath(a.Settings.Location)).
 		Msg("Updating CA in the stored credentials from the current cluster")
 
 	details.Info("retrieving server locations")
