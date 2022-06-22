@@ -62,11 +62,11 @@ jobs:
       - name: Install things
         run: |
           choco install kubernetes-cli -y
-          choco install k3d -y
+          choco install rancher-desktop -y
           choco install kubernetes-helm -y
 
       - name: Set Up Tmate Debug Session
-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_tmate }}
+        # if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.enable_tmate }}
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 15
         with:
