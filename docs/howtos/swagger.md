@@ -23,7 +23,7 @@ If you want run the documentation on a running Epinio deployment you just need t
 ```
 docker run -p 8080:8080 -e SWAGGER_JSON_URL=https://epinio.<EPINIO_SYSTEM_DOMAIN>/api/swagger.json swaggerapi/swagger-ui
 ```
-but remember that since you are running the documentatio locally then you would need to enable CORS on your deployment.
+but remember that since you are running the documentation locally then you would need to enable CORS on your deployment.
 You can do it specifying the `server.accessControlAllowOrigin: "*"` value in the Helm values.
 
 ### Locally
