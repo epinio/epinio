@@ -78,7 +78,8 @@ func init() {
 
 	pf.BoolP("no-colors", "", false, "Suppress colorized output")
 	viper.BindPFlag("no-colors", pf.Lookup("no-colors"))
-	argToEnv["colors"] = "EPINIO_COLORS"
+	// Environment variable EPINIO_COLORS is handled in settings/settings.go,
+	// as part of handling the settings file.
 
 	config.AddEnvToUsage(rootCmd, argToEnv)
 
