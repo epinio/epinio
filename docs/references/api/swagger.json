@@ -1,5 +1,15 @@
-{ "info": {"title": "Epinio", "version":"1"},
+{
+  "schemes": [
+    "http",
+    "https"
+  ],
   "swagger": "2.0",
+  "info": {
+    "description": "This is the API specification of the Epinio API",
+    "title": "Epinio API",
+    "version": "1.0.0"
+  },
+  "basePath": "/api/v1",
   "paths": {
     "/appcharts": {
       "get": {
@@ -2348,6 +2358,10 @@
           "type": "string",
           "x-go-name": "CatalogService"
         },
+        "catalog_service_version": {
+          "type": "string",
+          "x-go-name": "CatalogServiceVersion"
+        },
         "meta": {
           "$ref": "#/definitions/Meta"
         },
@@ -2820,5 +2834,17 @@
     "StagingLogsResponse": {
       "description": ""
     }
-  }
+  },
+  "securityDefinitions": {
+    "basicAuth": {
+      "type": "basic"
+    }
+  },
+  "security": [
+    {
+      "basicAuth": [
+        "[]"
+      ]
+    }
+  ]
 }

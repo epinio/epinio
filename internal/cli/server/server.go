@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/domain"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -89,6 +91,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
 
+	router.GET("/api/swagger.json", swaggerHandler)
+
 	// add common middlewares to all the routes
 	router.Use(
 		sessions.Sessions("epinio-session", store),
@@ -126,6 +130,33 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	}
 
 	return router, nil
+}
+
+func swaggerHandler(c *gin.Context) {
+	swaggerFile, err := os.Open("swagger.json")
+	if err != nil {
+		response.Error(c, apierrors.InternalError(err))
+		c.Abort()
+		return
+	}
+
+	var swaggerMap map[string]interface{}
+	err = json.NewDecoder(swaggerFile).Decode(&swaggerMap)
+	if err != nil {
+		response.Error(c, apierrors.InternalError(err))
+		c.Abort()
+		return
+	}
+
+	mainDomain, err := domain.MainDomain(c.Request.Context())
+	if err != nil {
+		response.Error(c, apierrors.InternalError(err))
+		c.Abort()
+		return
+	}
+	swaggerMap["host"] = "epinio." + mainDomain
+
+	c.JSON(http.StatusOK, swaggerMap)
 }
 
 // initContextMiddleware initialize the Request Context injecting the logger and the requestID
