@@ -54,7 +54,7 @@ dockers:
 
     # Templates of the Docker image names.
     image_templates:
-    - "juadk/epinio-server-qa:{{ .Tag }}-amd64"
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-amd64"
 
     # Skips the docker push.
     #skip_push: "true"
@@ -69,7 +69,7 @@ dockers:
     - "--label=org.opencontainers.image.title={{.ProjectName}}"
     - "--label=org.opencontainers.image.revision={{.FullCommit}}"
     - "--label=org.opencontainers.image.version={{.Version}}"
-    - "--label=org.opencontainers.image.source=https://github.com/juadk/epinio"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
     - "--build-arg=DIST_BINARY=epinio"
     - "--platform=linux/amd64"
 
@@ -82,7 +82,7 @@ dockers:
     # GoReleaser is being run (usually the repository root folder).
     # This field does not support wildcards, you can add an entire folder here
     # and use wildcards when you `COPY`/`ADD` in your Dockerfile.
-    extra_files: []
+    extra_files: [ "docs/references/api/swagger.json" ]
 
 release:
   disable: true
@@ -90,6 +90,6 @@ release:
 docker_manifests:
   # https://goreleaser.com/customization/docker_manifest/
   -
-    name_template: "juadk/epinio-server-qa:latest"
+    name_template: "epinioteam/epinio-server-qa:latest"
     image_templates:
-    - "juadk/epinio-server-qa:{{ .Tag }}-amd64"
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-amd64"
