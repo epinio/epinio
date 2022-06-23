@@ -148,11 +148,10 @@ getswagger:
 
 swagger: getswagger
 	swagger generate spec > docs/references/api/swagger.json
-	sed -i 's/^{/{ "info": {"title": "Epinio", "version":"1"},/' docs/references/api/swagger.json
 	swagger validate        docs/references/api/swagger.json
 
-swagger-serve: getswagger
-	swagger serve docs/references/api/swagger.json
+swagger-serve:
+	@./scripts/swagger-serve.sh
 
 ########################################################################
 # Support

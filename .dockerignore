@@ -1,5 +1,6 @@
 acceptance/
 docs/
+!/docs/references/api/swagger.json
 images/
 output/
 helm-charts/
