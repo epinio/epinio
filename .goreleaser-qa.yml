@@ -82,7 +82,7 @@ dockers:
     # GoReleaser is being run (usually the repository root folder).
     # This field does not support wildcards, you can add an entire folder here
     # and use wildcards when you `COPY`/`ADD` in your Dockerfile.
-    extra_files: []
+    extra_files: [ "docs/references/api/swagger.json" ]
 
 release:
   disable: true
