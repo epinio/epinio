@@ -33,12 +33,14 @@ var rootCmd = &cobra.Command{
 	Long:          `epinio cli is the official command line interface for Epinio PaaS `,
 	Version:       version.Version,
 	SilenceErrors: true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		stdr.SetVerbosity(tracelog.TraceLevel())
+	},
 }
 
 // Execute executes the root command.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	stdr.SetVerbosity(tracelog.TraceLevel())
 	if err := rootCmd.Execute(); err != nil {
 		termui.NewUI().Problem().Msg(err.Error())
 		os.Exit(-1)
