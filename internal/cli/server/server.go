@@ -52,7 +52,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		response.Error(ctx, apierrors.NewAPIError("Method not allowed", "", http.StatusMethodNotAllowed))
 	})
 	router.NoRoute(func(ctx *gin.Context) {
-		response.Error(ctx, apierrors.NewNotFoundError("Route not found"))
+		response.Error(ctx, apierrors.NewNotFoundError(errors.New("Route not found")))
 	})
 	router.Use(gin.Recovery())
 

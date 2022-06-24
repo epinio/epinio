@@ -14,6 +14,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -99,7 +100,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	err = kubeServiceClient.Delete(ctx, namespace, serviceName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return apierror.NewNotFoundError("service not found")
+			return apierror.NewNotFoundError(errors.Wrap(err, "service not found"))
 		}
 
 		return apierror.InternalError(err)

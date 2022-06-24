@@ -104,8 +104,24 @@ func NewBadRequest(msg string, details ...string) APIError {
 }
 
 // NewNotFoundError constructs a general API error for when something desired does not exist
-func NewNotFoundError(msg string, details ...string) APIError {
-	return NewAPIError(msg, strings.Join(details, ", "), http.StatusNotFound)
+func NewNotFoundError(err error, details ...string) APIError {
+	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusNotFound)
+}
+
+// NewConflictError constructs a general API error for when something conflicts
+func NewConflictError(err error, details ...string) APIError {
+	return NewAPIError(err.Error(), strings.Join(details, ", "), http.StatusConflict)
+}
+
+////////////////////////////////////////////
+//
+// Helpers to build common "domain" errors
+//
+////////////////////////////////////////////
+
+// NamespaceIsNotKnown constructs an API error for when the desired namespace does not exist
+func NamespaceIsNotKnown(namespace string) APIError {
+	return NewNotFoundError(fmt.Errorf("Targeted namespace '%s' does not exist", namespace))
 }
 
 // UserNotFound constructs an API error for when the user name is not found in the header
@@ -116,68 +132,39 @@ func UserNotFound() APIError {
 		http.StatusBadRequest)
 }
 
-// NamespaceIsNotKnown constructs an API error for when the desired namespace does not exist
-func NamespaceIsNotKnown(namespace string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Targeted namespace '%s' does not exist", namespace),
-		"",
-		http.StatusNotFound)
-}
-
 // AppAlreadyKnown constructs an API error for when we have a conflict with an existing app
 func AppAlreadyKnown(app string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Application '%s' already exists", app),
-		"",
-		http.StatusConflict)
+	return NewConflictError(fmt.Errorf("Application '%s' already exists", app))
 }
 
 // AppIsNotKnown constructs an API error for when the desired app does not exist
 func AppIsNotKnown(app string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Application '%s' does not exist", app),
-		"",
-		http.StatusNotFound)
+	return NewNotFoundError(fmt.Errorf("Application '%s' does not exist", app))
 }
 
 // ServiceIsNotKnown constructs an API error for when the desired service does not exist
 func ServiceIsNotKnown(service string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Service '%s' does not exist", service),
-		"",
-		http.StatusNotFound)
+	return NewNotFoundError(fmt.Errorf("Service '%s' does not exist", service))
 }
 
 // ConfigurationIsNotKnown constructs an API error for when the desired configuration instance does not exist
 func ConfigurationIsNotKnown(configuration string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Configuration '%s' does not exist", configuration),
-		"",
-		http.StatusNotFound)
+	return NewNotFoundError(fmt.Errorf("Configuration '%s' does not exist", configuration))
 }
 
 // NamespaceAlreadyKnown constructs an API error for when we have a conflict with an existing namespace
 func NamespaceAlreadyKnown(namespace string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Namespace '%s' already exists", namespace),
-		"",
-		http.StatusConflict)
+	return NewConflictError(fmt.Errorf("Namespace '%s' already exists", namespace))
 }
 
 // ConfigurationAlreadyKnown constructs an API error for when we have a conflict with an existing configuration instance
 func ConfigurationAlreadyKnown(configuration string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Configuration '%s' already exists", configuration),
-		"",
-		http.StatusConflict)
+	return NewConflictError(fmt.Errorf("Configuration '%s' already exists", configuration))
 }
 
 // ConfigurationAlreadyBound constructs an API error for when the configuration to bind is already bound to the app
 func ConfigurationAlreadyBound(configuration string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Configuration '%s' already bound", configuration),
-		"",
-		http.StatusConflict)
+	return NewConflictError(fmt.Errorf("Configuration '%s' already bound", configuration))
 }
 
 // ConfigurationIsNotBound constructs an API error for when the configuration to unbind is actually not bound to the app
@@ -190,16 +177,10 @@ func ConfigurationIsNotBound(configuration string) APIError {
 
 // AppChartAlreadyKnown constructs an API error for when we have a conflict with an existing app chart
 func AppChartAlreadyKnown(app string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Application Chart '%s' already exists", app),
-		"",
-		http.StatusConflict)
+	return NewConflictError(fmt.Errorf("Application Chart '%s' already exists", app))
 }
 
 // AppChartIsNotKnown constructs an API error for when the desired app chart does not exist
 func AppChartIsNotKnown(app string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Application Chart '%s' does not exist", app),
-		"",
-		http.StatusNotFound)
+	return NewNotFoundError(fmt.Errorf("Application Chart '%s' does not exist", app))
 }
