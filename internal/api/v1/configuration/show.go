@@ -19,7 +19,7 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	configuration, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
@@ -28,18 +28,18 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 			return apierror.ConfigurationIsNotKnown(configurationName)
 		}
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 	}
 
 	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	configurationDetails, err := configuration.Details(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, models.ConfigurationResponse{

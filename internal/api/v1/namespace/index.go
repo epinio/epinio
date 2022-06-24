@@ -26,23 +26,23 @@ func (oc Controller) Index(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	namespaceList, err := namespaces.List(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	namespaceList = auth.FilterResources(user, namespaceList)
 
 	appNamesMap, err := getAppNamesByNamespaceMap(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	configNamesMap, err := getConfigurationNamesByNamespaceMap(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	namespaces := make(models.NamespaceList, 0, len(namespaceList))

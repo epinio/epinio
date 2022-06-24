@@ -49,12 +49,12 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if app == nil {
 		return apierror.AppIsNotKnown(appName)
@@ -93,7 +93,7 @@ func CreateConfigurationBinding(
 	logger.Info("BoundConfigurationNameSet")
 	oldBound, err := application.BoundConfigurationNameSet(ctx, cluster, app.Meta)
 	if err != nil {
-		return nil, apierror.InternalError(err)
+		return nil, apierror.NewInternalError(err)
 	}
 
 	var boundedConfigs []string
@@ -118,7 +118,7 @@ func CreateConfigurationBinding(
 				continue
 			}
 
-			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			theIssues = append([]apierror.APIError{apierror.NewInternalError(err)}, theIssues...)
 			return nil, apierror.NewMultiError(theIssues)
 		}
 
@@ -134,7 +134,7 @@ func CreateConfigurationBinding(
 		logger.Info("BoundConfigurationsSet")
 		err := application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, false)
 		if err != nil {
-			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			theIssues = append([]apierror.APIError{apierror.NewInternalError(err)}, theIssues...)
 			return nil, apierror.NewMultiError(theIssues)
 		}
 

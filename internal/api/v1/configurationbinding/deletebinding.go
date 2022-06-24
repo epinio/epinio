@@ -14,7 +14,7 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if app == nil {
 		return apierror.AppIsNotKnown(appName)
@@ -25,12 +25,12 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 		return apierror.ConfigurationIsNotKnown(configurationName)
 	}
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	err = application.BoundConfigurationsUnset(ctx, cluster, app.Meta, configurationName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if app.Workload != nil {

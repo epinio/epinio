@@ -16,12 +16,12 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app, err := appchart.Lookup(ctx, cluster, chartName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if app == nil {

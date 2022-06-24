@@ -21,12 +21,12 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if app == nil {
@@ -43,7 +43,7 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 	// The application may have more than one pods.
 	podNames, err := application.NewWorkload(cluster, app.Meta).PodNames(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if len(podNames) == 0 {
 		return apierror.NewAPIError("couldn't find any Pods to connect to",

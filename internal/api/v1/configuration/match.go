@@ -26,14 +26,14 @@ func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	log.Info("list configurations")
 
 	configurationList, err := configurations.List(ctx, cluster, namespace)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	log.Info("get configuration prefix")

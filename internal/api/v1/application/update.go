@@ -27,13 +27,13 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	appRef := models.NewAppRef(appName, namespace)
 	exists, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if !exists {
@@ -54,7 +54,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Check if the request contains any changes. Abort early if not.
@@ -78,7 +78,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 		found, err := appchart.Exists(ctx, cluster, updateRequest.AppChart)
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 		if !found {
 			return apierror.AppChartIsNotKnown(updateRequest.AppChart)
@@ -86,7 +86,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 		client, err := cluster.ClientApp()
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 
 		// Patch
@@ -98,7 +98,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 	}
 
@@ -108,14 +108,14 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		// Save to configuration
 		err := application.ScalingSet(ctx, cluster, app.Meta, desired)
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 	}
 
 	if len(updateRequest.Environment) > 0 {
 		err := application.EnvironmentSet(ctx, cluster, app.Meta, updateRequest.Environment, true)
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 	}
 
@@ -131,7 +131,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 						return apierror.ConfigurationIsNotKnown(configurationName)
 					}
 
-					return apierror.InternalError(err)
+					return apierror.NewInternalError(err)
 				}
 
 				okToBind = append(okToBind, configurationName)
@@ -139,13 +139,13 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 			err = application.BoundConfigurationsSet(ctx, cluster, app.Meta, okToBind, true)
 			if err != nil {
-				return apierror.InternalError(err)
+				return apierror.NewInternalError(err)
 			}
 		} else {
 			// remove all bound configurations
 			err = application.BoundConfigurationsSet(ctx, cluster, app.Meta, []string{}, true)
 			if err != nil {
-				return apierror.InternalError(err)
+				return apierror.NewInternalError(err)
 			}
 		}
 	}
@@ -155,7 +155,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	if len(updateRequest.Routes) > 0 {
 		client, err := cluster.ClientApp()
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 
 		routes := []string{}
@@ -171,7 +171,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 	}
 

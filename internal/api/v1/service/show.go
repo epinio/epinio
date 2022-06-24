@@ -16,17 +16,17 @@ func (ctr Controller) Show(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	service, err := kubeServiceClient.Get(ctx, namespace, serviceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if service == nil {
@@ -35,7 +35,7 @@ func (ctr Controller) Show(c *gin.Context) apierror.APIErrors {
 
 	appNames, err := application.ServicesBoundAppsNamesFor(ctx, cluster, namespace, serviceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	service.BoundApps = appNames

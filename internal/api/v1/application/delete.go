@@ -18,14 +18,14 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app := models.NewAppRef(appName, namespace)
 
 	found, err := application.Exists(ctx, cluster, app)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if !found {
 		return apierror.AppIsNotKnown(appName)
@@ -33,7 +33,7 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	configurations, err := application.BoundConfigurationNames(ctx, cluster, app)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	resp := models.ApplicationDeleteResponse{
@@ -42,7 +42,7 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	err = application.Delete(ctx, cluster, app)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, resp)

@@ -30,7 +30,7 @@ func ValidateService(
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info("get service")
@@ -41,7 +41,7 @@ func ValidateService(
 			return apierror.NewNotFoundError("service not found")
 		}
 
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	// See internal/services/instances.go - not found => no error, nil structure
 	if theService == nil {
@@ -52,7 +52,7 @@ func ValidateService(
 
 	client, err := helm.GetHelmClient(cluster.RestConfig, logger, namespace)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info("looking for service release")
@@ -63,12 +63,12 @@ func ValidateService(
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
 			return apierror.NewNotFoundError(fmt.Sprintf("%s - %s", err.Error(), releaseName))
 		}
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info(fmt.Sprintf("service found %+v\n", service))
 	if srv.Info.Status != helmrelease.StatusDeployed {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	return nil

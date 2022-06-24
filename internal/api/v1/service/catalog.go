@@ -15,17 +15,17 @@ func (ctr Controller) Catalog(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	serviceList, err := kubeServiceClient.ListCatalogServices(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, serviceList)
@@ -38,12 +38,12 @@ func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	service, err := kubeServiceClient.GetCatalogService(ctx, serviceName)
@@ -52,7 +52,7 @@ func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 			return apierror.NewNotFoundError("service instance doesn't exist")
 		}
 
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, service)

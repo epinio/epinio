@@ -32,40 +32,40 @@ func (oc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	err = deleteApps(ctx, cluster, namespace)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	err = deleteServices(ctx, cluster, namespace)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	err = deleteNamespaceFromUsers(ctx, namespace)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	configurationList, err := configurations.List(ctx, cluster, namespace)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	for _, configuration := range configurationList {
 		err = configuration.Delete(ctx)
 		if err != nil && !apierrors.IsNotFound(err) {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 	}
 
 	// Deleting the namespace here. That will automatically delete the application resources.
 	err = namespaces.Delete(ctx, cluster, namespace)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OK(c)
@@ -129,7 +129,7 @@ func deleteApps(ctx context.Context, cluster *kubernetes.Cluster, namespace stri
 func deleteServices(ctx context.Context, cluster *kubernetes.Cluster, namespace string) error {
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	return kubeServiceClient.DeleteAll(ctx, namespace)

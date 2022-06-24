@@ -24,7 +24,7 @@ func DesiredRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 		if apierrors.IsNotFound(err) {
 			return []string{}, apierror.AppIsNotKnown("application resource is missing")
 		}
-		return []string{}, apierror.InternalError(err, "failed to get the application resource")
+		return []string{}, apierror.NewInternalError(err, "failed to get the application resource")
 	}
 
 	desiredRoutes, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "routes")

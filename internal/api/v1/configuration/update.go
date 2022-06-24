@@ -23,7 +23,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	configuration, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
@@ -32,7 +32,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 			return apierror.ConfigurationIsNotKnown(configurationName)
 		}
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 	}
 
@@ -48,14 +48,14 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	err = configurations.UpdateConfiguration(ctx, cluster, configuration, updateRequest)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Determine bound apps, as candidates for restart.
 
 	appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Perform restart on the candidates which are actually running
@@ -64,7 +64,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	for _, appName := range appNames {
 		app, err := application.Lookup(ctx, cluster, namespace, appName)
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 
 		// Restart workload, if any

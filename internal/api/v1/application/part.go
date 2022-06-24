@@ -41,12 +41,12 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if app == nil {
@@ -75,7 +75,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 	// Get application
 	theApp, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if theApp == nil {
@@ -85,7 +85,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 	// Get the application's app chart
 	appChart, err := appchart.Lookup(ctx, cluster, theApp.Configuration.AppChart)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if appChart == nil {
 		return apierror.AppChartIsNotKnown(theApp.Configuration.AppChart)
@@ -93,7 +93,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 
 	chartArchive, err := chartArchiveURL(appChart, cluster.RestConfig, logger)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response, err := http.Get(chartArchive) // nolint:gosec // app chart repo ref
@@ -121,7 +121,7 @@ func fetchAppImage(c *gin.Context) apierror.APIErrors {
 func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
 	yaml, err := helm.Values(cluster, logger, app)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKBytes(c, yaml)

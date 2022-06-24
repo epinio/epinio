@@ -22,12 +22,12 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if app == nil {
@@ -42,7 +42,7 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 	err = cluster.WaitForDeploymentCompleted(
 		ctx, nil, namespace, app.Workload.Name, duration.ToAppBuilt())
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OK(c)

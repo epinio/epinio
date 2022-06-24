@@ -35,7 +35,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
@@ -55,7 +55,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	serviceConfigurations, err := configurations.ForService(ctx, cluster, namespace, serviceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
@@ -63,7 +63,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	for _, secret := range serviceConfigurations {
 		bound, err := application.BoundAppsNamesFor(ctx, cluster, namespace, secret.Name)
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 
 		boundAppNames = append(boundAppNames, bound...)
@@ -93,7 +93,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	err = kubeServiceClient.Delete(ctx, namespace, serviceName)
@@ -102,7 +102,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 			return apierror.NewNotFoundError("service not found")
 		}
 
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, models.ServiceDeleteResponse{

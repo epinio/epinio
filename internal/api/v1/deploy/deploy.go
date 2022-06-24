@@ -25,7 +25,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 
 	appObj, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
 	if err != nil {
-		return nil, apierror.InternalError(err)
+		return nil, apierror.NewInternalError(err)
 	}
 	if appObj == nil {
 		return nil, apierror.AppIsNotKnown(app.Name)
@@ -60,12 +60,12 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 
 	deployParams.ImageURL, err = replaceInternalRegistry(ctx, cluster, imageURL)
 	if err != nil {
-		return nil, apierror.InternalError(err, "preparing ImageURL registry for use by Kubernetes", imageURL)
+		return nil, apierror.NewInternalError(err, "preparing ImageURL registry for use by Kubernetes", imageURL)
 	}
 
 	err = helm.Deploy(log, deployParams)
 	if err != nil {
-		return nil, apierror.InternalError(err)
+		return nil, apierror.NewInternalError(err)
 	}
 
 	// Delete previous staging jobs except for the current one
@@ -73,7 +73,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		log.Info("app staging drop", "namespace", app.Namespace, "app", app.Name, "stage id", stageID)
 
 		if err := application.Unstage(ctx, cluster, app, stageID); err != nil {
-			return nil, apierror.InternalError(err)
+			return nil, apierror.NewInternalError(err)
 		}
 	}
 
@@ -81,7 +81,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		err = application.SetOrigin(ctx, cluster,
 			models.NewAppRef(app.Name, app.Namespace), *origin)
 		if err != nil {
-			return nil, apierror.InternalError(err, "saving the app origin")
+			return nil, apierror.NewInternalError(err, "saving the app origin")
 		}
 
 		log.Info("saved app origin", "namespace", app.Namespace, "app", app.Name, "origin", *origin)

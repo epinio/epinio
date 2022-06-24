@@ -20,23 +20,23 @@ func (hc Controller) FullIndex(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	allConfigurations, err := configurations.List(ctx, cluster, "")
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	filteredConfigurations := auth.FilterResources(user, allConfigurations)
 
 	appsOf, err := application.BoundAppsNames(ctx, cluster, "")
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	responseData, err := makeResponse(ctx, appsOf, filteredConfigurations)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, responseData)

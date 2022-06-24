@@ -27,12 +27,12 @@ func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespaceName, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if app == nil {
 		return apierror.AppIsNotKnown(appName)
@@ -46,7 +46,7 @@ func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 
 	err = application.EnvironmentSet(ctx, cluster, app.Meta, setRequest, false)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if app.Workload != nil {

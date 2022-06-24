@@ -79,18 +79,13 @@ func NewMultiError(errs []APIError) MultiError {
 	return MultiError{errors: errs}
 }
 
-// InternalError constructs an API error for server internal issues, from a lower-level error
-func InternalError(err error, details ...string) APIError {
+// NewInternalError constructs an API error for server internal issues, from a lower-level error
+func NewInternalError(err error, details ...string) APIError {
 	return NewAPIError(
 		err.Error(),
 		strings.Join(details, ", ")+fmt.Sprintf("\nServer Backtrace: %+v", err),
 		http.StatusInternalServerError,
 	)
-}
-
-// NewInternalError constructs an API error for server internal issues, from a message
-func NewInternalError(msg string, details ...string) APIError {
-	return NewAPIError(msg, strings.Join(details, ", "), http.StatusInternalServerError)
 }
 
 // BadRequest constructs an API error for general issues with a request, from a lower-level error

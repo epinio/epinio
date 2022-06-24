@@ -30,7 +30,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	configuration, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
@@ -38,7 +38,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.ConfigurationIsNotKnown(configurationName)
 	}
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Verify that the configuration is unbound. IOW not bound to any application.
@@ -47,7 +47,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	boundAppNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if len(boundAppNames) > 0 {
@@ -67,7 +67,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	err = configuration.Delete(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, models.ConfigurationDeleteResponse{

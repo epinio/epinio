@@ -25,7 +25,7 @@ func NamespaceMiddleware(c *gin.Context) {
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		logger.Info("unable to get cluster", "error", err)
-		response.Error(c, apierrors.InternalError(err))
+		response.Error(c, apierrors.NewInternalError(err))
 		c.Abort()
 		return
 	}
@@ -33,7 +33,7 @@ func NamespaceMiddleware(c *gin.Context) {
 	exists, err := namespaces.Exists(ctx, cluster, namespace)
 	if err != nil {
 		logger.Info("unable to check if namespace exists", "error", err)
-		response.Error(c, apierrors.InternalError(err))
+		response.Error(c, apierrors.NewInternalError(err))
 		c.Abort()
 		return
 	}

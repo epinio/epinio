@@ -33,7 +33,7 @@ func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Verify that the requested name is not yet used by a different configuration.
@@ -44,14 +44,14 @@ func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
 	}
 	if err != nil && err.Error() != "configuration not found" {
 		// some internal error
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	// any error here is `configuration not found`, and we can continue
 
 	// Create the new configuration. At last.
 	_, err = configurations.CreateConfiguration(ctx, cluster, createRequest.Name, namespace, username, createRequest.Data)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.Created(c)

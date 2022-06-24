@@ -37,7 +37,7 @@ func (hc Controller) Logs(c *gin.Context) {
 	log.Info("get cluster client")
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		response.Error(c, apierror.InternalError(err))
+		response.Error(c, apierror.NewInternalError(err))
 		return
 	}
 
@@ -46,7 +46,7 @@ func (hc Controller) Logs(c *gin.Context) {
 
 		app, err := application.Lookup(ctx, cluster, namespace, appName)
 		if err != nil {
-			response.Error(c, apierror.InternalError(err))
+			response.Error(c, apierror.NewInternalError(err))
 			return
 		}
 
@@ -76,7 +76,7 @@ func (hc Controller) Logs(c *gin.Context) {
 	var upgrader = newUpgrader()
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		response.Error(c, apierror.InternalError(err))
+		response.Error(c, apierror.NewInternalError(err))
 		return
 	}
 

@@ -135,7 +135,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 func swaggerHandler(c *gin.Context) {
 	swaggerFile, err := os.Open("swagger.json")
 	if err != nil {
-		response.Error(c, apierrors.InternalError(err))
+		response.Error(c, apierrors.NewInternalError(err))
 		c.Abort()
 		return
 	}
@@ -143,14 +143,14 @@ func swaggerHandler(c *gin.Context) {
 	var swaggerMap map[string]interface{}
 	err = json.NewDecoder(swaggerFile).Decode(&swaggerMap)
 	if err != nil {
-		response.Error(c, apierrors.InternalError(err))
+		response.Error(c, apierrors.NewInternalError(err))
 		c.Abort()
 		return
 	}
 
 	mainDomain, err := domain.MainDomain(c.Request.Context())
 	if err != nil {
-		response.Error(c, apierrors.InternalError(err))
+		response.Error(c, apierrors.NewInternalError(err))
 		c.Abort()
 		return
 	}
@@ -181,7 +181,7 @@ func authMiddleware(ctx *gin.Context) {
 
 	userMap, err := loadUsersMap(ctx)
 	if err != nil {
-		response.Error(ctx, apierrors.InternalError(err))
+		response.Error(ctx, apierrors.NewInternalError(err))
 		ctx.Abort()
 		return
 	}
@@ -203,7 +203,7 @@ func authMiddleware(ctx *gin.Context) {
 
 		userInSession, ok := sessionUser.(auth.User)
 		if !ok {
-			response.Error(ctx, apierrors.NewInternalError("Couldn't parse user from session"))
+			response.Error(ctx, apierrors.NewInternalError(errors.New("Couldn't parse user from session")))
 			ctx.Abort()
 			return
 		}
@@ -216,7 +216,7 @@ func authMiddleware(ctx *gin.Context) {
 			session.Options(sessions.Options{MaxAge: -1})
 
 			if err := session.Save(); err != nil {
-				response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
+				response.Error(ctx, apierrors.NewInternalError(errors.Wrap(err, "Couldn't save the session")))
 				ctx.Abort()
 				return
 			}
@@ -242,7 +242,7 @@ func authMiddleware(ctx *gin.Context) {
 
 		username, password, ok := ctx.Request.BasicAuth()
 		if !ok {
-			response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
+			response.Error(ctx, apierrors.NewInternalError(errors.New("Couldn't extract user from the auth header")))
 			ctx.Abort()
 			return
 		}
@@ -294,7 +294,7 @@ func sessionMiddleware(ctx *gin.Context) {
 
 	user := requestctx.User(requestContext)
 	if user.Username == "" { // This can't be, authentication has succeeded.
-		response.Error(ctx, apierrors.NewInternalError("Couldn't set user in session after successful authentication. This can't happen."))
+		response.Error(ctx, apierrors.NewInternalError(errors.New("Couldn't set user in session after successful authentication. This can't happen.")))
 		ctx.Abort()
 		return
 	}
@@ -312,7 +312,7 @@ func sessionMiddleware(ctx *gin.Context) {
 		})
 
 		if err := session.Save(); err != nil {
-			response.Error(ctx, apierrors.NewInternalError("Couldn't save the session"))
+			response.Error(ctx, apierrors.NewInternalError(errors.Wrap(err, "Couldn't save the session")))
 			ctx.Abort()
 			return
 		}
@@ -350,7 +350,7 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 
 	authService, err := auth.NewAuthServiceFromContext(ctx)
 	if err != nil {
-		response.Error(ctx, apierrors.InternalError(err))
+		response.Error(ctx, apierrors.NewInternalError(err))
 		ctx.Abort()
 		return
 	}
@@ -358,7 +358,7 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 	// find the user and add it in the context
 	users, err := authService.GetUsers(ctx)
 	if err != nil {
-		response.Error(ctx, apierrors.InternalError(err))
+		response.Error(ctx, apierrors.NewInternalError(err))
 		ctx.Abort()
 		return
 	}

@@ -23,13 +23,13 @@ func (oc Controller) Match(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	log.Info("list appcharts")
 	appcharts, err := appchart.List(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	log.Info("get appchart prefix")

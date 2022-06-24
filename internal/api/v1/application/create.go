@@ -23,7 +23,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	var createRequest models.ApplicationCreateRequest
@@ -35,7 +35,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	appRef := models.NewAppRef(createRequest.Name, namespace)
 	found, err := application.Exists(ctx, cluster, appRef)
 	if err != nil {
-		return apierror.InternalError(err, "failed to check for app resource")
+		return apierror.NewInternalError(err, "failed to check for app resource")
 	}
 	if found {
 		return apierror.AppAlreadyKnown(createRequest.Name)
@@ -62,7 +62,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 				continue
 			}
 
-			theIssues = append([]apierror.APIError{apierror.InternalError(err)}, theIssues...)
+			theIssues = append([]apierror.APIError{apierror.NewInternalError(err)}, theIssues...)
 			return apierror.NewMultiError(theIssues)
 		}
 	}
@@ -77,7 +77,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	} else {
 		route, err := domain.AppDefaultRoute(ctx, createRequest.Name)
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 		routes = []string{route}
 	}
@@ -91,7 +91,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	found, err = appchart.Exists(ctx, cluster, chart)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if !found {
 		return apierror.AppChartIsNotKnown(chart)
@@ -101,7 +101,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	err = application.Create(ctx, cluster, appRef, username, routes, chart)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	desired := DefaultInstances
@@ -111,21 +111,21 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	err = application.ScalingSet(ctx, cluster, appRef, desired)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Save configuration information.
 	err = application.BoundConfigurationsSet(ctx, cluster, appRef,
 		createRequest.Configuration.Configurations, true)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Save environment assignments
 	err = application.EnvironmentSet(ctx, cluster, appRef,
 		createRequest.Configuration.Environment, true)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.Created(c)

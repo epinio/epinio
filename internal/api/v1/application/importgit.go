@@ -34,7 +34,7 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 
 	gitRepo, err := ioutil.TempDir("", "epinio-app")
 	if err != nil {
-		return apierror.InternalError(err, "can't create temp directory")
+		return apierror.NewInternalError(err, "can't create temp directory")
 	}
 	defer os.RemoveAll(gitRepo)
 
@@ -51,7 +51,7 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 		Depth:         1,
 	})
 	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("cloning the git repository: %s, revision: %s", url, revision))
+		return apierror.NewInternalError(err, fmt.Sprintf("cloning the git repository: %s, revision: %s", url, revision))
 	}
 
 	// Create a tarball
@@ -62,21 +62,21 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 		}
 	}()
 	if err != nil {
-		return apierror.InternalError(err, "create a tarball from the git repository")
+		return apierror.NewInternalError(err, "create a tarball from the git repository")
 	}
 
 	// Upload to S3
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a kube client")
+		return apierror.NewInternalError(err, "failed to get access to a kube client")
 	}
 	connectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), "epinio-s3-connection-details")
 	if err != nil {
-		return apierror.InternalError(err, "fetching the S3 connection details from the Kubernetes secret")
+		return apierror.NewInternalError(err, "fetching the S3 connection details from the Kubernetes secret")
 	}
 	manager, err := s3manager.New(connectionDetails)
 	if err != nil {
-		return apierror.InternalError(err, "creating an S3 manager")
+		return apierror.NewInternalError(err, "creating an S3 manager")
 	}
 
 	username := requestctx.User(ctx).Username
@@ -84,7 +84,7 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 		"app": name, "namespace": namespace, "username": username,
 	})
 	if err != nil {
-		return apierror.InternalError(err, "uploading the application sources blob")
+		return apierror.NewInternalError(err, "uploading the application sources blob")
 	}
 	log.Info("uploaded app", "namespace", namespace, "app", name, "blobUID", blobUID)
 

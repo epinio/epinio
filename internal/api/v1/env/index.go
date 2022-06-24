@@ -25,14 +25,14 @@ func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app := models.NewAppRef(appName, namespaceName)
 
 	exists, err := application.Exists(ctx, cluster, app)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if !exists {
@@ -41,7 +41,7 @@ func (hc Controller) Index(c *gin.Context) apierror.APIErrors {
 
 	environment, err := application.Environment(ctx, cluster, app)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OKReturn(c, environment)

@@ -41,7 +41,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a kube client")
+		return apierror.NewInternalError(err, "failed to get access to a kube client")
 	}
 
 	applicationCR, err := application.Get(ctx, cluster, req.App)
@@ -49,12 +49,12 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		if apierrors.IsNotFound(err) {
 			return apierror.AppIsNotKnown("cannot deploy app, application resource is missing")
 		}
-		return apierror.InternalError(err, "failed to get the application resource")
+		return apierror.NewInternalError(err, "failed to get the application resource")
 	}
 
 	err = deploy.UpdateImageURL(ctx, cluster, applicationCR, req.ImageURL)
 	if err != nil {
-		return apierror.InternalError(err, "failed to set application's image url")
+		return apierror.NewInternalError(err, "failed to set application's image url")
 	}
 
 	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID, &req.Origin, nil)

@@ -113,7 +113,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err, "failed to get access to a kube client")
+		return apierror.NewInternalError(err, "failed to get access to a kube client")
 	}
 
 	// check application resource
@@ -122,12 +122,12 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		if apierrors.IsNotFound(err) {
 			return apierror.AppIsNotKnown("cannot stage app, application resource is missing")
 		}
-		return apierror.InternalError(err, "failed to get the application resource")
+		return apierror.NewInternalError(err, "failed to get the application resource")
 	}
 
 	config, err := cluster.GetConfigMap(ctx, helmchart.Namespace(), helmchart.EpinioStageScriptsName)
 	if err != nil {
-		return apierror.InternalError(err, "failed to retrieve staging image refs")
+		return apierror.NewInternalError(err, "failed to retrieve staging image refs")
 	}
 
 	// get builder image from either request, application, or default as final fallback
@@ -147,7 +147,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	staging, err := application.CurrentlyStaging(ctx, cluster, req.App.Namespace, req.App.Name)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if staging {
 		return apierror.NewBadRequest("Staging job for image ID still running")
@@ -156,7 +156,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
 	if err != nil {
-		return apierror.InternalError(err, "failed to fetch the S3 connection details")
+		return apierror.NewInternalError(err, "failed to fetch the S3 connection details")
 	}
 
 	blobUID, blobErr := getBlobUID(ctx, s3ConnectionDetails, req, app)
@@ -168,12 +168,12 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	uid, err := randstr.Hex16()
 	if err != nil {
-		return apierror.InternalError(err, "failed to generate a uid")
+		return apierror.NewInternalError(err, "failed to generate a uid")
 	}
 
 	environment, err := application.Environment(ctx, cluster, req.App)
 	if err != nil {
-		return apierror.InternalError(err, "failed to access application runtime environment")
+		return apierror.NewInternalError(err, "failed to access application runtime environment")
 	}
 
 	owner := metav1.OwnerReference{
@@ -187,7 +187,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	// From the view of the new build we are about to create this is the previous id.
 	previousID, err := application.StageID(app)
 	if err != nil {
-		return apierror.InternalError(err, "failed to determine application stage id")
+		return apierror.NewInternalError(err, "failed to determine application stage id")
 	}
 	if previousID == "" {
 		previousID = uid
@@ -195,7 +195,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	registryPublicURL, err := getRegistryURL(ctx, cluster)
 	if err != nil {
-		return apierror.InternalError(err, "getting the Epinio registry public URL")
+		return apierror.NewInternalError(err, "getting the Epinio registry public URL")
 	}
 
 	registryCertificateSecret := viper.GetString("registry-certificate-secret")
@@ -203,7 +203,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	if registryCertificateSecret != "" {
 		registryCertificateHash, err = getRegistryCertificateHash(ctx, cluster, helmchart.Namespace(), registryCertificateSecret)
 		if err != nil {
-			return apierror.InternalError(err, "cannot calculate Certificate hash")
+			return apierror.NewInternalError(err, "cannot calculate Certificate hash")
 		}
 	}
 
@@ -226,7 +226,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	err = ensurePVC(ctx, cluster, req.App)
 	if err != nil {
-		return apierror.InternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
+		return apierror.NewInternalError(err, "failed to ensure a PersistenVolumeClaim for the application source and cache")
 	}
 
 	job, jobenv := newJobRun(params)
@@ -234,16 +234,16 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	// Note: The secret is deleted with the job in function `Unstage()`.
 	err = cluster.CreateSecret(ctx, helmchart.Namespace(), *jobenv)
 	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
+		return apierror.NewInternalError(err, fmt.Sprintf("failed to create job env: %#v", jobenv))
 	}
 
 	err = cluster.CreateJob(ctx, helmchart.Namespace(), job)
 	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
+		return apierror.NewInternalError(err, fmt.Sprintf("failed to create job run: %#v", job))
 	}
 
 	if err := updateApp(ctx, cluster, app, params); err != nil {
-		return apierror.InternalError(err, "updating application CR with staging information")
+		return apierror.NewInternalError(err, "updating application CR with staging information")
 	}
 
 	imageURL := params.ImageURL(params.RegistryURL)
@@ -267,7 +267,7 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	// Wait for the staging to be done, then check if it ended in failure.
@@ -277,26 +277,28 @@ func (hc Controller) Staged(c *gin.Context) apierror.APIErrors {
 
 	jobList, err := cluster.ListJobs(ctx, helmchart.Namespace(), selector)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if len(jobList.Items) == 0 {
-		return apierror.InternalError(fmt.Errorf("no jobs in %s with selector %s", namespace, selector))
+		return apierror.NewInternalError(fmt.Errorf("no jobs in %s with selector %s", namespace, selector))
 	}
 
 	for _, job := range jobList.Items {
 		// Wait for job to be done
 		err = cluster.WaitForJobDone(ctx, helmchart.Namespace(), job.Name, duration.ToAppBuilt())
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 		// Check job for failure
 		failed, err := cluster.IsJobFailed(ctx, job.Name, helmchart.Namespace())
 		if err != nil {
-			return apierror.InternalError(err)
+			return apierror.NewInternalError(err)
 		}
 		if failed {
-			return apierror.NewInternalError("Failed to stage",
-				fmt.Sprintf("stage-id = %s", id))
+			return apierror.NewInternalError(
+				fmt.Errorf("Failed to stage"),
+				fmt.Sprintf("stage-id = %s", id),
+			)
 		}
 	}
 
@@ -308,17 +310,17 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 
 	manager, err := s3manager.New(s3ConnectionDetails)
 	if err != nil {
-		return apierror.InternalError(err, "creating an S3 manager")
+		return apierror.NewInternalError(err, "creating an S3 manager")
 	}
 
 	blobMeta, err := manager.Meta(ctx, blobUID)
 	if err != nil {
-		return apierror.InternalError(err, "querying blob id meta-data")
+		return apierror.NewInternalError(err, "querying blob id meta-data")
 	}
 
 	blobApp, ok := blobMeta["App"]
 	if !ok {
-		return apierror.NewInternalError("blob has no app name meta data")
+		return apierror.NewInternalError(errors.New(("blob has no app name meta data")))
 	}
 	if blobApp != app.Name {
 		return apierror.NewBadRequest(
@@ -329,7 +331,7 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 
 	blobNamespace, ok := blobMeta["Namespace"]
 	if !ok {
-		return apierror.NewInternalError("blob has no namespace meta data")
+		return apierror.NewInternalError(errors.New("blob has no namespace meta data"))
 	}
 	if blobNamespace != app.Namespace {
 		return apierror.NewBadRequest(
@@ -660,7 +662,7 @@ func getBuilderImage(req models.StageRequest, app *unstructured.Unstructured) (s
 
 	builderImage, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "builderimage")
 	if err != nil {
-		returnErr = apierror.InternalError(err, "builderimage should be a string!")
+		returnErr = apierror.NewInternalError(err, "builderimage should be a string!")
 		return "", returnErr
 	}
 
@@ -677,7 +679,7 @@ func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDet
 	} else {
 		blobUID, err = findPreviousBlobUID(app)
 		if err != nil {
-			returnErr = apierror.InternalError(err, "looking up the previous blod UID")
+			returnErr = apierror.NewInternalError(err, "looking up the previous blod UID")
 			return "", returnErr
 		}
 	}

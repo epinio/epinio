@@ -32,13 +32,13 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info("looking for application")
 	app, err := application.Lookup(ctx, cluster, namespace, bindRequest.AppName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if app == nil {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
@@ -57,7 +57,7 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 
 	configurationSecrets, err := configurations.LabelServiceSecrets(ctx, cluster, namespace, serviceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", configurationSecrets))
@@ -87,7 +87,7 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 	if err != nil {
 		// TODO: Rewind the configuration bindings made above.
 		// DANGER: This work here is not transactional :(
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.OK(c)

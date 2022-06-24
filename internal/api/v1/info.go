@@ -18,12 +18,12 @@ func Info(c *gin.Context) APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return InternalError(err)
+		return NewInternalError(err)
 	}
 
 	kubeVersion, err := cluster.GetVersion()
 	if err != nil {
-		return InternalError(err)
+		return NewInternalError(err)
 	}
 
 	platform := cluster.GetPlatform()

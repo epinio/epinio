@@ -35,13 +35,13 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info("looking for application")
 	app, err := application.Lookup(ctx, cluster, namespace, bindRequest.AppName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if app == nil {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
@@ -61,7 +61,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 	serviceConfigurations, err := configurations.ForService(ctx, cluster, namespace, serviceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
@@ -99,7 +99,7 @@ func UnbindService(
 	appRef := models.NewAppRef(appName, namespace)
 	err := application.BoundServicesUnset(ctx, cluster, appRef, serviceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	logger.Info("unbound service")

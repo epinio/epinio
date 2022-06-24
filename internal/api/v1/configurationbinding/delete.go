@@ -19,7 +19,7 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	apiErr := DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)

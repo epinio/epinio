@@ -23,7 +23,7 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	var request models.NamespaceCreateRequest
@@ -40,7 +40,7 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	exists, err := namespaces.Exists(ctx, cluster, namespaceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 	if exists {
 		return apierror.NamespaceAlreadyKnown(namespaceName)
@@ -48,12 +48,12 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	err = namespaces.Create(ctx, cluster, namespaceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	err = addNamespaceToUser(ctx, namespaceName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	response.Created(c)

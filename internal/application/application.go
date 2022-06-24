@@ -455,7 +455,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		if apierrors.IsNotFound(err) {
 			return apierror.AppIsNotKnown("application resource is missing")
 		}
-		return apierror.InternalError(err, "failed to get the application resource")
+		return apierror.NewInternalError(err, "failed to get the application resource")
 	}
 
 	desiredRoutes, err := DesiredRoutes(ctx, cluster, app.Meta)

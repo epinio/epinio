@@ -23,17 +23,17 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	clientSetHTTP1, err := kubernetes.GetHTTP1Client(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if app == nil {
@@ -49,7 +49,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 	workload := application.NewWorkload(cluster, app.Meta)
 	podNames, err := workload.PodNames(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	if len(podNames) < 1 {
@@ -76,7 +76,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 
 	deployment, err := workload.Deployment(ctx)
 	if err != nil {
-		return apierror.InternalError(err)
+		return apierror.NewInternalError(err)
 	}
 
 	proxyRequest(c.Writer, c.Request, podToConnect, namespace, deployment.Name, clientSetHTTP1)
