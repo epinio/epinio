@@ -102,7 +102,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	req := models.StageRequest{}
 	if err := c.BindJSON(&req); err != nil {
-		return apierror.NewBadRequest("Failed to unmarshal app stage request", err.Error())
+		return apierror.NewBadRequest(err.Error()).WithDetails("Failed to unmarshal app stage request")
 	}
 	if name != req.App.Name {
 		return apierror.NewBadRequest("name parameter from URL does not match name param in body")

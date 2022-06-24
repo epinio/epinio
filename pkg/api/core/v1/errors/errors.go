@@ -137,7 +137,7 @@ func NamespaceIsNotKnown(namespace string) APIError {
 
 // UserNotFound constructs an API error for when the user name is not found in the header
 func UserNotFound() APIError {
-	return NewAPIError("User not found in the request header", http.StatusBadRequest)
+	return NewBadRequest(fmt.Sprintf("User not found in the request header"))
 }
 
 // AppAlreadyKnown constructs an API error for when we have a conflict with an existing app
@@ -177,9 +177,7 @@ func ConfigurationAlreadyBound(configuration string) APIError {
 
 // ConfigurationIsNotBound constructs an API error for when the configuration to unbind is actually not bound to the app
 func ConfigurationIsNotBound(configuration string) APIError {
-	return NewAPIError(
-		fmt.Sprintf("Configuration '%s' is not bound", configuration),
-		http.StatusBadRequest)
+	return NewBadRequest(fmt.Sprintf("Configuration '%s' is not bound", configuration))
 }
 
 // AppChartAlreadyKnown constructs an API error for when we have a conflict with an existing app chart

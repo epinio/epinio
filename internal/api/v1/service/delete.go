@@ -77,7 +77,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	if len(boundAppNames) > 0 {
 		if !deleteRequest.Unbind {
-			return apierror.NewBadRequest("bound applications exist", strings.Join(boundAppNames, ","))
+			return apierror.NewBadRequest("bound applications exist").WithDetails(strings.Join(boundAppNames, ","))
 		}
 
 		username := requestctx.User(ctx).Username

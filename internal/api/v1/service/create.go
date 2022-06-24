@@ -1,8 +1,6 @@
 package service
 
 import (
-	"fmt"
-
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/services"
@@ -36,8 +34,7 @@ func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 	catalogService, err := kubeServiceClient.GetCatalogService(ctx, createRequest.CatalogService)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return apierror.NewBadRequest(
-				fmt.Sprintf("Catalog service %s not found", createRequest.CatalogService))
+			return apierror.NewBadRequest(err.Error()).WithDetailsf("Catalog service %s not found", createRequest.CatalogService)
 		}
 		return apierror.InternalError(err)
 	}

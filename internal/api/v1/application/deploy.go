@@ -29,7 +29,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 
 	req := models.DeployRequest{}
 	if err := c.BindJSON(&req); err != nil {
-		return apierror.NewBadRequest("Failed to unmarshal deploy request ", err.Error())
+		return apierror.NewBadRequest(err.Error()).WithDetails("Failed to unmarshal deploy request")
 	}
 
 	if name != req.App.Name {
