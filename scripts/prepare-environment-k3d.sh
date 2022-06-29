@@ -54,6 +54,13 @@ function retry {
   echo " ✔️"
 }
 
+function deploy_epinio_latest_released {
+  helm repo add epinio https://epinio.github.io/helm-charts
+  helm repo update
+  helm upgrade --wait --install -n epinio --create-namespace epinio epinio/epinio \
+    --set global.domain="$EPINIO_SYSTEM_DOMAIN"
+}
+
 # Ensure we have a value for --system-domain
 prepare_system_domain
 # Check Dependencies
@@ -62,31 +69,36 @@ check_dependency kubectl helm
 create_docker_pull_secret
 
 echo "Installing Epinio"
-helm upgrade --install --create-namespace -n epinio \
-	--set global.domain="$EPINIO_SYSTEM_DOMAIN" \
-	epinio helm-charts/chart/epinio --wait "$@"
+# Deploy epinio latest release to test upgrade
+if [[ $EPINIO_RELEASED ]]; then
+  deploy_epinio_latest_released
+else
+  helm upgrade --install --create-namespace -n epinio \
+    --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+    epinio helm-charts/chart/epinio --wait "$@"
 
-echo "Importing locally built epinio server image"
-k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest
+  echo "Importing locally built epinio server image"
+  k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest
 
-# compile coverage binary and add required env var
-if [ -n "$EPINIO_COVERAGE" ]; then
-  echo "Compiling coverage binary"
-  GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go test -c -covermode=count -coverpkg ./...
-  export EPINIO_BINARY_PATH="epinio.test"
-  echo "Patching epinio for coverage env var"
-  kubectl patch deployments -n epinio epinio-server --type=json \
-    -p '[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "EPINIO_COVERAGE", "value": "true"}}]'
-fi
+  # compile coverage binary and add required env var
+  if [ -n "$EPINIO_COVERAGE" ]; then
+    echo "Compiling coverage binary"
+    GOARCH="amd64" GOOS="linux" CGO_ENABLED=0 go test -c -covermode=count -coverpkg ./...
+    export EPINIO_BINARY_PATH="epinio.test"
+    echo "Patching epinio for coverage env var"
+    kubectl patch deployments -n epinio epinio-server --type=json \
+      -p '[{"op": "add", "path": "/spec/template/spec/containers/0/env/-", "value": {"name": "EPINIO_COVERAGE", "value": "true"}}]'
+  fi
 
-# Patch Epinio
-./scripts/patch-epinio-deployment.sh
+  # Patch Epinio
+  ./scripts/patch-epinio-deployment.sh
 
-if [ -n "$EPINIO_COVERAGE" ]; then
-  echo "Patching epinio ingress with coverage helper container"
-  kubectl patch ingress -n epinio epinio --type=json \
-    -p '[{"op": "add", "path": "/spec/rules/0/http/paths/-", "value":
-    { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
+  if [ -n "$EPINIO_COVERAGE" ]; then
+    echo "Patching epinio ingress with coverage helper container"
+    kubectl patch ingress -n epinio epinio --type=json \
+      -p '[{"op": "add", "path": "/spec/rules/0/http/paths/-", "value":
+      { "backend": { "service": { "name": "epinio-server", "port": { "number": 80 } } }, "path": "/exit", "pathType": "ImplementationSpecific" } }]'
+  fi
 fi
 
 # Check Epinio Installation

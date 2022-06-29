@@ -1,0 +1,88 @@
+# Upgrade epinio from latest released version to the main branch version
+# using the latest helm chart submodule
+name: Upgrade test
+
+on:
+  push:
+    branches: [ main ]
+    paths-ignore:
+    - 'docs/**'
+    - 'README.md'
+    - '.goreleaser.yml'
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+    - 'docs/**'
+    - 'README.md'
+    - '.goreleaser.yml'
+  workflow_dispatch:
+  # nightly
+  schedule:
+    - cron:  '0 0 * * *'
+
+env:
+  EPINIO_RELEASED: true
+  SETUP_GO_VERSION: '^1.18'
+  GINKGO_NODES: 2
+  INGRESS_CONTROLLER: traefik
+
+jobs:
+  upgrade-test:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
+
+      - name: Cache Tools
+        uses: actions/cache@v3.0.4
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH    
+
+      - name: Deploy k3d cluster with latest release of Epinio
+        run: |
+          make acceptance-cluster-setup
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make install-cert-manager
+          make prepare_environment_k3d
+
+      - name: Upgrade Epinio with latest code
+        run: |
+          # We have to export the EPINIO_SYSTEM_DOMAIN
+          # before executing the ginkgo test
+          source scripts/helpers.sh
+          prepare_system_domain
+          export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          make test-acceptance-upgrade
+
+      - name: Cleanup k3d cluster
+        if: always()
+        run: make acceptance-cluster-delete
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1

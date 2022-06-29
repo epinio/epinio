@@ -111,6 +111,9 @@ test-acceptance-apps: showfocus
 test-acceptance-cli: showfocus
 	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/.
 
+test-acceptance-upgrade: showfocus
+	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/upgrade/.
+
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
 	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
