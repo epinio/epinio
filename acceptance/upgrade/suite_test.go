@@ -21,11 +21,7 @@ func TestAcceptance(t *testing.T) {
 
 var (
 	nodeSuffix, nodeTmpDir string
-
-	// serverURL is the URL of the epinio API server
-	serverURL, websocketURL string
-
-	env testenv.EpinioEnv
+	env                    testenv.EpinioEnv
 )
 
 var _ = BeforeSuite(func() {
@@ -51,9 +47,6 @@ var _ = BeforeSuite(func() {
 		"--namespace", "epinio", "epinio",
 		"-o", "jsonpath={.spec.rules[0].host}")
 	Expect(err).ToNot(HaveOccurred(), out)
-
-	serverURL = "https://" + out
-	websocketURL = "wss://" + out
 })
 
 var _ = AfterSuite(func() {
