@@ -20,4 +20,3 @@ Practical Guides to solving practical problems.
 - [Development Guidelines](howtos/development.md)
 - [Add a new API User](howtos/new-api-user.md)
 - [Run acceptance test suites](howtos/acceptance_tests.md)
-- [Create and use a custom builder for Python](howtos/custom-python-builder.md)
