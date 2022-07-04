@@ -150,8 +150,13 @@ func checkCA(address string) (*x509.Certificate, error) {
 		return nil, errors.New("error parsing the address")
 	}
 
+	port := parsedURL.Port()
+	if port == "" {
+		port = "443"
+	}
+
 	tlsConfig := &tls.Config{InsecureSkipVerify: true} // nolint:gosec // We need to check the validity
-	conn, err := tls.Dial("tcp", parsedURL.Hostname()+":443", tlsConfig)
+	conn, err := tls.Dial("tcp", parsedURL.Hostname()+":"+port, tlsConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while dialing the server")
 	}
