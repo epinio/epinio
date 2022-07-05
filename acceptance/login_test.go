@@ -1,6 +1,10 @@
 package acceptance_test
 
 import (
+	"fmt"
+	"math/rand"
+	"strings"
+
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 
@@ -84,5 +88,27 @@ var _ = Describe("Login", func() {
 				WithRow("Certificates", "None defined"),
 			),
 		)
+	})
+
+	It("fails while checking the certificate on the wrong port", func() {
+		randomPort := fmt.Sprintf(`:%d`, rand.Intn(65536))
+		serverURLWithPort := serverURL + randomPort
+
+		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword, "--trust-ca", "--settings-file", tmpSettingsPath, serverURLWithPort)
+		Expect(err).To(HaveOccurred(), out)
+
+		// split and filter the lines to check that the port is present in both of them
+		outLines := []string{}
+		for _, l := range strings.Split(out, "\n") {
+			if strings.TrimSpace(l) != "" {
+				outLines = append(outLines, l)
+			}
+		}
+
+		Expect(outLines[0]).To(ContainSubstring(`Login to your Epinio cluster`))
+		Expect(outLines[0]).To(ContainSubstring(randomPort))
+
+		Expect(outLines[1]).To(ContainSubstring(`error while checking CA`))
+		Expect(outLines[1]).To(ContainSubstring(randomPort + `: connect: connection refused`))
 	})
 })
