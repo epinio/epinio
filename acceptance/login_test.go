@@ -90,7 +90,7 @@ var _ = Describe("Login", func() {
 		)
 	})
 
-	It("fails while checking the certificate on the wrong port", func() {
+	It("respects the port when one is present [fixed bug]", func() {
 		randomPort := fmt.Sprintf(`:%d`, rand.Intn(65536))
 		serverURLWithPort := serverURL + randomPort
 
