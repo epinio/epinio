@@ -1,6 +1,11 @@
 package application
 
 import (
+	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -9,7 +14,13 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 )
+
+var validArchiveTypes = []string{
+	"application/octet-stream",
+	"application/zip",
+}
 
 // Upload handles the API endpoint /namespaces/:namespace/applications/:app/store.
 // It receives the application data as a tarball and stores it. Then
@@ -30,6 +41,17 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 		return apierror.BadRequest(err, "can't read multipart file input")
 	}
 	defer file.Close()
+
+	// TODO: Does this break streaming of the file? We need to get the whole file
+	// before we can check its type
+	// Get the file content
+	contentType, err := GetFileContentType(file)
+	if err != nil {
+		return apierror.InternalError(err, "can't detect content type of archive")
+	}
+	if !isValidType(contentType) {
+		return apierror.NewBadRequest(fmt.Sprintf("archive type not supported %s", contentType))
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -59,4 +81,35 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 		BlobUID: blobUID,
 	})
 	return nil
+}
+
+func GetFileContentType(file multipart.File) (string, error) {
+	// to sniff the content type only the first
+	// 512 bytes are used.
+
+	buf := make([]byte, 512)
+
+	_, err := file.Read(buf)
+	if err != nil {
+		return "", errors.Wrap(err, "reading file content type")
+	}
+
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		return "", errors.Wrap(err, "resetting file cursor after reading content type")
+	}
+
+	// the function that actually does the trick
+	contentType := http.DetectContentType(buf)
+
+	return contentType, nil
+}
+
+func isValidType(contentType string) bool {
+	for _, validType := range validArchiveTypes {
+		if contentType == validType {
+			return true
+		}
+	}
+	return false
 }
