@@ -35,8 +35,7 @@ func (hc Controller) Restart(c *gin.Context) apierror.APIErrors {
 	}
 
 	if app.Workload == nil {
-		return apierror.NewAPIError("No restart possible for an application without workload",
-			"", http.StatusBadRequest)
+		return apierror.NewAPIError("No restart possible for an application without workload", http.StatusBadRequest)
 	}
 
 	nano := time.Now().UnixNano()

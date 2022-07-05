@@ -49,10 +49,10 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(func(ctx *gin.Context) {
-		response.Error(ctx, apierrors.NewAPIError("Method not allowed", "", http.StatusMethodNotAllowed))
+		response.Error(ctx, apierrors.NewAPIError("Method not allowed", http.StatusMethodNotAllowed))
 	})
 	router.NoRoute(func(ctx *gin.Context) {
-		response.Error(ctx, apierrors.NewNotFoundError(errors.New("Route not found")))
+		response.Error(ctx, apierrors.NewNotFoundError("Route not found"))
 	})
 	router.Use(gin.Recovery())
 
@@ -187,7 +187,7 @@ func authMiddleware(ctx *gin.Context) {
 	}
 
 	if len(userMap) == 0 {
-		response.Error(ctx, apierrors.NewAPIError("no user found", "", http.StatusUnauthorized))
+		response.Error(ctx, apierrors.NewAPIError("no user found", http.StatusUnauthorized))
 		ctx.Abort()
 		return
 	}
@@ -221,7 +221,7 @@ func authMiddleware(ctx *gin.Context) {
 				return
 			}
 
-			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
+			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
@@ -235,7 +235,7 @@ func authMiddleware(ctx *gin.Context) {
 		// we need this check to return a 401 instead of an error
 		auth := ctx.Request.Header.Get("Authorization")
 		if auth == "" {
-			response.Error(ctx, apierrors.NewAPIError("missing credentials", "", http.StatusUnauthorized))
+			response.Error(ctx, apierrors.NewAPIError("missing credentials", http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
@@ -249,7 +249,7 @@ func authMiddleware(ctx *gin.Context) {
 
 		err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
 		if err != nil {
-			response.Error(ctx, apierrors.NewAPIError("wrong password", "", http.StatusUnauthorized))
+			response.Error(ctx, apierrors.NewAPIError("wrong password", http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
@@ -327,7 +327,7 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 	token := ctx.Query("authtoken")
 	claims, err := authtoken.Validate(token)
 	if err != nil {
-		apiErr := apierrors.NewAPIError("unknown token validation error", "", http.StatusUnauthorized)
+		apiErr := apierrors.NewAPIError("unknown token validation error", http.StatusUnauthorized)
 		if ve, ok := err.(*jwt.ValidationError); ok {
 			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
 				apiErr.Title = "malformed token format"

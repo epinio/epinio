@@ -37,14 +37,14 @@ func ValidateService(
 	theService, err := kubeServiceClient.Get(ctx, namespace, service)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return apierror.NewNotFoundError(errors.Wrap(err, "service not found"))
+			return apierror.NewNotFoundError(err.Error()).WithDetailsf("service '%s' not found", service)
 		}
 
 		return apierror.InternalError(err)
 	}
 	// See internal/services/instances.go - not found => no error, nil structure
 	if theService == nil {
-		return apierror.NewNotFoundError(errors.New("service not found"))
+		return apierror.NewNotFoundError("service not found")
 	}
 
 	logger.Info("getting helm client")
@@ -60,7 +60,7 @@ func ValidateService(
 	srv, err := client.GetRelease(releaseName)
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			return apierror.NewNotFoundError(errors.Wrapf(err, "release %s not found", releaseName))
+			return apierror.NewNotFoundError(err.Error()).WithDetailsf("release %s not found", releaseName)
 		}
 		return apierror.InternalError(err)
 	}
