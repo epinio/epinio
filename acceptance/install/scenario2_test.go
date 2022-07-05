@@ -155,6 +155,34 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 			Expect(out).To(Equal("'letsencrypt-staging'"))
 		})
 
+		By("Pushing an app with zero instances, and not verifying certs", func() {
+			appName2 := appName + "-ssv"
+			out, err := epinioHelper.Run("push",
+				"--skip-ssl-verification",
+				"--name", appName2,
+				"--path", testenv.AssetPath("sample-app"),
+				"--instances", instancesNum)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, err := proc.Kubectl("get", "deployments",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s",
+						appName2, testenv.DefaultWorkspace),
+					"--namespace", testenv.DefaultWorkspace,
+					"-o", "jsonpath={.items[].spec.replicas}")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "30s", "1s").Should(Equal("0"))
+
+			// Verify cluster_issuer is used
+			out, err = proc.RunW("kubectl", "get", "certificate",
+				"-n", testenv.DefaultWorkspace,
+				"--selector", "app.kubernetes.io/name="+appName2,
+				"-o", "jsonpath='{.items[*].spec.issuerRef.name}'")
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal("'letsencrypt-staging'"))
+		})
+
 		By("Cleaning DNS Entries", func() {
 			change := route53.A(domain, loadbalancer, "DELETE")
 			out, err := route53.Update(zoneID, change, nodeTmpDir)
