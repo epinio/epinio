@@ -38,7 +38,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	When("uploading a new dir", func() {
+	When("uploading a tar file", func() {
 		BeforeEach(func() {
 			path = testenv.TestAssetPath("sample-app.tar")
 		})
@@ -58,6 +58,25 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a non-supported archive type", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.rar")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+			Expect(string(bodyBytes)).To(MatchRegexp("archive type not supported application/vnd.rar"))
 		})
 	})
 })
