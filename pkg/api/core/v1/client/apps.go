@@ -392,7 +392,7 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(websocketURL, http.Header{})
 	if err != nil {
 		// Report detailed error found in the server response
-		if resp.StatusCode != http.StatusOK {
+		if resp != nil && resp.StatusCode != http.StatusOK {
 			defer resp.Body.Close()
 			bodyBytes, errBody := ioutil.ReadAll(resp.Body)
 
