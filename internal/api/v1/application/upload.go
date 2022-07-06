@@ -19,6 +19,7 @@ import (
 
 // Should match the supported types:
 // https://github.com/epinio/helm-charts/blob/3954c214de3d7b957cfc2054ba4fa4bfa140f5a3/chart/epinio/templates/stage-scripts.yaml#L27-L62
+// This is what the filetype library supports: https://github.com/h2non/filetype#supported-types
 var validArchiveTypes = []string{
 	"application/zip",
 	"application/x-tar",
