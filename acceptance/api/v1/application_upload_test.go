@@ -61,6 +61,75 @@ var _ = Describe("AppUpload Endpoint", func() {
 		})
 	})
 
+	When("uploading a tgz (gzip) file", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.tgz")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			r := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &r)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a txz (xz) file", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.txz")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			r := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &r)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a tbz (bz2) file", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.tbz")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			r := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &r)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
 	When("uploading a zip file", func() {
 		BeforeEach(func() {
 			path = testenv.TestAssetPath("sample-app.zip")

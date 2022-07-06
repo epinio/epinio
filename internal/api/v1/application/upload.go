@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
-	"net/http"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -14,12 +13,18 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/h2non/filetype"
 	"github.com/pkg/errors"
 )
 
+// Should match the supported types:
+// https://github.com/epinio/helm-charts/blob/3954c214de3d7b957cfc2054ba4fa4bfa140f5a3/chart/epinio/templates/stage-scripts.yaml#L27-L62
 var validArchiveTypes = []string{
-	"application/octet-stream",
 	"application/zip",
+	"application/x-tar",
+	"application/gzip",
+	"application/x-bzip2",
+	"application/x-xz",
 }
 
 // Upload handles the API endpoint /namespaces/:namespace/applications/:app/store.
@@ -44,7 +49,6 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	// TODO: Does this break streaming of the file? We need to get the whole file
 	// before we can check its type
-	// Get the file content
 	contentType, err := GetFileContentType(file)
 	if err != nil {
 		return apierror.InternalError(err, "can't detect content type of archive")
@@ -84,9 +88,7 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 }
 
 func GetFileContentType(file multipart.File) (string, error) {
-	// to sniff the content type only the first
-	// 512 bytes are used.
-
+	// to sniff the content type only the first 512 bytes are used.
 	buf := make([]byte, 512)
 
 	_, err := file.Read(buf)
@@ -99,10 +101,12 @@ func GetFileContentType(file multipart.File) (string, error) {
 		return "", errors.Wrap(err, "resetting file cursor after reading content type")
 	}
 
-	// the function that actually does the trick
-	contentType := http.DetectContentType(buf)
+	kind, _ := filetype.Match(buf)
+	if kind == filetype.Unknown {
+		return "", errors.Wrap(err, "reading the file type")
+	}
 
-	return contentType, nil
+	return kind.MIME.Value, nil
 }
 
 func isValidType(contentType string) bool {
