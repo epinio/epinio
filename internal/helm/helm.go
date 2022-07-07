@@ -100,12 +100,17 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 	routesYaml := "~"
 	if len(parameters.Routes) > 0 {
+
+		logger.Info("routes and domains")
+
 		rs := []string{}
 		for _, desired := range parameters.Routes {
 			r := routes.FromString(desired)
 			rdot := strings.ReplaceAll(r.String(), "/", ".")
 
 			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
+
+			logger.Info("domain match", "domain", r.Domain, "secret", domainSecret, "err", err)
 
 			// Should we treat a match error as something to stop for?
 			// The error can only come from `filepath.Match()`

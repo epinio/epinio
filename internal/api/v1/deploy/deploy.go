@@ -44,6 +44,12 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	chartName := appObj.Configuration.AppChart
 	domains := domain.MatchMapLoad(ctx)
 
+	log.Info("domain map begin")
+	for k, v := range domains {
+		log.Info("domain map", k, v)
+	}
+	log.Info("domain map end")
+
 	deployParams := helm.ChartParameters{
 		Context:        ctx,
 		Cluster:        cluster,
