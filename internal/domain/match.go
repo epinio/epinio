@@ -36,6 +36,9 @@ func MatchDo(domain string, domains DomainMap) (string, error) {
 	for pattern, secret := range domains {
 		matched, err := filepath.Match(pattern, domain)
 		if err != nil {
+			// Should we simply treat this as non-match ?
+			// I.e. not pass the error up, and continue ?
+			// What kind of error can filepath.Match() even generate ?
 			return "", err
 		}
 		if matched && len(pattern) > bestlen {
