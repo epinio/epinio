@@ -42,7 +42,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	imageURL := appObj.ImageURL
 	routes := appObj.Configuration.Routes
 	chartName := appObj.Configuration.AppChart
-	domains := domain.MatchMapLoad(ctx)
+	domains := domain.MatchMapLoad(ctx, app.Namespace)
 
 	log.Info("domain map begin")
 	for k, v := range domains {

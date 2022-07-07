@@ -6,7 +6,6 @@ import (
 
 	"github.com/epinio/epinio/helpers/cahash"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/helmchart"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -53,7 +52,7 @@ func MatchDo(domain string, domains DomainMap) (string, error) {
 // MatchMapLoad queries the cluster for TLS secrets which are marked
 // for use by epinio, via the routingSelector label. It returns a map
 // from the domains the secrets are serving, to the serving secret.
-func MatchMapLoad(ctx context.Context) DomainMap {
+func MatchMapLoad(ctx context.Context, namespace string) DomainMap {
 	listOpts := metav1.ListOptions{
 		LabelSelector: routingSelector,
 	}
@@ -63,7 +62,7 @@ func MatchMapLoad(ctx context.Context) DomainMap {
 		return nil
 	}
 
-	certSecrets, err := cluster.Kubectl.CoreV1().Secrets(helmchart.Namespace()).List(ctx, listOpts)
+	certSecrets, err := cluster.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOpts)
 	if err != nil {
 		return nil
 	}
