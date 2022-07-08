@@ -99,7 +99,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	err = kubeServiceClient.Delete(ctx, namespace, serviceName)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return apierror.NewNotFoundError("service not found")
+			return apierror.NewNotFoundError(err.Error()).WithDetailsf("service '%s' not found", serviceName)
 		}
 
 		return apierror.InternalError(err)

@@ -35,8 +35,7 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 
 	// app exists but has no workload to connect to
 	if app.Workload == nil {
-		return apierror.NewAPIError("Cannot connect to application without workload",
-			"", http.StatusBadRequest)
+		return apierror.NewAPIError("Cannot connect to application without workload", http.StatusBadRequest)
 	}
 
 	// TODO: Find podName from application and params (e.g. instance number etc).
@@ -46,8 +45,7 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 	if len(podNames) == 0 {
-		return apierror.NewAPIError("couldn't find any Pods to connect to",
-			"", http.StatusBadRequest)
+		return apierror.NewAPIError("couldn't find any Pods to connect to", http.StatusBadRequest)
 	}
 
 	podToConnect := ""
@@ -60,8 +58,7 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 		}
 
 		if podToConnect == "" {
-			return apierror.NewAPIError("specified instance doesn't exist",
-				"", http.StatusBadRequest)
+			return apierror.NewAPIError("specified instance doesn't exist", http.StatusBadRequest)
 		}
 	} else {
 		podToConnect = podNames[0]

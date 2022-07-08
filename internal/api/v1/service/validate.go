@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -10,9 +9,9 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/go-logr/logr"
+	"github.com/pkg/errors"
 
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
-
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -38,7 +37,7 @@ func ValidateService(
 	theService, err := kubeServiceClient.Get(ctx, namespace, service)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return apierror.NewNotFoundError("service not found")
+			return apierror.NewNotFoundError(err.Error()).WithDetailsf("service '%s' not found", service)
 		}
 
 		return apierror.InternalError(err)
@@ -61,7 +60,7 @@ func ValidateService(
 	srv, err := client.GetRelease(releaseName)
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			return apierror.NewNotFoundError(fmt.Sprintf("%s - %s", err.Error(), releaseName))
+			return apierror.NewNotFoundError(err.Error()).WithDetailsf("release %s not found", releaseName)
 		}
 		return apierror.InternalError(err)
 	}

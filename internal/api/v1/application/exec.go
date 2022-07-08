@@ -42,8 +42,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 
 	// app exists but has no workload to connect to
 	if app.Workload == nil {
-		return apierror.NewAPIError("Cannot connect to application without workload",
-			"", http.StatusBadRequest)
+		return apierror.NewAPIError("Cannot connect to application without workload", http.StatusBadRequest)
 	}
 
 	workload := application.NewWorkload(cluster, app.Meta)
@@ -53,8 +52,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 	}
 
 	if len(podNames) < 1 {
-		return apierror.NewAPIError("couldn't find any Instances to connect to",
-			"", http.StatusBadRequest)
+		return apierror.NewAPIError("couldn't find any Instances to connect to", http.StatusBadRequest)
 	}
 
 	podToConnect := ""
@@ -67,8 +65,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		}
 
 		if podToConnect == "" {
-			return apierror.NewAPIError("specified instance doesn't exist",
-				"", http.StatusBadRequest)
+			return apierror.NewAPIError("specified instance doesn't exist", http.StatusBadRequest)
 		}
 	} else {
 		podToConnect = podNames[0]
