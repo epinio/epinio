@@ -104,12 +104,12 @@ func NewInternalError(msg string, details ...string) APIError {
 	return NewAPIError(msg, http.StatusInternalServerError).WithDetails(strings.Join(details, ", "))
 }
 
-// NewBadRequest constructs an API error for general issues with a request, from a message
+// NewBadRequestError constructs an API error for general issues with a request, from a message
 func NewBadRequestError(msg string) APIError {
 	return NewAPIError(msg, http.StatusBadRequest)
 }
 
-// NewBadRequestf constructs an API error for general issues with a request, with a formatted message
+// NewBadRequestErrorf constructs an API error for general issues with a request, with a formatted message
 func NewBadRequestErrorf(format string, values ...string) APIError {
 	return NewAPIError(fmt.Sprintf(format, values), http.StatusBadRequest)
 }
