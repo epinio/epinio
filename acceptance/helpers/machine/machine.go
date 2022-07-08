@@ -92,7 +92,7 @@ func (m *Machine) DeleteNamespace(namespace string) {
 
 	out, err = m.Epinio("", "namespace", "show", namespace)
 	ExpectWithOffset(1, err).To(HaveOccurred())
-	ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: Targeted namespace.*does not exist.*"))
+	ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: namespace '" + namespace + "' does not exist.*"))
 }
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {
