@@ -9,6 +9,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/pkg/errors"
 )
 
@@ -23,7 +24,7 @@ func AppDefaultRoute(ctx context.Context, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s.%s", name, mainDomain), nil
+	return fmt.Sprintf("%s-%s.%s", name, names.RandomDNSString(5), mainDomain), nil
 }
 
 // MainDomain determines the name of the main domain of the currently

@@ -7,8 +7,10 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const (
@@ -16,6 +18,7 @@ const (
 )
 
 var allowedDNSLabelChars = regexp.MustCompile("[^-a-z0-9]*")
+var allowedDNSChars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
 // DNSLabelSafe filters invalid characters and returns a string that is safe to
 // use as Kubernetes resource name.
@@ -34,6 +37,18 @@ func DNSLabelSafe(name string) string {
 func GenerateResourceName(names ...string) string {
 	originalName := strings.Join(names, "-")
 	return GenerateResourceNameTruncated(originalName, 63)
+}
+
+// RandomDNSString returns a random string of len n that is valid for subdomains (RFC 1123)
+// Ref: https://stackoverflow.com/questions/22892120
+func RandomDNSString(n int) string {
+	rand.Seed(time.Now().UnixNano())
+
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = allowedDNSChars[rand.Intn(len(allowedDNSChars))] // nolint:gosec // Non-crypto use
+	}
+	return string(b)
 }
 
 // GenerateResourceNameTruncated joins the input strings with dashes("-")
