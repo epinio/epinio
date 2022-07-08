@@ -163,11 +163,6 @@ func AppChartIsNotKnown(appChart string) APIError {
 	return NewNotFoundError("application chart", appChart)
 }
 
-// UserNotFound constructs an API error for when the user name is not found in the header
-func UserNotFound() APIError {
-	return NewBadRequestError("user not found in the request header")
-}
-
 /////////////////////////
 //
 // Conflict (409) errors
@@ -187,26 +182,4 @@ func NamespaceAlreadyKnown(namespace string) APIError {
 // ConfigurationAlreadyKnown constructs an API error for when we have a conflict with an existing configuration instance
 func ConfigurationAlreadyKnown(configuration string) APIError {
 	return NewConflictError("configuration", configuration)
-}
-
-// AppChartAlreadyKnown constructs an API error for when we have a conflict with an existing app chart
-func AppChartAlreadyKnown(appChart string) APIError {
-	return NewConflictError("application chart", appChart)
-}
-
-// ConfigurationAlreadyBound constructs an API error for when the configuration to bind is already bound to the app
-func ConfigurationAlreadyBound(configuration string) APIError {
-	msg := fmt.Sprintf("configuration '%s' already bound", configuration)
-	return NewAPIError(msg, http.StatusConflict)
-}
-
-///////////////////////////
-//
-// BadRequest (400) errors
-//
-///////////////////////////
-
-// ConfigurationIsNotBound constructs an API error for when the configuration to unbind is actually not bound to the app
-func ConfigurationIsNotBound(configuration string) APIError {
-	return NewBadRequestErrorf("configuration '%s' is not bound", configuration)
 }
