@@ -34,7 +34,8 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	stageID := appObj.StageID
 
 	if expectedStageID != "" && expectedStageID != stageID {
-		return nil, apierror.NewBadRequest("stage id mismatch").WithDetailsf("expectedStageID: [%s] - stageID: [%s]", expectedStageID, stageID)
+		return nil, apierror.NewBadRequestError("stage id mismatch").
+			WithDetailsf("expectedStageID: [%s] - stageID: [%s]", expectedStageID, stageID)
 	}
 
 	imageURL := appObj.ImageURL

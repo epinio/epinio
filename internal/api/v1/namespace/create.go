@@ -29,13 +29,12 @@ func (oc Controller) Create(c *gin.Context) apierror.APIErrors {
 	var request models.NamespaceCreateRequest
 	err = c.BindJSON(&request)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 	namespaceName := request.Name
 
 	if namespaceName == "" {
-		err := errors.New("name of namespace to create not found")
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError("name of namespace to create not found")
 	}
 
 	exists, err := namespaces.Exists(ctx, cluster, namespaceName)

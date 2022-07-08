@@ -39,7 +39,7 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 	var replaceRequest models.ConfigurationReplaceRequest
 	err = c.BindJSON(&replaceRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	restart, err := configurations.ReplaceConfiguration(ctx, cluster, configuration, replaceRequest)

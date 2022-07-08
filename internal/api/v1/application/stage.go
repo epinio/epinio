@@ -102,13 +102,13 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	req := models.StageRequest{}
 	if err := c.BindJSON(&req); err != nil {
-		return apierror.NewBadRequest(err.Error()).WithDetails("Failed to unmarshal app stage request")
+		return apierror.NewBadRequestError(err.Error()).WithDetails("failed to unmarshal app stage request")
 	}
 	if name != req.App.Name {
-		return apierror.NewBadRequest("name parameter from URL does not match name param in body")
+		return apierror.NewBadRequestError("name parameter from URL does not match name param in body")
 	}
 	if namespace != req.App.Namespace {
-		return apierror.NewBadRequest("namespace parameter from URL does not match namespace param in body")
+		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -150,7 +150,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 	if staging {
-		return apierror.NewBadRequest("Staging job for image ID still running")
+		return apierror.NewBadRequestError("staging job for image ID still running")
 	}
 
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
@@ -321,10 +321,8 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 		return apierror.NewInternalError("blob has no app name meta data")
 	}
 	if blobApp != app.Name {
-		return apierror.NewBadRequest(
-			"blob app mismatch",
-			"expected: "+app.Name,
-			"found: "+blobApp)
+		return apierror.NewBadRequestError("blob app mismatch").
+			WithDetailsf("expected: [%s], found: [%s]", app.Name, blobApp)
 	}
 
 	blobNamespace, ok := blobMeta["Namespace"]
@@ -332,10 +330,8 @@ func validateBlob(ctx context.Context, blobUID string, app models.AppRef, s3Conn
 		return apierror.NewInternalError("blob has no namespace meta data")
 	}
 	if blobNamespace != app.Namespace {
-		return apierror.NewBadRequest(
-			"blob namespace mismatch",
-			"expected: "+app.Namespace,
-			"found: "+blobNamespace)
+		return apierror.NewBadRequestError("blob namespace mismatch").
+			WithDetailsf("expected: [%s], found: [%s]", app.Namespace, blobNamespace)
 	}
 
 	return nil
@@ -683,7 +679,7 @@ func getBlobUID(ctx context.Context, s3ConnectionDetails s3manager.ConnectionDet
 	}
 
 	if blobUID == "" {
-		returnErr = apierror.NewBadRequest("request didn't provide a blobUID and a previous one doesn't exist")
+		returnErr = apierror.NewBadRequestError("request didn't provide a blobUID and a previous one doesn't exist")
 		return "", returnErr
 	}
 

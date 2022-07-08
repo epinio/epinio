@@ -36,7 +36,7 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 
 	if app.Workload == nil {
 		// While the app exists it has no workload, and therefore no status
-		return apierror.NewBadRequest("No status available for application without workload")
+		return apierror.NewBadRequestError("no status available for application without workload")
 	}
 
 	err = cluster.WaitForDeploymentCompleted(

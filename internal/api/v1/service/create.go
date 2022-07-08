@@ -18,7 +18,7 @@ func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 	var createRequest models.ServiceCreateRequest
 	err := c.BindJSON(&createRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -34,7 +34,8 @@ func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 	catalogService, err := kubeServiceClient.GetCatalogService(ctx, createRequest.CatalogService)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			return apierror.NewBadRequest(err.Error()).WithDetailsf("Catalog service %s not found", createRequest.CatalogService)
+			return apierror.NewBadRequestError(err.Error()).
+				WithDetailsf("catalog service %s not found", createRequest.CatalogService)
 		}
 		return apierror.InternalError(err)
 	}

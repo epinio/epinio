@@ -41,7 +41,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	var updateRequest models.ConfigurationUpdateRequest
 	err = c.BindJSON(&updateRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	// Save changes to resource

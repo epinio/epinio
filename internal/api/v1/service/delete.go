@@ -30,7 +30,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	var deleteRequest models.ServiceDeleteRequest
 	err := c.BindJSON(&deleteRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -77,7 +77,8 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	if len(boundAppNames) > 0 {
 		if !deleteRequest.Unbind {
-			return apierror.NewBadRequest("bound applications exist").WithDetails(strings.Join(boundAppNames, ","))
+			return apierror.NewBadRequestError("bound applications exist").
+				WithDetails(strings.Join(boundAppNames, ","))
 		}
 
 		username := requestctx.User(ctx).Username

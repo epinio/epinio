@@ -30,7 +30,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	var bindRequest models.ServiceUnbindRequest
 	err := c.BindJSON(&bindRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)

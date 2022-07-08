@@ -41,7 +41,7 @@ func (hc Controller) Set(c *gin.Context) apierror.APIErrors {
 	var setRequest models.EnvVariableMap
 	err = c.BindJSON(&setRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	err = application.EnvironmentSet(ctx, cluster, app.Meta, setRequest, false)
