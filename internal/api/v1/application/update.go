@@ -45,11 +45,11 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	var updateRequest models.ApplicationUpdateRequest
 	err = c.BindJSON(&updateRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	if updateRequest.Instances != nil && *updateRequest.Instances < 0 {
-		return apierror.NewBadRequest("instances param should be integer equal or greater than zero")
+		return apierror.NewBadRequestError("instances param should be integer equal or greater than zero")
 	}
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
@@ -73,7 +73,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
 		if app.Workload != nil {
-			return apierror.NewBadRequest("Unable to change app chart of active application")
+			return apierror.NewBadRequestError("unable to change app chart of active application")
 		}
 
 		found, err := appchart.Exists(ctx, cluster, updateRequest.AppChart)

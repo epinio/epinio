@@ -356,7 +356,7 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(errorResponse.Errors[0].Status).To(Equal(http.StatusNotFound))
-			Expect(errorResponse.Errors[0].Title).To(Equal("Configuration 'does_not_exist' does not exist"))
+			Expect(errorResponse.Errors[0].Title).To(Equal("configuration 'does_not_exist' does not exist"))
 
 			configurationBindings = readConfigurationBindings(namespace, app)
 			Expect(configurationBindings).To(Equal([]string{configuration}))

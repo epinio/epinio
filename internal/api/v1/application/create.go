@@ -29,7 +29,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	var createRequest models.ApplicationCreateRequest
 	err = c.BindJSON(&createRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	appRef := models.NewAppRef(createRequest.Name, namespace)

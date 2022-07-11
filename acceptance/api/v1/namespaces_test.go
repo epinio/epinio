@@ -149,7 +149,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("Namespace 'birdy' already exists"))
+					Equal("namespace 'birdy' already exists"))
 
 				// cleanup
 				env.DeleteNamespace("birdy")

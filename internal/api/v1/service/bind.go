@@ -27,7 +27,7 @@ func (ctr Controller) Bind(c *gin.Context) apierror.APIErrors {
 	var bindRequest models.ServiceBindRequest
 	err := c.BindJSON(&bindRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)

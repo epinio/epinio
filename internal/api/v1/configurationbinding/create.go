@@ -13,8 +13,6 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
-
-	"github.com/pkg/errors"
 )
 
 // General behaviour: Internal errors (5xx) abort an action.
@@ -32,18 +30,16 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	var bindRequest models.BindRequest
 	err := c.BindJSON(&bindRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	if len(bindRequest.Names) == 0 {
-		err := errors.New("Cannot bind configuration without names")
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError("cannot bind configuration without names")
 	}
 
 	for _, configurationName := range bindRequest.Names {
 		if configurationName == "" {
-			err := errors.New("Cannot bind configuration with empty name")
-			return apierror.BadRequest(err)
+			return apierror.NewBadRequestError("cannot bind configuration with empty name")
 		}
 	}
 

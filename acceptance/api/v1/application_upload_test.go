@@ -8,6 +8,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -168,7 +169,9 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 
-			Expect(string(bodyBytes)).To(MatchRegexp("archive type not supported application/vnd.rar"))
+			var responseBody map[string][]errors.APIError
+			json.Unmarshal(bodyBytes, &responseBody)
+			Expect(responseBody["errors"][0].Title).To(Equal("archive type not supported [application/vnd.rar]"))
 		})
 	})
 })

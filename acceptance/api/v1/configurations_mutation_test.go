@@ -80,7 +80,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Cannot create configuration without a name"))
+				Equal("cannot create configuration without a name"))
 		})
 
 		It("returns a 'bad request' for JSON object empty `data` key", func() {
@@ -100,7 +100,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Cannot create configuration without data"))
+				Equal("cannot create configuration without data"))
 		})
 
 		It("returns a 'not found' when the namespace does not exist", func() {
@@ -121,7 +121,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Targeted namespace 'bogus' does not exist"))
+				Equal("namespace 'bogus' does not exist"))
 		})
 
 		Context("with conflicting configuration", func() {
@@ -154,7 +154,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("Configuration '" + configuration + "' already exists"))
+					Equal("configuration '" + configuration + "' already exists"))
 			})
 		})
 
@@ -256,7 +256,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			err = json.Unmarshal(bodyBytes, &responseBody)
 			Expect(err).ToNot(HaveOccurred())
 
-			expectedErrorMsg := "Targeted namespace 'idontexist' does not exist"
+			expectedErrorMsg := "namespace 'idontexist' does not exist"
 			Expect(responseBody["errors"][0].Title).To(Equal(expectedErrorMsg))
 		})
 
@@ -275,7 +275,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Configuration 'bogus' does not exist"))
+				Equal("configuration 'bogus' does not exist"))
 
 		})
 
@@ -412,7 +412,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Cannot bind configuration without names"))
+				Equal("cannot bind configuration without names"))
 		})
 
 		It("returns a 'not found' when the namespace does not exist", func() {
@@ -430,7 +430,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Targeted namespace 'bogus' does not exist"))
+				Equal("namespace 'bogus' does not exist"))
 		})
 
 		It("returns a 'not found' when the application does not exist", func() {
@@ -448,7 +448,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Application 'bogus' does not exist"))
+				Equal("application 'bogus' does not exist"))
 		})
 
 		Context("with application", func() {
@@ -482,7 +482,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("Configuration 'bogus' does not exist"))
+					Equal("configuration 'bogus' does not exist"))
 			})
 
 			Context("and already bound", func() {
@@ -550,7 +550,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Targeted namespace 'idontexist' does not exist"))
+				Equal("namespace 'idontexist' does not exist"))
 		})
 
 		It("returns a 'not found' when the application does not exist", func() {
@@ -568,7 +568,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			var responseBody map[string][]errors.APIError
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
-				Equal("Application 'bogus' does not exist"))
+				Equal("application 'bogus' does not exist"))
 		})
 
 		Context("with application", func() {
@@ -598,7 +598,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				var responseBody map[string][]errors.APIError
 				json.Unmarshal(bodyBytes, &responseBody)
 				Expect(responseBody["errors"][0].Title).To(
-					Equal("Configuration 'bogus' does not exist"))
+					Equal("configuration 'bogus' does not exist"))
 			})
 
 			Context("with configuration", func() {

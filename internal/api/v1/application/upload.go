@@ -1,7 +1,6 @@
 package application
 
 import (
-	"fmt"
 	"io"
 	"mime/multipart"
 
@@ -44,7 +43,7 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	file, fileheader, err := c.Request.FormFile("file")
 	if err != nil {
-		return apierror.BadRequest(err, "can't read multipart file input")
+		return apierror.NewBadRequestError(err.Error()).WithDetails("can't read multipart file input")
 	}
 	defer file.Close()
 
@@ -55,7 +54,7 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "can't detect content type of archive")
 	}
 	if !isValidType(contentType) {
-		return apierror.NewBadRequest(fmt.Sprintf("archive type not supported %s", contentType))
+		return apierror.NewBadRequestErrorf("archive type not supported %s", contentType)
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)

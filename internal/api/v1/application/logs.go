@@ -63,7 +63,7 @@ func (hc Controller) Logs(c *gin.Context) {
 	}
 
 	if appName == "" && stageID == "" {
-		response.Error(c, apierror.BadRequest(errors.New("You need to specify either the stage id or the app")))
+		response.Error(c, apierror.NewBadRequestError("you need to specify either the stage id or the app"))
 		return
 	}
 

@@ -25,7 +25,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	var deleteRequest models.ConfigurationDeleteRequest
 	err := c.BindJSON(&deleteRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -52,7 +52,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	if len(boundAppNames) > 0 {
 		if !deleteRequest.Unbind {
-			return apierror.NewBadRequest("bound applications exist", strings.Join(boundAppNames, ","))
+			return apierror.NewBadRequestError("bound applications exist").WithDetails(strings.Join(boundAppNames, ","))
 		}
 
 		for _, appName := range boundAppNames {
