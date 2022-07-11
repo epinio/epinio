@@ -46,7 +46,7 @@ var _ = Describe("Namespaces", func() {
 
 			out, err := env.Epinio("", "namespace", "create", namespaceName)
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Namespace '%s' already exists", namespaceName))
+			Expect(out).To(ContainSubstring("namespace '%s' already exists", namespaceName))
 		})
 	})
 

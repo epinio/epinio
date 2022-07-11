@@ -286,7 +286,7 @@ spec:
 				It("fails to change the app chart of the running app", func() {
 					out, err := env.Epinio("", "app", "update", appName, "--app-chart", chartName)
 					Expect(err).To(HaveOccurred(), out)
-					Expect(out).To(ContainSubstring("Bad Request: Unable to change app chart of active application"))
+					Expect(out).To(ContainSubstring("Bad Request: unable to change app chart of active application"))
 				})
 
 				When("no workload is present", func() {

@@ -114,7 +114,7 @@ var _ = Describe("Services", func() {
 		Eventually(func() string {
 			out, _ := env.Epinio("", "service", "delete", service)
 			return out
-		}, "1m", "5s").Should(ContainSubstring("not found"))
+		}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 
 	}
 
@@ -387,7 +387,7 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(ContainSubstring("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 
 			env.DeleteNamespace(namespace)
 		})
@@ -478,7 +478,7 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(ContainSubstring("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 		})
 
 		When("bound to an app", func() {
@@ -551,7 +551,7 @@ var _ = Describe("Services", func() {
 				Eventually(func() string {
 					out, _ := env.Epinio("", "service", "delete", service)
 					return out
-				}, "1m", "5s").Should(ContainSubstring("service not found"))
+				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 
 			})
 
@@ -563,7 +563,7 @@ var _ = Describe("Services", func() {
 				Eventually(func() string {
 					out, _ := env.Epinio("", "service", "delete", service)
 					return out
-				}, "1m", "5s").Should(ContainSubstring("service not found"))
+				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 			})
 		})
 	})
@@ -623,7 +623,7 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(ContainSubstring("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 
 			env.DeleteNamespace(namespace)
 		})
@@ -730,7 +730,7 @@ var _ = Describe("Services", func() {
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
-			}, "1m", "5s").Should(ContainSubstring("service not found"))
+			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
 
 			env.DeleteNamespace(namespace)
 		})
