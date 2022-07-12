@@ -110,8 +110,8 @@ func NewBadRequestError(msg string) APIError {
 }
 
 // NewBadRequestErrorf constructs an API error for general issues with a request, with a formatted message
-func NewBadRequestErrorf(format string, values ...string) APIError {
-	return NewAPIError(fmt.Sprintf(format, values), http.StatusBadRequest)
+func NewBadRequestErrorf(format string, values ...any) APIError {
+	return NewAPIError(fmt.Sprintf(format, values...), http.StatusBadRequest)
 }
 
 // NewNotFoundError constructs a general API error for when something desired does not exist
