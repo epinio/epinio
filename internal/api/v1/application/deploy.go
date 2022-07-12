@@ -2,6 +2,7 @@ package application
 
 import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
@@ -56,6 +57,16 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	err = deploy.UpdateImageURL(ctx, cluster, applicationCR, req.ImageURL)
 	if err != nil {
 		return apierror.InternalError(err, "failed to set application's image url")
+	}
+
+	desiredRoutes, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "routes")
+	if err != nil || !found {
+		return apierror.InternalError(err, "failed to get the application routes")
+	}
+
+	apierr := validateRoutes(ctx, cluster, desiredRoutes)
+	if apierr != nil {
+		return apierr
 	}
 
 	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID, &req.Origin, nil)

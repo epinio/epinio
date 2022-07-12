@@ -1,6 +1,8 @@
 package application
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
@@ -82,6 +84,11 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 		routes = []string{route}
 	}
 
+	apierr := validateRoutes(ctx, cluster, routes)
+	if err != nil {
+		return apierr
+	}
+
 	// Finalize chart selection (system fallback), and verify existence.
 
 	chart := "standard"
@@ -129,5 +136,29 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	response.Created(c)
+	return nil
+}
+
+func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, routes []string) apierror.APIErrors {
+	ingresses, err := application.ListAllRoutes(ctx, cluster.Kubectl.NetworkingV1())
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	ingressMap := map[string]struct{}{}
+	for _, ing := range ingresses {
+		ingressMap[ing] = struct{}{}
+	}
+
+	issues := []apierror.APIError{}
+	for _, route := range routes {
+		if _, found := ingressMap[route]; found {
+			issues = append(issues, apierror.NewBadRequestErrorf("route '%s' already exists", route))
+		}
+	}
+
+	if len(issues) > 0 {
+		return apierror.NewMultiError(issues)
+	}
 	return nil
 }
