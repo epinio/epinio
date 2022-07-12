@@ -198,6 +198,6 @@ func (m *Machine) SaveServerLogs(destination string) {
 	Expect(err).ToNot(HaveOccurred(), log)
 
 	// And save them into the specified file
-	err = os.WriteFile(filepath.Join(m.nodeTmpDir, destination), []byte(log), 0644)
+	err = os.WriteFile(filepath.Join(m.nodeTmpDir, destination), []byte(log), 0600)
 	Expect(err).ToNot(HaveOccurred())
 }
