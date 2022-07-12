@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	urlpkg "net/url"
+	"os"
+	"path/filepath"
 	"strings"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -150,4 +152,52 @@ func (m *Machine) GetSettingsFrom(location string) (*settings.Settings, error) {
 
 func (m *Machine) GetSettings() (*settings.Settings, error) {
 	return settings.Load()
+}
+
+// SaveApplicationSpec is a debugging helper function saving the
+// specified application's manifest and helm data (values, chart) into
+// file and directory named after the application.
+//
+// Note: Intended use is debugging of a test case. Most tests cases
+// will not need this as part of their regular operation.
+//
+// __Attention__: The created files and directory are __not cleaned up automatically__
+func (m *Machine) SaveApplicationSpec(appName string) {
+
+	out, err := m.Epinio("", "app", "manifest", appName,
+		filepath.Join(m.nodeTmpDir, appName+"-manifest.yaml"))
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	out, err = m.Epinio("", "app", "export",
+		filepath.Join(m.nodeTmpDir, appName, appName+"-helm"))
+	Expect(err).ToNot(HaveOccurred(), out)
+}
+
+// SaveServerLogs is a debugging helper function saving the
+// test server's logs (last 3 minutes) into the specified file.
+//
+// Note: Intended use is debugging of a test case. Most tests cases
+// will not need this as part of their regular operation.
+//
+// __Attention__: The created file is __not cleaned up automatically__
+func (m *Machine) SaveServerLogs(destination string) {
+	// Locate the server pod
+	serverPodName, err := proc.Kubectl("get", "pod",
+		"-n", "epinio",
+		"-l", "app.kubernetes.io/component=epinio-server",
+		"-o", "name")
+	Expect(err).ToNot(HaveOccurred(), serverPodName)
+	serverPodName = strings.TrimSpace(serverPodName)
+
+	// Get server logs of the last 3 minutes
+	log, err := proc.Kubectl("logs",
+		"-c", "epinio-server",
+		"-n", "epinio",
+		"--since", "3m",
+		serverPodName)
+	Expect(err).ToNot(HaveOccurred(), log)
+
+	// And save them into the specified file
+	err = os.WriteFile(filepath.Join(m.nodeTmpDir, destination), []byte(log), 0644)
+	Expect(err).ToNot(HaveOccurred())
 }
