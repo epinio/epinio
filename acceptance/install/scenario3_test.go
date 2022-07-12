@@ -80,7 +80,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 
 			out, err = proc.RunW("helm", "upgrade", "--install", "--wait", "-n", "metallb",
 				"--create-namespace", "metallb", "metallb/metallb", "-f",
-				testenv.TestAssetPath("values-metallb-rke.yml"))
+				testenv.TestAssetPath("resources.yaml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
