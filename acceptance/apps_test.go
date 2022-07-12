@@ -3,6 +3,8 @@ package acceptance_test
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -21,6 +23,9 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/application"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
@@ -812,6 +817,127 @@ configuration:
 			}, "1m").ShouldNot(ContainSubstring(appName))
 
 			env.DeleteConfiguration(configurationName)
+		})
+
+		Context("with explicit domain secret", func() {
+			var newDomainSecret string
+
+			BeforeEach(func() {
+				newDomainSecret = "domain" + appName
+			})
+			AfterEach(func() {
+				env.DeleteApp(appName)
+
+				out, err := proc.Kubectl("delete", "secret", "-n", namespace, "domain"+appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+			})
+
+			It("pushes an app", func() {
+				By("Pushing an app normally")
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
+				// During debugging this used SaveApplicationSpec and SaveServerLogs
+
+				By("Getting the generated secret for the domain")
+				// Actually only what is truly needed: pem data, and owning cert
+
+				// query ingress for referenced secret
+				ingSecret, err := proc.Kubectl("get", "ingress",
+					"--namespace", namespace,
+					"--selector", "app.kubernetes.io/name="+appName,
+					"-o", "jsonpath={.items[*].spec.tls[*].secretName}")
+				Expect(err).ToNot(HaveOccurred())
+
+				// pull pem blocks out of the secret
+				cao, err := proc.Kubectl("get", "secret", "-n", namespace, ingSecret, "-o", "jsonpath={.data['ca\\.crt']}")
+				Expect(err).ToNot(HaveOccurred())
+
+				crto, err := proc.Kubectl("get", "secret", "-n", namespace, ingSecret, "-o", "jsonpath={.data['tls\\.crt']}")
+				Expect(err).ToNot(HaveOccurred())
+
+				keyo, err := proc.Kubectl("get", "secret", "-n", namespace, ingSecret, "-o", "jsonpath={.data['tls\\.key']}")
+				Expect(err).ToNot(HaveOccurred())
+
+				// pull the owning cert resource out of the secret
+				cert, err := proc.Kubectl("get", "secret", "-n", namespace, ingSecret, "-o", "jsonpath={.metadata.ownerReferences[*].name}")
+				Expect(err).ToNot(HaveOccurred())
+
+				// check that there is a cert
+				out, err := proc.Kubectl("get", "certificate", "-n", namespace, cert, "-o", "json")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				// decode the pem blocks for insertion into the new secret
+				ca, err := base64.StdEncoding.DecodeString(string(cao))
+				Expect(err).ToNot(HaveOccurred(), string(cao))
+				crt, err := base64.StdEncoding.DecodeString(string(crto))
+				Expect(err).ToNot(HaveOccurred(), string(crto))
+				key, err := base64.StdEncoding.DecodeString(string(keyo))
+				Expect(err).ToNot(HaveOccurred(), string(keyo))
+
+				By("Constructing a routing secret")
+
+				directDomainSecret := &corev1.Secret{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Secret",
+						APIVersion: "v1",
+					},
+					Type: "kubernetes.io/tls",
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      newDomainSecret,
+						Namespace: namespace,
+						Labels: map[string]string{
+							"epinio.io/routing": "domain-mapping-test",
+						},
+					},
+					StringData: map[string]string{
+						"ca.crt":  string(ca),
+						"tls.crt": string(crt),
+						"tls.key": string(key),
+					},
+				}
+
+				domainFile := catalog.NewTmpName("tmpUserFile") + `.json`
+				file, err := os.Create(domainFile)
+				Expect(err).ToNot(HaveOccurred())
+
+				err = json.NewEncoder(file).Encode(directDomainSecret)
+				Expect(err).ToNot(HaveOccurred())
+				defer os.Remove(domainFile)
+
+				By("Uploading the new secret for the domain")
+
+				out, err = proc.Kubectl("apply", "-f", domainFile)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				// check success of upload, new secret should exist
+				new, err := proc.Kubectl("get", "secret", "-n", namespace, newDomainSecret, "-o", "json")
+				Expect(err).ToNot(HaveOccurred(), new)
+
+				By("Pushing the app again")
+				env.MakeContainerImageApp(appName, 1, containerImageURL)
+				// During debugging this used SaveApplicationSpec and SaveServerLogs
+
+				By("Seeing the generated cert gone")
+
+				// check that the generated cert from the first push is gone
+				out, err = proc.Kubectl("get", "certificate", "-n", namespace, cert, "-o", "json")
+				Expect(err).To(HaveOccurred(), out)
+
+				By("Seeing the generated secret gone")
+
+				// check that the generated secret from the first push is gone
+				out, err = proc.Kubectl("get", "secret", "-n", namespace, ingSecret, "-o", "json")
+				Expect(err).To(HaveOccurred(), out)
+
+				By("Seeing the ingress use the new routing secret")
+
+				// check the secret referenced by the updated app ingress, should be the new
+				newSecret, err := proc.Kubectl("get", "ingress",
+					"--namespace", namespace,
+					"--selector", "app.kubernetes.io/name="+appName,
+					"-o", "jsonpath={.items[*].spec.tls[*].secretName}")
+				Expect(err).ToNot(HaveOccurred())
+				Expect(newSecret).To(Equal(newDomainSecret))
+			})
 		})
 
 		Context("with environment variable", func() {
