@@ -82,7 +82,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 				"--create-namespace", "metallb", "metallb/metallb")
 			Expect(err).NotTo(HaveOccurred(), out)
 
-			out, err := proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("resources.yaml"))
+			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("resources.yaml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
