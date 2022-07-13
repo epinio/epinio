@@ -64,7 +64,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "failed to get the application routes")
 	}
 
-	apierr := validateRoutes(ctx, cluster, desiredRoutes)
+	apierr := validateRoutes(ctx, cluster, name, namespace, desiredRoutes)
 	if apierr != nil {
 		return apierr
 	}

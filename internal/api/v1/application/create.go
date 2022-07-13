@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -10,9 +11,11 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/routes"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Create handles the API endpoint POST /namespaces/:namespace/applications
@@ -77,15 +80,15 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	if len(createRequest.Configuration.Routes) > 0 {
 		routes = createRequest.Configuration.Routes
 	} else {
-		route, err := domain.AppDefaultRoute(ctx, createRequest.Name)
+		route, err := domain.AppDefaultRoute(ctx, createRequest.Name, namespace)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 		routes = []string{route}
 	}
 
-	apierr := validateRoutes(ctx, cluster, routes)
-	if err != nil {
+	apierr := validateRoutes(ctx, cluster, appRef.Name, appRef.Namespace, routes)
+	if apierr != nil {
 		return apierr
 	}
 
@@ -139,21 +142,58 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	return nil
 }
 
-func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, routes []string) apierror.APIErrors {
-	ingresses, err := application.ListAllRoutes(ctx, cluster.Kubectl.NetworkingV1())
+func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, namespace string, desiredRoutes []string) apierror.APIErrors {
+	log := requestctx.Logger(ctx)
+
+	desiredRoutesMap := map[string]struct{}{}
+	for _, desiredRoute := range desiredRoutes {
+		desiredRoutesMap[desiredRoute] = struct{}{}
+	}
+
+	ingressList, err := cluster.Kubectl.NetworkingV1().Ingresses("").List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	ingressMap := map[string]struct{}{}
-	for _, ing := range ingresses {
-		ingressMap[ing] = struct{}{}
-	}
-
 	issues := []apierror.APIError{}
-	for _, route := range routes {
-		if _, found := ingressMap[route]; found {
-			issues = append(issues, apierror.NewBadRequestErrorf("route '%s' already exists", route))
+
+	for _, ingress := range ingressList.Items {
+		route, err := routes.FromIngress(ingress)
+		if err != nil {
+			issues = append(issues, apierror.InternalError(err))
+			continue
+		}
+		ingressRoute := route.String()
+
+		// if a desired route is present within the ingresses then we have to check if it's already owned by the same app
+		if _, found := desiredRoutesMap[ingressRoute]; found {
+			ingressAppName, found := ingress.GetLabels()["app.kubernetes.io/name"]
+			if !found {
+				err := apierror.NewInternalError("missing app name in ingress").
+					WithDetailsf("app: [%s], namespace: [%s]", appName, namespace)
+				issues = append(issues, err)
+				continue
+			}
+
+			log.Info(fmt.Sprintf("######## ROUTE CLASH [%s]: APP [%s][%s] VS Ingress [%s][%s]",
+				ingressRoute, appName, namespace, ingressAppName, ingress.Namespace,
+			))
+
+			// the ingress route is owned by the same app
+			if appName+namespace == ingressAppName+ingress.Namespace {
+				log.Info(fmt.Sprintf("######## ROUTE CLASH HUM.... [%v && %v]",
+					(appName == ingressAppName), (namespace == ingress.Namespace),
+				))
+				continue
+			}
+
+			log.Info(fmt.Sprintf("######## ROUTE CLASH OPS [%v && %v]",
+				(appName == ingressAppName), (namespace == ingress.Namespace),
+			))
+
+			err := apierror.NewBadRequestErrorf("route '%s' already exists", ingressRoute).
+				WithDetailsf("route is already owned by app [%s] in namespace [%s]", ingressAppName, ingress.Namespace)
+			issues = append(issues, err)
 		}
 	}
 

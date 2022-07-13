@@ -16,23 +16,24 @@ var _ = Describe("AppCreate Endpoint", func() {
 	var (
 		namespace string
 		appName   string
-		appName2  string
 	)
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
-		env.SetupAndTargetNamespace(namespace)
 		appName = catalog.NewAppName()
-		appName2 = catalog.NewAppName()
+		env.SetupAndTargetNamespace(namespace)
 	})
 
 	AfterEach(func() {
-		env.DeleteApp(appName)
-		env.DeleteApp(appName2)
 		env.DeleteNamespace(namespace)
 	})
 
 	When("creating a new app", func() {
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
 		It("creates the app resource", func() {
 			response, err := createApplication(appName, namespace, []string{"mytestdomain.org"})
 			Expect(err).ToNot(HaveOccurred())
@@ -62,9 +63,11 @@ var _ = Describe("AppCreate Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(Equal("standard"))
 		})
+	})
 
-		It("fails creating the app resource with the epinio route", func() {
-			epinioHost, err := proc.Kubectl("get", "ing", "-n", "epinio", "epinio", "-o", "jsonpath={.spec.rules[*].host}")
+	When("trying to create a new app with the epinio route", func() {
+		It("fails creating the app", func() {
+			epinioHost, err := proc.Kubectl("get", "ingress", "--namespace", "epinio", "epinio", "-o", "jsonpath={.spec.rules[*].host}")
 			Expect(err).ToNot(HaveOccurred())
 
 			response, err := createApplication(appName, namespace, []string{epinioHost})

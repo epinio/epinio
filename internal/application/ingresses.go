@@ -13,7 +13,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
-	typednetworkingv1 "k8s.io/client-go/kubernetes/typed/networking/v1"
 )
 
 // DesiredRoutes lists all desired routes for the given application
@@ -71,23 +70,4 @@ func ingressListForApp(ctx context.Context, cluster *kubernetes.Cluster, appRef 
 	return cluster.Kubectl.NetworkingV1().Ingresses(appRef.Namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: ingressSelector,
 	})
-}
-
-func ListAllRoutes(ctx context.Context, k8sNetwork typednetworkingv1.NetworkingV1Interface) ([]string, error) {
-	ingressList, err := k8sNetwork.Ingresses("").List(ctx, metav1.ListOptions{})
-	if err != nil {
-		return []string{}, err
-	}
-
-	result := []string{}
-	for _, ingress := range ingressList.Items {
-		route, err := routes.FromIngress(ingress)
-		if err != nil {
-			return result, err
-		}
-
-		result = append(result, route.String())
-	}
-
-	return result, nil
 }

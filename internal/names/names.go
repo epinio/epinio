@@ -7,10 +7,8 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"regexp"
 	"strings"
-	"time"
 )
 
 const (
@@ -18,7 +16,6 @@ const (
 )
 
 var allowedDNSLabelChars = regexp.MustCompile("[^-a-z0-9]*")
-var allowedDNSChars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
 // DNSLabelSafe filters invalid characters and returns a string that is safe to
 // use as Kubernetes resource name.
@@ -39,16 +36,16 @@ func GenerateResourceName(names ...string) string {
 	return GenerateResourceNameTruncated(originalName, 63)
 }
 
-// RandomDNSString returns a random string of len n that is valid for subdomains (RFC 1123)
-// Ref: https://stackoverflow.com/questions/22892120
-func RandomDNSString(n int) string {
-	rand.Seed(time.Now().UnixNano())
+// MD5String compute the hash of the passed value and returns the first 'length' characters
+// If the length is -1 or greater than the md5 hash then the whole hash is retuned
+func MD5String(value string, length int) string {
+	sumArray := sha1.Sum([]byte(value)) // nolint:gosec // Non-crypto use
+	sum := hex.EncodeToString(sumArray[:])
 
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = allowedDNSChars[rand.Intn(len(allowedDNSChars))] // nolint:gosec // Non-crypto use
+	if length == -1 || length > len(sum) {
+		return sum
 	}
-	return string(b)
+	return sum[:length]
 }
 
 // GenerateResourceNameTruncated joins the input strings with dashes("-")
@@ -63,8 +60,7 @@ func RandomDNSString(n int) string {
 // NOTE: Since the checksum must always be included, this function shouldn't be used
 // to produce names shorter than Sha1sumLength characters.
 func GenerateResourceNameTruncated(originalName string, maxLen int) string {
-	sumArray := sha1.Sum([]byte(originalName)) // nolint:gosec // Non-crypto use
-	sum := hex.EncodeToString(sumArray[:])
+	sum := MD5String(originalName, -1)
 
 	// We allow maxLen less than the sha hash. We take the prefix of the hash in that
 	// case.  While there is some risk of conflict it should be tolerable until we

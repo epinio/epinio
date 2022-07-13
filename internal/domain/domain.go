@@ -18,13 +18,14 @@ import (
 var mainDomain = ""
 
 // AppDefaultRoute constructs and returns an application's default
-// route from the main domain and the name of the application
-func AppDefaultRoute(ctx context.Context, name string) (string, error) {
+// route from the main domain, the name of the application and the namespace.
+// The namespace is used to compute an MD5 hash to use as suffix
+func AppDefaultRoute(ctx context.Context, name, namespace string) (string, error) {
 	mainDomain, err := MainDomain(ctx)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%s.%s", name, names.RandomDNSString(5), mainDomain), nil
+	return fmt.Sprintf("%s-%s.%s", name, names.MD5String(namespace, 5), mainDomain), nil
 }
 
 // MainDomain determines the name of the main domain of the currently
