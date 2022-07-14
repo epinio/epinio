@@ -19,7 +19,8 @@ const (
 )
 
 // Deploy handles the API endpoint /namespaces/:namespace/applications/:app/deploy
-// It creates the deployment, configuration and ingress (kube) resources for the app
+// It uses an application chart to create the deployment, configuration and ingress (kube)
+// resources for the app.
 func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 

@@ -12,6 +12,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/appchart"
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
@@ -37,6 +38,7 @@ type ChartParameters struct {
 	Environment    models.EnvVariableMap // App Environment
 	Configurations []string              // Bound Configurations (list of names)
 	Routes         []string              // Desired application routes
+	Domains        domain.DomainMap      // Map of domains with secrets covering them
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
 }
 
@@ -98,12 +100,32 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 	routesYaml := "~"
 	if len(parameters.Routes) > 0 {
+
+		logger.Info("routes and domains")
+
 		rs := []string{}
 		for _, desired := range parameters.Routes {
 			r := routes.FromString(desired)
-			rs = append(rs, fmt.Sprintf(`{"id":"%s","domain":"%s","path":"%s"}`,
-				strings.ReplaceAll(r.String(), "/", "."),
-				r.Domain, r.Path))
+			rdot := strings.ReplaceAll(r.String(), "/", ".")
+
+			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
+
+			logger.Info("domain match", "domain", r.Domain, "secret", domainSecret, "err", err)
+
+			// Should we treat a match error as something to stop for?
+			// The error can only come from `filepath.Match()`
+			var routeInfo string
+			if err != nil || domainSecret == "" {
+				// No secret found, no secret passed
+				routeInfo = fmt.Sprintf(`{"id":"%s","domain":"%s","path":"%s"}`,
+					rdot, r.Domain, r.Path)
+			} else {
+				// Pass the found secret
+				routeInfo = fmt.Sprintf(`{"id":"%s","domain":"%s","path":"%s","secret":"%s"}`,
+					rdot, r.Domain, r.Path, domainSecret)
+			}
+
+			rs = append(rs, routeInfo)
 		}
 		routesYaml = fmt.Sprintf(`[%s]`, strings.Join(rs, `,`))
 	}

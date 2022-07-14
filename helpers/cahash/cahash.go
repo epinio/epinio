@@ -17,7 +17,7 @@ import (
 // -----------------------------------------------------------------------------------
 
 func GenerateHash(certRaw []byte) (string, error) {
-	cert, err := decodeOneCert(certRaw)
+	cert, err := DecodeOneCert(certRaw)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode certificate\n%w", err)
 	}
@@ -36,7 +36,7 @@ func GenerateHash(certRaw []byte) (string, error) {
 
 // Iterates over pem blocks until a non-CA certificate if found or no other PEM
 // blocks exist.
-func decodeOneCert(raw []byte) (*x509.Certificate, error) {
+func DecodeOneCert(raw []byte) (*x509.Certificate, error) {
 	byteData := raw
 	for len(byteData) > 0 {
 		block, rest := pem.Decode(byteData)
