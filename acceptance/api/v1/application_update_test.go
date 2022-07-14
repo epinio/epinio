@@ -192,13 +192,13 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 			defer env.DeleteApp(app)
 
-			mainDomain, err := domain.MainDomain(context.Background())
+			defaultRoute, err := domain.AppDefaultRoute(context.Background(), app, namespace)
 			Expect(err).ToNot(HaveOccurred())
 
-			checkRoutesOnApp(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
-			checkIngresses(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
-			checkCertificateDNSNames(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
-			checkSecretsForCerts(app, namespace, fmt.Sprintf("%s.%s", app, mainDomain))
+			checkRoutesOnApp(app, namespace, defaultRoute)
+			checkIngresses(app, namespace, defaultRoute)
+			checkCertificateDNSNames(app, namespace, defaultRoute)
+			checkSecretsForCerts(app, namespace, defaultRoute)
 
 			appObj := appFromAPI(namespace, app)
 			Expect(appObj.Workload.Status).To(Equal("1/1"))

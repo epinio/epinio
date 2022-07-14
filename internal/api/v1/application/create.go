@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -143,8 +142,6 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 }
 
 func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, namespace string, desiredRoutes []string) apierror.APIErrors {
-	log := requestctx.Logger(ctx)
-
 	desiredRoutesMap := map[string]struct{}{}
 	for _, desiredRoute := range desiredRoutes {
 		desiredRoutesMap[desiredRoute] = struct{}{}
@@ -169,31 +166,18 @@ func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, n
 		if _, found := desiredRoutesMap[ingressRoute]; found {
 			ingressAppName, found := ingress.GetLabels()["app.kubernetes.io/name"]
 			if !found {
-				err := apierror.NewInternalError("missing app name in ingress").
-					WithDetailsf("app: [%s], namespace: [%s]", appName, namespace)
+				err := apierror.NewBadRequestErrorf("route is already owned by an unknown app").
+					WithDetailsf("app: [%s], namespace: [%s], ingress: [%s]", appName, namespace, ingress.Name)
 				issues = append(issues, err)
 				continue
 			}
 
-			log.Info(fmt.Sprintf("######## ROUTE CLASH [%s]: APP [%s][%s] VS Ingress [%s][%s]",
-				ingressRoute, appName, namespace, ingressAppName, ingress.Namespace,
-			))
-
-			// the ingress route is owned by the same app
-			if appName+namespace == ingressAppName+ingress.Namespace {
-				log.Info(fmt.Sprintf("######## ROUTE CLASH HUM.... [%v && %v]",
-					(appName == ingressAppName), (namespace == ingress.Namespace),
-				))
-				continue
+			// the ingress route is owned by another app
+			if appName != ingressAppName || namespace != ingress.Namespace {
+				err := apierror.NewBadRequestErrorf("route '%s' already exists", ingressRoute).
+					WithDetailsf("route is already owned by app [%s] in namespace [%s]", ingressAppName, ingress.Namespace)
+				issues = append(issues, err)
 			}
-
-			log.Info(fmt.Sprintf("######## ROUTE CLASH OPS [%v && %v]",
-				(appName == ingressAppName), (namespace == ingress.Namespace),
-			))
-
-			err := apierror.NewBadRequestErrorf("route '%s' already exists", ingressRoute).
-				WithDetailsf("route is already owned by app [%s] in namespace [%s]", ingressAppName, ingress.Namespace)
-			issues = append(issues, err)
 		}
 	}
 
