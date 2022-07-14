@@ -4,7 +4,7 @@ kind: IPAddressPool
 metadata:
   creationTimestamp: null
   name: my-ip-space
-  namespace: metallb-system
+  namespace: metallb
 spec:
   addresses:
   - @IP_RANGE@
@@ -15,7 +15,7 @@ kind: L2Advertisement
 metadata:
   creationTimestamp: null
   name: l2advertisement1
-  namespace: metallb-system
+  namespace: metallb
 spec:
   ipAddressPools:
   - my-ip-space
