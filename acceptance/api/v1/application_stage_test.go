@@ -96,7 +96,7 @@ var _ = Describe("AppStage Endpoint", func() {
 
 			Expect(errResponse.Errors).To(HaveLen(1))
 			Expect(errResponse.Errors[0].Title).To(Equal("blob app mismatch"))
-			Expect(errResponse.Errors[0].Details).To(Equal("expected: " + appName + ", found: " + appName2))
+			Expect(errResponse.Errors[0].Details).To(Equal("expected: [" + appName + "], found: [" + appName2 + "]"))
 		})
 	})
 

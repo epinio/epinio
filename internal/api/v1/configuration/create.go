@@ -20,15 +20,15 @@ func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
 	var createRequest models.ConfigurationCreateRequest
 	err := c.BindJSON(&createRequest)
 	if err != nil {
-		return apierror.BadRequest(err)
+		return apierror.NewBadRequestError(err.Error())
 	}
 
 	if createRequest.Name == "" {
-		return apierror.NewBadRequest("Cannot create configuration without a name")
+		return apierror.NewBadRequestError("cannot create configuration without a name")
 	}
 
 	if len(createRequest.Data) < 1 {
-		return apierror.NewBadRequest("Cannot create configuration without data")
+		return apierror.NewBadRequestError("cannot create configuration without data")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)

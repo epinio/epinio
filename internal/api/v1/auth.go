@@ -34,7 +34,7 @@ func AuthorizationMiddleware(c *gin.Context) {
 	logger.Info(fmt.Sprintf("user [%s] with role [%s] authorized [%t] for namespace [%s]", user.Username, user.Role, authorized, namespace))
 
 	if !authorized {
-		response.Error(c, apierrors.NewAPIError("user unauthorized", "", http.StatusForbidden))
+		response.Error(c, apierrors.NewAPIError("user unauthorized", http.StatusForbidden))
 		c.Abort()
 	}
 

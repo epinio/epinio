@@ -36,7 +36,7 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 	logger := requestctx.Logger(ctx)
 
 	if partName != "values" && partName != "chart" && partName != "image" {
-		return apierror.NewBadRequest("unknown part, expected chart, image, or values")
+		return apierror.NewBadRequestError("unknown part, expected chart, image, or values")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -55,7 +55,7 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 
 	if app.Workload == nil {
 		// While the app exists it has no workload, and therefore no chart to export
-		return apierror.NewBadRequest("No chart available for application without workload")
+		return apierror.NewBadRequestError("no chart available for application without workload")
 	}
 
 	switch partName {
@@ -67,7 +67,7 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 		return fetchAppValues(c, logger, cluster, app.Meta)
 	}
 
-	return apierror.NewBadRequest("unknown part, expected chart, image, or values")
+	return apierror.NewBadRequestError("unknown part, expected chart, image, or values")
 }
 
 func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {
@@ -115,7 +115,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 }
 
 func fetchAppImage(c *gin.Context) apierror.APIErrors {
-	return apierror.NewBadRequest("image part not yet supported")
+	return apierror.NewBadRequestError("image part not yet supported")
 }
 
 func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {

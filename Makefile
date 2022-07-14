@@ -111,6 +111,9 @@ test-acceptance-apps: showfocus
 test-acceptance-cli: showfocus
 	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/.
 
+test-acceptance-upgrade: showfocus
+	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/upgrade/.
+
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2
 	ginkgo -v --nodes ${GINKGO_NODES} --focus "${REGEX}" --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} acceptance/install/.
@@ -148,11 +151,10 @@ getswagger:
 
 swagger: getswagger
 	swagger generate spec > docs/references/api/swagger.json
-	sed -i 's/^{/{ "info": {"title": "Epinio", "version":"1"},/' docs/references/api/swagger.json
 	swagger validate        docs/references/api/swagger.json
 
-swagger-serve: getswagger
-	swagger serve docs/references/api/swagger.json
+swagger-serve:
+	@./scripts/swagger-serve.sh
 
 ########################################################################
 # Support

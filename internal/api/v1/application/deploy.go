@@ -19,7 +19,8 @@ const (
 )
 
 // Deploy handles the API endpoint /namespaces/:namespace/applications/:app/deploy
-// It creates the deployment, configuration and ingress (kube) resources for the app
+// It uses an application chart to create the deployment, configuration and ingress (kube)
+// resources for the app.
 func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 
@@ -29,14 +30,14 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 
 	req := models.DeployRequest{}
 	if err := c.BindJSON(&req); err != nil {
-		return apierror.NewBadRequest("Failed to unmarshal deploy request ", err.Error())
+		return apierror.NewBadRequestError(err.Error()).WithDetails("failed to unmarshal deploy request")
 	}
 
 	if name != req.App.Name {
-		return apierror.NewBadRequest("name parameter from URL does not match name param in body")
+		return apierror.NewBadRequestError("name parameter from URL does not match name param in body")
 	}
 	if namespace != req.App.Namespace {
-		return apierror.NewBadRequest("namespace parameter from URL does not match namespace param in body")
+		return apierror.NewBadRequestError("namespace parameter from URL does not match namespace param in body")
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)

@@ -57,13 +57,13 @@ func (hc Controller) Logs(c *gin.Context) {
 
 		if app.Workload == nil {
 			// While the app exists it has no workload, therefore no logs
-			response.Error(c, apierror.NewAPIError("No logs available for application without workload", "", http.StatusBadRequest))
+			response.Error(c, apierror.NewAPIError("No logs available for application without workload", http.StatusBadRequest))
 			return
 		}
 	}
 
 	if appName == "" && stageID == "" {
-		response.Error(c, apierror.BadRequest(errors.New("You need to specify either the stage id or the app")))
+		response.Error(c, apierror.NewBadRequestError("you need to specify either the stage id or the app"))
 		return
 	}
 

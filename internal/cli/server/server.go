@@ -4,6 +4,7 @@ package server
 import (
 	"context"
 	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/domain"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -47,10 +49,10 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
 	router.NoMethod(func(ctx *gin.Context) {
-		response.Error(ctx, apierrors.NewAPIError("Method not allowed", "", http.StatusMethodNotAllowed))
+		response.Error(ctx, apierrors.NewAPIError("Method not allowed", http.StatusMethodNotAllowed))
 	})
 	router.NoRoute(func(ctx *gin.Context) {
-		response.Error(ctx, apierrors.NewNotFoundError("Route not found"))
+		response.Error(ctx, apierrors.NewNotFoundError("route", ctx.Request.URL.Path))
 	})
 	router.Use(gin.Recovery())
 
@@ -88,6 +90,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router.GET("/ready", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{})
 	})
+
+	router.GET("/api/swagger.json", swaggerHandler)
 
 	// add common middlewares to all the routes
 	router.Use(
@@ -128,6 +132,33 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	return router, nil
 }
 
+func swaggerHandler(c *gin.Context) {
+	swaggerFile, err := os.Open("swagger.json")
+	if err != nil {
+		response.Error(c, apierrors.InternalError(err))
+		c.Abort()
+		return
+	}
+
+	var swaggerMap map[string]interface{}
+	err = json.NewDecoder(swaggerFile).Decode(&swaggerMap)
+	if err != nil {
+		response.Error(c, apierrors.InternalError(err))
+		c.Abort()
+		return
+	}
+
+	mainDomain, err := domain.MainDomain(c.Request.Context())
+	if err != nil {
+		response.Error(c, apierrors.InternalError(err))
+		c.Abort()
+		return
+	}
+	swaggerMap["host"] = "epinio." + mainDomain
+
+	c.JSON(http.StatusOK, swaggerMap)
+}
+
 // initContextMiddleware initialize the Request Context injecting the logger and the requestID
 func initContextMiddleware(logger logr.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -156,7 +187,7 @@ func authMiddleware(ctx *gin.Context) {
 	}
 
 	if len(userMap) == 0 {
-		response.Error(ctx, apierrors.NewAPIError("no user found", "", http.StatusUnauthorized))
+		response.Error(ctx, apierrors.NewAPIError("no user found", http.StatusUnauthorized))
 		ctx.Abort()
 		return
 	}
@@ -190,7 +221,7 @@ func authMiddleware(ctx *gin.Context) {
 				return
 			}
 
-			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", "", http.StatusUnauthorized))
+			response.Error(ctx, apierrors.NewAPIError("User no longer exists. Session expired.", http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
@@ -204,7 +235,7 @@ func authMiddleware(ctx *gin.Context) {
 		// we need this check to return a 401 instead of an error
 		auth := ctx.Request.Header.Get("Authorization")
 		if auth == "" {
-			response.Error(ctx, apierrors.NewAPIError("missing credentials", "", http.StatusUnauthorized))
+			response.Error(ctx, apierrors.NewAPIError("missing credentials", http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
@@ -218,7 +249,7 @@ func authMiddleware(ctx *gin.Context) {
 
 		err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
 		if err != nil {
-			response.Error(ctx, apierrors.NewAPIError("wrong password", "", http.StatusUnauthorized))
+			response.Error(ctx, apierrors.NewAPIError("wrong password", http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
@@ -296,7 +327,7 @@ func tokenAuthMiddleware(ctx *gin.Context) {
 	token := ctx.Query("authtoken")
 	claims, err := authtoken.Validate(token)
 	if err != nil {
-		apiErr := apierrors.NewAPIError("unknown token validation error", "", http.StatusUnauthorized)
+		apiErr := apierrors.NewAPIError("unknown token validation error", http.StatusUnauthorized)
 		if ve, ok := err.(*jwt.ValidationError); ok {
 			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
 				apiErr.Title = "malformed token format"

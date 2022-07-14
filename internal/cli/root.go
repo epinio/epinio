@@ -33,12 +33,14 @@ var rootCmd = &cobra.Command{
 	Long:          `epinio cli is the official command line interface for Epinio PaaS `,
 	Version:       version.Version,
 	SilenceErrors: true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		stdr.SetVerbosity(tracelog.TraceLevel())
+	},
 }
 
 // Execute executes the root command.
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
-	stdr.SetVerbosity(tracelog.TraceLevel())
 	if err := rootCmd.Execute(); err != nil {
 		termui.NewUI().Problem().Msg(err.Error())
 		os.Exit(-1)
@@ -49,8 +51,18 @@ func init() {
 	pf := rootCmd.PersistentFlags()
 	argToEnv := map[string]string{}
 
-	pf.StringVarP(&flagSettingsFile, "settings-file", "", settings.DefaultLocation(),
-		"set path of settings file")
+	settingsLocation := ""
+	var err error
+	if pf.Lookup("settings-file") == nil && os.Getenv("EPINIO_SETTINGS") == "" {
+		settingsLocation, err = settings.DefaultLocation()
+		if err != nil {
+			// Error can happen on a read-only filesystem (like the one of the epinio
+			// server Pod). User should set a location explicitly.
+			errorMsg := fmt.Sprintf("A settings file wasn't set explicitly and the default location couldn't be used: %s", err.Error())
+			panic(errorMsg)
+		}
+	}
+	pf.StringVarP(&flagSettingsFile, "settings-file", "", settingsLocation, "set path of settings file")
 	viper.BindPFlag("settings-file", pf.Lookup("settings-file"))
 	argToEnv["settings-file"] = "EPINIO_SETTINGS"
 
@@ -68,7 +80,8 @@ func init() {
 
 	pf.BoolP("no-colors", "", false, "Suppress colorized output")
 	viper.BindPFlag("no-colors", pf.Lookup("no-colors"))
-	argToEnv["colors"] = "EPINIO_COLORS"
+	// Environment variable EPINIO_COLORS is handled in settings/settings.go,
+	// as part of handling the settings file.
 
 	config.AddEnvToUsage(rootCmd, argToEnv)
 

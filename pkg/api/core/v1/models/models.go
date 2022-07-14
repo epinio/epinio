@@ -10,6 +10,7 @@ package models
 import (
 	"fmt"
 
+	"github.com/epinio/epinio/helpers"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	helmrelease "helm.sh/helm/v3/pkg/release"
@@ -136,7 +137,7 @@ const (
 func (o *ApplicationOrigin) String() string {
 	switch o.Kind {
 	case OriginPath:
-		return o.Path
+		return helpers.AbsPath(o.Path)
 	case OriginGit:
 		if o.Git.Revision == "" {
 			return o.Git.URL
@@ -145,7 +146,7 @@ func (o *ApplicationOrigin) String() string {
 	case OriginContainer:
 		return o.Container
 	default:
-		// Nonthing
+		// Nothing
 	}
 	return "<<undefined>>"
 }

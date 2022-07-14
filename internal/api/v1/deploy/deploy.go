@@ -10,6 +10,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/registry"
@@ -34,12 +35,21 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 	stageID := appObj.StageID
 
 	if expectedStageID != "" && expectedStageID != stageID {
-		return nil, apierror.NewBadRequest("stage id mismatch", expectedStageID, stageID)
+		return nil, apierror.NewBadRequestError("stage id mismatch").
+			WithDetailsf("expectedStageID: [%s] - stageID: [%s]", expectedStageID, stageID)
 	}
 
 	imageURL := appObj.ImageURL
 	routes := appObj.Configuration.Routes
 	chartName := appObj.Configuration.AppChart
+	domains := domain.MatchMapLoad(ctx, app.Namespace)
+
+	maplog := log.V(1)
+	maplog.Info("domain map begin")
+	for k, v := range domains {
+		maplog.Info("domain map", k, v)
+	}
+	maplog.Info("domain map end")
 
 	deployParams := helm.ChartParameters{
 		Context:        ctx,
@@ -53,6 +63,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		Username:       username,
 		StageID:        stageID,
 		Routes:         routes,
+		Domains:        domains,
 		Start:          start,
 	}
 

@@ -391,6 +391,19 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.WsURL, api.WsRoot, endpoint, queryParams.Encode())
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(websocketURL, http.Header{})
 	if err != nil {
+		// Report detailed error found in the server response
+		if resp != nil && resp.StatusCode != http.StatusOK {
+			defer resp.Body.Close()
+			bodyBytes, errBody := ioutil.ReadAll(resp.Body)
+
+			if errBody != nil {
+				return errBody
+			}
+
+			return formatError(bodyBytes, resp)
+		}
+
+		// Report the dialer error if response claimed to be OK
 		return errors.Wrap(err, fmt.Sprintf("Failed to connect to websockets endpoint. Response was = %+v\nThe error is", resp))
 	}
 

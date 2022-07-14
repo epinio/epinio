@@ -150,8 +150,13 @@ func checkCA(address string) (*x509.Certificate, error) {
 		return nil, errors.New("error parsing the address")
 	}
 
+	port := parsedURL.Port()
+	if port == "" {
+		port = "443"
+	}
+
 	tlsConfig := &tls.Config{InsecureSkipVerify: true} // nolint:gosec // We need to check the validity
-	conn, err := tls.Dial("tcp", parsedURL.Hostname()+":443", tlsConfig)
+	conn, err := tls.Dial("tcp", parsedURL.Hostname()+":"+port, tlsConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "error while dialing the server")
 	}
@@ -195,7 +200,7 @@ func askTrustCA(ui *termui.UI, cert *x509.Certificate) (bool, error) {
 			return false, err
 		}
 
-		switch strings.ToLower(input) {
+		switch strings.TrimSpace(strings.ToLower(input)) {
 		case "y", "yes":
 			return true, nil
 		case "n", "no":

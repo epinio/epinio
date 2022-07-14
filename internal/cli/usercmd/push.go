@@ -53,7 +53,7 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	details := log.V(1) // NOTE: Increment of level, not absolute. Visible via TRACE_LEVEL=2
 
 	msg := c.ui.Note().
-		WithStringValue("Manifest", params.Self).
+		WithStringValue("Manifest", params.Self). // This path is already platform-specific
 		WithStringValue("Name", appRef.Name).
 		WithStringValue("Source Origin", source).
 		WithStringValue("AppChart", params.Configuration.AppChart).
@@ -225,6 +225,9 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		deployRequest.ImageURL = stageResponse.ImageURL
 		deployRequest.Stage = models.StageRef{ID: stageID}
 	}
+
+	s := c.ui.Progress("Waiting for deployment")
+	defer s.Stop()
 
 	deployResponse, err := c.API.AppDeploy(deployRequest)
 	if err != nil {

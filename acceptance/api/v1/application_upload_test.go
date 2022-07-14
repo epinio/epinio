@@ -8,6 +8,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/testenv"
 	v1 "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -38,7 +39,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 	})
 
-	When("uploading a new dir", func() {
+	When("uploading a tar file", func() {
 		BeforeEach(func() {
 			path = testenv.TestAssetPath("sample-app.tar")
 		})
@@ -58,6 +59,119 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a tgz (gzip) file", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.tgz")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			r := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &r)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a txz (xz) file", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.txz")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			r := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &r)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a tbz (bz2) file", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.tbz")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			r := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &r)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a zip file", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.zip")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			r := &models.UploadResponse{}
+			err = json.Unmarshal(bodyBytes, &r)
+			Expect(err).ToNot(HaveOccurred())
+
+			Expect(r.BlobUID).ToNot(BeEmpty())
+		})
+	})
+
+	When("uploading a non-supported archive type", func() {
+		BeforeEach(func() {
+			path = testenv.TestAssetPath("sample-app.rar")
+		})
+
+		It("returns the app response", func() {
+			resp, err := env.Client().Do(request)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp).ToNot(BeNil())
+			defer resp.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+			var responseBody map[string][]errors.APIError
+			json.Unmarshal(bodyBytes, &responseBody)
+			Expect(responseBody["errors"][0].Title).To(Equal("archive type not supported [application/vnd.rar]"))
 		})
 	})
 })

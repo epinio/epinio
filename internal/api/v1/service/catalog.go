@@ -49,7 +49,7 @@ func (ctr Controller) CatalogShow(c *gin.Context) apierror.APIErrors {
 	service, err := kubeServiceClient.GetCatalogService(ctx, serviceName)
 	if err != nil {
 		if k8sapierrors.IsNotFound(err) {
-			return apierror.NewNotFoundError("service instance doesn't exist")
+			return apierror.NewNotFoundError("service instance", serviceName).WithDetails(err.Error())
 		}
 
 		return apierror.InternalError(err)

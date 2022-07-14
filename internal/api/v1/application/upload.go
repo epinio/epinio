@@ -1,6 +1,9 @@
 package application
 
 import (
+	"io"
+	"mime/multipart"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -9,7 +12,20 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	"github.com/h2non/filetype"
+	"github.com/pkg/errors"
 )
+
+// Should match the supported types:
+// https://github.com/epinio/helm-charts/blob/3954c214de3d7b957cfc2054ba4fa4bfa140f5a3/chart/epinio/templates/stage-scripts.yaml#L27-L62
+// This is what the filetype library supports: https://github.com/h2non/filetype#supported-types
+var validArchiveTypes = []string{
+	"application/zip",
+	"application/x-tar",
+	"application/gzip",
+	"application/x-bzip2",
+	"application/x-xz",
+}
 
 // Upload handles the API endpoint /namespaces/:namespace/applications/:app/store.
 // It receives the application data as a tarball and stores it. Then
@@ -27,9 +43,19 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	file, fileheader, err := c.Request.FormFile("file")
 	if err != nil {
-		return apierror.BadRequest(err, "can't read multipart file input")
+		return apierror.NewBadRequestError(err.Error()).WithDetails("can't read multipart file input")
 	}
 	defer file.Close()
+
+	// TODO: Does this break streaming of the file? We need to get the whole file
+	// before we can check its type
+	contentType, err := GetFileContentType(file)
+	if err != nil {
+		return apierror.InternalError(err, "can't detect content type of archive")
+	}
+	if !isValidType(contentType) {
+		return apierror.NewBadRequestErrorf("archive type not supported %s", contentType)
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -59,4 +85,35 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 		BlobUID: blobUID,
 	})
 	return nil
+}
+
+func GetFileContentType(file multipart.File) (string, error) {
+	// to sniff the content type only the first 512 bytes are used.
+	buf := make([]byte, 512)
+
+	_, err := file.Read(buf)
+	if err != nil {
+		return "", errors.Wrap(err, "reading file content type")
+	}
+
+	_, err = file.Seek(0, io.SeekStart)
+	if err != nil {
+		return "", errors.Wrap(err, "resetting file cursor after reading content type")
+	}
+
+	kind, _ := filetype.Match(buf)
+	if kind == filetype.Unknown {
+		return "", errors.Wrap(err, "reading the file type")
+	}
+
+	return kind.MIME.Value, nil
+}
+
+func isValidType(contentType string) bool {
+	for _, validType := range validArchiveTypes {
+		if contentType == validType {
+			return true
+		}
+	}
+	return false
 }
