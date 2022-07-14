@@ -72,15 +72,17 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 		By("Installing MetalLB", func() {
 			rangeIP = os.Getenv("RANGE_IP")
 			out, err := proc.RunW("sed", "-i", fmt.Sprintf("s/@IP_RANGE@/%s/", rangeIP),
-				testenv.TestAssetPath("values-metallb-rke.yml"))
+				testenv.TestAssetPath("resources.yaml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = proc.RunW("helm", "repo", "add", "metallb", "https://metallb.github.io/metallb")
 			Expect(err).NotTo(HaveOccurred(), out)
 
 			out, err = proc.RunW("helm", "upgrade", "--install", "--wait", "-n", "metallb",
-				"--create-namespace", "metallb", "metallb/metallb", "-f",
-				testenv.TestAssetPath("values-metallb-rke.yml"))
+				"--create-namespace", "metallb", "metallb/metallb")
+			Expect(err).NotTo(HaveOccurred(), out)
+
+			out, err = proc.RunW("kubectl", "apply", "-f", testenv.TestAssetPath("resources.yaml"))
 			Expect(err).NotTo(HaveOccurred(), out)
 		})
 
