@@ -173,7 +173,7 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 	// 2 stage process - A simple clone followed by a checkout
 
 	log.Info("importgit, cloning simple, commit id", "url", url)
-	repository, err = generalClone(ctx, gitRepo, url)
+	repository, err := generalClone(ctx, gitRepo, url)
 	if err != nil {
 		return err
 	}
