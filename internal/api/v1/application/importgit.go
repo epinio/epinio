@@ -60,10 +60,10 @@ package application
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	git "github.com/go-git/go-git/v5"
@@ -163,7 +163,7 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 		// Was branch name, done.
 		return nil
 	}
-	if !strings.Contains(err.Error(), `couldn't find remote ref`) || !plumbing.IsHash(revision) {
+	if !errors.Is(err, git.NoMatchingRefSpecError{}) || !plumbing.IsHash(revision) {
 		// Some other error, or the revision does not look like a commit id (C)
 
 		return err
@@ -200,27 +200,17 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 }
 
 func branchClone(ctx context.Context, gitRepo, url, revision string) (*git.Repository, error) {
-	repository, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
 		URL:           url,
 		SingleBranch:  true,
 		ReferenceName: plumbing.NewBranchReferenceName(revision),
 		Depth:         1,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return repository, nil
 }
 
 func generalClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
-	repository, err := git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
 		URL:   url,
 		Depth: 1,
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	return repository, nil
 }
