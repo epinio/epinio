@@ -158,7 +158,7 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 	// Input B or C: Attempt to treat as B (revision is branch name)
 
 	log.Info("importgit, cloning branch", "url", url, "revision", revision)
-	repository, err := branchClone(ctx, gitRepo, url, revision)
+	_, err := branchClone(ctx, gitRepo, url, revision)
 	if err == nil {
 		// Was branch name, done.
 		return nil
