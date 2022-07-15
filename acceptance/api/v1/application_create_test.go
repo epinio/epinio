@@ -20,16 +20,20 @@ var _ = Describe("AppCreate Endpoint", func() {
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
-		env.SetupAndTargetNamespace(namespace)
 		appName = catalog.NewAppName()
+		env.SetupAndTargetNamespace(namespace)
 	})
 
 	AfterEach(func() {
-		env.DeleteApp(appName)
 		env.DeleteNamespace(namespace)
 	})
 
 	When("creating a new app", func() {
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
 		It("creates the app resource", func() {
 			response, err := createApplication(appName, namespace, []string{"mytestdomain.org"})
 			Expect(err).ToNot(HaveOccurred())
@@ -58,6 +62,22 @@ var _ = Describe("AppCreate Endpoint", func() {
 			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.chartname}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(Equal("standard"))
+		})
+	})
+
+	When("trying to create a new app with the epinio route", func() {
+		It("fails creating the app", func() {
+			epinioHost, err := proc.Kubectl("get", "ingress", "--namespace", "epinio", "epinio", "-o", "jsonpath={.spec.rules[*].host}")
+			Expect(err).ToNot(HaveOccurred())
+
+			response, err := createApplication(appName, namespace, []string{epinioHost})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+			defer response.Body.Close()
+
+			bodyBytes, err := ioutil.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 		})
 	})
 })

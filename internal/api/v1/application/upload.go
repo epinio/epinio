@@ -54,7 +54,7 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "can't detect content type of archive")
 	}
 	if !isValidType(contentType) {
-		return apierror.NewBadRequestErrorf("archive type not supported %s", contentType)
+		return apierror.NewBadRequestErrorf("archive type not supported [%s]", contentType)
 	}
 
 	cluster, err := kubernetes.GetCluster(ctx)

@@ -36,6 +36,18 @@ func GenerateResourceName(names ...string) string {
 	return GenerateResourceNameTruncated(originalName, 63)
 }
 
+// MD5String compute the hash of the passed value and returns the first 'length' characters
+// If the length is -1 or greater than the md5 hash then the whole hash is retuned
+func MD5String(value string, length int) string {
+	sumArray := sha1.Sum([]byte(value)) // nolint:gosec // Non-crypto use
+	sum := hex.EncodeToString(sumArray[:])
+
+	if length == -1 || length > len(sum) {
+		return sum
+	}
+	return sum[:length]
+}
+
 // GenerateResourceNameTruncated joins the input strings with dashes("-")
 // and returns the checksum of the produced string after removing
 // any characters that are invalid for kubernetes resource names
@@ -48,8 +60,7 @@ func GenerateResourceName(names ...string) string {
 // NOTE: Since the checksum must always be included, this function shouldn't be used
 // to produce names shorter than Sha1sumLength characters.
 func GenerateResourceNameTruncated(originalName string, maxLen int) string {
-	sumArray := sha1.Sum([]byte(originalName)) // nolint:gosec // Non-crypto use
-	sum := hex.EncodeToString(sumArray[:])
+	sum := MD5String(originalName, -1)
 
 	// We allow maxLen less than the sha hash. We take the prefix of the hash in that
 	// case.  While there is some risk of conflict it should be tolerable until we

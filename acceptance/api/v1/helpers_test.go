@@ -101,17 +101,10 @@ func stageApplication(appName, namespace string, stageRequest models.StageReques
 }
 
 func deployApplication(appName, namespace string, request models.DeployRequest) models.DeployResponse {
-	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
-	bodyBytes, err := json.Marshal(request)
-	Expect(err).ToNot(HaveOccurred())
-	body := string(bodyBytes)
-
-	response, err := env.Curl("POST", url, strings.NewReader(body))
-	Expect(err).ToNot(HaveOccurred())
-	Expect(response).ToNot(BeNil())
+	response := deployApplicationRequest(appName, namespace, request)
 	defer response.Body.Close()
 
-	bodyBytes, err = ioutil.ReadAll(response.Body)
+	bodyBytes, err := ioutil.ReadAll(response.Body)
 	Expect(err).ToNot(HaveOccurred())
 	Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -120,6 +113,34 @@ func deployApplication(appName, namespace string, request models.DeployRequest) 
 	Expect(err).NotTo(HaveOccurred())
 
 	return *deploy
+}
+
+func deployApplicationWithFailure(appName, namespace string, request models.DeployRequest) models.DeployResponse {
+	response := deployApplicationRequest(appName, namespace, request)
+	defer response.Body.Close()
+
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
+
+	deploy := &models.DeployResponse{}
+	err = json.Unmarshal(bodyBytes, deploy)
+	Expect(err).NotTo(HaveOccurred())
+
+	return *deploy
+}
+
+func deployApplicationRequest(appName, namespace string, request models.DeployRequest) *http.Response {
+	url := serverURL + v1.Root + "/" + v1.Routes.Path("AppDeploy", namespace, appName)
+	bodyBytes, err := json.Marshal(request)
+	Expect(err).ToNot(HaveOccurred())
+	body := string(bodyBytes)
+
+	response, err := env.Curl("POST", url, strings.NewReader(body))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).ToNot(BeNil())
+
+	return response
 }
 
 func waitForStaging(jobName string) {
