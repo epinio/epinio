@@ -177,7 +177,33 @@ configuration:
 	})
 
 	When("pushing an app from an external repository", func() {
-		It("pushes the app successfully", func() {
+		It("pushes the app successfully (repository alone)", func() {
+			wordpress := "https://github.com/epinio/example-wordpress"
+			pushLog, err := env.EpinioPush("",
+				appName,
+				"--name", appName,
+				"--git", wordpress,
+				"-e", "BP_PHP_WEB_DIR=wordpress",
+				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_SERVER=nginx")
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+				),
+			)
+
+			By("deleting the app")
+			env.DeleteApp(appName)
+		})
+
+		It("pushes the app successfully (repository + branch name)", func() {
 			wordpress := "https://github.com/epinio/example-wordpress"
 			pushLog, err := env.EpinioPush("",
 				appName,
@@ -203,6 +229,31 @@ configuration:
 			env.DeleteApp(appName)
 		})
 
+		It("pushes the app successfully (repository + commit id)", func() {
+			wordpress := "https://github.com/epinio/example-wordpress"
+			pushLog, err := env.EpinioPush("",
+				appName,
+				"--name", appName,
+				"--git", wordpress+",68af5bad11d8f3b95bdf547986fe3348324919c5",
+				"-e", "BP_PHP_WEB_DIR=wordpress",
+				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_SERVER=nginx")
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+				),
+			)
+
+			By("deleting the app")
+			env.DeleteApp(appName)
+		})
 		Describe("update", func() {
 			BeforeEach(func() {
 				wordpress := "https://github.com/epinio/example-wordpress"
