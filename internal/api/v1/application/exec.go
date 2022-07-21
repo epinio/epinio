@@ -71,12 +71,12 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		podToConnect = podNames[0]
 	}
 
-	deployment, err := workload.Deployment(ctx)
+	appData, err := workload.Get(ctx, 0)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	proxyRequest(c.Writer, c.Request, podToConnect, namespace, deployment.Name, clientSetHTTP1)
+	proxyRequest(c.Writer, c.Request, podToConnect, namespace, appData.Name, clientSetHTTP1)
 
 	return nil
 }

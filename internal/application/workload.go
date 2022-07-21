@@ -10,11 +10,8 @@ import (
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
-	"github.com/pkg/errors"
 	pkgerrors "github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -33,9 +30,9 @@ type AppConfigurationBindList []AppConfigurationBind
 // Workload manages applications that are deployed. It provides workload
 // (deployments) specific actions for the application model.
 type Workload struct {
-	deployment *appsv1.Deployment // memoization
-	app        models.AppRef
-	cluster    *kubernetes.Cluster
+	app     models.AppRef
+	cluster *kubernetes.Cluster
+	name    string
 }
 
 // NewWorkload constructs and returns a workload representation from an application reference.
@@ -101,42 +98,21 @@ func (b AppConfigurationBindList) ToNames() []string {
 	return names
 }
 
-// Deployment is a helper, it returns the kube deployment resource of the workload.
-// The result is memoized so that subsequent calls to this method, don't call
-// the kubernetes api.
-func (a *Workload) Deployment(ctx context.Context) (*appsv1.Deployment, error) {
-	var err error
-	if a.deployment == nil {
-		depList, err := a.cluster.Kubectl.AppsV1().
-			Deployments(a.app.Namespace).List(ctx, metav1.ListOptions{
-			LabelSelector: fmt.Sprintf("app.kubernetes.io/component=application,app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", a.app.Name, a.app.Namespace),
-		})
-		if err != nil {
-			return nil, err
-		}
-		if len(depList.Items) < 1 {
-			return nil, apierrors.NewNotFound(appsv1.Resource("deployment"), a.app.Name)
-		}
-		if len(depList.Items) > 1 {
-			return nil, errors.New("found more than one deployment for the application")
-		}
-		a.deployment = &depList.Items[0]
-	}
-
-	return a.deployment, err
-}
-
 // Pods is a helper, it returns the Pods belonging to the Deployment of the workload.
-func (a *Workload) Pods(ctx context.Context) (*corev1.PodList, error) {
-	return a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).List(
+func (a *Workload) Pods(ctx context.Context) ([]corev1.Pod, error) {
+	podList, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).List(
 		ctx, metav1.ListOptions{
 			LabelSelector: labels.Set(map[string]string{
 				"app.kubernetes.io/component": "application",
 				"app.kubernetes.io/name":      a.app.Name,
 				"app.kubernetes.io/part-of":   a.app.Namespace,
 			}).String(),
-		},
-	)
+		})
+	if err != nil {
+		return []corev1.Pod{}, err
+	}
+
+	return podList.Items, nil
 }
 
 func (a *Workload) PodNames(ctx context.Context) ([]string, error) {
@@ -146,7 +122,7 @@ func (a *Workload) PodNames(ctx context.Context) ([]string, error) {
 	}
 
 	result := []string{}
-	for _, p := range podList.Items {
+	for _, p := range podList {
 		result = append(result, p.Name)
 	}
 
@@ -158,17 +134,11 @@ func (a *Workload) PodNames(ctx context.Context) ([]string, error) {
 func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, error) {
 	result := map[string]*models.PodInfo{}
 
-	deployment, err := a.Deployment(ctx)
+	pods, err := a.Pods(ctx)
 	if err != nil {
 		return result, err
 	}
-	selector := labels.Set(deployment.Spec.Selector.MatchLabels).AsSelector().String()
-
-	pods, err := a.getPods(ctx, selector)
-	if err != nil {
-		return result, err
-	}
-	podMetrics, err := a.getPodMetrics(ctx, selector)
+	podMetrics, err := a.getPodMetrics(ctx)
 	if err != nil {
 		return result, err
 	}
@@ -183,26 +153,50 @@ func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, er
 }
 
 // Get returns the state of the app deployment encoded in the workload.
-func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
+func (a *Workload) Get(ctx context.Context, desiredReplicas int32) (*models.AppDeployment, error) {
 
-	deployment, err := a.Deployment(ctx)
+	// Information about the active workload.
+	// The data is pulled out of the list of Pods associated with the application.
+	// The originally asked the app's Deployment resource. With app charts the existence
+	// of such a resource cannot be guarantueed any longer.
+
+	podList, err := a.Pods(ctx)
 	if err != nil {
-		if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-		// App is inactive, no deployment, no workload
-		return nil, nil
+		return nil, err
 	}
 
-	desiredReplicas := deployment.Status.Replicas
-	readyReplicas := deployment.Status.ReadyReplicas
+	var readyReplicas int32
+	var createdAt time.Time
+	var stageID string
+	var username string
+	var controllerName string
 
-	createdAt := deployment.ObjectMeta.CreationTimestamp.Time
+	if len(podList) > 0 {
+		// Pods found. replace defaults with actual information.
 
-	status := fmt.Sprintf("%d/%d", deployment.Status.ReadyReplicas, deployment.Status.Replicas)
+		// Initialize various pieces from the first pod ...
+		createdAt = podList[0].ObjectMeta.CreationTimestamp.Time
+		stageID = podList[0].ObjectMeta.Labels["epinio.io/stage-id"]
+		username = podList[0].ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		controllerName = podList[0].ObjectMeta.OwnerReferences[0].Name
 
-	stageID := deployment.Spec.Template.ObjectMeta.Labels["epinio.io/stage-id"]
-	username := deployment.Spec.Template.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		for _, pod := range podList {
+			// Choose oldest time of all pods.
+			if createdAt.After(pod.ObjectMeta.CreationTimestamp.Time) {
+				createdAt = pod.ObjectMeta.CreationTimestamp.Time
+			}
+
+			// Count ready pods - A temp is used to avoid `Implicit memory aliasing in for loop`.
+			tmp := pod
+			if podutils.IsPodReady(&tmp) {
+				readyReplicas = readyReplicas + 1
+			}
+		}
+	}
+
+	a.name = controllerName
+
+	status := fmt.Sprintf("%d/%d", readyReplicas, desiredReplicas)
 
 	routes, err := ListRoutes(ctx, a.cluster, a.app)
 	if err != nil {
@@ -215,7 +209,7 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 	}
 
 	return &models.AppDeployment{
-		Name:            deployment.Name,
+		Name:            controllerName,
 		Active:          true,
 		CreatedAt:       createdAt.Format(time.RFC3339), // ISO 8601
 		Replicas:        replicas,
@@ -228,18 +222,10 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 	}, nil
 }
 
-func (a *Workload) getPods(ctx context.Context, selector string) ([]corev1.Pod, error) {
-	podList, err := a.cluster.Kubectl.CoreV1().Pods(a.app.Namespace).
-		List(ctx, metav1.ListOptions{LabelSelector: selector})
-	if err != nil {
-		return []corev1.Pod{}, err
-	}
-
-	return podList.Items, nil
-}
-
-func (a *Workload) getPodMetrics(ctx context.Context, selector string) ([]metricsv1beta1.PodMetrics, error) {
+func (a *Workload) getPodMetrics(ctx context.Context) ([]metricsv1beta1.PodMetrics, error) {
 	result := []metricsv1beta1.PodMetrics{}
+
+	selector := fmt.Sprintf(`app.kubernetes.io/name=%s`, a.app.Name)
 
 	metricsClient, err := metrics.NewForConfig(a.cluster.RestConfig)
 	if err != nil {
@@ -261,7 +247,7 @@ func (a *Workload) generatePodInfo(pods []corev1.Pod) map[string]*models.PodInfo
 	for i, pod := range pods {
 		restarts := int32(0)
 		for _, cs := range pod.Status.ContainerStatuses {
-			if cs.Name == a.deployment.Name {
+			if cs.Name == a.name {
 				restarts += cs.RestartCount
 			}
 		}
