@@ -165,6 +165,11 @@ func (a *Workload) Get(ctx context.Context, desiredReplicas int32) (*models.AppD
 		return nil, err
 	}
 
+	// No pods => no workload
+	if len(podList) == 0 {
+		return nil, nil
+	}
+
 	var readyReplicas int32
 	var createdAt time.Time
 	var stageID string
@@ -178,7 +183,7 @@ func (a *Workload) Get(ctx context.Context, desiredReplicas int32) (*models.AppD
 		createdAt = podList[0].ObjectMeta.CreationTimestamp.Time
 		stageID = podList[0].ObjectMeta.Labels["epinio.io/stage-id"]
 		username = podList[0].ObjectMeta.Labels["app.kubernetes.io/created-by"]
-		controllerName = podList[0].ObjectMeta.OwnerReferences[0].Name
+		controllerName = podList[0].ObjectMeta.Labels["epinio.io/app-container"]
 
 		for _, pod := range podList {
 			// Choose oldest time of all pods.
