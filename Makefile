@@ -181,7 +181,7 @@ install-cert-manager:
 	helm upgrade --install cert-manager --create-namespace -n cert-manager \
 		--set installCRDs=true \
 		--set extraArgs[0]=--enable-certificate-owner-ref=true \
-		cert-manager/cert-manager --version 1.7.1 \
+		cert-manager/cert-manager --version 1.8.2 \
 		--wait
 
 install-epinio-ui:
