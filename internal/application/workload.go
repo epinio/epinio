@@ -30,14 +30,15 @@ type AppConfigurationBindList []AppConfigurationBind
 // Workload manages applications that are deployed. It provides workload
 // (deployments) specific actions for the application model.
 type Workload struct {
-	app     models.AppRef
-	cluster *kubernetes.Cluster
-	name    string
+	app             models.AppRef
+	cluster         *kubernetes.Cluster
+	name            string
+	desiredReplicas int32
 }
 
 // NewWorkload constructs and returns a workload representation from an application reference.
-func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef) *Workload {
-	return &Workload{cluster: cluster, app: app}
+func NewWorkload(cluster *kubernetes.Cluster, app models.AppRef, desiredReplicas int32) *Workload {
+	return &Workload{cluster: cluster, app: app, desiredReplicas: desiredReplicas}
 }
 
 func ToBinds(ctx context.Context, configurations configurations.ConfigurationList, appName string, userName string) (AppConfigurationBindList, error) {
@@ -153,7 +154,7 @@ func (a *Workload) Replicas(ctx context.Context) (map[string]*models.PodInfo, er
 }
 
 // Get returns the state of the app deployment encoded in the workload.
-func (a *Workload) Get(ctx context.Context, desiredReplicas int32) (*models.AppDeployment, error) {
+func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 
 	// Information about the active workload.
 	// The data is pulled out of the list of Pods associated with the application.
@@ -201,7 +202,7 @@ func (a *Workload) Get(ctx context.Context, desiredReplicas int32) (*models.AppD
 
 	a.name = controllerName
 
-	status := fmt.Sprintf("%d/%d", readyReplicas, desiredReplicas)
+	status := fmt.Sprintf("%d/%d", readyReplicas, a.desiredReplicas)
 
 	routes, err := ListRoutes(ctx, a.cluster, a.app)
 	if err != nil {
@@ -222,7 +223,7 @@ func (a *Workload) Get(ctx context.Context, desiredReplicas int32) (*models.AppD
 		StageID:         stageID,
 		Status:          status,
 		Routes:          routes,
-		DesiredReplicas: desiredReplicas,
+		DesiredReplicas: a.desiredReplicas,
 		ReadyReplicas:   readyReplicas,
 	}, nil
 }

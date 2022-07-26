@@ -57,7 +57,7 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 
 	if app.Workload.DesiredReplicas != app.Workload.ReadyReplicas {
 		err := wait.PollImmediate(time.Second, duration.ToAppBuilt(), func() (bool, error) {
-			podList, err := application.NewWorkload(cluster, app.Meta).Pods(ctx)
+			podList, err := application.NewWorkload(cluster, app.Meta, app.Workload.DesiredReplicas).Pods(ctx)
 			if err != nil {
 				return false, err
 			}

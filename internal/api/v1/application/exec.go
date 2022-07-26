@@ -45,7 +45,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		return apierror.NewAPIError("Cannot connect to application without workload", http.StatusBadRequest)
 	}
 
-	workload := application.NewWorkload(cluster, app.Meta)
+	workload := application.NewWorkload(cluster, app.Meta, app.Workload.DesiredReplicas)
 	podNames, err := workload.PodNames(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -71,7 +71,7 @@ func (hc Controller) Exec(c *gin.Context) apierror.APIErrors {
 		podToConnect = podNames[0]
 	}
 
-	appData, err := workload.Get(ctx, 0)
+	appData, err := workload.Get(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
