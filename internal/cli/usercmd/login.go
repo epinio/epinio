@@ -108,7 +108,7 @@ func readUserInput() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSuffix(s, "\n"), nil
+	return strings.TrimSpace(s), nil
 }
 
 // checkAndAskCA will check if the server has a trusted authority
