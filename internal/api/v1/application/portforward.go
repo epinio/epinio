@@ -40,7 +40,7 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 
 	// TODO: Find podName from application and params (e.g. instance number etc).
 	// The application may have more than one pods.
-	podNames, err := application.NewWorkload(cluster, app.Meta).PodNames(ctx)
+	podNames, err := application.NewWorkload(cluster, app.Meta, app.Workload.DesiredReplicas).PodNames(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

@@ -15,7 +15,6 @@ import (
 	minikube "github.com/epinio/epinio/helpers/kubernetes/platform/minikube"
 	"github.com/epinio/epinio/helpers/termui"
 
-	appsv1 "k8s.io/api/apps/v1"
 	apibatchv1 "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -224,6 +223,7 @@ func (c *Cluster) NamespaceDoesNotExist(ctx context.Context, namespaceName strin
 		return !exists, err
 	}
 }
+
 func (c *Cluster) PodDoesNotExist(ctx context.Context, namespace, selector string) wait.ConditionFunc {
 	return func() (bool, error) {
 		podList, err := c.ListPods(ctx, namespace, selector)
@@ -309,34 +309,6 @@ func (c *Cluster) WaitForJobDone(ctx context.Context, namespace, jobName string,
 		return err
 	}
 	return wait.PollImmediate(time.Second, timeout, c.IsJobDone(ctx, client, jobName, namespace))
-}
-
-// IsDeploymentCompleted returns a condition function that indicates whether the given
-// Deployment is in Completed state or not.
-func (c *Cluster) IsDeploymentCompleted(ctx context.Context, deploymentName, namespace string) wait.ConditionFunc {
-	return func() (bool, error) {
-		deployment, err := c.Kubectl.AppsV1().Deployments(namespace).Get(ctx,
-			deploymentName, metav1.GetOptions{})
-		if err != nil {
-			return false, err
-		}
-
-		for _, condition := range deployment.Status.Conditions {
-			if condition.Type == appsv1.DeploymentAvailable && condition.Status == v1.ConditionTrue {
-				return true, nil
-			}
-		}
-		return false, nil
-	}
-}
-
-func (c *Cluster) WaitForDeploymentCompleted(ctx context.Context, ui *termui.UI, namespace, deploymentName string, timeout time.Duration) error {
-	if ui != nil {
-		s := ui.Progressf("Waiting for deployment %s in %s to be ready", deploymentName, namespace)
-		defer s.Stop()
-	}
-
-	return wait.PollImmediate(time.Second, timeout, c.IsDeploymentCompleted(ctx, deploymentName, namespace))
 }
 
 // ListPods returns the list of currently scheduled or running pods in `namespace` with the given selector

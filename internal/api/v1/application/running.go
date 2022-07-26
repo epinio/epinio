@@ -1,20 +1,34 @@
 package application
 
 import (
+	"time"
+
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/duration"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/gin-gonic/gin"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/kubectl/pkg/util/podutils"
 )
 
 // Running handles the API endpoint GET /namespaces/:namespace/applications/:app/running
-// It waits for the specified application to be running (i.e. its
-// deployment to be complete), before it returns. An exception is if
-// the application does not become running without
-// `duration.ToAppBuilt()` (default: 10 minutes). In that case it
-// returns with an error after that time.
+//
+// It waits for the specified application to be running (i.e. its deployment to be
+// complete), before it returns. An exception is if the application does not become ready
+// within `duration.ToAppBuilt()` (default: 3 minutes). In that case it returns with an
+// error after that time.
+//
+// __API PORTABILITY NOTE__
+//
+// With the switch to deployment of apps via helm, and waiting for the helm deployment to
+// be ready before returning this endpoint is technically superfluous, and it should never
+// fail. The command line has been modified to not invoke it anymore.
+//
+// It is kept for older clients still calling on it. Because of that it is also kept
+// functional. Instead of checking for an app `Deployment` and its status it now checks
+// the app `Pod` stati.
 func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
@@ -39,10 +53,26 @@ func (hc Controller) Running(c *gin.Context) apierror.APIErrors {
 		return apierror.NewBadRequestError("no status available for application without workload")
 	}
 
-	err = cluster.WaitForDeploymentCompleted(
-		ctx, nil, namespace, app.Workload.Name, duration.ToAppBuilt())
-	if err != nil {
-		return apierror.InternalError(err)
+	// Check app readiness based on app pods. Wait only if we have non-ready pods.
+
+	if app.Workload.DesiredReplicas != app.Workload.ReadyReplicas {
+		err := wait.PollImmediate(time.Second, duration.ToAppBuilt(), func() (bool, error) {
+			podList, err := application.NewWorkload(cluster, app.Meta, app.Workload.DesiredReplicas).Pods(ctx)
+			if err != nil {
+				return false, err
+			}
+			var ready int32
+			for _, pod := range podList {
+				tmp := pod
+				if podutils.IsPodReady(&tmp) {
+					ready = ready + 1
+				}
+			}
+			return ready == app.Workload.DesiredReplicas, nil
+		})
+		if err != nil {
+			return apierror.InternalError(err)
+		}
 	}
 
 	response.OK(c)

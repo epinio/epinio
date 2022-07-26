@@ -237,11 +237,6 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 	details.Info("wait for application resources")
 	c.ui.ProgressNote().KeeplineUnder(1).Msg("Creating application resources")
 
-	_, err = c.API.AppRunning(appRef)
-	if err != nil {
-		return errors.Wrap(err, "waiting for app failed")
-	}
-
 	routes := []string{}
 	for _, d := range deployResponse.Routes {
 		routes = append(routes, fmt.Sprintf("https://%s", d))

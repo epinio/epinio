@@ -512,7 +512,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	// Check if app is active, and if yes, fill the associated parts.
 	// May have to straighten the workload structure a bit further.
 
-	app.Workload, err = NewWorkload(cluster, app.Meta).Get(ctx)
+	app.Workload, err = NewWorkload(cluster, app.Meta, instances).Get(ctx)
 	return err
 }
 
