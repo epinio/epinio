@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/dex"
 	"github.com/epinio/epinio/internal/domain"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
@@ -88,6 +89,8 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		ginRecoveryLogger,
 		initContextMiddleware(logger),
 	)
+
+	router.GET("/login", dex.Controller{}.Login)
 
 	// Register api routes
 	{
