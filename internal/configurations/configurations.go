@@ -12,6 +12,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
@@ -257,19 +258,23 @@ func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, 
 
 // LabelServiceSecrets will look for the Opaque secrets released with a service, looking for the
 // app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
-func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
+func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
+		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
 	}).AsSelector()
 
+	secretTypes := "Opaque"
+	if len(service.SecretTypes) > 0 {
+		secretTypes = strings.Join(service.SecretTypes, ",")
+	}
+
 	listOptions := metav1.ListOptions{
-		FieldSelector: "type=Opaque",
+		FieldSelector: "type=" + secretTypes,
 		LabelSelector: secretSelector.String(),
 	}
 
 	// Find all user credential secrets
-	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOptions)
+	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
@@ -280,9 +285,9 @@ func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, na
 		// set labels without override the old ones
 		sec.GetLabels()[ConfigurationLabelKey] = "true"
 		sec.GetLabels()[ConfigurationTypeLabelKey] = "service"
-		sec.GetLabels()[ConfigurationOriginLabelKey] = name
+		sec.GetLabels()[ConfigurationOriginLabelKey] = service.Meta.Name
 
-		_, err = kubeClient.Kubectl.CoreV1().Secrets(namespace).Update(ctx, &sec, metav1.UpdateOptions{})
+		_, err = kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).Update(ctx, &sec, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
 		}

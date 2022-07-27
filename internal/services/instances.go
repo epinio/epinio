@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/helm"
@@ -65,6 +66,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 			Namespace: targetNamespace,
 			CreatedAt: srv.GetCreationTimestamp(),
 		},
+		SecretTypes:           strings.Split(srv.GetAnnotations()[CatalogServiceSecretTypesAnnotation], ","),
 		CatalogService:        fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
 		CatalogServiceVersion: catalogServiceVersion,
 	}
@@ -99,6 +101,9 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 				CatalogServiceVersionLabelKey: catalogService.AppVersion,
 				TargetNamespaceLabelKey:       namespace,
 				ServiceNameLabelKey:           name,
+			},
+			Annotations: map[string]string{
+				CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
 			},
 		},
 		Spec: helmapiv1.HelmChartSpec{

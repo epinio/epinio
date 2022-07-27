@@ -38,7 +38,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
+	apiErr := FindAndValidateService(ctx, cluster, logger, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}

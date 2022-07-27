@@ -47,7 +47,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
 	}
 
-	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
+	apiErr := FindAndValidateService(ctx, cluster, logger, namespace, serviceName)
 	if apiErr != nil {
 		return apiErr
 	}

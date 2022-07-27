@@ -285,6 +285,7 @@ type ServiceCreateRequest struct {
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
 	Meta             MetaLite `json:"meta,omitempty"`
+	SecretTypes      []string `json:"secretTypes,omitempty"`
 	Description      string   `json:"description,omitempty"`
 	ShortDescription string   `json:"short_description,omitempty"`
 	HelmChart        string   `json:"chart,omitempty"`
@@ -326,6 +327,7 @@ type ServiceShowRequest struct {
 
 type Service struct {
 	Meta                  Meta          `json:"meta,omitempty"`
+	SecretTypes           []string      `json:"secretTypes,omitempty"`
 	CatalogService        string        `json:"catalog_service,omitempty"`
 	CatalogServiceVersion string        `json:"catalog_service_version,omitempty"`
 	Status                ServiceStatus `json:"status,omitempty"`
