@@ -75,14 +75,18 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 		return nil, errors.Wrap(err, "error converting catalog service")
 	}
 
-	serviceSecretTypes := catalogService.GetAnnotations()[CatalogServiceSecretTypesAnnotation]
+	secretTypes := []string{}
+	secretTypesAnnotationValue := catalogService.GetAnnotations()[CatalogServiceSecretTypesAnnotation]
+	if len(secretTypesAnnotationValue) > 0 {
+		secretTypes = strings.Split(secretTypesAnnotationValue, ",")
+	}
 
 	return &models.CatalogService{
 		Meta: models.MetaLite{
 			Name:      catalogService.Spec.Name,
 			CreatedAt: unstructured.GetCreationTimestamp(),
 		},
-		SecretTypes:      strings.Split(serviceSecretTypes, ","),
+		SecretTypes:      secretTypes,
 		Description:      catalogService.Spec.Description,
 		ShortDescription: catalogService.Spec.ShortDescription,
 		HelmChart:        catalogService.Spec.HelmChart,
