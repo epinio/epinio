@@ -3,12 +3,9 @@ package dex
 import (
 	"bytes"
 	"context"
-	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"os"
@@ -17,6 +14,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"golang.org/x/oauth2"
@@ -27,30 +25,6 @@ const AppState = "TODO: generate this"
 
 type debugTransport struct {
 	t http.RoundTripper
-}
-
-// return an HTTP client which trusts the provided root CAs.
-func httpClientForRootCAs(rootCAs string) (*http.Client, error) {
-	tlsConfig := tls.Config{RootCAs: x509.NewCertPool()}
-	rootCABytes, err := os.ReadFile(rootCAs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read root-ca: %v", err)
-	}
-	if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCABytes) {
-		return nil, fmt.Errorf("no certs found in root CA file %q", rootCAs)
-	}
-	return &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tlsConfig,
-			Proxy:           http.ProxyFromEnvironment,
-			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
-				KeepAlive: 30 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ExpectContinueTimeout: 1 * time.Second,
-		},
-	}, nil
 }
 
 func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -75,16 +49,6 @@ func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 type Controller struct {
-}
-
-func (c Controller) provider(ctx context.Context) (*oidc.Provider, error) {
-	domain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return nil, err
-	}
-	providerURL := fmt.Sprintf("https://dex.%s", domain)
-
-	return oidc.NewProvider(ctx, providerURL)
 }
 
 func (c Controller) oauth2Config(ctx context.Context, endpoint oauth2.Endpoint, scopes []string) (*oauth2.Config, error) {
@@ -137,7 +101,7 @@ func (c Controller) Login(ctx *gin.Context) {
 		return
 	}
 
-	provider, err := c.provider(oidc.ClientContext(ctx, client))
+	provider, err := provider(oidc.ClientContext(ctx, client))
 	if handleErr(err, http.StatusInternalServerError, "creating the provider", ctx) {
 		return
 	}
@@ -206,7 +170,7 @@ func (c Controller) Callback(ctx *gin.Context) {
 		return
 	}
 
-	provider, err := c.provider(oidc.ClientContext(r.Context(), client))
+	provider, err := provider(oidc.ClientContext(r.Context(), client))
 	if handleErr(err, http.StatusInternalServerError, "setting up the provider", ctx) {
 		return
 	}
@@ -303,7 +267,9 @@ func (c Controller) Callback(ctx *gin.Context) {
 		return
 	}
 
-	ctx.String(http.StatusOK, "%s", accessToken)
+	session := sessions.Default(ctx)
+	session.Set("dex-token", accessToken)
+	ctx.Redirect(http.StatusSeeOther, "/")
 }
 
 // If err is not nil, it prepares the response and returns true.

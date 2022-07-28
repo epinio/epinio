@@ -7,6 +7,7 @@ require (
 	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.18.1
+	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/coreos/go-oidc/v3 v3.2.0
 	github.com/epinio/application v0.0.0-20220531082924-9d01149e6946
 	github.com/fatih/color v1.13.0
@@ -168,6 +169,7 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
