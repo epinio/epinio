@@ -44,7 +44,7 @@ package application
 //  3:  else
 //  4:      Clone (Depth=1,SingleBranch=revision)  // (B,C?)
 //  5:      if ok: done                            // (B!)
-//  7:      Clone (Depth=1)                        // (C)
+//  7:      Clone ()                               // (C)
 //  8:      hash = ResolveRevision (revision)
 //  9:      Checkout (hash)
 //
@@ -151,7 +151,7 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 	if revision == "" {
 		// Input A: repository, no revision.
 		log.Info("importgit, cloning simple", "url", url)
-		_, err := generalClone(ctx, gitRepo, url)
+		_, err := shallowClone(ctx, gitRepo, url)
 		return err
 	}
 
@@ -165,7 +165,6 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 	}
 	if !errors.Is(err, git.NoMatchingRefSpecError{}) || !plumbing.IsHash(revision) {
 		// Some other error, or the revision does not look like a commit id (C)
-
 		return err
 	}
 
@@ -200,6 +199,7 @@ func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision 
 }
 
 func branchClone(ctx context.Context, gitRepo, url, revision string) (*git.Repository, error) {
+	// Note, it is shallow too
 	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
 		URL:           url,
 		SingleBranch:  true,
@@ -208,9 +208,15 @@ func branchClone(ctx context.Context, gitRepo, url, revision string) (*git.Repos
 	})
 }
 
-func generalClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
+func shallowClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
 	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
 		URL:   url,
 		Depth: 1,
+	})
+}
+
+func generalClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
+	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+		URL: url,
 	})
 }
