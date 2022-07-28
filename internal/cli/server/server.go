@@ -91,6 +91,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	)
 
 	router.GET("/login", dex.Controller{}.Login)
+	router.GET("/dex/callback", dex.Controller{}.Callback)
 
 	// Register api routes
 	{
