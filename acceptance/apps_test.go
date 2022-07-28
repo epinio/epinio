@@ -254,6 +254,7 @@ configuration:
 			By("deleting the app")
 			env.DeleteApp(appName)
 		})
+
 		Describe("update", func() {
 			BeforeEach(func() {
 				wordpress := "https://github.com/epinio/example-wordpress"
@@ -445,6 +446,31 @@ spec:
 			})
 		})
 
+	})
+
+	When("pushing as a stateful app", func() {
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("pushes successfully", func() {
+			pushLog, err := env.EpinioPush("../assets/sample-app",
+				appName,
+				"--app-chart", "standard-stateful",
+				"--name", appName)
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+				),
+			)
+		})
 	})
 
 	When("pushing with custom route flag", func() {

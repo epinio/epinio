@@ -30,10 +30,32 @@ var _ = Describe("ChartList Endpoint", func() {
 		err = json.Unmarshal(bodyBytes, &appcharts)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(len(appcharts)).To(Equal(1))
-		Expect(appcharts[0].Meta.Name).To(Equal("standard"))
-		Expect(appcharts[0].Description).To(Equal("Epinio standard support chart for application deployment"))
-		Expect(appcharts[0].ShortDescription).To(Equal("Epinio standard deployment"))
-		Expect(appcharts[0].HelmChart).To(MatchRegexp("https://github\\.com/epinio/helm-charts/releases/download/epinio-application-.*/epinio-application-.*\\.tgz"))
+		Expect(len(appcharts)).To(Equal(2))
+
+		var names []string
+		names = append(names, appcharts[0].Meta.Name)
+		names = append(names, appcharts[1].Meta.Name)
+		var desc []string
+		desc = append(desc, appcharts[0].Description)
+		desc = append(desc, appcharts[1].Description)
+		var short []string
+		short = append(short, appcharts[0].ShortDescription)
+		short = append(short, appcharts[1].ShortDescription)
+		var chart []string
+		chart = append(chart, appcharts[0].HelmChart)
+		chart = append(chart, appcharts[1].HelmChart)
+
+		Expect(names).Should(ContainElements(
+			"standard",
+			"standard-stateful"))
+		Expect(desc).Should(ContainElements(
+			"Epinio standard support chart for application deployment",
+			"Epinio standard support chart for stateful application deployment"))
+		Expect(short).Should(ContainElements(
+			"Epinio standard deployment",
+			"Epinio standard stateful deployment"))
+		Expect(chart).Should(ContainElements(
+			"https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.20/epinio-application-0.1.20.tgz",
+			"https://github.com/epinio/helm-charts/releases/download/epinio-application-stateful-0.1.20/epinio-application-stateful-0.1.20.tgz"))
 	})
 })
