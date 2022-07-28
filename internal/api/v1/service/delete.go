@@ -38,7 +38,12 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	apiErr := FindAndValidateService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	apiErr = ValidateService(ctx, cluster, logger, service)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -53,7 +58,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	boundAppNames := []string{}
 
-	serviceConfigurations, err := configurations.ForService(ctx, cluster, namespace, serviceName)
+	serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

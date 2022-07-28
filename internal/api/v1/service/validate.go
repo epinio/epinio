@@ -19,21 +19,6 @@ import (
 	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 )
 
-// FindAndValidateService is used by various service endpoints to verify that the service exists,
-// as well as its helm release, before action is taken.
-// It will find the service with the provided namespace and name
-func FindAndValidateService(
-	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
-	namespace, serviceName string,
-) apierror.APIErrors {
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
-	if apiErr != nil {
-		return apiErr
-	}
-
-	return ValidateService(ctx, cluster, logger, service)
-}
-
 // GetService will find the service with the provided namespace and name
 func GetService(
 	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,

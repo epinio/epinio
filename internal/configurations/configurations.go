@@ -12,7 +12,6 @@ import (
 	"context"
 	"errors"
 	"reflect"
-	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
@@ -235,25 +234,24 @@ func (c *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 }
 
 // ForService returns a slice of Secrets matching the given Service.
-func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
+func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
-		ConfigurationLabelKey:          "true",
-		ConfigurationTypeLabelKey:      "service",
+		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+		ConfigurationLabelKey:        "true",
+		ConfigurationTypeLabelKey:    "service",
 	}).AsSelector()
 
 	listOptions := metav1.ListOptions{
-		FieldSelector: "type=Opaque",
 		LabelSelector: secretSelector.String(),
 	}
 
-	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOptions)
+	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
+	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
 
-	return secretList.Items, nil
+	return filteredSecrets, nil
 }
 
 // LabelServiceSecrets will look for the Opaque secrets released with a service, looking for the
@@ -263,13 +261,7 @@ func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, se
 		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
 	}).AsSelector()
 
-	secretTypes := "Opaque"
-	if len(service.SecretTypes) > 0 {
-		secretTypes = strings.Join(service.SecretTypes, ",")
-	}
-
 	listOptions := metav1.ListOptions{
-		FieldSelector: "type=" + secretTypes,
 		LabelSelector: secretSelector.String(),
 	}
 
@@ -279,7 +271,9 @@ func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, se
 		return nil, err
 	}
 
-	for _, secret := range secretList.Items {
+	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
+
+	for _, secret := range filteredSecrets {
 		sec := secret
 
 		// set labels without override the old ones
@@ -293,7 +287,32 @@ func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, se
 		}
 	}
 
-	return secretList.Items, nil
+	return filteredSecrets, nil
+}
+
+// filterSecretsByType will return a filtered slice of the provided secrets, with the specified secretTypes.
+// It's not possible to use the `in` operator with the FieldSelector during the query
+// so we need to filter them manually.
+// Ref: https://github.com/kubernetes/kubernetes/issues/32946
+func filterSecretsByType(secrets []v1.Secret, secretTypes []string) []v1.Secret {
+	secretTypesMap := make(map[string]struct{})
+	if len(secretTypes) == 0 {
+		secretTypesMap["Opaque"] = struct{}{}
+	}
+
+	for _, secretType := range secretTypes {
+		secretTypesMap[secretType] = struct{}{}
+	}
+
+	filteredSecrets := []v1.Secret{}
+	for _, secret := range secrets {
+		if _, found := secretTypesMap[string(secret.Type)]; !found {
+			continue
+		}
+		filteredSecrets = append(filteredSecrets, secret)
+	}
+
+	return filteredSecrets
 }
 
 // Delete destroys the configuration instance, i.e. its underlying secret
