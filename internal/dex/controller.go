@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"strings"
 	"time"
-
-	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/epinio/epinio/internal/domain"
@@ -26,6 +27,30 @@ const AppState = "TODO: generate this"
 
 type debugTransport struct {
 	t http.RoundTripper
+}
+
+// return an HTTP client which trusts the provided root CAs.
+func httpClientForRootCAs(rootCAs string) (*http.Client, error) {
+	tlsConfig := tls.Config{RootCAs: x509.NewCertPool()}
+	rootCABytes, err := os.ReadFile(rootCAs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read root-ca: %v", err)
+	}
+	if !tlsConfig.RootCAs.AppendCertsFromPEM(rootCABytes) {
+		return nil, fmt.Errorf("no certs found in root CA file %q", rootCAs)
+	}
+	return &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tlsConfig,
+			Proxy:           http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}, nil
 }
 
 func (d debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -71,8 +96,8 @@ func (c Controller) oauth2Config(ctx context.Context, endpoint oauth2.Endpoint, 
 	// Configure the OAuth2 config with the client values.
 	oauth2Config := oauth2.Config{
 		// client_id and client_secret of the client.
-		ClientID:     "epinio-ui", // TODO: When should the cli be used? Maybe use a request param?
-		ClientSecret: "123",       // TODO: Read it from the secret
+		ClientID:     "epinio-ui",                    // TODO: When should the cli be used? Maybe use a request param?
+		ClientSecret: os.Getenv("DEX_CLIENT_SECRET"), // TODO: Create an `epinio server` command line argument for it?
 
 		// The redirectURL.
 		RedirectURL: fmt.Sprintf("https://epinio.%s/dex/callback", domain),
@@ -107,20 +132,19 @@ func (c Controller) Login(ctx *gin.Context) {
 		connectorID = id
 	}
 
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // TODO: Fix this
-		},
+	client, err := httpClientForRootCAs("/dex-tls/ca.crt")
+	if handleErr(err, http.StatusInternalServerError, "creating a client that trusts dex certificate", ctx) {
+		return
 	}
 
 	provider, err := c.provider(oidc.ClientContext(ctx, client))
-	if err != nil {
-		ctx.Error(errors.Wrap(err, "creating the provider"))
+	if handleErr(err, http.StatusInternalServerError, "creating the provider", ctx) {
+		return
 	}
 
 	oauth2Config, err := c.oauth2Config(ctx, provider.Endpoint(), scopes)
-	if err != nil {
-		ctx.Error(errors.Wrap(err, "creating the oauth2Config"))
+	if handleErr(err, http.StatusInternalServerError, "creating the oauth2Config", ctx) {
+		return
 	}
 
 	var s struct {
@@ -128,14 +152,10 @@ func (c Controller) Login(ctx *gin.Context) {
 		// See: https://openid.net/specs/openid-connect-discovery-1_0.html#ProviderMetadata
 		ScopesSupported []string `json:"scopes_supported"`
 	}
-	err = errors.Wrap(err, "config")
-	if err != nil {
-		ctx.Error(err)
-	}
 
 	err = provider.Claims(&s)
-	if err != nil {
-		ctx.Error(err)
+	if handleErr(err, http.StatusInternalServerError, "finding claims", ctx) {
+		return
 	}
 
 	var offlineAsScope bool
@@ -173,90 +193,127 @@ func (c Controller) Login(ctx *gin.Context) {
 	http.Redirect(ctx.Writer, r, authCodeURL, http.StatusSeeOther)
 }
 
-func (c Controller) Callback(ctx *gin.Context) apierror.APIErrors {
+func (c Controller) Callback(ctx *gin.Context) {
 	var (
 		err   error
 		token *oauth2.Token
 	)
 
 	r := ctx.Request
-	w := ctx.Writer
 
-	// TODO: What CA do we need to trust?
-	client := &http.Client{
-		Transport: debugTransport{http.DefaultTransport},
+	client, err := httpClientForRootCAs("/dex-tls/ca.crt")
+	if handleErr(err, http.StatusInternalServerError, "creating a client that trusts dex certificate", ctx) {
+		return
 	}
 
 	provider, err := c.provider(oidc.ClientContext(r.Context(), client))
-	if err != nil {
-		return apierror.InternalError(err, "claiming")
+	if handleErr(err, http.StatusInternalServerError, "setting up the provider", ctx) {
+		return
 	}
 
 	oauth2Config, err := c.oauth2Config(ctx, provider.Endpoint(), nil)
-	if err != nil {
-		return apierror.InternalError(err, "creating the oauth2Config")
+	if handleErr(err, http.StatusInternalServerError, "creating the oauth2Config", ctx) {
+		return
 	}
 
 	switch r.Method {
 	case http.MethodGet:
 		// Authorization redirect callback from OAuth2 auth flow.
 		if errMsg := r.FormValue("error"); errMsg != "" {
-			return apierror.NewBadRequestError(errMsg + ": " + r.FormValue("error_description"))
+			handleErr(
+				errors.New(errMsg+": "+r.FormValue("error_description")),
+				http.StatusBadRequest, "", ctx)
+			return
 		}
 		code := r.FormValue("code")
 		if code == "" {
-			return apierror.NewBadRequestError(fmt.Sprintf("no code in request: %q", r.Form))
+			handleErr(
+				errors.Errorf("no code in request: %q", r.Form),
+				http.StatusBadRequest, "", ctx)
+			return
 		}
 		if state := r.FormValue("state"); state != AppState {
-			return apierror.NewBadRequestError(fmt.Sprintf("expected state %q got %q", AppState, state))
+			handleErr(
+				errors.Errorf("expected state %q got %q", AppState, state),
+				http.StatusBadRequest, "", ctx)
+			return
 		}
-		token, err = oauth2Config.Exchange(ctx, code)
+
+		token, err = oauth2Config.Exchange(oidc.ClientContext(ctx, client), code)
+		if handleErr(err, http.StatusBadRequest, "failed to get token", ctx) {
+			return
+		}
 	case http.MethodPost:
 		// Form request from frontend to refresh a token.
 		refresh := r.FormValue("refresh_token")
 		if refresh == "" {
-			return apierror.NewBadRequestError(fmt.Sprintf("no refresh_token in request: %q", r.Form))
+			handleErr(
+				errors.Errorf("no refresh_token in request: %q", r.Form),
+				http.StatusBadRequest, "", ctx)
+			return
 		}
 		t := &oauth2.Token{
 			RefreshToken: refresh,
 			Expiry:       time.Now().Add(-time.Hour),
 		}
-		token, err = oauth2Config.TokenSource(ctx, t).Token()
+		token, err = oauth2Config.TokenSource(oidc.ClientContext(ctx, client), t).Token()
+		if handleErr(err, http.StatusBadRequest, "failed to get token", ctx) {
+			return
+		}
 	default:
-		return apierror.NewBadRequestError(fmt.Sprintf("method not implemented: %s", r.Method))
-	}
-
-	if err != nil {
-		return apierror.NewInternalError(fmt.Sprintf("failed to get token: %v", err))
+		handleErr(errors.Errorf("method not implemented: %s", r.Method),
+			http.StatusBadRequest, "", ctx)
+		return
 	}
 
 	rawIDToken, ok := token.Extra("id_token").(string)
 	if !ok {
-		return apierror.NewInternalError("no id_token in token response")
+		handleErr(
+			errors.New("no id_token in token response"),
+			http.StatusInternalServerError, "", ctx)
+		return
 	}
 
-	verifier := provider.Verifier(&oidc.Config{ClientID: "epinio"}) // TODO: Don't hardcode
+	verifier := provider.Verifier(&oidc.Config{ClientID: "epinio-ui"})
 	idToken, err := verifier.Verify(r.Context(), rawIDToken)
-	if err != nil {
-		return apierror.NewInternalError(fmt.Sprintf("failed to verify ID token: %v", err))
+	if handleErr(err,
+		http.StatusInternalServerError, "failed to verify ID token", ctx) {
+		return
 	}
 
 	accessToken, ok := token.Extra("access_token").(string)
 	if !ok {
-		return apierror.NewInternalError("no access_token in token response")
+		handleErr(
+			errors.New("no access_token in token response"),
+			http.StatusInternalServerError, "", ctx)
+		return
 	}
 
 	var claims json.RawMessage
-	if err := idToken.Claims(&claims); err != nil {
-		return apierror.NewInternalError(fmt.Sprintf("error decoding ID token claims: %v", err))
+	err = idToken.Claims(&claims)
+	if handleErr(err,
+		http.StatusInternalServerError, "error decoding ID token claims", ctx) {
+		return
 	}
 
 	buff := new(bytes.Buffer)
-	if err := json.Indent(buff, []byte(claims), "", "  "); err != nil {
-		return apierror.NewInternalError(fmt.Sprintf("error indenting ID token claims: %v", err))
+	err = json.Indent(buff, []byte(claims), "", "  ")
+	if handleErr(err,
+		http.StatusInternalServerError, "error indenting ID token claims", ctx) {
+		return
 	}
 
-	fmt.Fprint(w, fmt.Sprint(accessToken))
+	ctx.String(http.StatusOK, "%s", accessToken)
+}
 
-	return nil
+// If err is not nil, it prepares the response and returns true.
+// It returns false if there was no error.
+func handleErr(err error, statusCode int, message string, ctx *gin.Context) bool {
+	if err == nil {
+		return false
+	}
+
+	ctx.String(statusCode, "%s", errors.Wrap(err, message).Error())
+
+	return true
 }
