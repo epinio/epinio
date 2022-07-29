@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/helm"
@@ -59,12 +60,19 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		return nil, errors.New("targetNamespace field not found")
 	}
 
+	secretTypes := []string{}
+	secretTypesAnnotationValue := srv.GetAnnotations()[CatalogServiceSecretTypesAnnotation]
+	if len(secretTypesAnnotationValue) > 0 {
+		secretTypes = strings.Split(secretTypesAnnotationValue, ",")
+	}
+
 	service = models.Service{
 		Meta: models.Meta{
 			Name:      name,
 			Namespace: targetNamespace,
 			CreatedAt: srv.GetCreationTimestamp(),
 		},
+		SecretTypes:           secretTypes,
 		CatalogService:        fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
 		CatalogServiceVersion: catalogServiceVersion,
 	}
@@ -108,6 +116,12 @@ func (s *ServiceClient) Create(ctx context.Context, namespace, name string, cata
 			Repo:            catalogService.HelmRepo.URL,
 			ValuesContent:   catalogService.Values,
 		},
+	}
+
+	if len(catalogService.SecretTypes) > 0 {
+		helmChart.ObjectMeta.Annotations = map[string]string{
+			CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
+		}
 	}
 
 	mapHelmChart, err := runtime.DefaultUnstructuredConverter.ToUnstructured(helmChart)

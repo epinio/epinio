@@ -47,7 +47,12 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
 	}
 
-	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	apiErr = ValidateService(ctx, cluster, logger, service)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -59,7 +64,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Info("looking for service secrets")
 
-	serviceConfigurations, err := configurations.ForService(ctx, cluster, namespace, serviceName)
+	serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
