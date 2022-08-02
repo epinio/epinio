@@ -38,8 +38,8 @@ func init() {
 	viper.BindPFlag("namespace", flags.Lookup("namespace"))
 	viper.BindEnv("namespace", "NAMESPACE")
 
-	CmdSettingsShow.Flags().Bool("show-password", false, "Show hidden password")
-	viper.BindPFlag("show-password", CmdSettingsShow.Flags().Lookup("show-password"))
+	CmdSettingsShow.Flags().Bool("show-token", false, "Show access token")
+	viper.BindPFlag("show-token", CmdSettingsShow.Flags().Lookup("show-token"))
 
 	CmdSettings.AddCommand(CmdSettingsUpdateCA)
 	CmdSettings.AddCommand(CmdSettingsShow)
@@ -115,11 +115,11 @@ var CmdSettingsShow = &cobra.Command{
 			certInfo = color.BlueString("Present")
 		}
 
-		var password string
-		if theSettings.Password != "" {
-			password = "***********"
-			if viper.GetBool("show-password") {
-				password = theSettings.Password
+		var token string
+		if theSettings.AccessToken != "" {
+			token = "***********"
+			if viper.GetBool("show-token") {
+				token = theSettings.AccessToken
 			}
 		}
 
@@ -128,8 +128,7 @@ var CmdSettingsShow = &cobra.Command{
 			WithTableRow("Colorized Output", color.MagentaString("%t", theSettings.Colors)).
 			WithTableRow("Current Namespace", color.CyanString(theSettings.Namespace)).
 			WithTableRow("Default App Chart", color.CyanString(theSettings.AppChart)).
-			WithTableRow("API User Name", color.BlueString(theSettings.User)).
-			WithTableRow("API Password", color.BlueString(password)).
+			WithTableRow("API token", color.BlueString(token)).
 			WithTableRow("API Url", color.BlueString(theSettings.API)).
 			WithTableRow("WSS Url", color.BlueString(theSettings.WSS)).
 			WithTableRow("Certificates", certInfo).
