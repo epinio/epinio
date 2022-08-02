@@ -1,6 +1,6 @@
 # Crossplane and Localstack
 
-This guide will show you how to setup a local cluster (`k3d`) with [Crossplane](https://crossplane.io/) and [Localstack](https://localstack.cloud/), so you will be able to provision AWS resources locally with Epinio Services.
+This guide will show you how to setup a local cluster (`k3d`) with [Crossplane](https://crossplane.io/) and [Localstack](https://localstack.cloud/), to be able to provision AWS resources locally with Epinio Services.
 
 (TODO: link to docs/blog post)
 
