@@ -3,7 +3,6 @@ package server
 
 import (
 	"context"
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,8 +21,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/alron/ginlogr"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	"github.com/golang-jwt/jwt/v4"
@@ -74,14 +71,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		})
 	}
 
-	if os.Getenv("SESSION_KEY") == "" {
-		return nil, errors.New("SESSION_KEY environment variable not defined")
-	}
-
-	store := cookie.NewStore([]byte(os.Getenv("SESSION_KEY")))
-	store.Options(sessions.Options{MaxAge: 60 * 60 * 24}) // expire in a day
-	gob.Register(auth.User{})
-
 	ginLogger := ginlogr.Ginlogr(logger, time.RFC3339, true)
 	ginRecoveryLogger := ginlogr.RecoveryWithLogr(logger, time.RFC3339, true, true)
 
@@ -95,7 +84,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 
 	// add common middlewares to all the routes
 	router.Use(
-		sessions.Sessions("epinio-session", store),
 		ginLogger,
 		ginRecoveryLogger,
 		initContextMiddleware(logger),
