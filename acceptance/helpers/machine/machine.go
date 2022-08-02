@@ -30,8 +30,8 @@ type Machine struct {
 	epinioBinaryPath string
 }
 
-func New(dir string, user string, password string, root string, epinioBinaryPath string) Machine {
-	return Machine{dir, user, password, root, epinioBinaryPath}
+func New(dir string, token string, root string, epinioBinaryPath string) Machine {
+	return Machine{dir, token, root, epinioBinaryPath}
 }
 
 func (m *Machine) ShowStagingLogs(app string) {

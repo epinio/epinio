@@ -2,23 +2,25 @@ package usercmd
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"net/url"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/epinio/epinio/helpers/termui"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/settings"
+	"github.com/epinio/epinio/internal/dex"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
-	"golang.org/x/term"
 )
 
-// Login will ask the user for a username and password, and then it will update the settings file accordingly
-func (c *EpinioClient) Login(username, password, address string, trustCA bool) error {
+// Login implements the "public client" flow of dex:
+// https://dexidp.io/docs/custom-scopes-claims-clients/#public-clients
+func (c *EpinioClient) Login(address string, trustCA bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -27,20 +29,6 @@ func (c *EpinioClient) Login(username, password, address string, trustCA bool) e
 
 	c.ui.Note().Msgf("Login to your Epinio cluster [%s]", address)
 
-	if username == "" {
-		username, err = askUsername(c.ui)
-		if err != nil {
-			return errors.Wrap(err, "error while asking for username")
-		}
-	}
-
-	if password == "" {
-		password, err = askPassword(c.ui)
-		if err != nil {
-			return errors.Wrap(err, "error while asking for password")
-		}
-	}
-
 	// check if the server has a trusted authority, or if we want to trust it anyway
 	serverCertificate, err := checkAndAskCA(c.ui, address, trustCA)
 	if err != nil {
@@ -48,10 +36,21 @@ func (c *EpinioClient) Login(username, password, address string, trustCA bool) e
 	}
 
 	// load settings and update them (in memory)
-	updatedSettings, err := updateSettings(address, username, password, serverCertificate)
+	updatedSettings, err := trustCertInSettings(address, serverCertificate)
 	if err != nil {
 		return errors.Wrap(err, "error updating settings")
 	}
+
+	// Trust the cert to allow the client to talk to dex
+	auth.ExtendLocalTrust(updatedSettings.Certs)
+
+	_, err = askForCode(c.ui, address) // TODO: Construct address for dex
+	if err != nil {
+		return errors.Wrap(err, "error while asking for token")
+	}
+
+	// TODO: Exchange the code for as token
+	// and then store the token in settings
 
 	// verify that settings are valid
 	err = verifyCredentials(updatedSettings)
@@ -65,40 +64,33 @@ func (c *EpinioClient) Login(username, password, address string, trustCA bool) e
 	return errors.Wrap(err, "error saving new settings")
 }
 
-func askUsername(ui *termui.UI) (string, error) {
-	var username string
-	var err error
-
-	ui.Normal().Msg("")
-	for username == "" {
-		ui.Normal().Compact().KeepLine().Msg("Username: ")
-		username, err = readUserInput()
-		if err != nil {
-			return "", err
-		}
-	}
-
-	return username, nil
-}
-
-func askPassword(ui *termui.UI) (string, error) {
-	var password string
+func askForCode(ui *termui.UI, loginURL string) (string, error) {
+	var token string
 
 	msg := ui.Normal().Compact()
-	for password == "" {
-		msg.KeepLine().Msg("Password: ")
+	for token == "" {
+		msg.Msg("Open this URL in your browser and follow the directions. Paste the result here: ")
 
-		bytesPassword, err := term.ReadPassword(int(syscall.Stdin))
+		ctx := context.TODO() // TODO: The command ctx? Background()?
+		// TODO: Hardcoded credentials?
+
+		authURL, err := dex.AuthURL(ctx, loginURL, "epinio-cli", "cli-app-secret", []string{})
+		if err != nil {
+			return "", errors.Wrap(err, "creating the auth URL")
+		}
+
+		msg.Msg(authURL)
+		bytesToken, err := readUserInput()
 		if err != nil {
 			return "", err
 		}
 
-		password = strings.TrimSpace(string(bytesPassword))
+		token = strings.TrimSpace(string(bytesToken))
 		msg = ui.Normal()
 	}
 	ui.Normal().Msg("")
 
-	return password, nil
+	return token, nil
 }
 
 func readUserInput() (string, error) {
@@ -211,7 +203,7 @@ func askTrustCA(ui *termui.UI, cert *x509.Certificate) (bool, error) {
 	}
 }
 
-func updateSettings(address, username, password, serverCertificate string) (*settings.Settings, error) {
+func trustCertInSettings(address, serverCertificate string) (*settings.Settings, error) {
 	epinioSettings, err := settings.Load()
 	if err != nil {
 		return nil, errors.Wrap(err, "error loading the settings")
@@ -219,8 +211,6 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 
 	epinioSettings.API = address
 	epinioSettings.WSS = strings.Replace(address, "https://", "wss://", 1)
-	epinioSettings.User = username
-	epinioSettings.Password = password
 	epinioSettings.Certs = serverCertificate
 
 	return epinioSettings, nil
