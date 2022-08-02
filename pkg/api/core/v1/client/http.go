@@ -84,7 +84,7 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to build request")
 	}
 
-	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
+	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 
 	response, err := c.HttpClient.Do(request)
@@ -120,7 +120,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
+	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {
@@ -188,7 +188,7 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 		return []byte{}, err
 	}
 
-	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
+	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {

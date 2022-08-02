@@ -105,7 +105,7 @@ var _ = Describe("Settings", func() {
 		})
 
 		It("shows the settings with the password in plaintext", func() {
-			settings, err := env.Epinio("", "settings", "show", "--show-password")
+			settings, err := env.Epinio("", "settings", "show", "--show-token")
 			Expect(err).ToNot(HaveOccurred())
 			Expect(settings).To(
 				HaveATable(
@@ -113,8 +113,7 @@ var _ = Describe("Settings", func() {
 					WithRow("Colorized Output", "true|false"),
 					WithRow("Current Namespace", ".*"),
 					WithRow("Certificates", "Present"),
-					WithRow("API User Name", env.EpinioUser),
-					WithRow("API Password", env.EpinioPassword),
+					WithRow("API Token", env.EpinioToken),
 					WithRow("API Url", "https://epinio.*"),
 					WithRow("WSS Url", "wss://epinio.*"),
 				),

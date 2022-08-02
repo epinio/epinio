@@ -157,7 +157,7 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 		return err
 	}
 
-	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
+	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
 
 	response, err := (&http.Client{}).Do(request)
 
@@ -287,7 +287,7 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing the request")
 	}
-	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
+	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 
@@ -617,7 +617,7 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 		PingPeriod: time.Second * 5,
 	})
 
-	wrapper := transport.NewBasicAuthRoundTripper(c.Settings.User, c.Settings.Password, upgradeRoundTripper)
+	wrapper := transport.NewBearerAuthRoundTripper(c.Settings.AccessToken, upgradeRoundTripper)
 
 	dialer := gospdy.NewDialer(upgradeRoundTripper, &http.Client{Transport: wrapper}, "GET", portForwardURL)
 	fw, err := portforward.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, opts.Out, opts.ErrOut)
