@@ -34,6 +34,6 @@ var CmdLogin = &cobra.Command{
 			return err
 		}
 
-		return client.Login(address, trustCA)
+		return client.Login(cmd.Context(), address, trustCA)
 	},
 }
