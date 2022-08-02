@@ -16,11 +16,12 @@ import (
 	"github.com/epinio/epinio/internal/dex"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
+	"golang.org/x/oauth2"
 )
 
 // Login implements the "public client" flow of dex:
 // https://dexidp.io/docs/custom-scopes-claims-clients/#public-clients
-func (c *EpinioClient) Login(address string, trustCA bool) error {
+func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -44,13 +45,13 @@ func (c *EpinioClient) Login(address string, trustCA bool) error {
 	// Trust the cert to allow the client to talk to dex
 	auth.ExtendLocalTrust(updatedSettings.Certs)
 
-	_, err = askForCode(c.ui, address) // TODO: Construct address for dex
+	token, err := generateToken(ctx, c.ui, address) // TODO: Construct address for dex
 	if err != nil {
 		return errors.Wrap(err, "error while asking for token")
 	}
 
-	// TODO: Exchange the code for as token
-	// and then store the token in settings
+	// TODO store also the RefreshToken and implement refresh flow
+	updatedSettings.AccessToken = token.AccessToken
 
 	// verify that settings are valid
 	err = verifyCredentials(updatedSettings)
@@ -64,32 +65,32 @@ func (c *EpinioClient) Login(address string, trustCA bool) error {
 	return errors.Wrap(err, "error saving new settings")
 }
 
-func askForCode(ui *termui.UI, loginURL string) (string, error) {
-	var token string
+func generateToken(ctx context.Context, ui *termui.UI, loginURL string) (*oauth2.Token, error) {
+	// TODO: Hardcoded credentials?
+	oauth2Config, err := dex.Oauth2Config(ctx, loginURL, "epinio-cli", "cli-app-secret")
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing oauth2Config")
+	}
+
+	authCodeURL := oauth2Config.AuthCodeURL(dex.AppState)
 
 	msg := ui.Normal().Compact()
-	for token == "" {
-		msg.Msg("Open this URL in your browser and follow the directions. Paste the result here: ")
+	msg.Msg(authCodeURL)
+	msg.Msg("Open this URL in your browser and follow the directions. Paste the result here: ")
 
-		ctx := context.TODO() // TODO: The command ctx? Background()?
-		// TODO: Hardcoded credentials?
-
-		authURL, err := dex.AuthURL(ctx, loginURL, "epinio-cli", "cli-app-secret", []string{})
+	var authCode string
+	for authCode == "" {
+		bytesCode, err := readUserInput()
 		if err != nil {
-			return "", errors.Wrap(err, "creating the auth URL")
+			return nil, err
 		}
-
-		msg.Msg(authURL)
-		bytesToken, err := readUserInput()
-		if err != nil {
-			return "", err
-		}
-
-		token = strings.TrimSpace(string(bytesToken))
-		msg = ui.Normal()
+		authCode = strings.TrimSpace(string(bytesCode))
 	}
-	ui.Normal().Msg("")
 
+	token, err := oauth2Config.Exchange(ctx, authCode)
+	if err != nil {
+		return nil, errors.Wrap(err, "exchanging code for token")
+	}
 	return token, nil
 }
 
