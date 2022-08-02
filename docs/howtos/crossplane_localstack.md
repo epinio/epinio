@@ -1,6 +1,8 @@
 # Crossplane and Localstack
 
-This guide will show you how to setup a local cluster (`k3d`) with [Crossplane](https://crossplane.io/) and [Localstack](https://localstack.cloud/).
+This guide will show you how to setup a local cluster (`k3d`) with [Crossplane](https://crossplane.io/) and [Localstack](https://localstack.cloud/), so you will be able to provision AWS resources locally with Epinio Services.
+
+(TODO: link to docs/blog post)
 
 ## Kubernetes
 
@@ -35,23 +37,6 @@ $ kubectl run --image=radial/busyboxplus:curl -it --rm curl
 Status Code: 200
 ```
 
-## Epinio
-
-We need to install cert-manager as a dependency, and find the IP of our ingress
-
-```
-$ kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.7.1/cert-manager.yaml
-$ kubectl get svc -A -o jsonpath="{.items[*].status.loadBalancer.ingress[*].ip}"
-172.18.0.3
-```
-
-And we can install Epinio using the IP as our system domain
-
-```bash
-$ helm repo add epinio https://epinio.github.io/helm-charts
-$ helm repo update
-$ helm install epinio --create-namespace -n epinio epinio/epinio --set global.domain=172.18.0.3.sslip.io
-```
 
 ## Crossplane
 
