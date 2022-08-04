@@ -2,6 +2,7 @@ package dex
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 
@@ -32,10 +33,13 @@ func Oauth2Config(ctx context.Context, providerURL, clientID, clientSecret strin
 }
 
 func NewVerifier(ctx context.Context, clientID string) (*oidc.IDTokenVerifier, error) {
-	client := http.DefaultClient // httpClientForRootCAs([]byte(epinioCert))
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "creating a client that trusts dex certificate")
-	// }
+	// Server should always trust the dex url certificate
+	// TODO: Mount the actual certificate and ExtendLocalTrust?
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		},
+	}
 
 	// Initialize a provider by specifying dex's issuer URL.
 	domain, err := domain.MainDomain(ctx)
@@ -54,15 +58,19 @@ func NewVerifier(ctx context.Context, clientID string) (*oidc.IDTokenVerifier, e
 }
 
 func Verify(ctx context.Context, token string) (*auth.User, error) {
-	verifier, err := NewVerifier(ctx, "epinio-ui")
+	// TODO: The token was issued to the cli client
+	// How can we trust all our clients? E.g. the epinio-ui
+	// TODO: Can anyone with access to dex ask if tokens are valid?
+	// We didn't use any credentials in the verify process.
+	verifier, err := NewVerifier(ctx, "epinio-cli")
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "setting up the verifier")
 	}
 
 	// TODO: Nonce validation? (see the "Verify" method's docs)
 	idToken, err := verifier.Verify(ctx, token)
 	if err != nil {
-		return nil, fmt.Errorf("could not verify bearer token: %v", err)
+		return nil, errors.Wrap(err, "verifing bearer token")
 	}
 
 	// Extract custom claims.
@@ -72,12 +80,15 @@ func Verify(ctx context.Context, token string) (*auth.User, error) {
 		Groups   []string `json:"groups"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
-		return nil, fmt.Errorf("failed to parse claims: %v", err)
+		return nil, errors.Wrap(err, "parsing claims")
 	}
-	if !claims.Verified {
-		return nil, fmt.Errorf("email (%q) in returned claims was not verified", claims.Email)
-	}
+	// TODO: How should they verify?
+	// if !claims.Verified {
+	// 	return nil, errors.Wrapf(err, "email (%q) in returned claims was not verified", claims.Email)
+	// }
 
 	// TODO: Populate more fields?
-	return &auth.User{Username: claims.Email}, nil
+	// TODO: Set role based on existing user in Kubernetes secret
+	// TODO: Don't hardcode "admin" here!!!!!!
+	return &auth.User{Username: claims.Email, Role: "admin"}, nil
 }
