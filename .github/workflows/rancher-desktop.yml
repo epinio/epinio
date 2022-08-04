@@ -1,0 +1,32 @@
+name: Rancher Desktop Install
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+    - '.github/workflows/rancher-desktop.yaml'
+  # schedule:
+  #   - cron:  '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check access to /dev/kvm
+        run: |
+          PRIVILEGES=$([ -r /dev/kvm ] && [ -w /dev/kvm ] || echo 'insufficient privileges')
+          if[ $(PRIVILEGES) = "insufficient privileges"];then sudo usermod -a -G kvm "$USER" fi
+
+      - name: Add Rancher Desktop repository
+        run: |
+          curl -s https://download.opensuse.org/repositories/isv:/Rancher:/stable/deb/Release.key | gpg --dearmor | sudo dd status=none of=/usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg
+          echo 'deb [signed-by=/usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg] https://download.opensuse.org/repositories/isv:/Rancher:/stable/deb/ ./' | sudo dd status=none of=/etc/apt/sources.list.d/isv-rancher-stable.list
+          apt-get update
+          apt-get install rancher-desktop
