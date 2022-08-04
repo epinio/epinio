@@ -5,7 +5,6 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/pem"
 	"net/url"
 	"os"
@@ -33,7 +32,7 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 	c.ui.Note().Msgf("Login to your Epinio cluster [%s]", address)
 
 	// Deduct the dex URL from the epinio one
-	dexURL := regexp.MustCompile(`epinio\.(.*)`).ReplaceAllString(address, "dex.$1")
+	dexURL := regexp.MustCompile(`epinio\.(.*)`).ReplaceAllString(address, "auth.$1")
 
 	// check if the server has a trusted authority, or if we want to trust it anyway
 	certsToTrust, err := checkAndAskCA(c.ui, []string{address, dexURL}, trustCA)
@@ -53,7 +52,12 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 	// Trust the cert to allow the client to talk to dex
 	auth.ExtendLocalTrust(updatedSettings.Certs)
 
-	token, err := generateToken(ctx, c.ui, dexURL)
+	oidcProvider, err := dex.NewOIDCProvider(ctx, dexURL, "epinio-cli")
+	if err != nil {
+		return errors.Wrap(err, "constructing dexProviderConfig")
+	}
+
+	token, err := generateToken(ctx, c.ui, oidcProvider)
 	if err != nil {
 		return errors.Wrap(err, "error while asking for token")
 	}
@@ -74,18 +78,12 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 }
 
 // generateToken implements the Oauth2 flow to generate an auth token
-func generateToken(ctx context.Context, ui *termui.UI, dexURL string) (*oauth2.Token, error) {
-	// TODO: Hardcoded credentials?
-	oauth2Config, err := dex.Oauth2Config(ctx, dexURL, "epinio-cli", "cli-app-secret")
-	if err != nil {
-		return nil, errors.Wrap(err, "constructing oauth2Config")
-	}
-
-	authCodeURL := oauth2Config.AuthCodeURL(dex.AppState)
+func generateToken(ctx context.Context, ui *termui.UI, oidcProvider *dex.OIDCProvider) (*oauth2.Token, error) {
+	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
 
 	msg := ui.Normal().Compact()
 	msg.Msg(authCodeURL)
-	msg.Msg("Open this URL in your browser and follow the directions. Paste the result here: ")
+	msg.Msg("\nOpen this URL in your browser and follow the directions. Paste the result here: ")
 
 	var authCode string
 	for authCode == "" {
@@ -96,9 +94,9 @@ func generateToken(ctx context.Context, ui *termui.UI, dexURL string) (*oauth2.T
 		authCode = strings.TrimSpace(string(bytesCode))
 	}
 
-	token, err := oauth2Config.Exchange(ctx, authCode)
+	token, err := oidcProvider.ExchangeWithPKCE(ctx, authCode, codeVerifier)
 	if err != nil {
-		return nil, errors.Wrap(err, "exchanging code for token")
+		return nil, errors.Wrap(err, "exchanging with PKCE")
 	}
 	return token, nil
 }
@@ -116,49 +114,57 @@ func readUserInput() (string, error) {
 // if the authority is unknown then we will prompt the user if he wants to trust it anyway
 // and the func will return a list of PEM encoded certificates to trust (separated by new lines)
 func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, error) {
-	var certsToTrust []string
-	var trustedIssuers []pkix.Name
+	var builder strings.Builder
 
+	// get all the certs to check
+	certsToCheck := []*x509.Certificate{}
 	for _, address := range addresses {
-		promptTrust := false
 		cert, err := checkCA(address)
 		if err != nil {
 			// something bad happened while checking the certificates
 			if cert == nil {
 				return "", errors.Wrap(err, "error while checking CA")
 			}
+		}
+		certsToCheck = append(certsToCheck, cert)
+	}
 
-			alreadyTrustedIssuer := func(trustedIssuers []pkix.Name, issuer pkix.Name) bool {
-				for _, i := range trustedIssuers {
-					if i.String() == issuer.String() {
-						return true
-					}
-				}
-				return false
-			}(trustedIssuers, cert.Issuer)
+	// in cert we trust!
+	if trustCA {
+		for i, cert := range certsToCheck {
+			ui.Success().Msgf("Trusting certificate for address %s...", addresses[i])
+			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+			builder.Write(pemCert)
+		}
+		return builder.String(), nil
+	}
 
-			// certificate is signed by unknown authority
-			// ask to the user if we want to trust it
-			if !trustCA && !alreadyTrustedIssuer {
-				promptTrust, err = askTrustCA(ui, cert)
-				if err != nil {
-					return "", errors.Wrap(err, "error while asking for trusting the CA")
-				}
-				if promptTrust {
-					trustedIssuers = append(trustedIssuers, cert.Issuer)
-				}
+	trustedIssuersMap := map[string]bool{}
+
+	// let's prompt the user for every issuer
+	for i, cert := range certsToCheck {
+		var trustedCA, asked bool
+		var err error
+
+		trustedCA, asked = trustedIssuersMap[cert.Issuer.String()]
+
+		if !asked {
+			trustedCA, err = askTrustCA(ui, cert)
+			if err != nil {
+				return "", errors.Wrap(err, "error while asking to trust the CA")
 			}
+			trustedIssuersMap[cert.Issuer.String()] = trustedCA
+		}
 
-			// if yes then encode the certificate to PEM format and save it in the settings
-			if trustCA || promptTrust || alreadyTrustedIssuer {
-				ui.Success().Msgf("Trusting certificate for address %s...", address)
-				pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-				certsToTrust = append(certsToTrust, string(pemCert))
-			}
+		// if the CA is trusted we can add the cert
+		if trustedCA {
+			ui.Success().Msgf("Trusting certificate for address %s...", addresses[i])
+			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+			builder.Write(pemCert)
 		}
 	}
 
-	return strings.Join(certsToTrust, "\n"), nil
+	return builder.String(), nil
 }
 
 func checkCA(address string) (*x509.Certificate, error) {
