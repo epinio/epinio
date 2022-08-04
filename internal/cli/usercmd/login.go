@@ -5,9 +5,11 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/pem"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/termui"
@@ -30,22 +32,28 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 
 	c.ui.Note().Msgf("Login to your Epinio cluster [%s]", address)
 
+	// Deduct the dex URL from the epinio one
+	dexURL := regexp.MustCompile(`epinio\.(.*)`).ReplaceAllString(address, "dex.$1")
+
 	// check if the server has a trusted authority, or if we want to trust it anyway
-	serverCertificate, err := checkAndAskCA(c.ui, address, trustCA)
+	certsToTrust, err := checkAndAskCA(c.ui, []string{address, dexURL}, trustCA)
 	if err != nil {
 		return errors.Wrap(err, "error while checking CA")
 	}
 
 	// load settings and update them (in memory)
-	updatedSettings, err := trustCertInSettings(address, serverCertificate)
+	updatedSettings, err := trustCertInSettings(certsToTrust)
 	if err != nil {
 		return errors.Wrap(err, "error updating settings")
 	}
 
+	updatedSettings.API = address
+	updatedSettings.WSS = strings.Replace(address, "https://", "wss://", 1)
+
 	// Trust the cert to allow the client to talk to dex
 	auth.ExtendLocalTrust(updatedSettings.Certs)
 
-	token, err := generateToken(ctx, c.ui, address) // TODO: Construct address for dex
+	token, err := generateToken(ctx, c.ui, dexURL)
 	if err != nil {
 		return errors.Wrap(err, "error while asking for token")
 	}
@@ -65,9 +73,10 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 	return errors.Wrap(err, "error saving new settings")
 }
 
-func generateToken(ctx context.Context, ui *termui.UI, loginURL string) (*oauth2.Token, error) {
+// generateToken implements the Oauth2 flow to generate an auth token
+func generateToken(ctx context.Context, ui *termui.UI, dexURL string) (*oauth2.Token, error) {
 	// TODO: Hardcoded credentials?
-	oauth2Config, err := dex.Oauth2Config(ctx, loginURL, "epinio-cli", "cli-app-secret")
+	oauth2Config, err := dex.Oauth2Config(ctx, dexURL, "epinio-cli", "cli-app-secret")
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing oauth2Config")
 	}
@@ -105,35 +114,51 @@ func readUserInput() (string, error) {
 
 // checkAndAskCA will check if the server has a trusted authority
 // if the authority is unknown then we will prompt the user if he wants to trust it anyway
-// and the func will return the PEM encoded certificate to trust
-func checkAndAskCA(ui *termui.UI, address string, trustCA bool) (string, error) {
-	var serverCertificate string
+// and the func will return a list of PEM encoded certificates to trust (separated by new lines)
+func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, error) {
+	var certsToTrust []string
+	var trustedIssuers []pkix.Name
 
-	cert, err := checkCA(address)
-	if err != nil {
-		// something bad happened while checking the certificates
-		if cert == nil {
-			return "", errors.Wrap(err, "error while checking CA")
-		}
-
-		// certificate is signed by unknown authority
-		// ask to the user if we want to trust it
-		if !trustCA {
-			trustCA, err = askTrustCA(ui, cert)
-			if err != nil {
-				return "", errors.Wrap(err, "error while asking for trusting the CA")
+	for _, address := range addresses {
+		promptTrust := false
+		cert, err := checkCA(address)
+		if err != nil {
+			// something bad happened while checking the certificates
+			if cert == nil {
+				return "", errors.Wrap(err, "error while checking CA")
 			}
-		}
 
-		// if yes then encode the certificate to PEM format and save it in the settings
-		if trustCA {
-			ui.Success().Msg("Trusting certificate...")
-			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-			serverCertificate = string(pemCert)
+			alreadyTrustedIssuer := func(trustedIssuers []pkix.Name, issuer pkix.Name) bool {
+				for _, i := range trustedIssuers {
+					if i.String() == issuer.String() {
+						return true
+					}
+				}
+				return false
+			}(trustedIssuers, cert.Issuer)
+
+			// certificate is signed by unknown authority
+			// ask to the user if we want to trust it
+			if !trustCA && !alreadyTrustedIssuer {
+				promptTrust, err = askTrustCA(ui, cert)
+				if err != nil {
+					return "", errors.Wrap(err, "error while asking for trusting the CA")
+				}
+				if promptTrust {
+					trustedIssuers = append(trustedIssuers, cert.Issuer)
+				}
+			}
+
+			// if yes then encode the certificate to PEM format and save it in the settings
+			if trustCA || promptTrust || alreadyTrustedIssuer {
+				ui.Success().Msgf("Trusting certificate for address %s...", address)
+				pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+				certsToTrust = append(certsToTrust, string(pemCert))
+			}
 		}
 	}
 
-	return serverCertificate, nil
+	return strings.Join(certsToTrust, "\n"), nil
 }
 
 func checkCA(address string) (*x509.Certificate, error) {
@@ -204,15 +229,13 @@ func askTrustCA(ui *termui.UI, cert *x509.Certificate) (bool, error) {
 	}
 }
 
-func trustCertInSettings(address, serverCertificate string) (*settings.Settings, error) {
+func trustCertInSettings(certsToTrust string) (*settings.Settings, error) {
 	epinioSettings, err := settings.Load()
 	if err != nil {
 		return nil, errors.Wrap(err, "error loading the settings")
 	}
 
-	epinioSettings.API = address
-	epinioSettings.WSS = strings.Replace(address, "https://", "wss://", 1)
-	epinioSettings.Certs = serverCertificate
+	epinioSettings.Certs = certsToTrust
 
 	return epinioSettings, nil
 }
