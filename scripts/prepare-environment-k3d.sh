@@ -62,10 +62,10 @@ function deploy_epinio_latest_released {
   helm repo update
   helm upgrade --wait --install -n epinio --create-namespace epinio epinio/epinio \
        --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
-       --set dex.config.issuer="https://dex.$EPINIO_SYSTEM_DOMAIN" \
-       --set "dex.ingress.tls[0].hosts[0]=dex.$EPINIO_SYSTEM_DOMAIN" \
+       --set dex.config.issuer="https://auth.$EPINIO_SYSTEM_DOMAIN" \
+       --set "dex.ingress.tls[0].hosts[0]=auth.$EPINIO_SYSTEM_DOMAIN" \
        --set "dex.ingress.tls[0].secretName=dex-tls" \
-       --set "dex.ingress.hosts[0].host=dex.$EPINIO_SYSTEM_DOMAIN" \
+       --set "dex.ingress.hosts[0].host=auth.$EPINIO_SYSTEM_DOMAIN" \
        --set "dex.ingress.hosts[0].paths[0].path=/" \
        --set "dex.ingress.hosts[0].paths[0].pathType=Prefix"
 }
@@ -87,10 +87,10 @@ else
 
   helm upgrade --install --create-namespace -n epinio \
     --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
-    --set dex.config.issuer="https://dex.$EPINIO_SYSTEM_DOMAIN" \
-    --set "dex.ingress.tls[0].hosts[0]=dex.$EPINIO_SYSTEM_DOMAIN" \
+    --set dex.config.issuer="https://auth.$EPINIO_SYSTEM_DOMAIN" \
+    --set "dex.ingress.tls[0].hosts[0]=auth.$EPINIO_SYSTEM_DOMAIN" \
     --set "dex.ingress.tls[0].secretName=dex-tls" \
-    --set "dex.ingress.hosts[0].host=dex.$EPINIO_SYSTEM_DOMAIN" \
+    --set "dex.ingress.hosts[0].host=auth.$EPINIO_SYSTEM_DOMAIN" \
     --set "dex.ingress.hosts[0].paths[0].path=/" \
     --set "dex.ingress.hosts[0].paths[0].pathType=Prefix" \
     --set image.epinio.tag="${IMAGE_TAG}" \

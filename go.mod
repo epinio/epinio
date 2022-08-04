@@ -7,7 +7,6 @@ require (
 	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.18.1
-	github.com/coreos/go-oidc v2.1.0+incompatible
 	github.com/coreos/go-oidc/v3 v3.2.0
 	github.com/epinio/application v0.0.0-20220531082924-9d01149e6946
 	github.com/fatih/color v1.13.0
@@ -40,7 +39,6 @@ require (
 	go.uber.org/zap v1.21.0
 	golang.org/x/crypto v0.0.0-20220411220226-7b82a4e95df4
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 	gopkg.in/ini.v1 v1.66.6
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.9.0
@@ -53,6 +51,8 @@ require (
 	k8s.io/metrics v0.24.1
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 )
+
+require golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 
 require (
 	cloud.google.com/go/compute v1.6.1 // indirect
@@ -83,6 +83,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dchest/uniuri v0.0.0-20200228104902-7aecb25e1fe5
 	github.com/docker/cli v20.10.11+incompatible // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/docker v20.10.14+incompatible // indirect
@@ -169,7 +170,6 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/pquerna/cachecontrol v0.0.0-20171018203845-0dec1b30a021 // indirect
 	github.com/prometheus/client_golang v1.12.1 // indirect
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.32.1 // indirect
