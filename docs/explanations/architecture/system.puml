@@ -1,0 +1,53 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+!define osaPuml https://raw.githubusercontent.com/Crashedmind/PlantUML-opensecurityarchitecture2-icons/master
+!include osaPuml/Common.puml
+!include osaPuml/User/all.puml
+
+!include <office/Servers/database_server>
+!include <office/Servers/file_server>
+!include <office/Servers/application_server>
+!include <office/Concepts/service_application>
+!include <office/Concepts/firewall>
+
+'AddExternalPersonTag("anonymous_ext", $sprite="osa_user_black_hat", $legendText="anonymous user")
+AddPersonTag("developer", $sprite="osa_user_large_group", $legendText="aggregated user")
+AddPersonTag("admin", $sprite="osa_user_audit,color=red", $legendSprite="osa_user_audit,scale=0.25,color=red", $legendText="administration user")
+
+AddContainerTag("webApp", $sprite="application_server", $legendText="web app container")
+AddContainerTag("s3", $sprite="database_server", $legendText="database container")
+AddContainerTag("files", $sprite="file_server", $legendText="file server container")
+AddContainerTag("conApp", $sprite="service_application", $legendText="console app container")
+
+AddRelTag("firewall", $textColor="$ARROW_COLOR", $lineColor="$ARROW_COLOR", $sprite="firewall,scale=0.3,color=red", $legendText="firewall")
+
+' Person_Ext(anonymous_user, "Boby", $tags="anonymous_ext")
+Person(developers, "Developers", $tags="developer")
+Person(operators, "Operators", $tags="admin")
+
+System_Boundary(kubernetes, "kubernetes cluster"){
+    Container(epinioAPI, "Epinio API Server", "Golang", $tags="webApp")
+    Container(filesystem, "File System", "FAT32", $tags="files")
+    ContainerDb(nosql, "NoSQL Data Store", "MongoDB 2.2.x", $tags="s3")
+    Container(updater, "Updater", "Java 7 Console App", $tags="conApp")
+}
+
+ContainerDb(s3, "S3 compatible storage", "MySQL 5.5.x", $tags="s3")
+
+'Rel(anonymous_user, epinioAPI, "Uses", "HTTPS", $tags="firewall")
+Rel(developers, epinioAPI, "push apps", "HTTPS", $tags="firewall")
+Rel(operators, kubernetes, "operate on", "kubectl", $tags="firewall")
+
+Rel(epinioAPI, s3, "Reads from and writes to", "SQL/JDBC, port 3306")
+Rel(epinioAPI, filesystem, "Reads from")
+Rel(epinioAPI, nosql, "Reads from", "MongoDB wire protocol, port 27017")
+
+Rel_U(updater, s3, "Reads from and writes data to", "SQL/JDBC, port 3306")
+Rel_U(updater, filesystem, "Writes to")
+Rel_U(updater, nosql, "Reads from and writes to", "MongoDB wire protocol, port 27017")
+
+Lay_R(s3, filesystem)
+
+SHOW_LEGEND()
+@enduml
