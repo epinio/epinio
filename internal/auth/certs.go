@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"net/http"
+	"os"
 
 	"github.com/gorilla/websocket"
 )
@@ -35,4 +36,14 @@ func ExtendLocalTrust(certs string) {
 	// See https://github.com/gorilla/websocket/issues/601 for
 	// what this is a work around for.
 	http.DefaultTransport.(*http.Transport).ForceAttemptHTTP2 = false
+}
+
+// ExtendLocalTrustFromFile will load a cert from the specified file and will extend the local trust
+func ExtendLocalTrustFromFile(path string) error {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	ExtendLocalTrust(string(content))
+	return nil
 }

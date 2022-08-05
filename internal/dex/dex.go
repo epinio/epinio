@@ -2,9 +2,7 @@ package dex
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/dchest/uniuri"
@@ -91,20 +89,13 @@ func (pc *OIDCProvider) Verify(ctx context.Context, rawIDToken string) (*oidc.ID
 func newVerifier(ctx context.Context, clientID string) (*oidc.IDTokenVerifier, error) {
 	// Server should always trust the dex url certificate
 	// TODO: Mount the actual certificate and ExtendLocalTrust?
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		},
-	}
 
 	// Initialize a provider by specifying dex's issuer URL.
 	domain, err := domain.MainDomain(ctx)
 	if err != nil {
 		return nil, err
 	}
-	provider, err := oidc.NewProvider(
-		oidc.ClientContext(ctx, client),
-		fmt.Sprintf("https://auth.%s", domain))
+	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("https://auth.%s", domain))
 	if err != nil {
 		return nil, errors.Wrap(err, "setting up the provider")
 	}
@@ -113,7 +104,7 @@ func newVerifier(ctx context.Context, clientID string) (*oidc.IDTokenVerifier, e
 	return provider.Verifier(&oidc.Config{ClientID: clientID}), nil
 }
 
-// TODO (ec) check this
+// TODO (ec) Keeping this for the TODOs
 func Verify(ctx context.Context, token string) (*auth.User, error) {
 	// TODO: The token was issued to the cli client
 	// How can we trust all our clients? E.g. the epinio-ui

@@ -92,10 +92,28 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	// router.GET("/login", dex.Controller{}.Login)
 	// router.GET("/dex/callback", dex.Controller{}.Callback)
 
+	err := auth.ExtendLocalTrustFromFile("/etc/ssl/certs/dex-tls.pem")
+	if err != nil {
+		return nil, errors.Wrap(err, "extending local trust with dex")
+	}
+
+	// creating oidc provider
+	ctx := context.Background()
+	mainDomain, err := domain.MainDomain(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting main domain")
+	}
+
+	issuer := fmt.Sprintf("https://auth.%s", mainDomain)
+	oidcProvider, err := dex.NewOIDCProvider(ctx, issuer, "epinio-cli")
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing dexProviderConfig")
+	}
+
 	// Register api routes
 	{
 		apiRoutesGroup := router.Group(apiv1.Root,
-			authMiddleware,
+			authMiddleware(oidcProvider),
 			apiv1.NamespaceMiddleware,
 			apiv1.AuthorizationMiddleware,
 		)
@@ -165,65 +183,84 @@ func initContextMiddleware(logger logr.Logger) gin.HandlerFunc {
 
 // authMiddleware authenticates the user either using the session or if one
 // doesn't exist, it authenticates with basic auth.
-func authMiddleware(ctx *gin.Context) {
-	// TODO:
-	// - [ ] verify the validity of the token
-	// - [ ] if the token is valid check if there is a "user" resource associated with it
-	// - [ ] if not, create one, simple user no namespaces yet
-	// - [ ] set the current user (so that authorization works)
+func authMiddleware(oidcProvider *dex.OIDCProvider) func(ctx *gin.Context) {
+	return func(ctx *gin.Context) {
+		logger := requestctx.Logger(ctx.Request.Context()).WithName("authMiddleware")
+		// TODO:
+		// - [x] verify the validity of the token
+		// - [ ] if the token is valid check if there is a "user" resource associated with it
+		// - [ ] if not, create one, simple user no namespaces yet
+		// - [ ] set the current user (so that authorization works)
 
-	auth := []byte(ctx.Request.Header.Get("Authorization"))
-	if len(auth) == 0 {
-		response.Error(ctx, apierrors.NewAPIError("missing credentials", http.StatusUnauthorized))
-		ctx.Abort()
-		return
+		authHeader := []byte(ctx.Request.Header.Get("Authorization"))
+		if len(authHeader) == 0 {
+			response.Error(ctx, apierrors.NewAPIError("missing credentials", http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+
+		token := authHeader[len([]byte("Bearer ")):]
+
+		idToken, err := oidcProvider.Verify(ctx, string(token))
+		if err != nil {
+			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "token verification failed").Error(), http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+
+		user, err := auth.NewUserFromIDToken(idToken)
+		if err != nil {
+			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "creating user from token").Error(), http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+
+		logger.V(1).Info("verified token", "token", string(token), "user", fmt.Sprintf("%#v", user))
+
+		if err != nil {
+			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "no user found").Error(), http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+
+		// TODO: Create the user mapping?
+		// userMap, err := loadUsersMap(ctx)
+		// if err != nil {
+		// 	response.Error(ctx, apierrors.InternalError(err))
+		// 	ctx.Abort()
+		// 	return
+		// }
+
+		// if len(userMap) == 0 {
+		// 	response.Error(ctx, apierrors.NewAPIError("no user found", http.StatusUnauthorized))
+		// 	ctx.Abort()
+		// 	return
+		// }
+
+		// username, password, ok := ctx.Request.BasicAuth()
+		// if !ok {
+		// 	response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
+		// 	ctx.Abort()
+		// 	return
+		// }
+
+		// err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
+		// if err != nil {
+		// 	response.Error(ctx, apierrors.NewAPIError("wrong password", http.StatusUnauthorized))
+		// 	ctx.Abort()
+		// 	return
+		// }
+
+		// // We set this to the current user after successful authentication.
+		// // This is also added to the context for controllers to use.
+		// user := userMap[username]
+
+		// Write the user info in the context. It's needed by the next middleware
+		// to write it into the session.
+		newCtx := ctx.Request.Context()
+		newCtx = requestctx.WithUser(newCtx, user)
+		ctx.Request = ctx.Request.Clone(newCtx)
 	}
-
-	token := auth[len([]byte("Bearer ")):]
-	user, err := dex.Verify(ctx, string(token))
-	if err != nil {
-		response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "no user found").Error(), http.StatusUnauthorized))
-		ctx.Abort()
-		return
-	}
-
-	// TODO: Create the user mapping?
-	// userMap, err := loadUsersMap(ctx)
-	// if err != nil {
-	// 	response.Error(ctx, apierrors.InternalError(err))
-	// 	ctx.Abort()
-	// 	return
-	// }
-
-	// if len(userMap) == 0 {
-	// 	response.Error(ctx, apierrors.NewAPIError("no user found", http.StatusUnauthorized))
-	// 	ctx.Abort()
-	// 	return
-	// }
-
-	// username, password, ok := ctx.Request.BasicAuth()
-	// if !ok {
-	// 	response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
-	// 	ctx.Abort()
-	// 	return
-	// }
-
-	// err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
-	// if err != nil {
-	// 	response.Error(ctx, apierrors.NewAPIError("wrong password", http.StatusUnauthorized))
-	// 	ctx.Abort()
-	// 	return
-	// }
-
-	// // We set this to the current user after successful authentication.
-	// // This is also added to the context for controllers to use.
-	// user := userMap[username]
-
-	// Write the user info in the context. It's needed by the next middleware
-	// to write it into the session.
-	newCtx := ctx.Request.Context()
-	newCtx = requestctx.WithUser(newCtx, *user)
-	ctx.Request = ctx.Request.Clone(newCtx)
 }
 
 func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
