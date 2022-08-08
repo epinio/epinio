@@ -208,9 +208,20 @@ func authMiddleware(oidcProvider *dex.OIDCProvider) func(ctx *gin.Context) {
 			return
 		}
 
-		user, err := auth.NewUserFromIDToken(idToken)
+		var claims struct {
+			Email    string   `json:"email"`
+			Verified bool     `json:"email_verified"`
+			Groups   []string `json:"groups"`
+		}
+		if err := idToken.Claims(&claims); err != nil {
+			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized))
+			ctx.Abort()
+			return
+		}
+
+		user, err := getOrCreateUserByEmail(ctx, claims.Email)
 		if err != nil {
-			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "creating user from token").Error(), http.StatusUnauthorized))
+			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "getting/creating user with email").Error(), http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
@@ -261,6 +272,31 @@ func authMiddleware(oidcProvider *dex.OIDCProvider) func(ctx *gin.Context) {
 		newCtx = requestctx.WithUser(newCtx, user)
 		ctx.Request = ctx.Request.Clone(newCtx)
 	}
+}
+
+func getOrCreateUserByEmail(ctx context.Context, email string) (auth.User, error) {
+	user := auth.User{}
+	var err error
+
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		return user, errors.Wrap(err, "couldn't create auth service from context")
+	}
+
+	user, err = authService.GetUserByUsername(ctx, email)
+	if err != nil {
+		if err != auth.ErrUserNotFound {
+			return user, errors.Wrap(err, "couldn't get user")
+		}
+
+		user.Username = email
+		user, err = authService.SaveUser(ctx, user)
+		if err != auth.ErrUserNotFound {
+			return user, errors.Wrap(err, "couldn't create user")
+		}
+	}
+
+	return user, nil
 }
 
 func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {

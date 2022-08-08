@@ -95,10 +95,10 @@ func ensurePVC(ctx context.Context, cluster *kubernetes.Cluster, ar models.AppRe
 func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
+	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
-	username := requestctx.User(ctx).Username
 
 	req := models.StageRequest{}
 	if err := c.BindJSON(&req); err != nil {
