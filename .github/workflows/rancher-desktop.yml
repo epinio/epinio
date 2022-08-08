@@ -4,7 +4,8 @@ on:
   push:
     branches: [ main ]
     paths:
-    - '.github/workflows/rancher-desktop.yaml'
+    - 'acceptance/install/scenario7_test.go'
+    - '.github/workflows/rancher-desktop.yml'
   # schedule:
   #   - cron:  '0 6 * * *'
   workflow_dispatch:
@@ -14,7 +15,47 @@ on:
         required: false
         default: ""
 
+env:
+  SETUP_GO_VERSION: '^1.18'
+  GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
+
 jobs:
+  linter:
+      runs-on: self-hosted
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v3
+          with:
+            submodules: recursive
+
+        - name: Setup Go
+          uses: actions/setup-go@v3
+          with:
+            go-version: ${{ env.SETUP_GO_VERSION }}
+
+        - name: Cache Tools
+          uses: actions/cache@v3.0.4
+          with:
+            path: ${{ github.workspace }}/tools
+            key: ${{ runner.os }}-tools
+
+        - name: Install Tools
+          run: make tools-install
+
+        - name: Add Tools to PATH
+          run: |
+            echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+        - name: Lint Epinio
+          run: make lint
+
+        - name: Clean all
+          if: always()
+          uses: colpal/actions-clean@v1
+
   build:
     runs-on: ubuntu-latest
 
@@ -22,7 +63,11 @@ jobs:
       - name: Check access to /dev/kvm
         run: |
           PRIVILEGES=$([ -r /dev/kvm ] && [ -w /dev/kvm ] || echo 'insufficient privileges')
-          if[ $(PRIVILEGES) = "insufficient privileges"];then sudo usermod -a -G kvm "$USER" fi
+          if [ ${PRIVILEGES}="insufficient privileges" ]; then 
+          sudo usermod -a -G kvm "$USER" 
+          else
+          echo "User has correct privileges for kvm"
+          fi
 
       - name: Add Rancher Desktop repository
         run: |
@@ -30,3 +75,97 @@ jobs:
           echo 'deb [signed-by=/usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg] https://download.opensuse.org/repositories/isv:/Rancher:/stable/deb/ ./' | sudo dd status=none of=/etc/apt/sources.list.d/isv-rancher-stable.list
           apt-get update
           apt-get install rancher-desktop
+
+      - name: Start Rancher Desktop prior installing Epinio
+        run: |
+          ## Note: this is a workaround. rdctl should be executable after rd install 
+          ## Directly start from rdctl when this bug is fixed: https://github.com/rancher-sandbox/rancher-desktop/issues/2683
+
+          ## Start Rancher Desktop
+          rancher-desktop >/dev/null 2>&1  &
+          sleep 40
+
+          ## Stop RD to later change to moby
+          rdctl shutdown
+          sleep 40
+
+          ## Change Engine
+          rdctl set --container-engine docker
+
+          ## Start again RD
+          rdctl start
+          sleep 60
+
+  acceptance-scenario7:
+      needs:
+        - linter
+      runs-on: self-hosted
+
+      steps:
+        - name: Checkout
+          uses: actions/checkout@v3
+          with:
+            submodules: recursive
+            fetch-depth: 0
+
+        - name: Setup Go
+          uses: actions/setup-go@v3
+          with:
+            go-version: ${{ env.SETUP_GO_VERSION }}
+
+        - name: Setup Ginkgo Test Framework
+          run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
+
+        - name: Cache Tools
+          uses: actions/cache@v3.0.4
+          with:
+            path: ${{ github.workspace }}/tools
+            key: ${{ runner.os }}-tools
+
+        - name: Login to Docker Hub
+          uses: docker/login-action@v2
+          with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+        - name: Installation Acceptance Tests
+          env:
+            REGEX: Scenario7
+            PUBLIC_CLOUD: 1
+            REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
+            REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
+            INGRESS_CONTROLLER: traefik
+          run: |
+            # Install Epinio CLI
+            curl -o epinio -L https://github.com/epinio/epinio/releases/download/v1.1.0/epinio-linux-x86_64
+            chmod +x epinio
+            sudo mv ./epinio /usr/local/bin/epinio
+
+            # Install Epinio
+            kubectl create namespace cert-manager 
+            helm repo add jetstack https://charts.jetstack.io 
+            helm repo update 
+            helm install cert-manager --namespace cert-manager jetstack/cert-manager  --set installCRDs=true  --set "extraArgs[0]=--enable-certificate-owner-ref=true"
+            helm repo add epinio https://epinio.github.io/helm-charts 
+            # MYEPINIODOMAIN=`kubectl get svc -n kube-system traefik | awk '{print $4}' | tail --lines=+2` 
+            MYEPINIODOMAIN='127.0.0.1'
+            helm upgrade --install epinio -n epinio --create-namespace epinio/epinio  --set global.domain=${MYEPINIODOMAIN}.sslip.io 
+            sleep 40
+
+        - name: Delete Rancher Dekstop
+          run: |
+            sudo apt remove --autoremove -y rancher-desktop 
+            sudo rm /etc/apt/sources.list.d/isv-rancher-stable.list 
+            sudo rm /usr/share/keyrings/isv-rancher-stable-archive-keyring.gpg 
+            sudo apt update 
+            sudo rm -rf .rd 
+            sudo rm -rf .local/share/rancher-desktop/ 
+            sudo rm -rf .config/rancher-desktop/
+            sudo rm -rf .config/Rancher\ Desktop/
+
+        - name: Clean all
+          if: always()
+          uses: colpal/actions-clean@v1
+
+
+          
