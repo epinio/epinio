@@ -5,49 +5,71 @@
 !include osaPuml/Common.puml
 !include osaPuml/User/all.puml
 
-!include <office/Servers/database_server>
-!include <office/Servers/file_server>
-!include <office/Servers/application_server>
-!include <office/Concepts/service_application>
-!include <office/Concepts/firewall>
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/helm.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/aws-s3.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/aws-aurora.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/docker-icon.puml
 
-'AddExternalPersonTag("anonymous_ext", $sprite="osa_user_black_hat", $legendText="anonymous user")
-AddPersonTag("developer", $sprite="osa_user_large_group", $legendText="aggregated user")
-AddPersonTag("admin", $sprite="osa_user_audit,color=red", $legendSprite="osa_user_audit,scale=0.25,color=red", $legendText="administration user")
+!include <office/Servers/database_server>
+!include <office/Servers/application_server>
+!include <office/Devices/device_laptop>
+
+AddPersonTag("developer", $sprite="osa_user_large_group,color=orange", $legendSprite="osa_user_large_group,scale=0.25,color=orange", $legendText="Application developers")
+AddPersonTag("admin", $sprite="osa_user_audit,color=red", $legendSprite="osa_user_audit,scale=0.25,color=red", $legendText="Operator")
+AddPersonTag("appUsers", $sprite="osa_user_large_group", $legendSprite="osa_user_large_group,scale=0.25", $legendText="Application users")
 
 AddContainerTag("webApp", $sprite="application_server", $legendText="web app container")
-AddContainerTag("s3", $sprite="database_server", $legendText="database container")
-AddContainerTag("files", $sprite="file_server", $legendText="file server container")
-AddContainerTag("conApp", $sprite="service_application", $legendText="console app container")
+AddContainerTag("s3", $sprite="aws-s3", $legendText="database container")
+AddContainerTag("aws-aurora", $sprite="aws-aurora", $legendText="external service")
+AddContainerTag("docker", $sprite="docker-icon", $legendText="docker")
+AddContainerTag("helmrelease", $sprite="helm", $legendText="Helm release")
+AddContainerTag("laptop", $sprite="device_laptop", $legendText="cli application")
 
-AddRelTag("firewall", $textColor="$ARROW_COLOR", $lineColor="$ARROW_COLOR", $sprite="firewall,scale=0.3,color=red", $legendText="firewall")
-
-' Person_Ext(anonymous_user, "Boby", $tags="anonymous_ext")
-Person(developers, "Developers", $tags="developer")
+Person(developers, "Application Developers", $tags="developer")
 Person(operators, "Operators", $tags="admin")
+Person(appUsers, "Application Users", $tags="appUsers")
+
+Container(epinioCLI, "Epinio CLI", "Golang", $tags="laptop")
 
 System_Boundary(kubernetes, "kubernetes cluster"){
+    Container(epinioWebUI, "Epinio Web UI", "JS/Golang", $tags="webApp")
     Container(epinioAPI, "Epinio API Server", "Golang", $tags="webApp")
-    Container(filesystem, "File System", "FAT32", $tags="files")
-    ContainerDb(nosql, "NoSQL Data Store", "MongoDB 2.2.x", $tags="s3")
-    Container(updater, "Updater", "Java 7 Console App", $tags="conApp")
+    Container(appHelm, "App helm release", "Ingress: myapp.mydomain.com", $tags="helmrelease")
+    Container(serviceHelm, "Service helm release", "", $tags="helmrelease")
+    Container(stagingJob, "Staging Job", "paketo")
 }
 
-ContainerDb(s3, "S3 compatible storage", "MySQL 5.5.x", $tags="s3")
+ContainerDb(s3, "S3 compatible storage", "", $tags="s3")
+ContainerDb(cregistry, "Container registry", "", $tags="docker")
+ContainerDb(externalService, "External service", "", $tags="aws-aurora")
 
-'Rel(anonymous_user, epinioAPI, "Uses", "HTTPS", $tags="firewall")
-Rel(developers, epinioAPI, "push apps", "HTTPS", $tags="firewall")
-Rel(operators, kubernetes, "operate on", "kubectl", $tags="firewall")
+Rel(developers, epinioWebUI, "push apps", "Browser")
+Rel(developers, epinioCLI, "push", "terminal")
 
-Rel(epinioAPI, s3, "Reads from and writes to", "SQL/JDBC, port 3306")
-Rel(epinioAPI, filesystem, "Reads from")
-Rel(epinioAPI, nosql, "Reads from", "MongoDB wire protocol, port 27017")
+Rel(epinioWebUI, epinioAPI, "make requests", "HTTPS")
+Rel(epinioCLI, epinioAPI, "make requests", "HTTPS")
 
-Rel_U(updater, s3, "Reads from and writes data to", "SQL/JDBC, port 3306")
-Rel_U(updater, filesystem, "Writes to")
-Rel_U(updater, nosql, "Reads from and writes to", "MongoDB wire protocol, port 27017")
+'Rel(operators, kubernetes, "operate on", "kubectl")
+Rel(operators, appHelm, "define chart")
+Rel(operators, serviceHelm, "define chart")
 
-Lay_R(s3, filesystem)
+Rel(epinioAPI, s3, "writes sources to", "S3 protocol")
+Rel(epinioAPI, appHelm, "installs")
+Rel(epinioAPI, serviceHelm, "installs")
+Rel(epinioAPI, stagingJob, "creates")
+
+
+Rel(s3, stagingJob, "read by", "S3 protocol")
+Rel(stagingJob, cregistry, "pushes to")
+
+Rel(cregistry, appHelm, "images pulled by")
+Rel(appUsers, appHelm, "Visit", "HTTPS")
+
+Rel(serviceHelm, externalService, "provisions")
+Rel(appHelm, serviceHelm, "mounts secrets")
+
+Lay_U(operators, appUsers)
+'Lay_R(developers, appUsers)
 
 SHOW_LEGEND()
 @enduml
