@@ -18,7 +18,7 @@ func (hc Controller) Restart(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
-	username := requestctx.User(ctx).Username
+	user := requestctx.User(ctx)
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -39,7 +39,7 @@ func (hc Controller) Restart(c *gin.Context) apierror.APIErrors {
 	}
 
 	nano := time.Now().UnixNano()
-	_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
+	_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, user, "", nil, &nano)
 	if apierr != nil {
 		return apierr
 	}

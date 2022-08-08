@@ -16,7 +16,7 @@ import (
 func (hc Controller) Unset(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	log := requestctx.Logger(ctx)
-	username := requestctx.User(ctx).Username
+	user := requestctx.User(ctx)
 
 	namespaceName := c.Param("namespace")
 	appName := c.Param("app")
@@ -44,7 +44,7 @@ func (hc Controller) Unset(c *gin.Context) apierror.APIErrors {
 	}
 
 	if app.Workload != nil {
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, user, "", nil, nil)
 		if apierr != nil {
 			return apierr
 		}

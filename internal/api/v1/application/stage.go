@@ -98,7 +98,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
-	username := requestctx.User(ctx).Username
+	user := requestctx.User(ctx)
 
 	req := models.StageRequest{}
 	if err := c.BindJSON(&req); err != nil {
@@ -219,7 +219,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		S3ConnectionDetails: s3ConnectionDetails,
 		Stage:               models.NewStage(uid),
 		PreviousStageID:     previousID,
-		Username:            username,
+		Username:            user.ID,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
 	}

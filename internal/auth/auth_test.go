@@ -81,13 +81,12 @@ var _ = Describe("Auth users", func() {
 				}
 
 				// setup mock
-				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
-				fake.GetReturns(&userSecrets[1], nil)
+				fake.GetReturns(&userSecrets[2], nil)
 				updatedUserSecret := newUserSecret("user3", "password", "user", "workspace\nworkspace2")
 				fake.UpdateReturns(&updatedUserSecret, nil)
 
 				// do test
-				err := authService.AddNamespaceToUser(context.Background(), "user3", "workspace2")
+				err := authService.AddNamespaceToUser(context.Background(), auth.User{ID: "user3"}, "workspace2")
 				Expect(err).ToNot(HaveOccurred())
 
 				_, secretName, _ := fake.GetArgsForCall(0)

@@ -131,9 +131,9 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err, "creating an S3 manager")
 	}
 
-	username := requestctx.User(ctx).Username
+	user := requestctx.User(ctx)
 	blobUID, err := manager.Upload(ctx, tarball, map[string]string{
-		"app": name, "namespace": namespace, "username": username,
+		"app": name, "namespace": namespace, "username": user.Username, "userID": user.ID,
 	})
 	if err != nil {
 		return apierror.InternalError(err, "uploading the application sources blob")

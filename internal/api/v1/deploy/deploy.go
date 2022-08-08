@@ -9,6 +9,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
@@ -21,7 +22,7 @@ import (
 // DeployApp deploys the referenced application via helm, based on the state held by CRD
 // and associated secrets. It is the backend for the API deploypoint, as well as all the
 // mutating endpoints, i.e. configuration and app changes (bindings, environment, scaling).
-func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, origin *models.ApplicationOrigin, start *int64) ([]string, apierror.APIErrors) {
+func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, user auth.User, expectedStageID string, origin *models.ApplicationOrigin, start *int64) ([]string, apierror.APIErrors) {
 	log := requestctx.Logger(ctx)
 
 	appObj, err := application.Lookup(ctx, cluster, app.Namespace, app.Name)
@@ -60,7 +61,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		Configurations: appObj.Configuration.Configurations,
 		Instances:      *appObj.Configuration.Instances,
 		ImageURL:       imageURL,
-		Username:       username,
+		Username:       user.ID,
 		StageID:        stageID,
 		Routes:         routes,
 		Domains:        domains,

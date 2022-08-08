@@ -27,7 +27,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 
 	namespace := c.Param("namespace")
 	name := c.Param("app")
-	username := requestctx.User(ctx).Username
+	user := requestctx.User(ctx)
 
 	req := models.DeployRequest{}
 	if err := c.BindJSON(&req); err != nil {
@@ -69,7 +69,7 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 		return apierr
 	}
 
-	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, username, req.Stage.ID, &req.Origin, nil)
+	routes, apierr := deploy.DeployApp(ctx, cluster, req.App, user, req.Stage.ID, &req.Origin, nil)
 	if apierr != nil {
 		return apierr
 	}

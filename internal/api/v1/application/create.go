@@ -7,7 +7,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/appchart"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/routes"
@@ -22,8 +21,6 @@ import (
 func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
-
-	username := requestctx.User(ctx).Username
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -108,7 +105,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	// Arguments found OK, now we can modify the system state
 
-	err = application.Create(ctx, cluster, appRef, username, routes, chart)
+	err = application.Create(ctx, cluster, appRef, routes, chart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

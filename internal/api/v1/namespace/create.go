@@ -68,7 +68,7 @@ func addNamespaceToUser(ctx context.Context, namespace string) error {
 		return errors.Wrap(err, "error creating auth service")
 	}
 
-	err = authService.AddNamespaceToUser(ctx, user.Username, namespace)
+	err = authService.AddNamespaceToUser(ctx, user, namespace)
 	if err != nil {
 		return errors.Wrap(err, fmt.Sprintf("error adding namespace [%s] to user [%s]", namespace, user.Username))
 	}
