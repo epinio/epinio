@@ -1201,16 +1201,8 @@ configuration:
 				// find the userID of the user
 				authService, err := auth.NewAuthServiceFromContext(context.Background())
 				Expect(err).ToNot(HaveOccurred())
-				users, err := authService.GetUsers(context.Background())
+				user, err := authService.GetUserByUsername(context.Background(), env.EpinioUser)
 				Expect(err).ToNot(HaveOccurred())
-
-				userID := ""
-				for _, user := range users {
-					if user.Username == env.EpinioUser {
-						userID = user.ID
-						break
-					}
-				}
 
 				values, err := ioutil.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
@@ -1228,7 +1220,7 @@ configuration:
   start: null
   tlsIssuer: epinio-ca
   username: %[2]s
-`, app, userID)))
+`, app, user.ID)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})

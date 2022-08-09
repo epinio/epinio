@@ -14,6 +14,7 @@ import (
 	"reflect"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/auth"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
@@ -58,7 +59,14 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 	if err != nil {
 		return nil, err
 	}
-	c.Username = s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+
+	usersMap, err := getUsersMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	userID := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+	c.Username = usersMap[userID].Username
 	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
 	c.Origin = s.ObjectMeta.Labels["epinio.io/configuration-origin"]
 	c.CreatedAt = s.ObjectMeta.CreationTimestamp
@@ -95,10 +103,15 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 
 	result := ConfigurationList{}
 
+	usersMap, err := getUsersMap(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, c := range secrets.Items {
 		name := c.Name
 		namespace := c.Namespace
-		username := c.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		userID := c.ObjectMeta.Labels["app.kubernetes.io/created-by"]
 		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
 		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
 
@@ -106,7 +119,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 			CreatedAt:  c.ObjectMeta.CreationTimestamp,
 			Name:       name,
 			namespace:  namespace,
-			Username:   username,
+			Username:   usersMap[userID].Username,
 			kubeClient: cluster,
 			Type:       ctype,
 			Origin:     origin,
@@ -118,7 +131,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 
 // CreateConfiguration creates a new  configuration instance from namespace,
 // name, and a map of parameters.
-func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name, namespace, username string,
+func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name, namespace string, user auth.User,
 	data map[string]string) (*Configuration, error) {
 
 	_, err := cluster.GetSecret(ctx, namespace, name)
@@ -136,7 +149,7 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 	labels := map[string]string{
 		ConfigurationLabelKey:          "true",
 		ConfigurationTypeLabelKey:      "custom",
-		"app.kubernetes.io/created-by": username,
+		"app.kubernetes.io/created-by": user.ID,
 		"app.kubernetes.io/name":       "epinio",
 		// "app.kubernetes.io/version":     cmd.Version
 		// FIXME: Importing cmd causes cycle
@@ -336,4 +349,21 @@ func (c *Configuration) Details(ctx context.Context) (map[string]string, error) 
 	}
 
 	return details, nil
+}
+
+func getUsersMap(ctx context.Context) (map[string]auth.User, error) {
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	users, err := authService.GetUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	userMap := make(map[string]auth.User)
+	for _, u := range users {
+		userMap[u.ID] = u
+	}
+
+	return userMap, nil
 }

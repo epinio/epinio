@@ -15,7 +15,7 @@ import (
 func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
-	username := requestctx.User(ctx).Username
+	user := requestctx.User(ctx)
 
 	var createRequest models.ConfigurationCreateRequest
 	err := c.BindJSON(&createRequest)
@@ -49,7 +49,7 @@ func (sc Controller) Create(c *gin.Context) apierror.APIErrors {
 	// any error here is `configuration not found`, and we can continue
 
 	// Create the new configuration. At last.
-	_, err = configurations.CreateConfiguration(ctx, cluster, createRequest.Name, namespace, username, createRequest.Data)
+	_, err = configurations.CreateConfiguration(ctx, cluster, createRequest.Name, namespace, user, createRequest.Data)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

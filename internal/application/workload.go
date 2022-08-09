@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -183,8 +184,18 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		// Initialize various pieces from the first pod ...
 		createdAt = podList[0].ObjectMeta.CreationTimestamp.Time
 		stageID = podList[0].ObjectMeta.Labels["epinio.io/stage-id"]
-		username = podList[0].ObjectMeta.Labels["app.kubernetes.io/created-by"]
 		controllerName = podList[0].ObjectMeta.Labels["epinio.io/app-container"]
+
+		userID := podList[0].ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		authService, err := auth.NewAuthServiceFromContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		user, err := authService.GetUserByID(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		username = user.Username
 
 		for _, pod := range podList {
 			// Choose oldest time of all pods.

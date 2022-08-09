@@ -56,6 +56,22 @@ func (s *AuthService) GetUsers(ctx context.Context) ([]User, error) {
 	return users, nil
 }
 
+// GetUserByUsername returns the user with the provided username
+// It will return a UserNotFound error if the user is not found
+func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	users, err := s.GetUsers(ctx)
+	if err != nil {
+		return User{}, errors.Wrap(err, "error getting users")
+	}
+
+	for _, user := range users {
+		if user.Username == username {
+			return user, nil
+		}
+	}
+	return User{}, ErrUserNotFound
+}
+
 // GetUserByID returns the user with the provided ID
 // It will return a UserNotFound error if the user is not found
 func (s *AuthService) GetUserByID(ctx context.Context, ID string) (User, error) {
