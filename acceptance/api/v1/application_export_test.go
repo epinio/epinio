@@ -48,16 +48,8 @@ var _ = Describe("AppPart Endpoint", func() {
 		// find the userID of the user
 		authService, err := auth.NewAuthServiceFromContext(context.Background())
 		Expect(err).ToNot(HaveOccurred())
-		users, err := authService.GetUsers(context.Background())
+		userID, err := authService.GetUserByUsername(context.Background(), env.EpinioUser)
 		Expect(err).ToNot(HaveOccurred())
-
-		userID := ""
-		for _, user := range users {
-			if user.Username == env.EpinioUser {
-				userID = user.ID
-				break
-			}
-		}
 
 		bodyBytes, err := ioutil.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
