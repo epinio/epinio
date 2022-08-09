@@ -42,9 +42,12 @@ System_Boundary(kubernetes, "kubernetes cluster"){
 ContainerDb(s3, "S3 compatible storage", "", $tags="s3")
 ContainerDb(cregistry, "Container registry", "", $tags="docker")
 ContainerDb(externalService, "External service", "", $tags="aws-aurora")
+ContainerDb(gitRepository, "Git repository", "")
 
-Rel(developers, epinioWebUI, "push apps", "Browser")
+Rel(developers, epinioWebUI, "push", "Browser")
 Rel(developers, epinioCLI, "push", "terminal")
+Rel(developers, gitRepository, "push", "git")
+Rel(developers, cregistry, "push", "docker")
 
 Rel(epinioWebUI, epinioAPI, "make requests", "HTTPS")
 Rel(epinioCLI, epinioAPI, "make requests", "HTTPS")
@@ -57,6 +60,7 @@ Rel(epinioAPI, s3, "writes sources to", "S3 protocol")
 Rel(epinioAPI, appHelm, "installs")
 Rel(epinioAPI, serviceHelm, "installs")
 Rel(epinioAPI, stagingJob, "creates")
+Rel(epinioAPI, gitRepository, "pulls code from")
 
 
 Rel(s3, stagingJob, "read by", "S3 protocol")
