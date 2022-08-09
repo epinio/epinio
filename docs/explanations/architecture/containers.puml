@@ -44,13 +44,13 @@ ContainerDb(cregistry, "Container registry", "", $tags="docker")
 ContainerDb(externalService, "External service", "", $tags="aws-aurora")
 ContainerDb(gitRepository, "Git repository", "")
 
-Rel(developers, epinioWebUI, "push", "Browser")
-Rel(developers, epinioCLI, "push", "terminal")
+Rel(developers, epinioWebUI, "push", "Browser/Session authentication")
+Rel(developers, epinioCLI, "push", "terminal/credentials in epinio.yaml")
 Rel(developers, gitRepository, "push", "git")
 Rel(developers, cregistry, "push", "docker")
 
-Rel(epinioWebUI, epinioAPI, "make requests", "HTTPS")
-Rel(epinioCLI, epinioAPI, "make requests", "HTTPS")
+Rel(epinioWebUI, epinioAPI, "make requests", "HTTPS/Basic Auth")
+Rel(epinioCLI, epinioAPI, "make requests", "HTTPS/Basic Auth")
 
 'Rel(operators, kubernetes, "operate on", "kubectl")
 Rel(operators, appHelm, "define chart")
