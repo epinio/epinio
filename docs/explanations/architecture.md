@@ -16,7 +16,15 @@ java -jar plantuml-1.2022.6.jar containers.puml
 
 __"Containers" diagram in c4model__
 
-![architectural_diagram](./architecture/containers.png)
+![architectural diagram](./architecture/containers.png)
+
+The S3 compatible object store and the container registry in the diagram above,
+can also be deployed inside the Kubernetes cluster. This happens by default when
+installing with the Epinio helm chart, if no values are provided for external S3
+or registry. The diagram below is adapted for that case:
+
+
+![architectural diagram in cluster](./architecture/containers-in-cluster.png)
 
 ## Useful links
 
