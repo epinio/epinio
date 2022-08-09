@@ -48,7 +48,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		// find the userID of the user
 		authService, err := auth.NewAuthServiceFromContext(context.Background())
 		Expect(err).ToNot(HaveOccurred())
-		userID, err := authService.GetUserByUsername(context.Background(), env.EpinioUser)
+		user, err := authService.GetUserByUsername(context.Background(), env.EpinioUser)
 		Expect(err).ToNot(HaveOccurred())
 
 		bodyBytes, err := ioutil.ReadAll(response.Body)
@@ -69,7 +69,7 @@ var _ = Describe("AppPart Endpoint", func() {
   start: null
   tlsIssuer: epinio-ca
   username: %[2]s
-`, app, userID)))
+`, app, user.ID)))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {
