@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -21,6 +22,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/api/v1/application"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 
@@ -1196,6 +1198,20 @@ configuration:
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
 
+				// find the userID of the user
+				authService, err := auth.NewAuthServiceFromContext(context.Background())
+				Expect(err).ToNot(HaveOccurred())
+				users, err := authService.GetUsers(context.Background())
+				Expect(err).ToNot(HaveOccurred())
+
+				userID := ""
+				for _, user := range users {
+					if user.Username == env.EpinioUser {
+						userID = user.ID
+						break
+					}
+				}
+
 				values, err := ioutil.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
@@ -1211,8 +1227,8 @@ configuration:
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: admin
-`, app)))
+  username: %[2]s
+`, app, userID)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})
