@@ -23,7 +23,7 @@ env:
 
 jobs:
   linter:
-      runs-on: self-hosted
+      runs-on: rdtest
 
       steps:
         - name: Checkout
@@ -99,7 +99,7 @@ jobs:
   acceptance-scenario7:
       needs:
         - linter
-      runs-on: self-hosted
+      runs-on: rdtest
 
       steps:
         - name: Checkout
