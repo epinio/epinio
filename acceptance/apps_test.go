@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
@@ -32,7 +33,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Apps", func() {
+var _ = Describe("Apps", func() {
 	var (
 		namespace string
 		appName   string
@@ -1199,7 +1200,7 @@ configuration:
 				values, err := ioutil.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
-  appName: %[1]s
+  appName: %s
   configurations: []
   env: []
   imageURL: splatform/sample-app
@@ -1211,8 +1212,8 @@ configuration:
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: epinio
-`, app)))
+  username: %s
+`, app, base58.Encode([]byte("admin")))))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})

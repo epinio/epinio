@@ -9,8 +9,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
+	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/internal/helm"
@@ -38,7 +40,7 @@ const EpinioApplicationAreaLabel = "epinio.io/area"
 // Create generates a new kube app resource in the namespace of the
 // namespace. Note that this is the passive resource holding the
 // app's configuration. It is not the active workload
-func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, routes []string, chart string) error {
+func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, user auth.User, routes []string, chart string) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -46,6 +48,11 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 
 	// we create the appCRD in the namespace
 	obj := &epinioappv1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				"app.kubernetes.io/created-by": base58.Encode([]byte(user.Username)),
+			},
+		},
 		Spec: epinioappv1.AppSpec{
 			Routes:    routes,
 			Origin:    epinioappv1.AppOrigin{},

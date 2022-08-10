@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
@@ -13,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("AppPart Endpoint", func() {
+var _ = Describe("AppPart Endpoint", func() {
 	var (
 		namespace string
 		app       string
@@ -49,7 +50,7 @@ var _ = FDescribe("AppPart Endpoint", func() {
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(string(bodyBytes)).To(Equal(fmt.Sprintf(`epinio:
-  appName: %[1]s
+  appName: %s
   configurations: []
   env: []
   imageURL: splatform/sample-app
@@ -61,8 +62,8 @@ var _ = FDescribe("AppPart Endpoint", func() {
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: admin
-`, app)))
+  username: %s
+`, app, base58.Encode([]byte("admin")))))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {
