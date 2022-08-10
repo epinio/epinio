@@ -2,7 +2,7 @@ package install_test
 
 import (
 	"encoding/json"
-	"fmt"
+	// "fmt"
 	"os"
 	"strings"
 
@@ -24,12 +24,12 @@ var _ = Describe("<Scenario7> Rancher Desktop install and push epinio on self ho
 		loadbalancer      string
 		registryUsername  string
 		registryPassword  string
-		rangeIP           string
+		// rangeIP           string
 		domain            string
-		domainIP          string
+		// domainIP          string
 		// testenv.New is not needed for VerifyAppConfigurationBound helper :shrug:
 		env          testenv.EpinioEnv
-		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
+		// localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 	)
 
 	BeforeEach(func() {
