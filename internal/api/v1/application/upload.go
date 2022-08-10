@@ -73,7 +73,7 @@ func (hc Controller) Upload(c *gin.Context) apierror.APIErrors {
 
 	user := requestctx.User(ctx)
 	blobUID, err := manager.UploadStream(ctx, file, fileheader.Size, map[string]string{
-		"app": name, "namespace": namespace, "username": user.Username, "userID": user.ID,
+		"app": name, "namespace": namespace, "username": user.Username,
 	})
 	if err != nil {
 		return apierror.InternalError(err, "uploading the application sources blob")

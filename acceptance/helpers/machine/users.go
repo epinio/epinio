@@ -59,8 +59,8 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 
 // DeleteEpinioUser deletes the relevant Kubernetes secret if it exists.
 func (m *Machine) DeleteEpinioUser(username string) error {
-	username = names.GenerateResourceName("ruser", "test", username)
-	out, err := proc.Kubectl("delete", "secret", "-n", "epinio", username, "--ignore-not-found")
+	secretName := names.GenerateResourceName("ruser", "test", username)
+	out, err := proc.Kubectl("delete", "secret", "-n", "epinio", secretName, "--ignore-not-found")
 	Expect(err).ToNot(HaveOccurred(), out)
 
 	return nil

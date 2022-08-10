@@ -52,7 +52,7 @@ var _ = Describe("Auth users", func() {
 			})
 		})
 
-		When("kubernetes returns some user secrets", func() {
+		FWhen("kubernetes returns some user secrets", func() {
 			It("returns a list of users", func() {
 				userSecrets := []corev1.Secret{
 					newUserSecret("admin", "password", "admin", ""),
@@ -86,7 +86,7 @@ var _ = Describe("Auth users", func() {
 				fake.UpdateReturns(&updatedUserSecret, nil)
 
 				// do test
-				err := authService.AddNamespaceToUser(context.Background(), auth.User{ID: "user3"}, "workspace2")
+				err := authService.AddNamespaceToUser(context.Background(), "user3", "workspace2")
 				Expect(err).ToNot(HaveOccurred())
 
 				_, secretName, _ := fake.GetArgsForCall(0)

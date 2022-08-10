@@ -6,8 +6,8 @@ import (
 	"math"
 	"time"
 
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -185,17 +185,7 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		createdAt = podList[0].ObjectMeta.CreationTimestamp.Time
 		stageID = podList[0].ObjectMeta.Labels["epinio.io/stage-id"]
 		controllerName = podList[0].ObjectMeta.Labels["epinio.io/app-container"]
-
-		userID := podList[0].ObjectMeta.Labels["app.kubernetes.io/created-by"]
-		authService, err := auth.NewAuthServiceFromContext(ctx)
-		if err != nil {
-			return nil, err
-		}
-		user, err := authService.GetUserByID(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		username = user.Username
+		username = base58.Encode([]byte(podList[0].ObjectMeta.Annotations["app.kubernetes.io/created-by"]))
 
 		for _, pod := range podList {
 			// Choose oldest time of all pods.

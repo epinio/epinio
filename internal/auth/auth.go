@@ -13,7 +13,6 @@ import (
 	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -72,32 +71,16 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 	return User{}, ErrUserNotFound
 }
 
-// GetUserByID returns the user with the provided ID
-// It will return a UserNotFound error if the user is not found
-func (s *AuthService) GetUserByID(ctx context.Context, ID string) (User, error) {
-	secret, err := s.SecretInterface.Get(ctx, ID, metav1.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return User{}, ErrUserNotFound
-		}
-		return User{}, errors.Wrap(err, "error getting users")
-	}
-
-	return NewUserFromSecret(*secret), nil
-}
-
 // AddNamespaceToUser will add to the User the specified namespace
-func (s *AuthService) AddNamespaceToUser(ctx context.Context, user User, namespace string) error {
-	userID, username := user.ID, user.Username
-
-	user, err := s.GetUserByID(ctx, userID)
+func (s *AuthService) AddNamespaceToUser(ctx context.Context, username, namespace string) error {
+	user, err := s.GetUserByUsername(ctx, username)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("error getting user [%s] by ID [%s]", username, userID))
+		return errors.Wrap(err, fmt.Sprintf("error getting user [%s] by username", username))
 	}
 	user.AddNamespace(namespace)
 
 	err = s.updateUserSecret(ctx, user)
-	return errors.Wrap(err, fmt.Sprintf("error updating user secret [%s]", user.Username))
+	return errors.Wrap(err, fmt.Sprintf("error updating user secret [%s]", username))
 }
 
 // RemoveNamespaceFromUsers will remove the specified namespace from all the users
@@ -146,7 +129,7 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 func (s *AuthService) updateUserSecret(ctx context.Context, user User) error {
 	// note: Wrap (nil, ...) returns nil.
 	return errors.Wrap(retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		userSecret, err := s.SecretInterface.Get(ctx, user.ID, metav1.GetOptions{})
+		userSecret, err := s.SecretInterface.Get(ctx, user.secretName, metav1.GetOptions{})
 		if err != nil {
 			return errors.Wrap(err, fmt.Sprintf("error getting the user secret [%s]", user.Username))
 		}

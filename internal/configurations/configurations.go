@@ -13,6 +13,7 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/auth"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
@@ -60,13 +61,9 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 		return nil, err
 	}
 
-	usersMap, err := getUsersMap(ctx)
-	if err != nil {
-		return nil, err
-	}
+	encodedUsername := s.ObjectMeta.Annotations["app.kubernetes.io/created-by"]
 
-	userID := s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
-	c.Username = usersMap[userID].Username
+	c.Username = string(base58.Decode(encodedUsername))
 	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
 	c.Origin = s.ObjectMeta.Labels["epinio.io/configuration-origin"]
 	c.CreatedAt = s.ObjectMeta.CreationTimestamp
@@ -103,15 +100,11 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 
 	result := ConfigurationList{}
 
-	usersMap, err := getUsersMap(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	for _, c := range secrets.Items {
 		name := c.Name
 		namespace := c.Namespace
-		userID := c.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		encodedUsername := c.ObjectMeta.Annotations["app.kubernetes.io/created-by"]
+
 		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
 		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
 
@@ -119,7 +112,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 			CreatedAt:  c.ObjectMeta.CreationTimestamp,
 			Name:       name,
 			namespace:  namespace,
-			Username:   usersMap[userID].Username,
+			Username:   string(base58.Decode(encodedUsername)),
 			kubeClient: cluster,
 			Type:       ctype,
 			Origin:     origin,
@@ -147,16 +140,19 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 	}
 
 	labels := map[string]string{
-		ConfigurationLabelKey:          "true",
-		ConfigurationTypeLabelKey:      "custom",
-		"app.kubernetes.io/created-by": user.ID,
-		"app.kubernetes.io/name":       "epinio",
+		ConfigurationLabelKey:     "true",
+		ConfigurationTypeLabelKey: "custom",
+		"app.kubernetes.io/name":  "epinio",
 		// "app.kubernetes.io/version":     cmd.Version
 		// FIXME: Importing cmd causes cycle
 		// FIXME: Move version info to separate package!
 	}
 
-	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels)
+	annotations := map[string]string{
+		"app.kubernetes.io/created-by": base58.Encode([]byte(user.Username)),
+	}
+
+	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels, annotations)
 	if err != nil {
 		return nil, err
 	}
@@ -349,21 +345,4 @@ func (c *Configuration) Details(ctx context.Context) (map[string]string, error) 
 	}
 
 	return details, nil
-}
-
-func getUsersMap(ctx context.Context) (map[string]auth.User, error) {
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-	users, err := authService.GetUsers(ctx)
-	if err != nil {
-		return nil, err
-	}
-	userMap := make(map[string]auth.User)
-	for _, u := range users {
-		userMap[u.ID] = u
-	}
-
-	return userMap, nil
 }

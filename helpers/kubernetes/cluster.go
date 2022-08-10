@@ -407,13 +407,16 @@ func (c *Cluster) CreateSecret(ctx context.Context, namespace string, secret v1.
 // is constructed from name and a key/value dictionary for labels.
 func (c *Cluster) CreateLabeledSecret(ctx context.Context, namespace, name string,
 	data map[string][]byte,
-	label map[string]string) error {
+	label map[string]string,
+	annotations map[string]string,
+) error {
 
 	secret := &v1.Secret{
 		Data: data,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   name,
-			Labels: label,
+			Name:        name,
+			Labels:      label,
+			Annotations: annotations,
 		},
 	}
 	_, err := c.Kubectl.CoreV1().Secrets(namespace).Create(ctx,

@@ -1,7 +1,6 @@
 package v1_test
 
 import (
-	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,13 +8,12 @@ import (
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/auth"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppPart Endpoint", func() {
+var _ = FDescribe("AppPart Endpoint", func() {
 	var (
 		namespace string
 		app       string
@@ -43,13 +41,8 @@ var _ = Describe("AppPart Endpoint", func() {
 			serverURL, v1.Root, namespace, app), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
-		defer response.Body.Close()
 
-		// find the userID of the user
-		authService, err := auth.NewAuthServiceFromContext(context.Background())
-		Expect(err).ToNot(HaveOccurred())
-		user, err := authService.GetUserByUsername(context.Background(), env.EpinioUser)
-		Expect(err).ToNot(HaveOccurred())
+		defer response.Body.Close()
 
 		bodyBytes, err := ioutil.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
@@ -68,8 +61,8 @@ var _ = Describe("AppPart Endpoint", func() {
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: %[2]s
-`, app, user.ID)))
+  username: admin
+`, app)))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

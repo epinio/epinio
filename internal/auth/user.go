@@ -13,23 +13,25 @@ import (
 
 // User is a struct containing all the information of an Epinio User
 type User struct {
-	ID         string
 	Username   string
 	Password   string
 	CreatedAt  time.Time
 	Role       string
 	Namespaces []string
+
+	secretName string
 }
 
 // NewUserFromSecret create an Epinio User from a Secret
 func NewUserFromSecret(secret corev1.Secret) User {
 	user := User{
-		ID:         secret.GetName(),
 		Username:   string(secret.Data["username"]),
 		Password:   string(secret.Data["password"]),
 		CreatedAt:  secret.ObjectMeta.CreationTimestamp.Time,
 		Role:       secret.Labels[kubernetes.EpinioAPISecretRoleLabelKey],
 		Namespaces: []string{},
+
+		secretName: secret.GetName(),
 	}
 
 	if ns, found := secret.Data["namespaces"]; found {

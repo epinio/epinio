@@ -3,7 +3,6 @@ package acceptance_test
 import (
 	"bufio"
 	"bytes"
-	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,7 +21,6 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/api/v1/application"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/routes"
 
@@ -34,7 +32,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Apps", func() {
+var _ = FDescribe("Apps", func() {
 	var (
 		namespace string
 		appName   string
@@ -1198,12 +1196,6 @@ configuration:
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
 
-				// find the userID of the user
-				authService, err := auth.NewAuthServiceFromContext(context.Background())
-				Expect(err).ToNot(HaveOccurred())
-				user, err := authService.GetUserByUsername(context.Background(), env.EpinioUser)
-				Expect(err).ToNot(HaveOccurred())
-
 				values, err := ioutil.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
@@ -1219,8 +1211,8 @@ configuration:
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: %[2]s
-`, app, user.ID)))
+  username: epinio
+`, app)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})

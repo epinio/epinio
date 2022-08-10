@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -219,7 +220,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		S3ConnectionDetails: s3ConnectionDetails,
 		Stage:               models.NewStage(uid),
 		PreviousStageID:     previousID,
-		Username:            user.ID,
+		Username:            base58.Encode([]byte(user.Username)),
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
 	}
@@ -510,12 +511,14 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
-				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      app.Stage.ID,
 				models.EpinioStageIDPrevious:   app.PreviousStageID,
 				models.EpinioStageBlobUIDLabel: app.BlobUID,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
+			},
+			Annotations: map[string]string{
+				"app.kubernetes.io/created-by": app.Username,
 			},
 		},
 	}
@@ -526,12 +529,14 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
-				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      app.Stage.ID,
 				models.EpinioStageIDPrevious:   app.PreviousStageID,
 				models.EpinioStageBlobUIDLabel: app.BlobUID,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
+			},
+			Annotations: map[string]string{
+				"app.kubernetes.io/created-by": app.Username,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -541,7 +546,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					Labels: map[string]string{
 						"app.kubernetes.io/name":       app.Name,
 						"app.kubernetes.io/part-of":    app.Namespace,
-						"app.kubernetes.io/created-by": app.Username,
 						models.EpinioStageIDLabel:      app.Stage.ID,
 						models.EpinioStageIDPrevious:   app.PreviousStageID,
 						models.EpinioStageBlobUIDLabel: app.BlobUID,
@@ -551,6 +555,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					Annotations: map[string]string{
 						// Allow communication with the Registry even before the proxy is ready
 						"config.linkerd.io/skip-outbound-ports": "443",
+						"app.kubernetes.io/created-by":          app.Username,
 					},
 				},
 				Spec: corev1.PodSpec{

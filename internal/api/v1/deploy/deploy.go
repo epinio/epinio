@@ -7,6 +7,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/auth"
@@ -61,7 +62,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		Configurations: appObj.Configuration.Configurations,
 		Instances:      *appObj.Configuration.Instances,
 		ImageURL:       imageURL,
-		Username:       user.ID,
+		Username:       base58.Encode([]byte(user.Username)),
 		StageID:        stageID,
 		Routes:         routes,
 		Domains:        domains,
