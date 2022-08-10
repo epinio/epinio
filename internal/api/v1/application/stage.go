@@ -518,7 +518,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 				"app.kubernetes.io/component":  "staging",
 			},
 			Annotations: map[string]string{
-				"app.kubernetes.io/created-by": app.Username,
+				models.EpinioCreatedByAnnotation: app.Username,
 			},
 		},
 	}
@@ -536,7 +536,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 				"app.kubernetes.io/component":  "staging",
 			},
 			Annotations: map[string]string{
-				"app.kubernetes.io/created-by": app.Username,
+				models.EpinioCreatedByAnnotation: app.Username,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -555,7 +555,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					Annotations: map[string]string{
 						// Allow communication with the Registry even before the proxy is ready
 						"config.linkerd.io/skip-outbound-ports": "443",
-						"app.kubernetes.io/created-by":          app.Username,
+						models.EpinioCreatedByAnnotation:        app.Username,
 					},
 				},
 				Spec: corev1.PodSpec{

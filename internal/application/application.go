@@ -50,7 +50,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	obj := &epinioappv1.App{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				"app.kubernetes.io/created-by": base58.Encode([]byte(user.Username)),
+				models.EpinioCreatedByAnnotation: base58.Encode([]byte(user.Username)),
 			},
 		},
 		Spec: epinioappv1.AppSpec{

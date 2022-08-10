@@ -61,7 +61,7 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 		return nil, err
 	}
 
-	encodedUsername := s.ObjectMeta.Annotations["app.kubernetes.io/created-by"]
+	encodedUsername := s.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 
 	c.Username = string(base58.Decode(encodedUsername))
 	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
@@ -103,7 +103,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 	for _, c := range secrets.Items {
 		name := c.Name
 		namespace := c.Namespace
-		encodedUsername := c.ObjectMeta.Annotations["app.kubernetes.io/created-by"]
+		encodedUsername := c.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 
 		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
 		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
@@ -149,7 +149,7 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 	}
 
 	annotations := map[string]string{
-		"app.kubernetes.io/created-by": base58.Encode([]byte(user.Username)),
+		models.EpinioCreatedByAnnotation: base58.Encode([]byte(user.Username)),
 	}
 
 	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels, annotations)

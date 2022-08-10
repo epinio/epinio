@@ -42,7 +42,6 @@ var _ = Describe("AppPart Endpoint", func() {
 			serverURL, v1.Root, namespace, app), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
-
 		defer response.Body.Close()
 
 		bodyBytes, err := ioutil.ReadAll(response.Body)
