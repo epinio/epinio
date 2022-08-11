@@ -7,7 +7,6 @@ require (
 	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/briandowns/spinner v1.18.1
-	github.com/btcsuite/btcd/btcutil v1.1.1
 	github.com/epinio/application v0.0.0-20220531082924-9d01149e6946
 	github.com/fatih/color v1.13.0
 	github.com/gin-gonic/gin v1.8.0

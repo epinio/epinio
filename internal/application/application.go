@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
@@ -49,7 +48,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	obj := &epinioappv1.App{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				models.EpinioCreatedByAnnotation: base58.Encode([]byte(username)),
+				models.EpinioCreatedByAnnotation: username,
 			},
 		},
 		Spec: epinioappv1.AppSpec{

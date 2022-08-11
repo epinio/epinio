@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
@@ -34,7 +33,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		env.DeleteNamespace(namespace)
 	})
 
-	It("retrieves the named application part", func() {
+	FIt("retrieves the named application part", func() {
 		// The testsuite checks using only part `values`, as the smallest possible, and also text.
 		// The parts `chart` (and, in the future, maybe, `image`) are much larger, and binary.
 
@@ -47,9 +46,6 @@ var _ = Describe("AppPart Endpoint", func() {
 		bodyBytes, err := ioutil.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-		// the username is used in annotations, so it's going to be base58 encoded to avoid any special chars
-		encodedUsername := base58.Encode([]byte("admin"))
 
 		Expect(string(bodyBytes)).To(Equal(fmt.Sprintf(`epinio:
   appName: %s
@@ -64,8 +60,8 @@ var _ = Describe("AppPart Endpoint", func() {
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: %s
-`, app, encodedUsername)))
+  username: admin
+`, app)))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

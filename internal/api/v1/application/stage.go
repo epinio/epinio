@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -220,7 +219,7 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		S3ConnectionDetails: s3ConnectionDetails,
 		Stage:               models.NewStage(uid),
 		PreviousStageID:     previousID,
-		Username:            base58.Encode([]byte(username)),
+		Username:            username,
 		RegistryCAHash:      registryCertificateHash,
 		RegistryCASecret:    registryCertificateSecret,
 	}

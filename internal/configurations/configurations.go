@@ -13,7 +13,6 @@ import (
 	"errors"
 	"reflect"
 
-	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/helpers/kubernetes"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/names"
@@ -60,9 +59,7 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 		return nil, err
 	}
 
-	encodedUsername := s.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
-
-	c.Username = string(base58.Decode(encodedUsername))
+	c.Username = s.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
 	c.Origin = s.ObjectMeta.Labels["epinio.io/configuration-origin"]
 	c.CreatedAt = s.ObjectMeta.CreationTimestamp
@@ -102,7 +99,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 	for _, c := range secrets.Items {
 		name := c.Name
 		namespace := c.Namespace
-		encodedUsername := c.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
+		username := c.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 
 		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
 		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
@@ -111,7 +108,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 			CreatedAt:  c.ObjectMeta.CreationTimestamp,
 			Name:       name,
 			namespace:  namespace,
-			Username:   string(base58.Decode(encodedUsername)),
+			Username:   username,
 			kubeClient: cluster,
 			Type:       ctype,
 			Origin:     origin,
@@ -148,7 +145,7 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 	}
 
 	annotations := map[string]string{
-		models.EpinioCreatedByAnnotation: base58.Encode([]byte(username)),
+		models.EpinioCreatedByAnnotation: username,
 	}
 
 	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels, annotations)

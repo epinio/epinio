@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
@@ -1185,7 +1184,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			It("exports the details of an app", func() {
+			FIt("exports the details of an app", func() {
 				out, err := env.Epinio("", "app", "export", app, exportPath)
 				Expect(err).ToNot(HaveOccurred(), out)
 
@@ -1196,9 +1195,6 @@ configuration:
 				Expect(exportPath).To(BeADirectory())
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
-
-				// the username is used in annotations, so it's going to be base58 encoded to avoid any special chars
-				encodedUsername := base58.Encode([]byte("admin"))
 
 				values, err := ioutil.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
@@ -1215,8 +1211,8 @@ configuration:
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: %s
-`, app, encodedUsername)))
+  username: admin
+`, app)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})
