@@ -1184,7 +1184,7 @@ configuration:
 				Expect(err).ToNot(HaveOccurred())
 			})
 
-			FIt("exports the details of an app", func() {
+			It("exports the details of an app", func() {
 				out, err := env.Epinio("", "app", "export", app, exportPath)
 				Expect(err).ToNot(HaveOccurred(), out)
 

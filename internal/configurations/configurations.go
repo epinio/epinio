@@ -97,17 +97,14 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 	result := ConfigurationList{}
 
 	for _, c := range secrets.Items {
-		name := c.Name
-		namespace := c.Namespace
 		username := c.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
-
 		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
 		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
 
 		result = append(result, &Configuration{
 			CreatedAt:  c.ObjectMeta.CreationTimestamp,
-			Name:       name,
-			namespace:  namespace,
+			Name:       c.Name,
+			namespace:  c.Namespace,
 			Username:   username,
 			kubeClient: cluster,
 			Type:       ctype,

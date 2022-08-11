@@ -33,7 +33,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		env.DeleteNamespace(namespace)
 	})
 
-	FIt("retrieves the named application part", func() {
+	It("retrieves the named application part", func() {
 		// The testsuite checks using only part `values`, as the smallest possible, and also text.
 		// The parts `chart` (and, in the future, maybe, `image`) are much larger, and binary.
 
