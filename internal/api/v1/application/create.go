@@ -22,7 +22,7 @@ import (
 func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
-	user := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -107,7 +107,7 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 
 	// Arguments found OK, now we can modify the system state
 
-	err = application.Create(ctx, cluster, appRef, user, routes, chart)
+	err = application.Create(ctx, cluster, appRef, username, routes, chart)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

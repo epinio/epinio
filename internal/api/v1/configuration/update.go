@@ -59,7 +59,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	}
 
 	// Perform restart on the candidates which are actually running
-	user := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	for _, appName := range appNames {
 		app, err := application.Lookup(ctx, cluster, namespace, appName)
@@ -76,7 +76,7 @@ func (sc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 			// trigger the restart somehow, so that the pod mounting the
 			// configuration remounts it for the new/changed keys.
 			nano := time.Now().UnixNano()
-			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, user, "", nil, &nano)
+			_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
 			if apierr != nil {
 				return apierr
 			}

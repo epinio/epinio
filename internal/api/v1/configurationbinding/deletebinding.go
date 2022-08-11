@@ -6,12 +6,11 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/deploy"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/configurations"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, configurationName string, user auth.User) apierror.APIErrors {
+func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, configurationName, username string) apierror.APIErrors {
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
@@ -35,7 +34,7 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 	}
 
 	if app.Workload != nil {
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, user, "", nil, nil)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
 		if apierr != nil {
 			return apierr
 		}

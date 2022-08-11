@@ -48,6 +48,9 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
+		// the username is used in annotations, so it's going to be base58 encoded to avoid any special chars
+		encodedUsername := base58.Encode([]byte("admin"))
+
 		Expect(string(bodyBytes)).To(Equal(fmt.Sprintf(`epinio:
   appName: %s
   configurations: []
@@ -62,7 +65,7 @@ var _ = Describe("AppPart Endpoint", func() {
   start: null
   tlsIssuer: epinio-ca
   username: %s
-`, app, base58.Encode([]byte("admin")))))
+`, app, encodedUsername)))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

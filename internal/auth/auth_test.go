@@ -52,7 +52,7 @@ var _ = Describe("Auth users", func() {
 			})
 		})
 
-		FWhen("kubernetes returns some user secrets", func() {
+		When("kubernetes returns some user secrets", func() {
 			It("returns a list of users", func() {
 				userSecrets := []corev1.Secret{
 					newUserSecret("admin", "password", "admin", ""),

@@ -15,14 +15,14 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
 	configurationName := c.Param("configuration")
-	user := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	apiErr := DeleteBinding(ctx, cluster, namespace, appName, configurationName, user)
+	apiErr := DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)
 	if apiErr != nil {
 		return apiErr
 	}

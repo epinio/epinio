@@ -1197,6 +1197,9 @@ configuration:
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
 
+				// the username is used in annotations, so it's going to be base58 encoded to avoid any special chars
+				encodedUsername := base58.Encode([]byte("admin"))
+
 				values, err := ioutil.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
@@ -1213,7 +1216,7 @@ configuration:
   start: null
   tlsIssuer: epinio-ca
   username: %s
-`, app, base58.Encode([]byte("admin")))))
+`, app, encodedUsername)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})

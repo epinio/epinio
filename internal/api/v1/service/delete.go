@@ -23,7 +23,7 @@ import (
 func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Delete")
-	user := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
@@ -90,7 +90,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 		// Unbind all the services' configurations from the found applications.
 		for _, appName := range boundAppNames {
-			apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName, appName, user, serviceConfigurations)
+			apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName, appName, username, serviceConfigurations)
 			if apiErr != nil {
 				return apiErr
 			}

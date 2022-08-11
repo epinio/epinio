@@ -23,7 +23,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	appName := c.Param("app")
-	user := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
@@ -177,7 +177,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 
 	// With everything saved, and a workload to update, re-deploy the changed state.
 	if app.Workload != nil {
-		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, user, "", nil, nil)
+		_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, nil)
 		if apierr != nil {
 			return apierr
 		}

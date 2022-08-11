@@ -20,7 +20,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
 	configurationName := c.Param("configuration")
-	user := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	var deleteRequest models.ConfigurationDeleteRequest
 	err := c.BindJSON(&deleteRequest)
@@ -56,7 +56,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		}
 
 		for _, appName := range boundAppNames {
-			apiErr := configurationbinding.DeleteBinding(ctx, cluster, namespace, appName, configurationName, user)
+			apiErr := configurationbinding.DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)
 			if apiErr != nil {
 				return apiErr
 			}

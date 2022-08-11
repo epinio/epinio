@@ -49,7 +49,7 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 
 	// Perform restart on the candidates which are actually running
 	if restart {
-		user := requestctx.User(ctx)
+		username := requestctx.User(ctx).Username
 
 		// Determine bound apps, as candidates for restart.
 		appNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, configurationName)
@@ -72,7 +72,7 @@ func (sc Controller) Replace(c *gin.Context) apierror.APIErrors { // nolint:gocy
 				// trigger the restart somehow, so that the pod mounting the
 				// configuration remounts it for the new/changed keys.
 				nano := time.Now().UnixNano()
-				_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, user, "", nil, &nano)
+				_, apierr := deploy.DeployApp(ctx, cluster, app.Meta, username, "", nil, &nano)
 				if apierr != nil {
 					return apierr
 				}

@@ -8,7 +8,6 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/configurationbinding"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/configurations"
 	"github.com/gin-gonic/gin"
@@ -24,7 +23,7 @@ import (
 func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
-	user := requestctx.User(ctx)
+	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
@@ -73,7 +72,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
 
-	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, user, serviceConfigurations)
+	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -84,7 +83,7 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 func UnbindService(
 	ctx context.Context, cluster *kubernetes.Cluster, logger logr.Logger,
-	namespace, serviceName, appName string, user auth.User,
+	namespace, serviceName, appName, userName string,
 	serviceConfigurations []v1.Secret,
 ) apierror.APIErrors {
 	logger.Info("unbinding service configurations")
@@ -92,7 +91,7 @@ func UnbindService(
 	for _, secret := range serviceConfigurations {
 		// TODO: Don't `helm upgrade` after each removal. Do it once.
 		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, secret.Name, user,
+			ctx, cluster, namespace, appName, secret.Name, userName,
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())

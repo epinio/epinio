@@ -15,7 +15,6 @@ import (
 
 	"github.com/btcsuite/btcd/btcutil/base58"
 	"github.com/epinio/epinio/helpers/kubernetes"
-	"github.com/epinio/epinio/internal/auth"
 	epinioerrors "github.com/epinio/epinio/internal/errors"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/namespaces"
@@ -124,7 +123,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 
 // CreateConfiguration creates a new  configuration instance from namespace,
 // name, and a map of parameters.
-func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name, namespace string, user auth.User,
+func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name, namespace, username string,
 	data map[string]string) (*Configuration, error) {
 
 	_, err := cluster.GetSecret(ctx, namespace, name)
@@ -149,7 +148,7 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 	}
 
 	annotations := map[string]string{
-		models.EpinioCreatedByAnnotation: base58.Encode([]byte(user.Username)),
+		models.EpinioCreatedByAnnotation: base58.Encode([]byte(username)),
 	}
 
 	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels, annotations)
