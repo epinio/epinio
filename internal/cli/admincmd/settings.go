@@ -85,7 +85,7 @@ func (a *Admin) SettingsUpdateCA(ctx context.Context) error {
 	a.Settings.Certs = certs
 
 	details.Info("saving",
-		"access_token", a.Settings.AccessToken,
+		"access_token", a.Settings.Token.AccessToken,
 		"api", a.Settings.API,
 		"wss", a.Settings.WSS,
 		"cert", a.Settings.Certs)

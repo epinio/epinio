@@ -68,7 +68,10 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 	}
 
 	// TODO store also the RefreshToken and implement refresh flow
-	updatedSettings.AccessToken = token.AccessToken
+	updatedSettings.Token.AccessToken = token.AccessToken
+	updatedSettings.Token.TokenType = token.TokenType
+	updatedSettings.Token.Expiry = token.Expiry
+	updatedSettings.Token.RefreshToken = token.RefreshToken
 
 	// verify that settings are valid
 	err = verifyCredentials(updatedSettings)

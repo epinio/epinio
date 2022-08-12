@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	api "github.com/epinio/epinio/internal/api/v1"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"golang.org/x/oauth2"
 
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
@@ -83,8 +85,12 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to build request")
 	}
 
-	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
+
+	err = c.handleOauth2Transport()
+	if err != nil {
+		return []byte{}, err
+	}
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {
@@ -119,7 +125,10 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
+	err = c.handleOauth2Transport()
+	if err != nil {
+		return []byte{}, err
+	}
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {
@@ -187,7 +196,10 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 		return []byte{}, err
 	}
 
-	request.Header.Add("Authorization", "Bearer "+c.Settings.AccessToken)
+	err = c.handleOauth2Transport()
+	if err != nil {
+		return []byte{}, err
+	}
 
 	response, err := c.HttpClient.Do(request)
 	if err != nil {
@@ -281,4 +293,27 @@ func (c *Client) AuthToken() (string, error) {
 	tr := &models.AuthTokenResponse{}
 	err = json.Unmarshal(data, &tr)
 	return tr.Token, err
+}
+
+func (c *Client) handleOauth2Transport() error {
+	if oauth2Transport, ok := c.HttpClient.Transport.(*oauth2.Transport); ok {
+		newToken, err := oauth2Transport.Source.Token()
+		if err != nil {
+			return errors.Wrap(err, "failed getting token")
+		}
+		if newToken.AccessToken != c.Settings.Token.AccessToken {
+			log.Println("Refreshed expired token.")
+
+			c.Settings.Token.AccessToken = newToken.AccessToken
+			c.Settings.Token.RefreshToken = newToken.RefreshToken
+			c.Settings.Token.Expiry = newToken.Expiry
+			c.Settings.Token.TokenType = newToken.TokenType
+
+			err := c.Settings.Save()
+			if err != nil {
+				return errors.Wrap(err, "failed saving refreshed token")
+			}
+		}
+	}
+	return nil
 }

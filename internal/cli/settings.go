@@ -116,10 +116,10 @@ var CmdSettingsShow = &cobra.Command{
 		}
 
 		var token string
-		if theSettings.AccessToken != "" {
+		if theSettings.Token.AccessToken != "" {
 			token = "***********"
 			if viper.GetBool("show-token") {
-				token = theSettings.AccessToken
+				token = theSettings.Token.AccessToken
 			}
 		}
 
