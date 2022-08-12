@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/fatih/color"
@@ -25,8 +26,8 @@ var (
 
 // Settings represents a epinio settings
 type Settings struct {
-	Namespace   string `mapstructure:"namespace"` // Currently targeted namespace
-	AccessToken string `mapstructure:"access_token"`
+	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
+	Token     TokenSetting `mapstructure:"token"`
 	// TODO: Refresh token? Is it included in the access token above?
 	API      string `mapstructure:"api"`
 	WSS      string `mapstructure:"wss"`
@@ -38,6 +39,13 @@ type Settings struct {
 
 	v   *viper.Viper
 	log logr.Logger
+}
+
+type TokenSetting struct {
+	AccessToken  string    `json:"accesstoken" mapstructure:"accesstoken"`
+	TokenType    string    `json:"tokentype,omitempty" mapstructure:"tokentype,omitempty"`
+	RefreshToken string    `json:"refreshtoken,omitempty" mapstructure:"refreshtoken,omitempty"`
+	Expiry       time.Time `json:"expiry,omitempty" mapstructure:"expiry,omitempty"`
 }
 
 // DefaultLocation returns the standard location for the settings file
@@ -132,15 +140,15 @@ func LoadFrom(file string) (*Settings, error) {
 // String generates a string representation of the settings (for debugging)
 func (c *Settings) String() string {
 	return fmt.Sprintf(
-		"namespace=(%s), access_token=(%s), api=(%s), wss=(%s), color=(%v), appchart=(%v), @(%s)",
-		c.Namespace, c.AccessToken, c.API, c.WSS, c.Colors, c.AppChart, c.Location)
+		"namespace=(%s), access_token=(%v), api=(%s), wss=(%s), color=(%v), appchart=(%v), @(%s)",
+		c.Namespace, c.Token, c.API, c.WSS, c.Colors, c.AppChart, c.Location)
 }
 
 // Save saves the Epinio settings
 func (c *Settings) Save() error {
 	c.v.Set("namespace", c.Namespace)
 	c.v.Set("appchart", c.AppChart)
-	c.v.Set("access_token", c.AccessToken)
+	c.v.Set("token", c.Token)
 	c.v.Set("api", c.API)
 	c.v.Set("wss", c.WSS)
 	c.v.Set("certs", c.Certs)
