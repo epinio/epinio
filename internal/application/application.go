@@ -46,6 +46,11 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 
 	// we create the appCRD in the namespace
 	obj := &epinioappv1.App{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				models.EpinioCreatedByAnnotation: username,
+			},
+		},
 		Spec: epinioappv1.AppSpec{
 			Routes:    routes,
 			Origin:    epinioappv1.AppOrigin{},

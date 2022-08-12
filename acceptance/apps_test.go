@@ -1199,7 +1199,7 @@ configuration:
 				values, err := ioutil.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
-  appName: %[1]s
+  appName: %s
   configurations: []
   env: []
   imageURL: splatform/sample-app

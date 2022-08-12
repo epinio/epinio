@@ -41,14 +41,14 @@ var _ = Describe("AppPart Endpoint", func() {
 			serverURL, v1.Root, namespace, app), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
-
 		defer response.Body.Close()
+
 		bodyBytes, err := ioutil.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(string(bodyBytes)).To(Equal(fmt.Sprintf(`epinio:
-  appName: %[1]s
+  appName: %s
   configurations: []
   env: []
   imageURL: splatform/sample-app

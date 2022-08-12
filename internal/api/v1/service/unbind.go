@@ -23,6 +23,7 @@ import (
 func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
+	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
@@ -70,8 +71,6 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	}
 
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
-
-	username := requestctx.User(ctx).Username
 
 	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {

@@ -58,7 +58,8 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 	if err != nil {
 		return nil, err
 	}
-	c.Username = s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+
+	c.Username = s.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
 	c.Origin = s.ObjectMeta.Labels["epinio.io/configuration-origin"]
 	c.CreatedAt = s.ObjectMeta.CreationTimestamp
@@ -96,16 +97,14 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 	result := ConfigurationList{}
 
 	for _, c := range secrets.Items {
-		name := c.Name
-		namespace := c.Namespace
-		username := c.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		username := c.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
 		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
 
 		result = append(result, &Configuration{
 			CreatedAt:  c.ObjectMeta.CreationTimestamp,
-			Name:       name,
-			namespace:  namespace,
+			Name:       c.Name,
+			namespace:  c.Namespace,
 			Username:   username,
 			kubeClient: cluster,
 			Type:       ctype,
@@ -134,16 +133,19 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 	}
 
 	labels := map[string]string{
-		ConfigurationLabelKey:          "true",
-		ConfigurationTypeLabelKey:      "custom",
-		"app.kubernetes.io/created-by": username,
-		"app.kubernetes.io/name":       "epinio",
+		ConfigurationLabelKey:     "true",
+		ConfigurationTypeLabelKey: "custom",
+		"app.kubernetes.io/name":  "epinio",
 		// "app.kubernetes.io/version":     cmd.Version
 		// FIXME: Importing cmd causes cycle
 		// FIXME: Move version info to separate package!
 	}
 
-	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels)
+	annotations := map[string]string{
+		models.EpinioCreatedByAnnotation: username,
+	}
+
+	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels, annotations)
 	if err != nil {
 		return nil, err
 	}

@@ -510,12 +510,14 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
-				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      app.Stage.ID,
 				models.EpinioStageIDPrevious:   app.PreviousStageID,
 				models.EpinioStageBlobUIDLabel: app.BlobUID,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
+			},
+			Annotations: map[string]string{
+				models.EpinioCreatedByAnnotation: app.Username,
 			},
 		},
 	}
@@ -526,12 +528,14 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       app.Name,
 				"app.kubernetes.io/part-of":    app.Namespace,
-				"app.kubernetes.io/created-by": app.Username,
 				models.EpinioStageIDLabel:      app.Stage.ID,
 				models.EpinioStageIDPrevious:   app.PreviousStageID,
 				models.EpinioStageBlobUIDLabel: app.BlobUID,
 				"app.kubernetes.io/managed-by": "epinio",
 				"app.kubernetes.io/component":  "staging",
+			},
+			Annotations: map[string]string{
+				models.EpinioCreatedByAnnotation: app.Username,
 			},
 		},
 		Spec: batchv1.JobSpec{
@@ -541,7 +545,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					Labels: map[string]string{
 						"app.kubernetes.io/name":       app.Name,
 						"app.kubernetes.io/part-of":    app.Namespace,
-						"app.kubernetes.io/created-by": app.Username,
 						models.EpinioStageIDLabel:      app.Stage.ID,
 						models.EpinioStageIDPrevious:   app.PreviousStageID,
 						models.EpinioStageBlobUIDLabel: app.BlobUID,
@@ -551,6 +554,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					Annotations: map[string]string{
 						// Allow communication with the Registry even before the proxy is ready
 						"config.linkerd.io/skip-outbound-ports": "443",
+						models.EpinioCreatedByAnnotation:        app.Username,
 					},
 				},
 				Spec: corev1.PodSpec{

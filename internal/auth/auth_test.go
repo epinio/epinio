@@ -82,7 +82,7 @@ var _ = Describe("Auth users", func() {
 
 				// setup mock
 				fake.ListReturns(&corev1.SecretList{Items: userSecrets}, nil)
-				fake.GetReturns(&userSecrets[1], nil)
+				fake.GetReturns(&userSecrets[2], nil)
 				updatedUserSecret := newUserSecret("user3", "password", "user", "workspace\nworkspace2")
 				fake.UpdateReturns(&updatedUserSecret, nil)
 

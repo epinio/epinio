@@ -183,8 +183,8 @@ func (a *Workload) Get(ctx context.Context) (*models.AppDeployment, error) {
 		// Initialize various pieces from the first pod ...
 		createdAt = podList[0].ObjectMeta.CreationTimestamp.Time
 		stageID = podList[0].ObjectMeta.Labels["epinio.io/stage-id"]
-		username = podList[0].ObjectMeta.Labels["app.kubernetes.io/created-by"]
 		controllerName = podList[0].ObjectMeta.Labels["epinio.io/app-container"]
+		username = podList[0].ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 
 		for _, pod := range podList {
 			// Choose oldest time of all pods.
