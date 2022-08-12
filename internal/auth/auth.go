@@ -11,6 +11,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/helmchart"
+	"github.com/epinio/epinio/internal/names"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -69,6 +70,36 @@ func (s *AuthService) GetUserByUsername(ctx context.Context, username string) (U
 		}
 	}
 	return User{}, ErrUserNotFound
+}
+
+func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
+	userSecretName := "r" + names.GenerateResourceName("user", user.Username)
+
+	userSecret := &corev1.Secret{
+		Type: "Opaque",
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      userSecretName,
+			Namespace: "epinio",
+			Labels: map[string]string{
+				"epinio.io/api-user-credentials": "true",
+				"epinio.io/role":                 "user",
+			},
+		},
+		StringData: map[string]string{
+			"username": user.Username,
+		},
+	}
+
+	createdUserSecret, err := s.Create(ctx, userSecret, metav1.CreateOptions{})
+	if err != nil {
+		return User{}, err
+	}
+
+	return NewUserFromSecret(*createdUserSecret), nil
 }
 
 // AddNamespaceToUser will add to the User the specified namespace

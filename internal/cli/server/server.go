@@ -188,20 +188,19 @@ func authMiddleware(oidcProvider *dex.OIDCProvider) func(ctx *gin.Context) {
 		logger := requestctx.Logger(ctx.Request.Context()).WithName("authMiddleware")
 		// TODO:
 		// - [x] verify the validity of the token
-		// - [ ] if the token is valid check if there is a "user" resource associated with it
-		// - [ ] if not, create one, simple user no namespaces yet
-		// - [ ] set the current user (so that authorization works)
+		// - [x] if the token is valid check if there is a "user" resource associated with it
+		// - [x] if not, create one, simple user no namespaces yet
+		// - [x] set the current user (so that authorization works)
 
-		authHeader := []byte(ctx.Request.Header.Get("Authorization"))
-		if len(authHeader) == 0 {
+		authHeader := strings.TrimSpace(ctx.Request.Header.Get("Authorization"))
+		if authHeader == "" {
 			response.Error(ctx, apierrors.NewAPIError("missing credentials", http.StatusUnauthorized))
 			ctx.Abort()
 			return
 		}
+		token := strings.TrimPrefix(authHeader, "Bearer ")
 
-		token := authHeader[len([]byte("Bearer ")):]
-
-		idToken, err := oidcProvider.Verify(ctx, string(token))
+		idToken, err := oidcProvider.Verify(ctx, token)
 		if err != nil {
 			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "token verification failed").Error(), http.StatusUnauthorized))
 			ctx.Abort()
@@ -221,53 +220,14 @@ func authMiddleware(oidcProvider *dex.OIDCProvider) func(ctx *gin.Context) {
 
 		user, err := getOrCreateUserByEmail(ctx, claims.Email)
 		if err != nil {
-			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "getting/creating user with email").Error(), http.StatusUnauthorized))
+			response.Error(ctx, apierrors.InternalError(err, "getting/creating user with email"))
 			ctx.Abort()
 			return
 		}
 
 		logger.V(1).Info("verified token", "token", string(token), "user", fmt.Sprintf("%#v", user))
 
-		if err != nil {
-			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "no user found").Error(), http.StatusUnauthorized))
-			ctx.Abort()
-			return
-		}
-
-		// TODO: Create the user mapping?
-		// userMap, err := loadUsersMap(ctx)
-		// if err != nil {
-		// 	response.Error(ctx, apierrors.InternalError(err))
-		// 	ctx.Abort()
-		// 	return
-		// }
-
-		// if len(userMap) == 0 {
-		// 	response.Error(ctx, apierrors.NewAPIError("no user found", http.StatusUnauthorized))
-		// 	ctx.Abort()
-		// 	return
-		// }
-
-		// username, password, ok := ctx.Request.BasicAuth()
-		// if !ok {
-		// 	response.Error(ctx, apierrors.NewInternalError("Couldn't extract user from the auth header"))
-		// 	ctx.Abort()
-		// 	return
-		// }
-
-		// err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
-		// if err != nil {
-		// 	response.Error(ctx, apierrors.NewAPIError("wrong password", http.StatusUnauthorized))
-		// 	ctx.Abort()
-		// 	return
-		// }
-
-		// // We set this to the current user after successful authentication.
-		// // This is also added to the context for controllers to use.
-		// user := userMap[username]
-
-		// Write the user info in the context. It's needed by the next middleware
-		// to write it into the session.
+		// Write the user info in the context
 		newCtx := ctx.Request.Context()
 		newCtx = requestctx.WithUser(newCtx, user)
 		ctx.Request = ctx.Request.Clone(newCtx)
@@ -297,25 +257,6 @@ func getOrCreateUserByEmail(ctx context.Context, email string) (auth.User, error
 	}
 
 	return user, nil
-}
-
-func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
-	authService, err := auth.NewAuthServiceFromContext(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't create auth service from context")
-	}
-
-	users, err := authService.GetUsers(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "couldn't get users")
-	}
-
-	userMap := make(map[string]auth.User)
-	for _, user := range users {
-		userMap[user.Username] = user
-	}
-
-	return userMap, nil
 }
 
 // tokenAuthMiddleware is only used to establish websocket connections for authenticated users

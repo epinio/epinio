@@ -6,10 +6,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
+	"net"
+	"net/http"
 	"net/url"
 	"os"
 	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/auth"
@@ -17,6 +21,7 @@ import (
 	"github.com/epinio/epinio/internal/dex"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
+	"github.com/skratchdot/open-golang/open"
 	"golang.org/x/oauth2"
 )
 
@@ -79,26 +84,56 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 
 // generateToken implements the Oauth2 flow to generate an auth token
 func generateToken(ctx context.Context, ui *termui.UI, oidcProvider *dex.OIDCProvider) (*oauth2.Token, error) {
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return nil, errors.Wrap(err, "creating listener")
+	}
+	oidcProvider.Config.RedirectURL = fmt.Sprintf("http://localhost:%d", listener.Addr().(*net.TCPAddr).Port)
+
 	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
 
 	msg := ui.Normal().Compact()
-	msg.Msg(authCodeURL)
-	msg.Msg("\nOpen this URL in your browser and follow the directions. Paste the result here: ")
+	msg.Msg("\n" + authCodeURL)
+	msg.Msg("\nOpen this URL in your browser and follow the directions.")
 
-	var authCode string
-	for authCode == "" {
-		bytesCode, err := readUserInput()
-		if err != nil {
-			return nil, err
-		}
-		authCode = strings.TrimSpace(string(bytesCode))
-	}
+	// if it fails to open the browser the user can still proceed manually
+	_ = open.Run(authCodeURL)
+
+	authCode := getAuthCodeWithServer(listener)
+
+	// for authCode == "" {
+	// 	bytesCode, err := readUserInput()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	authCode = strings.TrimSpace(string(bytesCode))
+	// }
 
 	token, err := oidcProvider.ExchangeWithPKCE(ctx, authCode, codeVerifier)
 	if err != nil {
 		return nil, errors.Wrap(err, "exchanging with PKCE")
 	}
 	return token, nil
+}
+
+func getAuthCodeWithServer(listener net.Listener) string {
+	var authCode string
+
+	srv := &http.Server{}
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	wg := &sync.WaitGroup{}
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		authCode = r.URL.Query().Get("code")
+		fmt.Fprintf(w, "Login successful! You can close this window.")
+		wg.Done()
+	})
+
+	wg.Add(1)
+	go func() { _ = srv.Serve(listener) }()
+	wg.Wait()
+
+	return authCode
 }
 
 func readUserInput() (string, error) {
