@@ -41,7 +41,6 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(string(bodyBytes)).To(MatchRegexp(`{"names":\[.*\]`))
 		Expect(string(bodyBytes)).To(MatchRegexp(`"standard"`))
-		Expect(string(bodyBytes)).To(MatchRegexp(`"standard-stateful"`))
 	})
 
 	It("lists the app chart names matching the prefix, all", func() {
@@ -57,6 +56,5 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(string(bodyBytes)).To(MatchRegexp(`{"names":\[.*\]`))
 		Expect(string(bodyBytes)).To(MatchRegexp(`"standard"`))
-		Expect(string(bodyBytes)).To(MatchRegexp(`"standard-stateful"`))
 	})
 })

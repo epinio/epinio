@@ -18,7 +18,6 @@ var _ = Describe("apps chart", func() {
 				HaveATable(
 					WithHeaders("DEFAULT", "NAME", "CREATED", "DESCRIPTION"),
 					WithRow("standard", WithDate(), "Epinio standard deployment"),
-					WithRow("standard-stateful", WithDate(), "Epinio standard stateful"),
 				),
 			)
 		})
