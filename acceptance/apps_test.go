@@ -470,6 +470,12 @@ spec:
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
 				),
 			)
+
+			out, err := proc.Kubectl("get", "statefulset",
+				"--namespace", namespace,
+				"--selector=app.kubernetes.io/name="+appName,
+				"-o", "jsonpath={.items[*].spec.template.metadata.labels}")
+			Expect(err).NotTo(HaveOccurred(), out)
 		})
 	})
 
