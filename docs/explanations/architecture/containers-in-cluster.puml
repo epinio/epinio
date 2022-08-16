@@ -1,0 +1,79 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+!define osaPuml https://raw.githubusercontent.com/Crashedmind/PlantUML-opensecurityarchitecture2-icons/master
+!include osaPuml/Common.puml
+!include osaPuml/User/all.puml
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/helm.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/aws-s3.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/aws-aurora.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/gilbarbara-plantuml-sprites/master/sprites/docker-icon.puml
+
+!include <office/Servers/database_server>
+!include <office/Servers/application_server>
+!include <office/Devices/device_laptop>
+
+AddPersonTag("developer", $sprite="osa_user_large_group,color=orange", $legendSprite="osa_user_large_group,scale=0.25,color=orange", $legendText="Application developers")
+AddPersonTag("admin", $sprite="osa_user_audit,color=red", $legendSprite="osa_user_audit,scale=0.25,color=red", $legendText="Operator")
+AddPersonTag("appUsers", $sprite="osa_user_large_group", $legendSprite="osa_user_large_group,scale=0.25", $legendText="Application users")
+
+AddContainerTag("webApp", $sprite="application_server", $legendText="web app container")
+AddContainerTag("s3", $sprite="aws-s3", $legendText="database container")
+AddContainerTag("aws-aurora", $sprite="aws-aurora", $legendText="external service")
+AddContainerTag("docker", $sprite="docker-icon", $legendText="docker")
+AddContainerTag("helmrelease", $sprite="helm", $legendText="Helm release")
+AddContainerTag("laptop", $sprite="device_laptop", $legendText="cli application")
+
+Person(developers, "Application Developers", $tags="developer")
+Person(operators, "Operators", $tags="admin")
+Person(appUsers, "Application Users", $tags="appUsers")
+
+Container(epinioCLI, "Epinio CLI", "Golang", $tags="laptop")
+
+System_Boundary(kubernetes, "kubernetes cluster"){
+    Container(epinioWebUI, "Epinio Web UI", "JS/Golang", $tags="webApp")
+    Container(epinioAPI, "Epinio API Server", "Golang", $tags="webApp")
+    Container(appHelm, "App helm release", "Ingress: myapp.mydomain.com", $tags="helmrelease")
+    Container(serviceHelm, "Service helm release", "", $tags="helmrelease")
+    Container(stagingJob, "Staging Job", "paketo")
+    ContainerDb(cregistry, "Container registry", "", $tags="docker")
+    ContainerDb(s3, "Minio", "min.io", $tags="s3")
+}
+
+ContainerDb(externalService, "External service", "", $tags="aws-aurora")
+ContainerDb(gitRepository, "Git repository", "")
+
+Rel(developers, epinioWebUI, "push", "Browser/Session authentication")
+Rel(developers, epinioCLI, "push", "terminal/credentials in epinio.yaml")
+Rel(developers, gitRepository, "push", "git")
+Rel(developers, cregistry, "push", "docker")
+
+Rel(epinioWebUI, epinioAPI, "make requests", "HTTPS/Basic Auth")
+Rel(epinioCLI, epinioAPI, "make requests", "HTTPS/Basic Auth")
+
+'Rel(operators, kubernetes, "operate on", "kubectl")
+Rel(operators, appHelm, "define chart")
+Rel(operators, serviceHelm, "define chart")
+
+Rel(epinioAPI, s3, "writes sources to", "S3 protocol")
+Rel(epinioAPI, appHelm, "installs")
+Rel(epinioAPI, serviceHelm, "installs")
+Rel(epinioAPI, stagingJob, "creates")
+Rel(epinioAPI, gitRepository, "pulls sources from")
+
+
+Rel(s3, stagingJob, "read by", "S3 protocol")
+Rel(stagingJob, cregistry, "pushes to")
+
+Rel(cregistry, appHelm, "images pulled by")
+Rel(appUsers, appHelm, "Visit", "HTTPS")
+
+Rel(serviceHelm, externalService, "provisions")
+Rel(appHelm, serviceHelm, "mounts secrets")
+
+Lay_U(operators, appUsers)
+'Lay_R(developers, appUsers)
+
+SHOW_LEGEND()
+@enduml
