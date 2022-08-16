@@ -449,6 +449,9 @@ spec:
 	})
 
 	When("pushing as a stateful app", func() {
+		var chartName string
+		var tempFile string
+
 		BeforeEach(func() {
 			// Create a custom chart referencing the tarball of the `standard-stateful` chart.
 			// It exists in the set of releases for helm charts.
