@@ -474,8 +474,9 @@ spec:
 			out, err := proc.Kubectl("get", "statefulset",
 				"--namespace", namespace,
 				"--selector=app.kubernetes.io/name="+appName,
-				"-o", "jsonpath={.items[*].spec.template.metadata.labels}")
+				"-o", `jsonpath={.items[*].spec.template.metadata.labels.app\.kubernetes\.io/name}`)
 			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(appName))
 		})
 	})
 
