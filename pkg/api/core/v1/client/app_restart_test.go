@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
+	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/pkg/api/core/v1/client"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -22,7 +23,7 @@ func DescribeAppRestart() {
 			fmt.Fprint(w, responseBody)
 		}))
 
-		epinioClient = client.New(srv.URL, "", "", "")
+		epinioClient = client.New(&settings.Settings{API: srv.URL})
 	})
 
 	When("app restart successfully", func() {
