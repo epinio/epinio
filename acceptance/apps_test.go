@@ -1299,7 +1299,7 @@ configuration:
 					out, err := env.Epinio("", "app", "list")
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 					return out
-				}, "1m").Should(
+				}, "2m").Should(
 					HaveATable(
 						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 						WithRow(appName, WithDate(), "0/0", appName+".*", configurationName, ""),
