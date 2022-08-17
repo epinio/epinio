@@ -47,10 +47,8 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		catalog.CreateService(serviceName, namespace, catalogService)
 
 		// Bind the service to the app
-		out, err := env.Epinio("", "service", "bind", serviceName, app)
-		Expect(err).ToNot(HaveOccurred(), out)
-		out, err = env.Epinio("", "app", "show", app)
-		Expect(err).ToNot(HaveOccurred(), out)
+		_ = env.Epinio("", "service", "bind", serviceName, app)
+		out := env.Epinio("", "app", "show", app)
 		matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 		Expect(out).To(MatchRegexp(matchString))
 	})
@@ -73,8 +71,7 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 
-		appShowOut, err := env.Epinio("", "app", "show", app)
-		Expect(err).ToNot(HaveOccurred())
+		appShowOut := env.Epinio("", "app", "show", app)
 		matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 		Expect(appShowOut).ToNot(MatchRegexp(matchString))
 	})

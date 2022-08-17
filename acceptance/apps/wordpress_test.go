@@ -99,10 +99,8 @@ var _ = Describe("Wordpress", func() {
 	})
 
 	AfterEach(func() {
-		out, err := env.Epinio("", "apps", "delete", wordpress.Name)
-		Expect(err).ToNot(HaveOccurred(), out)
-
-		err = os.RemoveAll(wordpress.Dir)
+		_ = env.Epinio("", "apps", "delete", wordpress.Name)
+		err := os.RemoveAll(wordpress.Dir)
 		Expect(err).ToNot(HaveOccurred())
 		env.DeleteNamespace(namespace)
 	})
@@ -114,8 +112,7 @@ var _ = Describe("Wordpress", func() {
 			"-e", "BP_PHP_SERVER=nginx")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		out, err = env.Epinio("", "app", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
+		out = env.Epinio("", "app", "list")
 		Expect(out).To(MatchRegexp(wordpress.Name + `.*\|.*1\/1.*\|.*`))
 
 		appURL, err := wordpress.AppURL()

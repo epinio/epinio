@@ -58,8 +58,7 @@ var _ = Describe("Apps", func() {
 		})
 
 		It("creates the app", func() {
-			out, err := env.Epinio("", "app", "create", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "create", appName)
 			Expect(out).To(ContainSubstring("Ok"))
 		})
 
@@ -77,7 +76,7 @@ var _ = Describe("Apps", func() {
 			})
 
 			It("creates the app with instance count, configurations, and environment", func() {
-				out, err := env.Epinio("", "app", "create", appName,
+				out := env.Epinio("", "app", "create", appName,
 					"--app-chart", "standard",
 					"--bind", configurationName,
 					"--instances", "2",
@@ -85,11 +84,9 @@ var _ = Describe("Apps", func() {
 					"--env", "DOGMA=no",
 					"--env", "COMPLEX=-X foo=bar",
 				)
-				Expect(err).ToNot(HaveOccurred(), out)
 				Expect(out).To(ContainSubstring("Ok"))
 
-				out, err = env.Epinio("", "app", "show", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out = env.Epinio("", "app", "show", appName)
 
 				Expect(out).To(
 					HaveATable(
@@ -120,17 +117,15 @@ var _ = Describe("Apps", func() {
 				})
 
 				It("is possible to get a manifest", func() {
-					out, err := env.Epinio("", "app", "create", appName,
+					out := env.Epinio("", "app", "create", appName,
 						"--app-chart", "standard",
 						"--bind", configurationName,
 						"--instances", "2",
 						"--env", "CREDO=up",
 						"--env", "DOGMA=no")
-					Expect(err).ToNot(HaveOccurred(), out)
 					Expect(out).To(ContainSubstring("Ok"))
 
-					out, err = env.Epinio("", "app", "manifest", appName, destinationPath)
-					Expect(err).ToNot(HaveOccurred(), out)
+					_ = env.Epinio("", "app", "manifest", appName, destinationPath)
 
 					manifest, err := os.ReadFile(destinationPath)
 					Expect(err).ToNot(HaveOccurred(), destinationPath)
@@ -152,20 +147,17 @@ configuration:
 		})
 
 		It("creates the app with environment variables", func() {
-			out, err := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "create", appName, "--env", "MYVAR=myvalue")
 			Expect(out).To(ContainSubstring("Ok"))
 
-			out, err = env.Epinio("", "apps", "env", "list", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "apps", "env", "list", appName)
 			Expect(out).To(ContainSubstring(`MYVAR`))
 			Expect(out).To(ContainSubstring(`myvalue`))
 		})
 
 		When("pushing a workload", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio("", "app", "create", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "app", "create", appName)
 			})
 
 			It("creates the workload", func() {
@@ -189,11 +181,10 @@ configuration:
 				"-e", "BP_PHP_SERVER=nginx")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "5m").Should(
+			Eventually(
+				env.Epinio("", "app", "list"),
+				"5m",
+			).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
@@ -215,11 +206,10 @@ configuration:
 				"-e", "BP_PHP_SERVER=nginx")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "5m").Should(
+			Eventually(
+				env.Epinio("", "app", "list"),
+				"5m",
+			).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
@@ -241,11 +231,10 @@ configuration:
 				"-e", "BP_PHP_SERVER=nginx")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "5m").Should(
+			Eventually(
+				env.Epinio("", "app", "list"),
+				"5m",
+			).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
@@ -268,22 +257,20 @@ configuration:
 					"-e", "BP_PHP_SERVER=nginx")
 				Expect(err).ToNot(HaveOccurred(), pushLog)
 
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "list")
-					Expect(err).ToNot(HaveOccurred(), out)
-					return out
-				}, "5m").Should(
+				Eventually(
+					env.Epinio("", "app", "list"),
+					"5m",
+				).Should(
 					HaveATable(
 						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 						WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
 					),
 				)
 
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", appName)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-					return out
-				}, "1m").Should(
+				Eventually(
+					env.Epinio("", "app", "show", appName),
+					"1m",
+				).Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "1/1"),
@@ -292,14 +279,12 @@ configuration:
 			})
 
 			It("respects the desired number of instances", func() {
-				out, err := env.Epinio("", "app", "update", appName, "-i", "3")
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "app", "update", appName, "-i", "3")
 
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", appName)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-					return out
-				}, "1m").Should(
+				Eventually(
+					env.Epinio("", "app", "show", appName),
+					"1m",
+				).Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "3/3"),
@@ -321,9 +306,7 @@ configuration:
 				})
 
 				It("fails to change the app chart of the running app", func() {
-					out, err := env.Epinio("", "app", "update", appName,
-						"--app-chart", chartName)
-					Expect(err).To(HaveOccurred(), out)
+					out := env.Epinio("", "app", "update", appName, "--app-chart", chartName)
 					Expect(out).To(ContainSubstring("Bad Request: unable to change app chart of active application"))
 				})
 
@@ -333,12 +316,10 @@ configuration:
 					BeforeEach(func() {
 						appName1 = catalog.NewAppName()
 
-						out, err := env.Epinio("", "app", "create", appName1, "--app-chart", chartName)
-						Expect(err).ToNot(HaveOccurred(), out)
+						out := env.Epinio("", "app", "create", appName1, "--app-chart", chartName)
 						Expect(out).To(ContainSubstring("Ok"))
 
-						out, err = env.Epinio("", "app", "show", appName1)
-						Expect(err).ToNot(HaveOccurred(), out)
+						out = env.Epinio("", "app", "show", appName1)
 
 						Expect(out).To(
 							HaveATable(
@@ -353,16 +334,12 @@ configuration:
 					})
 
 					It("respects the desired app chart", func() {
-						out, err := env.Epinio("", "app", "update", appName1,
-							"--app-chart", "standard")
-						Expect(err).ToNot(HaveOccurred(), out)
+						_ = env.Epinio("", "app", "update", appName1, "--app-chart", "standard")
 
-						Eventually(func() string {
-							out, err := env.Epinio("", "app", "show", appName1)
-							ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-							return out
-						}, "1m").Should(
+						Eventually(
+							env.Epinio("", "app", "show", appName1),
+							"1m",
+						).Should(
 							HaveATable(
 								WithHeaders("KEY", "VALUE"),
 								WithRow("App Chart", "standard"),
@@ -373,14 +350,12 @@ configuration:
 			})
 
 			It("respects environment variable changes", func() {
-				out, err := env.Epinio("", "app", "update", appName, "--env", "MYVAR=myvalue")
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "app", "update", appName, "--env", "MYVAR=myvalue")
 
-				Eventually(func() string {
-					out, err := env.Epinio("", "apps", "env", "list", appName)
-					Expect(err).ToNot(HaveOccurred(), out)
-					return out
-				}, "2m").Should(
+				Eventually(
+					env.Epinio("", "apps", "env", "list", appName),
+					"2m",
+				).Should(
 					HaveATable(
 						WithHeaders("VARIABLE", "VALUE"),
 						WithRow("MYVAR", "myvalue"),
@@ -399,8 +374,7 @@ configuration:
 			It("will be staged again", func() {
 				env.MakeApp(appName, 1, false)
 
-				restageLogs, err := env.Epinio("", "app", "restage", appName)
-				Expect(err).ToNot(HaveOccurred(), restageLogs)
+				_ = env.Epinio("", "app", "restage", appName)
 
 				By("deleting the app")
 				env.DeleteApp(appName)
@@ -409,8 +383,7 @@ configuration:
 
 		When("restaging a non existing app", func() {
 			It("will return an error", func() {
-				restageLogs, err := env.Epinio("", "app", "restage", appName)
-				Expect(err).To(HaveOccurred(), restageLogs)
+				_ = env.Epinio("", "app", "restage", appName)
 			})
 		})
 
@@ -418,8 +391,7 @@ configuration:
 			It("won't be staged", func() {
 				env.MakeContainerImageApp(appName, 1, containerImageURL)
 
-				restageLogs, err := env.Epinio("", "app", "restage", appName)
-				Expect(err).ToNot(HaveOccurred(), restageLogs)
+				restageLogs := env.Epinio("", "app", "restage", appName)
 				Expect(restageLogs).Should(ContainSubstring("Unable to restage container-based application"))
 
 				By("deleting the app")
@@ -450,11 +422,10 @@ configuration:
 				"--name", appName)
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "5m").Should(
+			Eventually(
+				env.Epinio("", "app", "list"),
+				"5m",
+			).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
@@ -477,12 +448,11 @@ configuration:
 
 		It("creates an ingress matching the custom route", func() {
 			route := "mycustomdomain.org/api"
-			pushOutput, err := env.Epinio("", "apps", "push",
+			_ = env.Epinio("", "apps", "push",
 				"--name", appName,
 				"--container-image-url", containerImageURL,
 				"--route", route,
 			)
-			Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 			routeObj := routes.FromString(route)
 			out, err := proc.Kubectl("get", "ingress",
@@ -811,8 +781,7 @@ configuration:
 				// TODO : Match push output lines ?
 
 				By("verifying the stored settings")
-				out, err = env.Epinio("", "app", "show", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out = env.Epinio("", "app", "show", appName)
 
 				Expect(out).To(
 					HaveATable(
@@ -877,12 +846,10 @@ configuration:
 			env.MakeContainerImageApp(app, 3, containerImageURL)
 			defer env.DeleteApp(app)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "show", app)
-				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-				return out
-			}, "1m").Should(
+			Eventually(
+				env.Epinio("", "app", "show", app),
+				"1m",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "3/3"),
@@ -914,11 +881,10 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "list")
-					Expect(err).ToNot(HaveOccurred(), out)
-					return out
-				}, "2m").Should(
+				Eventually(
+					env.Epinio("", "app", "list"),
+					"2m",
+				).Should(
 					HaveATable(
 						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 						WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ""),
@@ -935,8 +901,7 @@ configuration:
 			env.BindAppConfiguration(appName, configurationName, namespace)
 
 			By("deleting the app")
-			out, err := env.Epinio("", "app", "delete", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "delete", appName)
 
 			Expect(out).To(
 				HaveATable(
@@ -945,11 +910,10 @@ configuration:
 				),
 			)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "1m").ShouldNot(ContainSubstring(appName))
+			Eventually(
+				env.Epinio("", "app", "list"),
+				"1m",
+			).ShouldNot(ContainSubstring(appName))
 
 			env.DeleteConfigurations(configurationName)
 		})
@@ -1091,11 +1055,10 @@ configuration:
 				Expect(err).ToNot(HaveOccurred(), pushOutput)
 
 				// And check presence
-				Eventually(func() string {
-					out, err := env.Epinio("", "apps", "env", "list", appName)
-					Expect(err).ToNot(HaveOccurred(), out)
-					return out
-				}, "2m").Should(
+				Eventually(
+					env.Epinio("", "apps", "env", "list", appName),
+					"2m",
+				).Should(
 					HaveATable(
 						WithHeaders("VARIABLE", "VALUE"),
 						WithRow("MYVAR", "myvalue"),
@@ -1113,27 +1076,22 @@ configuration:
 		It("respects the desired number of instances", func() {
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "show", appName)
-				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-				return out
-			}, "1m").Should(
+			Eventually(
+				env.Epinio("", "app", "show", appName),
+				"1m",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "1/1"),
 				),
 			)
 
-			out, err := env.Epinio("", "app", "update", appName, "-i", "3")
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "app", "update", appName, "-i", "3")
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "show", appName)
-				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-				return out
-			}, "1m").Should(
+			Eventually(
+				env.Epinio("", "app", "show", appName),
+				"1m",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "3/3"),
@@ -1158,28 +1116,23 @@ configuration:
 			It("respects the bound configurations", func() {
 				env.MakeContainerImageApp(appName, 1, containerImageURL)
 
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", appName)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-					return out
-				}, "1m").Should(
+				Eventually(
+					env.Epinio("", "app", "show", appName),
+					"1m",
+				).Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "1/1"),
 					),
 				)
 
-				out, err := env.Epinio("", "app", "update", appName, "--bind", configurationName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "app", "update", appName, "--bind", configurationName)
 				Expect(out).To(ContainSubstring("Successfully updated application"))
 
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", appName)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-					return out
-				}, "1m").Should(
+				Eventually(
+					env.Epinio("", "app", "show", appName),
+					"1m",
+				).Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Bound Configurations", configurationName),
@@ -1204,8 +1157,7 @@ configuration:
 		})
 
 		It("lists all apps in the namespace", func() {
-			out, err := env.Epinio("", "app", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "list")
 
 			By(out)
 
@@ -1219,8 +1171,7 @@ configuration:
 		})
 
 		It("shows the details of an app", func() {
-			out, err := env.Epinio("", "app", "show", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "show", appName)
 
 			By(out)
 
@@ -1237,11 +1188,10 @@ configuration:
 				),
 			)
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "show", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "1m").Should(
+			Eventually(
+				env.Epinio("", "app", "show", appName),
+				"1m",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "1/1"),
@@ -1259,9 +1209,7 @@ configuration:
 				tempFile = env.MakeAppchart(chartName)
 
 				appName = catalog.NewAppName()
-				out, err := env.Epinio("", "app", "create", appName,
-					"--app-chart", chartName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "app", "create", appName, "--app-chart", chartName)
 				Expect(out).To(ContainSubstring("Ok"))
 			})
 
@@ -1271,13 +1219,9 @@ configuration:
 			})
 
 			It("shows the details of a customized app", func() {
-				out, err := env.Epinio("", "app", "update", appName,
-					"--chart-value", "foo=bar")
-				Expect(err).ToNot(HaveOccurred(), out)
+				env.Epinio("", "app", "update", appName, "--chart-value", "foo=bar")
 
-				out, err = env.Epinio("", "app", "show", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
-
+				out := env.Epinio("", "app", "show", appName)
 				Expect(out).To(ContainSubstring("Show application details"))
 				Expect(out).To(ContainSubstring("Application: " + appName))
 
@@ -1321,8 +1265,7 @@ configuration:
 				})
 
 				It("exports the details of a customized app", func() {
-					out, err := env.Epinio("", "app", "export", app, exportPath)
-					Expect(err).ToNot(HaveOccurred(), out)
+					env.Epinio("", "app", "export", app, exportPath)
 
 					exported, err := filepath.Glob(exportPath + "/*")
 					Expect(err).ToNot(HaveOccurred(), exported)
@@ -1382,8 +1325,7 @@ userConfig:
 			})
 
 			It("exports the details of an app", func() {
-				out, err := env.Epinio("", "app", "export", app, exportPath)
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "app", "export", app, exportPath)
 
 				exported, err := filepath.Glob(exportPath + "/*")
 				Expect(err).ToNot(HaveOccurred(), exported)
@@ -1415,16 +1357,14 @@ userConfig:
 			})
 
 			It("correctly handles complex quoting when deploying and exporting an app", func() {
-				out, err := env.Epinio("", "apps", "env", "set", app,
+				env.Epinio("", "apps", "env", "set", app,
 					"complex", `{
    "usernameOrOrg": "scures",
    "url":           "https://github.com/scures/epinio-sample-app",
    "commit":        "3ce7abe14abd849b374eb68729de8c71e9f3a927"
 }`)
-				Expect(err).ToNot(HaveOccurred(), out)
 
-				out, err = env.Epinio("", "app", "export", app, exportPath)
-				Expect(err).ToNot(HaveOccurred(), out)
+				env.Epinio("", "app", "export", app, exportPath)
 
 				exported, err := filepath.Glob(exportPath + "/*")
 				Expect(err).ToNot(HaveOccurred(), exported)
@@ -1485,8 +1425,7 @@ userConfig:
 
 			It("lists apps without instances", func() {
 				By("list apps")
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "app", "list")
 				Expect(out).To(
 					HaveATable(
 						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
@@ -1497,8 +1436,7 @@ userConfig:
 
 			It("shows the details of an app without instances", func() {
 				By("show details")
-				out, err := env.Epinio("", "app", "show", app)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "app", "show", app)
 				Expect(out).To(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
@@ -1542,8 +1480,7 @@ userConfig:
 		It("lists all applications belonging to all namespaces", func() {
 			// But we care only about the two we know about from the setup.
 
-			out, err := env.Epinio("", "app", "list", "--all")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "list", "--all")
 			Expect(out).To(ContainSubstring("Listing all applications"))
 
 			By(out)
@@ -1572,8 +1509,7 @@ userConfig:
 			route = string(routeRegexp.Find([]byte(out)))
 
 			By("getting the current logs in full")
-			out, err := env.Epinio("", "app", "logs", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "app", "logs", appName)
 
 			podNames := env.GetPodNames(appName, namespace)
 			for _, podName := range podNames {
@@ -1604,8 +1540,7 @@ userConfig:
 		})
 
 		It("shows the staging logs", func() {
-			out, err := env.Epinio("", "app", "logs", "--staging", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "logs", "--staging", appName)
 
 			Expect(out).To(ContainSubstring(`Generating default PHP configuration`))
 			// Doesn't include linkerd sidecar logs
@@ -1658,11 +1593,10 @@ userConfig:
 
 	Describe("exec", func() {
 		BeforeEach(func() {
-			pushOutput, err := env.Epinio("", "apps", "push",
+			_ = env.Epinio("", "apps", "push",
 				"--name", appName,
 				"--container-image-url", containerImageURL,
 			)
-			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 
 		AfterEach(func() {
@@ -1712,11 +1646,10 @@ userConfig:
 		})
 
 		It("deploys successfully", func() {
-			pushOutput, err := env.Epinio("", "apps", "push",
+			env.Epinio("", "apps", "push",
 				"--name", appName,
 				"--container-image-url", containerImageURL,
 			)
-			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 	})
 })

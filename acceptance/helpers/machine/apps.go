@@ -18,36 +18,32 @@ func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bo
 }
 
 func (m *Machine) MakeContainerImageApp(appName string, instances int, containerImageURL string) string {
-	pushOutput, err := m.Epinio("", "apps", "push",
+	pushOutput := m.Epinio("", "apps", "push",
 		"--name", appName,
 		"--container-image-url", containerImageURL,
 		"--instances", strconv.Itoa(instances))
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
-	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("", "app", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
-		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	EventuallyWithOffset(1,
+		m.Epinio("", "app", "list"),
+		"5m",
+	).Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
 
 	return pushOutput
 }
 
 func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, containerImageURL, route string, more ...string) string {
-	pushOutput, err := m.Epinio("", "apps", append([]string{
+	pushOutput := m.Epinio("", "apps", append([]string{
 		"push",
 		"--name", appName,
 		"--route", route,
 		"--container-image-url", containerImageURL,
 		"--instances", strconv.Itoa(instances),
 	}, more...)...)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
-	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("", "app", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
-		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	EventuallyWithOffset(1,
+		m.Epinio("", "app", "list"),
+		"5m",
+	).Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
 
 	return pushOutput
 }
@@ -85,11 +81,8 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 
 	// Check presence if necessary, i.e. expected to be present
 	if instances > 0 {
-		Eventually(func() string {
-			out, err := m.Epinio("", "app", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
-			return out
-		}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+		Eventually(m.Epinio("", "app", "list"), "5m").
+			Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
 	}
 
 	return pushOutput
@@ -112,29 +105,23 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	// And check presence
-	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("", "app", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
-		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*\/.*\|.*`, appName)))
+	EventuallyWithOffset(1,
+		m.Epinio("", "app", "list"),
+		"5m",
+	).Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*\/.*\|.*`, appName)))
 
 	return pushOutput
 }
 
 func (m *Machine) DeleteApp(appName string) {
-	out, err := m.Epinio("", "app", "delete", appName)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	_ = m.Epinio("", "app", "delete", appName)
 
-	EventuallyWithOffset(1, func() string {
-		out, err := m.Epinio("", "app", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
-		return out
-	}, "1m").ShouldNot(MatchRegexp(`.*%s.*`, appName))
+	EventuallyWithOffset(1,
+		m.Epinio("", "app", "list"),
+		"1m",
+	).ShouldNot(MatchRegexp(`.*%s.*`, appName))
 }
 
 func (m *Machine) CleanupApp(appName string) {
-	out, err := m.Epinio("", "app", "delete", appName)
-	if err != nil {
-		fmt.Printf("deleting app failed : %s\n%s", err.Error(), out)
-	}
+	_ = m.Epinio("", "app", "delete", appName)
 }

@@ -78,8 +78,7 @@ var _ = Describe("AppValidateCV Endpoint", func() {
 
 		// Application, references new chart
 		appName = catalog.NewAppName()
-		out, err := env.Epinio("", "app", "create", appName, "--app-chart", chartName)
-		Expect(err).ToNot(HaveOccurred(), out)
+		out := env.Epinio("", "app", "create", appName, "--app-chart", chartName)
 		Expect(out).To(ContainSubstring("Ok"))
 	})
 
@@ -94,7 +93,7 @@ var _ = Describe("AppValidateCV Endpoint", func() {
 	})
 
 	It("returns ok for good chart values", func() {
-		out, err := env.Epinio("", "app", "update", appName,
+		env.Epinio("", "app", "update", appName,
 			"-v", "fake=true",
 			"-v", "foo=bar",
 			"-v", "bar=sna",
@@ -103,77 +102,66 @@ var _ = Describe("AppValidateCV Endpoint", func() {
 			"-v", "cat=0.31415926535",
 			// unknowntype, badminton, maxbad - bad spec, no good values
 		)
-		Expect(err).ToNot(HaveOccurred(), out)
 
 		ping(http.StatusOK, "ok")
 	})
 
 	It("fails for an unknown field", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "bogus=x")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "bogus=x")
 
 		ping(http.StatusBadRequest, `Setting "bogus": Not known`)
 	})
 
 	It("fails for an unknown field type", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "unknowntype=x")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "unknowntype=x")
 
 		ping(http.StatusBadRequest, `Setting "unknowntype": Bad spec: Unknown type "foofara"`)
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "badminton=0")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "badminton=0")
 
 		ping(http.StatusBadRequest, `Setting "badminton": Bad spec: Bad minimum "hello"`)
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "maxbad=0")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "maxbad=0")
 
 		ping(http.StatusBadRequest, `Setting "maxbad": Bad spec: Bad maximum "world"`)
 	})
 
 	It("fails for a value out of range (< min)", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "floof=-2")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "floof=-2")
 
 		ping(http.StatusBadRequest, `Setting "floof": Out of bounds, "-2" too small`)
 	})
 
 	It("fails for a value out of range (> max)", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "fox=1000")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "fox=1000")
 
 		ping(http.StatusBadRequest, `Setting "fox": Out of bounds, "1000" too large`)
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "bar=fox")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "bar=fox")
 
 		ping(http.StatusBadRequest, `Setting "bar": Illegal string "fox"`)
 	})
 
 	It("fails for a non-integer value where integer required", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "fox=hound")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "fox=hound")
 
 		ping(http.StatusBadRequest, `Setting "fox": Expected integer, got "hound"`)
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "cat=dog")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "cat=dog")
 
 		ping(http.StatusBadRequest, `Setting "cat": Expected number, got "dog"`)
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
-		out, err := env.Epinio("", "app", "update", appName, "-v", "fake=news")
-		Expect(err).ToNot(HaveOccurred(), out)
+		env.Epinio("", "app", "update", appName, "-v", "fake=news")
 
 		ping(http.StatusBadRequest, `Setting "fake": Expected boolean, got "news"`)
 	})

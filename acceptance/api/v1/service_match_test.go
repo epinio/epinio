@@ -52,19 +52,18 @@ var _ = Describe("ServiceMatch Endpoint", func() {
 			serviceName = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, serviceName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "create", catalogService.Meta.Name, serviceName)
 
 			By("show it")
-			out, err = env.Epinio("", "service", "show", serviceName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "service", "show", serviceName)
 			Expect(out).To(MatchRegexp(fmt.Sprintf("Name.*\\|.*%s", serviceName)))
 
 			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", serviceName)
-				return out
-			}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+			Eventually(
+				env.Epinio("", "service", "show", serviceName),
+				"2m",
+				"5s",
+			).Should(MatchRegexp("Status.*\\|.*deployed"))
 
 			By(fmt.Sprintf("%s/%s up", namespace, serviceName))
 

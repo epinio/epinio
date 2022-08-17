@@ -23,8 +23,7 @@ var _ = Describe("apps chart", func() {
 		It("lists the known app charts", func() {
 			// These are the standard chart and a custom one with settings for the user
 
-			out, err := env.Epinio("", "apps", "chart", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "list")
 			Expect(out).To(ContainSubstring("Show Application Charts"))
 
 			Expect(out).To(
@@ -39,8 +38,7 @@ var _ = Describe("apps chart", func() {
 
 	Describe("app chart show", func() {
 		It("shows the details of the standard app chart", func() {
-			out, err := env.Epinio("", "apps", "chart", "show", "standard")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "show", "standard")
 			Expect(out).To(ContainSubstring("Show application chart details"))
 
 			Expect(out).To(
@@ -59,8 +57,7 @@ var _ = Describe("apps chart", func() {
 		})
 
 		It("shows the details of the custom chart", func() {
-			out, err := env.Epinio("", "apps", "chart", "show", chartName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "show", chartName)
 			Expect(out).To(ContainSubstring("Show application chart details"))
 
 			Expect(out).To(
@@ -89,8 +86,7 @@ var _ = Describe("apps chart", func() {
 		})
 
 		It("fails to show the details of a bogus app chart", func() {
-			out, err := env.Epinio("", "apps", "chart", "show", "bogus")
-			Expect(err).To(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "show", "bogus")
 			Expect(out).To(ContainSubstring("Show application chart details"))
 			Expect(out).To(ContainSubstring("Not Found: application chart 'bogus' does not exist"))
 		})
@@ -100,45 +96,37 @@ var _ = Describe("apps chart", func() {
 		AfterEach(func() {
 			// Reset to empty default as the state to be seen at the
 			// beginning of each test, regardless of ordering.
-			out, err := env.Epinio("", "apps", "chart", "default", "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "apps", "chart", "default", "")
 		})
 
 		It("shows nothing by default", func() {
-			out, err := env.Epinio("", "apps", "chart", "default")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "default")
 			Expect(out).To(ContainSubstring("Name: not set, system default applies"))
 		})
 
 		It("sets a default", func() {
-			out, err := env.Epinio("", "apps", "chart", "default", "standard")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "default", "standard")
 			Expect(out).To(ContainSubstring("New Default Application Chart"))
 			Expect(out).To(ContainSubstring("Name: standard"))
 
-			out, err = env.Epinio("", "apps", "chart", "default")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "apps", "chart", "default")
 			Expect(out).To(ContainSubstring("Name: standard"))
 		})
 
 		It("fails to sets a bogus default", func() {
-			out, err := env.Epinio("", "apps", "chart", "default", "bogus")
-			Expect(err).To(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "default", "bogus")
 			Expect(out).To(ContainSubstring("Not Found: application chart 'bogus' does not exist"))
 		})
 
 		It("unsets a default", func() {
 			By("setting default")
-			out, err := env.Epinio("", "apps", "chart", "default", "standard")
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "apps", "chart", "default", "standard")
 
 			By("unsetting default")
-			out, err = env.Epinio("", "apps", "chart", "default", "")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "apps", "chart", "default", "")
 			Expect(out).To(ContainSubstring("Unset Default Application Chart"))
 
-			out, err = env.Epinio("", "apps", "chart", "default")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "apps", "chart", "default")
 			Expect(out).To(ContainSubstring("Name: not set, system default applies"))
 		})
 	})

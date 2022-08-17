@@ -10,8 +10,7 @@ import (
 
 var _ = Describe("Namespaces", func() {
 	It("has a default namespace", func() {
-		out, err := env.Epinio("", "namespace", "list")
-		Expect(err).ToNot(HaveOccurred())
+		out := env.Epinio("", "namespace", "list")
 		Expect(out).To(
 			HaveATable(
 				WithHeaders("NAME", "CREATED", "APPLICATIONS", "CONFIGURATIONS"),
@@ -35,8 +34,7 @@ var _ = Describe("Namespaces", func() {
 			env.SetupAndTargetNamespace(namespaceName)
 
 			By("switching namespace back to default")
-			out, err := env.Epinio("", "target", "workspace")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "target", "workspace")
 			Expect(out).To(ContainSubstring("Name: workspace"))
 			Expect(out).To(ContainSubstring("Namespace targeted."))
 		})
@@ -44,8 +42,7 @@ var _ = Describe("Namespaces", func() {
 		It("rejects creating an existing namespace", func() {
 			env.SetupAndTargetNamespace(namespaceName)
 
-			out, err := env.Epinio("", "namespace", "create", namespaceName)
-			Expect(err).To(HaveOccurred(), out)
+			out := env.Epinio("", "namespace", "create", namespaceName)
 			Expect(out).To(ContainSubstring("namespace '%s' already exists", namespaceName))
 		})
 	})
@@ -63,8 +60,7 @@ var _ = Describe("Namespaces", func() {
 			env.MakeConfiguration(configurationName)
 
 			appName = catalog.NewAppName()
-			out, err := env.Epinio("", "app", "create", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "create", appName)
 			Expect(out).To(ContainSubstring("Ok"))
 		})
 
@@ -73,8 +69,7 @@ var _ = Describe("Namespaces", func() {
 		})
 
 		It("lists namespaces", func() {
-			out, err := env.Epinio("", "namespace", "list", namespaceName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "namespace", "list", namespaceName)
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "APPLICATIONS", "CONFIGURATIONS"),
@@ -86,8 +81,7 @@ var _ = Describe("Namespaces", func() {
 
 	Describe("namespace show", func() {
 		It("rejects showing an unknown namespace", func() {
-			out, err := env.Epinio("", "namespace", "show", "missing-namespace")
-			Expect(err).To(HaveOccurred(), out)
+			out := env.Epinio("", "namespace", "show", "missing-namespace")
 			Expect(out).To(ContainSubstring("namespace 'missing-namespace' does not exist"))
 		})
 
@@ -104,8 +98,7 @@ var _ = Describe("Namespaces", func() {
 				env.MakeConfiguration(configurationName)
 
 				appName = catalog.NewAppName()
-				out, err := env.Epinio("", "app", "create", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "app", "create", appName)
 				Expect(out).To(ContainSubstring("Ok"))
 			})
 
@@ -114,8 +107,7 @@ var _ = Describe("Namespaces", func() {
 			})
 
 			It("shows a namespace", func() {
-				out, err := env.Epinio("", "namespace", "show", namespaceName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "namespace", "show", namespaceName)
 				Expect(out).To(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
@@ -135,8 +127,7 @@ var _ = Describe("Namespaces", func() {
 			env.SetupAndTargetNamespace(namespaceName)
 
 			By("deleting namespace")
-			out, err := env.Epinio("", "namespace", "delete", "-f", namespaceName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "namespace", "delete", "-f", namespaceName)
 			Expect(out).To(ContainSubstring("Name: %s", namespaceName))
 			Expect(out).To(ContainSubstring("Namespace deleted."))
 		})
@@ -144,8 +135,7 @@ var _ = Describe("Namespaces", func() {
 
 	Describe("namespace target", func() {
 		It("rejects targeting an unknown namespace", func() {
-			out, err := env.Epinio("", "target", "missing-namespace")
-			Expect(err).To(HaveOccurred(), out)
+			out := env.Epinio("", "target", "missing-namespace")
 			Expect(out).To(ContainSubstring("namespace 'missing-namespace' does not exist"))
 		})
 
@@ -162,8 +152,7 @@ var _ = Describe("Namespaces", func() {
 			})
 
 			It("shows a namespace", func() {
-				out, err := env.Epinio("", "target", namespaceName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "target", namespaceName)
 				Expect(out).To(ContainSubstring("Name: %s", namespaceName))
 				Expect(out).To(ContainSubstring("Namespace targeted."))
 			})

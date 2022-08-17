@@ -38,8 +38,7 @@ var _ = Describe("ApplicationMatch Endpoint", func() {
 			appName = catalog.NewAppName()
 
 			By("create it")
-			out, err := env.Epinio("", "app", "create", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "app", "create", appName)
 			Expect(out).To(MatchRegexp("Ok"))
 		})
 

@@ -9,21 +9,17 @@ import (
 )
 
 func (m *Machine) MakeConfiguration(configurationName string) {
-	out, err := m.Epinio("", "configuration", "create", configurationName, "username", "epinio-user")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	_ = m.Epinio("", "configuration", "create", configurationName, "username", "epinio-user")
 
-	// And check presence
-
-	out, err = m.Epinio("", "configuration", "list")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	// check presence
+	out := m.Epinio("", "configuration", "list")
 	ExpectWithOffset(1, out).To(MatchRegexp(configurationName))
 }
 
 func (m *Machine) BindAppConfiguration(appName, configurationName, namespace string) {
-	out, err := m.Epinio("", "configuration", "bind", configurationName, appName)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	_ = m.Epinio("", "configuration", "bind", configurationName, appName)
 
-	// And check deep into the kube structures
+	// check deep into the kube structures
 	m.VerifyAppConfigurationBound(appName, configurationName, namespace, 2)
 }
 
@@ -52,36 +48,27 @@ func (m *Machine) DeleteConfigurationsUnbind(configurationNames ...string) {
 }
 
 func (m *Machine) DeleteConfigurationsWithUnbind(configurationNames []string, unbind bool) {
-	var err error
-	var out string
 	if unbind {
-		out, err = m.Epinio("", "configuration", append([]string{"delete", "--unbind"}, configurationNames...)...)
+		m.Epinio("", "configuration", append([]string{"delete", "--unbind"}, configurationNames...)...)
 	} else {
-		out, err = m.Epinio("", "configuration", append([]string{"delete"}, configurationNames...)...)
+		m.Epinio("", "configuration", append([]string{"delete"}, configurationNames...)...)
 	}
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	// And check non-presence
-	EventuallyWithOffset(1, func() string {
-		out, err = m.Epinio("", "configuration", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
-		return out
-	}, "10m").ShouldNot(MatchRegexp(strings.Join(configurationNames, "|")))
+	EventuallyWithOffset(1,
+		m.Epinio("", "configuration", "list"),
+		"10m",
+	).ShouldNot(MatchRegexp(strings.Join(configurationNames, "|")))
 }
 
 func (m *Machine) CleanupConfiguration(configurationName string) {
-	out, err := m.Epinio("", "configuration", "delete", configurationName)
-
-	if err != nil {
-		fmt.Printf("deleting configuration failed : %s\n%s", err.Error(), out)
-	}
+	_ = m.Epinio("", "configuration", "delete", configurationName)
 }
 
 func (m *Machine) UnbindAppConfiguration(appName, configurationName, namespace string) {
-	out, err := m.Epinio("", "configuration", "unbind", configurationName, appName)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	_ = m.Epinio("", "configuration", "unbind", configurationName, appName)
 
-	// And deep check in kube structures for non-presence
+	// deep check in kube structures for non-presence
 	m.VerifyAppConfigurationNotbound(appName, configurationName, namespace, 2)
 }
 

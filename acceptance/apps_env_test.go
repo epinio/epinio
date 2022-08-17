@@ -51,8 +51,7 @@ var _ = Describe("apps env", func() {
 
 	Describe("app without workload", func() {
 		BeforeEach(func() {
-			out, err := env.Epinio("", "apps", "create", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "apps", "create", appName)
 		})
 
 		AfterEach(func() {
@@ -61,23 +60,20 @@ var _ = Describe("apps env", func() {
 
 		When("unsetting an environment variable", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
-				Expect(err).ToNot(HaveOccurred(), out)
-				out, err = env.Epinio("", "apps", "env", "unset", appName, "MYVAR")
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
+				_ = env.Epinio("", "apps", "env", "unset", appName, "MYVAR")
 			})
 
 			It("is not shown in the environment listing", func() {
-				out, err := env.Epinio("", "apps", "env", "list", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "apps", "env", "list", appName)
 
 				Expect(out).To(HaveATable(WithHeaders("VARIABLE", "VALUE")))
 				Expect(out).ToNot(HaveATable(WithRow("MYVAR", "myvalue")))
 			})
 
 			It("is retrieved as empty string with show", func() {
-				out, err := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
+
 				Expect(out).To(ContainSubstring(`Variable: MYVAR`)) // Var name is shown, value is empty
 				Expect(out).ToNot(ContainSubstring(`myvalue`))
 			})
@@ -93,8 +89,7 @@ var _ = Describe("apps env", func() {
 
 		When("setting an environment variable", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
 			})
 
 			It("creates the relevant secret", func() {
@@ -103,8 +98,7 @@ var _ = Describe("apps env", func() {
 			})
 
 			It("is shown in the environment listing", func() {
-				out, err := env.Epinio("", "apps", "env", "list", appName)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "apps", "env", "list", appName)
 
 				Expect(out).To(
 					HaveATable(
@@ -115,8 +109,7 @@ var _ = Describe("apps env", func() {
 			})
 
 			It("is retrieved with show", func() {
-				out, err := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "apps", "env", "show", appName, "MYVAR")
 				Expect(out).To(ContainSubstring(`Variable: MYVAR`))
 				Expect(out).To(ContainSubstring(`Value: myvalue`))
 			})
@@ -143,8 +136,7 @@ var _ = Describe("apps env", func() {
 
 		When("unsetting an environment variable", func() {
 			BeforeEach(func() {
-				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
 
 				// Wait for variable to appear so that we can verify its proper
 				// removal
@@ -154,8 +146,7 @@ var _ = Describe("apps env", func() {
 			})
 
 			It("modifies and restarts the app", func() {
-				out, err := env.Epinio("", "apps", "env", "unset", appName, "MYVAR")
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "apps", "env", "unset", appName, "MYVAR")
 
 				// The deployment is not expected to be immediately modified, and/or
 				// the modification immediately visible. Thus waiting for the system
@@ -169,8 +160,7 @@ var _ = Describe("apps env", func() {
 
 		When("setting an environment variable", func() {
 			It("modifies and restarts the app", func() {
-				out, err := env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "apps", "env", "set", appName, "MYVAR", "myvalue")
 
 				// The deployment is not expected to be immediately modified, and/or
 				// the modification immediately visible. Thus waiting for the system

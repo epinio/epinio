@@ -86,12 +86,10 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Create the app
-		out, err := env.Epinio("", "apps", "create", rails.Name)
-		Expect(err).ToNot(HaveOccurred(), out)
+		out := env.Epinio("", "apps", "create", rails.Name)
 
 		// Set the RAILS_MASTER_KEY env variable
-		out, err = env.Epinio("", "apps", "env", "set", rails.Name, "RAILS_MASTER_KEY", rails.MasterKey)
-		Expect(err).ToNot(HaveOccurred(), out)
+		out = env.Epinio("", "apps", "env", "set", rails.Name, "RAILS_MASTER_KEY", rails.MasterKey)
 
 		// Create a custom service catalog
 		serviceName = names.Truncate(catalog.NewServiceName(), 20)
@@ -104,28 +102,26 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Create a database for Rails
-		out, err = env.Epinio("", "service", "create", catalogName, serviceName)
-		Expect(err).ToNot(HaveOccurred(), out)
+		out = env.Epinio("", "service", "create", catalogName, serviceName)
 
-		Eventually(func() string {
-			out, _ := env.Epinio("", "service", "show", serviceName)
-			return out
-		}, "2m", "5s").Should(MatchRegexp("Status.*\\|.*deployed"))
+		Eventually(
+			env.Epinio("", "service", "show", serviceName),
+			"2m",
+			"5s",
+		).Should(MatchRegexp("Status.*\\|.*deployed"))
 
 		// Bind the database to app
-		out, err = env.Epinio("", "service", "bind", serviceName, rails.Name)
-		Expect(err).ToNot(HaveOccurred(), out)
+		_ = env.Epinio("", "service", "bind", serviceName, rails.Name)
 
 		// Update the configuration
 		configurationName = fmt.Sprintf("%s-postgresql",
 			names.ServiceHelmChartName(serviceName, rails.Namespace))
 		newHost = fmt.Sprintf("%s.%s.svc.cluster.local", configurationName, rails.Namespace)
 
-		out, err = env.Epinio("", "configurations", "update", configurationName,
+		_ = env.Epinio("", "configurations", "update", configurationName,
 			"--set", "host="+newHost,
 			"--set", "port=5432",
 			"--set", "username=myuser")
-		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Change Rails database configuration to match the configuration name
 		out, err = proc.Run(rails.Dir, false, "sed", "-i", fmt.Sprintf("s/mydb/%s/", configurationName), "config/database.yml")

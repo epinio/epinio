@@ -151,8 +151,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-			appShowOut, err := env.Epinio("", "app", "show", app)
-			Expect(err).ToNot(HaveOccurred())
+			appShowOut := env.Epinio("", "app", "show", app)
 			matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 			Expect(appShowOut).To(MatchRegexp(matchString))
 		})
@@ -206,8 +205,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				appShowOut, err := env.Epinio("", "app", "show", app)
-				Expect(err).ToNot(HaveOccurred())
+				appShowOut := env.Epinio("", "app", "show", app)
 				matchString := fmt.Sprintf("Bound Configurations.*%s", chartName)
 				Expect(appShowOut).To(MatchRegexp(matchString))
 			})
@@ -259,9 +257,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
-				appShowOut, err := env.Epinio("", "app", "show", app)
-				Expect(err).ToNot(HaveOccurred())
-
+				appShowOut := env.Epinio("", "app", "show", app)
 				Expect(appShowOut).To(MatchRegexp(chartName + "-mysql"))
 				Expect(appShowOut).To(MatchRegexp(basicAuthSecretName))
 				Expect(appShowOut).To(Not(MatchRegexp(customSecretName)))

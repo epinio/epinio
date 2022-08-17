@@ -41,8 +41,7 @@ var _ = Describe("Bounds between Apps & Configurations", func() {
 		})
 
 		It("shows the bound app for configurations list, and vice versa", func() {
-			out, err := env.Epinio("", "configuration", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "configuration", "list")
 
 			Expect(out).To(
 				HaveATable(
@@ -59,11 +58,10 @@ var _ = Describe("Bounds between Apps & Configurations", func() {
 			// and actual number of instances. We wait for the
 			// system to settle back into a normal state.
 
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "list")
-				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "5m").Should(
+			Eventually(
+				env.Epinio("", "app", "list"),
+				"5m",
+			).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
 					WithRow(appName, WithDate(), "1/1", appName+".*", configurationName, ""),

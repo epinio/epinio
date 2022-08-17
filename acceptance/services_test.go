@@ -44,8 +44,7 @@ var _ = Describe("Services", func() {
 	Describe("Catalog", func() {
 
 		It("lists the standard catalog", func() {
-			out, err := env.Epinio("", "service", "catalog")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "catalog")
 
 			Expect(out).To(ContainSubstring("Getting catalog"))
 			Expect(out).To(
@@ -61,8 +60,7 @@ var _ = Describe("Services", func() {
 		})
 
 		It("lists the catalog details", func() {
-			out, err := env.Epinio("", "service", "catalog", "redis-dev")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "catalog", "redis-dev")
 
 			Expect(out).To(ContainSubstring("Show service details"))
 			Expect(out).To(
@@ -83,16 +81,14 @@ var _ = Describe("Services", func() {
 			// mysql takes more time to provision.
 
 			It("lists the extended catalog", func() {
-				out, err := env.Epinio("", "service", "catalog")
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "service", "catalog")
 
 				Expect(out).To(ContainSubstring("Getting catalog"))
 				Expect(out).To(ContainSubstring(catalogService.Meta.Name))
 			})
 
 			It("lists the extended catalog details", func() {
-				out, err := env.Epinio("", "service", "catalog", catalogService.Meta.Name)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "service", "catalog", catalogService.Meta.Name)
 
 				Expect(out).To(
 					HaveATable(
@@ -107,14 +103,14 @@ var _ = Describe("Services", func() {
 	deleteServiceFromNamespace := func(namespace, service string) {
 		env.TargetNamespace(namespace)
 
-		out, err := env.Epinio("", "service", "delete", service)
-		Expect(err).ToNot(HaveOccurred(), out)
+		out := env.Epinio("", "service", "delete", service)
 		Expect(out).To(ContainSubstring("Service Removed"))
 
-		Eventually(func() string {
-			out, _ := env.Epinio("", "service", "delete", service)
-			return out
-		}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+		Eventually(
+			env.Epinio("", "service", "delete", service),
+			"1m",
+			"5s",
+		).Should(ContainSubstring("service '%s' does not exist", service))
 
 	}
 
@@ -128,8 +124,7 @@ var _ = Describe("Services", func() {
 			service = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 		})
 
 		AfterEach(func() {
@@ -141,8 +136,7 @@ var _ = Describe("Services", func() {
 		It("shows a service", func() {
 			By("show it")
 			Eventually(func() string {
-				out, err := env.Epinio("", "service", "show", service)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "service", "show", service)
 				Expect(out).To(ContainSubstring("Showing Service"))
 
 				return out
@@ -176,12 +170,10 @@ var _ = Describe("Services", func() {
 
 		It("list a service", func() {
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 
 			By("show it")
-			out, err = env.Epinio("", "service", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "list")
 
 			Expect(out).To(ContainSubstring("Listing Services"))
 			Expect(out).To(ContainSubstring("Namespace: " + namespace))
@@ -194,10 +186,11 @@ var _ = Describe("Services", func() {
 			)
 
 			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list")
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "list"),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
 					WithRow(service, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
@@ -237,8 +230,7 @@ var _ = Describe("Services", func() {
 
 			// create temp settings that we can use to switch users
 			tmpSettingsPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
-			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
 
 			// create users with permissions in different namespaces
 			user1, password1 = env.CreateEpinioUser("user", []string{namespace1})
@@ -265,19 +257,15 @@ var _ = Describe("Services", func() {
 			By("create them in different namespaces")
 			// create service1 in namespace1
 			env.TargetNamespace(namespace1)
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service1)
 
 			// create service2 in namespace2
 			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service2)
 
 			// show all the services (we are admin, good to go)
 			By("show it")
-			out, err = env.Epinio("", "service", "list", "--all")
-			Expect(err).ToNot(HaveOccurred(), out)
-
+			out := env.Epinio("", "service", "list", "--all")
 			Expect(out).To(ContainSubstring("Listing all Services"))
 
 			Expect(out).To(
@@ -289,10 +277,11 @@ var _ = Describe("Services", func() {
 			)
 
 			By("wait for deployment of " + service1)
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all")
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "list", "--all"),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
 					WithRow(namespace1, service1, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
@@ -302,10 +291,11 @@ var _ = Describe("Services", func() {
 			By(fmt.Sprintf("%s/%s up", namespace1, service1))
 
 			By("wait for deployment of " + service2)
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all")
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "list", "--all"),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
 					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
@@ -322,22 +312,18 @@ var _ = Describe("Services", func() {
 			updateSettings(user1, password1, namespace1)
 
 			// create service1 in namespace1
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out, tmpSettingsPath)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath)
 
 			// impersonate user2
 			updateSettings(user2, password2, namespace2)
 
 			// create service2 in namespace2
 			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath)
 
 			// show only owned namespaces (we are user2, only namespace2)
 			By("show it")
-			out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
-
+			out := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
 			Expect(out).To(ContainSubstring("Listing all Services"))
 
 			Expect(out).NotTo(
@@ -354,10 +340,11 @@ var _ = Describe("Services", func() {
 			)
 
 			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
 					WithRow(namespace2, service2, WithDate(), catalogService.Meta.Name, catalogService.AppVersion, "deployed", ""),
@@ -380,26 +367,24 @@ var _ = Describe("Services", func() {
 
 		AfterEach(func() {
 			By("delete it")
-			out, err := env.Epinio("", "service", "delete", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "delete", service)
 			Expect(out).To(ContainSubstring("Service Removed"))
 
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "delete", service)
-				return out
-			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+			Eventually(
+				env.Epinio("", "service", "delete", service),
+				"1m",
+				"5s",
+			).Should(ContainSubstring("service '%s' does not exist", service))
 
 			env.DeleteNamespace(namespace)
 		})
 
 		It("creates a service", func() {
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 
 			By("show it")
-			out, err = env.Epinio("", "service", "show", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "show", service)
 
 			Expect(out).To(
 				HaveATable(
@@ -412,10 +397,11 @@ var _ = Describe("Services", func() {
 			)
 
 			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "show", service),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
@@ -436,12 +422,10 @@ var _ = Describe("Services", func() {
 			service = catalog.NewServiceName()
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", catalogService.Meta.Name, service)
 
 			By("show it")
-			out, err = env.Epinio("", "service", "show", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "show", service)
 
 			Expect(out).To(
 				HaveATable(
@@ -454,10 +438,11 @@ var _ = Describe("Services", func() {
 			)
 
 			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "show", service),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
@@ -472,13 +457,13 @@ var _ = Describe("Services", func() {
 		})
 
 		It("deletes a service", func() {
-			out, err := env.Epinio("", "service", "delete", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "delete", service)
 
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "delete", service)
-				return out
-			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+			Eventually(
+				env.Epinio("", "service", "delete", service),
+				"1m",
+				"5s",
+			).Should(ContainSubstring("service '%s' does not exist", service))
 		})
 
 		When("bound to an app", func() {
@@ -494,18 +479,18 @@ var _ = Describe("Services", func() {
 				chart = names.ServiceHelmChartName(service, namespace)
 
 				By("create it")
-				out, err := env.Epinio("", "service", "create", "mysql-dev", service)
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "service", "create", "mysql-dev", service)
 
 				By("create app")
 				app = catalog.NewAppName()
 				env.MakeContainerImageApp(app, 1, containerImageURL)
 
 				By("wait for deployment")
-				Eventually(func() string {
-					out, _ := env.Epinio("", "service", "show", service)
-					return out
-				}, "2m", "5s").Should(
+				Eventually(
+					env.Epinio("", "service", "show", service),
+					"2m",
+					"5s",
+				).Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "deployed"),
@@ -513,12 +498,10 @@ var _ = Describe("Services", func() {
 				)
 
 				By("bind it")
-				out, err = env.Epinio("", "service", "bind", service, app)
-				Expect(err).ToNot(HaveOccurred(), out)
+				_ = env.Epinio("", "service", "bind", service, app)
 
 				By("verify binding")
-				appShowOut, err := env.Epinio("", "app", "show", app)
-				Expect(err).ToNot(HaveOccurred())
+				appShowOut := env.Epinio("", "app", "show", app)
 
 				Expect(appShowOut).To(
 					HaveATable(
@@ -533,8 +516,7 @@ var _ = Describe("Services", func() {
 			})
 
 			It("fails to delete a bound service", func() {
-				out, err := env.Epinio("", "service", "delete", service)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "service", "delete", service)
 				Expect(out).To(ContainSubstring("Unable to delete service. It is still used by"))
 				Expect(out).To(ContainSubstring(app))
 
@@ -544,26 +526,26 @@ var _ = Describe("Services", func() {
 				env.DeleteApp(app)
 
 				By("delete it")
-				out, err = env.Epinio("", "service", "delete", service)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out = env.Epinio("", "service", "delete", service)
 				Expect(out).To(ContainSubstring("Service Removed"))
 
-				Eventually(func() string {
-					out, _ := env.Epinio("", "service", "delete", service)
-					return out
-				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+				Eventually(
+					env.Epinio("", "service", "delete", service),
+					"1m",
+					"5s",
+				).Should(ContainSubstring("service '%s' does not exist", service))
 
 			})
 
 			It("unbinds and deletes a bound service when forced", func() {
-				out, err := env.Epinio("", "service", "delete", "--unbind", service)
-				Expect(err).ToNot(HaveOccurred(), out)
+				out := env.Epinio("", "service", "delete", "--unbind", service)
 				Expect(out).To(ContainSubstring("Service Removed"))
 
-				Eventually(func() string {
-					out, _ := env.Epinio("", "service", "delete", service)
-					return out
-				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+				Eventually(
+					env.Epinio("", "service", "delete", service),
+					"1m",
+					"5s",
+				).Should(ContainSubstring("service '%s' does not exist", service))
 			})
 		})
 	})
@@ -581,18 +563,18 @@ var _ = Describe("Services", func() {
 			chart = names.ServiceHelmChartName(service, namespace)
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", "mysql-dev", service)
 
 			By("create app")
 			app = catalog.NewAppName()
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 
 			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "show", service),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
@@ -601,13 +583,11 @@ var _ = Describe("Services", func() {
 		})
 
 		AfterEach(func() {
-			out, err := env.Epinio("", "service", "unbind", service, app)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "unbind", service, app)
 			Expect(out).ToNot(ContainSubstring("Available Commands:")) // Command should exist
 
 			By("verify unbinding")
-			appShowOut, err := env.Epinio("", "app", "show", app)
-			Expect(err).ToNot(HaveOccurred())
+			appShowOut := env.Epinio("", "app", "show", app)
 			Expect(appShowOut).ToNot(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -616,26 +596,24 @@ var _ = Describe("Services", func() {
 			)
 
 			By("delete it")
-			out, err = env.Epinio("", "service", "delete", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "service", "delete", service)
 			Expect(out).To(ContainSubstring("Service Removed"))
 
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "delete", service)
-				return out
-			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+			Eventually(
+				env.Epinio("", "service", "delete", service),
+				"1m",
+				"5s",
+			).Should(ContainSubstring("service '%s' does not exist", service))
 
 			env.DeleteNamespace(namespace)
 		})
 
 		It("binds the service", func() {
 			By("bind it")
-			out, err := env.Epinio("", "service", "bind", service, app)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "bind", service, app)
 
 			By("verify binding /app")
-			appShowOut, err := env.Epinio("", "app", "show", app)
-			Expect(err).ToNot(HaveOccurred())
+			appShowOut := env.Epinio("", "app", "show", app)
 			Expect(appShowOut).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -644,8 +622,7 @@ var _ = Describe("Services", func() {
 			)
 
 			By("verify binding /show")
-			out, err = env.Epinio("", "service", "show", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "show", service)
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -654,8 +631,7 @@ var _ = Describe("Services", func() {
 			)
 
 			By("verify binding /list")
-			out, err = env.Epinio("", "service", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "service", "list")
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATIONS"),
@@ -664,8 +640,7 @@ var _ = Describe("Services", func() {
 			)
 
 			By("verify binding /list-all")
-			out, err = env.Epinio("", "service", "list", "--all")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "service", "list", "--all")
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),
@@ -688,18 +663,18 @@ var _ = Describe("Services", func() {
 			chart = names.ServiceHelmChartName(service, namespace)
 
 			By("create it")
-			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "create", "mysql-dev", service)
 
 			By("create app")
 			app = catalog.NewAppName()
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 
 			By("wait for deployment")
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "show", service)
-				return out
-			}, "2m", "5s").Should(
+			Eventually(
+				env.Epinio("", "service", "show", service),
+				"2m",
+				"5s",
+			).Should(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
 					WithRow("Status", "deployed"),
@@ -707,12 +682,10 @@ var _ = Describe("Services", func() {
 			)
 
 			By("bind it")
-			out, err = env.Epinio("", "service", "bind", service, app)
-			Expect(err).ToNot(HaveOccurred(), out)
+			_ = env.Epinio("", "service", "bind", service, app)
 
 			By("verify binding")
-			appShowOut, err := env.Epinio("", "app", "show", app)
-			Expect(err).ToNot(HaveOccurred())
+			appShowOut := env.Epinio("", "app", "show", app)
 			Expect(appShowOut).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -723,26 +696,24 @@ var _ = Describe("Services", func() {
 
 		AfterEach(func() {
 			By("delete it")
-			out, err := env.Epinio("", "service", "delete", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "delete", service)
 			Expect(out).To(ContainSubstring("Service Removed"))
 
-			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "delete", service)
-				return out
-			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+			Eventually(
+				env.Epinio("", "service", "delete", service),
+				"1m",
+				"5s",
+			).Should(ContainSubstring("service '%s' does not exist", service))
 
 			env.DeleteNamespace(namespace)
 		})
 
 		It("unbinds the service", func() {
-			out, err := env.Epinio("", "service", "unbind", service, app)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out := env.Epinio("", "service", "unbind", service, app)
 			Expect(out).ToNot(ContainSubstring("Available Commands:")) // Command should exist
 
 			By("verify unbinding")
-			appShowOut, err := env.Epinio("", "app", "show", app)
-			Expect(err).ToNot(HaveOccurred())
+			appShowOut := env.Epinio("", "app", "show", app)
 			Expect(appShowOut).ToNot(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -751,8 +722,7 @@ var _ = Describe("Services", func() {
 			)
 
 			By("verify unbinding /show")
-			out, err = env.Epinio("", "service", "show", service)
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "service", "show", service)
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
@@ -761,8 +731,7 @@ var _ = Describe("Services", func() {
 			)
 
 			By("verify unbinding /list")
-			out, err = env.Epinio("", "service", "list")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "service", "list")
 			Expect(out).ToNot(HaveATable(WithRow(service, WithDate(), "mysql-dev", ".*", app)))
 			Expect(out).To(
 				HaveATable(
@@ -772,8 +741,7 @@ var _ = Describe("Services", func() {
 			)
 
 			By("verify unbinding /list-all")
-			out, err = env.Epinio("", "service", "list", "--all")
-			Expect(err).ToNot(HaveOccurred(), out)
+			out = env.Epinio("", "service", "list", "--all")
 			Expect(out).To(
 				HaveATable(
 					WithHeaders("NAMESPACE", "NAME", "CREATED", "CATALOG SERVICE", "VERSION", "STATUS", "APPLICATION"),

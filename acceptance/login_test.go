@@ -33,8 +33,7 @@ var _ = Describe("Login", func() {
 
 	It("succeeds with a valid user", func() {
 		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
+		settings := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
@@ -45,16 +44,14 @@ var _ = Describe("Login", func() {
 		)
 
 		// login with a different user
-		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
+		out := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
 			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
-		Expect(err).ToNot(HaveOccurred())
 		Expect(out).To(ContainSubstring(`Login to your Epinio cluster`))
 		Expect(out).To(ContainSubstring(`Trusting certificate`))
 		Expect(out).To(ContainSubstring(`Login successful`))
 
 		// check that the settings are now updated
-		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
+		settings = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
@@ -84,8 +81,7 @@ var _ = Describe("Login", func() {
 		// Result, for now no password test.
 
 		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
+		settings := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
@@ -104,16 +100,15 @@ var _ = Describe("Login", func() {
 		cmd.Stdout = &out
 		cmd.Stderr = &out
 
-		err = cmd.Run()
-
+		err := cmd.Run()
 		Expect(err).ToNot(HaveOccurred())
+
 		Expect(out.String()).To(ContainSubstring(`Login to your Epinio cluster`))
 		Expect(out.String()).To(ContainSubstring(`Trusting certificate`))
 		Expect(out.String()).To(ContainSubstring(`Login successful`))
 
 		// check that the settings are now updated
-		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
+		settings = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
@@ -209,8 +204,7 @@ var _ = Describe("Login", func() {
 
 	It("fails with a non existing user", func() {
 		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
+		settings := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
@@ -221,14 +215,12 @@ var _ = Describe("Login", func() {
 		)
 
 		// login with a non existing user
-		out, err := env.Epinio("", "login", "-u", "unknown", "-p", env.EpinioPassword,
+		out := env.Epinio("", "login", "-u", "unknown", "-p", env.EpinioPassword,
 			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
-		Expect(err).To(HaveOccurred(), out)
 		Expect(out).To(ContainSubstring(`error verifying credentials`))
 
 		// check that the initial settings are still empty
-		settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
+		settings = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
@@ -243,9 +235,8 @@ var _ = Describe("Login", func() {
 		randomPort := fmt.Sprintf(`:%d`, rand.Intn(65536))
 		serverURLWithPort := serverURL + randomPort
 
-		out, err := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
+		out := env.Epinio("", "login", "-u", "epinio", "-p", env.EpinioPassword,
 			"--trust-ca", "--settings-file", tmpSettingsPath, serverURLWithPort)
-		Expect(err).To(HaveOccurred(), out)
 
 		// split and filter the lines to check that the port is present in both of them
 		outLines := []string{}
