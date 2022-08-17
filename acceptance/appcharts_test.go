@@ -24,7 +24,7 @@ var _ = Describe("apps chart", func() {
 	})
 
 	Describe("app chart show", func() {
-		It("shows the details of standard app chart", func() {
+		It("shows the details of the standard app chart", func() {
 			out, err := env.Epinio("", "apps", "chart", "show", "standard")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show application chart details"))
@@ -43,7 +43,7 @@ var _ = Describe("apps chart", func() {
 			)
 		})
 
-		It("fails to show the details of bogus app chart", func() {
+		It("fails to show the details of a bogus app chart", func() {
 			out, err := env.Epinio("", "apps", "chart", "show", "bogus")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show application chart details"))
