@@ -11,7 +11,6 @@ import (
 	"syscall"
 
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/settings"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
@@ -228,12 +227,7 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 }
 
 func verifyCredentials(epinioSettings *settings.Settings) error {
-	if epinioSettings.Certs != "" {
-		auth.ExtendLocalTrust(epinioSettings.Certs)
-	}
-
-	apiClient := epinioapi.New(epinioSettings.API, epinioSettings.WSS, epinioSettings.User, epinioSettings.Password)
-
+	apiClient := epinioapi.New(epinioSettings)
 	_, err := apiClient.Namespaces()
 	return errors.Wrap(err, "error while connecting to the Epinio server")
 }

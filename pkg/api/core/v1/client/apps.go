@@ -146,7 +146,7 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 	method := "GET"
 
 	// inlined c.get/c.do to the where the response is handled.
-	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
+	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
 	reqLog := requestLogger(c.log, method, uri, requestBody)
@@ -157,7 +157,7 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 		return err
 	}
 
-	request.SetBasicAuth(c.user, c.password)
+	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
 
 	response, err := (&http.Client{}).Do(request)
 
@@ -282,12 +282,12 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 	data.Set("giturl", gitRef.URL)
 	data.Set("gitrev", gitRef.Revision)
 
-	url := fmt.Sprintf("%s%s/%s", c.URL, api.Root, api.Routes.Path("AppImportGit", app.Namespace, app.Name))
+	url := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, api.Routes.Path("AppImportGit", app.Namespace, app.Name))
 	request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, errors.Wrap(err, "constructing the request")
 	}
-	request.SetBasicAuth(c.user, c.password)
+	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 
@@ -388,7 +388,7 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 		endpoint = api.WsRoutes.Path("StagingLogs", namespace, stageID)
 	}
 
-	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.WsURL, api.WsRoot, endpoint, queryParams.Encode())
+	websocketURL := fmt.Sprintf("%s%s/%s?%s", c.Settings.WSS, api.WsRoot, endpoint, queryParams.Encode())
 	webSocketConn, resp, err := websocket.DefaultDialer.Dial(websocketURL, http.Header{})
 	if err != nil {
 		// Report detailed error found in the server response
@@ -518,7 +518,7 @@ func (c *Client) AppRunning(app models.AppRef) (models.Response, error) {
 
 func (c *Client) AppExec(namespace string, appName, instance string, tty kubectlterm.TTY) error {
 	endpoint := fmt.Sprintf("%s%s/%s",
-		c.URL, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
+		c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppExec", namespace, appName))
 
 	upgradeRoundTripper := NewUpgrader(spdy.RoundTripperConfig{
 		TLS:        http.DefaultTransport.(*http.Transport).TLSClientConfig, // See `ExtendLocalTrust`
@@ -596,7 +596,7 @@ func NewPortForwardOpts(address, ports []string) *PortForwardOpts {
 
 // AppPortForward will forward the local traffic to a remote app
 func (c *Client) AppPortForward(namespace string, appName, instance string, opts *PortForwardOpts) error {
-	endpoint := fmt.Sprintf("%s%s/%s", c.URL, api.WsRoot, api.WsRoutes.Path("AppPortForward", namespace, appName))
+	endpoint := fmt.Sprintf("%s%s/%s", c.Settings.API, api.WsRoot, api.WsRoutes.Path("AppPortForward", namespace, appName))
 	portForwardURL, err := url.Parse(endpoint)
 	if err != nil {
 		return err
@@ -617,7 +617,7 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 		PingPeriod: time.Second * 5,
 	})
 
-	wrapper := transport.NewBasicAuthRoundTripper(c.user, c.password, upgradeRoundTripper)
+	wrapper := transport.NewBasicAuthRoundTripper(c.Settings.User, c.Settings.Password, upgradeRoundTripper)
 
 	dialer := gospdy.NewDialer(upgradeRoundTripper, &http.Client{Transport: wrapper}, "GET", portForwardURL)
 	fw, err := portforward.NewOnAddresses(dialer, opts.Address, opts.Ports, opts.StopChannel, opts.ReadyChannel, opts.Out, opts.ErrOut)
