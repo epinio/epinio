@@ -52,7 +52,7 @@ func uploadRequest(url, path string) (*http.Request, error) {
 
 	// make the request
 	request, err := http.NewRequest("POST", url, body)
-	request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
+	request.Header.Set("Authorization", "Bearer: "+env.EpinioToken)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build request")
 	}

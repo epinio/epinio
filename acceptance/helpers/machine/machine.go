@@ -24,8 +24,7 @@ import (
 
 type Machine struct {
 	nodeTmpDir       string
-	user             string
-	password         string
+	token            string
 	root             string
 	epinioBinaryPath string
 }
