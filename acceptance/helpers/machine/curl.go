@@ -12,7 +12,7 @@ func (m *Machine) Curl(method, uri string, requestBody io.Reader) (*http.Respons
 	if err != nil {
 		return nil, err
 	}
-	request.SetBasicAuth(m.user, m.password)
+	request.Header.Set("Authorization", "Bearer "+m.token)
 	return m.Client().Do(request)
 }
 

@@ -77,7 +77,7 @@ var _ = Describe("Settings", func() {
 					WithRow("Colorized Output", "true|false"),
 					WithRow("Current Namespace", ".*"),
 					WithRow("Default App Chart", ""),
-					WithRow("API User Name", env.EpinioUser),
+					WithRow("API User Name", env.EpinioToken),
 					WithRow("API Password", "[*]+"),
 					WithRow("API Url", "https://epinio.*"),
 					WithRow("WSS Url", "wss://epinio.*"),
@@ -153,7 +153,7 @@ var _ = Describe("Settings", func() {
 
 			fileContents, err := os.ReadFile(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
-			encodedPass := base64.StdEncoding.EncodeToString([]byte(settings.Password))
+			encodedPass := base64.StdEncoding.EncodeToString([]byte(settings.Token.AccessToken))
 			Expect(string(fileContents)).To(MatchRegexp(fmt.Sprintf("pass: %s", encodedPass)))
 		})
 	})
