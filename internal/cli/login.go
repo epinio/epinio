@@ -6,7 +6,8 @@ import (
 )
 
 func init() {
-	CmdLogin.Flags().Bool("trust-ca", false, "set this flag to automatically trust the unknown CA")
+	CmdLogin.Flags().Bool("trust-ca", false, "automatically trust the unknown CA")
+	CmdLogin.Flags().Bool("prompt", false, "enable the prompt of the authorization code and disable the local server")
 }
 
 // CmdLogin implements the command: epinio login
@@ -34,6 +35,11 @@ var CmdLogin = &cobra.Command{
 			return err
 		}
 
-		return client.Login(cmd.Context(), address, trustCA)
+		prompt, err := cmd.Flags().GetBool("prompt")
+		if err != nil {
+			return err
+		}
+
+		return client.Login(cmd.Context(), address, trustCA, prompt)
 	},
 }
