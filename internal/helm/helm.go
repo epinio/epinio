@@ -23,6 +23,7 @@ import (
 	"gopkg.in/yaml.v2"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
+	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/client-go/rest"
 )
 
@@ -196,11 +197,35 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		helmChart = fmt.Sprintf("%s/%s", name, helmChart)
 	}
 
+	releaseName := names.ReleaseName(parameters.Name)
+
+	//TODO: Move to a named function	recreateHelmRelease()
+	recreate, err := func(c hc.Client, name string) (bool, error) {
+		r, err := c.GetRelease(name)
+		if err != nil {
+			if err == helmdriver.ErrReleaseNotFound {
+				return false, nil
+			}
+			return false, errors.Wrap(err, "getting the helm release")
+		}
+
+		// Recreate the release if the status is not "deployed"
+		return r.Info.Status != helmrelease.StatusDeployed, nil
+	}(client, releaseName)
+	if err != nil {
+		return errors.Wrap(err, "checking release status")
+	}
+
+	fmt.Printf("recreate = %+v\n", recreate)
+
 	chartSpec := hc.ChartSpec{
-		ReleaseName: names.ReleaseName(parameters.Name),
+		ReleaseName: releaseName,
 		ChartName:   helmChart,
 		Version:     helmVersion,
 		Recreate:    true,
+		//Recreate:    recreate,
+		//Replace:     recreate,
+		//Force:       recreate,
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true,
