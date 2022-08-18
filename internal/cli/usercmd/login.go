@@ -27,7 +27,7 @@ import (
 
 // Login implements the "public client" flow of dex:
 // https://dexidp.io/docs/custom-scopes-claims-clients/#public-clients
-func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) error {
+func (c *EpinioClient) Login(ctx context.Context, address string, trustCA, prompt bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -62,7 +62,7 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 		return errors.Wrap(err, "constructing dexProviderConfig")
 	}
 
-	token, err := generateToken(ctx, c.ui, oidcProvider)
+	token, err := c.generateToken(ctx, oidcProvider, prompt)
 	if err != nil {
 		return errors.Wrap(err, "error while asking for token")
 	}
@@ -86,31 +86,18 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA bool) 
 }
 
 // generateToken implements the Oauth2 flow to generate an auth token
-func generateToken(ctx context.Context, ui *termui.UI, oidcProvider *dex.OIDCProvider) (*oauth2.Token, error) {
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		return nil, errors.Wrap(err, "creating listener")
+func (c *EpinioClient) generateToken(ctx context.Context, oidcProvider *dex.OIDCProvider, prompt bool) (*oauth2.Token, error) {
+	var authCode, codeVerifier string
+	var err error
+
+	if prompt {
+		authCode, codeVerifier, err = c.getAuthCodeAndVerifierFromUser(oidcProvider)
+	} else {
+		authCode, codeVerifier, err = c.getAuthCodeAndVerifierWithServer(ctx, oidcProvider)
 	}
-	oidcProvider.Config.RedirectURL = fmt.Sprintf("http://localhost:%d", listener.Addr().(*net.TCPAddr).Port)
-
-	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
-
-	msg := ui.Normal().Compact()
-	msg.Msg("\n" + authCodeURL)
-	msg.Msg("\nOpen this URL in your browser and follow the directions.")
-
-	// if it fails to open the browser the user can still proceed manually
-	_ = open.Run(authCodeURL)
-
-	authCode := getAuthCodeWithServer(listener)
-
-	// for authCode == "" {
-	// 	bytesCode, err := readUserInput()
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	authCode = strings.TrimSpace(string(bytesCode))
-	// }
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting the auth code")
+	}
 
 	token, err := oidcProvider.ExchangeWithPKCE(ctx, authCode, codeVerifier)
 	if err != nil {
@@ -119,7 +106,49 @@ func generateToken(ctx context.Context, ui *termui.UI, oidcProvider *dex.OIDCPro
 	return token, nil
 }
 
-func getAuthCodeWithServer(listener net.Listener) string {
+// getAuthCodeAndVerifierFromUser will wait for the user to input the auth code
+func (c *EpinioClient) getAuthCodeAndVerifierFromUser(oidcProvider *dex.OIDCProvider) (string, string, error) {
+	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
+
+	msg := c.ui.Normal().Compact()
+	msg.Msg("\n" + authCodeURL)
+	msg.Msg("\nOpen this URL in your browser and paste the authorization code:")
+
+	var authCode string
+
+	for authCode == "" {
+		bytesCode, err := readUserInput()
+		if err != nil {
+			return "", "", errors.Wrap(err, "reading authCode user input")
+		}
+		authCode = strings.TrimSpace(string(bytesCode))
+	}
+
+	return authCode, codeVerifier, nil
+}
+
+// getAuthCodeAndVerifierWithServer will wait for the user to login and then will fetch automatically the auth code from the redirect URL
+func (c *EpinioClient) getAuthCodeAndVerifierWithServer(ctx context.Context, oidcProvider *dex.OIDCProvider) (string, string, error) {
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		return "", "", errors.Wrap(err, "creating listener")
+	}
+	oidcProvider.Config.RedirectURL = fmt.Sprintf("http://localhost:%d", listener.Addr().(*net.TCPAddr).Port)
+
+	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
+
+	msg := c.ui.Normal().Compact()
+	msg.Msg("\n" + authCodeURL)
+	msg.Msg("\nOpen this URL in your browser and follow the directions.")
+
+	// if it fails to open the browser the user can still proceed manually
+	_ = open.Run(authCodeURL)
+
+	return startServerAndWaitForCode(listener), codeVerifier, nil
+}
+
+// startServerAndWaitForCode will start a local server to read automatically the auth code
+func startServerAndWaitForCode(listener net.Listener) string {
 	var authCode string
 
 	srv := &http.Server{}
