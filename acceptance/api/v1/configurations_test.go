@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -79,7 +80,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 		var (
 			namespace1, namespace2         string
 			configuration1, configuration2 string
-			user, password                 string
+			user                           string
 			app1                           string
 		)
 
@@ -104,7 +105,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			env.MakeConfiguration(configuration1) // separate from namespace1.configuration1
 			env.MakeConfiguration(configuration2)
 
-			user, password = env.CreateEpinioUser("user", nil)
+			user, _ = env.CreateEpinioUser("user", nil)
 		})
 
 		AfterEach(func() {
@@ -163,7 +164,11 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			endpoint := fmt.Sprintf("%s%s/configurations", serverURL, api.Root)
 			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 			Expect(err).ToNot(HaveOccurred())
-			request.SetBasicAuth(user, password)
+
+			// TODO we should switch user
+			token, err := auth.GetToken(serverURL, "admin@epinio.io")
+			Expect(err).ToNot(HaveOccurred())
+			request.Header.Set("Authorization", "Bearer "+token)
 
 			response, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())

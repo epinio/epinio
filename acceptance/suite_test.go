@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -41,7 +42,10 @@ var _ = BeforeSuite(func() {
 
 	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
-	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password)
+
+	token, err := auth.GetToken(theSettings.API, "admin@epinio.io")
+	Expect(err).NotTo(HaveOccurred())
+	env = testenv.New(nodeTmpDir, testenv.Root(), token)
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",

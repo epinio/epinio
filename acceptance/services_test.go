@@ -219,8 +219,8 @@ var _ = Describe("Services", func() {
 			settings, err := settings.LoadFrom(tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred(), settings)
 
-			settings.User = user
-			settings.Password = password
+			// settings.User = user
+			// settings.Password = password
 			settings.Namespace = namespace
 			err = settings.Save()
 			Expect(err).ToNot(HaveOccurred())
