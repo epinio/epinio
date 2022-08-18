@@ -199,33 +199,15 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 	releaseName := names.ReleaseName(parameters.Name)
 
-	//TODO: Move to a named function	recreateHelmRelease()
-	recreate, err := func(c hc.Client, name string) (bool, error) {
-		r, err := c.GetRelease(name)
-		if err != nil {
-			if err == helmdriver.ErrReleaseNotFound {
-				return false, nil
-			}
-			return false, errors.Wrap(err, "getting the helm release")
-		}
-
-		// Recreate the release if the status is not "deployed"
-		return r.Info.Status != helmrelease.StatusDeployed, nil
-	}(client, releaseName)
+	err = cleanupReleaseIfNeeded(logger, client, releaseName)
 	if err != nil {
-		return errors.Wrap(err, "checking release status")
+		return errors.Wrap(err, "cleaning up release")
 	}
-
-	fmt.Printf("recreate = %+v\n", recreate)
 
 	chartSpec := hc.ChartSpec{
 		ReleaseName: releaseName,
 		ChartName:   helmChart,
 		Version:     helmVersion,
-		Recreate:    true,
-		//Recreate:    recreate,
-		//Replace:     recreate,
-		//Force:       recreate,
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true,
@@ -234,11 +216,9 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		ReuseValues: true,
 	}
 
-	if _, err := client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil); err != nil {
-		return err
-	}
+	_, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
 
-	return nil
+	return err
 }
 
 func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (helmrelease.Status, error) {
@@ -275,4 +255,29 @@ func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string
 	}
 
 	return hc.NewClientFromRestConf(options)
+}
+
+// cleanupReleaseIfNeeded will delete the helm release if it exists and is not
+// in "deployed" state. The reason is that helm will refuse to upgrade a release
+// that is in pending-install state. This would be the case, when the app container
+// is failing for whatever reason. The user may try to fix the problem by pushing
+// the application again and we want to allow that.
+func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
+	r, err := c.GetRelease(name)
+	if err != nil {
+		if err == helmdriver.ErrReleaseNotFound {
+			return nil
+		}
+		return errors.Wrap(err, "getting the helm release")
+	}
+
+	if r.Info.Status != helmrelease.StatusDeployed {
+		l.Info("Will remove existing release with status: " + string(r.Info.Status))
+		err := c.UninstallRelease(&hc.ChartSpec{ReleaseName: name})
+		if err != nil {
+			return errors.Wrapf(err, "uninstalling the release with status: %s", r.Info.Status)
+		}
+	}
+
+	return nil
 }
