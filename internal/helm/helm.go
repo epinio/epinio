@@ -273,7 +273,9 @@ func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
 
 	if r.Info.Status != helmrelease.StatusDeployed {
 		l.Info("Will remove existing release with status: " + string(r.Info.Status))
-		err := c.UninstallRelease(&hc.ChartSpec{ReleaseName: name})
+		err := c.UninstallRelease(&hc.ChartSpec{
+			ReleaseName: name, Wait: true,
+		})
 		if err != nil {
 			return errors.Wrapf(err, "uninstalling the release with status: %s", r.Info.Status)
 		}

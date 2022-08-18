@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -575,6 +576,67 @@ spec:
 				"-o", "jsonpath={.items[0].spec.containers[*].image}")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(imageList).To(ContainSubstring("paketobuildpacks/builder:tiny"))
+		})
+	})
+
+	When("re-pushing a failed application", func() {
+		var tmpDir string
+		var err error
+		BeforeEach(func() {
+			By("Pushing an app that will fail")
+			tmpDir, err = ioutil.TempDir("", "epinio-failing-app")
+			Expect(err).ToNot(HaveOccurred())
+			appCode := []byte("\n<?php\nphpinfo();\n?>\n")
+			err = os.WriteFile(path.Join(tmpDir, "index.php"), appCode, 0644)
+			Expect(err).ToNot(HaveOccurred())
+			badProcfile := []byte("web: doesntexist")
+			err = os.WriteFile(path.Join(tmpDir, "Procfile"), badProcfile, 0644)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Don't block because this push will only exit if it times out
+			go func() {
+				defer GinkgoRecover()
+				// Ignore any errors. When the main thread pushes the app again,
+				// this command will probably fail with an error because the helm release
+				// will be deleted by the other `push`.
+				_, _ = env.EpinioPush(tmpDir, appName, "--name", appName, "--builder-image", "paketobuildpacks/builder:full")
+			}()
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+			os.RemoveAll(tmpDir)
+		})
+
+		It("succeeds", func() {
+			// Wait until previous staging job is complete
+			By("waiting for the old staging job to complete")
+			Eventually(func() error {
+				statusJSON, err := proc.Kubectl("get", "jobs", "-A",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+					"-o", "jsonpath={.items[].status['conditions'][]}")
+				if err != nil {
+					return err
+				}
+
+				var status map[string]string
+				err = json.Unmarshal([]byte(statusJSON), &status)
+				if err != nil {
+					return err
+				}
+
+				if status["type"] != "Complete" || status["status"] != "True" {
+					return errors.New("staging job not complete")
+				}
+
+				return nil
+			}, 3*time.Minute, 3*time.Second).ShouldNot(HaveOccurred())
+
+			// Fix the problem (so that the app now deploys fine) and push again
+			By("fixing the problem and pushing the application again")
+			os.Remove(path.Join(tmpDir, "Procfile"))
+			out, err := env.EpinioPush(tmpDir, appName, "--name", appName, "--builder-image", "paketobuildpacks/builder:full")
+			Expect(err).ToNot(HaveOccurred(), out)
 		})
 	})
 
