@@ -169,7 +169,12 @@ type ApplicationUpdateRequest struct {
 	Environment    EnvVariableMap `json:"environment"        yaml:"environment,omitempty"`
 	Routes         []string       `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string         `json:"appchart,omitempty" yaml:"appchart,omitempty"`
+	Settings       AppSettings    `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
+
+// AppSettings is a collection of key/value pairs describing the user's chosen settings
+// with which to configure the helm chart referenced by the application's appchart.
+type AppSettings map[string]string
 
 type ImportGitResponse struct {
 	BlobUID string `json:"blobuid,omitempty"`
@@ -366,14 +371,38 @@ func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
 
 func (s ServiceStatus) String() string { return string(s) }
 
-// AppChart matches github.com/epinio/application/api/v1 AppChartSpec
+// AppChart nearly matches github.com/epinio/application/api/v1 AppChartSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.
+//
+// Differences:
+//   - Field `Values` is not made public here. It contains server-internal information the
+//     user has no need for.
 type AppChart struct {
-	Meta             MetaLite `json:"meta,omitempty"`
-	Description      string   `json:"description,omitempty"`
-	ShortDescription string   `json:"short_description,omitempty"`
-	HelmChart        string   `json:"helm_chart,omitempty"`
-	HelmRepo         string   `json:"helm_repo,omitempty"`
+	Meta             MetaLite                   `json:"meta,omitempty"`
+	Description      string                     `json:"description,omitempty"`
+	ShortDescription string                     `json:"short_description,omitempty"`
+	HelmChart        string                     `json:"helm_chart,omitempty"`
+	HelmRepo         string                     `json:"helm_repo,omitempty"`
+	Settings         map[string]AppChartSetting `json:"settings,omitempty"`
+}
+
+// AppChartSetting matches github.com/epinio/application/api/v1 AppChartSettings
+// Reason for existence: Do not expose the internal CRD struct in the API.
+type AppChartSetting struct {
+	// Type of the setting (string, bool, number, or integer)
+	Type string `json:"type"`
+
+	// Minimal allowed value, for number, integer
+	Minimum string `json:"minimum,omitempty"`
+
+	// Maximal allowed value, for number, integer
+	Maximum string `json:"maximum,omitempty"`
+
+	// Enumeration of allowed values, for types string, number, integer
+	Enum []string `json:"enum,omitempty"`
+
+	// Presence of an enum for number and integer overrides the min/max
+	// specifications
 }
 
 // AppChartList is a collection of app charts
