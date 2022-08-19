@@ -1,3 +1,4 @@
+// -*- fill-column: 100 -*-
 package application
 
 import (
@@ -62,12 +63,18 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	// if there is nothing to change
 	if updateRequest.Instances == nil &&
 		len(updateRequest.Environment) == 0 &&
+		len(updateRequest.Settings) == 0 &&
 		updateRequest.Configurations == nil &&
 		len(updateRequest.Routes) == 0 &&
 		updateRequest.AppChart == "" {
 		response.OK(c)
 		return nil
 	}
+
+	// TODO If the application is running we have to validate any new chart values against the
+	// TODO active app chart ... Share the core validation code with the validation endpoint
+	// TODO used by push. And doing this first ensures that the application will not be
+	// TODO partially changed
 
 	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
 
@@ -168,6 +175,30 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 			"path": "/spec/routes",
 			"value": [%s] }]`,
 			strings.Join(routes, ","))
+
+		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+	}
+
+	// Only update the app if chart values have been set, otherwise just leave it as it is.
+	if len(updateRequest.Settings) > 0 {
+		client, err := cluster.ClientApp()
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		values := []string{}
+		for k, v := range updateRequest.Settings {
+			values = append(values, fmt.Sprintf(`%q : %q`, k, v))
+		}
+
+		patch := fmt.Sprintf(`[{
+			"op": "replace",
+			"path": "/spec/settings",
+			"value": {%s} }]`,
+			strings.Join(values, ","))
 
 		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {
