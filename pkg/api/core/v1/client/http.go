@@ -87,7 +87,7 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 
-	err = c.handleOauth2Transport()
+	err = c.handleOauth2Transport(request)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -125,7 +125,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	err = c.handleOauth2Transport()
+	err = c.handleOauth2Transport(request)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -196,7 +196,7 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 		return []byte{}, err
 	}
 
-	err = c.handleOauth2Transport()
+	err = c.handleOauth2Transport(request)
 	if err != nil {
 		return []byte{}, err
 	}
@@ -295,7 +295,9 @@ func (c *Client) AuthToken() (string, error) {
 	return tr.Token, err
 }
 
-func (c *Client) handleOauth2Transport() error {
+func (c *Client) handleOauth2Transport(request *http.Request) error {
+	request.Header.Set("Authorization", "Bearer "+c.Settings.Token.AccessToken)
+
 	if oauth2Transport, ok := c.HttpClient.Transport.(*oauth2.Transport); ok {
 		newToken, err := oauth2Transport.Source.Token()
 		if err != nil {

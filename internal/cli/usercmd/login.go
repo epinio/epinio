@@ -144,15 +144,15 @@ func (c *EpinioClient) getAuthCodeAndVerifierWithServer(ctx context.Context, oid
 	// if it fails to open the browser the user can still proceed manually
 	_ = open.Run(authCodeURL)
 
-	return startServerAndWaitForCode(listener), codeVerifier, nil
+	return startServerAndWaitForCode(ctx, listener), codeVerifier, nil
 }
 
 // startServerAndWaitForCode will start a local server to read automatically the auth code
-func startServerAndWaitForCode(listener net.Listener) string {
+func startServerAndWaitForCode(ctx context.Context, listener net.Listener) string {
 	var authCode string
 
 	srv := &http.Server{}
-	defer func() { _ = srv.Shutdown(context.Background()) }()
+	defer func() { _ = srv.Shutdown(ctx) }()
 
 	wg := &sync.WaitGroup{}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
