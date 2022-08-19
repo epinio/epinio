@@ -121,11 +121,24 @@ fi
 # Retry 5 times and sleep 1s because sometimes it takes a while before epinio server is ready
 
 echo "-------------------------------------"
-echo -n "Trying to login"
-retry 5 1 "${EPINIO_BINARY} login -u admin -p password --trust-ca https://epinio.$EPINIO_SYSTEM_DOMAIN"
+echo "Trying to login"
+
+echo " - Creating the settings file"
+SETTINGS_LOCATION=$(${EPINIO_BINARY} settings show | grep 'Settings:' | cut -d ' ' -f2)
+rm $SETTINGS_LOCATION
+${EPINIO_BINARY} settings update-ca >/dev/null
+
+echo " - Updating access token"
+ACCESS_TOKEN=$(./scripts/login.sh admin@epinio.io password https://auth.$EPINIO_SYSTEM_DOMAIN)
+sed -i "s/accesstoken: \"\"/accesstoken: \"$ACCESS_TOKEN\"/" "$SETTINGS_LOCATION"
+
 echo "-------------------------------------"
 echo -n "Trying to getting info"
-retry 5 1 "${EPINIO_BINARY} info"
+retry 5 2 "${EPINIO_BINARY} info"
+
+# let's have at least a couple of success
+echo -n "Trying to getting info again"
+retry 5 2 "${EPINIO_BINARY} info"
 echo "-------------------------------------"
 
 ${EPINIO_BINARY} info

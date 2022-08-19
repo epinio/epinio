@@ -20,7 +20,7 @@ var (
 	dexURL  string
 )
 
-func GetToken(domain, email string) (string, error) {
+func GetToken(domain, email, password string) (string, error) {
 	dexURL = regexp.MustCompile(`epinio\.(.*)`).ReplaceAllString(domain, "auth.$1")
 	client, err := newClient(&lastURL)
 	if err != nil {
@@ -38,9 +38,9 @@ func GetToken(domain, email string) (string, error) {
 	_, _ = client.Get(authCodeURL)
 
 	// programmatic login
-	authCode, err := login(client, email, "password")
+	authCode, err := login(client, email, password)
 	if err != nil {
-		return "", errors.Wrap(err, "error logging in with 'admin@epinio.io'")
+		return "", errors.Wrapf(err, "error logging in with '%s'", email)
 	}
 
 	// exchange code for token
