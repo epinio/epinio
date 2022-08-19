@@ -1,5 +1,8 @@
 package models
 
+// __ATTENTION__ Functionally identical to AppSettings, AppSettingList
+// Identical structures
+
 import (
 	"fmt"
 	"sort"

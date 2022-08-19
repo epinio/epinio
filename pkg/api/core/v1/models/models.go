@@ -172,10 +172,6 @@ type ApplicationUpdateRequest struct {
 	Settings       AppSettings    `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
-// AppSettings is a collection of key/value pairs describing the user's chosen settings
-// with which to configure the helm chart referenced by the application's appchart.
-type AppSettings map[string]string
-
 type ImportGitResponse struct {
 	BlobUID string `json:"blobuid,omitempty"`
 }

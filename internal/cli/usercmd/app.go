@@ -541,6 +541,14 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 		}
 	}
 
+	msg = msg.WithTableRow("Chart Values", "")
+
+	if len(app.Configuration.Settings) > 0 {
+		for _, cv := range app.Configuration.Settings.List() {
+			msg = msg.WithTableRow("  - "+cv.Name, cv.Value)
+		}
+	}
+
 	msg.Msg("Details:")
 
 	return nil
