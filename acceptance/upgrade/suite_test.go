@@ -41,7 +41,7 @@ var _ = BeforeSuite(func() {
 	config, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	token, err := auth.GetToken(config.API, "admin@epinio.io")
+	token, err := auth.GetToken(config.API, "admin@epinio.io", "password")
 	Expect(err).NotTo(HaveOccurred())
 	env = testenv.New(nodeTmpDir, testenv.Root(), token)
 

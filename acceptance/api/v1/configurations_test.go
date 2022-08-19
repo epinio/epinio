@@ -166,7 +166,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			// TODO we should switch user
-			token, err := auth.GetToken(serverURL, "admin@epinio.io")
+			token, err := auth.GetToken(serverURL, "admin@epinio.io", "password")
 			Expect(err).ToNot(HaveOccurred())
 			request.Header.Set("Authorization", "Bearer "+token)
 
