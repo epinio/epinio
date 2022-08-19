@@ -66,3 +66,8 @@ func bindOption(cmd *cobra.Command) {
 func envOption(cmd *cobra.Command) {
 	cmd.Flags().StringSliceP("env", "e", []string{}, "environment variables to be used")
 }
+
+// chartValueOption initializes the --chartValue/-c option for the provided command
+func chartValueOption(cmd *cobra.Command) {
+	cmd.Flags().StringSliceP("chart-value", "v", []string{}, "chart customization to be used")
+}
