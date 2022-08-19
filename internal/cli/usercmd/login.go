@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/auth"
@@ -151,7 +152,7 @@ func (c *EpinioClient) getAuthCodeAndVerifierWithServer(ctx context.Context, oid
 func startServerAndWaitForCode(ctx context.Context, listener net.Listener) string {
 	var authCode string
 
-	srv := &http.Server{}
+	srv := &http.Server{ReadHeaderTimeout: time.Second * 30}
 	defer func() { _ = srv.Shutdown(ctx) }()
 
 	wg := &sync.WaitGroup{}
