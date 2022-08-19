@@ -104,16 +104,10 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		return nil, errors.Wrap(err, "getting main domain")
 	}
 
-	issuer := fmt.Sprintf("https://auth.%s", mainDomain)
-	oidcProvider, err := dex.NewOIDCProvider(ctx, issuer, "epinio-cli")
-	if err != nil {
-		return nil, errors.Wrap(err, "constructing dexProviderConfig")
-	}
-
 	// Register api routes
 	{
 		apiRoutesGroup := router.Group(apiv1.Root,
-			authMiddleware(oidcProvider),
+			authMiddleware(mainDomain),
 			apiv1.NamespaceMiddleware,
 			apiv1.AuthorizationMiddleware,
 		)
@@ -181,9 +175,25 @@ func initContextMiddleware(logger logr.Logger) gin.HandlerFunc {
 	}
 }
 
+var oidcProvider *dex.OIDCProvider
+
+// getOIDCProvider returns a lazy constructed OIDC provider
+func getOIDCProvider(ctx context.Context, domain string) (*dex.OIDCProvider, error) {
+	var err error
+
+	// TODO should this "expire" after a while (key rotations, other auth providers)?
+	if oidcProvider != nil {
+		return oidcProvider, nil
+	}
+
+	issuer := fmt.Sprintf("https://auth.%s", domain)
+	oidcProvider, err = dex.NewOIDCProvider(ctx, issuer, "epinio-cli")
+	return oidcProvider, errors.Wrap(err, "constructing dexProviderConfig")
+}
+
 // authMiddleware authenticates the user either using the session or if one
 // doesn't exist, it authenticates with basic auth.
-func authMiddleware(oidcProvider *dex.OIDCProvider) func(ctx *gin.Context) {
+func authMiddleware(domain string) func(ctx *gin.Context) {
 	return func(ctx *gin.Context) {
 		logger := requestctx.Logger(ctx.Request.Context()).WithName("authMiddleware")
 		// TODO:
@@ -191,6 +201,13 @@ func authMiddleware(oidcProvider *dex.OIDCProvider) func(ctx *gin.Context) {
 		// - [x] if the token is valid check if there is a "user" resource associated with it
 		// - [x] if not, create one, simple user no namespaces yet
 		// - [x] set the current user (so that authorization works)
+
+		oidcProvider, err := getOIDCProvider(ctx, domain)
+		if err != nil {
+			response.Error(ctx, apierrors.InternalError(err, "error getting OIDC provider"))
+			ctx.Abort()
+			return
+		}
 
 		authHeader := strings.TrimSpace(ctx.Request.Header.Get("Authorization"))
 		if authHeader == "" {
