@@ -48,6 +48,7 @@ type APIClient interface {
 	AppRestart(namespace string, appName string) error
 	AppGetPart(namespace, appName, part, destinationPath string) error
 	AppMatch(namespace, prefix string) (models.AppMatchResponse, error)
+	AppValidateCV(namespace string, name string) (models.Response, error)
 
 	// env
 	EnvList(namespace string, appName string) (models.EnvVariableMap, error)

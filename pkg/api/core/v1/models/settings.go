@@ -11,7 +11,7 @@ import (
 
 // This subsection of models provides structures related to the chart values of applications.
 
-// AppSetting represents the Show Response for a single environment variable
+// AppSetting represents the Show Response for a chart value variable
 type AppSetting struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`

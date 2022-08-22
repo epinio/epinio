@@ -355,3 +355,23 @@ type AppRunningResponse struct {
 	// in: body
 	Body models.Response
 }
+
+// swagger:route POST /namespaces/{Namespace}/applications/{App}/validate-cv application AppValidateCV
+// Validate the chart values configured for the named `App` in the given `Namespace` against the
+// configured app chart.
+// responses:
+//   200: AppValidateCVResponse
+
+// swagger:parameters AppValidateCV
+type AppValidateCVParam struct {
+	// in: path
+	Namespace string
+	// in: path
+	App string
+}
+
+// swagger:response AppValidateCVResponse
+type AppValidateCVResponse struct {
+	// in: body
+	Body models.Response
+}

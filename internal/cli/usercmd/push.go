@@ -129,6 +129,12 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		}
 	}
 
+	// check customization
+	_, err = c.API.AppValidateCV(appRef.Namespace, appRef.Name)
+	if err != nil {
+		return err
+	}
+
 	// AppUpload / AppImportGit
 	var blobUID string
 	switch params.Origin.Kind {
