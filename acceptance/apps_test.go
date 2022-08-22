@@ -1297,6 +1297,48 @@ configuration:
 			)
 		})
 
+		It("shows the details of a customized app", func() {
+			out, err := env.Epinio("", "app", "update", appName,
+				"--chart-value", "foo=bar")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			out, err = env.Epinio("", "app", "show", appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By(out)
+
+			Expect(out).To(ContainSubstring("Show application details"))
+			Expect(out).To(ContainSubstring("Application: " + appName))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Origin", containerImageURL),
+					WithRow("Bound Configurations", configurationName),
+					WithRow("Active Routes", ""),
+					WithRow("", appName+".*"),
+				),
+			)
+
+			Expect(out).To(
+				HaveATable(
+					WithRow("Chart Values", ""),
+					WithRow("- foo", "bar"),
+				),
+			)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "1m").Should(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Status", "1/1"),
+				),
+			)
+		})
+
 		Context("", func() {
 			var app, exportPath, exportValues, exportChart string
 
