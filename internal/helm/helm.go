@@ -86,51 +86,51 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	// `values.yaml` to hand to helm from the chart parameters.
 
 	type routeParam struct {
-		id     string `yaml:"id"`
-		domain string `yaml:"domain"`
-		path   string `yaml:"path"`
-		secret string `yaml:"secret,omitempty"`
+		Id     string `yaml:"id"`
+		Domain string `yaml:"domain"`
+		Path   string `yaml:"path"`
+		Secret string `yaml:"secret,omitempty"`
 	}
 	type epinioParam struct {
-		appName        string               `yaml:"appName"`
-		env            []models.EnvVariable `yaml:"env"`
-		imageUrl       string               `yaml:"imageURL"`
-		ingress        string               `yaml:"ingress,omitempty"`
-		replicaCount   int32                `yaml:"replicaCount"`
-		routes         []routeParam         `yaml:"routes"`
-		configurations []string             `yaml:"configurations"`
-		stageID        string               `yaml:"stageID"`
-		tlsIssuer      string               `yaml:"tlsIssuer"`
-		username       string               `yaml:"username"`
-		start          string               `yaml:"start,omitempty"`
+		AppName        string               `yaml:"appName"`
+		Env            []models.EnvVariable `yaml:"env"`
+		ImageUrl       string               `yaml:"imageURL"`
+		Ingress        string               `yaml:"ingress,omitempty"`
+		ReplicaCount   int32                `yaml:"replicaCount"`
+		Routes         []routeParam         `yaml:"routes"`
+		Configurations []string             `yaml:"configurations"`
+		StageID        string               `yaml:"stageID"`
+		TlsIssuer      string               `yaml:"tlsIssuer"`
+		Username       string               `yaml:"username"`
+		Start          string               `yaml:"start,omitempty"`
 	}
 	type chartParam struct {
-		epinio epinioParam `yaml:"epinio"`
+		Epinio epinioParam `yaml:"epinio"`
 	}
 
 	// Fill values.yaml structure
 
 	params := chartParam{
-		epinio: epinioParam{
-			appName:        parameters.Name,
-			env:            parameters.Environment.List(),
-			imageUrl:       parameters.ImageURL,
-			replicaCount:   parameters.Instances,
-			configurations: parameters.Configurations,
-			stageID:        parameters.StageID,
-			tlsIssuer:      viper.GetString("tls-issuer"),
-			username:       parameters.Username,
-			// ingress, start, routes: see below
+		Epinio: epinioParam{
+			AppName:        parameters.Name,
+			Env:            parameters.Environment.List(),
+			ImageUrl:       parameters.ImageURL,
+			ReplicaCount:   parameters.Instances,
+			Configurations: parameters.Configurations,
+			StageID:        parameters.StageID,
+			TlsIssuer:      viper.GetString("tls-issuer"),
+			Username:       parameters.Username,
+			// Ingress, Start, Routes: see below
 		},
 	}
 
 	// TODO: Is this properly nulled if the class is not set ?
 	name := viper.GetString("ingress-class-name")
 	if name != "" {
-		params.epinio.ingress = name
+		params.Epinio.Ingress = name
 	}
 	if parameters.Start != nil {
-		params.epinio.start = fmt.Sprintf(`%d`, *parameters.Start)
+		params.Epinio.Start = fmt.Sprintf(`%d`, *parameters.Start)
 	}
 	if len(parameters.Routes) > 0 {
 		logger.Info("routes and domains")
@@ -140,9 +140,9 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 			rdot := strings.ReplaceAll(r.String(), "/", ".")
 
 			rp := routeParam{
-				id:     rdot,
-				domain: r.Domain,
-				path:   r.Path,
+				Id:     rdot,
+				Domain: r.Domain,
+				Path:   r.Path,
 			}
 
 			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
@@ -153,20 +153,22 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 			// The error can only come from `filepath.Match()`
 			if err == nil && domainSecret != "" {
 				// Pass the found secret
-				rp.secret = domainSecret
+				rp.Secret = domainSecret
 			}
-			params.epinio.routes = append(params.epinio.routes, rp)
+			params.Epinio.Routes = append(params.Epinio.Routes, rp)
 		}
 	}
 
 	// And generate the properly quoted values.yaml string
+
+	logger.Info("app helm setup", "parameters", params)
 
 	yamlParameters, err := yaml.Marshal(params)
 	if err != nil {
 		return errors.Wrap(err, "marshalling the parameters")
 	}
 
-	logger.Info("app helm setup", "parameters", yamlParameters)
+	logger.Info("app helm setup", "parameters-as-yaml", string(yamlParameters))
 
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
