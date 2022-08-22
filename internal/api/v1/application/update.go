@@ -71,18 +71,47 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return nil
 	}
 
-	// TODO If the application is running we have to validate any new chart values against the
-	// TODO active app chart ... Share the core validation code with the validation endpoint
-	// TODO used by push. And doing this first ensures that the application will not be
-	// TODO partially changed
+	if app.Workload != nil {
+		// For a running application we have to validate changed custom chart values against
+		// the configured app chart. It has to be done first, this ensures that there will
+		// be no partial update of the application.
+
+		// Note: If the custom chart values did not change then no validation is
+		// required. It was done when the application got (re)started (pushed, or last
+		// update).
+
+		// Note: Changing the app chart is forbidden for active apps. A simple redeploy is
+		// likely to run into trouble. Better to force a full re-creation (delete +
+		// create/push).
+
+		if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
+			return apierror.NewBadRequestError("unable to change app chart of active application")
+		}
+
+		appChart, err := appchart.Lookup(ctx, cluster, app.Configuration.AppChart)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		if len(updateRequest.Settings) > 0 {
+			issues := application.ValidateCV(updateRequest.Settings, appChart.Settings)
+			if issues != nil {
+				// Treating all validation failures as internal errors.  I can't
+				// find something better at the moment.
+
+				var apiIssues []apierror.APIError
+				for _, err := range issues {
+					apiIssues = append(apiIssues, apierror.InternalError(err))
+				}
+
+				return apierror.NewMultiError(apiIssues)
+			}
+		}
+	}
 
 	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
 
 	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
-		if app.Workload != nil {
-			return apierror.NewBadRequestError("unable to change app chart of active application")
-		}
-
 		found, err := appchart.Exists(ctx, cluster, updateRequest.AppChart)
 		if err != nil {
 			return apierror.InternalError(err)
