@@ -67,6 +67,7 @@ var _ = Describe("Route", func() {
 			result, err := FromIngress(routeIngress)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(result[0]).To(Equal(Route{Domain: "mydomain.org", Path: "/api/v1"}))
+			Expect(len(result)).To(Equal(1))
 		})
 		When("the Ingress has no rules defined", func() {
 			BeforeEach(func() {
