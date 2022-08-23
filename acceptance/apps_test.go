@@ -1239,11 +1239,12 @@ configuration:
 			var app, exportPath, exportValues, exportChart string
 
 			BeforeEach(func() {
-				exportPath = catalog.NewTmpName(appName + "-export")
+				app = catalog.NewAppName()
+
+				exportPath = catalog.NewTmpName(app + "-export")
 				exportValues = path.Join(exportPath, "values.yaml")
 				exportChart = path.Join(exportPath, "app-chart.tar.gz")
 
-				app = catalog.NewAppName()
 				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org")
 			})
 
@@ -1273,6 +1274,7 @@ configuration:
   configurations: []
   env: []
   imageURL: splatform/sample-app
+  ingress: null
   replicaCount: 1
   routes:
   - domain: exportdomain.org
@@ -1280,6 +1282,53 @@ configuration:
     path: /
   stageID: ""
   start: null
+  tlsIssuer: epinio-ca
+  username: admin
+`, app)))
+				// Not checking that exportChart is a proper tarball.
+			})
+
+			It("correctly handles complex quoting when deploying and exporting an app", func() {
+				out, err := env.Epinio("", "apps", "env", "set", app,
+					"complex", `{
+   "usernameOrOrg": "scures",
+   "url":           "https://github.com/scures/epinio-sample-app",
+   "commit":        "3ce7abe14abd849b374eb68729de8c71e9f3a927"
+}`)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = env.Epinio("", "app", "export", app, exportPath)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				exported, err := filepath.Glob(exportPath + "/*")
+				Expect(err).ToNot(HaveOccurred(), exported)
+				Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+
+				Expect(exportPath).To(BeADirectory())
+				Expect(exportValues).To(BeARegularFile())
+				Expect(exportChart).To(BeARegularFile())
+
+				values, err := ioutil.ReadFile(exportValues)
+				Expect(err).ToNot(HaveOccurred(), string(values))
+
+				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
+  appName: %s
+  configurations: []
+  env:
+  - name: complex
+    value: |-
+      {
+         "usernameOrOrg": "scures",
+         "url":           "https://github.com/scures/epinio-sample-app",
+         "commit":        "3ce7abe14abd849b374eb68729de8c71e9f3a927"
+      }
+  imageURL: splatform/sample-app
+  replicaCount: 1
+  routes:
+  - domain: exportdomain.org
+    id: exportdomain.org
+    path: /
+  stageID: ""
   tlsIssuer: epinio-ca
   username: admin
 `, app)))
@@ -1313,7 +1362,7 @@ configuration:
 					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 					return out
-				}, "1m").Should(
+				}, "2m").Should(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "0/0"),

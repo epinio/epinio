@@ -82,31 +82,67 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		return fmt.Errorf("Unable to deploy, chart %s not found", parameters.Chart)
 	}
 
-	// YAML string - TODO ? Use unstructured as intermediary to
-	// marshal yaml from ? Instead of direct generation of a
-	// string ?
+	// Local type definitions for proper marshalling of the
+	// `values.yaml` to hand to helm from the chart parameters.
 
-	configurationNames := `[]`
-	if len(parameters.Configurations) > 0 {
-		configurationNames = fmt.Sprintf(`["%s"]`, strings.Join(parameters.Configurations, `","`))
+	type routeParam struct {
+		Id     string `yaml:"id"`
+		Domain string `yaml:"domain"`
+		Path   string `yaml:"path"`
+		Secret string `yaml:"secret,omitempty"`
+	}
+	type epinioParam struct {
+		AppName        string               `yaml:"appName"`
+		Env            []models.EnvVariable `yaml:"env"`
+		ImageUrl       string               `yaml:"imageURL"`
+		Ingress        string               `yaml:"ingress,omitempty"`
+		ReplicaCount   int32                `yaml:"replicaCount"`
+		Routes         []routeParam         `yaml:"routes"`
+		Configurations []string             `yaml:"configurations"`
+		StageID        string               `yaml:"stageID"`
+		TlsIssuer      string               `yaml:"tlsIssuer"`
+		Username       string               `yaml:"username"`
+		Start          string               `yaml:"start,omitempty"`
+	}
+	type chartParam struct {
+		Epinio epinioParam `yaml:"epinio"`
 	}
 
-	environment := `[]`
-	if len(parameters.Environment) > 0 {
-		// TODO: Simplify the chain of conversions. Single `AsYAML` ?
-		environment = fmt.Sprintf(`[ %s ]`, strings.Join(parameters.Environment.List().Assignments(),
-			","))
+	// Fill values.yaml structure
+
+	params := chartParam{
+		Epinio: epinioParam{
+			AppName:        parameters.Name,
+			Env:            parameters.Environment.List(),
+			ImageUrl:       parameters.ImageURL,
+			ReplicaCount:   parameters.Instances,
+			Configurations: parameters.Configurations,
+			StageID:        parameters.StageID,
+			TlsIssuer:      viper.GetString("tls-issuer"),
+			Username:       parameters.Username,
+			// Ingress, Start, Routes: see below
+		},
 	}
 
-	routesYaml := "~"
+	name := viper.GetString("ingress-class-name")
+	if name != "" {
+		params.Epinio.Ingress = name
+	}
+	if parameters.Start != nil {
+		params.Epinio.Start = fmt.Sprintf(`%d`, *parameters.Start)
+	}
 	if len(parameters.Routes) > 0 {
-
 		logger.Info("routes and domains")
 
-		rs := []string{}
 		for _, desired := range parameters.Routes {
 			r := routes.FromString(desired)
 			rdot := strings.ReplaceAll(r.String(), "/", ".")
+
+			rp := routeParam{
+				Id:     rdot,
+				Domain: r.Domain,
+				Path:   r.Path,
+			}
 
 			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
 
@@ -114,60 +150,24 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 			// Should we treat a match error as something to stop for?
 			// The error can only come from `filepath.Match()`
-			var routeInfo string
-			if err != nil || domainSecret == "" {
-				// No secret found, no secret passed
-				routeInfo = fmt.Sprintf(`{"id":"%s","domain":"%s","path":"%s"}`,
-					rdot, r.Domain, r.Path)
-			} else {
+			if err == nil && domainSecret != "" {
 				// Pass the found secret
-				routeInfo = fmt.Sprintf(`{"id":"%s","domain":"%s","path":"%s","secret":"%s"}`,
-					rdot, r.Domain, r.Path, domainSecret)
+				rp.Secret = domainSecret
 			}
-
-			rs = append(rs, routeInfo)
+			params.Epinio.Routes = append(params.Epinio.Routes, rp)
 		}
-		routesYaml = fmt.Sprintf(`[%s]`, strings.Join(rs, `,`))
 	}
 
-	ingress := "~"
-	name := viper.GetString("ingress-class-name")
-	if name != "" {
-		ingress = name
+	// And generate the properly quoted values.yaml string
+
+	logger.Info("app helm setup", "parameters", params)
+
+	yamlParameters, err := yaml.Marshal(params)
+	if err != nil {
+		return errors.Wrap(err, "marshalling the parameters")
 	}
 
-	start := ""
-	if parameters.Start != nil {
-		start = fmt.Sprintf(`start: "%d"`, *parameters.Start)
-	}
-
-	yamlParameters := fmt.Sprintf(`
-epinio:
-  appName: "%[9]s"
-  env: %[6]s
-  imageURL: "%[3]s"
-  ingress: %[10]s
-  replicaCount: %[1]d
-  routes: %[7]s
-  configurations: %[5]s
-  stageID: "%[2]s"
-  tlsIssuer: "%[11]s"
-  username: "%[4]s"
-  %[8]s
-`, parameters.Instances,
-		parameters.StageID,
-		parameters.ImageURL,
-		parameters.Username,
-		configurationNames,
-		environment,
-		routesYaml,
-		start,
-		parameters.Name,
-		ingress,
-		viper.GetString("tls-issuer"),
-	)
-
-	logger.Info("app helm setup", "parameters", yamlParameters)
+	logger.Info("app helm setup", "parameters-as-yaml", string(yamlParameters))
 
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
@@ -204,7 +204,7 @@ epinio:
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true,
-		ValuesYaml:  yamlParameters,
+		ValuesYaml:  string(yamlParameters),
 		Timeout:     duration.ToDeployment(),
 		ReuseValues: true,
 	}
