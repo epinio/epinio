@@ -52,6 +52,7 @@ var _ = Describe("AppPart Endpoint", func() {
   configurations: []
   env: []
   imageURL: splatform/sample-app
+  ingress: null
   replicaCount: 1
   routes:
   - domain: exportdomain.org
