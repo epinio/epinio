@@ -65,6 +65,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		Routes:         routes,
 		Domains:        domains,
 		Start:          start,
+		Settings:       appObj.Configuration.Settings,
 	}
 
 	log.Info("deploying app", "namespace", app.Namespace, "app", app.Name)

@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -39,6 +38,9 @@ const EpinioApplicationAreaLabel = "epinio.io/area"
 
 // ValidateCV checks the custom values against the declarations. It reports as many issues as it can find.
 func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) []error {
+	// See also internal/helm Deploy(). A last-minute check to catch any changes possibly
+	// landing in the time window between the check here and the actual deployment.
+
 	var issues []error
 
 	for key, value := range cv {
@@ -48,71 +50,15 @@ func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) [
 			continue
 		}
 
-		err := validateField(key, value, spec)
+		// Note: The interface{} result for the properly typed value is ignored here. We do
+		// not care about the value, just that it is ok.
+
+		_, err := helm.ValidateField(key, value, spec)
 		if err != nil {
 			issues = append(issues, err)
 		}
 	}
 	return issues
-}
-
-// validateField checks a single custom value against its declaration.
-func validateField(key, value string, spec models.AppChartSetting) error {
-	if spec.Type == "string" {
-		if len(spec.Enum) > 0 {
-			for _, allowed := range spec.Enum {
-				if value == allowed {
-					return nil
-				}
-			}
-			return fmt.Errorf(`Setting "%s": Illegal string "%s"`, key, value)
-		}
-		return nil
-	}
-	if spec.Type == "bool" {
-		_, err := strconv.ParseBool(value)
-		if err != nil {
-			return fmt.Errorf(`Setting "%s": %s`, key, err.Error())
-		}
-	}
-	if spec.Type == "integer" {
-		ivalue, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return fmt.Errorf(`Setting "%s": %s`, key, err.Error())
-		}
-		return validateRange(float64(ivalue), key, value, spec.Minimum, spec.Maximum)
-	}
-	if spec.Type == "number" {
-		fvalue, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return fmt.Errorf(`Setting "%s": %s`, key, err.Error())
-		}
-		return validateRange(fvalue, key, value, spec.Minimum, spec.Maximum)
-	}
-
-	return fmt.Errorf(`Setting "%s": Bad spec: Unknown type "%s"`, key, spec.Type)
-}
-
-func validateRange(v float64, key, value, min, max string) error {
-	if min != "" {
-		minval, err := strconv.ParseFloat(min, 64)
-		if err != nil {
-			return fmt.Errorf(`Setting "%s": Bad Spec: Bad minimum: "%s"`, key, min)
-		}
-		if v < minval {
-			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" to small`, key, value)
-		}
-	}
-	if max != "" {
-		maxval, err := strconv.ParseFloat(max, 64)
-		if err != nil {
-			return fmt.Errorf(`Setting "%s": Bad Spec: Bad maximum "%s"`, key, max)
-		}
-		if v > maxval {
-			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" to large`, key, value)
-		}
-	}
-	return nil
 }
 
 // Create generates a new kube app resource in the namespace of the
