@@ -382,6 +382,11 @@ type AppChart struct {
 	Settings         map[string]AppChartSetting `json:"settings,omitempty"`
 }
 
+type AppChartFull struct {
+	AppChart
+	Values map[string]string
+}
+
 // AppChartSetting matches github.com/epinio/application/api/v1 AppChartSettings
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type AppChartSetting struct {
