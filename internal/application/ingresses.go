@@ -50,12 +50,13 @@ func ListRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef models.
 
 	result := []string{}
 	for _, ingress := range ingressList.Items {
-		route, err := routes.FromIngress(ingress)
+		routes, err := routes.FromIngress(ingress)
 		if err != nil {
 			return result, err
 		}
-
-		result = append(result, route.String())
+		for _, r := range routes {
+			result = append(result, r.String())
+		}
 	}
 
 	return result, nil

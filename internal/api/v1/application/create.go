@@ -154,28 +154,32 @@ func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, n
 	issues := []apierror.APIError{}
 
 	for _, ingress := range ingressList.Items {
-		route, err := routes.FromIngress(ingress)
+		routes, err := routes.FromIngress(ingress)
 		if err != nil {
 			issues = append(issues, apierror.InternalError(err))
 			continue
 		}
-		ingressRoute := route.String()
 
-		// if a desired route is present within the ingresses then we have to check if it's already owned by the same app
-		if _, found := desiredRoutesMap[ingressRoute]; found {
-			ingressAppName, found := ingress.GetLabels()["app.kubernetes.io/name"]
-			if !found {
-				err := apierror.NewBadRequestErrorf("route is already owned by an unknown app").
-					WithDetailsf("app: [%s], namespace: [%s], ingress: [%s]", appName, namespace, ingress.Name)
-				issues = append(issues, err)
-				continue
-			}
+		// TODO: Extract to method
+		for _, route := range routes {
+			ingressRoute := route.String()
 
-			// the ingress route is owned by another app
-			if appName != ingressAppName || namespace != ingress.Namespace {
-				err := apierror.NewBadRequestErrorf("route '%s' already exists", ingressRoute).
-					WithDetailsf("route is already owned by app [%s] in namespace [%s]", ingressAppName, ingress.Namespace)
-				issues = append(issues, err)
+			// if a desired route is present within the ingresses then we have to check if it's already owned by the same app
+			if _, found := desiredRoutesMap[ingressRoute]; found {
+				ingressAppName, found := ingress.GetLabels()["app.kubernetes.io/name"]
+				if !found {
+					err := apierror.NewBadRequestErrorf("route is already owned by an unknown app").
+						WithDetailsf("app: [%s], namespace: [%s], ingress: [%s]", appName, namespace, ingress.Name)
+					issues = append(issues, err)
+					continue
+				}
+
+				// the ingress route is owned by another app
+				if appName != ingressAppName || namespace != ingress.Namespace {
+					err := apierror.NewBadRequestErrorf("route '%s' already exists", ingressRoute).
+						WithDetailsf("route is already owned by app [%s] in namespace [%s]", ingressAppName, ingress.Namespace)
+					issues = append(issues, err)
+				}
 			}
 		}
 	}
