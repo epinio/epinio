@@ -124,7 +124,6 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		},
 	}
 
-	// TODO: Is this properly nulled if the class is not set ?
 	name := viper.GetString("ingress-class-name")
 	if name != "" {
 		params.Epinio.Ingress = name
