@@ -14,6 +14,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -154,33 +155,9 @@ func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, n
 	issues := []apierror.APIError{}
 
 	for _, ingress := range ingressList.Items {
-		routes, err := routes.FromIngress(ingress)
-		if err != nil {
-			issues = append(issues, apierror.InternalError(err))
-			continue
-		}
-
-		// TODO: Extract to method
-		for _, route := range routes {
-			ingressRoute := route.String()
-
-			// if a desired route is present within the ingresses then we have to check if it's already owned by the same app
-			if _, found := desiredRoutesMap[ingressRoute]; found {
-				ingressAppName, found := ingress.GetLabels()["app.kubernetes.io/name"]
-				if !found {
-					err := apierror.NewBadRequestErrorf("route is already owned by an unknown app").
-						WithDetailsf("app: [%s], namespace: [%s], ingress: [%s]", appName, namespace, ingress.Name)
-					issues = append(issues, err)
-					continue
-				}
-
-				// the ingress route is owned by another app
-				if appName != ingressAppName || namespace != ingress.Namespace {
-					err := apierror.NewBadRequestErrorf("route '%s' already exists", ingressRoute).
-						WithDetailsf("route is already owned by app [%s] in namespace [%s]", ingressAppName, ingress.Namespace)
-					issues = append(issues, err)
-				}
-			}
+		ingressIssues := validateIngress(desiredRoutesMap, appName, namespace, ingress)
+		if len(ingressIssues) > 0 {
+			issues = append(issues, ingressIssues...)
 		}
 	}
 
@@ -188,4 +165,41 @@ func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, n
 		return apierror.NewMultiError(issues)
 	}
 	return nil
+}
+
+// validateIngress checks if the desiredRoutesMap is in conflict with the passed
+// ingress object. Conflict means, the ingress already defines one of the desired
+// routes and it belongs to another or and unknown app.
+func validateIngress(desiredRoutesMap map[string]struct{}, appName, namespace string, ingress networkingv1.Ingress) []apierror.APIError {
+	issues := []apierror.APIError{}
+
+	routes, err := routes.FromIngress(ingress)
+	if err != nil {
+		return append(issues, apierror.InternalError(err))
+	}
+
+	for _, route := range routes {
+		routeStr := route.String()
+
+		// if a desired route is present within the ingresses then we have to check
+		// if it's already owned by the same app
+		if _, found := desiredRoutesMap[routeStr]; found {
+			ingressAppName, found := ingress.GetLabels()["app.kubernetes.io/name"]
+			if !found {
+				err := apierror.NewBadRequestErrorf("route is already owned by an unknown app").
+					WithDetailsf("app: [%s], namespace: [%s], ingress: [%s]", appName, namespace, ingress.Name)
+				issues = append(issues, err)
+				continue
+			}
+
+			// the ingress route is owned by another app
+			if appName != ingressAppName || namespace != ingress.Namespace {
+				err := apierror.NewBadRequestErrorf("route '%s' already exists", route).
+					WithDetailsf("route is already owned by app [%s] in namespace [%s]", ingressAppName, ingress.Namespace)
+				issues = append(issues, err)
+			}
+		}
+	}
+
+	return issues
 }
