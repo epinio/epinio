@@ -169,7 +169,7 @@ func validateRoutes(ctx context.Context, cluster *kubernetes.Cluster, appName, n
 
 // validateIngress checks if the desiredRoutesMap is in conflict with the passed
 // ingress object. Conflict means, the ingress already defines one of the desired
-// routes and it belongs to another or and unknown app.
+// routes and it belongs to another or an unknown app.
 func validateIngress(desiredRoutesMap map[string]struct{}, appName, namespace string, ingress networkingv1.Ingress) []apierror.APIError {
 	issues := []apierror.APIError{}
 
@@ -182,7 +182,7 @@ func validateIngress(desiredRoutesMap map[string]struct{}, appName, namespace st
 		routeStr := route.String()
 
 		// if a desired route is present within the ingresses then we have to check
-		// if it's already owned by the same app
+		// if it is already owned by the same app
 		if _, found := desiredRoutesMap[routeStr]; found {
 			ingressAppName, found := ingress.GetLabels()["app.kubernetes.io/name"]
 			if !found {
