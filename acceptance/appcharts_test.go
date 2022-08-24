@@ -1,12 +1,8 @@
 package acceptance_test
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -17,62 +13,10 @@ var _ = Describe("apps chart", func() {
 
 	BeforeEach(func() {
 		chartName = catalog.NewTmpName("chart-")
-		tempFile = catalog.NewTmpName("chart-") + `.yaml`
-
-		err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
-kind: AppChart
-metadata:
-  namespace: epinio
-  name: %s
-  labels:
-    app.kubernetes.io/component: epinio
-    app.kubernetes.io/instance: default
-    app.kubernetes.io/name: epinio-standard-app-chart
-    app.kubernetes.io/part-of: epinio
-spec:
-  helmChart: fox
-  settings:
-    fake:
-      type: bool
-      enum:
-        - ignored
-    foo:
-      type: string
-      minimum: ignored
-    bar:
-      type: string
-      enum:
-        - sna
-        - fu
-    floof:
-      type: number
-      minimum: '0'
-    fox:
-      type: integer
-      maximum: '100'
-    cat:
-      type: number
-      minimum: '0'
-      maximum: '1'
-    primes:
-      type: integer
-      enum:
-        - '2'
-        - '3'
-        - '5'
-        - '7'
-        - '11'
-`, chartName)), 0600)
-		Expect(err).ToNot(HaveOccurred())
-
-		out, err := proc.Kubectl("apply", "-f", tempFile)
-		Expect(err).ToNot(HaveOccurred(), out)
+		tempFile = env.MakeAppchart(chartName)
 	})
 	AfterEach(func() {
-		out, err := proc.Kubectl("delete", "-f", tempFile)
-		Expect(err).ToNot(HaveOccurred(), out)
-
-		os.Remove(tempFile)
+		env.DeleteAppchart(tempFile)
 	})
 
 	Describe("app chart list", func() {
@@ -87,7 +31,7 @@ spec:
 				HaveATable(
 					WithHeaders("DEFAULT", "NAME", "CREATED", "DESCRIPTION", "#SETTINGS"),
 					WithRow("standard", WithDate(), "Epinio standard deployment", "0"),
-					WithRow(chartName, WithDate(), "", "7"),
+					WithRow(chartName, WithDate(), "", "9"),
 				),
 			)
 		})
@@ -140,7 +84,6 @@ spec:
 					WithRow("floof", "number", "\\[0 ... \\+inf]"),
 					WithRow("foo", "string", ""),
 					WithRow("fox", "integer", "\\[-inf ... 100]"),
-					WithRow("primes", "integer", "2, 3, 5, 7, 11"),
 				),
 			)
 		})

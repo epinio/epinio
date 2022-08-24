@@ -313,32 +313,11 @@ configuration:
 
 				BeforeEach(func() {
 					chartName = catalog.NewTmpName("chart-")
-					tempFile = catalog.NewTmpName("chart-") + `.yaml`
-
-					err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
-kind: AppChart
-metadata:
-  namespace: epinio
-  name: %s
-  labels:
-    app.kubernetes.io/component: epinio
-    app.kubernetes.io/instance: default
-    app.kubernetes.io/name: epinio-standard-app-chart
-    app.kubernetes.io/part-of: epinio
-spec:
-  helmChart: fox
-`, chartName)), 0600)
-					Expect(err).ToNot(HaveOccurred())
-
-					out, err := proc.Kubectl("apply", "-f", tempFile)
-					Expect(err).ToNot(HaveOccurred(), out)
+					tempFile = env.MakeAppchart(chartName)
 				})
 
 				AfterEach(func() {
-					out, err := proc.Kubectl("delete", "-f", tempFile)
-					Expect(err).ToNot(HaveOccurred(), out)
-
-					os.Remove(tempFile)
+					env.DeleteAppchart(tempFile)
 				})
 
 				It("fails to change the app chart of the running app", func() {
@@ -454,41 +433,13 @@ spec:
 		var tempFile string
 
 		BeforeEach(func() {
-			// Create a custom chart referencing the tarball of the `standard-stateful` chart.
-			// It exists in the set of releases for helm charts.
-			// It is not distributed with epinio however.
-			// At this point in time we use it only internally, for testing.
-
 			chartName = catalog.NewTmpName("chart-")
-			tempFile = catalog.NewTmpName("chart-") + `.yaml`
-			err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
-kind: AppChart
-metadata:
-  namespace: epinio
-  name: %s
-  labels:
-    app.kubernetes.io/component: epinio
-    app.kubernetes.io/instance: default
-    app.kubernetes.io/name: epinio-standard-stateful-app-chart
-    app.kubernetes.io/part-of: epinio
-spec:
-  shortDescription: Epinio standard stateful deployment
-  description: Epinio standard support chart for stateful application deployment
-  helmChart: https://github.com/epinio/helm-charts/releases/download/epinio-application-stateful-0.1.21/epinio-application-stateful-0.1.21.tgz
-`, chartName)), 0600)
-			Expect(err).ToNot(HaveOccurred())
-
-			out, err := proc.Kubectl("apply", "-f", tempFile)
-			Expect(err).ToNot(HaveOccurred(), out)
+			tempFile = env.MakeAppchartStateful(chartName)
 		})
 
 		AfterEach(func() {
 			env.DeleteApp(appName)
-
-			out, err := proc.Kubectl("delete", "-f", tempFile)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			os.Remove(tempFile)
+			env.DeleteAppchart(tempFile)
 		})
 
 		It("pushes successfully", func() {
@@ -1297,46 +1248,48 @@ configuration:
 			)
 		})
 
-		It("shows the details of a customized app", func() {
-			out, err := env.Epinio("", "app", "update", appName,
-				"--chart-value", "foo=bar")
-			Expect(err).ToNot(HaveOccurred(), out)
+		Context("", func() {
+			var chartName string
+			var appName string
+			var tempFile string
 
-			out, err = env.Epinio("", "app", "show", appName)
-			Expect(err).ToNot(HaveOccurred(), out)
+			BeforeEach(func() {
+				chartName = catalog.NewTmpName("chart-")
+				tempFile = env.MakeAppchart(chartName)
 
-			By(out)
-
-			Expect(out).To(ContainSubstring("Show application details"))
-			Expect(out).To(ContainSubstring("Application: " + appName))
-
-			Expect(out).To(
-				HaveATable(
-					WithHeaders("KEY", "VALUE"),
-					WithRow("Origin", containerImageURL),
-					WithRow("Bound Configurations", configurationName),
-					WithRow("Active Routes", ""),
-					WithRow("", appName+".*"),
-				),
-			)
-
-			Expect(out).To(
-				HaveATable(
-					WithRow("Chart Values", ""),
-					WithRow("- foo", "bar"),
-				),
-			)
-
-			Eventually(func() string {
-				out, err := env.Epinio("", "app", "show", appName)
+				appName = catalog.NewAppName()
+				out, err := env.Epinio("", "app", "create", appName,
+					"--app-chart", chartName)
 				Expect(err).ToNot(HaveOccurred(), out)
-				return out
-			}, "1m").Should(
-				HaveATable(
-					WithHeaders("KEY", "VALUE"),
-					WithRow("Status", "1/1"),
-				),
-			)
+				Expect(out).To(ContainSubstring("Ok"))
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(appName)
+				env.DeleteAppchart(tempFile)
+			})
+
+			It("shows the details of a customized app", func() {
+				out, err := env.Epinio("", "app", "update", appName,
+					"--chart-value", "foo=bar")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = env.Epinio("", "app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Expect(out).To(ContainSubstring("Show application details"))
+				Expect(out).To(ContainSubstring("Application: " + appName))
+
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Origin", "<<undefined>>"),
+						WithRow("App Chart", chartName),
+						WithRow("Chart Values", ""),
+						WithRow("- foo", "bar"),
+					),
+				)
+			})
 		})
 
 		Context("", func() {

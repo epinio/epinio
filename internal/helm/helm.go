@@ -111,8 +111,8 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	}
 	type chartParam struct {
 		Epinio epinioParam            `yaml:"epinio"`
-		Chart  map[string]string      `yaml:"chartConfig"`
-		User   map[string]interface{} `yaml:"userConfig"`
+		Chart  map[string]string      `yaml:"chartConfig,omitempty"`
+		User   map[string]interface{} `yaml:"userConfig,omitempty"`
 	}
 
 	// Fill values.yaml structure
@@ -337,21 +337,21 @@ func ValidateField(key, value string, spec models.AppChartSetting) (interface{},
 	if spec.Type == "bool" {
 		flag, err := strconv.ParseBool(value)
 		if err != nil {
-			return nil, fmt.Errorf(`Setting "%s": %s`, key, err.Error())
+			return nil, fmt.Errorf(`Setting "%s": Expected boolean, got "%s"`, key, value)
 		}
 		return flag, nil
 	}
 	if spec.Type == "integer" {
 		ivalue, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`Setting "%s": %s`, key, err.Error())
+			return nil, fmt.Errorf(`Setting "%s": Expected integer, got "%s"`, key, value)
 		}
 		return ivalue, validateRange(float64(ivalue), key, value, spec.Minimum, spec.Maximum)
 	}
 	if spec.Type == "number" {
 		fvalue, err := strconv.ParseFloat(value, 64)
 		if err != nil {
-			return nil, fmt.Errorf(`Setting "%s": %s`, key, err.Error())
+			return nil, fmt.Errorf(`Setting "%s": Expected number, got "%s"`, key, value)
 		}
 		return fvalue, validateRange(fvalue, key, value, spec.Minimum, spec.Maximum)
 	}
@@ -363,7 +363,7 @@ func validateRange(v float64, key, value, min, max string) error {
 	if min != "" {
 		minval, err := strconv.ParseFloat(min, 64)
 		if err != nil {
-			return fmt.Errorf(`Setting "%s": Bad Spec: Bad minimum: "%s"`, key, min)
+			return fmt.Errorf(`Setting "%s": Bad spec: Bad minimum "%s"`, key, min)
 		}
 		if v < minval {
 			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" to small`, key, value)
@@ -372,7 +372,7 @@ func validateRange(v float64, key, value, min, max string) error {
 	if max != "" {
 		maxval, err := strconv.ParseFloat(max, 64)
 		if err != nil {
-			return fmt.Errorf(`Setting "%s": Bad Spec: Bad maximum "%s"`, key, max)
+			return fmt.Errorf(`Setting "%s": Bad spec: Bad maximum "%s"`, key, max)
 		}
 		if v > maxval {
 			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" to large`, key, value)
