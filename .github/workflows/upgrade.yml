@@ -69,9 +69,12 @@ jobs:
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
           make prepare_environment_k3d
+          # Note: prepare has run build-images!
+          scripts/get-latest-epinio.sh
 
       - name: Upgrade Epinio with latest code
         run: |
+          export EPINIO_CURRENT_TAG="$(git describe --tags)"
           # We have to export the EPINIO_SYSTEM_DOMAIN
           # before executing the ginkgo test
           source scripts/helpers.sh

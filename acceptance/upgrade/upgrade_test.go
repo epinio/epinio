@@ -1,7 +1,9 @@
 package upgrade_test
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -43,25 +45,36 @@ var _ = Describe("Epinio upgrade with running app", func() {
 			return resp.StatusCode
 		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
+		// Redundant, done by prepare_environment_k3d in flow setup (upgrade.yml)
 		// Build image with latest epinio-server binary
+		By("Building image ...")
 		out, err := proc.Run("../..", false, "docker", "build", "-t", "epinio/epinio-server", "-f", "images/Dockerfile", ".")
 		Expect(err).NotTo(HaveOccurred(), out)
+		By(out)
+
+		tag := os.Getenv("EPINIO_CURRENT_TAG")
+		By("Tag: " + tag)
 
 		// Importing the new image in k3d
-		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance", "epinio/epinio-server")
+		By("Importing image ...")
+		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance",
+			fmt.Sprintf("ghcr.io/epinio/epinio-server:%s", tag))
 		Expect(err).NotTo(HaveOccurred(), out)
+		By(out)
 
-		// Upgrade Epinio and use the fresh image by removing the registry value
+		// Upgrade Epinio using the fresh image
+		By("Upgrading ...")
 		out, err = proc.RunW("helm", "upgrade", "--reuse-values", "epinio",
 			"-n", "epinio",
 			"../../helm-charts/chart/epinio",
-			"--set", "image.epinio.registry=",
-			"--set", "image.epinio.tag=latest",
+			"--set", "image.epinio.registry=ghcr.io/",
+			"--set", fmt.Sprintf("image.epinio.tag=%s", tag),
 			"--wait",
 		)
 		Expect(err).NotTo(HaveOccurred(), out)
 
 		// Check that the app is still reachable
+		By("Checking reachability ...")
 		Eventually(func() int {
 			resp, err := env.Curl("GET", route, strings.NewReader(""))
 			Expect(err).ToNot(HaveOccurred())
