@@ -238,9 +238,10 @@ type ConfigurationMatchResponse struct {
 
 // InfoResponse contains information about Epinio and its components
 type InfoResponse struct {
-	Version     string `json:"version,omitempty"`
-	KubeVersion string `json:"kube_version,omitempty"`
-	Platform    string `json:"platform,omitempty"`
+	Version             string `json:"version,omitempty"`
+	KubeVersion         string `json:"kube_version,omitempty"`
+	Platform            string `json:"platform,omitempty"`
+	DefaultBuilderImage string `json:"default_builder_image,omitempty"`
 }
 
 // AuthTokenResponse contains an auth token
