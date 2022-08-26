@@ -129,6 +129,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 			Username:       parameters.Username,
 			// Ingress, Start, Routes: see below
 		},
+		// Chart, User: see below
 	}
 
 	name := viper.GetString("ingress-class-name")
@@ -178,21 +179,25 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	// It doesn't even have to be malicious. Just a user B doing a normal update while
 	// user A deployed, and landing in the window.
 
-	for field, value := range parameters.Settings {
-		spec, found := appChart.Settings[field]
-		if !found {
-			return fmt.Errorf("Unable to deploy. Setting '%s' unknown", field)
-		}
+	if len(parameters.Settings) > 0 {
+		params.User = make(map[string]interface{})
 
-		// Note: Here the interface{} result of the properly typed value is
-		// important. It ensures that the map values are properly typed for yaml
-		// serialization.
+		for field, value := range parameters.Settings {
+			spec, found := appChart.Settings[field]
+			if !found {
+				return fmt.Errorf("Unable to deploy. Setting '%s' unknown", field)
+			}
 
-		v, err := ValidateField(field, value, spec)
-		if err != nil {
-			return fmt.Errorf(`Unable to deploy. %s`, err.Error())
+			// Note: Here the interface{} result of the properly typed value is
+			// important. It ensures that the map values are properly typed for yaml
+			// serialization.
+
+			v, err := ValidateField(field, value, spec)
+			if err != nil {
+				return fmt.Errorf(`Unable to deploy. %s`, err.Error())
+			}
+			params.User[field] = v
 		}
-		params.User[field] = v
 	}
 
 	params.Chart = appChart.Values

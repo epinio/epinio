@@ -51,7 +51,9 @@ metadata:
     app.kubernetes.io/name: epinio-standard-app-chart
     app.kubernetes.io/part-of: epinio
 spec:
-  helmChart: fox
+  helmChart: https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.21/epinio-application-0.1.21.tgz
+  values:
+    tuning: speed
   settings:
     unknowntype:
       type: foofara

@@ -33,12 +33,14 @@ func (m *Machine) MakeContainerImageApp(appName string, instances int, container
 	return pushOutput
 }
 
-func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, containerImageURL, route string) string {
-	pushOutput, err := m.Epinio("", "apps", "push",
+func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, containerImageURL, route string, more ...string) string {
+	pushOutput, err := m.Epinio("", "apps", append([]string{
+		"push",
 		"--name", appName,
 		"--route", route,
 		"--container-image-url", containerImageURL,
-		"--instances", strconv.Itoa(instances))
+		"--instances", strconv.Itoa(instances),
+	}, more...)...)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	EventuallyWithOffset(1, func() string {

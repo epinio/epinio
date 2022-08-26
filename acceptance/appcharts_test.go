@@ -71,7 +71,7 @@ var _ = Describe("apps chart", func() {
 					WithRow("Short", ""),
 					WithRow("Description", ""),
 					WithRow("Helm Repository", ""),
-					WithRow("Helm Chart", "fox"),
+					WithRow("Helm Chart", "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.21/epinio-application-0.1.21.tgz"),
 				),
 			)
 

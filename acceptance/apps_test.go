@@ -321,7 +321,8 @@ configuration:
 				})
 
 				It("fails to change the app chart of the running app", func() {
-					out, err := env.Epinio("", "app", "update", appName, "--app-chart", chartName)
+					out, err := env.Epinio("", "app", "update", appName,
+						"--app-chart", chartName)
 					Expect(err).To(HaveOccurred(), out)
 					Expect(out).To(ContainSubstring("Bad Request: unable to change app chart of active application"))
 				})
@@ -1289,6 +1290,72 @@ configuration:
 						WithRow("- foo", "bar"),
 					),
 				)
+			})
+
+			Context("", func() {
+				var chartName, tempFile, app, exportPath, exportValues, exportChart string
+
+				BeforeEach(func() {
+					chartName = catalog.NewTmpName("chart-")
+					tempFile = env.MakeAppchart(chartName)
+
+					app = catalog.NewAppName()
+
+					exportPath = catalog.NewTmpName(app + "-export")
+					exportValues = path.Join(exportPath, "values.yaml")
+					exportChart = path.Join(exportPath, "app-chart.tar.gz")
+
+					env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org",
+						"--app-chart", chartName,
+						"--chart-value", "foo=bar",
+					)
+				})
+
+				AfterEach(func() {
+					env.DeleteApp(app)
+					env.DeleteAppchart(tempFile)
+
+					err := os.RemoveAll(exportPath)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				It("exports the details of a customized app", func() {
+					out, err := env.Epinio("", "app", "export", app, exportPath)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					exported, err := filepath.Glob(exportPath + "/*")
+					Expect(err).ToNot(HaveOccurred(), exported)
+					Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+
+					Expect(exportPath).To(BeADirectory())
+					Expect(exportValues).To(BeARegularFile())
+					Expect(exportChart).To(BeARegularFile())
+
+					values, err := ioutil.ReadFile(exportValues)
+					Expect(err).ToNot(HaveOccurred(), string(values))
+
+					Expect(string(values)).To(Equal(fmt.Sprintf(`chartConfig:
+  tuning: speed
+epinio:
+  appName: %s
+  configurations: []
+  env: []
+  imageURL: splatform/sample-app
+  ingress: null
+  replicaCount: 1
+  routes:
+  - domain: exportdomain.org
+    id: exportdomain.org
+    path: /
+  stageID: ""
+  start: null
+  tlsIssuer: epinio-ca
+  username: admin
+userConfig:
+  foo: bar
+`, app)))
+					// Not checking that exportChart is a proper tarball.
+				})
 			})
 		})
 
