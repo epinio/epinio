@@ -27,7 +27,7 @@ body:
             [LINK](https://github.com/epinio/epinio/releases)
         - label: >
             Check the release action result.
-            [LINK](https://github.com/epinio/epinio/actions/workflows/release.yml)"
+            [LINK](https://github.com/epinio/epinio/actions/workflows/release.yml)
         - label: >
             Check the release page for the latest assets and changelog.
             [LINK](https://github.com/epinio/epinio/releases)
@@ -51,6 +51,12 @@ body:
         - label: >
             **( 📝 Manual step )** Run the `epinio/helm-charts` release action to publish the latest chart.
             [LINK](https://github.com/epinio/helm-charts/actions/workflows/release.yml)
+        - label: >
+            **( 📝 Manual step )** Check that the publication of the chart triggered the `epinio/helm-charts`
+            epinio docker action to generate a docker image for deploying the latest chart.
+            [LINK](https://github.com/epinio/helm-charts/actions/workflows/build-epiniod.yml)
+            Trigger manually if needed. Check that the resulting docker image is available in `ghcr.io`, with
+            the chosen tags.
 
   - type: checkboxes
     id: docs-checklist
