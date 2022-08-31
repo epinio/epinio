@@ -369,7 +369,7 @@ func validateRange(v float64, key, value, min, max string) error {
 			return fmt.Errorf(`Setting "%s": Bad spec: Bad minimum "%s"`, key, min)
 		}
 		if v < minval {
-			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" to small`, key, value)
+			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" too small`, key, value)
 		}
 	}
 	if max != "" {
@@ -378,7 +378,7 @@ func validateRange(v float64, key, value, min, max string) error {
 			return fmt.Errorf(`Setting "%s": Bad spec: Bad maximum "%s"`, key, max)
 		}
 		if v > maxval {
-			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" to large`, key, value)
+			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" too large`, key, value)
 		}
 	}
 	return nil

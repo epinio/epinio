@@ -112,69 +112,69 @@ var _ = Describe("AppValidateCV Endpoint", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "bogus=x")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "bogus": Not known`)
+		ping(http.StatusBadRequest, `Setting "bogus": Not known`)
 	})
 
 	It("fails for an unknown field type", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "unknowntype=x")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "unknowntype": Bad spec: Unknown type "foofara"`)
+		ping(http.StatusBadRequest, `Setting "unknowntype": Bad spec: Unknown type "foofara"`)
 	})
 
 	It("fails for an integer field with a bad minimum", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "badminton=0")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "badminton": Bad spec: Bad minimum "hello"`)
+		ping(http.StatusBadRequest, `Setting "badminton": Bad spec: Bad minimum "hello"`)
 	})
 
 	It("fails for an integer field with a bad maximum", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "maxbad=0")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "maxbad": Bad spec: Bad maximum "world"`)
+		ping(http.StatusBadRequest, `Setting "maxbad": Bad spec: Bad maximum "world"`)
 	})
 
 	It("fails for a value out of range (< min)", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "floof=-2")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "floof": Out of bounds, "-2" to small`)
+		ping(http.StatusBadRequest, `Setting "floof": Out of bounds, "-2" too small`)
 	})
 
 	It("fails for a value out of range (> max)", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "fox=1000")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "fox": Out of bounds, "1000" to large`)
+		ping(http.StatusBadRequest, `Setting "fox": Out of bounds, "1000" too large`)
 	})
 
 	It("fails for a value out of range (not in enum)", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "bar=fox")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "bar": Illegal string "fox"`)
+		ping(http.StatusBadRequest, `Setting "bar": Illegal string "fox"`)
 	})
 
 	It("fails for a non-integer value where integer required", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "fox=hound")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "fox": Expected integer, got "hound"`)
+		ping(http.StatusBadRequest, `Setting "fox": Expected integer, got "hound"`)
 	})
 
 	It("fails for a non-numeric value where numeric required", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "cat=dog")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "cat": Expected number, got "dog"`)
+		ping(http.StatusBadRequest, `Setting "cat": Expected number, got "dog"`)
 	})
 
 	It("fails for a non-boolean value where boolean required", func() {
 		out, err := env.Epinio("", "app", "update", appName, "-v", "fake=news")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		ping(http.StatusInternalServerError, `Setting "fake": Expected boolean, got "news"`)
+		ping(http.StatusBadRequest, `Setting "fake": Expected boolean, got "news"`)
 	})
 })

@@ -59,7 +59,7 @@ func (hc Controller) ValidateChartValues(c *gin.Context) apierror.APIErrors {
 
 		var apiIssues []apierror.APIError
 		for _, err := range issues {
-			apiIssues = append(apiIssues, apierror.InternalError(err))
+			apiIssues = append(apiIssues, apierror.NewBadRequestError(err.Error()))
 		}
 
 		return apierror.NewMultiError(apiIssues)
