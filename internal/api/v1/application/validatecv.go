@@ -1,4 +1,3 @@
-// -*- fill-column: 100 -*-
 package application
 
 // Validate the custom chart values saved in the application CR against the declarations made by the

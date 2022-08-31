@@ -1,4 +1,3 @@
-// -*- fill-column: 90 -*-
 // Package models contains the types (mostly structures) encapsulating
 // the API requests and reponses used by the communication between
 // epinio client and APIserver.

@@ -1,4 +1,3 @@
-// -*- fill-column: 100 -*-
 // Package application collects the structures and functions that deal
 // with application workloads on k8s
 package application

@@ -1,5 +1,3 @@
-// -*- fill-column: 90 -*-
-
 // Package helm contains the epinio-specific core to the helm client libraries. It exposes
 // the functionality to deploy and remove helm charts/releases.
 package helm

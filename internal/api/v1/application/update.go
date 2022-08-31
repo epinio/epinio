@@ -1,4 +1,3 @@
-// -*- fill-column: 100 -*-
 package application
 
 import (

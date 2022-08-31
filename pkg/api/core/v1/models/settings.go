@@ -1,4 +1,3 @@
-// -*- fill-column: 100 -*-
 package models
 
 // __ATTENTION__ Functionally identical to EnvVariableMap, EnvVariableList
