@@ -1249,7 +1249,7 @@ configuration:
 			)
 		})
 
-		Context("", func() {
+		Context("details customized", func() {
 			var chartName string
 			var appName string
 			var tempFile string
@@ -1292,7 +1292,7 @@ configuration:
 				)
 			})
 
-			Context("", func() {
+			Context("exporting customized", func() {
 				var chartName, tempFile, app, exportPath, exportValues, exportChart string
 
 				BeforeEach(func() {
@@ -1359,7 +1359,7 @@ userConfig:
 			})
 		})
 
-		Context("", func() {
+		Context("exporting", func() {
 			var app, exportPath, exportValues, exportChart string
 
 			BeforeEach(func() {
