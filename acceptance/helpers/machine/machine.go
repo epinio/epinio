@@ -6,7 +6,7 @@ package machine
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	urlpkg "net/url"
 	"os"
@@ -124,7 +124,7 @@ func (m *Machine) MakeWebSocketConnection(authToken string, url string, subproto
 
 	var b []byte
 	if response != nil {
-		b, _ = ioutil.ReadAll(response.Body)
+		b, _ = io.ReadAll(response.Body)
 	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "Dialing endpoint. Response: %s", string(b))

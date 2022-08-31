@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -42,7 +42,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	testenv.SetupEnv()
 
 	nodeSuffix = fmt.Sprintf("%d", GinkgoParallelProcess())
-	nodeTmpDir, err := ioutil.TempDir("", "epinio-"+nodeSuffix)
+	nodeTmpDir, err := os.MkdirTemp("", "epinio-"+nodeSuffix)
 	Expect(err).NotTo(HaveOccurred())
 
 	out, err := testenv.CopyEpinioSettings(nodeTmpDir)
@@ -96,7 +96,7 @@ func authToken() (string, error) {
 	}
 	defer response.Body.Close()
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return "", err
 	}

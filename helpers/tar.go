@@ -2,6 +2,7 @@ package helpers
 
 import (
 	"io/ioutil"
+	"os"
 	"path"
 
 	"github.com/mholt/archiver/v3"
@@ -29,7 +30,7 @@ func Tar(dir string) (string, string, error) {
 	}
 
 	// create a tmpDir - tarball dir and POST
-	tmpDir, err := ioutil.TempDir("", "epinio-app")
+	tmpDir, err := os.MkdirTemp("", "epinio-app")
 	if err != nil {
 		return "", "", errors.Wrap(err, "can't create temp directory")
 	}

@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -44,7 +44,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -80,7 +80,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -96,7 +96,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -112,7 +112,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -129,7 +129,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(jsOK))
@@ -143,7 +143,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err = ioutil.ReadAll(response.Body)
+				bodyBytes, err = io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -162,7 +162,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusInternalServerError), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -178,7 +178,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(jsOK))
@@ -199,7 +199,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 
 				defer response.Body.Close()
 				Expect(response.StatusCode).To(Equal(http.StatusOK))
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 
 				var responseSpace models.Namespace
@@ -221,7 +221,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -239,7 +239,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -257,7 +257,7 @@ var _ = Describe("Namespaces API Application Endpoints", func() {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response).ToNot(BeNil())
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 

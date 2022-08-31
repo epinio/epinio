@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -93,7 +92,7 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 	}
 	defer response.Body.Close()
 
-	bodyBytes, _ := ioutil.ReadAll(response.Body)
+	bodyBytes, _ := io.ReadAll(response.Body)
 	if response.StatusCode == http.StatusCreated {
 		return bodyBytes, nil
 	}
@@ -138,7 +137,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	respLog := responseLogger(c.log, response, string(bodyBytes))
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")
@@ -198,7 +197,7 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	respLog := responseLogger(c.log, response, string(bodyBytes))
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")

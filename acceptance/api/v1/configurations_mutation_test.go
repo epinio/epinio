@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -39,7 +39,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -56,7 +56,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -74,7 +74,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -94,7 +94,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -115,7 +115,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -148,7 +148,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusConflict), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -181,7 +181,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(jsOK))
@@ -207,7 +207,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 
 			defer response.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 
@@ -226,7 +226,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 
@@ -248,7 +248,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 
@@ -269,7 +269,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -305,7 +305,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -323,7 +323,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal("{\"boundapps\":[\"" + app + "\"]}"))
@@ -347,7 +347,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(string(bodyBytes)).To(Equal("{\"boundapps\":[]}"))
@@ -371,7 +371,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -388,7 +388,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -406,7 +406,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -424,7 +424,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -442,7 +442,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -476,7 +476,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -499,7 +499,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 					Expect(response).ToNot(BeNil())
 
 					defer response.Body.Close()
-					bodyBytes, err := ioutil.ReadAll(response.Body)
+					bodyBytes, err := io.ReadAll(response.Body)
 					Expect(err).ToNot(HaveOccurred())
 					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 					var responseBody map[string][]errors.APIError
@@ -517,7 +517,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 				Expect(string(bodyBytes)).To(Equal(`{"wasbound":null}`))
@@ -543,7 +543,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 
@@ -562,7 +562,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 			var responseBody map[string][]errors.APIError
@@ -592,7 +592,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 				Expect(response).ToNot(BeNil())
 
 				defer response.Body.Close()
-				bodyBytes, err := ioutil.ReadAll(response.Body)
+				bodyBytes, err := io.ReadAll(response.Body)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 				var responseBody map[string][]errors.APIError
@@ -627,7 +627,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 						Expect(response).ToNot(BeNil())
 
 						defer response.Body.Close()
-						bodyBytes, err := ioutil.ReadAll(response.Body)
+						bodyBytes, err := io.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
 						Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 						Expect(string(bodyBytes)).To(Equal(jsOK))
@@ -643,7 +643,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 					Expect(response).ToNot(BeNil())
 
 					defer response.Body.Close()
-					bodyBytes, err := ioutil.ReadAll(response.Body)
+					bodyBytes, err := io.ReadAll(response.Body)
 					Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 					Expect(string(bodyBytes)).To(Equal(jsOK))
 					Expect(err).ToNot(HaveOccurred())

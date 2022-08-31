@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -43,7 +43,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 		defer response.Body.Close()
 
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -72,7 +72,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 	})
@@ -84,7 +84,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 	})
@@ -96,7 +96,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 	})

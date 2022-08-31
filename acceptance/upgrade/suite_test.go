@@ -2,7 +2,6 @@ package upgrade_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -31,7 +30,7 @@ var _ = BeforeSuite(func() {
 	testenv.SetupEnv()
 
 	nodeSuffix = fmt.Sprintf("%d", GinkgoParallelProcess())
-	nodeTmpDir, err := ioutil.TempDir("", "epinio-"+nodeSuffix)
+	nodeTmpDir, err := os.MkdirTemp("", "epinio-"+nodeSuffix)
 	Expect(err).NotTo(HaveOccurred())
 
 	out, err := testenv.CopyEpinioSettings(nodeTmpDir)

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -182,7 +182,7 @@ func chartArchiveURL(c *models.AppChartFull, restConfig *restclient.Config, logg
 	}
 
 	// Read index into memory
-	content, err := ioutil.ReadFile("/tmp/.helmcache/" + name + "-index.yaml")
+	content, err := os.ReadFile("/tmp/.helmcache/" + name + "-index.yaml")
 	if err != nil {
 		return "", err
 	}

@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -74,7 +74,7 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(string(bodyBytes)).To(Equal(jsOK))
 

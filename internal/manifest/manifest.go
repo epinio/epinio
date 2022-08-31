@@ -1,7 +1,6 @@
 package manifest
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -356,7 +355,7 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 		return manifest, nil
 	}
 
-	yamlFile, err := ioutil.ReadFile(manifestPath)
+	yamlFile, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return empty, errors.Wrapf(err, "filesystem error")
 	}

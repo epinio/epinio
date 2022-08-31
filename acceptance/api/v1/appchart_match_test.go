@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -21,7 +21,7 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(err).ToNot(HaveOccurred())
@@ -35,7 +35,7 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(err).ToNot(HaveOccurred())
@@ -50,7 +50,7 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(err).ToNot(HaveOccurred())

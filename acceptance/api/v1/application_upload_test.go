@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -50,7 +50,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(resp).ToNot(BeNil())
 			defer resp.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -73,7 +73,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(resp).ToNot(BeNil())
 			defer resp.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -96,7 +96,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(resp).ToNot(BeNil())
 			defer resp.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -119,7 +119,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(resp).ToNot(BeNil())
 			defer resp.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -142,7 +142,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(resp).ToNot(BeNil())
 			defer resp.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -165,7 +165,7 @@ var _ = Describe("AppUpload Endpoint", func() {
 			Expect(resp).ToNot(BeNil())
 			defer resp.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 

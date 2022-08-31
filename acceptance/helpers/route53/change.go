@@ -2,7 +2,7 @@ package route53
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 	"path"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -85,7 +85,7 @@ func Update(zoneID string, change ChangeResourceRecordSet, dir string) (string, 
 	}
 
 	f := path.Join(dir, "zone.json")
-	err = ioutil.WriteFile(f, b, 0600)
+	err = os.WriteFile(f, b, 0600)
 	if err != nil {
 		return "", err
 	}
