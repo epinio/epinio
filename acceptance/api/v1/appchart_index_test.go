@@ -30,12 +30,13 @@ var _ = Describe("ChartList Endpoint", func() {
 		err = json.Unmarshal(bodyBytes, &appcharts)
 		Expect(err).ToNot(HaveOccurred())
 
-		// Note: Due to the concurrent nature of tests we may have a varying
-		// number of custom app charts from other tests visible here. In other
-		// words, while we can reliably test for the presence of the standard
-		// chart, the number of charts to expect is not checkable.
+		// Note to maintainers: Due to the concurrent nature of tests we may have a varying
+		// number of custom app charts from other tests visible here. In other words, while
+		// we can reliably test for the presence of the standard chart, the number of charts
+		// to expect is not checkable.
 		//
-		// Expect(len(appcharts)).To(Equal(1))
+		// A check like `Expect(len(appcharts)).To(Equal(1))` will introduce flakiness and
+		// spurious failures.
 
 		var names []string
 		names = append(names, appcharts[0].Meta.Name)
