@@ -9,6 +9,126 @@ import (
 
 var _ = Describe("ValidateField()", func() {
 
+	It("is ok for unconstrained integer", func() {
+		val, err := ValidateField("field", "1", models.AppChartSetting{
+			Type: "integer",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(int64(1)))
+	})
+
+	It("is ok for unconstrained number", func() {
+		val, err := ValidateField("field", "3.1415926", models.AppChartSetting{
+			Type: "number",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(float64(3.1415926)))
+	})
+
+	It("is ok for unconstrained string", func() {
+		val, err := ValidateField("field", "hallodria", models.AppChartSetting{
+			Type: "string",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal("hallodria"))
+	})
+
+	It("is ok for boolean", func() {
+		val, err := ValidateField("field", "true", models.AppChartSetting{
+			Type: "bool",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(true))
+	})
+
+	It("is ok for constrained integer in range", func() {
+		val, err := ValidateField("field", "50", models.AppChartSetting{
+			Type:    "integer",
+			Minimum: "0",
+			Maximum: "100",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(int64(50)))
+	})
+
+	It("is ok for constrained number in range", func() {
+		val, err := ValidateField("field", "50", models.AppChartSetting{
+			Type:    "number",
+			Minimum: "0",
+			Maximum: "100",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(float64(50)))
+	})
+
+	It("is ok for constrained string in enum", func() {
+		val, err := ValidateField("field", "cat", models.AppChartSetting{
+			Type: "string",
+			Enum: []string{
+				"cat",
+				"dog",
+			},
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal("cat"))
+	})
+
+	It("is ok for unconstrained integer, enum ignored", func() {
+		val, err := ValidateField("field", "100", models.AppChartSetting{
+			Type: "integer",
+			Enum: []string{
+				"cat",
+				"dog",
+			},
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(int64(100)))
+	})
+
+	It("is ok for unconstrained number, enum ignored", func() {
+		val, err := ValidateField("field", "100", models.AppChartSetting{
+			Type: "number",
+			Enum: []string{
+				"cat",
+				"dog",
+			},
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(float64(100)))
+	})
+
+	It("is ok for unconstrained string, range ignored", func() {
+		val, err := ValidateField("field", "foo", models.AppChartSetting{
+			Type:    "string",
+			Minimum: "0",
+			Maximum: "100",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal("foo"))
+	})
+
+	It("is ok for unconstrained bool, range ignored", func() {
+		val, err := ValidateField("field", "false", models.AppChartSetting{
+			Type:    "bool",
+			Minimum: "0",
+			Maximum: "100",
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(false))
+	})
+
+	It("is ok for unconstrained bool, enum ignored", func() {
+		val, err := ValidateField("field", "true", models.AppChartSetting{
+			Type: "bool",
+			Enum: []string{
+				"cat",
+				"dog",
+			},
+		})
+		Expect(err).ToNot(HaveOccurred(), val)
+		Expect(val).To(Equal(true))
+	})
+
 	It("fails for an unknown field type", func() {
 		_, err := ValidateField("field", "dummy", models.AppChartSetting{
 			Type: "foofara",
