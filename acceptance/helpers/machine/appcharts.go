@@ -66,10 +66,10 @@ spec:
     fake:
       type: bool
       enum:
-        - ignored
+        - "not sensible for type, ignored by validation"
     foo:
       type: string
-      minimum: ignored
+      minimum: "not sensible for type, ignored by validation"
     bar:
       type: string
       enum:
