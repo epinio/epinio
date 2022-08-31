@@ -276,7 +276,7 @@ func (c *Client) AppUpload(namespace string, name string, tarball string) (model
 	return resp, nil
 }
 
-// AppValidateCV uploads vlaidates the chart values of the specified app against its appchart
+// AppValidateCV validates the chart values of the specified app against its appchart
 func (c *Client) AppValidateCV(namespace string, name string) (models.Response, error) {
 	resp := models.Response{}
 
