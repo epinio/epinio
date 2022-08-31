@@ -1,5 +1,5 @@
-// Package application collects the structures and functions that deal
-// with application workloads on k8s
+// Package application collects the structures and functions that deal with application
+// workloads on k8s
 package application
 
 import (
@@ -60,9 +60,8 @@ func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) [
 	return issues
 }
 
-// Create generates a new kube app resource in the namespace of the
-// namespace. Note that this is the passive resource holding the
-// app's configuration. It is not the active workload
+// Create generates a new kube app resource in the namespace of the namespace. Note that this is the
+// passive resource holding the app's configuration. It is not the active workload
 func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string, chart string, settings models.AppSettings) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -97,9 +96,8 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	return err
 }
 
-// Get returns the application resource from the cluster.  This should be
-// changed to return a typed application struct, like epinioappv1.App if
-// needed in the future.
+// Get returns the application resource from the cluster.  This should be changed to
+// return a typed application struct, like epinioappv1.App if needed in the future.
 func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*unstructured.Unstructured, error) {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -109,7 +107,8 @@ func Get(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (*
 	return client.Namespace(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 }
 
-// Exists checks if the named application exists or not, and returns an appropriate boolean flag
+// Exists checks if the named application exists or not, and returns an appropriate
+// boolean flag
 func Exists(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef) (bool, error) {
 	_, err := Get(ctx, cluster, app)
 	if err != nil {
@@ -195,8 +194,8 @@ func Lookup(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName
 }
 
 // ListAppRefs returns an app reference for every application resource in the specified
-// namespace. If no namespace is specified (empty string) then apps across all namespaces are
-// returned.
+// namespace. If no namespace is specified (empty string) then apps across all namespaces
+// are returned.
 func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace string) ([]models.AppRef, error) {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -217,8 +216,8 @@ func ListAppRefs(ctx context.Context, cluster *kubernetes.Cluster, namespace str
 	return apps, nil
 }
 
-// List returns a list of all available apps in the specified namespace. If no namespace is
-// specified (empty string) then apps across all namespaces are returned.
+// List returns a list of all available apps in the specified namespace. If no namespace
+// is specified (empty string) then apps across all namespaces are returned.
 func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (models.AppList, error) {
 
 	// Verify namespace, if specified
@@ -257,10 +256,9 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (m
 	return result, nil
 }
 
-// Delete removes the named application, its workload (if active), bindings (if any),
-// the stored application sources, and any staging jobs from when the application was
-// staged (if active). Waits for the application's deployment's pods to disappear
-// (if active).
+// Delete removes the named application, its workload (if active), bindings (if any), the
+// stored application sources, and any staging jobs from when the application was staged
+// (if active). Waits for the application's deployment's pods to disappear (if active).
 func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
@@ -275,12 +273,12 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 		return err
 	}
 
-	// Keep existing code to remove the CRD and everything it
-	// owns.  Only the workload resources needed their own removal
-	// to ensure that helm information stays consistent.
+	// Keep existing code to remove the CRD and everything it owns.  Only the workload
+	// resources needed their own removal to ensure that helm information stays
+	// consistent.
 
-	// delete application resource, will cascade and delete
-	// dependents like environment variables, bindings, etc.
+	// delete application resource, will cascade and delete dependents like
+	// environment variables, bindings, etc.
 	err = client.Namespace(appRef.Namespace).Delete(ctx, appRef.Name, metav1.DeleteOptions{})
 	if err != nil {
 		return err
@@ -309,15 +307,16 @@ func Delete(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppR
 	return nil
 }
 
-// deleteStagePVC removes the kube PVC resource which was used to hold the application sources for staging.
+// deleteStagePVC removes the kube PVC resource which was used to hold the application
+// sources for staging.
 func deleteStagePVC(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef) error {
 	return cluster.Kubectl.CoreV1().
 		PersistentVolumeClaims(helmchart.Namespace()).Delete(ctx, appRef.MakePVCName(), metav1.DeleteOptions{})
 }
 
-// AppChart returns the app chart (to be) used for application deployment, if one exists. It returns
-// an empty string otherwise. The information is pulled out of the app resource itself,
-// saved there by the deploy endpoint.
+// AppChart returns the app chart (to be) used for application deployment, if one
+// exists. It returns an empty string otherwise. The information is pulled out of the app
+// resource itself, saved there by the deploy endpoint.
 func AppChart(app *unstructured.Unstructured) (string, error) {
 	chartName, _, err := unstructured.NestedString(app.UnstructuredContent(), "spec", "chartname")
 	if err != nil {
@@ -364,9 +363,9 @@ func ImageURL(app *unstructured.Unstructured) (string, error) {
 	return imageURL, nil
 }
 
-// Unstage removes staging resources. It deletes either all Jobs of the
-// named application, or all but stageIDCurrent. It also deletes the staged
-// objects from the S3 storage except for the current one.
+// Unstage removes staging resources. It deletes either all Jobs of the named application,
+// or all but stageIDCurrent. It also deletes the staged objects from the S3 storage
+// except for the current one.
 func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, stageIDCurrent string) error {
 	s3ConnectionDetails, err := s3manager.GetConnectionDetails(ctx, cluster,
 		helmchart.Namespace(), helmchart.S3ConnectionDetailsSecretName)
@@ -422,10 +421,9 @@ func Unstage(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 	return nil
 }
 
-// Logs method writes log lines to the specified logChan. The caller can stop
-// the logging with the ctx cancelFunc. It's also the callers responsibility
-// to close the logChan when done.
-// When stageID is an empty string, no staging logs are returned. If it is set,
+// Logs method writes log lines to the specified logChan. The caller can stop the logging
+// with the ctx cancelFunc. It's also the callers responsibility to close the logChan when
+// done.  When stageID is an empty string, no staging logs are returned. If it is set,
 // then only logs from that staging process are returned.
 func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.WaitGroup, cluster *kubernetes.Cluster, follow bool, app, stageID, namespace string) error {
 	logger := requestctx.Logger(ctx).WithName("logs-backend").V(2)
@@ -481,18 +479,17 @@ func Logs(ctx context.Context, logChan chan tailer.ContainerLogLine, wg *sync.Wa
 	return tailer.FetchLogs(ctx, logChan, wg, config, cluster)
 }
 
-// fetch is a common helper for Lookup and List. It fetches all
-// information about an application from the cluster.
+// fetch is a common helper for Lookup and List. It fetches all information about an
+// application from the cluster.
 func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
 	// Consider delayed loading, i.e. on first access, or for transfer (API response).
-	// Consider objects for the information which hide the defered loading.
-	// These could also have the necessary modifier methods.
-	// See sibling files scale.go, env.go, configurations.go, ingresses.go.
-	// Defered at the moment, the PR is big enough already.
+	// Consider objects for the information which hide the defered loading.  These
+	// could also have the necessary modifier methods.  See sibling files scale.go,
+	// env.go, configurations.go, ingresses.go.  Defered at the moment, the PR is big
+	// enough already.
 
-	// TODO: Check which of the called functions retrieve the CR
-	// also. Pass them the CR loaded here to avoid superfluous kube
-	// api calls.
+	// TODO: Check which of the called functions retrieve the CR also. Pass them the
+	// CR loaded here to avoid superfluous kube api calls.
 	applicationCR, err := Get(ctx, cluster, app.Meta)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -558,21 +555,20 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.StageID = stageID
 	app.ImageURL = imageURL
 
-	// Check if app is active, and if yes, fill the associated parts.
-	// May have to straighten the workload structure a bit further.
+	// Check if app is active, and if yes, fill the associated parts.  May have to
+	// straighten the workload structure a bit further.
 
 	app.Workload, err = NewWorkload(cluster, app.Meta, instances).Get(ctx)
 	return err
 }
 
-// calculateStatus sets the Status field of the App object.
-// To decide what the status value should be, it combines various
-// pieces of information, i.e. status of possible staging, presence of
-// a workload, etc.
-//- If Status is ApplicationError, leave it as it (it was set by "Lookup")
-//- If there is an active staging job, app is: ApplicationStaging
-//- If there is no active staging job and no workload, app is: ApplicationCreated
-//- If there is no active staging job and a workload, app is: ApplicationRunning
+// calculateStatus sets the Status field of the App object.  To decide what the status
+// value should be, it combines various pieces of information, i.e. status of possible
+// staging, presence of a workload, etc.
+// - If Status is ApplicationError, leave it as it (it was set by "Lookup")
+// - If there is an active staging job, app is: ApplicationStaging
+// - If there is no active staging job and no workload, app is: ApplicationCreated
+// - If there is no active staging job and a workload, app is: ApplicationRunning
 func calculateStatus(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) error {
 	if app.Status == models.ApplicationError {
 		return nil

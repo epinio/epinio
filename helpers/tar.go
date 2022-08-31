@@ -1,4 +1,3 @@
-// -*- fill-column: 90 -*-
 package helpers
 
 import (
