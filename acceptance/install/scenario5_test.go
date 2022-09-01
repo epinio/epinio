@@ -24,6 +24,10 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 		registryUsername string
 		registryPassword string
 		zoneID           string
+		extraEnvName     string
+		extraEnvValue    string
+		name_exists      bool
+		value_exists     bool
 	)
 
 	BeforeEach(func() {
@@ -51,6 +55,12 @@ var _ = Describe("<Scenario5> Azure, Letsencrypt-staging, External Registry", fu
 			"--set", "global.registryUsername=" + registryUsername,
 			"--set", "global.registryPassword=" + registryPassword,
 			"--set", "global.registryNamespace=splatform",
+		}
+
+		extraEnvName, name_exists = os.LookupEnv("EXTRAENV_NAME")
+		extraEnvValue, value_exists = os.LookupEnv("EXTRAENV_VALUE")
+		if name_exists && value_exists {
+			flags = append(flags, "--set", "extraEnv[0].name="+extraEnvName, "--set-string", "extraEnv[0].value="+extraEnvValue)
 		}
 	})
 
