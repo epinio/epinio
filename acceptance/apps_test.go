@@ -1330,7 +1330,7 @@ configuration:
 					Expect(exportValues).To(BeARegularFile())
 					Expect(exportChart).To(BeARegularFile())
 
-					values, err := ioutil.ReadFile(exportValues)
+					values, err := os.ReadFile(exportValues)
 					Expect(err).ToNot(HaveOccurred(), string(values))
 
 					Expect(string(values)).To(Equal(fmt.Sprintf(`chartConfig:
