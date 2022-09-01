@@ -9,7 +9,7 @@ require (
 	github.com/briandowns/spinner v1.18.1
 	github.com/epinio/application v0.0.0-20220818130656-68d19f063ac1
 	github.com/fatih/color v1.13.0
-	github.com/gin-gonic/gin v1.8.0
+	github.com/gin-gonic/gin v1.8.1
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
 	github.com/go-logr/stdr v1.2.2
