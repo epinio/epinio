@@ -1,5 +1,5 @@
-// Package registry implements the various functions needed to store and retrieve
-// images from a container registry.
+// Package registry implements the various functions needed to store and retrieve images
+// from a container registry.
 package registry
 
 import (
@@ -62,9 +62,9 @@ func (d *ConnectionDetails) DockerConfigJSON() (*DockerConfigJSON, error) {
 }
 
 // PublicRegistryURL returns the public registry URL from the connection details
-// object. Assumes to have only one non-local registry in the config. If there
-// are more, it will just return the first one found (no guaranteed order since
-// there should only be one)
+// object. Assumes to have only one non-local registry in the config. If there are more,
+// it will just return the first one found (no guaranteed order since there should only be
+// one)
 func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 	r, err := regexp.Compile(`127\.0\.0\.1`)
 	if err != nil {
@@ -80,10 +80,10 @@ func (d *ConnectionDetails) PublicRegistryURL() (string, error) {
 	return "", nil
 }
 
-// PrivateRegistryURL returns the internal (localhost) registry URL. That
-// url can be used by Kubernetes to pull images only when the internal registry
-// is used and exposed over NodePort. This method will return an empty string
-// if no localhost URL exists in the config.
+// PrivateRegistryURL returns the internal (localhost) registry URL. That url can be used
+// by Kubernetes to pull images only when the internal registry is used and exposed over
+// NodePort. This method will return an empty string if no localhost URL exists in the
+// config.
 func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 	r, err := regexp.Compile(`127\.0\.0\.1`)
 	if err != nil {
@@ -98,13 +98,13 @@ func (d *ConnectionDetails) PrivateRegistryURL() (string, error) {
 	return "", nil
 }
 
-// ReplaceWithInternalRegistry replaces the registry part of the given container
-// imageURL with the internal (localhost) URL of the registry when:
-// - the imageURL is on the Epinio registry (could be deploying from another
-//   registry, with the --container-image-url flag)
-// - there is a localhost URL defined on the ConnectionDetails (if we are using
-//   an external Epinio registry, there is no need to replace anything and there
-//   is no localhost URL defined either).
+// ReplaceWithInternalRegistry replaces the registry part of the given container imageURL
+// with the internal (localhost) URL of the registry when the imageURL is on the Epinio
+// registry (could be deploying from another registry, with the --container-image-url
+// flag), and there is a localhost URL defined on the ConnectionDetails (if we are using
+// an external Epinio registry, there is no need to replace anything and there is no
+// localhost URL defined either).
+
 func (d *ConnectionDetails) ReplaceWithInternalRegistry(imageURL string) (string, error) {
 	privateURL, err := d.PrivateRegistryURL()
 	if err != nil {

@@ -1,7 +1,7 @@
 package v1_test
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -40,7 +40,7 @@ var _ = Describe("AppCreate Endpoint", func() {
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.routes[*]}")
@@ -56,7 +56,7 @@ var _ = Describe("AppCreate Endpoint", func() {
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusCreated), string(bodyBytes))
 			out, err := proc.Kubectl("get", "apps", "-n", namespace, appName, "-o", "jsonpath={.spec.chartname}")
@@ -75,7 +75,7 @@ var _ = Describe("AppCreate Endpoint", func() {
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 		})

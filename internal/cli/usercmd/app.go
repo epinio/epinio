@@ -3,7 +3,6 @@ package usercmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -275,7 +274,7 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(manifestPath, yaml, 0600)
+	err = os.WriteFile(manifestPath, yaml, 0600)
 	if err != nil {
 		return err
 	}

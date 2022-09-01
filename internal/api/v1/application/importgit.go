@@ -62,7 +62,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -93,7 +92,7 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 	url := c.PostForm("giturl")
 	revision := c.PostForm("gitrev")
 
-	gitRepo, err := ioutil.TempDir("", "epinio-app")
+	gitRepo, err := os.MkdirTemp("", "epinio-app")
 	if err != nil {
 		return apierror.InternalError(err, "can't create temp directory")
 	}

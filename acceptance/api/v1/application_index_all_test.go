@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -61,7 +61,7 @@ var _ = Describe("AllApps Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -95,7 +95,7 @@ var _ = Describe("AllApps Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -54,7 +54,8 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 	}
 
 	if app.Workload == nil {
-		// While the app exists it has no workload, and therefore no chart to export
+		// While the app exists it has no workload, and therefore no chart to
+		// export
 		return apierror.NewBadRequestError("no chart available for application without workload")
 	}
 
@@ -130,27 +131,23 @@ func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Clus
 
 // chartArchiveURL returns a url for the helm chart's tarball.
 //
-// The chart is specified as simple name, and resolved to actual archive through a helm repo
-// This code is a __HACK__. At various levels.
+// The chart is specified as simple name, and resolved to actual archive through a helm repo. This
+// code is a __HACK__. At various levels.
 //
-// - We create and initialize a mittwald client, this gives us the basic
-//   dir structure needed.
+// We create and initialize a mittwald client, this gives us the basic dir structure needed.
 //
-// - We add the repository needed. This gives us the chart and index files
-//   for it in the above directory hierarchy.
+// We add the repository needed. This gives us the chart and index files for it in the above
+// directory hierarchy.
 //
-// - We do __NOT__ use a low-level helm puller action. Even setting it up
-//   with configuration and settings of the above client it will look in
-//   the wrong place for the repo index. I.e. looks to completely ignore
-//   the RepositoryCache setting.
+// We do __NOT__ use a low-level helm puller action. Even setting it up with configuration and
+// settings of the above client it will look in the wrong place for the repo index. I.e. looks to
+// completely ignore the RepositoryCache setting.
 //
-// - So, to continue the hack, we access the repo index.yaml directly,
-//   i.e. read in, unmarshal into minimally required structure and then
-//   locate the chart and its urls.
+// So, to continue the hack, we access the repo index.yaml directly, i.e. read in, unmarshal into
+// minimally required structure and then locate the chart and its urls.
 //
-// The advantage of this hack: We get a fetchable url we can feed into the
-// part invoked when the chart was specified as direct url. No going
-// through a temp file.
+// The advantage of this hack: We get a fetchable url we can feed into the part invoked when the
+// chart was specified as direct url. No going through a temp file.
 func chartArchiveURL(c *models.AppChartFull, restConfig *restclient.Config, logger logr.Logger) (string, error) {
 	if c.HelmRepo == "" {
 		return c.HelmChart, nil
@@ -182,7 +179,7 @@ func chartArchiveURL(c *models.AppChartFull, restConfig *restclient.Config, logg
 	}
 
 	// Read index into memory
-	content, err := ioutil.ReadFile("/tmp/.helmcache/" + name + "-index.yaml")
+	content, err := os.ReadFile("/tmp/.helmcache/" + name + "-index.yaml")
 	if err != nil {
 		return "", err
 	}

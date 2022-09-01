@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -56,7 +56,7 @@ var _ = Describe("AppImportGit Endpoint", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 

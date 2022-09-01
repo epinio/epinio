@@ -3,7 +3,7 @@ package v1_test
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -71,7 +71,7 @@ var _ = Describe("AppPortForward Endpoint", func() {
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
 				// check that there are no errors in the error stream
-				errData, err := ioutil.ReadAll(streamErr)
+				errData, err := io.ReadAll(streamErr)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(errData).To(BeEmpty())
 
@@ -137,7 +137,7 @@ var _ = Describe("AppPortForward Endpoint", func() {
 				Expect(resp.StatusCode).To(Equal(http.StatusOK))
 
 				// check that there are no errors in the error stream
-				errData, err := ioutil.ReadAll(streamErr)
+				errData, err := io.ReadAll(streamErr)
 				Expect(err).ToNot(HaveOccurred())
 				Expect(errData).To(BeEmpty())
 

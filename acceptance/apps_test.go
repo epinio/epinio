@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -132,7 +131,7 @@ var _ = Describe("Apps", func() {
 					out, err = env.Epinio("", "app", "manifest", appName, destinationPath)
 					Expect(err).ToNot(HaveOccurred(), out)
 
-					manifest, err := ioutil.ReadFile(destinationPath)
+					manifest, err := os.ReadFile(destinationPath)
 					Expect(err).ToNot(HaveOccurred(), destinationPath)
 
 					Expect(string(manifest)).To(MatchRegexp(fmt.Sprintf(`name: %s
@@ -536,7 +535,7 @@ configuration:
 		var err error
 		BeforeEach(func() {
 			By("Pushing an app that will fail")
-			tmpDir, err = ioutil.TempDir("", "epinio-failing-app")
+			tmpDir, err = os.MkdirTemp("", "epinio-failing-app")
 			Expect(err).ToNot(HaveOccurred())
 			appCode := []byte("\n<?php\nphpinfo();\n?>\n")
 			err = os.WriteFile(path.Join(tmpDir, "index.php"), appCode, 0644)
@@ -788,7 +787,7 @@ configuration:
 
 			It("deploys an app with the desired options", func() {
 				By("providing a manifest")
-				err := ioutil.WriteFile(manifestPath, []byte(fmt.Sprintf(`origin:
+				err := os.WriteFile(manifestPath, []byte(fmt.Sprintf(`origin:
   path: %s
 name: %s
 configuration:
@@ -1331,7 +1330,7 @@ configuration:
 					Expect(exportValues).To(BeARegularFile())
 					Expect(exportChart).To(BeARegularFile())
 
-					values, err := ioutil.ReadFile(exportValues)
+					values, err := os.ReadFile(exportValues)
 					Expect(err).ToNot(HaveOccurred(), string(values))
 
 					Expect(string(values)).To(Equal(fmt.Sprintf(`chartConfig:
@@ -1391,7 +1390,7 @@ userConfig:
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
 
-				values, err := ioutil.ReadFile(exportValues)
+				values, err := os.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
   appName: %s
@@ -1432,7 +1431,7 @@ userConfig:
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
 
-				values, err := ioutil.ReadFile(exportValues)
+				values, err := os.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:

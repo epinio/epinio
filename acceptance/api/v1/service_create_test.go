@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -127,7 +127,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 			Expect(err).ToNot(HaveOccurred())
 			defer deleteService(serviceName, namespace)
 
-			b, err := ioutil.ReadAll(response.Body)
+			b, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			response.Body.Close()
 

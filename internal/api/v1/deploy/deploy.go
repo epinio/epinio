@@ -20,7 +20,8 @@ import (
 
 // DeployApp deploys the referenced application via helm, based on the state held by CRD
 // and associated secrets. It is the backend for the API deploypoint, as well as all the
-// mutating endpoints, i.e. configuration and app changes (bindings, environment, scaling).
+// mutating endpoints, i.e. configuration and app changes (bindings, environment,
+// scaling).
 func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username, expectedStageID string, origin *models.ApplicationOrigin, start *int64) ([]string, apierror.APIErrors) {
 	log := requestctx.Logger(ctx)
 
@@ -105,26 +106,34 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 // replaceInternalRegistry replaces the registry part of ImageURL with the localhost
 // version of the internal Epinio registry if one is found in the registry connection
 // details.
-// The registry is used by 2 consumers: The staging pod and Kubernetes.
-// Staging writes images to it and Kubernetes pulls those images to create the
-// application pods.
-// A localhost url for the registry only makes sense for Kubernetes because
-// for staging it would mean the registry is running inside the staging pod
-// (which makes no sense).
-// Kubernetes can see a registry on localhost if it is deployed on the cluster
-// itself and exposed over a NodePort configuration.
+//
+// The registry is used by 2 consumers: The staging pod and Kubernetes.  Staging writes
+// images to it and Kubernetes pulls those images to create the application pods.
+//
+// A localhost url for the registry only makes sense for Kubernetes because for staging it
+// would mean the registry is running inside the staging pod (which makes no sense).
+//
+// Kubernetes can see a registry on localhost if it is deployed on the cluster itself and
+// exposed over a NodePort configuration.
+//
 // That's the trick we use, when we deploy the Epinio registry with the
-// "force-kube-internal-registry-tls" flag set to "false" in order to allow
-// Kubernetes to pull the images without TLS. Otherwise, when the tlsissuer
-// that created the registry cert (for the registry Ingress) is not a well
-// known one, the user would have to configure Kubernetes to trust that CA.
-// This is not a trivial process. For non-production deployments, pulling images
-// without TLS is fine.
+// "force-kube-internal-registry-tls" flag set to "false" in order to allow Kubernetes to
+// pull the images without TLS. Otherwise, when the tlsissuer that created the registry
+// cert (for the registry Ingress) is not a well known one, the user would have to
+// configure Kubernetes to trust that CA.
+//
+// This is not a trivial process. For non-production deployments, pulling images without
+// TLS is fine.
+//
 // When a localhost url doesn't exist, it means one of the following:
-// - the Epinio registry is deployed on Kubernetes with a valid cert (e.g. letsencrypt) and the
-//   "force-kube-internal-registry-tls" was set to "true" during deployment.
-// - the Epinio registry is an external one (if Epinio was deployed that way)
-// - a pre-existing image is being deployed (coming from an outer registry, not ours)
+//
+// The Epinio registry is deployed on Kubernetes with a valid cert (e.g. letsencrypt) and
+// the "force-kube-internal-registry-tls" was set to "true" during deployment.
+//
+// Or the Epinio registry is an external one (if Epinio was deployed that way)
+//
+// Or a pre-existing image is being deployed (coming from an outer registry, not ours)
+
 func replaceInternalRegistry(ctx context.Context, cluster *kubernetes.Cluster, imageURL string) (string, error) {
 	registryDetails, err := registry.GetConnectionDetails(ctx, cluster, helmchart.Namespace(), registry.CredentialsSecretName)
 	if err != nil {

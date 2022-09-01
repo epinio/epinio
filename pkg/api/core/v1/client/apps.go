@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -42,7 +41,7 @@ type Upgrader struct {
 func (upgr *Upgrader) NewConnection(resp *http.Response) (httpstream.Connection, error) {
 	defer resp.Body.Close()
 	if resp.StatusCode >= 400 {
-		b, err := ioutil.ReadAll(resp.Body)
+		b, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, errors.New("failed to read response body")
 		}
@@ -175,7 +174,7 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 	}
 
 	if response.StatusCode != http.StatusOK {
-		bodyBytes, _ := ioutil.ReadAll(response.Body)
+		bodyBytes, _ := io.ReadAll(response.Body)
 		return wrapResponseError(fmt.Errorf("server status code: %s\n%s",
 			http.StatusText(response.StatusCode), string(bodyBytes)),
 			response.StatusCode)
@@ -315,7 +314,7 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 	}
 
 	defer response.Body.Close()
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	if err != nil {
 		return nil, errors.Wrap(err, "reading the response body")
 	}
@@ -412,7 +411,7 @@ func (c *Client) AppLogs(namespace, appName, stageID string, follow bool, printC
 		// Report detailed error found in the server response
 		if resp != nil && resp.StatusCode != http.StatusOK {
 			defer resp.Body.Close()
-			bodyBytes, errBody := ioutil.ReadAll(resp.Body)
+			bodyBytes, errBody := io.ReadAll(resp.Body)
 
 			if errBody != nil {
 				return errBody

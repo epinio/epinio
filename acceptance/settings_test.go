@@ -3,7 +3,7 @@ package acceptance_test
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -152,7 +152,7 @@ var _ = Describe("Settings", func() {
 			settings, err := env.GetSettingsFrom(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
 
-			fileContents, err := ioutil.ReadFile(oldSettingsPath)
+			fileContents, err := os.ReadFile(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
 			encodedPass := base64.StdEncoding.EncodeToString([]byte(settings.Password))
 			Expect(string(fileContents)).To(MatchRegexp(fmt.Sprintf("pass: %s", encodedPass)))

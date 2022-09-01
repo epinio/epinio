@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -85,7 +85,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			response, err := env.Curl("POST", url, strings.NewReader(body))
 			Expect(err).NotTo(HaveOccurred())
 
-			b, err = ioutil.ReadAll(response.Body)
+			b, err = io.ReadAll(response.Body)
 			Expect(err).NotTo(HaveOccurred())
 
 			Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(b))
@@ -242,7 +242,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
 
-			bodyBytes, err = ioutil.ReadAll(response.Body)
+			bodyBytes, err = io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -314,7 +314,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
 
-			bodyBytes, err = ioutil.ReadAll(response.Body)
+			bodyBytes, err = io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 

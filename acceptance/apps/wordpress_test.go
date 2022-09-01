@@ -2,7 +2,6 @@ package apps_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -29,7 +28,7 @@ type WordpressApp struct {
 // CreateDir sets up a directory for a Wordpress application
 func (w *WordpressApp) CreateDir() error {
 	var err error
-	if w.Dir, err = ioutil.TempDir("", "epinio-acceptance"); err != nil {
+	if w.Dir, err = os.MkdirTemp("", "epinio-acceptance"); err != nil {
 		return err
 	}
 	if out, err := proc.Run(w.Dir, false, "wget", w.SourceURL); err != nil {
@@ -57,7 +56,7 @@ func (w *WordpressApp) CreateDir() error {
 extension=zlib
 extension=mysqli
 `)
-	if err := ioutil.WriteFile(path.Join(w.Dir, ".php.ini.d", "extensions.ini"), phpIni, 0755); err != nil {
+	if err := os.WriteFile(path.Join(w.Dir, ".php.ini.d", "extensions.ini"), phpIni, 0755); err != nil {
 		return err
 	}
 
