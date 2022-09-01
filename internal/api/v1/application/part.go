@@ -151,7 +151,7 @@ func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Clus
 // The advantage of this hack: We get a fetchable url we can feed into the
 // part invoked when the chart was specified as direct url. No going
 // through a temp file.
-func chartArchiveURL(c *models.AppChart, restConfig *restclient.Config, logger logr.Logger) (string, error) {
+func chartArchiveURL(c *models.AppChartFull, restConfig *restclient.Config, logger logr.Logger) (string, error) {
 	if c.HelmRepo == "" {
 		return c.HelmChart, nil
 	}

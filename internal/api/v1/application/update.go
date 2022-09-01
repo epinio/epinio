@@ -62,6 +62,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 	// if there is nothing to change
 	if updateRequest.Instances == nil &&
 		len(updateRequest.Environment) == 0 &&
+		len(updateRequest.Settings) == 0 &&
 		updateRequest.Configurations == nil &&
 		len(updateRequest.Routes) == 0 &&
 		updateRequest.AppChart == "" {
@@ -69,13 +70,47 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		return nil
 	}
 
-	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
+	if app.Workload != nil {
+		// For a running application we have to validate changed custom chart values against
+		// the configured app chart. It has to be done first, this ensures that there will
+		// be no partial update of the application.
 
-	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
-		if app.Workload != nil {
+		// Note: If the custom chart values did not change then no validation is
+		// required. It was done when the application got (re)started (pushed, or last
+		// update).
+
+		// Note: Changing the app chart is forbidden for active apps. A simple redeploy is
+		// likely to run into trouble. Better to force a full re-creation (delete +
+		// create/push).
+
+		if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
 			return apierror.NewBadRequestError("unable to change app chart of active application")
 		}
 
+		appChart, err := appchart.Lookup(ctx, cluster, app.Configuration.AppChart)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		if len(updateRequest.Settings) > 0 {
+			issues := application.ValidateCV(updateRequest.Settings, appChart.Settings)
+			if issues != nil {
+				// Treating all validation failures as internal errors.  I can't
+				// find something better at the moment.
+
+				var apiIssues []apierror.APIError
+				for _, err := range issues {
+					apiIssues = append(apiIssues, apierror.InternalError(err))
+				}
+
+				return apierror.NewMultiError(apiIssues)
+			}
+		}
+	}
+
+	// Save all changes to the relevant parts of the app resources (CRD, secrets, and the like).
+
+	if updateRequest.AppChart != "" && updateRequest.AppChart != app.Configuration.AppChart {
 		found, err := appchart.Exists(ctx, cluster, updateRequest.AppChart)
 		if err != nil {
 			return apierror.InternalError(err)
@@ -168,6 +203,30 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 			"path": "/spec/routes",
 			"value": [%s] }]`,
 			strings.Join(routes, ","))
+
+		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+	}
+
+	// Only update the app if chart values have been set, otherwise just leave it as it is.
+	if len(updateRequest.Settings) > 0 {
+		client, err := cluster.ClientApp()
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		values := []string{}
+		for k, v := range updateRequest.Settings {
+			values = append(values, fmt.Sprintf(`%q : %q`, k, v))
+		}
+
+		patch := fmt.Sprintf(`[{
+			"op": "replace",
+			"path": "/spec/settings",
+			"value": {%s} }]`,
+			strings.Join(values, ","))
 
 		_, err = client.Namespace(app.Meta.Namespace).Patch(ctx, app.Meta.Name, types.JSONPatchType, []byte(patch), metav1.PatchOptions{})
 		if err != nil {

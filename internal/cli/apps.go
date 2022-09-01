@@ -34,6 +34,8 @@ func init() {
 	envOption(CmdAppUpdate)
 	instancesOption(CmdAppCreate)
 	instancesOption(CmdAppUpdate)
+	chartValueOption(CmdAppCreate)
+	chartValueOption(CmdAppUpdate)
 
 	CmdAppCreate.Flags().String("app-chart", "", "App chart to use for deployment")
 	CmdAppUpdate.Flags().String("app-chart", "", "App chart to use for deployment")

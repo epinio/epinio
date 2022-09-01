@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -41,6 +42,7 @@ type ChartParameters struct {
 	Routes         []string              // Desired application routes
 	Domains        domain.DomainMap      // Map of domains with secrets covering them
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
+	Settings       models.AppSettings
 }
 
 func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) ([]byte, error) {
@@ -94,19 +96,21 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	}
 	type epinioParam struct {
 		AppName        string               `yaml:"appName"`
+		Configurations []string             `yaml:"configurations"`
 		Env            []models.EnvVariable `yaml:"env"`
 		ImageUrl       string               `yaml:"imageURL"`
 		Ingress        string               `yaml:"ingress,omitempty"`
 		ReplicaCount   int32                `yaml:"replicaCount"`
 		Routes         []routeParam         `yaml:"routes"`
-		Configurations []string             `yaml:"configurations"`
 		StageID        string               `yaml:"stageID"`
+		Start          string               `yaml:"start,omitempty"`
 		TlsIssuer      string               `yaml:"tlsIssuer"`
 		Username       string               `yaml:"username"`
-		Start          string               `yaml:"start,omitempty"`
 	}
 	type chartParam struct {
-		Epinio epinioParam `yaml:"epinio"`
+		Epinio epinioParam            `yaml:"epinio"`
+		Chart  map[string]string      `yaml:"chartConfig,omitempty"`
+		User   map[string]interface{} `yaml:"userConfig,omitempty"`
 	}
 
 	// Fill values.yaml structure
@@ -123,6 +127,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 			Username:       parameters.Username,
 			// Ingress, Start, Routes: see below
 		},
+		// Chart, User: see below
 	}
 
 	name := viper.GetString("ingress-class-name")
@@ -159,7 +164,43 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		}
 	}
 
-	// And generate the properly quoted values.yaml string
+	// Add the settings, if any. This also performs last-minute validation.  See also
+	// internal/application ValidateCV. Both use the core helper `ValidateField`
+	// implemented here (Avoid import cycle).
+	//
+	// While nothing should trigger here we cannot be sure. Because it is currently
+	// technically possible to change the app settings in the time window between a
+	// client triggering validation and actually deploying the app image. This window
+	// can actually be quite large, due to the time taken by staging and image
+	// download.
+	//
+	// It doesn't even have to be malicious. Just a user B doing a normal update while
+	// user A deployed, and landing in the window.
+
+	if len(parameters.Settings) > 0 {
+		params.User = make(map[string]interface{})
+
+		for field, value := range parameters.Settings {
+			spec, found := appChart.Settings[field]
+			if !found {
+				return fmt.Errorf("Unable to deploy. Setting '%s' unknown", field)
+			}
+
+			// Note: Here the interface{} result of the properly typed value is
+			// important. It ensures that the map values are properly typed for yaml
+			// serialization.
+
+			v, err := ValidateField(field, value, spec)
+			if err != nil {
+				return fmt.Errorf(`Unable to deploy. %s`, err.Error())
+			}
+			params.User[field] = v
+		}
+	}
+
+	params.Chart = appChart.Values
+
+	// At last generate the properly quoted values.yaml string
 
 	logger.Info("app helm setup", "parameters", params)
 
@@ -280,6 +321,65 @@ func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
 			return errors.Wrapf(err, "uninstalling the release with status: %s", r.Info.Status)
 		}
 	}
+	return nil
+}
 
+// validateField checks a single custom value against its declaration.
+func ValidateField(key, value string, spec models.AppChartSetting) (interface{}, error) {
+	if spec.Type == "string" {
+		if len(spec.Enum) > 0 {
+			for _, allowed := range spec.Enum {
+				if value == allowed {
+					return value, nil
+				}
+			}
+			return nil, fmt.Errorf(`Setting "%s": Illegal string "%s"`, key, value)
+		}
+		return value, nil
+	}
+	if spec.Type == "bool" {
+		flag, err := strconv.ParseBool(value)
+		if err != nil {
+			return nil, fmt.Errorf(`Setting "%s": Expected boolean, got "%s"`, key, value)
+		}
+		return flag, nil
+	}
+	if spec.Type == "integer" {
+		ivalue, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf(`Setting "%s": Expected integer, got "%s"`, key, value)
+		}
+		return ivalue, validateRange(float64(ivalue), key, value, spec.Minimum, spec.Maximum)
+	}
+	if spec.Type == "number" {
+		fvalue, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return nil, fmt.Errorf(`Setting "%s": Expected number, got "%s"`, key, value)
+		}
+		return fvalue, validateRange(fvalue, key, value, spec.Minimum, spec.Maximum)
+	}
+
+	return nil, fmt.Errorf(`Setting "%s": Bad spec: Unknown type "%s"`, key, spec.Type)
+}
+
+func validateRange(v float64, key, value, min, max string) error {
+	if min != "" {
+		minval, err := strconv.ParseFloat(min, 64)
+		if err != nil {
+			return fmt.Errorf(`Setting "%s": Bad spec: Bad minimum "%s"`, key, min)
+		}
+		if v < minval {
+			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" too small`, key, value)
+		}
+	}
+	if max != "" {
+		maxval, err := strconv.ParseFloat(max, 64)
+		if err != nil {
+			return fmt.Errorf(`Setting "%s": Bad spec: Bad maximum "%s"`, key, max)
+		}
+		if v > maxval {
+			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" too large`, key, value)
+		}
+	}
 	return nil
 }

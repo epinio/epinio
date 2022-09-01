@@ -28,6 +28,8 @@ func (hc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.AppChartIsNotKnown(chartName)
 	}
 
-	response.OKReturn(c, app)
+	// Note: Returning only the public parts. The local config
+	// data is not handed to the user. Only the setting specs.
+	response.OKReturn(c, app.AppChart)
 	return nil
 }

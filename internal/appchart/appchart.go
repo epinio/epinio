@@ -33,7 +33,7 @@ func List(ctx context.Context, cluster *kubernetes.Cluster) (models.AppChartList
 		if err != nil {
 			return nil, err
 		}
-		apps = append(apps, *appChart)
+		apps = append(apps, appChart.AppChart)
 	}
 
 	return apps, nil
@@ -52,7 +52,7 @@ func Exists(ctx context.Context, cluster *kubernetes.Cluster, name string) (bool
 }
 
 // Lookup returns the named app chart, or nil
-func Lookup(ctx context.Context, cluster *kubernetes.Cluster, name string) (*models.AppChart, error) {
+func Lookup(ctx context.Context, cluster *kubernetes.Cluster, name string) (*models.AppChartFull, error) {
 	chartCR, err := Get(ctx, cluster, name)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -77,7 +77,7 @@ func Get(ctx context.Context, cluster *kubernetes.Cluster, name string) (*unstru
 }
 
 // toChart converts the unstructured app chart CR into the proper model
-func toChart(chart *unstructured.Unstructured) (*models.AppChart, error) {
+func toChart(chart *unstructured.Unstructured) (*models.AppChartFull, error) {
 
 	name, _, err := unstructured.NestedString(chart.UnstructuredContent(), "metadata", "name")
 	if err != nil {
@@ -104,16 +104,57 @@ func toChart(chart *unstructured.Unstructured) (*models.AppChart, error) {
 		return nil, errors.New("helm repo should be string")
 	}
 
+	theValues, _, err := unstructured.NestedStringMap(chart.UnstructuredContent(), "spec", "values")
+	if err != nil {
+		return nil, errors.New("spec values should be string")
+	}
+
+	theSettings, _, err := unstructured.NestedMap(chart.UnstructuredContent(), "spec", "settings")
+	if err != nil {
+		return nil, errors.New("spec settings should be string")
+	}
+
+	settings := make(map[string]models.AppChartSetting)
+	for key := range theSettings {
+		fieldType, _, err := unstructured.NestedString(theSettings, key, "type")
+		if err != nil {
+			return nil, errors.New("settings type should be string")
+		}
+		fieldMin, _, err := unstructured.NestedString(theSettings, key, "minimum")
+		if err != nil {
+			return nil, errors.New("settings minimum should be string")
+		}
+		fieldMax, _, err := unstructured.NestedString(theSettings, key, "maximum")
+		if err != nil {
+			return nil, errors.New("settings maximum should be string")
+		}
+		fieldEnum, _, err := unstructured.NestedStringSlice(theSettings, key, "enum")
+		if err != nil {
+			return nil, errors.New("settings enum should be string slice")
+		}
+
+		settings[key] = models.AppChartSetting{
+			Type:    fieldType,
+			Minimum: fieldMin,
+			Maximum: fieldMax,
+			Enum:    fieldEnum,
+		}
+	}
+
 	createdAt := chart.GetCreationTimestamp()
 
-	return &models.AppChart{
-		Meta: models.MetaLite{
-			Name:      name,
-			CreatedAt: createdAt,
+	return &models.AppChartFull{
+		AppChart: models.AppChart{
+			Meta: models.MetaLite{
+				Name:      name,
+				CreatedAt: createdAt,
+			},
+			Description:      description,
+			ShortDescription: short,
+			HelmChart:        helmChart,
+			HelmRepo:         helmRepo,
+			Settings:         settings,
 		},
-		Description:      description,
-		ShortDescription: short,
-		HelmChart:        helmChart,
-		HelmRepo:         helmRepo,
+		Values: theValues,
 	}, nil
 }

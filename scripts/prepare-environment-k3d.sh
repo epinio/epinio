@@ -74,6 +74,7 @@ create_docker_pull_secret
 echo "Installing Epinio"
 # Deploy epinio latest release to test upgrade
 if [[ $EPINIO_RELEASED ]]; then
+  echo "Deploying latest released epinio server image"
   deploy_epinio_latest_released
 else
   echo "Importing locally built epinio server image"

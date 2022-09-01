@@ -257,6 +257,20 @@ type FakeAPIClient struct {
 		result1 models.UploadResponse
 		result2 error
 	}
+	AppValidateCVStub        func(string, string) (models.Response, error)
+	appValidateCVMutex       sync.RWMutex
+	appValidateCVArgsForCall []struct {
+		arg1 string
+		arg2 string
+	}
+	appValidateCVReturns struct {
+		result1 models.Response
+		result2 error
+	}
+	appValidateCVReturnsOnCall map[int]struct {
+		result1 models.Response
+		result2 error
+	}
 	AppsStub        func(string) (models.AppList, error)
 	appsMutex       sync.RWMutex
 	appsArgsForCall []struct {
@@ -1882,6 +1896,71 @@ func (fake *FakeAPIClient) AppUploadReturnsOnCall(i int, result1 models.UploadRe
 	}
 	fake.appUploadReturnsOnCall[i] = struct {
 		result1 models.UploadResponse
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppValidateCV(arg1 string, arg2 string) (models.Response, error) {
+	fake.appValidateCVMutex.Lock()
+	ret, specificReturn := fake.appValidateCVReturnsOnCall[len(fake.appValidateCVArgsForCall)]
+	fake.appValidateCVArgsForCall = append(fake.appValidateCVArgsForCall, struct {
+		arg1 string
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.AppValidateCVStub
+	fakeReturns := fake.appValidateCVReturns
+	fake.recordInvocation("AppValidateCV", []interface{}{arg1, arg2})
+	fake.appValidateCVMutex.Unlock()
+	if stub != nil {
+		return stub(arg1, arg2)
+	}
+	if specificReturn {
+		return ret.result1, ret.result2
+	}
+	return fakeReturns.result1, fakeReturns.result2
+}
+
+func (fake *FakeAPIClient) AppValidateCVCallCount() int {
+	fake.appValidateCVMutex.RLock()
+	defer fake.appValidateCVMutex.RUnlock()
+	return len(fake.appValidateCVArgsForCall)
+}
+
+func (fake *FakeAPIClient) AppValidateCVCalls(stub func(string, string) (models.Response, error)) {
+	fake.appValidateCVMutex.Lock()
+	defer fake.appValidateCVMutex.Unlock()
+	fake.AppValidateCVStub = stub
+}
+
+func (fake *FakeAPIClient) AppValidateCVArgsForCall(i int) (string, string) {
+	fake.appValidateCVMutex.RLock()
+	defer fake.appValidateCVMutex.RUnlock()
+	argsForCall := fake.appValidateCVArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
+}
+
+func (fake *FakeAPIClient) AppValidateCVReturns(result1 models.Response, result2 error) {
+	fake.appValidateCVMutex.Lock()
+	defer fake.appValidateCVMutex.Unlock()
+	fake.AppValidateCVStub = nil
+	fake.appValidateCVReturns = struct {
+		result1 models.Response
+		result2 error
+	}{result1, result2}
+}
+
+func (fake *FakeAPIClient) AppValidateCVReturnsOnCall(i int, result1 models.Response, result2 error) {
+	fake.appValidateCVMutex.Lock()
+	defer fake.appValidateCVMutex.Unlock()
+	fake.AppValidateCVStub = nil
+	if fake.appValidateCVReturnsOnCall == nil {
+		fake.appValidateCVReturnsOnCall = make(map[int]struct {
+			result1 models.Response
+			result2 error
+		})
+	}
+	fake.appValidateCVReturnsOnCall[i] = struct {
+		result1 models.Response
 		result2 error
 	}{result1, result2}
 }
@@ -4212,6 +4291,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.appUpdateMutex.RUnlock()
 	fake.appUploadMutex.RLock()
 	defer fake.appUploadMutex.RUnlock()
+	fake.appValidateCVMutex.RLock()
+	defer fake.appValidateCVMutex.RUnlock()
 	fake.appsMutex.RLock()
 	defer fake.appsMutex.RUnlock()
 	fake.authTokenMutex.RLock()

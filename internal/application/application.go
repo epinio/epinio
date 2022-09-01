@@ -35,10 +35,35 @@ import (
 
 const EpinioApplicationAreaLabel = "epinio.io/area"
 
+// ValidateCV checks the custom values against the declarations. It reports as many issues as it can find.
+func ValidateCV(cv models.AppSettings, decl map[string]models.AppChartSetting) []error {
+	// See also internal/helm Deploy(). A last-minute check to catch any changes possibly
+	// landing in the time window between the check here and the actual deployment.
+
+	var issues []error
+
+	for key, value := range cv {
+		spec, found := decl[key]
+		if !found {
+			issues = append(issues, fmt.Errorf(`Setting "%s": Not known`, key))
+			continue
+		}
+
+		// Note: The interface{} result for the properly typed value is ignored here. We do
+		// not care about the value, just that it is ok.
+
+		_, err := helm.ValidateField(key, value, spec)
+		if err != nil {
+			issues = append(issues, err)
+		}
+	}
+	return issues
+}
+
 // Create generates a new kube app resource in the namespace of the
 // namespace. Note that this is the passive resource holding the
 // app's configuration. It is not the active workload
-func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string, chart string) error {
+func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef, username string, routes []string, chart string, settings models.AppSettings) error {
 	client, err := cluster.ClientApp()
 	if err != nil {
 		return err
@@ -55,6 +80,7 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 			Routes:    routes,
 			Origin:    epinioappv1.AppOrigin{},
 			ChartName: chart,
+			Settings:  settings,
 		},
 	}
 
@@ -301,6 +327,18 @@ func AppChart(app *unstructured.Unstructured) (string, error) {
 	return chartName, nil
 }
 
+// Settings returns the app chart customization settings used for application deployment. It returns
+// an empty slice otherwise. The information is pulled out of the app resource itself, saved there
+// by the deploy endpoint.
+func Settings(app *unstructured.Unstructured) (models.AppSettings, error) {
+	settings, _, err := unstructured.NestedStringMap(app.UnstructuredContent(), "spec", "settings")
+	if err != nil {
+		return models.AppSettings{}, errors.New("chartname should be string")
+	}
+
+	return settings, nil
+}
+
 // StageID returns the stage ID of the last attempt at staging, if one exists. It returns
 // an empty string otherwise. The information is pulled out of the app resource itself,
 // saved there by the staging endpoint. Note that success/failure of staging is immaterial
@@ -503,6 +541,11 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 		return errors.Wrap(err, "finding the image url")
 	}
 
+	settings, err := Settings(applicationCR)
+	if err != nil {
+		return errors.Wrap(err, "finding settings")
+	}
+
 	app.Meta.CreatedAt = applicationCR.GetCreationTimestamp()
 
 	app.Configuration.Instances = &instances
@@ -510,6 +553,7 @@ func fetch(ctx context.Context, cluster *kubernetes.Cluster, app *models.App) er
 	app.Configuration.Environment = environment
 	app.Configuration.Routes = desiredRoutes
 	app.Configuration.AppChart = chartName
+	app.Configuration.Settings = settings
 	app.Origin = origin
 	app.StageID = stageID
 	app.ImageURL = imageURL

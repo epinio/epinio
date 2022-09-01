@@ -25,6 +25,7 @@ func init() {
 	routeOption(CmdAppPush)
 	bindOption(CmdAppPush)
 	envOption(CmdAppPush)
+	chartValueOption(CmdAppPush)
 	instancesOption(CmdAppPush)
 }
 

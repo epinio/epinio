@@ -276,6 +276,24 @@ func (c *Client) AppUpload(namespace string, name string, tarball string) (model
 	return resp, nil
 }
 
+// AppValidateCV validates the chart values of the specified app against its appchart
+func (c *Client) AppValidateCV(namespace string, name string) (models.Response, error) {
+	resp := models.Response{}
+
+	data, err := c.get(api.Routes.Path("AppValidateCV", namespace, name))
+	if err != nil {
+		return resp, errors.Wrap(err, "can't validate app")
+	}
+
+	if err := json.Unmarshal(data, &resp); err != nil {
+		return resp, errors.Wrap(err, "response body is not JSON")
+	}
+
+	c.log.V(1).Info("response decoded", "response", resp)
+
+	return resp, nil
+}
+
 // AppImportGit asks the server to import a git repo and put in into the blob store
 func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.ImportGitResponse, error) {
 	data := url.Values{}
