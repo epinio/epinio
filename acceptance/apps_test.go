@@ -143,7 +143,7 @@ configuration:
     CREDO: up
     DOGMA: "no"
   routes:
-  - %s-\..*
+  - %s\..*
   appchart: standard
 `, appName, configurationName, appName)))
 				})
