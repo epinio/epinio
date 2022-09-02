@@ -1489,7 +1489,11 @@ userConfig:
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
 						WithRow("Status", "0/0"),
-					),
+					), func() string {
+						deploymentOut, _ := proc.Kubectl("get", "deployments", "-n", namespace)
+						podOut, _ := proc.Kubectl("get", "pods", "-n", namespace)
+						return fmt.Sprintf("Deployments: \n%s\nPods:\n%s\n", deploymentOut, podOut)
+					}(),
 				)
 			})
 		})
