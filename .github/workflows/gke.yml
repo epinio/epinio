@@ -133,6 +133,8 @@ jobs:
           EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.gke_domain || secrets.GKE_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           INGRESS_CONTROLLER: traefik
+          EXTRAENV_NAME: SESSION_KEY
+          EXTRAENV_VALUE: 12345
         run: |
           echo "System Domain: $GKE_DOMAIN"
           export KUBECONFIG=$HOME/.kube/config

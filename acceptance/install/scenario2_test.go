@@ -19,13 +19,17 @@ import (
 // This test uses AWS route53 to update the system domain's records
 var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 	var (
-		flags        []string
-		epinioHelper epinio.Epinio
-		appName      = catalog.NewAppName()
-		loadbalancer string
-		domain       string
-		zoneID       string
-		instancesNum string
+		flags         []string
+		epinioHelper  epinio.Epinio
+		appName       = catalog.NewAppName()
+		loadbalancer  string
+		domain        string
+		zoneID        string
+		instancesNum  string
+		extraEnvName  string
+		extraEnvValue string
+		name_exists   bool
+		value_exists  bool
 	)
 
 	BeforeEach(func() {
@@ -42,6 +46,12 @@ var _ = Describe("<Scenario2> GKE, Letsencrypt-staging, Zero instance", func() {
 		flags = []string{
 			"--set", "global.domain=" + domain,
 			"--set", "global.tlsIssuer=letsencrypt-staging",
+		}
+
+		extraEnvName, name_exists = os.LookupEnv("EXTRAENV_NAME")
+		extraEnvValue, value_exists = os.LookupEnv("EXTRAENV_VALUE")
+		if name_exists && value_exists {
+			flags = append(flags, "--set", "extraEnv[0].name="+extraEnvName, "--set-string", "extraEnv[0].value="+extraEnvValue)
 		}
 	})
 
