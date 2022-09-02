@@ -169,8 +169,6 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		When("deploying a new app", func() {
 			It("returns a success", func() {
 				deployResponse := deployApplication(appName, namespace, deployRequest)
-
-				// check also the random suffix for the default route: '-[a-z0-9]{5}'
 				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `\..*\.omg\.howdoi\.website`))
 
 				Eventually(func() string {
