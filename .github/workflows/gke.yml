@@ -115,6 +115,7 @@ jobs:
           --machine-type ${{ env.GKE_MACHINE_TYPE }} \
           --no-enable-cloud-logging \
           --no-enable-cloud-monitoring  \
+          --network epinio-ci
           --zone ${{ env.GKE_ZONE }}
 
       - name: Get kubeconfig file from GKE
