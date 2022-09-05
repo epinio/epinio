@@ -28,6 +28,7 @@ env:
   PUBLIC_CLOUD: 1
   GKE_ZONE: 'europe-west1-b'
   GKE_MACHINE_TYPE: 'n2-standard-4'
+  GKE_NETWORK: 'epinio-ci'
 
 jobs:
   linter:
@@ -115,7 +116,7 @@ jobs:
           --machine-type ${{ env.GKE_MACHINE_TYPE }} \
           --no-enable-cloud-logging \
           --no-enable-cloud-monitoring  \
-          --network epinio-ci \
+          --network ${{ env.GKE_NETWORK }} \
           --zone ${{ env.GKE_ZONE }}
 
       - name: Get kubeconfig file from GKE
