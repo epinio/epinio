@@ -37,7 +37,7 @@ func GenerateResourceName(names ...string) string {
 }
 
 // MD5String compute the hash of the passed value and returns the first 'length' characters
-// If the length is -1 or greater than the md5 hash then the whole hash is retuned
+// If the length is -1 or greater than the md5 hash then the whole hash is returned
 func MD5String(value string, length int) string {
 	sumArray := sha1.Sum([]byte(value)) // nolint:gosec // Non-crypto use
 	sum := hex.EncodeToString(sumArray[:])

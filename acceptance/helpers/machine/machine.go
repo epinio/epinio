@@ -98,9 +98,11 @@ func (m *Machine) DeleteNamespace(namespace string) {
 }
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {
-	out, err := m.Epinio("", "namespace", "list")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).ToNot(MatchRegexp(namespace))
+	EventuallyWithOffset(1, func() string {
+		out, err := m.Epinio("", "namespace", "list")
+		ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+		return out
+	}, "2m").ShouldNot(MatchRegexp(namespace))
 }
 
 func (m *Machine) MakeWebSocketConnection(authToken string, url string, subprotocols ...string) (*websocket.Conn, error) {
