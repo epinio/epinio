@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,10 +28,18 @@ type Machine struct {
 	token            string
 	root             string
 	epinioBinaryPath string
+
+	lock *sync.Mutex
 }
 
 func New(dir string, token string, root string, epinioBinaryPath string) Machine {
-	return Machine{dir, token, root, epinioBinaryPath}
+	return Machine{
+		nodeTmpDir:       dir,
+		token:            token,
+		root:             root,
+		epinioBinaryPath: epinioBinaryPath,
+		lock:             &sync.Mutex{},
+	}
 }
 
 func (m *Machine) ShowStagingLogs(app string) {
@@ -65,7 +74,7 @@ func (m *Machine) SetupNamespace(namespace string) {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = m.Epinio("", "namespace", "show", namespace)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
 }
 
@@ -81,8 +90,10 @@ func (m *Machine) TargetNamespace(namespace string) {
 }
 
 func (m *Machine) SetupAndTargetNamespace(namespace string) {
+	m.lock.Lock()
 	m.SetupNamespace(namespace)
 	m.TargetNamespace(namespace)
+	m.lock.Unlock()
 }
 
 func (m *Machine) DeleteNamespace(namespace string) {

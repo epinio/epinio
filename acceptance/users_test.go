@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -23,25 +24,16 @@ var _ = Describe("Users", func() {
 	})
 
 	Describe("an existing user", func() {
-		var user, password string
 
-		BeforeEach(func() {
-			user, password = env.CreateEpinioUser("user", nil)
-		})
-		AfterEach(func() {
-			env.DeleteEpinioUser(user)
-		})
-
-		Specify("can authenticate with basic auth", func() {
-			request.SetBasicAuth(user, password)
+		Specify("can authenticate with token", func() {
+			request.Header.Set("Authorization", "Bearer "+env.GetUserToken("user1@epinio.io"))
 			resp, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())
 
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 
-		Specify("cannot authenticate no credentials or cookie", func() {
-			// First request with basicauth to get the cookie
+		Specify("cannot authenticate no credentials", func() {
 			resp, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
@@ -54,11 +46,6 @@ var _ = Describe("Users", func() {
 		BeforeEach(func() {
 			user, password = env.CreateEpinioUser("user", nil)
 			request.SetBasicAuth(user, password)
-		})
-
-		AfterEach(func() {
-			// Ensure it's deleted even if test fails
-			env.DeleteEpinioUser(user)
 		})
 
 		Specify("the user can no longer authenticate with basic auth", func() {
@@ -78,66 +65,53 @@ var _ = Describe("Users", func() {
 	})
 
 	Describe("a regular user", func() {
-		var user, password string
-		var namespace string
 
-		BeforeEach(func() {
-			namespace = catalog.NewNamespaceName()
+		Specify("can describe its namespace", func() {
+			updateToken("user1@epinio.io")
+			namespace := catalog.NewNamespaceName()
 			env.SetupNamespace(namespace)
-			user, password = env.CreateEpinioUser("user", []string{"workspace", "workspace2"})
-		})
 
-		AfterEach(func() {
-			env.DeleteEpinioUser(user)
+			out, err := env.Epinio("", "namespace", "show", namespace)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", namespace),
+					WithRow("Created", WithDate()),
+					WithRow("Applications"),
+					WithRow("Configurations"),
+				),
+			)
+
 			env.DeleteNamespace(namespace)
 		})
 
-		Specify("can describe its namespace", func() {
-			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL, v1.Root)
-			request, err := http.NewRequest("GET", uri, nil)
-			Expect(err).ToNot(HaveOccurred())
-
-			request.SetBasicAuth(user, password)
-			resp, err := env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		})
-
 		Specify("cannot describe another namespace", func() {
-			uri := fmt.Sprintf("%s%s/namespaces/%s", serverURL, v1.Root, namespace)
-			request, err := http.NewRequest("GET", uri, nil)
-			Expect(err).ToNot(HaveOccurred())
+			// create user2 namespace
+			updateToken("user2@epinio.io")
+			namespace := catalog.NewNamespaceName()
+			env.SetupNamespace(namespace)
 
-			request.SetBasicAuth(user, password)
-			resp, err := env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
+			updateToken("user1@epinio.io")
+			out, err := env.Epinio("", "namespace", "show", namespace)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Forbidden: user unauthorized"))
 
-			Expect(resp.StatusCode).To(Equal(http.StatusForbidden))
+			// cleanup
+			updateToken("user2@epinio.io")
+			env.DeleteNamespace(namespace)
 		})
 	})
 
 	Describe("an admin user", func() {
-		var user, password string
-
-		BeforeEach(func() {
-			user, password = env.CreateEpinioUser("admin", nil)
-		})
-
-		AfterEach(func() {
-			env.DeleteEpinioUser(user)
-		})
 
 		Specify("can describe any namespace", func() {
-			uri := fmt.Sprintf("%s%s/namespaces/workspace", serverURL, v1.Root)
-			request, err := http.NewRequest("GET", uri, nil)
-			Expect(err).ToNot(HaveOccurred())
+			updateToken("admin@epinio.io")
 
-			request.SetBasicAuth(user, password)
-			resp, err := env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
+			out, err := env.Epinio("", "namespace", "show", "workspace")
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Forbidden: user unauthorized"))
 		})
 	})
 })

@@ -19,6 +19,12 @@ import (
 // CreateEpinioUser creates a new "user" BasicAuth Secret labeled as an Epinio User.
 func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, string) {
 	user, password := catalog.NewUserCredentials()
+	m.CreateEpinioUserWithUsernameAndPassword(user, password, role, namespaces)
+	return user, password
+}
+
+// CreateEpinioUser creates a new "user" BasicAuth Secret labeled as an Epinio User.
+func (m *Machine) CreateEpinioUserWithUsernameAndPassword(user, password, role string, namespaces []string) {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	Expect(err).ToNot(HaveOccurred())
 
@@ -53,8 +59,6 @@ func (m *Machine) CreateEpinioUser(role string, namespaces []string) (string, st
 
 	out, err := proc.Kubectl("apply", "-f", secretTmpFile)
 	Expect(err).ToNot(HaveOccurred(), out)
-
-	return user, password
 }
 
 // DeleteEpinioUser deletes the relevant Kubernetes secret if it exists.
