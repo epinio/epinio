@@ -35,7 +35,10 @@ func GetToken(domain, email, password string) (string, error) {
 
 	// getting login URL (with redirect)
 	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
-	_, _ = client.Get(authCodeURL)
+	_, err = client.Get(authCodeURL)
+	if err != nil {
+		return "", errors.Wrap(err, "error getting redirect")
+	}
 
 	// programmatic login
 	authCode, err := login(client, email, password)

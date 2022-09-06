@@ -41,6 +41,8 @@ var _ = Describe("Apps", func() {
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
+		updateToken("admin@epinio.io")
+
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 
@@ -1351,7 +1353,7 @@ epinio:
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: admin
+  username: admin@epinio.io
 userConfig:
   foo: bar
 `, app, domain, domain)))
@@ -1409,7 +1411,7 @@ userConfig:
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: admin
+  username: admin@epinio.io
 `, app, domain, domain)))
 				// Not checking that exportChart is a proper tarball.
 			})
@@ -1456,7 +1458,7 @@ userConfig:
     path: /
   stageID: ""
   tlsIssuer: epinio-ca
-  username: admin
+  username: admin@epinio.io
 `, app, domain, domain)))
 				// Not checking that exportChart is a proper tarball.
 			})

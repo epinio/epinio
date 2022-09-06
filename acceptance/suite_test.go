@@ -47,6 +47,8 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 	env = testenv.New(nodeTmpDir, testenv.Root(), token)
 
+	auth.InitUsers(&env, theSettings.API)
+
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",
 		"-o", "jsonpath={.spec.rules[0].host}")
@@ -80,4 +82,13 @@ func FailWithReport(message string, callerSkip ...int) {
 
 	// Ensures the correct line numbers are reported
 	Fail(message, callerSkip[0]+1)
+}
+
+func updateToken(user string) {
+	settings, err := settings.LoadFrom(testenv.EpinioYAML())
+	Expect(err).ToNot(HaveOccurred(), settings)
+
+	settings.Token.AccessToken = env.GetUserToken(user)
+	err = settings.Save()
+	Expect(err).ToNot(HaveOccurred())
 }

@@ -3,6 +3,7 @@ package acceptance_test
 import (
 	"fmt"
 
+	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -20,6 +21,8 @@ var _ = Describe("Services", func() {
 	var catalogService models.CatalogService
 
 	BeforeEach(func() {
+		updateToken("admin@epinio.io")
+
 		serviceName := catalog.NewCatalogServiceName()
 
 		catalogService = models.CatalogService{
@@ -219,8 +222,10 @@ var _ = Describe("Services", func() {
 			settings, err := settings.LoadFrom(tmpSettingsPath)
 			Expect(err).ToNot(HaveOccurred(), settings)
 
-			// settings.User = user
-			// settings.Password = password
+			token, err := auth.GetToken(settings.API, user, password)
+			Expect(err).NotTo(HaveOccurred())
+
+			settings.Token.AccessToken = token
 			settings.Namespace = namespace
 			err = settings.Save()
 			Expect(err).ToNot(HaveOccurred())
