@@ -83,12 +83,14 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 
 	Expect(err).ToNot(HaveOccurred(), pushOutput)
 
-	// And check presence
-	Eventually(func() string {
-		out, err := m.Epinio("", "app", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
-		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	// Check presence if necessary, i.e. expected to be present
+	if instances > 0 {
+		Eventually(func() string {
+			out, err := m.Epinio("", "app", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+			return out
+		}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	}
 
 	return pushOutput
 }
