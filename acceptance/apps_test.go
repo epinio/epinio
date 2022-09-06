@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1692,6 +1693,28 @@ userConfig:
 
 			// The command we run should have effects
 			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"))
+		})
+	})
+
+	When("pushing an app with a numeric-only name", func() {
+		BeforeEach(func() {
+			rand.Seed(time.Now().UnixNano())
+			min := 9000
+			max := 10000
+			randNum := rand.Intn(max-min+1) + min
+			appName = strconv.Itoa(randNum)
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("deploys successfully", func() {
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 	})
 })
