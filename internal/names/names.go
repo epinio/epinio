@@ -73,8 +73,11 @@ func GenerateResourceNameTruncated(originalName string, maxLen int) string {
 	}
 
 	safePrefix := Truncate(DNSLabelSafe(originalName), (maxLen - (Sha1sumLength + 1)))
+	if len(safePrefix) > 0 {
+		safePrefix = safePrefix + "-" // Split the prefix with a dash
+	}
 
-	return fmt.Sprintf("%s-%s", safePrefix, sum)
+	return fmt.Sprintf("%s%s", safePrefix, sum)
 }
 
 // ReleaseName returns the name of a helm release derived from the base string.
