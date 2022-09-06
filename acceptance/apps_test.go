@@ -1460,40 +1460,47 @@ userConfig:
 		})
 
 		Describe("no instances", func() {
+			// Note to test maintainers. This sections pushes an app with zero instances
+			// to begin with. This avoids termination issues we have seen, where the pod
+			// termination invoked when scaling down to 0 takes a very long time (over
+			// two minutes).
+
+			var app string
 
 			BeforeEach(func() {
-				out, err := env.Epinio("", "app", "update", appName, "--instances", "0")
-				Expect(err).ToNot(HaveOccurred(), out)
+				app = catalog.NewAppName()
+				By("make zero-instance app: " + app)
+				env.MakeApp(app, 0, false)
+				By("pushed")
+			})
+
+			AfterEach(func() {
+				By("delete app")
+				env.DeleteApp(app)
+				By("deleted")
 			})
 
 			It("lists apps without instances", func() {
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "list")
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-					return out
-				}, "2m").Should(
+				By("list apps")
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
 					HaveATable(
 						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-						WithRow(appName, WithDate(), "0/0", appName+".*", configurationName, ""),
+						WithRow(app, WithDate(), "n/a", "n/a", "", ""),
 					),
 				)
 			})
 
 			It("shows the details of an app without instances", func() {
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", appName)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-					return out
-				}, "2m").Should(
+				By("show details")
+				out, err := env.Epinio("", "app", "show", app)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
-						WithRow("Status", "0/0"),
-					), func() string {
-						deploymentOut, _ := proc.Kubectl("get", "deployments", "-n", namespace)
-						podOut, _ := proc.Kubectl("get", "pods", "-n", namespace)
-						return fmt.Sprintf("Deployments: \n%s\nPods:\n%s\n", deploymentOut, podOut)
-					}(),
+						WithRow("Status", "not deployed, staging failed"),
+					),
 				)
 			})
 		})
