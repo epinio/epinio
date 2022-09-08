@@ -124,8 +124,8 @@ jobs:
           REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
           INGRESS_CONTROLLER: traefik
-          EXTRAENV_NAME: SESSION_KEY
-          EXTRAENV_VALUE: 12345
+          # EXTRAENV_NAME: SESSION_KEY
+          # EXTRAENV_VALUE: 12345
         run: |
           # Get a free IP address on server's network
           export RANGE_IP="$(scripts/get-free-ip.sh)"
