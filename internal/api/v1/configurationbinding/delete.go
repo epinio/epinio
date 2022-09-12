@@ -22,7 +22,7 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	apiErr := DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)
+	apiErr := DeleteBinding(ctx, cluster, namespace, appName, configurationName, username, false)
 	if apiErr != nil {
 		return apiErr
 	}

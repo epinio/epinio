@@ -210,16 +210,25 @@ func (c *EpinioClient) DeleteConfiguration(name string, unbind bool) error {
 				return err
 			}
 
-			// A bad request happens when the configuration is
-			// still bound to one or more applications,
-			// and the response contains an array of their
-			// names.
+			// A bad request happens when
+			//
+			// 1. the configuration is still bound to one or more applications, and the
+			//    response contains an array of their names.
+			//
+			// 2. the configuration is owned by a service and denied the request
 
 			var apiError apierrors.ErrorResponse
 			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
 				return err
 			}
 
+			// [BELONG] keep in sync with same marker in the server
+			if strings.Contains(apiError.Errors[0].Title, "Configuration belongs to service") {
+				// (2.)
+				return err
+			}
+
+			// (1.)
 			bound = strings.Split(apiError.Errors[0].Details, ",")
 			return nil
 		})

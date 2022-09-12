@@ -10,7 +10,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, configurationName, username string) apierror.APIErrors {
+func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, configurationName, username string, fromService bool) apierror.APIErrors {
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
@@ -20,12 +20,17 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	_, err = configurations.Lookup(ctx, cluster, namespace, configurationName)
+	config, err := configurations.Lookup(ctx, cluster, namespace, configurationName)
 	if err != nil && err.Error() == "configuration not found" {
 		return apierror.ConfigurationIsNotKnown(configurationName)
 	}
 	if err != nil {
 		return apierror.InternalError(err)
+	}
+
+	if !fromService && config.Origin != "" {
+		return apierror.NewBadRequestErrorf("Configuration belongs to service '%s', use service requests",
+			config.Origin)
 	}
 
 	err = application.BoundConfigurationsUnset(ctx, cluster, app.Meta, configurationName)
