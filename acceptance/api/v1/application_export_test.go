@@ -17,15 +17,18 @@ var _ = Describe("AppPart Endpoint", func() {
 	var (
 		namespace string
 		app       string
+		domain    string
 	)
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
+		domain = catalog.NewTmpName("exportdomain-") + ".org"
+
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 
 		app = catalog.NewAppName()
-		env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org")
+		env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain)
 	})
 
 	AfterEach(func() {
@@ -55,14 +58,14 @@ var _ = Describe("AppPart Endpoint", func() {
   ingress: null
   replicaCount: 1
   routes:
-  - domain: exportdomain.org
-    id: exportdomain.org
+  - domain: %s
+    id: %s
     path: /
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
   username: admin
-`, app)))
+`, app, domain, domain)))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {

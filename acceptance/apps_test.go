@@ -1293,9 +1293,10 @@ configuration:
 			})
 
 			Context("exporting customized", func() {
-				var chartName, tempFile, app, exportPath, exportValues, exportChart string
+				var domain, chartName, tempFile, app, exportPath, exportValues, exportChart string
 
 				BeforeEach(func() {
+					domain = catalog.NewTmpName("exportdomain-") + ".org"
 					chartName = catalog.NewTmpName("chart-")
 					tempFile = env.MakeAppchart(chartName)
 
@@ -1305,7 +1306,7 @@ configuration:
 					exportValues = path.Join(exportPath, "values.yaml")
 					exportChart = path.Join(exportPath, "app-chart.tar.gz")
 
-					env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org",
+					env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain,
 						"--app-chart", chartName,
 						"--chart-value", "foo=bar",
 					)
@@ -1344,8 +1345,8 @@ epinio:
   ingress: null
   replicaCount: 1
   routes:
-  - domain: exportdomain.org
-    id: exportdomain.org
+  - domain: %s
+    id: %s
     path: /
   stageID: ""
   start: null
@@ -1353,23 +1354,24 @@ epinio:
   username: admin
 userConfig:
   foo: bar
-`, app)))
+`, app, domain, domain)))
 					// Not checking that exportChart is a proper tarball.
 				})
 			})
 		})
 
 		Context("exporting", func() {
-			var app, exportPath, exportValues, exportChart string
+			var domain, app, exportPath, exportValues, exportChart string
 
 			BeforeEach(func() {
+				domain = catalog.NewTmpName("exportdomain-") + ".org"
 				app = catalog.NewAppName()
 
 				exportPath = catalog.NewTmpName(app + "-export")
 				exportValues = path.Join(exportPath, "values.yaml")
 				exportChart = path.Join(exportPath, "app-chart.tar.gz")
 
-				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org")
+				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain)
 			})
 
 			AfterEach(func() {
@@ -1401,14 +1403,14 @@ userConfig:
   ingress: null
   replicaCount: 1
   routes:
-  - domain: exportdomain.org
-    id: exportdomain.org
+  - domain: %s
+    id: %s
     path: /
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
   username: admin
-`, app)))
+`, app, domain, domain)))
 				// Not checking that exportChart is a proper tarball.
 			})
 
@@ -1449,13 +1451,13 @@ userConfig:
   imageURL: splatform/sample-app
   replicaCount: 1
   routes:
-  - domain: exportdomain.org
-    id: exportdomain.org
+  - domain: %s
+    id: %s
     path: /
   stageID: ""
   tlsIssuer: epinio-ca
   username: admin
-`, app)))
+`, app, domain, domain)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})
