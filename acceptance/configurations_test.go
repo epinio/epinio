@@ -393,7 +393,7 @@ var _ = Describe("Configurations", func() {
 		It("doesn't delete a bound service-owned configuration", func() {
 			out, err := env.Epinio("", "configuration", "delete", config)
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Bad Request: Configuration belongs to service"))
+			Expect(out).To(ContainSubstring("Configuration belongs to service"))
 		})
 
 		It("doesn't delete any service-owned configuration", func() {
@@ -411,7 +411,7 @@ var _ = Describe("Configurations", func() {
 
 			out, err = env.Epinio("", "configuration", "delete", config)
 			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Bad Request: Configuration belongs to service"))
+			Expect(out).To(ContainSubstring("Configuration belongs to service"))
 		})
 	})
 
