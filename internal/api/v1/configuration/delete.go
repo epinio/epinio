@@ -41,8 +41,8 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	// Reject operations on configurations belonging to a service. Their manipulation has to be
-	// done through service commands to keep the system in a consistent state
+	// [SERVICE] Reject operations on configurations belonging to a service. Their manipulation
+	// has to be done through service commands to keep the system in a consistent state.
 
 	if configuration.Origin != "" {
 		// [BELONG] keep in sync with same marker in the client
@@ -65,7 +65,9 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		}
 
 		for _, appName := range boundAppNames {
-			apiErr := configurationbinding.DeleteBinding(ctx, cluster, namespace, appName, configurationName, username, false)
+			// Note that we reach this location only when the [SERVICE] check above
+			// failed, i.e. the configuration is standalone.
+			apiErr := configurationbinding.DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)
 			if apiErr != nil {
 				return apiErr
 			}
