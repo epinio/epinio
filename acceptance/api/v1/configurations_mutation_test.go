@@ -555,7 +555,6 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 
 		It("returns a 'not found' when the application does not exist", func() {
 			// This requires a valid configuration
-			configuration := catalog.NewConfigurationName()
 			env.MakeConfiguration(configuration)
 
 			response, err := env.Curl("DELETE",
