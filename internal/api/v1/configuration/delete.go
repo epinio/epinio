@@ -41,6 +41,15 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// [SERVICE] Reject operations on configurations belonging to a service. Their manipulation
+	// has to be done through service commands to keep the system in a consistent state.
+
+	if configuration.Origin != "" {
+		// [BELONG] keep in sync with same marker in the client
+		return apierror.NewBadRequestErrorf("Configuration belongs to service '%s', use service requests",
+			configuration.Origin)
+	}
+
 	// Verify that the configuration is unbound. IOW not bound to any application.
 	// If it is, and automatic unbind was requested, do that.
 	// Without automatic unbind such applications are reported as error.
@@ -56,6 +65,8 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		}
 
 		for _, appName := range boundAppNames {
+			// Note that we reach this location only when the [SERVICE] check above
+			// failed, i.e. the configuration is standalone.
 			apiErr := configurationbinding.DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)
 			if apiErr != nil {
 				return apiErr
