@@ -556,6 +556,7 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 		It("returns a 'not found' when the application does not exist", func() {
 			// This requires a valid configuration
 			env.MakeConfiguration(configuration)
+			defer env.CleanupConfiguration(configuration)
 
 			response, err := env.Curl("DELETE",
 				fmt.Sprintf("%s%s/namespaces/%s/applications/bogus/configurationbindings/%s",
@@ -572,8 +573,6 @@ var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
 			json.Unmarshal(bodyBytes, &responseBody)
 			Expect(responseBody["errors"][0].Title).To(
 				Equal("application 'bogus' does not exist"))
-
-			env.CleanupConfiguration(configuration)
 		})
 
 		Context("with application", func() {
