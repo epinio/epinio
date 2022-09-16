@@ -57,8 +57,7 @@ func (m *Machine) CreateEpinioUserWithUsernameAndPassword(user, password, role s
 	Expect(err).ToNot(HaveOccurred())
 	defer os.Remove(secretTmpFile)
 
-	out, err := proc.Kubectl("apply", "-f", secretTmpFile)
-	Expect(err).ToNot(HaveOccurred(), out)
+	_, _ = proc.Kubectl("apply", "-f", secretTmpFile)
 }
 
 // DeleteEpinioUser deletes the relevant Kubernetes secret if it exists.

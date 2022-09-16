@@ -33,7 +33,7 @@ var _ = Describe("AppValidateCV Endpoint", func() {
 		var err error // We want `=` below to ensure that `request` is not a local variable.
 		request, err = http.NewRequest("GET", uri, strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
-		request.Header.Set("Authorization", "Bearer: "+env.EpinioToken)
+		request.Header.Set("Authorization", "Bearer "+env.EpinioToken)
 
 		// fire request, get response
 

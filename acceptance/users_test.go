@@ -110,8 +110,17 @@ var _ = Describe("Users", func() {
 			updateToken("admin@epinio.io")
 
 			out, err := env.Epinio("", "namespace", "show", "workspace")
-			Expect(err).To(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Forbidden: user unauthorized"))
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", "workspace"),
+					WithRow("Created", WithDate()),
+					WithRow("Applications"),
+					WithRow("Configurations"),
+				),
+			)
 		})
 	})
 })
