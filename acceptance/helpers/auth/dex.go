@@ -66,6 +66,10 @@ func restartDex() {
 }
 
 func createEpinioUsersAndLogin(env *testenv.EpinioEnv, apiURL string) {
+	// cleanup
+	out, err := proc.Kubectl("delete", "secrets", "-n", "epinio", "-l", "epinio.io/api-user-credentials")
+	Expect(err).ToNot(HaveOccurred(), out)
+
 	for _, user := range users {
 		env.CreateEpinioUserWithUsernameAndPassword(user.username, user.password, user.role, user.workspaces)
 

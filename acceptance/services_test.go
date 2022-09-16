@@ -3,10 +3,7 @@ package acceptance_test
 import (
 	"fmt"
 
-	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
-	"github.com/epinio/epinio/internal/cli/settings"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 
@@ -108,6 +105,7 @@ var _ = Describe("Services", func() {
 	})
 
 	deleteServiceFromNamespace := func(namespace, service string) {
+		updateToken("admin@epinio.io")
 		env.TargetNamespace(namespace)
 
 		out, err := env.Epinio("", "service", "delete", service)
@@ -214,40 +212,21 @@ var _ = Describe("Services", func() {
 	Describe("ListAll", func() {
 		var namespace1, namespace2 string
 		var service1, service2 string
-		var tmpSettingsPath string
-		var user1, password1 string
-		var user2, password2 string
-
-		updateSettings := func(user, password, namespace string) {
-			settings, err := settings.LoadFrom(tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), settings)
-
-			token, err := auth.GetToken(settings.API, user, password)
-			Expect(err).NotTo(HaveOccurred())
-
-			settings.Token.AccessToken = token
-			settings.Namespace = namespace
-			err = settings.Save()
-			Expect(err).ToNot(HaveOccurred())
-		}
 
 		BeforeEach(func() {
 			namespace1 = catalog.NewNamespaceName()
 			namespace2 = catalog.NewNamespaceName()
+
+			updateToken("user1@epinio.io")
 			env.SetupAndTargetNamespace(namespace1)
+
+			updateToken("user2@epinio.io")
 			env.SetupAndTargetNamespace(namespace2)
 
 			service1 = catalog.NewServiceName()
 			service2 = catalog.NewServiceName()
 
-			// create temp settings that we can use to switch users
-			tmpSettingsPath = catalog.NewTmpName("tmpEpinio") + `.yaml`
-			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			// create users with permissions in different namespaces
-			user1, password1 = env.CreateEpinioUser("user", []string{namespace1})
-			user2, password2 = env.CreateEpinioUser("user", []string{namespace2})
+			updateToken("admin@epinio.io")
 		})
 
 		AfterEach(func() {
@@ -257,13 +236,6 @@ var _ = Describe("Services", func() {
 
 			env.DeleteNamespace(namespace1)
 			env.DeleteNamespace(namespace2)
-
-			// Remove transient settings
-			out, err := proc.Run("", false, "rm", "-f", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out)
-
-			env.DeleteEpinioUser(user1)
-			env.DeleteEpinioUser(user2)
 		})
 
 		It("list all services", func() {
@@ -324,23 +296,24 @@ var _ = Describe("Services", func() {
 			By("create them in different namespaces")
 
 			// impersonate user1 and target namespace1
-			updateSettings(user1, password1, namespace1)
+			updateToken("user1@epinio.io")
+			env.TargetNamespace(namespace1)
 
 			// create service1 in namespace1
-			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1, "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), out, tmpSettingsPath)
+			out, err := env.Epinio("", "service", "create", catalogService.Meta.Name, service1)
+			Expect(err).ToNot(HaveOccurred(), out)
 
 			// impersonate user2
-			updateSettings(user2, password2, namespace2)
+			updateToken("user2@epinio.io")
 
 			// create service2 in namespace2
 			env.TargetNamespace(namespace2)
-			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2, "--settings-file", tmpSettingsPath)
+			out, err = env.Epinio("", "service", "create", catalogService.Meta.Name, service2)
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			// show only owned namespaces (we are user2, only namespace2)
 			By("show it")
-			out, err = env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
+			out, err = env.Epinio("", "service", "list", "--all")
 			Expect(err).ToNot(HaveOccurred(), out)
 
 			Expect(out).To(ContainSubstring("Listing all Services"))
@@ -360,7 +333,7 @@ var _ = Describe("Services", func() {
 
 			By("wait for deployment")
 			Eventually(func() string {
-				out, _ := env.Epinio("", "service", "list", "--all", "--settings-file", tmpSettingsPath)
+				out, _ := env.Epinio("", "service", "list", "--all")
 				return out
 			}, "2m", "5s").Should(
 				HaveATable(

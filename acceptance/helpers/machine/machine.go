@@ -42,6 +42,10 @@ func New(dir string, token string, root string, epinioBinaryPath string) Machine
 	}
 }
 
+func (m *Machine) SetToken(token string) {
+	m.token = token
+}
+
 func (m *Machine) ShowStagingLogs(app string) {
 	_, _ = m.Epinio("", app, "app", "logs", "--staging", app)
 }

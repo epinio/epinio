@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	api "github.com/epinio/epinio/internal/api/v1"
@@ -164,11 +163,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			endpoint := fmt.Sprintf("%s%s/configurations", serverURL, api.Root)
 			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 			Expect(err).ToNot(HaveOccurred())
-
-			// TODO we should switch user
-			token, err := auth.GetToken(serverURL, "admin@epinio.io", "password")
-			Expect(err).ToNot(HaveOccurred())
-			request.Header.Set("Authorization", "Bearer "+token)
+			request.Header.Set("Authorization", "Bearer "+env.GetUserToken("user1@epinio.io"))
 
 			response, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())

@@ -53,9 +53,13 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
+	env = testenv.New(nodeTmpDir, testenv.Root(), "")
+	auth.InitUsers(&env, theSettings.API)
+
 	token, err := auth.GetToken(theSettings.API, "admin@epinio.io", "password")
 	Expect(err).NotTo(HaveOccurred())
-	env = testenv.New(nodeTmpDir, testenv.Root(), token)
+	env.EpinioToken = token
+	env.SetToken(token)
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",
@@ -64,6 +68,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	serverURL = "https://" + out
 	websocketURL = "wss://" + out
+
+	updateToken("admin@epinio.io")
 })
 
 var _ = AfterSuite(func() {
@@ -90,6 +96,15 @@ func FailWithReport(message string, callerSkip ...int) {
 
 	// Ensures the correct line numbers are reported
 	Fail(message, callerSkip[0]+1)
+}
+
+func updateToken(user string) {
+	settings, err := settings.LoadFrom(testenv.EpinioYAML())
+	Expect(err).ToNot(HaveOccurred(), settings)
+
+	settings.Token.AccessToken = env.GetUserToken(user)
+	err = settings.Save()
+	Expect(err).ToNot(HaveOccurred())
 }
 
 func authToken() (string, error) {

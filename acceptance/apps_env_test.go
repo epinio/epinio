@@ -39,6 +39,8 @@ var _ = Describe("apps env", func() {
 	}
 
 	BeforeEach(func() {
+		updateToken("admin@epinio.io")
+
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 

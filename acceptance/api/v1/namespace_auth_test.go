@@ -17,23 +17,23 @@ var _ = Describe("Users Namespace", func() {
 	var request *http.Request
 	var err error
 
-	createNamespace := func(user, password, namespace string) {
+	createNamespace := func(user, namespace string) {
 		jsonRequest := fmt.Sprintf(`{"name":"%s"}`, namespace)
 		endpoint := fmt.Sprintf("%s%s/namespaces", serverURL, api.Root)
 
 		request, err = http.NewRequest(http.MethodPost, endpoint, strings.NewReader(jsonRequest))
 		Expect(err).ToNot(HaveOccurred())
-		request.SetBasicAuth(user, password)
+		request.Header.Set("Authorization", "Bearer "+env.GetUserToken(user))
 
 		response, err := env.Client().Do(request)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusCreated))
 	}
 
-	namespaceRequest := func(user, password, endpoint string) *http.Response {
+	namespaceRequest := func(user, endpoint string) *http.Response {
 		request, err = http.NewRequest(http.MethodGet, endpoint, nil)
 		Expect(err).ToNot(HaveOccurred())
-		request.SetBasicAuth(user, password)
+		request.Header.Set("Authorization", "Bearer "+env.GetUserToken(user))
 
 		response, err := env.Client().Do(request)
 		Expect(err).ToNot(HaveOccurred())
@@ -41,45 +41,30 @@ var _ = Describe("Users Namespace", func() {
 		return response
 	}
 
-	showNamespace := func(user, password, namespace string) *http.Response {
+	showNamespace := func(user, namespace string) *http.Response {
 		endpoint := fmt.Sprintf("%s%s/namespaces/%s", serverURL, api.Root, namespace)
-		return namespaceRequest(user, password, endpoint)
+		return namespaceRequest(user, endpoint)
 	}
 
-	listNamespaces := func(user, password string) *http.Response {
+	listNamespaces := func(user string) *http.Response {
 		endpoint := fmt.Sprintf("%s%s/namespaces", serverURL, api.Root)
-		return namespaceRequest(user, password, endpoint)
+		return namespaceRequest(user, endpoint)
 	}
 
 	Describe("having two user with 'user' role and an admin user", func() {
-		var user1, passwordUser1 string
-		var user2, passwordUser2 string
-		var userAdmin, passwordAdmin string
-
-		BeforeEach(func() {
-			user1, passwordUser1 = env.CreateEpinioUser("user", nil)
-			user2, passwordUser2 = env.CreateEpinioUser("user", nil)
-			userAdmin, passwordAdmin = env.CreateEpinioUser("admin", nil)
-		})
-
-		AfterEach(func() {
-			env.DeleteEpinioUser(user1)
-			env.DeleteEpinioUser(user2)
-			env.DeleteEpinioUser(userAdmin)
-		})
 
 		Describe("each user creates a namespace", func() {
 			var namespaceUser1, namespaceUser2, namespaceAdmin string
 
 			BeforeEach(func() {
 				namespaceUser1 = catalog.NewNamespaceName()
-				createNamespace(user1, passwordUser1, namespaceUser1)
+				createNamespace("user1@epinio.io", namespaceUser1)
 
 				namespaceUser2 = catalog.NewNamespaceName()
-				createNamespace(user2, passwordUser2, namespaceUser2)
+				createNamespace("user2@epinio.io", namespaceUser2)
 
 				namespaceAdmin = catalog.NewNamespaceName()
-				createNamespace(userAdmin, passwordAdmin, namespaceAdmin)
+				createNamespace("admin@epinio.io", namespaceAdmin)
 			})
 
 			AfterEach(func() {
@@ -90,19 +75,19 @@ var _ = Describe("Users Namespace", func() {
 
 			When("user1 tries to show a namespace", func() {
 				It("shows the user's namespace", func() {
-					response := showNamespace(user1, passwordUser1, namespaceUser1)
+					response := showNamespace("user1@epinio.io", namespaceUser1)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 				})
 
 				It("doesn't show the other user's namespace", func() {
-					response := showNamespace(user1, passwordUser1, namespaceUser2)
+					response := showNamespace("user1@epinio.io", namespaceUser2)
 					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
 					response.Body.Close()
 				})
 
 				It("doesn't show the admin's namespace", func() {
-					response := showNamespace(user1, passwordUser1, namespaceAdmin)
+					response := showNamespace("user1@epinio.io", namespaceAdmin)
 					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
 					response.Body.Close()
 				})
@@ -110,7 +95,7 @@ var _ = Describe("Users Namespace", func() {
 
 			When("user1 tries to list all the namespaces", func() {
 				It("list only the user1 namespace", func() {
-					response := listNamespaces(user1, passwordUser1)
+					response := listNamespaces("user1@epinio.io")
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					defer response.Body.Close()
 
@@ -125,15 +110,15 @@ var _ = Describe("Users Namespace", func() {
 
 			When("an admin user tries to show a namespace", func() {
 				It("shows every namespace", func() {
-					response := showNamespace(userAdmin, passwordAdmin, namespaceUser1)
+					response := showNamespace("admin@epinio.io", namespaceUser1)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 
-					response = showNamespace(userAdmin, passwordAdmin, namespaceUser2)
+					response = showNamespace("admin@epinio.io", namespaceUser2)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 
-					response = showNamespace(userAdmin, passwordAdmin, namespaceAdmin)
+					response = showNamespace("admin@epinio.io", namespaceAdmin)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 				})
@@ -141,7 +126,7 @@ var _ = Describe("Users Namespace", func() {
 
 			When("an admin user tries to list all the namespaces", func() {
 				It("list every namespace", func() {
-					response := listNamespaces(userAdmin, passwordAdmin)
+					response := listNamespaces("admin@epinio.io")
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					defer response.Body.Close()
 
@@ -165,22 +150,22 @@ var _ = Describe("Users Namespace", func() {
 
 			When("a user deletes a namespace and another user recreates the same namespace", func() {
 				var commonNamespace string
+
 				BeforeEach(func() {
 					commonNamespace = catalog.NewNamespaceName()
-					createNamespace(user1, passwordUser1, commonNamespace)
+					createNamespace("user1@epinio.io", commonNamespace)
 					env.DeleteNamespace(commonNamespace)
-					createNamespace(user2, passwordUser2, commonNamespace)
-
+					createNamespace("user2@epinio.io", commonNamespace)
 				})
 
 				It("shows the user's namespace", func() {
-					response := showNamespace(user2, passwordUser2, commonNamespace)
+					response := showNamespace("user2@epinio.io", commonNamespace)
 					Expect(response.StatusCode).To(Equal(http.StatusOK))
 					response.Body.Close()
 				})
 
 				It("doesn't show the other user's namespace", func() {
-					response := showNamespace(user1, passwordUser1, commonNamespace)
+					response := showNamespace("user1@epinio.io", commonNamespace)
 					Expect(response.StatusCode).To(Equal(http.StatusForbidden))
 					response.Body.Close()
 				})
