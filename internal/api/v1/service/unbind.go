@@ -91,8 +91,7 @@ func UnbindService(
 	for _, secret := range serviceConfigurations {
 		// TODO: Don't `helm upgrade` after each removal. Do it once.
 		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, secret.Name,
-			userName,
+			ctx, cluster, namespace, appName, userName, []string{secret.Name},
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())

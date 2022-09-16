@@ -9,7 +9,7 @@ import (
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
-func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, configurationName, username string) apierror.APIErrors {
+func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, appName, username string, configurationNames []string) apierror.APIErrors {
 
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
@@ -19,7 +19,7 @@ func DeleteBinding(ctx context.Context, cluster *kubernetes.Cluster, namespace, 
 		return apierror.AppIsNotKnown(appName)
 	}
 
-	err = application.BoundConfigurationsUnset(ctx, cluster, app.Meta, configurationName)
+	err = application.BoundConfigurationsUnset(ctx, cluster, app.Meta, configurationNames)
 	if err != nil {
 		return apierror.InternalError(err)
 	}

@@ -192,9 +192,11 @@ func BoundConfigurationsSet(ctx context.Context, cluster *kubernetes.Cluster, ap
 // BoundConfigurationsUnset removes the specified configuration name from the named application.
 // When the function returns the configuration set will be shrunk.
 // Removing an unknown configuration is a no-op.
-func BoundConfigurationsUnset(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, configurationName string) error {
+func BoundConfigurationsUnset(ctx context.Context, cluster *kubernetes.Cluster, appRef models.AppRef, configurationNames []string) error {
 	return configUpdate(ctx, cluster, appRef, func(configSecret *v1.Secret) {
-		delete(configSecret.Data, configurationName)
+		for _, c := range configurationNames {
+			delete(configSecret.Data, c)
+		}
 	})
 }
 
