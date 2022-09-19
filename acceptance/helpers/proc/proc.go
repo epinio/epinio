@@ -2,10 +2,12 @@ package proc
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 
+	. "github.com/onsi/ginkgo/v2"
 	"github.com/pkg/errors"
 )
 
@@ -32,6 +34,8 @@ func RunW(cmd string, args ...string) (string, error) {
 func Run(dir string, toStdout bool, command string, args ...string) (string, error) {
 	cmd := exec.Command(command, args...)
 
+	By(fmt.Sprintf("RUN (%s): (%v), @%s", command, args, dir))
+
 	var b bytes.Buffer
 	if toStdout {
 		cmd.Stdout = io.MultiWriter(os.Stdout, &b)
@@ -44,6 +48,10 @@ func Run(dir string, toStdout bool, command string, args ...string) (string, err
 	cmd.Dir = dir
 
 	err := cmd.Run()
+
+	By(fmt.Sprintf("err = %v", err))
+	By(fmt.Sprintf("out = %s", b.String()))
+
 	return b.String(), err
 }
 

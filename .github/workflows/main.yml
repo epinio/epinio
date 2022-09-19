@@ -17,8 +17,9 @@ on:
   schedule:
     - cron:  '0 0 * * *'
 
+# https://github.com/npm/node-semver#x-ranges-12x-1x-12-
 env:
-  SETUP_GO_VERSION: '^1.18'
+  SETUP_GO_VERSION: '1.18.x'
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
 

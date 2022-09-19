@@ -20,9 +20,10 @@ on:
   schedule:
     - cron:  '0 0 * * *'
 
+# https://github.com/npm/node-semver#x-ranges-12x-1x-12-
 env:
+  SETUP_GO_VERSION: '1.18.x'
   EPINIO_RELEASED: true
-  SETUP_GO_VERSION: '^1.18'
   GINKGO_NODES: 2
   INGRESS_CONTROLLER: traefik
 
@@ -68,6 +69,7 @@ jobs:
           make acceptance-cluster-setup
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
           make install-cert-manager
+          # EPINIO_RELEASED comes into play now
           make prepare_environment_k3d
           # Note: prepare has run build-images!
           scripts/get-latest-epinio.sh
@@ -80,6 +82,12 @@ jobs:
           source scripts/helpers.sh
           prepare_system_domain
           export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
+          # Actions:
+          # - create namespace, application - before upgrade
+          # - helm upgrade
+          # - verify that application is untouched
+          # - create service, second application
+          # - delete service, applications, namespace
           make test-acceptance-upgrade
 
       - name: Cleanup k3d cluster

@@ -2,7 +2,7 @@
 
 ORG=epinio
 PROJECT=epinio
-ARTI=epinio-linux-x86_64
+ARTI=epinio-windows-x86_64.zip
 
 echo
 echo Locating latest ...
@@ -18,20 +18,22 @@ echo = $ARTIFACT_URL
 
 echo
 echo Retrieving artifact ...
-curl -L -o epinio.bin $ARTIFACT_URL
-chmod u+x epinio.bin
+curl -L -o epinio.zip $ARTIFACT_URL
+unzip epinio.zip -x LICENSE README.md
+chmod u+x  epinio.exe
 
 echo
-if test -f dist/epinio-linux-amd64 ; then
-    echo Version Old: $(dist/epinio-linux-amd64 version)
+if test -f dist/epinio-windows-amd64.exe ; then
+    echo Version Old: $(dist/epinio-windows-amd64.exe version)
 else
     echo Version Old: n/a
 fi
-echo Version Got: $(./epinio.bin version)
+echo Version Got: $(./epinio.exe version)
 
-cp epinio.bin dist/epinio-linux-amd64
+cp epinio.exe dist/epinio-windows-amd64.exe
 
-echo Version Now: $(dist/epinio-linux-amd64 version)
+echo Version Now: $(dist/epinio-windows-amd64.exe version)
 
+# query cluster. may not exist
 echo
-dist/epinio-linux-amd64 info || true
+dist/epinio-windows-amd64.exe info || true

@@ -19,6 +19,9 @@ func TestAcceptance(t *testing.T) {
 
 var (
 	nodeTmpDir string
+
+	// Lets see if ok with init
+	env testenv.EpinioEnv
 )
 
 func InstallCertManager() {
@@ -71,11 +74,19 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	By("Installing and configuring the prerequisites", func() {
 		testenv.SetRoot("../..")
 		testenv.SetupEnv()
+
+		env = testenv.New(nodeTmpDir, testenv.Root(), "admin", "password")
 	})
 
-	By("Compiling Epinio", func() {
-		testenv.BuildEpinio()
-	})
+	released := os.Getenv("EPINIO_RELEASED")
+	isreleased := released == "true"
+	if !isreleased {
+		By("Compiling Epinio", func() {
+			testenv.BuildEpinio()
+		})
+	} else {
+		By("Expecting a client binary")
+	}
 
 	By("Creating registry secret", func() {
 		testenv.CreateRegistrySecret()

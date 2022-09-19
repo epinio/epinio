@@ -33,6 +33,8 @@ type Machine struct {
 }
 
 func New(dir, user, password, adminToken, userToken, root, epinioBinaryPath string) Machine {
+	By(fmt.Sprintf("Machine (d=%s, u=%s, p=%s, r=%s, e=%s, at=%s, ut=%s)",
+		dir, user, password, root, epinioBinaryPath, adminToken, userToken))
 	return Machine{
 		nodeTmpDir:       dir,
 		user:             user,
@@ -53,7 +55,19 @@ func (m *Machine) ShowStagingLogs(app string) {
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
+	// See also epinio/epinio.go `Run`
 	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
+}
+
+func (m *Machine) Versions() {
+	out, err := m.Epinio("", "info")
+	Expect(err).ToNot(HaveOccurred(), out)
+	out = strings.ReplaceAll(out, "\n", " ")
+	out = strings.ReplaceAll(out, "    ", "")
+	out = strings.ReplaceAll(out, "Epinio ", "")
+	out = strings.ReplaceAll(out, "Environment Platform: ", "")
+	out = strings.ReplaceAll(out, "Version: ", "")
+	By(out)
 }
 
 const stagingError = "Failed to stage"
@@ -212,4 +226,23 @@ func (m *Machine) SaveServerLogs(destination string) {
 	// And save them into the specified file
 	err = os.WriteFile(filepath.Join(m.nodeTmpDir, destination), []byte(log), 0600)
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func (m *Machine) ShowServerLogs(label string) {
+	// Locate the server pod
+	serverPodName, err := proc.Kubectl("get", "pod",
+		"-n", "epinio",
+		"-l", "app.kubernetes.io/component=epinio-server",
+		"-o", "name")
+	Expect(err).ToNot(HaveOccurred(), serverPodName)
+	serverPodName = strings.TrimSpace(serverPodName)
+
+	// Get server logs of the last 3 minutes
+	log, err := proc.Kubectl("logs",
+		"-c", "epinio-server",
+		"-n", "epinio",
+		"--since", "1m",
+		serverPodName)
+	Expect(err).ToNot(HaveOccurred(), log)
+	By(label + ": " + log)
 }

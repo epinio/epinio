@@ -1,11 +1,17 @@
 package testenv
 
-import "path"
+import (
+	"path"
+	"path/filepath"
+
+	. "github.com/onsi/ginkgo/v2"
+)
 
 var root = ".."
 
 func SetRoot(dir string) {
-	root = dir
+	root, _ = filepath.Abs(dir)
+	By("Root: " + root)
 }
 
 func Root() string {

@@ -106,16 +106,7 @@ var _ = Describe("Services", func() {
 
 	deleteServiceFromNamespace := func(namespace, service string) {
 		env.TargetNamespace(namespace)
-
-		out, err := env.Epinio("", "service", "delete", service)
-		Expect(err).ToNot(HaveOccurred(), out)
-		Expect(out).To(ContainSubstring("Service Removed"))
-
-		Eventually(func() string {
-			out, _ := env.Epinio("", "service", "delete", service)
-			return out
-		}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
-
+		env.DeleteService(service)
 	}
 
 	Describe("Show", func() {

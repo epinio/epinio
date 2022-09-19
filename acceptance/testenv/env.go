@@ -3,6 +3,8 @@ package testenv
 import (
 	"fmt"
 	"os"
+
+	. "github.com/onsi/ginkgo/v2"
 )
 
 func SetupEnv() {
@@ -13,7 +15,11 @@ func SetupEnv() {
 	// this env var is for the patch-epinio-deployment target in the
 	// Makefile, which has the top level as root dir
 	if os.Getenv("EPINIO_BINARY_PATH") == "" {
-		os.Setenv("EPINIO_BINARY_PATH", fmt.Sprintf("./dist/%s", ServerBinaryName()))
+		serverBinary := fmt.Sprintf("%s/dist/%s", Root(), ServerBinaryName())
+		By("Server Binary (Sys): " + serverBinary)
+		os.Setenv("EPINIO_BINARY_PATH", serverBinary)
+	} else {
+		By("Server Binary (Env): " + os.Getenv("EPINIO_BINARY_PATH"))
 	}
 	os.Setenv("EPINIO_DONT_WAIT_FOR_DEPLOYMENT", "1")
 	os.Setenv("SKIP_SSL_VERIFICATION", "true")

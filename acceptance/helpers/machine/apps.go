@@ -2,17 +2,15 @@ package machine
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"strconv"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bool) string {
-	currentDir, err := os.Getwd()
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	appDir := path.Join(currentDir, m.root, "assets/sample-app")
+	appDir := path.Join(m.root, "assets/sample-app")
 
 	return m.MakeAppWithDir(appName, instances, deployFromCurrentDir, appDir)
 }
@@ -53,14 +51,14 @@ func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, con
 }
 
 func (m *Machine) MakeGolangApp(appName string, instances int, deployFromCurrentDir bool) string {
-	currentDir, err := os.Getwd()
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	appDir := path.Join(currentDir, m.root, "assets/golang-sample-app")
+	appDir := path.Join(m.root, "assets/golang-sample-app")
 
 	return m.MakeAppWithDir(appName, instances, deployFromCurrentDir, appDir)
 }
 
 func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurrentDir bool, appDir string) string {
+	By("creating app (dir): " + appName + " @" + appDir)
+
 	var pushOutput string
 	var err error
 
@@ -96,6 +94,8 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 }
 
 func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool, appDir string) string {
+	By("creating app (dir/simple): " + appName + " @" + appDir)
+
 	var pushOutput string
 	var err error
 
@@ -122,6 +122,8 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 }
 
 func (m *Machine) DeleteApp(appName string) {
+	By("deleting app: " + appName)
+
 	out, err := m.Epinio("", "app", "delete", appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 

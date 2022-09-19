@@ -15,8 +15,24 @@ import (
 	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+func NginxCatalogService(name string) models.CatalogService {
+	By("NGINX: " + name)
+	return models.CatalogService{
+		Meta: models.MetaLite{
+			Name: name,
+		},
+		HelmChart: "nginx",
+		HelmRepo: models.HelmRepo{
+			Name: "",
+			URL:  "https://charts.bitnami.com/bitnami",
+		},
+		Values: "{'service': {'type': 'ClusterIP'}}",
+	}
+}
 
 func CreateCatalogService(catalogService models.CatalogService) {
 	CreateCatalogServiceInNamespace("epinio", catalogService)
@@ -25,6 +41,8 @@ func CreateCatalogService(catalogService models.CatalogService) {
 func CreateCatalogServiceInNamespace(namespace string, catalogService models.CatalogService) {
 	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
 	defer os.Remove(sampleServiceFilePath)
+
+	By("CCSIN tmp file: " + sampleServiceFilePath)
 
 	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
 	Expect(err).ToNot(HaveOccurred(), out)

@@ -1,0 +1,161 @@
+name: GKE-CI-UPGRADE
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ ready_for_review ]
+    paths:
+      - 'acceptance/install/scenario1_upgrade_test.go'
+      - 'acceptance/install/suite_test.go'
+      - '.github/workflows/gke-upgrade.yml'
+  workflow_dispatch:
+    inputs:
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
+      gke_domain:
+        description: "GKE_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+
+# https://github.com/npm/node-semver#x-ranges-12x-1x-12-
+env:
+  SETUP_GO_VERSION: '1.18.x'
+  GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
+  GKE_ZONE: 'europe-west1-b'
+  GKE_MACHINE_TYPE: 'n2-standard-4'
+  GKE_NETWORK: 'epinio-ci'
+
+jobs:
+  linter:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Cache Tools
+        uses: actions/cache@v3.0.8
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Lint Epinio
+        run: make lint
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
+
+  acceptance-scenario1:
+    needs:
+      - linter
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Login to GitHub Docker Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The system domain is managed by route53, we need credentials to update
+      # it to the loadbalancer's IP
+      - name: Configure AWS credentials for Route53
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-2
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
+
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v0'
+        with:
+          credentials_json: '${{ secrets.EPCI_GCP_CREDENTIALS }}'
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v0
+      
+      - name: Install gcloud kubectl version
+        run: gcloud components install kubectl
+
+      - name: Create GKE cluster
+        id: create-cluster
+        run: |
+          id=$RANDOM
+          echo '::set-output name=ID::'$id
+          gcloud container clusters create epinioci$id \
+          --disk-size 100 \
+          --num-nodes=1 \
+          --machine-type ${{ env.GKE_MACHINE_TYPE }} \
+          --no-enable-cloud-logging \
+          --no-enable-cloud-monitoring  \
+          --network ${{ env.GKE_NETWORK }} \
+          --zone ${{ env.GKE_ZONE }}
+
+      - name: Get kubeconfig file from GKE
+        run: |
+          id="${{ steps.create-cluster.outputs.ID }}"
+          gcloud container clusters get-credentials epinioci$id --zone ${{ env.GKE_ZONE }} --project ${{ secrets.EPCI_GKE_PROJECT }}
+
+      - name: Installation Acceptance Tests
+        env:
+          EPINIO_RELEASED: true
+          REGEX: "Scenario1 Up"
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
+          # Use a random host name, so we don't collide with our workflows on GKE
+          GKE_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.gke_domain || secrets.GKE_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.gke_domain || secrets.GKE_DOMAIN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+          INGRESS_CONTROLLER: traefik
+          # EXTRAENV_NAME: SESSION_KEY
+          # EXTRAENV_VALUE: 12345
+        run: |
+          # EPINIO_RELEASED triggers starting with a released epinio in suite setup
+          echo "System Domain: $GKE_DOMAIN"
+          export KUBECONFIG=$HOME/.kube/config
+          export EPINIO_CURRENT_TAG="$(git describe --tags)"
+          # Run GKE integrated install + upgrade test
+          mkdir dist
+          scripts/get-latest-epinio.sh
+          make test-acceptance-install
+
+      - name: Delete GKE cluster
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        run: |
+          id="${{ steps.create-cluster.outputs.ID }}"
+          gcloud container clusters delete epinioci$id --zone ${{ env.GKE_ZONE }} --quiet

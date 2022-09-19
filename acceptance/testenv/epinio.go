@@ -3,13 +3,14 @@ package testenv
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
 
 	"github.com/epinio/epinio/acceptance/helpers/machine"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+
+	ginkgo "github.com/onsi/ginkgo/v2"
 	"github.com/onsi/gomega"
 	"github.com/pkg/errors"
 )
@@ -40,6 +41,8 @@ type EpinioEnv struct {
 }
 
 func New(nodeDir string, rootDir, username, password, adminToken, userToken string) EpinioEnv {
+	ginkgo.By(fmt.Sprintf("TestEnv (n=%s, r=%s, u=%s, p=%s, at=%s, ut=%s)",
+		nodeDir, rootDir, username, password, adminToken, userToken))
 	return EpinioEnv{
 		nodeTmpDir:       nodeDir,
 		EpinioUser:       username,
@@ -65,19 +68,24 @@ func ServerBinaryName() string {
 func EpinioBinaryPath() string {
 	if _, ok := os.LookupEnv("EPINIO_COVERAGE"); ok {
 		p, _ := filepath.Abs(filepath.Join(Root(), "epinio.test"))
+		ginkgo.By("CLI Binary (Env): " + p)
 		return p
 	}
 	p, _ := filepath.Abs(filepath.Join(Root(), "dist", BinaryName()))
+	ginkgo.By("CLI Binary (Sys): " + p)
 	return p
 }
 
 // EpinioYAML returns the absolute path to the epinio settings YAML
 func EpinioYAML() string {
-	if os.Getenv("EPINIO_SETTINGS") == "" {
-		return os.ExpandEnv("${HOME}/.config/epinio/settings.yaml")
+	path := os.Getenv("EPINIO_SETTINGS")
+	if path == "" {
+		fmt.Printf("YAML Default!\n")
+		path = os.ExpandEnv("${HOME}/.config/epinio/settings.yaml")
 	}
 
-	return os.Getenv("EPINIO_SETTINGS")
+	fmt.Printf("YAML: %s\n", path)
+	return path
 }
 
 // BuildEpinio builds the epinio binaries for the server and if platforms are different also for the CLI
@@ -88,35 +96,13 @@ func BuildEpinio() {
 		targets = append(targets, fmt.Sprintf("build-%s-%s", runtime.GOOS, runtime.GOARCH))
 	}
 
+	ginkgo.By(fmt.Sprintf("Compiling epinio from local checkout: %v", targets))
+
 	output, err := proc.Run(Root(), false, "make", targets...)
 	if err != nil {
 		panic(fmt.Sprintf("Couldn't build Epinio: %s\n %s\n"+err.Error(), output))
 	}
-}
-
-func CheckDependencies() error {
-	ok := true
-
-	dependencies := []struct {
-		CommandName string
-	}{
-		{CommandName: "wget"},
-		{CommandName: "tar"},
-	}
-
-	for _, dependency := range dependencies {
-		_, err := exec.LookPath(dependency.CommandName)
-		if err != nil {
-			fmt.Printf("Not found: %s\n", dependency.CommandName)
-			ok = false
-		}
-	}
-
-	if ok {
-		return nil
-	}
-
-	return errors.New("Please check your PATH, some of our dependencies were not found")
+	ginkgo.By("Done compiling")
 }
 
 const DefaultWorkspace = "workspace"

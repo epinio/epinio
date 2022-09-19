@@ -36,6 +36,14 @@ func NewServiceName() string {
 	return "service-instance-" + strconv.Itoa(int(time.Now().Nanosecond()))
 }
 
+func NewCatalogServiceNamePrefixed(prefix string) string {
+	return prefix + "-service-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
+func NewServiceNamePrefixed(prefix string) string {
+	return prefix + "-service-instance-" + strconv.Itoa(int(time.Now().Nanosecond()))
+}
+
 func NewUserCredentials() (string, string) {
 	username := strconv.Itoa(RandInt()) + "@epinio.io"
 	return username, strconv.Itoa(RandInt())

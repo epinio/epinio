@@ -1,39 +1,54 @@
 package upgrade_test
 
 import (
-	"fmt"
 	"net/http"
-	"os"
-	"path"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
+	"github.com/epinio/epinio/acceptance/helpers/epinio"
+	"github.com/epinio/epinio/acceptance/testenv"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Epinio upgrade with running app", func() {
 	var (
-		namespace string
-		appName   string
+		namespace string // Namespace created before upgrade
+		appName   string // Application created before upgrade
+		service   string // Service created after upgrade
+		appAfter  string // application created after upgrade
+
+		epinioHelper epinio.Epinio
 	)
 
 	BeforeEach(func() {
+		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
+
+		// Before upgrade ...
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 		appName = catalog.NewAppName()
+		appAfter = catalog.NewAppName()
+		service = catalog.NewServiceName()
 	})
 
 	AfterEach(func() {
+		// After upgrade ...
 		env.DeleteApp(appName)
+		env.DeleteApp(appAfter)
+		env.DeleteService(service)
 		env.DeleteNamespace(namespace)
 	})
 
 	It("can upgrade epinio", func() {
+		// Note current versions of client and server
+		By("Versions before upgrade")
+		env.Versions()
+
 		// Deploy a simple application before upgrading Epinio
 		out := env.MakeGolangApp(appName, 1, true)
 		routeRegexp := regexp.MustCompile(`https:\/\/.*omg.howdoi.website`)
@@ -46,44 +61,12 @@ var _ = Describe("Epinio upgrade with running app", func() {
 			return resp.StatusCode
 		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
-		// Redundant, done by prepare_environment_k3d in flow setup (upgrade.yml)
-		// Build image with latest epinio-server binary
-		By("Building image ...")
-		out, err := proc.Run("../..", false, "docker", "build", "-t", "epinio/epinio-server", "-f", "images/Dockerfile", ".")
-		Expect(err).NotTo(HaveOccurred(), out)
-		By(out)
+		// Upgrade to current as found in checkout
+		epinioHelper.Upgrade()
 
-		tag := os.Getenv("EPINIO_CURRENT_TAG")
-		By("Tag: " + tag)
-
-		// Importing the new image in k3d
-		By("Importing image ...")
-		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance",
-			fmt.Sprintf("ghcr.io/epinio/epinio-server:%s", tag))
-		Expect(err).NotTo(HaveOccurred(), out)
-		By(out)
-
-		By("Getting the old values ...")
-		out, err = proc.RunW("helm", "get", "values", "epinio",
-			"-n", "epinio", "-o", "yaml",
-		)
-		Expect(err).NotTo(HaveOccurred(), out)
-		tmpDir, err := os.MkdirTemp("", "helm")
-		Expect(err).ToNot(HaveOccurred())
-		err = os.WriteFile(path.Join(tmpDir, "values.yaml"), []byte(out), 0644)
-		Expect(err).ToNot(HaveOccurred())
-
-		// Upgrade Epinio using the fresh image
-		By("Upgrading ...")
-		out, err = proc.RunW("helm", "upgrade", "epinio",
-			"-n", "epinio",
-			"../../helm-charts/chart/epinio",
-			"-f", path.Join(tmpDir, "values.yaml"),
-			"--set", "image.epinio.registry=ghcr.io/",
-			"--set", fmt.Sprintf("image.epinio.tag=%s", tag),
-			"--wait",
-		)
-		Expect(err).NotTo(HaveOccurred(), out)
+		// Note post-upgrade versions of client and server
+		By("Versions after upgrade")
+		env.Versions()
 
 		// Check that the app is still reachable
 		By("Checking reachability ...")
@@ -93,8 +76,37 @@ var _ = Describe("Epinio upgrade with running app", func() {
 			return resp.StatusCode
 		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
 
+		// Check that we can create a service after the upgrade
+		By("Creating a service post-upgrade")
+
+		out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+		Expect(err).ToNot(HaveOccurred(), out)
+
+		By("wait for deployment")
+		Eventually(func() string {
+			out, _ := env.Epinio("", "service", "show", service)
+			return out
+		}, "2m", "5s").Should(
+			HaveATable(
+				WithHeaders("KEY", "VALUE"),
+				WithRow("Status", "deployed"),
+			),
+		)
+
+		// Check that we can create an application after the upgrade
+		By("Creating an application post-upgrade")
+
+		out = env.MakeGolangApp(appAfter, 1, true)
+		route = string(routeRegexp.Find([]byte(out)))
+
+		// Check that the app is reachable
+		Eventually(func() int {
+			resp, err := env.Curl("GET", route, strings.NewReader(""))
+			Expect(err).ToNot(HaveOccurred())
+			return resp.StatusCode
+		}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+
 		// We can think about adding more checks later like application with
 		// environment vars or configurations
-
 	})
 })
