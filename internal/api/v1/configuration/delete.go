@@ -70,7 +70,7 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	// If it is, and automatic unbind was requested, do that.
 	// Without automatic unbind such applications are reported as error.
 
-	var appConfigurationsMap map[string][]string
+	appConfigurationsMap := make(map[string][]string)
 	var allBoundApps []string
 	for _, cName := range configurationNames {
 		boundAppNames, err := application.BoundAppsNamesFor(ctx, cluster, namespace, cName)

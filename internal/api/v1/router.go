@@ -127,13 +127,14 @@ var Routes = routes.NamedRoutes{
 	// List, show, create and delete configurations
 	"ConfigurationApps": get("/namespaces/:namespace/configurationapps", errorHandler(configuration.Controller{}.ConfigurationApps)),
 	//
-	"AllConfigurations":    get("/configurations", errorHandler(configuration.Controller{}.FullIndex)),
-	"Configurations":       get("/namespaces/:namespace/configurations", errorHandler(configuration.Controller{}.Index)),
-	"ConfigurationShow":    get("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Show)),
-	"ConfigurationCreate":  post("/namespaces/:namespace/configurations", errorHandler(configuration.Controller{}.Create)),
-	"ConfigurationDelete":  delete("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Delete)),
-	"ConfigurationUpdate":  patch("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Update)),
-	"ConfigurationReplace": put("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Replace)),
+	"AllConfigurations":        get("/configurations", errorHandler(configuration.Controller{}.FullIndex)),
+	"Configurations":           get("/namespaces/:namespace/configurations", errorHandler(configuration.Controller{}.Index)),
+	"ConfigurationShow":        get("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Show)),
+	"ConfigurationCreate":      post("/namespaces/:namespace/configurations", errorHandler(configuration.Controller{}.Create)),
+	"ConfigurationBatchDelete": delete("/namespaces/:namespace/configurations", errorHandler(configuration.Controller{}.Delete)),
+	"ConfigurationDelete":      delete("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Delete)),
+	"ConfigurationUpdate":      patch("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Update)),
+	"ConfigurationReplace":     put("/namespaces/:namespace/configurations/:configuration", errorHandler(configuration.Controller{}.Replace)),
 
 	"ConfigurationMatch":  get("/namespaces/:namespace/configurationsmatches/:pattern", errorHandler(configuration.Controller{}.Match)),
 	"ConfigurationMatch0": get("/namespaces/:namespace/configurationsmatches", errorHandler(configuration.Controller{}.Match)),
