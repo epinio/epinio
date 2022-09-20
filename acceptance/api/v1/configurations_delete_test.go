@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Configurations API Application Endpoints", func() {
+var _ = Describe("Configurations API Application Endpoints", func() {
 	Describe("DELETE /api/v1/namespaces/:namespace/configurations", func() {
 		var namespace string
 		var svc1, svc2 string
