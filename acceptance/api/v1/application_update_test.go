@@ -239,8 +239,8 @@ var _ = Describe("AppUpdate Endpoint", func() {
 
 		AfterEach(func() {
 			env.DeleteApp(app)
-			env.DeleteConfiguration(configuration)
-			env.DeleteConfiguration(configuration2)
+			env.DeleteConfigurations(configuration)
+			env.DeleteConfigurations(configuration2)
 		})
 
 		// helper function to allow deterministic string comparison

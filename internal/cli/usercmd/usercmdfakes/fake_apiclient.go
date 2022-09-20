@@ -391,12 +391,12 @@ type FakeAPIClient struct {
 		result1 models.Response
 		result2 error
 	}
-	ConfigurationDeleteStub        func(models.ConfigurationDeleteRequest, string, string, func(response *http.Response, bodyBytes []byte, err error) error) (models.ConfigurationDeleteResponse, error)
+	ConfigurationDeleteStub        func(models.ConfigurationDeleteRequest, string, []string, func(response *http.Response, bodyBytes []byte, err error) error) (models.ConfigurationDeleteResponse, error)
 	configurationDeleteMutex       sync.RWMutex
 	configurationDeleteArgsForCall []struct {
 		arg1 models.ConfigurationDeleteRequest
 		arg2 string
-		arg3 string
+		arg3 []string
 		arg4 func(response *http.Response, bodyBytes []byte, err error) error
 	}
 	configurationDeleteReturns struct {
@@ -2530,18 +2530,23 @@ func (fake *FakeAPIClient) ConfigurationCreateReturnsOnCall(i int, result1 model
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) ConfigurationDelete(arg1 models.ConfigurationDeleteRequest, arg2 string, arg3 string, arg4 func(response *http.Response, bodyBytes []byte, err error) error) (models.ConfigurationDeleteResponse, error) {
+func (fake *FakeAPIClient) ConfigurationDelete(arg1 models.ConfigurationDeleteRequest, arg2 string, arg3 []string, arg4 func(response *http.Response, bodyBytes []byte, err error) error) (models.ConfigurationDeleteResponse, error) {
+	var arg3Copy []string
+	if arg3 != nil {
+		arg3Copy = make([]string, len(arg3))
+		copy(arg3Copy, arg3)
+	}
 	fake.configurationDeleteMutex.Lock()
 	ret, specificReturn := fake.configurationDeleteReturnsOnCall[len(fake.configurationDeleteArgsForCall)]
 	fake.configurationDeleteArgsForCall = append(fake.configurationDeleteArgsForCall, struct {
 		arg1 models.ConfigurationDeleteRequest
 		arg2 string
-		arg3 string
+		arg3 []string
 		arg4 func(response *http.Response, bodyBytes []byte, err error) error
-	}{arg1, arg2, arg3, arg4})
+	}{arg1, arg2, arg3Copy, arg4})
 	stub := fake.ConfigurationDeleteStub
 	fakeReturns := fake.configurationDeleteReturns
-	fake.recordInvocation("ConfigurationDelete", []interface{}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("ConfigurationDelete", []interface{}{arg1, arg2, arg3Copy, arg4})
 	fake.configurationDeleteMutex.Unlock()
 	if stub != nil {
 		return stub(arg1, arg2, arg3, arg4)
@@ -2558,13 +2563,13 @@ func (fake *FakeAPIClient) ConfigurationDeleteCallCount() int {
 	return len(fake.configurationDeleteArgsForCall)
 }
 
-func (fake *FakeAPIClient) ConfigurationDeleteCalls(stub func(models.ConfigurationDeleteRequest, string, string, func(response *http.Response, bodyBytes []byte, err error) error) (models.ConfigurationDeleteResponse, error)) {
+func (fake *FakeAPIClient) ConfigurationDeleteCalls(stub func(models.ConfigurationDeleteRequest, string, []string, func(response *http.Response, bodyBytes []byte, err error) error) (models.ConfigurationDeleteResponse, error)) {
 	fake.configurationDeleteMutex.Lock()
 	defer fake.configurationDeleteMutex.Unlock()
 	fake.ConfigurationDeleteStub = stub
 }
 
-func (fake *FakeAPIClient) ConfigurationDeleteArgsForCall(i int) (models.ConfigurationDeleteRequest, string, string, func(response *http.Response, bodyBytes []byte, err error) error) {
+func (fake *FakeAPIClient) ConfigurationDeleteArgsForCall(i int) (models.ConfigurationDeleteRequest, string, []string, func(response *http.Response, bodyBytes []byte, err error) error) {
 	fake.configurationDeleteMutex.RLock()
 	defer fake.configurationDeleteMutex.RUnlock()
 	argsForCall := fake.configurationDeleteArgsForCall[i]

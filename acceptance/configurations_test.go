@@ -84,12 +84,12 @@ var _ = Describe("Configurations", func() {
 
 		AfterEach(func() {
 			env.TargetNamespace(namespace2)
-			env.DeleteConfiguration(configuration1)
-			env.DeleteConfiguration(configuration2)
+			env.DeleteConfigurations(configuration1)
+			env.DeleteConfigurations(configuration2)
 
 			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
-			env.DeleteConfiguration(configuration1)
+			env.DeleteConfigurations(configuration1)
 
 			env.DeleteNamespace(namespace1)
 			env.DeleteNamespace(namespace2)
@@ -132,7 +132,12 @@ var _ = Describe("Configurations", func() {
 		})
 
 		It("deletes a configuration", func() {
-			env.DeleteConfiguration(configurationName1)
+			env.DeleteConfigurations(configurationName1)
+		})
+
+		It("deletes multiple configurations", func() {
+			env.MakeConfiguration(configurationName2)
+			env.DeleteConfigurations(configurationName1, configurationName2)
 		})
 
 		It("doesn't delete a bound configuration", func() {
@@ -158,7 +163,7 @@ var _ = Describe("Configurations", func() {
 
 			out, err = env.Epinio("", "configuration", "delete", "--unbind", configurationName1)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Configuration Removed"))
+			Expect(out).To(ContainSubstring("Configurations Removed"))
 
 			env.VerifyAppConfigurationNotbound(appName, configurationName1, namespace, 1)
 
