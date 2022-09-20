@@ -2,6 +2,8 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/url"
 
 	"github.com/pkg/errors"
 
@@ -87,7 +89,7 @@ func (c *Client) ConfigurationBindingDelete(namespace string, appName string, co
 }
 
 // ConfigurationDelete deletes a configuration
-func (c *Client) ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, name string, f ErrorFunc) (models.ConfigurationDeleteResponse, error) {
+func (c *Client) ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, names []string, f ErrorFunc) (models.ConfigurationDeleteResponse, error) {
 	resp := models.ConfigurationDeleteResponse{}
 
 	b, err := json.Marshal(req)
@@ -95,9 +97,9 @@ func (c *Client) ConfigurationDelete(req models.ConfigurationDeleteRequest, name
 		return resp, nil
 	}
 
-	data, err := c.doWithCustomErrorHandling(
-		api.Routes.Path("ConfigurationDelete", namespace, name),
-		"DELETE", string(b), f)
+	URL := constructBatchDeleteURL(namespace, names)
+
+	data, err := c.doWithCustomErrorHandling(URL, "DELETE", string(b), f)
 	if err != nil {
 		if err.Error() != "Bad Request" {
 			return resp, err
@@ -222,4 +224,16 @@ func (c *Client) ConfigurationMatch(namespace, prefix string) (models.Configurat
 	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
+}
+
+func constructBatchDeleteURL(namespace string, names []string) string {
+	q := url.Values{}
+	for _, c := range names {
+		q.Add("configurations[]", c)
+	}
+	URLParams := q.Encode()
+
+	URL := api.Routes.Path("ConfigurationBatchDelete", namespace)
+
+	return fmt.Sprintf("%s?%s", URL, URLParams)
 }

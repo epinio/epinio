@@ -72,7 +72,7 @@ type APIClient interface {
 	AllConfigurations() (models.ConfigurationResponseList, error)
 	ConfigurationBindingCreate(req models.BindRequest, namespace string, appName string) (models.BindResponse, error)
 	ConfigurationBindingDelete(namespace string, appName string, configurationName string) (models.Response, error)
-	ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, name string, f epinioapi.ErrorFunc) (models.ConfigurationDeleteResponse, error)
+	ConfigurationDelete(req models.ConfigurationDeleteRequest, namespace string, names []string, f epinioapi.ErrorFunc) (models.ConfigurationDeleteResponse, error)
 	ConfigurationCreate(req models.ConfigurationCreateRequest, namespace string) (models.Response, error)
 	ConfigurationUpdate(req models.ConfigurationUpdateRequest, namespace, name string) (models.Response, error)
 	ConfigurationShow(namespace string, name string) (models.ConfigurationResponse, error)

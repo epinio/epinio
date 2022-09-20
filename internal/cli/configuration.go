@@ -93,10 +93,10 @@ var CmdConfigurationUpdate = &cobra.Command{
 
 // CmdConfigurationDelete implements the command: epinio configuration delete
 var CmdConfigurationDelete = &cobra.Command{
-	Use:   "delete NAME",
-	Short: "Delete a configuration",
-	Long:  `Delete configuration by name.`,
-	Args:  cobra.ExactArgs(1),
+	Use:   "delete NAME1 [NAME2 ...]",
+	Short: "Delete one or more configurations",
+	Long:  `Delete configurations by name.`,
+	Args:  cobra.MinimumNArgs(1),
 	RunE:  ConfigurationDelete,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		if len(args) != 0 {
@@ -291,7 +291,7 @@ func ConfigurationDelete(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error initializing cli")
 	}
 
-	err = client.DeleteConfiguration(args[0], unbind)
+	err = client.DeleteConfiguration(args, unbind)
 	if err != nil {
 		return errors.Wrap(err, "error deleting configuration")
 	}
