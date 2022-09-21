@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -25,20 +24,20 @@ import (
 
 type Machine struct {
 	nodeTmpDir       string
+	user             string
+	password         string
 	token            string
 	root             string
 	epinioBinaryPath string
-
-	lock *sync.Mutex
 }
 
-func New(dir string, token string, root string, epinioBinaryPath string) Machine {
+func New(dir string, user string, password string, root string, epinioBinaryPath string) Machine {
 	return Machine{
 		nodeTmpDir:       dir,
-		token:            token,
+		user:             user,
+		password:         password,
 		root:             root,
 		epinioBinaryPath: epinioBinaryPath,
-		lock:             &sync.Mutex{},
 	}
 }
 
@@ -94,10 +93,8 @@ func (m *Machine) TargetNamespace(namespace string) {
 }
 
 func (m *Machine) SetupAndTargetNamespace(namespace string) {
-	m.lock.Lock()
 	m.SetupNamespace(namespace)
 	m.TargetNamespace(namespace)
-	m.lock.Unlock()
 }
 
 func (m *Machine) DeleteNamespace(namespace string) {

@@ -79,7 +79,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 		var (
 			namespace1, namespace2         string
 			configuration1, configuration2 string
-			user                           string
+			user, password                 string
 			app1                           string
 		)
 
@@ -104,7 +104,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			env.MakeConfiguration(configuration1) // separate from namespace1.configuration1
 			env.MakeConfiguration(configuration2)
 
-			user, _ = env.CreateEpinioUser("user", nil)
+			user, password = env.CreateEpinioUser("user", nil)
 		})
 
 		AfterEach(func() {
@@ -163,7 +163,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			endpoint := fmt.Sprintf("%s%s/configurations", serverURL, api.Root)
 			request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 			Expect(err).ToNot(HaveOccurred())
-			request.Header.Set("Authorization", "Bearer "+env.GetUserToken("user1@epinio.io"))
+			request.SetBasicAuth(user, password)
 
 			response, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())

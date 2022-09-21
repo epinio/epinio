@@ -16,8 +16,6 @@ var _ = Describe("Configurations", func() {
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
-		updateToken("admin@epinio.io")
-
 		namespace = catalog.NewNamespaceName()
 		configurationName1 = catalog.NewConfigurationName()
 		configurationName2 = catalog.NewConfigurationName()

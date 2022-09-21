@@ -2,7 +2,8 @@ package acceptance_test
 
 import (
 	"encoding/base64"
-	"strings"
+	"fmt"
+	"os"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
@@ -76,7 +77,9 @@ var _ = Describe("Settings", func() {
 					WithRow("Colorized Output", "true|false"),
 					WithRow("Current Namespace", ".*"),
 					WithRow("Default App Chart", ""),
-					WithRow("API Token", "[*]+"),
+					WithRow("API User Name", env.EpinioUser),
+					WithRow("API Password", "[*]*"),
+					WithRow("API Token", "[*]*"),
 					WithRow("API Url", "https://epinio.*"),
 					WithRow("WSS Url", "wss://epinio.*"),
 					WithRow("Certificates", "Present"),
@@ -93,6 +96,8 @@ var _ = Describe("Settings", func() {
 					WithRow("Colorized Output", "true|false"),
 					WithRow("Current Namespace", ".*"),
 					WithRow("Default App Chart", ""),
+					WithRow("API User Name", ""),
+					WithRow("API Password", ""),
 					WithRow("API Token", ""),
 					WithRow("API Url", ""),
 					WithRow("WSS Url", ""),
@@ -102,7 +107,7 @@ var _ = Describe("Settings", func() {
 		})
 
 		It("shows the settings with the password in plaintext", func() {
-			settings, err := env.Epinio("", "settings", "show", "--show-token")
+			settings, err := env.Epinio("", "settings", "show", "--show-password", "--show-token")
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(settings).To(
@@ -111,6 +116,8 @@ var _ = Describe("Settings", func() {
 					WithRow("Colorized Output", "true|false"),
 					WithRow("Current Namespace", ".*"),
 					WithRow("Certificates", "Present"),
+					WithRow("API User Name", env.EpinioUser),
+					WithRow("API Password", env.EpinioPassword),
 					WithRow("API Token", ".+"),
 					WithRow("API Url", "https://epinio.*"),
 					WithRow("WSS Url", "wss://epinio.*"),
@@ -140,24 +147,19 @@ var _ = Describe("Settings", func() {
 			Expect(newSettings.WSS).To(Equal(oldSettings.WSS))
 			Expect(newSettings.Certs).To(Equal(oldSettings.Certs))
 		})
+	})
 
-		It("stores a valid token", func() {
-			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
+	Describe("Authorization settings", func() {
+		oldSettingsPath := testenv.EpinioYAML()
 
+		It("stores the password in base64", func() {
 			settings, err := env.GetSettingsFrom(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
 
-			parts := strings.Split(settings.Token.AccessToken, ".")
-			Expect(parts).To(HaveLen(3))
-
-			_, err = base64.RawURLEncoding.DecodeString(parts[0])
-			Expect(err).To(Not(HaveOccurred()))
-			_, err = base64.RawURLEncoding.DecodeString(parts[1])
-			Expect(err).To(Not(HaveOccurred()))
-			_, err = base64.RawURLEncoding.DecodeString(parts[2])
-			Expect(err).To(Not(HaveOccurred()))
+			fileContents, err := os.ReadFile(oldSettingsPath)
+			Expect(err).ToNot(HaveOccurred())
+			encodedPass := base64.StdEncoding.EncodeToString([]byte(settings.Password))
+			Expect(string(fileContents)).To(MatchRegexp(fmt.Sprintf("pass: %s", encodedPass)))
 		})
 	})
 })

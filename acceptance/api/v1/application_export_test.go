@@ -64,7 +64,7 @@ var _ = Describe("AppPart Endpoint", func() {
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
-  username: admin@epinio.io
+  username: admin
 `, app, domain, domain)))
 	})
 

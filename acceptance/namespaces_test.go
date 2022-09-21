@@ -9,11 +9,6 @@ import (
 )
 
 var _ = Describe("Namespaces", func() {
-
-	BeforeEach(func() {
-		updateToken("admin@epinio.io")
-	})
-
 	It("has a default namespace", func() {
 		out, err := env.Epinio("", "namespace", "list")
 		Expect(err).ToNot(HaveOccurred())

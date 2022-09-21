@@ -90,9 +90,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		initContextMiddleware(logger),
 	)
 
-	// router.GET("/login", dex.Controller{}.Login)
-	// router.GET("/dex/callback", dex.Controller{}.Callback)
-
 	err := auth.ExtendLocalTrustFromFile("/etc/ssl/certs/dex-tls.pem")
 	if err != nil {
 		return nil, errors.Wrap(err, "extending local trust with dex")
@@ -188,8 +185,7 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 	return oidcProvider, errors.Wrap(err, "constructing dexProviderConfig")
 }
 
-// authMiddleware authenticates the user either using the session or if one
-// doesn't exist, it authenticates with basic auth.
+// authMiddleware authenticates the user either using the basic auth or the bearer token (OIDC)
 func authMiddleware(ctx *gin.Context) {
 	// we need this check to return a 401 instead of an error
 	authorizationHeader := ctx.Request.Header.Get("Authorization")
@@ -223,8 +219,7 @@ func authMiddleware(ctx *gin.Context) {
 	ctx.Request = ctx.Request.Clone(newCtx)
 }
 
-// authMiddleware authenticates the user either using the session or if one
-// doesn't exist, it authenticates with basic auth.
+// basicAuthentication performs the Basic Authentication
 func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	reqCtx := ctx.Request.Context()
 	logger := requestctx.Logger(reqCtx).WithName("basicAuthentication")
@@ -252,8 +247,7 @@ func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	return userMap[username], nil
 }
 
-// authMiddleware authenticates the user either using the session or if one
-// doesn't exist, it authenticates with basic auth.
+// oidcAuthentication perform the OIDC authentication with dex
 func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	reqCtx := ctx.Request.Context()
 	logger := requestctx.Logger(reqCtx).WithName("oidcAuthentication")

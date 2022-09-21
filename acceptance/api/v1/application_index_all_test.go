@@ -19,6 +19,7 @@ var _ = Describe("AllApps Endpoints", func() {
 	var (
 		namespace1, namespace2 string
 		app1, app2             string
+		user, password         string
 		containerImageURL      string
 	)
 
@@ -36,6 +37,8 @@ var _ = Describe("AllApps Endpoints", func() {
 
 		app2 = catalog.NewAppName()
 		env.MakeContainerImageApp(app2, 1, containerImageURL)
+
+		user, password = env.CreateEpinioUser("user", nil)
 	})
 
 	AfterEach(func() {
@@ -47,6 +50,8 @@ var _ = Describe("AllApps Endpoints", func() {
 
 		env.DeleteNamespace(namespace1)
 		env.DeleteNamespace(namespace2)
+
+		env.DeleteEpinioUser(user)
 	})
 
 	It("lists all applications belonging to all namespaces", func() {
@@ -83,7 +88,7 @@ var _ = Describe("AllApps Endpoints", func() {
 		endpoint := fmt.Sprintf("%s%s/applications", serverURL, v1.Root)
 		request, err := http.NewRequest(http.MethodGet, endpoint, nil)
 		Expect(err).ToNot(HaveOccurred())
-		request.Header.Set("Authorization", "Bearer "+env.GetUserToken("user1@epinio.io"))
+		request.SetBasicAuth(user, password)
 
 		response, err := env.Client().Do(request)
 		Expect(err).ToNot(HaveOccurred())

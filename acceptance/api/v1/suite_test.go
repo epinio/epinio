@@ -52,8 +52,8 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
+	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password)
 
-	env = testenv.New(nodeTmpDir, testenv.Root(), "")
 	auth.InitUsers(&env, theSettings.API)
 
 	token, err := auth.GetToken(theSettings.API, "admin@epinio.io", "password")
@@ -68,8 +68,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	serverURL = "https://" + out
 	websocketURL = "wss://" + out
-
-	updateToken("admin@epinio.io")
 })
 
 var _ = AfterSuite(func() {

@@ -33,16 +33,20 @@ const (
 type EpinioEnv struct {
 	machine.Machine
 	nodeTmpDir     string
+	EpinioUser     string
+	EpinioPassword string
 	EpinioToken    string
 	EpinioTokenMap map[string]string
 }
 
-func New(nodeDir string, rootDir, token string) EpinioEnv {
+func New(nodeDir string, rootDir, username, password string) EpinioEnv {
 	return EpinioEnv{
 		nodeTmpDir:     nodeDir,
-		EpinioToken:    token,
+		EpinioUser:     username,
+		EpinioPassword: password,
+		EpinioToken:    "",
 		EpinioTokenMap: map[string]string{},
-		Machine:        machine.New(nodeDir, token, root, EpinioBinaryPath()),
+		Machine:        machine.New(nodeDir, username, password, root, EpinioBinaryPath()),
 	}
 }
 

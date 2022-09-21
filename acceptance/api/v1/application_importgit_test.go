@@ -47,8 +47,7 @@ var _ = Describe("AppImportGit Endpoint", func() {
 			url := serverURL + v1.Root + "/" + v1.Routes.Path("AppImportGit", namespace, app)
 			request, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 			Expect(err).ToNot(HaveOccurred())
-
-			request.Header.Set("Authorization", "Bearer "+env.EpinioToken)
+			request.SetBasicAuth(env.EpinioUser, env.EpinioPassword)
 			request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 			request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 
