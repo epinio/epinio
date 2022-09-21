@@ -1,8 +1,7 @@
-// Package docs provides the API specification of the Epinio API through swagger declarations
+// Epinio API
 //
-// swagger:meta
-package docs
-
+// This is the API specification of the Epinio API
+//
 //     Schemes: http, https
 //     Host:
 //     BasePath: /api/v1
@@ -14,3 +13,6 @@ package docs
 //
 //     Security:
 //     - basicAuth: []
+//
+// swagger:meta
+package docs

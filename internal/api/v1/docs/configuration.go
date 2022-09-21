@@ -11,6 +11,11 @@ import "github.com/epinio/epinio/pkg/api/core/v1/models"
 // responses:
 //   200: ConfigurationDeleteResponse
 
+// swagger:route DELETE /namespaces/{Namespace}/configurations ConfigurationBatchDelete
+// Delete the named `Configurations` in the `Namespace`.
+// responses:
+//   200: ConfigurationDeleteResponse
+
 // swagger:parameters ConfigurationDelete
 type ConfigurationDeleteParam struct {
 	// in: path
@@ -19,6 +24,14 @@ type ConfigurationDeleteParam struct {
 	Configuration string
 	// in: body
 	Body models.ConfigurationDeleteRequest
+}
+
+// swagger:parameters ConfigurationBatchDelete
+type ConfigurationBatchDeleteParam struct {
+	// in: path
+	Namespace string
+	// in: url
+	Configurations []string
 }
 
 // swagger:response ConfigurationDeleteResponse
