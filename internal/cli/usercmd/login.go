@@ -2,33 +2,23 @@ package usercmd
 
 import (
 	"bufio"
-	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"fmt"
-	"net"
-	"net/http"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
-	"sync"
-	"time"
+	"syscall"
 
 	"github.com/epinio/epinio/helpers/termui"
-	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/settings"
-	"github.com/epinio/epinio/internal/dex"
 	epinioapi "github.com/epinio/epinio/pkg/api/core/v1/client"
 	"github.com/pkg/errors"
-	"github.com/skratchdot/open-golang/open"
-	"golang.org/x/oauth2"
+	"golang.org/x/term"
 )
 
-// Login implements the "public client" flow of dex:
-// https://dexidp.io/docs/custom-scopes-claims-clients/#public-clients
-func (c *EpinioClient) Login(ctx context.Context, address string, trustCA, prompt bool) error {
+// Login will ask the user for a username and password, and then it will update the settings file accordingly
+func (c *EpinioClient) Login(username, password, address string, trustCA bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -37,42 +27,31 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA, promp
 
 	c.ui.Note().Msgf("Login to your Epinio cluster [%s]", address)
 
-	// Deduct the dex URL from the epinio one
-	dexURL := regexp.MustCompile(`epinio\.(.*)`).ReplaceAllString(address, "auth.$1")
+	if username == "" {
+		username, err = askUsername(c.ui)
+		if err != nil {
+			return errors.Wrap(err, "error while asking for username")
+		}
+	}
+
+	if password == "" {
+		password, err = askPassword(c.ui)
+		if err != nil {
+			return errors.Wrap(err, "error while asking for password")
+		}
+	}
 
 	// check if the server has a trusted authority, or if we want to trust it anyway
-	certsToTrust, err := checkAndAskCA(c.ui, []string{address, dexURL}, trustCA)
+	serverCertificate, err := checkAndAskCA(c.ui, []string{address}, trustCA)
 	if err != nil {
 		return errors.Wrap(err, "error while checking CA")
 	}
 
 	// load settings and update them (in memory)
-	updatedSettings, err := trustCertInSettings(certsToTrust)
+	updatedSettings, err := updateSettings(address, username, password, serverCertificate)
 	if err != nil {
 		return errors.Wrap(err, "error updating settings")
 	}
-
-	updatedSettings.API = address
-	updatedSettings.WSS = strings.Replace(address, "https://", "wss://", 1)
-
-	// Trust the cert to allow the client to talk to dex
-	auth.ExtendLocalTrust(updatedSettings.Certs)
-
-	oidcProvider, err := dex.NewOIDCProvider(ctx, dexURL, "epinio-cli")
-	if err != nil {
-		return errors.Wrap(err, "constructing dexProviderConfig")
-	}
-
-	token, err := c.generateToken(ctx, oidcProvider, prompt)
-	if err != nil {
-		return errors.Wrap(err, "error while asking for token")
-	}
-
-	// TODO store also the RefreshToken and implement refresh flow
-	updatedSettings.Token.AccessToken = token.AccessToken
-	updatedSettings.Token.TokenType = token.TokenType
-	updatedSettings.Token.Expiry = token.Expiry
-	updatedSettings.Token.RefreshToken = token.RefreshToken
 
 	// verify that settings are valid
 	err = verifyCredentials(updatedSettings)
@@ -86,87 +65,40 @@ func (c *EpinioClient) Login(ctx context.Context, address string, trustCA, promp
 	return errors.Wrap(err, "error saving new settings")
 }
 
-// generateToken implements the Oauth2 flow to generate an auth token
-func (c *EpinioClient) generateToken(ctx context.Context, oidcProvider *dex.OIDCProvider, prompt bool) (*oauth2.Token, error) {
-	var authCode, codeVerifier string
+func askUsername(ui *termui.UI) (string, error) {
+	var username string
 	var err error
 
-	if prompt {
-		authCode, codeVerifier, err = c.getAuthCodeAndVerifierFromUser(oidcProvider)
-	} else {
-		authCode, codeVerifier, err = c.getAuthCodeAndVerifierWithServer(ctx, oidcProvider)
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, "error getting the auth code")
-	}
-
-	token, err := oidcProvider.ExchangeWithPKCE(ctx, authCode, codeVerifier)
-	if err != nil {
-		return nil, errors.Wrap(err, "exchanging with PKCE")
-	}
-	return token, nil
-}
-
-// getAuthCodeAndVerifierFromUser will wait for the user to input the auth code
-func (c *EpinioClient) getAuthCodeAndVerifierFromUser(oidcProvider *dex.OIDCProvider) (string, string, error) {
-	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
-
-	msg := c.ui.Normal().Compact()
-	msg.Msg("\n" + authCodeURL)
-	msg.Msg("\nOpen this URL in your browser and paste the authorization code:")
-
-	var authCode string
-
-	for authCode == "" {
-		bytesCode, err := readUserInput()
+	ui.Normal().Msg("")
+	for username == "" {
+		ui.Normal().Compact().KeepLine().Msg("Username: ")
+		username, err = readUserInput()
 		if err != nil {
-			return "", "", errors.Wrap(err, "reading authCode user input")
+			return "", err
 		}
-		authCode = strings.TrimSpace(string(bytesCode))
 	}
 
-	return authCode, codeVerifier, nil
+	return username, nil
 }
 
-// getAuthCodeAndVerifierWithServer will wait for the user to login and then will fetch automatically the auth code from the redirect URL
-func (c *EpinioClient) getAuthCodeAndVerifierWithServer(ctx context.Context, oidcProvider *dex.OIDCProvider) (string, string, error) {
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		return "", "", errors.Wrap(err, "creating listener")
+func askPassword(ui *termui.UI) (string, error) {
+	var password string
+
+	msg := ui.Normal().Compact()
+	for password == "" {
+		msg.KeepLine().Msg("Password: ")
+
+		bytesPassword, err := term.ReadPassword(int(syscall.Stdin))
+		if err != nil {
+			return "", err
+		}
+
+		password = strings.TrimSpace(string(bytesPassword))
+		msg = ui.Normal()
 	}
-	oidcProvider.Config.RedirectURL = fmt.Sprintf("http://localhost:%d", listener.Addr().(*net.TCPAddr).Port)
+	ui.Normal().Msg("")
 
-	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
-
-	msg := c.ui.Normal().Compact()
-	msg.Msg("\n" + authCodeURL)
-	msg.Msg("\nOpen this URL in your browser and follow the directions.")
-
-	// if it fails to open the browser the user can still proceed manually
-	_ = open.Run(authCodeURL)
-
-	return startServerAndWaitForCode(ctx, listener), codeVerifier, nil
-}
-
-// startServerAndWaitForCode will start a local server to read automatically the auth code
-func startServerAndWaitForCode(ctx context.Context, listener net.Listener) string {
-	var authCode string
-
-	srv := &http.Server{ReadHeaderTimeout: time.Second * 30}
-	defer func() { _ = srv.Shutdown(ctx) }()
-
-	wg := &sync.WaitGroup{}
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		authCode = r.URL.Query().Get("code")
-		fmt.Fprintf(w, "Login successful! You can close this window.")
-		wg.Done()
-	})
-
-	wg.Add(1)
-	go func() { _ = srv.Serve(listener) }()
-	wg.Wait()
-
-	return authCode
+	return password, nil
 }
 
 func readUserInput() (string, error) {
@@ -303,13 +235,17 @@ func askTrustCA(ui *termui.UI, cert *x509.Certificate) (bool, error) {
 	}
 }
 
-func trustCertInSettings(certsToTrust string) (*settings.Settings, error) {
+func updateSettings(address, username, password, serverCertificate string) (*settings.Settings, error) {
 	epinioSettings, err := settings.Load()
 	if err != nil {
 		return nil, errors.Wrap(err, "error loading the settings")
 	}
 
-	epinioSettings.Certs = certsToTrust
+	epinioSettings.API = address
+	epinioSettings.WSS = strings.Replace(address, "https://", "wss://", 1)
+	epinioSettings.User = username
+	epinioSettings.Password = password
+	epinioSettings.Certs = serverCertificate
 
 	return epinioSettings, nil
 }

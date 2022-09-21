@@ -156,7 +156,7 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 		return err
 	}
 
-	err = c.handleOauth2Transport(request)
+	err = c.handleAuthorization(request)
 	if err != nil {
 		return errors.Wrap(err, "handling oauth2 request")
 	}
@@ -309,7 +309,7 @@ func (c *Client) AppImportGit(app models.AppRef, gitRef models.GitRef) (*models.
 	request.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	request.Header.Add("Content-Length", strconv.Itoa(len(data.Encode())))
 
-	err = c.handleOauth2Transport(request)
+	err = c.handleAuthorization(request)
 	if err != nil {
 		return nil, errors.Wrap(err, "handling oauth2 request")
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/epinio/epinio/internal/domain"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/alron/ginlogr"
 	"github.com/gin-gonic/gin"
@@ -97,17 +98,10 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		return nil, errors.Wrap(err, "extending local trust with dex")
 	}
 
-	// creating oidc provider
-	ctx := context.Background()
-	mainDomain, err := domain.MainDomain(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "getting main domain")
-	}
-
 	// Register api routes
 	{
 		apiRoutesGroup := router.Group(apiv1.Root,
-			authMiddleware(mainDomain),
+			authMiddleware,
 			apiv1.NamespaceMiddleware,
 			apiv1.AuthorizationMiddleware,
 		)
@@ -178,77 +172,148 @@ func initContextMiddleware(logger logr.Logger) gin.HandlerFunc {
 var oidcProvider *dex.OIDCProvider
 
 // getOIDCProvider returns a lazy constructed OIDC provider
-func getOIDCProvider(ctx context.Context, domain string) (*dex.OIDCProvider, error) {
-	var err error
-
+func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 	// TODO should this "expire" after a while (key rotations, other auth providers)?
 	if oidcProvider != nil {
 		return oidcProvider, nil
 	}
 
-	issuer := fmt.Sprintf("https://auth.%s", domain)
+	mainDomain, err := domain.MainDomain(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "getting main domain")
+	}
+
+	issuer := fmt.Sprintf("https://auth.%s", mainDomain)
 	oidcProvider, err = dex.NewOIDCProvider(ctx, issuer, "epinio-cli")
 	return oidcProvider, errors.Wrap(err, "constructing dexProviderConfig")
 }
 
 // authMiddleware authenticates the user either using the session or if one
 // doesn't exist, it authenticates with basic auth.
-func authMiddleware(domain string) func(ctx *gin.Context) {
-	return func(ctx *gin.Context) {
-		logger := requestctx.Logger(ctx.Request.Context()).WithName("authMiddleware")
-		// TODO:
-		// - [x] verify the validity of the token
-		// - [x] if the token is valid check if there is a "user" resource associated with it
-		// - [x] if not, create one, simple user no namespaces yet
-		// - [x] set the current user (so that authorization works)
-
-		oidcProvider, err := getOIDCProvider(ctx, domain)
-		if err != nil {
-			response.Error(ctx, apierrors.InternalError(err, "error getting OIDC provider"))
-			ctx.Abort()
-			return
-		}
-
-		authHeader := strings.TrimSpace(ctx.Request.Header.Get("Authorization"))
-		if authHeader == "" {
-			response.Error(ctx, apierrors.NewAPIError("missing credentials", http.StatusUnauthorized))
-			ctx.Abort()
-			return
-		}
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-
-		idToken, err := oidcProvider.Verify(ctx, token)
-		if err != nil {
-			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "token verification failed").Error(), http.StatusUnauthorized))
-			ctx.Abort()
-			return
-		}
-
-		var claims struct {
-			Email    string   `json:"email"`
-			Verified bool     `json:"email_verified"`
-			Groups   []string `json:"groups"`
-		}
-		if err := idToken.Claims(&claims); err != nil {
-			response.Error(ctx, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized))
-			ctx.Abort()
-			return
-		}
-
-		user, err := getOrCreateUserByEmail(ctx, claims.Email)
-		if err != nil {
-			response.Error(ctx, apierrors.InternalError(err, "getting/creating user with email"))
-			ctx.Abort()
-			return
-		}
-
-		logger.V(1).Info("verified token", "token", string(token), "user", fmt.Sprintf("%#v", user))
-
-		// Write the user info in the context
-		newCtx := ctx.Request.Context()
-		newCtx = requestctx.WithUser(newCtx, user)
-		ctx.Request = ctx.Request.Clone(newCtx)
+func authMiddleware(ctx *gin.Context) {
+	// we need this check to return a 401 instead of an error
+	authorizationHeader := ctx.Request.Header.Get("Authorization")
+	if authorizationHeader == "" {
+		response.Error(ctx, apierrors.NewAPIError("missing credentials", http.StatusUnauthorized))
+		ctx.Abort()
+		return
 	}
+
+	var user auth.User
+	var authError apierrors.APIErrors
+
+	if strings.HasPrefix(authorizationHeader, "Basic ") {
+		user, authError = basicAuthentication(ctx)
+	} else if strings.HasPrefix(authorizationHeader, "Bearer ") {
+		user, authError = oidcAuthentication(ctx)
+	} else {
+		authError = apierrors.NewAPIError("not supported Authorization Header", http.StatusUnauthorized)
+	}
+
+	if authError != nil {
+		response.Error(ctx, authError)
+		ctx.Abort()
+		return
+	}
+
+	// Write the user info in the context. It's needed by the next middleware
+	// to write it into the session.
+	newCtx := ctx.Request.Context()
+	newCtx = requestctx.WithUser(newCtx, user)
+	ctx.Request = ctx.Request.Clone(newCtx)
+}
+
+// authMiddleware authenticates the user either using the session or if one
+// doesn't exist, it authenticates with basic auth.
+func basicAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
+	reqCtx := ctx.Request.Context()
+	logger := requestctx.Logger(reqCtx).WithName("basicAuthentication")
+	logger.V(1).Info("starting Basic Authentication")
+
+	userMap, err := loadUsersMap(ctx)
+	if err != nil {
+		return auth.User{}, apierrors.InternalError(err)
+	}
+
+	if len(userMap) == 0 {
+		return auth.User{}, apierrors.NewAPIError("no user found", http.StatusUnauthorized)
+	}
+
+	username, password, ok := ctx.Request.BasicAuth()
+	if !ok {
+		return auth.User{}, apierrors.NewInternalError("Couldn't extract user from the auth header")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(userMap[username].Password), []byte(password))
+	if err != nil {
+		return auth.User{}, apierrors.NewAPIError("wrong password", http.StatusUnauthorized)
+	}
+
+	return userMap[username], nil
+}
+
+// authMiddleware authenticates the user either using the session or if one
+// doesn't exist, it authenticates with basic auth.
+func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
+	reqCtx := ctx.Request.Context()
+	logger := requestctx.Logger(reqCtx).WithName("oidcAuthentication")
+	logger.V(1).Info("starting OIDC Authentication")
+
+	// TODO:
+	// - [x] verify the validity of the token
+	// - [x] if the token is valid check if there is a "user" resource associated with it
+	// - [x] if not, create one, simple user no namespaces yet
+	// - [x] set the current user (so that authorization works)
+
+	oidcProvider, err := getOIDCProvider(ctx)
+	if err != nil {
+		return auth.User{}, apierrors.InternalError(err, "error getting OIDC provider")
+	}
+
+	authHeader := ctx.Request.Header.Get("Authorization")
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+
+	idToken, err := oidcProvider.Verify(ctx, token)
+	if err != nil {
+		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "token verification failed").Error(), http.StatusUnauthorized)
+	}
+
+	var claims struct {
+		Email    string   `json:"email"`
+		Verified bool     `json:"email_verified"`
+		Groups   []string `json:"groups"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
+	}
+
+	user, err := getOrCreateUserByEmail(ctx, claims.Email)
+	if err != nil {
+		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
+	}
+
+	logger.V(1).Info("verified token", "token", string(token), "user", fmt.Sprintf("%#v", user))
+
+	return user, nil
+}
+
+func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
+	authService, err := auth.NewAuthServiceFromContext(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't create auth service from context")
+	}
+
+	users, err := authService.GetUsers(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "couldn't get users")
+	}
+
+	userMap := make(map[string]auth.User)
+	for _, user := range users {
+		userMap[user.Username] = user
+	}
+
+	return userMap, nil
 }
 
 func getOrCreateUserByEmail(ctx context.Context, email string) (auth.User, error) {
