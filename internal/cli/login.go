@@ -6,8 +6,11 @@ import (
 )
 
 func init() {
+	CmdLogin.Flags().StringP("user", "u", "", "username that will be used to login")
+	CmdLogin.Flags().StringP("password", "p", "", "password that will be used to login")
 	CmdLogin.Flags().Bool("trust-ca", false, "automatically trust the unknown CA")
-	CmdLogin.Flags().Bool("prompt", false, "enable the prompt of the authorization code and disable the local server")
+	CmdLogin.Flags().Bool("oidc", false, "perform OIDC authentication (user and password will be ignored)")
+	CmdLogin.Flags().Bool("prompt", false, "enable the prompt of the authorization code and disable the local server during OIDC authentication")
 }
 
 // CmdLogin implements the command: epinio login
@@ -29,8 +32,22 @@ var CmdLogin = &cobra.Command{
 		}
 
 		address := args[0]
+		username, err := cmd.Flags().GetString("user")
+		if err != nil {
+			return err
+		}
+
+		password, err := cmd.Flags().GetString("password")
+		if err != nil {
+			return err
+		}
 
 		trustCA, err := cmd.Flags().GetBool("trust-ca")
+		if err != nil {
+			return err
+		}
+
+		oidc, err := cmd.Flags().GetBool("oidc")
 		if err != nil {
 			return err
 		}
@@ -40,6 +57,9 @@ var CmdLogin = &cobra.Command{
 			return err
 		}
 
-		return client.Login(cmd.Context(), address, trustCA, prompt)
+		if oidc {
+			return client.LoginOIDC(cmd.Context(), address, trustCA, prompt)
+		}
+		return client.Login(username, password, address, trustCA)
 	},
 }
