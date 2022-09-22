@@ -61,7 +61,7 @@ jobs:
           client-payload: '{"ref": "${{ steps.get_tag.outputs.TAG }}"}'
 
       # Allow to automate documentation update related to Epinio releases.
-      # The latest tag is sent to the Helm chart repo.
+      # The latest tag is sent to the documentation repository.
       - name: epinio/docs Repository Dispatch
         uses: peter-evans/repository-dispatch@v2
         with:
