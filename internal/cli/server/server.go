@@ -17,6 +17,7 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/dex"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -87,6 +88,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router.Use(
 		ginLogger,
 		ginRecoveryLogger,
+		versionMiddleware,
 		initContextMiddleware(logger),
 	)
 
@@ -182,6 +184,10 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 	issuer := fmt.Sprintf("https://auth.%s", mainDomain)
 	oidcProvider, err = dex.NewOIDCProvider(ctx, issuer, "epinio-api")
 	return oidcProvider, errors.Wrap(err, "constructing dexProviderConfig")
+}
+
+func versionMiddleware(ctx *gin.Context) {
+	ctx.Header("epinio-version", version.Version)
 }
 
 // authMiddleware authenticates the user either using the basic auth or the bearer token (OIDC)
