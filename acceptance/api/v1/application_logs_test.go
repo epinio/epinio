@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -109,7 +109,7 @@ var _ = Describe("AppLogs Endpoint", func() {
 
 			defer resp.Body.Close()
 
-			bodyBytes, err := ioutil.ReadAll(resp.Body)
+			bodyBytes, err := io.ReadAll(resp.Body)
 			Expect(err).ToNot(HaveOccurred(), resp)
 
 			// reply must be from the phpinfo app

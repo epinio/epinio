@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	apiv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -16,9 +17,10 @@ import (
 const (
 	// Only Helmcharts with this label are considered Epinio "Services".
 	// Used to filter out Helmcharts created by other means (manually, k3s etc).
-	CatalogServiceLabelKey        = "application.epinio.io/catalog-service-name"
-	CatalogServiceVersionLabelKey = "application.epinio.io/catalog-service-version"
-	TargetNamespaceLabelKey       = "application.epinio.io/target-namespace"
+	CatalogServiceLabelKey              = "application.epinio.io/catalog-service-name"
+	CatalogServiceSecretTypesAnnotation = "application.epinio.io/catalog-service-secret-types"
+	CatalogServiceVersionLabelKey       = "application.epinio.io/catalog-service-version"
+	TargetNamespaceLabelKey             = "application.epinio.io/target-namespace"
 	// ServiceNameLabelKey is used to keep the original name
 	// since the name in the metadata is combined with the namespace
 	ServiceNameLabelKey = "application.epinio.io/service-name"
@@ -73,11 +75,18 @@ func convertUnstructuredIntoCatalogService(unstructured unstructured.Unstructure
 		return nil, errors.Wrap(err, "error converting catalog service")
 	}
 
+	secretTypes := []string{}
+	secretTypesAnnotationValue := catalogService.GetAnnotations()[CatalogServiceSecretTypesAnnotation]
+	if len(secretTypesAnnotationValue) > 0 {
+		secretTypes = strings.Split(secretTypesAnnotationValue, ",")
+	}
+
 	return &models.CatalogService{
 		Meta: models.MetaLite{
 			Name:      catalogService.Spec.Name,
 			CreatedAt: unstructured.GetCreationTimestamp(),
 		},
+		SecretTypes:      secretTypes,
 		Description:      catalogService.Spec.Description,
 		ShortDescription: catalogService.Spec.ShortDescription,
 		HelmChart:        catalogService.Spec.HelmChart,

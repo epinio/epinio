@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -21,7 +21,7 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(err).ToNot(HaveOccurred())
@@ -35,11 +35,12 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(err).ToNot(HaveOccurred())
-		Expect(string(bodyBytes)).To(Equal(`{"names":["standard"]}`))
+		Expect(string(bodyBytes)).To(MatchRegexp(`{"names":\[.*\]`))
+		Expect(string(bodyBytes)).To(MatchRegexp(`"standard"`))
 	})
 
 	It("lists the app chart names matching the prefix, all", func() {
@@ -49,10 +50,11 @@ var _ = Describe("ChartMatch Endpoints", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(err).ToNot(HaveOccurred())
-		Expect(string(bodyBytes)).To(Equal(`{"names":["standard"]}`))
+		Expect(string(bodyBytes)).To(MatchRegexp(`{"names":\[.*\]`))
+		Expect(string(bodyBytes)).To(MatchRegexp(`"standard"`))
 	})
 })

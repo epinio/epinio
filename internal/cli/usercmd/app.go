@@ -3,7 +3,6 @@ package usercmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -275,7 +274,7 @@ func (c *EpinioClient) AppManifest(appName, manifestPath string) error {
 		return err
 	}
 
-	err = ioutil.WriteFile(manifestPath, yaml, 0600)
+	err = os.WriteFile(manifestPath, yaml, 0600)
 	if err != nil {
 		return err
 	}
@@ -538,6 +537,14 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 	if len(app.Configuration.Environment) > 0 {
 		for _, ev := range app.Configuration.Environment.List() {
 			msg = msg.WithTableRow("  - "+ev.Name, ev.Value)
+		}
+	}
+
+	msg = msg.WithTableRow("Chart Values", "")
+
+	if len(app.Configuration.Settings) > 0 {
+		for _, cv := range app.Configuration.Settings.List() {
+			msg = msg.WithTableRow("  - "+cv.Name, cv.Value)
 		}
 	}
 

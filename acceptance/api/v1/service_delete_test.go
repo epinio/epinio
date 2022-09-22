@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -148,7 +148,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 					Expect(err).ToNot(HaveOccurred())
 
 					By("read response")
-					respBody, err := ioutil.ReadAll(response.Body)
+					respBody, err := io.ReadAll(response.Body)
 					Expect(err).ToNot(HaveOccurred())
 
 					By(fmt.Sprintf("decode response %s", string(respBody)))

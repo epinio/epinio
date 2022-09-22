@@ -23,6 +23,7 @@ import (
 func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Bind")
+	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
@@ -47,7 +48,12 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 		return apierror.AppIsNotKnown(bindRequest.AppName)
 	}
 
-	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	apiErr = ValidateService(ctx, cluster, logger, service)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -59,14 +65,12 @@ func (ctr Controller) Unbind(c *gin.Context) apierror.APIErrors {
 
 	logger.Info("looking for service secrets")
 
-	serviceConfigurations, err := configurations.ForService(ctx, cluster, namespace, serviceName)
+	serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
 	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
-
-	username := requestctx.User(ctx).Username
 
 	apiErr = UnbindService(ctx, cluster, logger, namespace, serviceName, app.AppRef().Name, username, serviceConfigurations)
 	if apiErr != nil {
@@ -87,7 +91,8 @@ func UnbindService(
 	for _, secret := range serviceConfigurations {
 		// TODO: Don't `helm upgrade` after each removal. Do it once.
 		errors := configurationbinding.DeleteBinding(
-			ctx, cluster, namespace, appName, secret.Name, userName,
+			ctx, cluster, namespace, appName, secret.Name,
+			userName,
 		)
 		if errors != nil {
 			return apierror.NewMultiError(errors.Errors())

@@ -11,6 +11,7 @@ https://documentation.divio.com/structure.
 
 ## [Explanations](explanations/)
 
+- [Architecture](explanations/architecture.md)
 - [Future plans](explanations/futureplans.md)
 
 ## [HowTos](howtos/)

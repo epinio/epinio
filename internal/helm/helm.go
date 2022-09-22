@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -23,6 +24,7 @@ import (
 	"gopkg.in/yaml.v2"
 	helmrelease "helm.sh/helm/v3/pkg/release"
 	"helm.sh/helm/v3/pkg/repo"
+	helmdriver "helm.sh/helm/v3/pkg/storage/driver"
 	"k8s.io/client-go/rest"
 )
 
@@ -40,6 +42,7 @@ type ChartParameters struct {
 	Routes         []string              // Desired application routes
 	Domains        domain.DomainMap      // Map of domains with secrets covering them
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
+	Settings       models.AppSettings
 }
 
 func Values(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) ([]byte, error) {
@@ -82,31 +85,70 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 		return fmt.Errorf("Unable to deploy, chart %s not found", parameters.Chart)
 	}
 
-	// YAML string - TODO ? Use unstructured as intermediary to
-	// marshal yaml from ? Instead of direct generation of a
-	// string ?
+	// Local type definitions for proper marshalling of the
+	// `values.yaml` to hand to helm from the chart parameters.
 
-	configurationNames := `[]`
-	if len(parameters.Configurations) > 0 {
-		configurationNames = fmt.Sprintf(`["%s"]`, strings.Join(parameters.Configurations, `","`))
+	type routeParam struct {
+		Id     string `yaml:"id"`
+		Domain string `yaml:"domain"`
+		Path   string `yaml:"path"`
+		Secret string `yaml:"secret,omitempty"`
+	}
+	type epinioParam struct {
+		AppName        string               `yaml:"appName"`
+		Configurations []string             `yaml:"configurations"`
+		Env            []models.EnvVariable `yaml:"env"`
+		ImageUrl       string               `yaml:"imageURL"`
+		Ingress        string               `yaml:"ingress,omitempty"`
+		ReplicaCount   int32                `yaml:"replicaCount"`
+		Routes         []routeParam         `yaml:"routes"`
+		StageID        string               `yaml:"stageID"`
+		Start          string               `yaml:"start,omitempty"`
+		TlsIssuer      string               `yaml:"tlsIssuer"`
+		Username       string               `yaml:"username"`
+	}
+	type chartParam struct {
+		Epinio epinioParam            `yaml:"epinio"`
+		Chart  map[string]string      `yaml:"chartConfig,omitempty"`
+		User   map[string]interface{} `yaml:"userConfig,omitempty"`
 	}
 
-	environment := `[]`
-	if len(parameters.Environment) > 0 {
-		// TODO: Simplify the chain of conversions. Single `AsYAML` ?
-		environment = fmt.Sprintf(`[ %s ]`, strings.Join(parameters.Environment.List().Assignments(),
-			","))
+	// Fill values.yaml structure
+
+	params := chartParam{
+		Epinio: epinioParam{
+			AppName:        parameters.Name,
+			Env:            parameters.Environment.List(),
+			ImageUrl:       parameters.ImageURL,
+			ReplicaCount:   parameters.Instances,
+			Configurations: parameters.Configurations,
+			StageID:        parameters.StageID,
+			TlsIssuer:      viper.GetString("tls-issuer"),
+			Username:       parameters.Username,
+			// Ingress, Start, Routes: see below
+		},
+		// Chart, User: see below
 	}
 
-	routesYaml := "~"
+	name := viper.GetString("ingress-class-name")
+	if name != "" {
+		params.Epinio.Ingress = name
+	}
+	if parameters.Start != nil {
+		params.Epinio.Start = fmt.Sprintf(`%d`, *parameters.Start)
+	}
 	if len(parameters.Routes) > 0 {
-
 		logger.Info("routes and domains")
 
-		rs := []string{}
 		for _, desired := range parameters.Routes {
 			r := routes.FromString(desired)
 			rdot := strings.ReplaceAll(r.String(), "/", ".")
+
+			rp := routeParam{
+				Id:     rdot,
+				Domain: r.Domain,
+				Path:   r.Path,
+			}
 
 			domainSecret, err := domain.MatchDo(r.Domain, parameters.Domains)
 
@@ -114,60 +156,60 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 			// Should we treat a match error as something to stop for?
 			// The error can only come from `filepath.Match()`
-			var routeInfo string
-			if err != nil || domainSecret == "" {
-				// No secret found, no secret passed
-				routeInfo = fmt.Sprintf(`{"id":"%s","domain":"%s","path":"%s"}`,
-					rdot, r.Domain, r.Path)
-			} else {
+			if err == nil && domainSecret != "" {
 				// Pass the found secret
-				routeInfo = fmt.Sprintf(`{"id":"%s","domain":"%s","path":"%s","secret":"%s"}`,
-					rdot, r.Domain, r.Path, domainSecret)
+				rp.Secret = domainSecret
+			}
+			params.Epinio.Routes = append(params.Epinio.Routes, rp)
+		}
+	}
+
+	// Add the settings, if any. This also performs last-minute validation.  See also
+	// internal/application ValidateCV. Both use the core helper `ValidateField`
+	// implemented here (Avoid import cycle).
+	//
+	// While nothing should trigger here we cannot be sure. Because it is currently
+	// technically possible to change the app settings in the time window between a
+	// client triggering validation and actually deploying the app image. This window
+	// can actually be quite large, due to the time taken by staging and image
+	// download.
+	//
+	// It doesn't even have to be malicious. Just a user B doing a normal update while
+	// user A deployed, and landing in the window.
+
+	if len(parameters.Settings) > 0 {
+		params.User = make(map[string]interface{})
+
+		for field, value := range parameters.Settings {
+			spec, found := appChart.Settings[field]
+			if !found {
+				return fmt.Errorf("Unable to deploy. Setting '%s' unknown", field)
 			}
 
-			rs = append(rs, routeInfo)
+			// Note: Here the interface{} result of the properly typed value is
+			// important. It ensures that the map values are properly typed for yaml
+			// serialization.
+
+			v, err := ValidateField(field, value, spec)
+			if err != nil {
+				return fmt.Errorf(`Unable to deploy. %s`, err.Error())
+			}
+			params.User[field] = v
 		}
-		routesYaml = fmt.Sprintf(`[%s]`, strings.Join(rs, `,`))
 	}
 
-	ingress := "~"
-	name := viper.GetString("ingress-class-name")
-	if name != "" {
-		ingress = name
+	params.Chart = appChart.Values
+
+	// At last generate the properly quoted values.yaml string
+
+	logger.Info("app helm setup", "parameters", params)
+
+	yamlParameters, err := yaml.Marshal(params)
+	if err != nil {
+		return errors.Wrap(err, "marshalling the parameters")
 	}
 
-	start := ""
-	if parameters.Start != nil {
-		start = fmt.Sprintf(`start: "%d"`, *parameters.Start)
-	}
-
-	yamlParameters := fmt.Sprintf(`
-epinio:
-  appName: "%[9]s"
-  env: %[6]s
-  imageURL: "%[3]s"
-  ingress: %[10]s
-  replicaCount: %[1]d
-  routes: %[7]s
-  configurations: %[5]s
-  stageID: "%[2]s"
-  tlsIssuer: "%[11]s"
-  username: "%[4]s"
-  %[8]s
-`, parameters.Instances,
-		parameters.StageID,
-		parameters.ImageURL,
-		parameters.Username,
-		configurationNames,
-		environment,
-		routesYaml,
-		start,
-		parameters.Name,
-		ingress,
-		viper.GetString("tls-issuer"),
-	)
-
-	logger.Info("app helm setup", "parameters", yamlParameters)
+	logger.Info("app helm setup", "parameters-as-yaml", string(yamlParameters))
 
 	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
 	if err != nil {
@@ -196,24 +238,28 @@ epinio:
 		helmChart = fmt.Sprintf("%s/%s", name, helmChart)
 	}
 
+	releaseName := names.ReleaseName(parameters.Name)
+
+	err = cleanupReleaseIfNeeded(logger, client, releaseName)
+	if err != nil {
+		return errors.Wrap(err, "cleaning up release")
+	}
+
 	chartSpec := hc.ChartSpec{
-		ReleaseName: names.ReleaseName(parameters.Name),
+		ReleaseName: releaseName,
 		ChartName:   helmChart,
 		Version:     helmVersion,
-		Recreate:    true,
 		Namespace:   parameters.Namespace,
 		Wait:        true,
 		Atomic:      true,
-		ValuesYaml:  yamlParameters,
+		ValuesYaml:  string(yamlParameters),
 		Timeout:     duration.ToDeployment(),
 		ReuseValues: true,
 	}
 
-	if _, err := client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil); err != nil {
-		return err
-	}
+	_, err = client.InstallOrUpgradeChart(context.Background(), &chartSpec, nil)
 
-	return nil
+	return err
 }
 
 func Status(ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, namespace, releaseName string) (helmrelease.Status, error) {
@@ -250,4 +296,90 @@ func GetHelmClient(restConfig *rest.Config, logger logr.Logger, namespace string
 	}
 
 	return hc.NewClientFromRestConf(options)
+}
+
+// cleanupReleaseIfNeeded will delete the helm release if it exists and is not
+// in "deployed" state. The reason is that helm will refuse to upgrade a release
+// that is in pending-install state. This would be the case, when the app container
+// is failing for whatever reason. The user may try to fix the problem by pushing
+// the application again and we want to allow that.
+func cleanupReleaseIfNeeded(l logr.Logger, c hc.Client, name string) error {
+	r, err := c.GetRelease(name)
+	if err != nil {
+		if err == helmdriver.ErrReleaseNotFound {
+			return nil
+		}
+		return errors.Wrap(err, "getting the helm release")
+	}
+
+	if r.Info.Status != helmrelease.StatusDeployed {
+		l.Info("Will remove existing release with status: " + string(r.Info.Status))
+		err := c.UninstallRelease(&hc.ChartSpec{
+			ReleaseName: name, Wait: true,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "uninstalling the release with status: %s", r.Info.Status)
+		}
+	}
+	return nil
+}
+
+// validateField checks a single custom value against its declaration.
+func ValidateField(key, value string, spec models.AppChartSetting) (interface{}, error) {
+	if spec.Type == "string" {
+		if len(spec.Enum) > 0 {
+			for _, allowed := range spec.Enum {
+				if value == allowed {
+					return value, nil
+				}
+			}
+			return nil, fmt.Errorf(`Setting "%s": Illegal string "%s"`, key, value)
+		}
+		return value, nil
+	}
+	if spec.Type == "bool" {
+		flag, err := strconv.ParseBool(value)
+		if err != nil {
+			return nil, fmt.Errorf(`Setting "%s": Expected boolean, got "%s"`, key, value)
+		}
+		return flag, nil
+	}
+	if spec.Type == "integer" {
+		ivalue, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf(`Setting "%s": Expected integer, got "%s"`, key, value)
+		}
+		return ivalue, validateRange(float64(ivalue), key, value, spec.Minimum, spec.Maximum)
+	}
+	if spec.Type == "number" {
+		fvalue, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return nil, fmt.Errorf(`Setting "%s": Expected number, got "%s"`, key, value)
+		}
+		return fvalue, validateRange(fvalue, key, value, spec.Minimum, spec.Maximum)
+	}
+
+	return nil, fmt.Errorf(`Setting "%s": Bad spec: Unknown type "%s"`, key, spec.Type)
+}
+
+func validateRange(v float64, key, value, min, max string) error {
+	if min != "" {
+		minval, err := strconv.ParseFloat(min, 64)
+		if err != nil {
+			return fmt.Errorf(`Setting "%s": Bad spec: Bad minimum "%s"`, key, min)
+		}
+		if v < minval {
+			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" too small`, key, value)
+		}
+	}
+	if max != "" {
+		maxval, err := strconv.ParseFloat(max, 64)
+		if err != nil {
+			return fmt.Errorf(`Setting "%s": Bad spec: Bad maximum "%s"`, key, max)
+		}
+		if v > maxval {
+			return fmt.Errorf(`Setting "%s": Out of bounds, "%s" too large`, key, value)
+		}
+	}
+	return nil
 }

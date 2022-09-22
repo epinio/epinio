@@ -2,7 +2,7 @@ package v1_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -17,15 +17,18 @@ var _ = Describe("AppPart Endpoint", func() {
 	var (
 		namespace string
 		app       string
+		domain    string
 	)
 	containerImageURL := "splatform/sample-app"
 
 	BeforeEach(func() {
+		domain = catalog.NewTmpName("exportdomain-") + ".org"
+
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 
 		app = catalog.NewAppName()
-		env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org")
+		env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain)
 	})
 
 	AfterEach(func() {
@@ -41,27 +44,28 @@ var _ = Describe("AppPart Endpoint", func() {
 			serverURL, v1.Root, namespace, app), strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
-
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 		Expect(string(bodyBytes)).To(Equal(fmt.Sprintf(`epinio:
-  appName: %[1]s
+  appName: %s
   configurations: []
   env: []
   imageURL: splatform/sample-app
+  ingress: null
   replicaCount: 1
   routes:
-  - domain: exportdomain.org
-    id: exportdomain.org
+  - domain: %s
+    id: %s
     path: /
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
   username: admin
-`, app)))
+`, app, domain, domain)))
 	})
 
 	It("returns a 404 when the namespace does not exist", func() {
@@ -71,7 +75,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 	})
@@ -83,7 +87,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 	})
@@ -95,7 +99,7 @@ var _ = Describe("AppPart Endpoint", func() {
 		Expect(response).ToNot(BeNil())
 
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusBadRequest), string(bodyBytes))
 	})

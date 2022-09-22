@@ -117,7 +117,6 @@ func (s *AuthService) getUsersSecrets(ctx context.Context) ([]corev1.Secret, err
 
 	// Find all user credential secrets
 	secretList, err := s.SecretInterface.List(ctx, metav1.ListOptions{
-		FieldSelector: "type=BasicAuth",
 		LabelSelector: secretSelector,
 	})
 	if err != nil {

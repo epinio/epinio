@@ -15,9 +15,9 @@ import (
 
 var _ = Describe("AppDeploy Endpoint", func() {
 	var (
-		namespace string
-		appName   string
-		request   models.DeployRequest
+		namespace     string
+		appName       string
+		deployRequest models.DeployRequest
 	)
 
 	BeforeEach(func() {
@@ -36,7 +36,6 @@ var _ = Describe("AppDeploy Endpoint", func() {
 	})
 
 	Context("with staging", func() {
-		var deployRequest models.DeployRequest
 
 		BeforeEach(func() {
 			deployRequest = models.DeployRequest{
@@ -152,7 +151,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 
 	Context("with non-staging using custom container image", func() {
 		BeforeEach(func() {
-			request = models.DeployRequest{
+			deployRequest = models.DeployRequest{
 				App: models.AppRef{
 					Meta: models.Meta{
 						Name:      appName,
@@ -169,9 +168,8 @@ var _ = Describe("AppDeploy Endpoint", func() {
 
 		When("deploying a new app", func() {
 			It("returns a success", func() {
-				deployResponse := deployApplication(appName, namespace, request)
-
-				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `.*\.omg\.howdoi\.website`))
+				deployResponse := deployApplication(appName, namespace, deployRequest)
+				Expect(deployResponse.Routes[0]).To(MatchRegexp(appName + `\..*\.omg\.howdoi\.website`))
 
 				Eventually(func() string {
 					return appFromAPI(namespace, appName).Workload.Status
@@ -190,6 +188,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 
 		When("deploying an app with custom routes", func() {
 			var routes []string
+
 			BeforeEach(func() {
 				routes = []string{"appdomain.org", "appdomain2.org"}
 				out, err := proc.Kubectl("patch", "apps", "--type", "json",
@@ -200,7 +199,45 @@ var _ = Describe("AppDeploy Endpoint", func() {
 
 			It("the app Ingress matches the specified route", func() {
 				// call the deploy action. Deploy should respect the routes on the App CR.
-				deployApplication(appName, namespace, request)
+				deployApplication(appName, namespace, deployRequest)
+
+				out, err := proc.Kubectl("get", "ingress",
+					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")
+				Expect(err).NotTo(HaveOccurred(), out)
+				Expect(strings.Split(out, " ")).To(ConsistOf(routes))
+			})
+		})
+
+		When("deploying two apps with the same custom routes", func() {
+			var routes []string
+			var appName2 string
+
+			BeforeEach(func() {
+				appName2 = catalog.NewAppName()
+
+				By("creating application resource first")
+				_, err := createApplication(appName2, namespace, []string{})
+				Expect(err).ToNot(HaveOccurred())
+
+				routes = []string{"appdomain.org", "appdomain2.org"}
+				out, err := proc.Kubectl("patch", "apps", "--type", "json", "-n", namespace, appName, "--patch",
+					fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))
+				Expect(err).NotTo(HaveOccurred(), out)
+
+				out, err = proc.Kubectl("patch", "apps", "--type", "json", "-n", namespace, appName2, "--patch",
+					fmt.Sprintf(`[{"op": "replace", "path": "/spec/routes", "value": [%q, %q]}]`, routes[0], routes[1]))
+				Expect(err).NotTo(HaveOccurred(), out)
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(appName2)
+			})
+
+			It("should fail the second deployment", func() {
+				// call the deploy action. Deploy should respect the routes on the App CR.
+				deployApplication(appName, namespace, deployRequest)
+				deployRequest.App.Name = appName2
+				deployApplicationWithFailure(appName2, namespace, deployRequest)
 
 				out, err := proc.Kubectl("get", "ingress",
 					"--namespace", namespace, "-o", "jsonpath={.items[*].spec.rules[0].host}")

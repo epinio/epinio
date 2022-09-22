@@ -12,6 +12,9 @@ UNAME="$(uname | tr "[:upper:]" "[:lower:]")"
 # EPINIO_BINARY is used to execute the installation commands
 EPINIO_BINARY="./dist/epinio-$UNAME-amd64"
 
+# IMAGE_TAG is the one built from the 'make build-images'
+IMAGE_TAG="$(git describe --tags)"
+
 function check_dependency {
 	for dep in "$@"
 	do
@@ -71,14 +74,16 @@ create_docker_pull_secret
 echo "Installing Epinio"
 # Deploy epinio latest release to test upgrade
 if [[ $EPINIO_RELEASED ]]; then
+  echo "Deploying latest released epinio server image"
   deploy_epinio_latest_released
 else
+  echo "Importing locally built epinio server image"
+  k3d image import -c epinio-acceptance "ghcr.io/epinio/epinio-server:${IMAGE_TAG}"
+
   helm upgrade --install --create-namespace -n epinio \
     --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+    --set image.epinio.tag="${IMAGE_TAG}" \
     epinio helm-charts/chart/epinio --wait "$@"
-
-  echo "Importing locally built epinio server image"
-  k3d image import -c epinio-acceptance ghcr.io/epinio/epinio-server:latest
 
   # compile coverage binary and add required env var
   if [ -n "$EPINIO_COVERAGE" ]; then

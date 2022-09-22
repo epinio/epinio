@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -152,7 +152,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 								fmt.Sprintf("respose status was %d, not 200", response.StatusCode))
 						}
 
-						respBody, err := ioutil.ReadAll(response.Body)
+						respBody, err := io.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
 
 						err = json.Unmarshal(respBody, &showResponse)
@@ -185,7 +185,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 							return fmt.Sprintf("respose status was %d, not 200", response.StatusCode)
 						}
 
-						respBody, err := ioutil.ReadAll(response.Body)
+						respBody, err := io.ReadAll(response.Body)
 						Expect(err).ToNot(HaveOccurred())
 
 						var showResponse models.Service

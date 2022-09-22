@@ -1,13 +1,73 @@
 package application
 
+// # Design Notes
+//
+// ## Possible inputs:
+//
+//   - (A) repository, no revision (empty string)
+//   - (B) repository, branch name
+//   - (C) repository, commit id
+//
+// ## Considerations:
+//
+//   - Correctness
+//   - Cloning performance
+//
+// The go-git cloning function has two attributes influencing performance
+//
+//   - `Depth` specifies the depth towards which to clone.
+//   - `SingleBranch` specifies the sole branch to check out.
+//
+// The second flag comes with a problem. Using it __demands__ a branch.  And whatever is
+// found in the `ReferenceName` of the CloneOptions is used.  Even if it is an empty
+// string. And leaving it completely unspecified makes the package use a hardwired default
+// (`master`).
+//
+// If we have a revision which is a branch name, then we can (try to) use `SingleBranch`.
+// Note however, that we cannot syntactically distinguish branch names from commit ids.
+//
+// ## Solutions
+//
+// The simplest code handling everything would be
+//
+//      Clone (Depth=1)
+//      if revision:
+//          hash = ResolveRevision (revision)
+//          Checkout (hash)
+//
+// with no `SingleBranch` in sight, just `Depth`.
+//
+// More complex, hopefully more performant would be
+//
+//  1:  if not revision:
+//  2:      Clone (Depth=1)                        // (A)
+//  3:  else
+//  4:      Clone (Depth=1,SingleBranch=revision)  // (B,C?)
+//  5:      if ok: done                            // (B!)
+//  7:      Clone ()                               // (C)
+//  8:      hash = ResolveRevision (revision)
+//  9:      Checkout (hash)
+//
+// I.e. try to use a revision as branch name first, to get the `SingleBranch`
+// optimization.  When that fails fall back to regular cloning and checkout.  This fall
+// back should happen only for (C).
+//
+// ## Decision
+//
+// Going with the second solution. While there is more complexity it is not that much
+// more.  Note also that using a commit id (C) is considered unusual. Using a branch (B)
+// is much more expected.
+
 import (
+	"context"
+	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 
 	"github.com/gin-gonic/gin"
 	git "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-logr/logr"
 
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -32,26 +92,17 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 	url := c.PostForm("giturl")
 	revision := c.PostForm("gitrev")
 
-	gitRepo, err := ioutil.TempDir("", "epinio-app")
+	gitRepo, err := os.MkdirTemp("", "epinio-app")
 	if err != nil {
 		return apierror.InternalError(err, "can't create temp directory")
 	}
 	defer os.RemoveAll(gitRepo)
 
-	// Fetch the git repo
-	// TODO: This is pulling the git repository on user request (synchronously).
-	// This can be a slow process. A solution with background workers would be
-	// more appropriate. The "pull from git" feature may be redesigned and implemented
-	// through an "external" component that monitors git repos. In that case this code
-	// will be removed.
-	_, err = git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
-		URL:           url,
-		ReferenceName: plumbing.NewBranchReferenceName(revision),
-		SingleBranch:  true,
-		Depth:         1,
-	})
+	// clone/fetch/checkout
+	err = getRepository(ctx, log, gitRepo, url, revision)
 	if err != nil {
-		return apierror.InternalError(err, fmt.Sprintf("cloning the git repository: %s, revision: %s", url, revision))
+		return apierror.InternalError(err,
+			fmt.Sprintf("cloning the git repository: %s @ %s", url, revision))
 	}
 
 	// Create a tarball
@@ -93,4 +144,78 @@ func (hc Controller) ImportGit(c *gin.Context) apierror.APIErrors {
 		BlobUID: blobUID,
 	})
 	return nil
+}
+
+func getRepository(ctx context.Context, log logr.Logger, gitRepo, url, revision string) error {
+	if revision == "" {
+		// Input A: repository, no revision.
+		log.Info("importgit, cloning simple", "url", url)
+		_, err := shallowClone(ctx, gitRepo, url)
+		return err
+	}
+
+	// Input B or C: Attempt to treat as B (revision is branch name)
+
+	log.Info("importgit, cloning branch", "url", url, "revision", revision)
+	_, err := branchClone(ctx, gitRepo, url, revision)
+	if err == nil {
+		// Was branch name, done.
+		return nil
+	}
+	if !errors.Is(err, git.NoMatchingRefSpecError{}) || !plumbing.IsHash(revision) {
+		// Some other error, or the revision does not look like a commit id (C)
+		return err
+	}
+
+	// Attempt input C: revision might be commit id.
+	// 2 stage process - A simple clone followed by a checkout
+
+	log.Info("importgit, cloning simple, commit id", "url", url)
+	repository, err := generalClone(ctx, gitRepo, url)
+	if err != nil {
+		return err
+	}
+
+	log.Info("importgit, resolve", "revision", revision)
+	hash, err := repository.ResolveRevision(plumbing.Revision(revision))
+	if err != nil {
+		return err
+	}
+
+	log.Info("importgit, resolved", "revision", hash)
+
+	checkout, err := repository.Worktree()
+	if err != nil {
+		return err
+	}
+
+	log.Info("importgit, checking out", "url", url, "revision", hash)
+
+	return checkout.Checkout(&git.CheckoutOptions{
+		Hash:  *hash,
+		Force: true,
+	})
+}
+
+func branchClone(ctx context.Context, gitRepo, url, revision string) (*git.Repository, error) {
+	// Note, it is shallow too
+	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+		URL:           url,
+		SingleBranch:  true,
+		ReferenceName: plumbing.NewBranchReferenceName(revision),
+		Depth:         1,
+	})
+}
+
+func shallowClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
+	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+		URL:   url,
+		Depth: 1,
+	})
+}
+
+func generalClone(ctx context.Context, gitRepo, url string) (*git.Repository, error) {
+	return git.PlainCloneContext(ctx, gitRepo, false, &git.CloneOptions{
+		URL: url,
+	})
 }

@@ -58,7 +58,8 @@ func Lookup(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, conf
 	if err != nil {
 		return nil, err
 	}
-	c.Username = s.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+
+	c.Username = s.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 	c.Type = s.ObjectMeta.Labels["epinio.io/configuration-type"]
 	c.Origin = s.ObjectMeta.Labels["epinio.io/configuration-origin"]
 	c.CreatedAt = s.ObjectMeta.CreationTimestamp
@@ -96,16 +97,14 @@ func List(ctx context.Context, cluster *kubernetes.Cluster, namespace string) (C
 	result := ConfigurationList{}
 
 	for _, c := range secrets.Items {
-		name := c.Name
-		namespace := c.Namespace
-		username := c.ObjectMeta.Labels["app.kubernetes.io/created-by"]
+		username := c.ObjectMeta.Annotations[models.EpinioCreatedByAnnotation]
 		ctype := c.ObjectMeta.Labels["epinio.io/configuration-type"]
 		origin := c.ObjectMeta.Labels["epinio.io/configuration-origin"]
 
 		result = append(result, &Configuration{
 			CreatedAt:  c.ObjectMeta.CreationTimestamp,
-			Name:       name,
-			namespace:  namespace,
+			Name:       c.Name,
+			namespace:  c.Namespace,
 			Username:   username,
 			kubeClient: cluster,
 			Type:       ctype,
@@ -134,16 +133,19 @@ func CreateConfiguration(ctx context.Context, cluster *kubernetes.Cluster, name,
 	}
 
 	labels := map[string]string{
-		ConfigurationLabelKey:          "true",
-		ConfigurationTypeLabelKey:      "custom",
-		"app.kubernetes.io/created-by": username,
-		"app.kubernetes.io/name":       "epinio",
+		ConfigurationLabelKey:     "true",
+		ConfigurationTypeLabelKey: "custom",
+		"app.kubernetes.io/name":  "epinio",
 		// "app.kubernetes.io/version":     cmd.Version
 		// FIXME: Importing cmd causes cycle
 		// FIXME: Move version info to separate package!
 	}
 
-	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels)
+	annotations := map[string]string{
+		models.EpinioCreatedByAnnotation: username,
+	}
+
+	err = cluster.CreateLabeledSecret(ctx, namespace, name, sdata, labels, annotations)
 	if err != nil {
 		return nil, err
 	}
@@ -234,61 +236,85 @@ func (c *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 }
 
 // ForService returns a slice of Secrets matching the given Service.
-func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
+func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
-		ConfigurationLabelKey:          "true",
-		ConfigurationTypeLabelKey:      "service",
+		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+		ConfigurationLabelKey:        "true",
+		ConfigurationTypeLabelKey:    "service",
 	}).AsSelector()
 
 	listOptions := metav1.ListOptions{
-		FieldSelector: "type=Opaque",
 		LabelSelector: secretSelector.String(),
 	}
 
-	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOptions)
+	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
+	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
 
-	return secretList.Items, nil
+	return filteredSecrets, nil
 }
 
 // LabelServiceSecrets will look for the Opaque secrets released with a service, looking for the
 // app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
-func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, namespace, name string) ([]v1.Secret, error) {
+func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/managed-by": "Helm",
-		"app.kubernetes.io/instance":   names.ServiceHelmChartName(name, namespace),
+		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
 	}).AsSelector()
 
 	listOptions := metav1.ListOptions{
-		FieldSelector: "type=Opaque",
 		LabelSelector: secretSelector.String(),
 	}
 
 	// Find all user credential secrets
-	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOptions)
+	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptions)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, secret := range secretList.Items {
+	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
+
+	for _, secret := range filteredSecrets {
 		sec := secret
 
 		// set labels without override the old ones
 		sec.GetLabels()[ConfigurationLabelKey] = "true"
 		sec.GetLabels()[ConfigurationTypeLabelKey] = "service"
-		sec.GetLabels()[ConfigurationOriginLabelKey] = name
+		sec.GetLabels()[ConfigurationOriginLabelKey] = service.Meta.Name
 
-		_, err = kubeClient.Kubectl.CoreV1().Secrets(namespace).Update(ctx, &sec, metav1.UpdateOptions{})
+		_, err = kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).Update(ctx, &sec, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	return secretList.Items, nil
+	return filteredSecrets, nil
+}
+
+// filterSecretsByType will return a filtered slice of the provided secrets, with the specified secretTypes.
+// It's not possible to use the `in` operator with the FieldSelector during the query
+// so we need to filter them manually.
+// Ref: https://github.com/kubernetes/kubernetes/issues/32946
+func filterSecretsByType(secrets []v1.Secret, secretTypes []string) []v1.Secret {
+	secretTypesMap := make(map[string]struct{})
+	if len(secretTypes) == 0 {
+		secretTypesMap["Opaque"] = struct{}{}
+	}
+
+	for _, secretType := range secretTypes {
+		secretTypesMap[secretType] = struct{}{}
+	}
+
+	filteredSecrets := []v1.Secret{}
+	for _, secret := range secrets {
+		if _, found := secretTypesMap[string(secret.Type)]; !found {
+			continue
+		}
+		filteredSecrets = append(filteredSecrets, secret)
+	}
+
+	return filteredSecrets
 }
 
 // Delete destroys the configuration instance, i.e. its underlying secret

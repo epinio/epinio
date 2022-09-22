@@ -91,7 +91,8 @@ var CmdServer = &cobra.Command{
 // startServerGracefully will start the server and will wait for a graceful shutdown
 func startServerGracefully(listener net.Listener, handler http.Handler) error {
 	srv := &http.Server{
-		Handler: handler,
+		Handler:           handler,
+		ReadHeaderTimeout: 10 * time.Second, // Prevent Slowloris attack
 	}
 
 	quit := make(chan os.Signal, 1)

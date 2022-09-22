@@ -29,6 +29,10 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		zoneID          string
 		accessKeyID     string
 		secretAccessKey string
+		extraEnvName    string
+		extraEnvValue   string
+		name_exists     bool
+		value_exists    bool
 	)
 
 	BeforeEach(func() {
@@ -54,6 +58,12 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			"--set", "s3.endpoint=s3.amazonaws.com",
 			"--set", "s3.accessKeyID=" + accessKeyID,
 			"--set", "s3.secretAccessKey=" + secretAccessKey,
+		}
+
+		extraEnvName, name_exists = os.LookupEnv("EXTRAENV_NAME")
+		extraEnvValue, value_exists = os.LookupEnv("EXTRAENV_VALUE")
+		if name_exists && value_exists {
+			flags = append(flags, "--set", "extraEnv[0].name="+extraEnvName, "--set-string", "extraEnv[0].value="+extraEnvValue)
 		}
 	})
 

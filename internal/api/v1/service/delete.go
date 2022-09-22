@@ -23,6 +23,8 @@ import (
 func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	logger := requestctx.Logger(ctx).WithName("Delete")
+	username := requestctx.User(ctx).Username
+
 	namespace := c.Param("namespace")
 	serviceName := c.Param("service")
 	// username := requestctx.User(ctx).Username
@@ -38,7 +40,12 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	apiErr := ValidateService(ctx, cluster, logger, namespace, serviceName)
+	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+	if apiErr != nil {
+		return apiErr
+	}
+
+	apiErr = ValidateService(ctx, cluster, logger, service)
 	if apiErr != nil {
 		return apiErr
 	}
@@ -53,7 +60,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 
 	boundAppNames := []string{}
 
-	serviceConfigurations, err := configurations.ForService(ctx, cluster, namespace, serviceName)
+	serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
@@ -80,8 +87,6 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 			return apierror.NewBadRequestError("bound applications exist").
 				WithDetails(strings.Join(boundAppNames, ","))
 		}
-
-		username := requestctx.User(ctx).Username
 
 		// Unbind all the services' configurations from the found applications.
 		for _, appName := range boundAppNames {

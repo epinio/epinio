@@ -66,13 +66,18 @@ func FromString(routeStr string) Route {
 // NOTE: Epinio doesn't create Ingresses with multiple rules. For that reason,
 // this function will try to construct a Route from the first rule of the passed
 // Ingress, ingoring all other rules if they exist.
-func FromIngress(ingress networkingv1.Ingress) (*Route, error) {
+func FromIngress(ingress networkingv1.Ingress) ([]Route, error) {
 	if len(ingress.Spec.Rules) == 0 {
 		return nil, errors.New("no Rules found on Ingress")
 	}
-	rule := ingress.Spec.Rules[0]
-	domain := rule.Host
-	path := rule.HTTP.Paths[0].Path
 
-	return &Route{Domain: domain, Path: path}, nil
+	result := []Route{}
+	for _, r := range ingress.Spec.Rules {
+		domain := r.Host
+		for _, p := range r.HTTP.Paths {
+			result = append(result, Route{Domain: domain, Path: p.Path})
+		}
+	}
+
+	return result, nil
 }

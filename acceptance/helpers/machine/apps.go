@@ -33,12 +33,14 @@ func (m *Machine) MakeContainerImageApp(appName string, instances int, container
 	return pushOutput
 }
 
-func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, containerImageURL, route string) string {
-	pushOutput, err := m.Epinio("", "apps", "push",
+func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, containerImageURL, route string, more ...string) string {
+	pushOutput, err := m.Epinio("", "apps", append([]string{
+		"push",
 		"--name", appName,
 		"--route", route,
 		"--container-image-url", containerImageURL,
-		"--instances", strconv.Itoa(instances))
+		"--instances", strconv.Itoa(instances),
+	}, more...)...)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), pushOutput)
 
 	EventuallyWithOffset(1, func() string {
@@ -81,12 +83,14 @@ func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurren
 
 	Expect(err).ToNot(HaveOccurred(), pushOutput)
 
-	// And check presence
-	Eventually(func() string {
-		out, err := m.Epinio("", "app", "list")
-		Expect(err).ToNot(HaveOccurred(), out)
-		return out
-	}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	// Check presence if necessary, i.e. expected to be present
+	if instances > 0 {
+		Eventually(func() string {
+			out, err := m.Epinio("", "app", "list")
+			Expect(err).ToNot(HaveOccurred(), out)
+			return out
+		}, "5m").Should(MatchRegexp(fmt.Sprintf(`%s.*\|.*%d\/%d.*\|.*`, appName, instances, instances)))
+	}
 
 	return pushOutput
 }

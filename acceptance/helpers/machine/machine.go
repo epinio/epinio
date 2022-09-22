@@ -6,7 +6,7 @@ package machine
 import (
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	urlpkg "net/url"
 	"os"
@@ -98,9 +98,11 @@ func (m *Machine) DeleteNamespace(namespace string) {
 }
 
 func (m *Machine) VerifyNamespaceNotExist(namespace string) {
-	out, err := m.Epinio("", "namespace", "list")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).ToNot(MatchRegexp(namespace))
+	EventuallyWithOffset(1, func() string {
+		out, err := m.Epinio("", "namespace", "list")
+		ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+		return out
+	}, "2m").ShouldNot(MatchRegexp(namespace))
 }
 
 func (m *Machine) MakeWebSocketConnection(authToken string, url string, subprotocols ...string) (*websocket.Conn, error) {
@@ -124,7 +126,7 @@ func (m *Machine) MakeWebSocketConnection(authToken string, url string, subproto
 
 	var b []byte
 	if response != nil {
-		b, _ = ioutil.ReadAll(response.Body)
+		b, _ = io.ReadAll(response.Body)
 	}
 	if err != nil {
 		return nil, errors.Wrapf(err, "Dialing endpoint. Response: %s", string(b))

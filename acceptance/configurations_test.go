@@ -2,6 +2,7 @@ package acceptance_test
 
 import (
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/internal/names"
 
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
@@ -315,4 +316,103 @@ var _ = Describe("Configurations", func() {
 			)
 		})
 	})
+
+	Context("service-owned configurations", func() {
+		//var catalogService models.CatalogService
+		var service, appName, chart, config string
+
+		BeforeEach(func() {
+			service = catalog.NewServiceName()
+
+			By("make service instance: " + service)
+			// catalogService.Meta.Name
+			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("wait for deployment")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "show", service)
+				return out
+			}, "2m", "5s").Should(HaveATable(WithRow("Status", "deployed")))
+
+			appName = catalog.NewAppName()
+			By("make app: " + appName)
+			env.MakeContainerImageApp(appName, 1, containerImageURL)
+
+			chart = names.ServiceHelmChartName(service, namespace)
+			config = chart + "-mysql"
+
+			By("chart: " + chart)
+			By("config: " + config)
+
+			// NOTE: The bind/unbind cycle below materializes the configuration of the service
+
+			By("bind service: " + service)
+
+			out, err = env.Epinio("", "service", "bind", service, appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("wait for bound")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "app", "show", appName)
+				return out
+			}, "2m", "5s").Should(HaveATable(WithRow("Bound Configurations", config)))
+
+			By("done before")
+		})
+
+		AfterEach(func() {
+			env.TargetNamespace(namespace)
+
+			By("remove app: " + appName)
+			env.DeleteApp(appName)
+
+			// The preceding removed the service/config binding as well, allowing us to
+			// remove the service and its configs without care.
+
+			By("remove service instance: " + service)
+
+			out, err := env.Epinio("", "service", "delete", service)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Service Removed"))
+
+			Eventually(func() string {
+				out, _ := env.Epinio("", "service", "delete", service)
+				return out
+			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+
+			By("done after")
+		})
+
+		It("doesn't unbind a service-owned configuration", func() {
+			out, err := env.Epinio("", "configuration", "unbind", config, appName)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Bad Request: Configuration belongs to service"))
+		})
+
+		It("doesn't delete a bound service-owned configuration", func() {
+			out, err := env.Epinio("", "configuration", "delete", config)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Configuration belongs to service"))
+		})
+
+		It("doesn't delete any service-owned configuration", func() {
+			By("unbind service: " + appName)
+
+			out, err := env.Epinio("", "service", "unbind", service, appName)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).ToNot(ContainSubstring("Available Commands:")) // Command should exist
+
+			By("wait for unbound")
+			Eventually(func() string {
+				out, _ := env.Epinio("", "app", "show", appName)
+				return out
+			}, "2m", "5s").ShouldNot(HaveATable(WithRow("Bound Configurations", config)))
+
+			out, err = env.Epinio("", "configuration", "delete", config)
+			Expect(err).To(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Configuration belongs to service"))
+		})
+	})
+
 })

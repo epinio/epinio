@@ -5,8 +5,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/exec"
@@ -131,7 +132,7 @@ var _ = Describe("Apps", func() {
 					out, err = env.Epinio("", "app", "manifest", appName, destinationPath)
 					Expect(err).ToNot(HaveOccurred(), out)
 
-					manifest, err := ioutil.ReadFile(destinationPath)
+					manifest, err := os.ReadFile(destinationPath)
 					Expect(err).ToNot(HaveOccurred(), destinationPath)
 
 					Expect(string(manifest)).To(MatchRegexp(fmt.Sprintf(`name: %s
@@ -177,12 +178,64 @@ configuration:
 	})
 
 	When("pushing an app from an external repository", func() {
-		It("pushes the app successfully", func() {
+		It("pushes the app successfully (repository alone)", func() {
+			wordpress := "https://github.com/epinio/example-wordpress"
+			pushLog, err := env.EpinioPush("",
+				appName,
+				"--name", appName,
+				"--git", wordpress,
+				"-e", "BP_PHP_WEB_DIR=wordpress",
+				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_SERVER=nginx")
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+				),
+			)
+
+			By("deleting the app")
+			env.DeleteApp(appName)
+		})
+
+		It("pushes the app successfully (repository + branch name)", func() {
 			wordpress := "https://github.com/epinio/example-wordpress"
 			pushLog, err := env.EpinioPush("",
 				appName,
 				"--name", appName,
 				"--git", wordpress+",main",
+				"-e", "BP_PHP_WEB_DIR=wordpress",
+				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_SERVER=nginx")
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+				),
+			)
+
+			By("deleting the app")
+			env.DeleteApp(appName)
+		})
+
+		It("pushes the app successfully (repository + commit id)", func() {
+			wordpress := "https://github.com/epinio/example-wordpress"
+			pushLog, err := env.EpinioPush("",
+				appName,
+				"--name", appName,
+				"--git", wordpress+",68af5bad11d8f3b95bdf547986fe3348324919c5",
 				"-e", "BP_PHP_WEB_DIR=wordpress",
 				"-e", "BP_PHP_VERSION=7.4.x",
 				"-e", "BP_PHP_SERVER=nginx")
@@ -260,36 +313,16 @@ configuration:
 
 				BeforeEach(func() {
 					chartName = catalog.NewTmpName("chart-")
-					tempFile = catalog.NewTmpName("chart-") + `.yaml`
-
-					err := os.WriteFile(tempFile, []byte(fmt.Sprintf(`apiVersion: application.epinio.io/v1
-kind: AppChart
-metadata:
-  namespace: epinio
-  name: %s
-  labels:
-    app.kubernetes.io/component: epinio
-    app.kubernetes.io/instance: default
-    app.kubernetes.io/name: epinio-standard-app-chart
-    app.kubernetes.io/part-of: epinio
-spec:
-  helmChart: fox
-`, chartName)), 0600)
-					Expect(err).ToNot(HaveOccurred())
-
-					out, err := proc.Kubectl("apply", "-f", tempFile)
-					Expect(err).ToNot(HaveOccurred(), out)
+					tempFile = env.MakeAppchart(chartName)
 				})
 
 				AfterEach(func() {
-					out, err := proc.Kubectl("delete", "-f", tempFile)
-					Expect(err).ToNot(HaveOccurred(), out)
-
-					os.Remove(tempFile)
+					env.DeleteAppchart(tempFile)
 				})
 
 				It("fails to change the app chart of the running app", func() {
-					out, err := env.Epinio("", "app", "update", appName, "--app-chart", chartName)
+					out, err := env.Epinio("", "app", "update", appName,
+						"--app-chart", chartName)
 					Expect(err).To(HaveOccurred(), out)
 					Expect(out).To(ContainSubstring("Bad Request: unable to change app chart of active application"))
 				})
@@ -396,6 +429,47 @@ spec:
 
 	})
 
+	When("pushing as a stateful app", func() {
+		var chartName string
+		var tempFile string
+
+		BeforeEach(func() {
+			chartName = catalog.NewTmpName("chart-")
+			tempFile = env.MakeAppchartStateful(chartName)
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+			env.DeleteAppchart(tempFile)
+		})
+
+		It("pushes successfully", func() {
+			pushLog, err := env.EpinioPush("../assets/sample-app",
+				appName,
+				"--app-chart", chartName,
+				"--name", appName)
+			Expect(err).ToNot(HaveOccurred(), pushLog)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				return out
+			}, "5m").Should(
+				HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", appName+".*", "", ""),
+				),
+			)
+
+			out, err := proc.Kubectl("get", "statefulset",
+				"--namespace", namespace,
+				"--selector=app.kubernetes.io/name="+appName,
+				"-o", `jsonpath={.items[*].spec.template.metadata.labels.app\.kubernetes\.io/name}`)
+			Expect(err).NotTo(HaveOccurred(), out)
+			Expect(out).To(Equal(appName))
+		})
+	})
+
 	When("pushing with custom route flag", func() {
 		AfterEach(func() {
 			env.DeleteApp(appName)
@@ -454,6 +528,67 @@ spec:
 				"-o", "jsonpath={.items[0].spec.containers[*].image}")
 			Expect(err).NotTo(HaveOccurred())
 			Expect(imageList).To(ContainSubstring("paketobuildpacks/builder:tiny"))
+		})
+	})
+
+	When("re-pushing a failed application", func() {
+		var tmpDir string
+		var err error
+		BeforeEach(func() {
+			By("Pushing an app that will fail")
+			tmpDir, err = os.MkdirTemp("", "epinio-failing-app")
+			Expect(err).ToNot(HaveOccurred())
+			appCode := []byte("\n<?php\nphpinfo();\n?>\n")
+			err = os.WriteFile(path.Join(tmpDir, "index.php"), appCode, 0644)
+			Expect(err).ToNot(HaveOccurred())
+			badProcfile := []byte("web: doesntexist")
+			err = os.WriteFile(path.Join(tmpDir, "Procfile"), badProcfile, 0644)
+			Expect(err).ToNot(HaveOccurred())
+
+			// Don't block because this push will only exit if it times out
+			go func() {
+				defer GinkgoRecover()
+				// Ignore any errors. When the main thread pushes the app again,
+				// this command will probably fail with an error because the helm release
+				// will be deleted by the other `push`.
+				_, _ = env.EpinioPush(tmpDir, appName, "--name", appName, "--builder-image", "paketobuildpacks/builder:full")
+			}()
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+			os.RemoveAll(tmpDir)
+		})
+
+		It("succeeds", func() {
+			// Wait until previous staging job is complete
+			By("waiting for the old staging job to complete")
+			Eventually(func() error {
+				statusJSON, err := proc.Kubectl("get", "jobs", "-A",
+					"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
+					"-o", "jsonpath={.items[].status['conditions'][]}")
+				if err != nil {
+					return err
+				}
+
+				var status map[string]string
+				err = json.Unmarshal([]byte(statusJSON), &status)
+				if err != nil {
+					return err
+				}
+
+				if status["type"] != "Complete" || status["status"] != "True" {
+					return errors.New("staging job not complete")
+				}
+
+				return nil
+			}, 3*time.Minute, 3*time.Second).ShouldNot(HaveOccurred())
+
+			// Fix the problem (so that the app now deploys fine) and push again
+			By("fixing the problem and pushing the application again")
+			os.Remove(path.Join(tmpDir, "Procfile"))
+			out, err := env.EpinioPush(tmpDir, appName, "--name", appName, "--builder-image", "paketobuildpacks/builder:full")
+			Expect(err).ToNot(HaveOccurred(), out)
 		})
 	})
 
@@ -653,7 +788,7 @@ spec:
 
 			It("deploys an app with the desired options", func() {
 				By("providing a manifest")
-				err := ioutil.WriteFile(manifestPath, []byte(fmt.Sprintf(`origin:
+				err := os.WriteFile(manifestPath, []byte(fmt.Sprintf(`origin:
   path: %s
 name: %s
 configuration:
@@ -1114,16 +1249,129 @@ configuration:
 			)
 		})
 
-		Context("", func() {
-			var app, exportPath, exportValues, exportChart string
+		Context("details customized", func() {
+			var chartName string
+			var appName string
+			var tempFile string
 
 			BeforeEach(func() {
-				exportPath = catalog.NewTmpName(appName + "-export")
+				chartName = catalog.NewTmpName("chart-")
+				tempFile = env.MakeAppchart(chartName)
+
+				appName = catalog.NewAppName()
+				out, err := env.Epinio("", "app", "create", appName,
+					"--app-chart", chartName)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring("Ok"))
+			})
+
+			AfterEach(func() {
+				env.DeleteApp(appName)
+				env.DeleteAppchart(tempFile)
+			})
+
+			It("shows the details of a customized app", func() {
+				out, err := env.Epinio("", "app", "update", appName,
+					"--chart-value", "foo=bar")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = env.Epinio("", "app", "show", appName)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Expect(out).To(ContainSubstring("Show application details"))
+				Expect(out).To(ContainSubstring("Application: " + appName))
+
+				Expect(out).To(
+					HaveATable(
+						WithHeaders("KEY", "VALUE"),
+						WithRow("Origin", "<<undefined>>"),
+						WithRow("App Chart", chartName),
+						WithRow("Chart Values", ""),
+						WithRow("- foo", "bar"),
+					),
+				)
+			})
+
+			Context("exporting customized", func() {
+				var domain, chartName, tempFile, app, exportPath, exportValues, exportChart string
+
+				BeforeEach(func() {
+					domain = catalog.NewTmpName("exportdomain-") + ".org"
+					chartName = catalog.NewTmpName("chart-")
+					tempFile = env.MakeAppchart(chartName)
+
+					app = catalog.NewAppName()
+
+					exportPath = catalog.NewTmpName(app + "-export")
+					exportValues = path.Join(exportPath, "values.yaml")
+					exportChart = path.Join(exportPath, "app-chart.tar.gz")
+
+					env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain,
+						"--app-chart", chartName,
+						"--chart-value", "foo=bar",
+					)
+				})
+
+				AfterEach(func() {
+					env.DeleteApp(app)
+					env.DeleteAppchart(tempFile)
+
+					err := os.RemoveAll(exportPath)
+					Expect(err).ToNot(HaveOccurred())
+				})
+
+				It("exports the details of a customized app", func() {
+					out, err := env.Epinio("", "app", "export", app, exportPath)
+					Expect(err).ToNot(HaveOccurred(), out)
+
+					exported, err := filepath.Glob(exportPath + "/*")
+					Expect(err).ToNot(HaveOccurred(), exported)
+					Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+
+					Expect(exportPath).To(BeADirectory())
+					Expect(exportValues).To(BeARegularFile())
+					Expect(exportChart).To(BeARegularFile())
+
+					values, err := os.ReadFile(exportValues)
+					Expect(err).ToNot(HaveOccurred(), string(values))
+
+					Expect(string(values)).To(Equal(fmt.Sprintf(`chartConfig:
+  tuning: speed
+epinio:
+  appName: %s
+  configurations: []
+  env: []
+  imageURL: splatform/sample-app
+  ingress: null
+  replicaCount: 1
+  routes:
+  - domain: %s
+    id: %s
+    path: /
+  stageID: ""
+  start: null
+  tlsIssuer: epinio-ca
+  username: admin
+userConfig:
+  foo: bar
+`, app, domain, domain)))
+					// Not checking that exportChart is a proper tarball.
+				})
+			})
+		})
+
+		Context("exporting", func() {
+			var domain, app, exportPath, exportValues, exportChart string
+
+			BeforeEach(func() {
+				domain = catalog.NewTmpName("exportdomain-") + ".org"
+				app = catalog.NewAppName()
+
+				exportPath = catalog.NewTmpName(app + "-export")
 				exportValues = path.Join(exportPath, "values.yaml")
 				exportChart = path.Join(exportPath, "app-chart.tar.gz")
 
-				app = catalog.NewAppName()
-				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, "exportdomain.org")
+				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain)
 			})
 
 			AfterEach(func() {
@@ -1145,57 +1393,116 @@ configuration:
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
 
-				values, err := ioutil.ReadFile(exportValues)
+				values, err := os.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
-  appName: %[1]s
+  appName: %s
   configurations: []
   env: []
   imageURL: splatform/sample-app
+  ingress: null
   replicaCount: 1
   routes:
-  - domain: exportdomain.org
-    id: exportdomain.org
+  - domain: %s
+    id: %s
     path: /
   stageID: ""
   start: null
   tlsIssuer: epinio-ca
   username: admin
-`, app)))
+`, app, domain, domain)))
+				// Not checking that exportChart is a proper tarball.
+			})
+
+			It("correctly handles complex quoting when deploying and exporting an app", func() {
+				out, err := env.Epinio("", "apps", "env", "set", app,
+					"complex", `{
+   "usernameOrOrg": "scures",
+   "url":           "https://github.com/scures/epinio-sample-app",
+   "commit":        "3ce7abe14abd849b374eb68729de8c71e9f3a927"
+}`)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = env.Epinio("", "app", "export", app, exportPath)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				exported, err := filepath.Glob(exportPath + "/*")
+				Expect(err).ToNot(HaveOccurred(), exported)
+				Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+
+				Expect(exportPath).To(BeADirectory())
+				Expect(exportValues).To(BeARegularFile())
+				Expect(exportChart).To(BeARegularFile())
+
+				values, err := os.ReadFile(exportValues)
+				Expect(err).ToNot(HaveOccurred(), string(values))
+
+				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
+  appName: %s
+  configurations: []
+  env:
+  - name: complex
+    value: |-
+      {
+         "usernameOrOrg": "scures",
+         "url":           "https://github.com/scures/epinio-sample-app",
+         "commit":        "3ce7abe14abd849b374eb68729de8c71e9f3a927"
+      }
+  imageURL: splatform/sample-app
+  replicaCount: 1
+  routes:
+  - domain: %s
+    id: %s
+    path: /
+  stageID: ""
+  tlsIssuer: epinio-ca
+  username: admin
+`, app, domain, domain)))
 				// Not checking that exportChart is a proper tarball.
 			})
 		})
 
 		Describe("no instances", func() {
+			// Note to test maintainers. This sections pushes an app with zero instances
+			// to begin with. This avoids termination issues we have seen, where the pod
+			// termination invoked when scaling down to 0 takes a very long time (over
+			// two minutes).
+
+			var app string
 
 			BeforeEach(func() {
-				out, err := env.Epinio("", "app", "update", appName, "--instances", "0")
-				Expect(err).ToNot(HaveOccurred(), out)
+				app = catalog.NewAppName()
+				By("make zero-instance app: " + app)
+				env.MakeApp(app, 0, false)
+				By("pushed")
+			})
+
+			AfterEach(func() {
+				By("delete app")
+				env.DeleteApp(app)
+				By("deleted")
 			})
 
 			It("lists apps without instances", func() {
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "list")
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-					return out
-				}, "1m").Should(
+				By("list apps")
+				out, err := env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
 					HaveATable(
 						WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
-						WithRow(appName, WithDate(), "0/0", appName+".*", configurationName, ""),
+						WithRow(app, WithDate(), "n/a", "n/a", "", ""),
 					),
 				)
 			})
 
 			It("shows the details of an app without instances", func() {
-				Eventually(func() string {
-					out, err := env.Epinio("", "app", "show", appName)
-					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-
-					return out
-				}, "1m").Should(
+				By("show details")
+				out, err := env.Epinio("", "app", "show", app)
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(
 					HaveATable(
 						WithHeaders("KEY", "VALUE"),
-						WithRow("Status", "0/0"),
+						WithRow("Status", "not deployed, staging failed"),
 					),
 				)
 			})
@@ -1388,6 +1695,28 @@ configuration:
 
 			// The command we run should have effects
 			Expect(strings.TrimSpace(remoteOut)).To(Equal("testthis"))
+		})
+	})
+
+	When("pushing an app with a numeric-only name", func() {
+		BeforeEach(func() {
+			rand.Seed(time.Now().UnixNano())
+			min := 9000
+			max := 10000
+			randNum := rand.Intn(max-min+1) + min
+			appName = strconv.Itoa(randNum)
+		})
+
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("deploys successfully", func() {
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
 		})
 	})
 })

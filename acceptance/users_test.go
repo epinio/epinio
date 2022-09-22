@@ -40,24 +40,6 @@ var _ = Describe("Users", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 
-		Specify("can authenticate with a session cookie", func() {
-			// First request with basicauth to get the cookie
-			request.SetBasicAuth(user, password)
-			resp, err := env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
-
-			// New request without basic auth credentials and just a session cookie
-			Expect(len(resp.Header["Set-Cookie"])).To(Equal(1))
-			cookie := resp.Header["Set-Cookie"][0]
-			request, err = http.NewRequest("GET", uri, strings.NewReader(""))
-			Expect(err).ToNot(HaveOccurred())
-			request.Header.Set("Cookie", cookie)
-			resp, err = env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
-		})
-
 		Specify("cannot authenticate no credentials or cookie", func() {
 			// First request with basicauth to get the cookie
 			resp, err := env.Client().Do(request)
@@ -67,39 +49,16 @@ var _ = Describe("Users", func() {
 	})
 
 	When("an existing user is deleted", func() {
-		var cookie, user, password string
+		var user, password string
 
 		BeforeEach(func() {
 			user, password = env.CreateEpinioUser("user", nil)
-
-			// First request with basicauth to get the cookie
 			request.SetBasicAuth(user, password)
-			resp, err := env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(len(resp.Header["Set-Cookie"])).To(Equal(1))
-			// New request without basic auth credentials and just a session cookie
-			cookie = resp.Header["Set-Cookie"][0]
 		})
 
 		AfterEach(func() {
 			// Ensure it's deleted even if test fails
 			env.DeleteEpinioUser(user)
-		})
-
-		Specify("the user can no longer authenticate with the session cookie", func() {
-			request, err = http.NewRequest("GET", uri, strings.NewReader(""))
-			Expect(err).ToNot(HaveOccurred())
-			request.Header.Set("Cookie", cookie)
-			resp, err := env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
-
-			Expect(resp.StatusCode).To(Equal(http.StatusOK))
-
-			env.DeleteEpinioUser(user)
-			resp, err = env.Client().Do(request)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))
 		})
 
 		Specify("the user can no longer authenticate with basic auth", func() {

@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -18,7 +18,7 @@ type ExternalFunc func() (err error)
 // CreateTmpFile creates a temporary file on the disk with the given contents
 // and returns the path to it and an error if something goes wrong.
 func CreateTmpFile(contents string) (string, error) {
-	tmpfile, err := ioutil.TempFile("", "epinio")
+	tmpfile, err := os.CreateTemp("", "epinio")
 	if err != nil {
 		return tmpfile.Name(), err
 	}

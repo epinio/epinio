@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -22,7 +22,7 @@ var _ = Describe("ChartList Endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 		defer response.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(response.Body)
+		bodyBytes, err := io.ReadAll(response.Body)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -30,10 +30,30 @@ var _ = Describe("ChartList Endpoint", func() {
 		err = json.Unmarshal(bodyBytes, &appcharts)
 		Expect(err).ToNot(HaveOccurred())
 
-		Expect(len(appcharts)).To(Equal(1))
-		Expect(appcharts[0].Meta.Name).To(Equal("standard"))
-		Expect(appcharts[0].Description).To(Equal("Epinio standard support chart for application deployment"))
-		Expect(appcharts[0].ShortDescription).To(Equal("Epinio standard deployment"))
-		Expect(appcharts[0].HelmChart).To(MatchRegexp("https://github\\.com/epinio/helm-charts/releases/download/epinio-application-.*/epinio-application-.*\\.tgz"))
+		// Note to maintainers: Due to the concurrent nature of tests we may have a varying
+		// number of custom app charts from other tests visible here. In other words, while
+		// we can reliably test for the presence of the standard chart, the number of charts
+		// to expect is not checkable.
+		//
+		// A check like `Expect(len(appcharts)).To(Equal(1))` will introduce flakiness and
+		// spurious failures.
+
+		var names []string
+		names = append(names, appcharts[0].Meta.Name)
+		var desc []string
+		desc = append(desc, appcharts[0].Description)
+		var short []string
+		short = append(short, appcharts[0].ShortDescription)
+		var chart []string
+		chart = append(chart, appcharts[0].HelmChart)
+
+		Expect(names).Should(ContainElements(
+			"standard"))
+		Expect(desc).Should(ContainElements(
+			"Epinio standard support chart for application deployment"))
+		Expect(short).Should(ContainElements(
+			"Epinio standard deployment"))
+		Expect(chart).Should(ContainElements(
+			"https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.22/epinio-application-0.1.22.tgz"))
 	})
 })

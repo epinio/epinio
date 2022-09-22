@@ -63,10 +63,11 @@ var _ = Describe("Route", func() {
 											Path: "/api/v1",
 										}}}}}}}}
 		})
-		It("returns a Route object", func() {
+		It("returns a list of Route objects", func() {
 			result, err := FromIngress(routeIngress)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(*result).To(Equal(Route{Domain: "mydomain.org", Path: "/api/v1"}))
+			Expect(result[0]).To(Equal(Route{Domain: "mydomain.org", Path: "/api/v1"}))
+			Expect(len(result)).To(Equal(1))
 		})
 		When("the Ingress has no rules defined", func() {
 			BeforeEach(func() {
@@ -89,12 +90,18 @@ var _ = Describe("Route", func() {
 									Path: "/otherapi/v1",
 								}}}}})
 			})
-			It("creates a Route out of the first rule", func() {
+			It("creates Routes out of every rule", func() {
 				result, err := FromIngress(routeIngress)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(*result).To(Equal(Route{
-					Domain: "mydomain.org",
-					Path:   "/api/v1",
+				Expect(result).To(Equal([]Route{
+					{
+						Domain: "mydomain.org",
+						Path:   "/api/v1",
+					},
+					{
+						Domain: "someotherdomain.org",
+						Path:   "/otherapi/v1",
+					},
 				}))
 			})
 		})

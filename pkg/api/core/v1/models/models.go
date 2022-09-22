@@ -1,4 +1,3 @@
-// -*- fill-column: 90 -*-
 // Package models contains the types (mostly structures) encapsulating
 // the API requests and reponses used by the communication between
 // epinio client and APIserver.
@@ -169,6 +168,7 @@ type ApplicationUpdateRequest struct {
 	Environment    EnvVariableMap `json:"environment"        yaml:"environment,omitempty"`
 	Routes         []string       `json:"routes"             yaml:"routes,omitempty"`
 	AppChart       string         `json:"appchart,omitempty" yaml:"appchart,omitempty"`
+	Settings       AppSettings    `json:"settings,omitempty" yaml:"settings,omitempty"`
 }
 
 type ImportGitResponse struct {
@@ -238,9 +238,10 @@ type ConfigurationMatchResponse struct {
 
 // InfoResponse contains information about Epinio and its components
 type InfoResponse struct {
-	Version     string `json:"version,omitempty"`
-	KubeVersion string `json:"kube_version,omitempty"`
-	Platform    string `json:"platform,omitempty"`
+	Version             string `json:"version,omitempty"`
+	KubeVersion         string `json:"kube_version,omitempty"`
+	Platform            string `json:"platform,omitempty"`
+	DefaultBuilderImage string `json:"default_builder_image,omitempty"`
 }
 
 // AuthTokenResponse contains an auth token
@@ -285,6 +286,7 @@ type ServiceCreateRequest struct {
 // Reason for existence: Do not expose the internal CRD struct in the API.
 type CatalogService struct {
 	Meta             MetaLite `json:"meta,omitempty"`
+	SecretTypes      []string `json:"secretTypes,omitempty"`
 	Description      string   `json:"description,omitempty"`
 	ShortDescription string   `json:"short_description,omitempty"`
 	HelmChart        string   `json:"chart,omitempty"`
@@ -326,6 +328,7 @@ type ServiceShowRequest struct {
 
 type Service struct {
 	Meta                  Meta          `json:"meta,omitempty"`
+	SecretTypes           []string      `json:"secretTypes,omitempty"`
 	CatalogService        string        `json:"catalog_service,omitempty"`
 	CatalogServiceVersion string        `json:"catalog_service_version,omitempty"`
 	Status                ServiceStatus `json:"status,omitempty"`
@@ -363,14 +366,43 @@ func NewServiceStatusFromHelmRelease(status helmrelease.Status) ServiceStatus {
 
 func (s ServiceStatus) String() string { return string(s) }
 
-// AppChart matches github.com/epinio/application/api/v1 AppChartSpec
+// AppChart nearly matches github.com/epinio/application/api/v1 AppChartSpec
 // Reason for existence: Do not expose the internal CRD struct in the API.
+//
+// Differences:
+//   - Field `Values` is not made public here. It contains server-internal information the
+//     user has no need for.
 type AppChart struct {
-	Meta             MetaLite `json:"meta,omitempty"`
-	Description      string   `json:"description,omitempty"`
-	ShortDescription string   `json:"short_description,omitempty"`
-	HelmChart        string   `json:"helm_chart,omitempty"`
-	HelmRepo         string   `json:"helm_repo,omitempty"`
+	Meta             MetaLite                   `json:"meta,omitempty"`
+	Description      string                     `json:"description,omitempty"`
+	ShortDescription string                     `json:"short_description,omitempty"`
+	HelmChart        string                     `json:"helm_chart,omitempty"`
+	HelmRepo         string                     `json:"helm_repo,omitempty"`
+	Settings         map[string]AppChartSetting `json:"settings,omitempty"`
+}
+
+type AppChartFull struct {
+	AppChart
+	Values map[string]string
+}
+
+// AppChartSetting matches github.com/epinio/application/api/v1 AppChartSettings
+// Reason for existence: Do not expose the internal CRD struct in the API.
+type AppChartSetting struct {
+	// Type of the setting (string, bool, number, or integer)
+	Type string `json:"type"`
+
+	// Minimal allowed value, for number, integer
+	Minimum string `json:"minimum,omitempty"`
+
+	// Maximal allowed value, for number, integer
+	Maximum string `json:"maximum,omitempty"`
+
+	// Enumeration of allowed values, for types string, number, integer
+	Enum []string `json:"enum,omitempty"`
+
+	// Presence of an enum for number and integer overrides the min/max
+	// specifications
 }
 
 // AppChartList is a collection of app charts

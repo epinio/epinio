@@ -128,7 +128,7 @@ func createCategoryJSONFile(label, dir string) error {
 }
 
 // linkHandler will return a function that will handle the markdown link generation
-func linkHandler(cmd *cobra.Command, dir string) func(link string) string {
+func linkHandler(cmd *cobra.Command, _ string) func(link string) string {
 	return func(link string) string {
 		cmdPathLink := strings.Replace(strings.TrimSuffix(link, ".md"), "_", " ", -1)
 

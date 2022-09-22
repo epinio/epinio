@@ -2,8 +2,9 @@ package apps_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ func (r *RailsApp) CreateDir() error {
 	var err error
 
 	var tmpDir string
-	if tmpDir, err = ioutil.TempDir("", "epinio-acceptance"); err != nil {
+	if tmpDir, err = os.MkdirTemp("", "epinio-acceptance"); err != nil {
 		return err
 	}
 
@@ -54,7 +55,7 @@ func (r *RailsApp) CreateDir() error {
 		return errors.Wrap(err, out)
 	}
 
-	if err := ioutil.WriteFile(path.Join(r.Dir, "config", "credentials.yml.enc"), []byte(r.CredentialsEnc), 0644); err != nil {
+	if err := os.WriteFile(path.Join(r.Dir, "config", "credentials.yml.enc"), []byte(r.CredentialsEnc), 0644); err != nil {
 		return errors.Wrap(err, "creating credentials file")
 	}
 
@@ -160,7 +161,7 @@ var _ = Describe("RubyOnRails", func() {
 		resp, err := env.Curl("GET", route, strings.NewReader(""))
 		Expect(err).ToNot(HaveOccurred())
 		defer resp.Body.Close()
-		bodyBytes, err := ioutil.ReadAll(resp.Body)
+		bodyBytes, err := io.ReadAll(resp.Body)
 		Expect(err).ToNot(HaveOccurred())
 
 		Expect(string(bodyBytes)).To(MatchRegexp("Hello from Epinio!"))

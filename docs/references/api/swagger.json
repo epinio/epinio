@@ -1094,6 +1094,34 @@
         }
       }
     },
+    "/namespaces/{Namespace}/applications/{App}/validate-cv": {
+      "post": {
+        "description": "Validate the chart values configured for the named `App` in the given `Namespace` against the\nconfigured app chart.",
+        "tags": [
+          "application"
+        ],
+        "operationId": "AppValidateCV",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "App",
+            "in": "path",
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppValidateCVResponse"
+          }
+        }
+      }
+    },
     "/namespaces/{Namespace}/configurationapps": {
       "get": {
         "tags": [
@@ -1602,8 +1630,9 @@
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
     "AppChart": {
-      "description": "AppChart matches github.com/epinio/application/api/v1 AppChartSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
+      "description": "Differences:\nField `Values` is not made public here. It contains server-internal information the\nuser has no need for.",
       "type": "object",
+      "title": "AppChart nearly matches github.com/epinio/application/api/v1 AppChartSpec\nReason for existence: Do not expose the internal CRD struct in the API.",
       "properties": {
         "description": {
           "type": "string",
@@ -1620,6 +1649,13 @@
         "meta": {
           "$ref": "#/definitions/MetaLite"
         },
+        "settings": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/AppChartSetting"
+          },
+          "x-go-name": "Settings"
+        },
         "short_description": {
           "type": "string",
           "x-go-name": "ShortDescription"
@@ -1632,6 +1668,36 @@
       "type": "array",
       "items": {
         "$ref": "#/definitions/AppChart"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
+    "AppChartSetting": {
+      "description": "AppChartSetting matches github.com/epinio/application/api/v1 AppChartSettings\nReason for existence: Do not expose the internal CRD struct in the API.",
+      "type": "object",
+      "properties": {
+        "enum": {
+          "description": "Enumeration of allowed values, for types string, number, integer",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Enum"
+        },
+        "maximum": {
+          "description": "Maximal allowed value, for number, integer",
+          "type": "string",
+          "x-go-name": "Maximum"
+        },
+        "minimum": {
+          "description": "Minimal allowed value, for number, integer",
+          "type": "string",
+          "x-go-name": "Minimum"
+        },
+        "type": {
+          "description": "Type of the setting (string, bool, number, or integer)",
+          "type": "string",
+          "x-go-name": "Type"
+        }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
@@ -1731,6 +1797,14 @@
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
     },
+    "AppSettings": {
+      "description": "AppSettings is a collection of key/value pairs describing the user's chosen settings with which\nto configure the helm chart referenced by the application's appchart.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
+    },
     "ApplicationCreateRequest": {
       "description": "ApplicationCreateRequest represents and contains the data needed to\ncreate an application (at rest), possibly with presets (configurations)",
       "type": "object",
@@ -1815,6 +1889,9 @@
             "type": "string"
           },
           "x-go-name": "Routes"
+        },
+        "settings": {
+          "$ref": "#/definitions/AppSettings"
         }
       },
       "x-go-package": "github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -1886,6 +1963,13 @@
         },
         "meta": {
           "$ref": "#/definitions/MetaLite"
+        },
+        "secretTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "SecretTypes"
         },
         "serviceIcon": {
           "type": "string",
@@ -2365,6 +2449,13 @@
         "meta": {
           "$ref": "#/definitions/Meta"
         },
+        "secretTypes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "SecretTypes"
+        },
         "status": {
           "$ref": "#/definitions/ServiceStatus"
         }
@@ -2607,6 +2698,12 @@
       "description": "",
       "schema": {
         "$ref": "#/definitions/UploadResponse"
+      }
+    },
+    "AppValidateCVResponse": {
+      "description": "",
+      "schema": {
+        "$ref": "#/definitions/Response"
       }
     },
     "AppsResponse": {

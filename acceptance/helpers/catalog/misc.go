@@ -3,9 +3,10 @@ package catalog
 
 import (
 	"encoding/json"
-	"fmt"
 	"os"
+	"strings"
 
+	epinioappv1 "github.com/epinio/application/api/v1"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/helpers"
 	"github.com/epinio/epinio/internal/names"
@@ -39,27 +40,36 @@ func DeleteCatalogServiceFromNamespace(namespace, name string) {
 }
 
 func SampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
-	serviceYAML := fmt.Sprintf(`
-apiVersion: application.epinio.io/v1
-kind: Service
-metadata:
-  name: "%[1]s"
-  namespace: "%[2]s"
-spec:
-  chart: "%[3]s"
-  description: |
-    A simple description of this service.
-  values: "%[5]s"
-  helmRepo:
-    url: "%[4]s"
-  name: %[1]s`,
-		catalogService.Meta.Name,
-		namespace,
-		catalogService.HelmChart,
-		catalogService.HelmRepo.URL,
-		catalogService.Values)
+	srv := epinioappv1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: epinioappv1.GroupVersion.String(),
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      catalogService.Meta.Name,
+			Namespace: namespace,
+		},
+		Spec: epinioappv1.ServiceSpec{
+			Name:        catalogService.Meta.Name,
+			Description: "A simple description of this service.",
+			HelmRepo: epinioappv1.HelmRepo{
+				URL: catalogService.HelmRepo.URL,
+			},
+			HelmChart: catalogService.HelmChart,
+			Values:    catalogService.Values,
+		},
+	}
 
-	filePath, err := helpers.CreateTmpFile(serviceYAML)
+	if len(catalogService.SecretTypes) > 0 {
+		srv.ObjectMeta.Annotations = map[string]string{
+			services.CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
+		}
+	}
+
+	jsonBytes, err := json.Marshal(srv)
+	Expect(err).ToNot(HaveOccurred())
+
+	filePath, err := helpers.CreateTmpFile(string(jsonBytes))
 	Expect(err).ToNot(HaveOccurred())
 
 	return filePath
@@ -106,7 +116,7 @@ func CreateHelmChart(helmChart helmapiv1.HelmChart, wait bool) {
 }
 
 func CreateService(name, namespace string, catalogService models.CatalogService) {
-	CreateHelmChart(helmapiv1.HelmChart{
+	helmChart := helmapiv1.HelmChart{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "helm.cattle.io/v1",
 			Kind:       "HelmChart",
@@ -124,7 +134,17 @@ func CreateService(name, namespace string, catalogService models.CatalogService)
 		Spec: helmapiv1.HelmChartSpec{
 			TargetNamespace: namespace,
 			Chart:           catalogService.HelmChart,
+			Version:         catalogService.ChartVersion,
 			Repo:            catalogService.HelmRepo.URL,
+			ValuesContent:   catalogService.Values,
 		},
-	}, true)
+	}
+
+	if len(catalogService.SecretTypes) > 0 {
+		helmChart.ObjectMeta.Annotations = map[string]string{
+			services.CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
+		}
+	}
+
+	CreateHelmChart(helmChart, true)
 }

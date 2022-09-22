@@ -1,7 +1,6 @@
 package manifest
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -223,6 +222,12 @@ func UpdateICE(manifest models.ApplicationManifest, cmd *cobra.Command) (models.
 		return manifest, err
 	}
 
+	// ChartValues - Retrieve from options
+	manifest, err = UpdateChartValues(manifest, cmd)
+	if err != nil {
+		return manifest, err
+	}
+
 	return manifest, nil
 }
 
@@ -287,6 +292,31 @@ func UpdateEnvironment(manifest models.ApplicationManifest, cmd *cobra.Command) 
 	return manifest, nil
 }
 
+// UpdateChartValues updates the incoming manifest with information pulled from the --chart-value option
+func UpdateChartValues(manifest models.ApplicationManifest, cmd *cobra.Command) (models.ApplicationManifest, error) {
+	evAssignments, err := cmd.Flags().GetStringSlice("chart-value")
+	if err != nil {
+		return manifest, errors.Wrap(err, "failed to read option --chart-value")
+	}
+
+	chartValues := models.AppSettings{}
+	for _, assignment := range evAssignments {
+		pieces := strings.SplitN(assignment, "=", 2)
+		if len(pieces) < 2 {
+			return manifest, errors.New("Bad --chart-value `" + assignment + "`, expected `name=value` as value")
+		}
+		chartValues[pieces[0]] = pieces[1]
+	}
+
+	// E:nvironment - Replace
+
+	if len(chartValues) > 0 {
+		manifest.Configuration.Settings = chartValues
+	}
+
+	return manifest, nil
+}
+
 // Get reads the manifest at the spcified path into
 // memory. Note that a missing file is not an error. It simply maps to
 // an empty manifest.
@@ -325,7 +355,7 @@ func Get(manifestPath string) (models.ApplicationManifest, error) {
 		return manifest, nil
 	}
 
-	yamlFile, err := ioutil.ReadFile(manifestPath)
+	yamlFile, err := os.ReadFile(manifestPath)
 	if err != nil {
 		return empty, errors.Wrapf(err, "filesystem error")
 	}

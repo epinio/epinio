@@ -9,6 +9,8 @@ const (
 	EpinioStageIDLabel      = "epinio.io/stage-id"
 	EpinioStageBlobUIDLabel = "epinio.io/blob-uid"
 
+	EpinioCreatedByAnnotation = "epinio.io/created-by"
+
 	ApplicationCreated = "created"
 	ApplicationStaging = "staging"
 	ApplicationRunning = "running"

@@ -1,30 +1,44 @@
 package acceptance_test
 
 import (
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("apps chart", func() {
+	var chartName string
+	var tempFile string
+
+	BeforeEach(func() {
+		chartName = catalog.NewTmpName("chart-")
+		tempFile = env.MakeAppchart(chartName)
+	})
+	AfterEach(func() {
+		env.DeleteAppchart(tempFile)
+	})
 
 	Describe("app chart list", func() {
 		It("lists the known app charts", func() {
+			// These are the standard chart and a custom one with settings for the user
+
 			out, err := env.Epinio("", "apps", "chart", "list")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show Application Charts"))
 
 			Expect(out).To(
 				HaveATable(
-					WithHeaders("DEFAULT", "NAME", "CREATED", "DESCRIPTION"),
-					WithRow("standard", WithDate(), "Epinio standard deployment"),
+					WithHeaders("DEFAULT", "NAME", "CREATED", "DESCRIPTION", "#SETTINGS"),
+					WithRow("standard", WithDate(), "Epinio standard deployment", "0"),
+					WithRow(chartName, WithDate(), "", "9"),
 				),
 			)
 		})
 	})
 
 	Describe("app chart show", func() {
-		It("shows the details of standard app chart", func() {
+		It("shows the details of the standard app chart", func() {
 			out, err := env.Epinio("", "apps", "chart", "show", "standard")
 			Expect(err).ToNot(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show application chart details"))
@@ -41,9 +55,40 @@ var _ = Describe("apps chart", func() {
 					WithRow("Helm Chart", "https.*epinio-application.*tgz"),
 				),
 			)
+			Expect(out).To(ContainSubstring("No settings"))
 		})
 
-		It("fails to show the details of bogus app chart", func() {
+		It("shows the details of the custom chart", func() {
+			out, err := env.Epinio("", "apps", "chart", "show", chartName)
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring("Show application chart details"))
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("Name", chartName),
+					WithRow("Created", WithDate()),
+					WithRow("Short", ""),
+					WithRow("Description", ""),
+					WithRow("Helm Repository", ""),
+					WithRow("Helm Chart", "https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.21/epinio-application-0.1.21.tgz"),
+				),
+			)
+
+			Expect(out).To(
+				HaveATable(
+					WithHeaders("KEY", "TYPE", "ALLOWED VALUES"),
+					WithRow("bar", "string", "sna, fu"),
+					WithRow("cat", "number", "\\[0 ... 1]"),
+					WithRow("fake", "bool", ""),
+					WithRow("floof", "number", "\\[0 ... \\+inf]"),
+					WithRow("foo", "string", ""),
+					WithRow("fox", "integer", "\\[-inf ... 100]"),
+				),
+			)
+		})
+
+		It("fails to show the details of a bogus app chart", func() {
 			out, err := env.Epinio("", "apps", "chart", "show", "bogus")
 			Expect(err).To(HaveOccurred(), out)
 			Expect(out).To(ContainSubstring("Show application chart details"))

@@ -1,0 +1,10 @@
+FROM registry.suse.com/bci/bci-base AS stage
+RUN zypper refresh && zypper --non-interactive  install -f tar gzip unzip bzip2 xz findutils
+
+FROM registry.suse.com/bci/bci-micro:15.4.14.2
+COPY --from=stage /bin/tar       /bin/tar
+COPY --from=stage /usr/bin/unzip /usr/bin/unzip
+COPY --from=stage /bin/gzip      /bin/gzip
+COPY --from=stage /usr/bin/bzip2 /usr/bin/bzip2
+COPY --from=stage /usr/bin/xz    /usr/bin/xz
+COPY --from=stage /bin/find      /bin/find

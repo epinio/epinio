@@ -37,7 +37,8 @@ func NewServiceName() string {
 }
 
 func NewUserCredentials() (string, string) {
-	return strconv.Itoa(RandInt()), strconv.Itoa(RandInt())
+	username := strconv.Itoa(RandInt()) + "@epinio.io"
+	return username, strconv.Itoa(RandInt())
 }
 
 func NewConfigurationName() string {

@@ -1,7 +1,6 @@
 package manifest_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -64,7 +63,7 @@ var _ = Describe("Manifest", func() {
 
 		When("the desired manifest file does not contain proper YAML", func() {
 			BeforeEach(func() {
-				err := ioutil.WriteFile("badyaml.yml", []byte(`a: b: c
+				err := os.WriteFile("badyaml.yml", []byte(`a: b: c
 d: e`), 0600)
 				Expect(err).ToNot(HaveOccurred())
 			})
@@ -83,7 +82,7 @@ d: e`), 0600)
 
 		When("the desired manifest file does contain proper YAML", func() {
 			BeforeEach(func() {
-				err := ioutil.WriteFile("goodyaml.yml", []byte(`name: foo
+				err := os.WriteFile("goodyaml.yml", []byte(`name: foo
 staging:
   builder: snafu
 origin:

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -51,7 +50,7 @@ func (c *Client) delete(endpoint string) ([]byte, error) {
 
 // upload the given path as param "file" in a multipart form
 func (c *Client) upload(endpoint string, path string) ([]byte, error) {
-	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
+	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 
 	// open the tarball
 	file, err := os.Open(path)
@@ -84,16 +83,16 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 		return nil, errors.Wrap(err, "failed to build request")
 	}
 
-	request.SetBasicAuth(c.user, c.password)
+	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
 	request.Header.Add("Content-Type", writer.FormDataContentType())
 
-	response, err := (&http.Client{}).Do(request)
+	response, err := c.HttpClient.Do(request)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to POST to upload")
 	}
 	defer response.Body.Close()
 
-	bodyBytes, _ := ioutil.ReadAll(response.Body)
+	bodyBytes, _ := io.ReadAll(response.Body)
 	if response.StatusCode == http.StatusCreated {
 		return bodyBytes, nil
 	}
@@ -109,7 +108,7 @@ func (c *Client) upload(endpoint string, path string) ([]byte, error) {
 }
 
 func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
-	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
+	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
 	reqLog := requestLogger(c.log, method, uri, requestBody)
@@ -120,9 +119,9 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 		return []byte{}, err
 	}
 
-	request.SetBasicAuth(c.user, c.password)
+	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
 
-	response, err := (&http.Client{}).Do(request)
+	response, err := c.HttpClient.Do(request)
 	if err != nil {
 		reqLog.V(1).Error(err, "request failed")
 		castedErr, ok := err.(*url.Error)
@@ -138,7 +137,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	respLog := responseLogger(c.log, response, string(bodyBytes))
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")
@@ -177,7 +176,7 @@ type ErrorFunc = func(response *http.Response, bodyBytes []byte, err error) erro
 // it's data in a normal Response, instead of an error?
 func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string, f ErrorFunc) ([]byte, error) {
 
-	uri := fmt.Sprintf("%s%s/%s", c.URL, api.Root, endpoint)
+	uri := fmt.Sprintf("%s%s/%s", c.Settings.API, api.Root, endpoint)
 	c.log.Info(fmt.Sprintf("%s %s", method, uri))
 
 	reqLog := requestLogger(c.log, method, uri, requestBody)
@@ -188,9 +187,9 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 		return []byte{}, err
 	}
 
-	request.SetBasicAuth(c.user, c.password)
+	request.SetBasicAuth(c.Settings.User, c.Settings.Password)
 
-	response, err := (&http.Client{}).Do(request)
+	response, err := c.HttpClient.Do(request)
 	if err != nil {
 		reqLog.V(1).Error(err, "request failed")
 		return []byte{}, err
@@ -198,7 +197,7 @@ func (c *Client) doWithCustomErrorHandling(endpoint, method, requestBody string,
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	bodyBytes, err := ioutil.ReadAll(response.Body)
+	bodyBytes, err := io.ReadAll(response.Body)
 	respLog := responseLogger(c.log, response, string(bodyBytes))
 	if err != nil {
 		respLog.V(1).Error(err, "failed to read response body")

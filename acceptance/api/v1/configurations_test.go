@@ -3,7 +3,7 @@ package v1_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 
@@ -49,7 +49,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -69,7 +69,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
@@ -130,7 +130,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -170,7 +170,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
@@ -189,7 +189,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 			defer response.Body.Close()
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 
 			var data models.ConfigurationResponse
@@ -206,7 +206,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
@@ -218,7 +218,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
@@ -240,7 +240,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 
 			defer response.Body.Close()
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 
 			var responseData models.Response
@@ -255,7 +255,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(responseGet).ToNot(BeNil())
 			defer responseGet.Body.Close()
 			Expect(responseGet.StatusCode).To(Equal(http.StatusOK))
-			bodyBytesGet, err := ioutil.ReadAll(responseGet.Body)
+			bodyBytesGet, err := io.ReadAll(responseGet.Body)
 			Expect(err).ToNot(HaveOccurred())
 
 			var data models.ConfigurationResponse
@@ -275,7 +275,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
@@ -287,7 +287,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
@@ -309,7 +309,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 
 			defer response.Body.Close()
 			Expect(response.StatusCode).To(Equal(http.StatusOK))
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 
 			var responseData models.Response
@@ -324,7 +324,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(responseGet).ToNot(BeNil())
 			defer responseGet.Body.Close()
 			Expect(responseGet.StatusCode).To(Equal(http.StatusOK))
-			bodyBytesGet, err := ioutil.ReadAll(responseGet.Body)
+			bodyBytesGet, err := io.ReadAll(responseGet.Body)
 			Expect(err).ToNot(HaveOccurred())
 
 			var data models.ConfigurationResponse
@@ -343,7 +343,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
@@ -355,7 +355,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			Expect(response).ToNot(BeNil())
 
 			defer response.Body.Close()
-			bodyBytes, err := ioutil.ReadAll(response.Body)
+			bodyBytes, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(response.StatusCode).To(Equal(http.StatusNotFound), string(bodyBytes))
 		})
