@@ -96,15 +96,6 @@ func FailWithReport(message string, callerSkip ...int) {
 	Fail(message, callerSkip[0]+1)
 }
 
-func updateToken(user string) {
-	settings, err := settings.LoadFrom(testenv.EpinioYAML())
-	Expect(err).ToNot(HaveOccurred(), settings)
-
-	settings.Token.AccessToken = env.GetUserToken(user)
-	err = settings.Save()
-	Expect(err).ToNot(HaveOccurred())
-}
-
 func authToken() (string, error) {
 	authURL := fmt.Sprintf("%s%s/%s", serverURL, v1.Root, v1.Routes.Path("AuthToken"))
 	response, err := env.Curl("GET", authURL, strings.NewReader(""))

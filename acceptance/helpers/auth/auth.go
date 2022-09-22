@@ -15,18 +15,21 @@ import (
 	"golang.org/x/oauth2"
 )
 
-var (
+type DexClient struct {
 	lastURL string
 	dexURL  string
-)
+
+	Client *http.Client
+}
 
 func GetToken(domain, email, password string) (string, error) {
-	dexURL = regexp.MustCompile(`epinio\.(.*)`).ReplaceAllString(domain, "auth.$1")
-	client, err := newClient(&lastURL)
+	dexURL := regexp.MustCompile(`epinio\.(.*)`).ReplaceAllString(domain, "auth.$1")
+
+	dexClient, err := NewDexClient(dexURL)
 	if err != nil {
 		return "", errors.Wrap(err, "error creating http client")
 	}
-	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, client)
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, dexClient.Client)
 
 	oidcProvider, err := dex.NewOIDCProvider(ctx, dexURL, "epinio-cli")
 	if err != nil {
@@ -35,13 +38,9 @@ func GetToken(domain, email, password string) (string, error) {
 
 	// getting login URL (with redirect)
 	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
-	_, err = client.Get(authCodeURL)
-	if err != nil {
-		return "", errors.Wrap(err, "error getting redirect")
-	}
 
 	// programmatic login
-	authCode, err := login(client, email, password)
+	authCode, err := dexClient.Login(authCodeURL, email, password)
 	if err != nil {
 		return "", errors.Wrapf(err, "error logging in with '%s'", email)
 	}
@@ -56,7 +55,10 @@ func GetToken(domain, email, password string) (string, error) {
 }
 
 // newClient creates an HttpClient with Session Storage and that will store the last redirect in the lastURL var
-func newClient(lastURL *string) (*http.Client, error) {
+func NewDexClient(dexURL string) (*DexClient, error) {
+	dexClient := &DexClient{
+		dexURL: dexURL,
+	}
 	customTransport := http.DefaultTransport.(*http.Transport).Clone()
 	customTransport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // nolint:gosec // tests using self signed certs
 
@@ -65,20 +67,27 @@ func newClient(lastURL *string) (*http.Client, error) {
 		return nil, errors.Wrap(err, "error creating CookieJar for HttpClient")
 	}
 
-	return &http.Client{
+	dexClient.Client = &http.Client{
 		Transport: customTransport,
 		Jar:       jar,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			*lastURL = req.URL.RequestURI()
+			dexClient.lastURL = req.URL.RequestURI()
 			return nil
 		},
-	}, nil
+	}
+
+	return dexClient, nil
 }
 
-func login(client *http.Client, username, password string) (string, error) {
+func (c *DexClient) Login(loginURL, username, password string) (string, error) {
+	_, err := c.Client.Get(loginURL)
+	if err != nil {
+		return "", errors.Wrap(err, "error getting redirect")
+	}
+
 	// do login
-	loginURL := dexURL + lastURL
-	_, err := client.PostForm(loginURL, url.Values{
+	loginURL = c.dexURL + c.lastURL
+	_, err = c.Client.PostForm(loginURL, url.Values{
 		"login":    []string{username},
 		"password": []string{password},
 	})
@@ -87,8 +96,8 @@ func login(client *http.Client, username, password string) (string, error) {
 	}
 
 	// approve request
-	approvalURL := dexURL + lastURL
-	res, err := client.PostForm(approvalURL, url.Values{"approval": []string{"approve"}})
+	approvalURL := c.dexURL + c.lastURL
+	res, err := c.Client.PostForm(approvalURL, url.Values{"approval": []string{"approve"}})
 	if err != nil {
 		return "", err
 	}

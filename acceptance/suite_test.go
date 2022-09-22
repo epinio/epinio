@@ -84,12 +84,3 @@ func FailWithReport(message string, callerSkip ...int) {
 	// Ensures the correct line numbers are reported
 	Fail(message, callerSkip[0]+1)
 }
-
-func updateToken(user string) {
-	settings, err := settings.LoadFrom(testenv.EpinioYAML())
-	Expect(err).ToNot(HaveOccurred(), settings)
-
-	settings.Token.AccessToken = env.GetUserToken(user)
-	err = settings.Save()
-	Expect(err).ToNot(HaveOccurred())
-}

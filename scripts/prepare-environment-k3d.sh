@@ -118,6 +118,10 @@ else
   fi
 fi
 
+echo "-------------------------------------"
+echo "Cleanup old settings"
+rm $HOME/.config/epinio/settings.yaml
+
 # Check Epinio Installation
 # Retry 5 times and sleep 1s because sometimes it takes a while before epinio server is ready
 
