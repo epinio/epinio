@@ -38,7 +38,7 @@ var _ = Describe("Info endpoint", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 		defer response.Body.Close()
-		versionHeader := response.Header.Get("epinio-version")
+		versionHeader := response.Header.Get(v1.VersionHeader)
 		Expect(versionHeader).ToNot(BeEmpty())
 		Expect(versionHeader).To(MatchRegexp(`v\d+\.\d+\.\d+.*`))
 	})

@@ -187,7 +187,7 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 }
 
 func versionMiddleware(ctx *gin.Context) {
-	ctx.Header("epinio-version", version.Version)
+	ctx.Header(apiv1.VersionHeader, version.Version)
 }
 
 // authMiddleware authenticates the user either using the basic auth or the bearer token (OIDC)
