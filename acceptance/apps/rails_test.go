@@ -86,23 +86,23 @@ var _ = Describe("RubyOnRails", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Create the app
-		out := env.Epinio("", "apps", "create", rails.Name)
+		env.Epinio("", "apps", "create", rails.Name)
 
 		// Set the RAILS_MASTER_KEY env variable
-		out = env.Epinio("", "apps", "env", "set", rails.Name, "RAILS_MASTER_KEY", rails.MasterKey)
+		env.Epinio("", "apps", "env", "set", rails.Name, "RAILS_MASTER_KEY", rails.MasterKey)
 
 		// Create a custom service catalog
 		serviceName = names.Truncate(catalog.NewServiceName(), 20)
 		catalogName = names.Truncate(catalog.NewCatalogServiceName(), 20)
 
-		out, err = proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/myname/%s/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
+		out, err := proc.RunW("sed", "-i", "-e", fmt.Sprintf("s/myname/%s/", catalogName), testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		out, err = proc.Kubectl("apply", "-f", testenv.TestAssetPath("my-postgresql-custom-svc.yaml"))
 		Expect(err).ToNot(HaveOccurred(), out)
 
 		// Create a database for Rails
-		out = env.Epinio("", "service", "create", catalogName, serviceName)
+		env.Epinio("", "service", "create", catalogName, serviceName)
 
 		Eventually(
 			env.Epinio("", "service", "show", serviceName),
