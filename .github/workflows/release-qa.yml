@@ -42,10 +42,10 @@ jobs:
           password: ${{ secrets.JUADK_DOCKERHUB_PASSWORD }}
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v3
         with:
           distribution: goreleaser
-          version: 1.9.2
+          version: 1.11.4
           args: release --skip-announce --skip-validate --skip-sign --config .goreleaser-qa.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

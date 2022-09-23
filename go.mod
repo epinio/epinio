@@ -6,7 +6,7 @@ require (
 	github.com/adrg/xdg v0.4.0
 	github.com/alron/ginlogr v0.0.4
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/briandowns/spinner v1.18.1
+	github.com/briandowns/spinner v1.19.0
 	github.com/epinio/application v0.0.0-20220818130656-68d19f063ac1
 	github.com/fatih/color v1.13.0
 	github.com/gin-gonic/gin v1.8.1
@@ -21,24 +21,24 @@ require (
 	github.com/k3s-io/helm-controller v0.12.1
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/mattn/go-colorable v0.1.12
-	github.com/mattn/go-isatty v0.0.14
+	github.com/mattn/go-isatty v0.0.16
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.5.0
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/minio/minio-go/v7 v7.0.27
 	github.com/mittwald/go-helm-client v0.11.1
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/onsi/ginkgo/v2 v2.1.4
-	github.com/onsi/gomega v1.19.0
+	github.com/onsi/ginkgo/v2 v2.1.6
+	github.com/onsi/gomega v1.20.1
 	github.com/panjf2000/ants/v2 v2.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.5.0
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.12.0
-	go.uber.org/zap v1.21.0
+	go.uber.org/zap v1.23.0
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
-	gopkg.in/ini.v1 v1.66.6
+	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.9.4
 	k8s.io/api v0.25.0
@@ -195,7 +195,7 @@ require (
 	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
 	golang.org/x/oauth2 v0.0.0-20220411215720-9780585627b5 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220210224613-90d013bbcef8 // indirect
 	golang.org/x/tools v0.1.12 // indirect
