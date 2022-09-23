@@ -40,9 +40,9 @@ jobs:
           password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v2
+        uses: goreleaser/goreleaser-action@v3
         with:
           distribution: goreleaser
-          version: 1.8.2
+          version: 1.11.4
           args: release --rm-dist --skip-publish --snapshot
 
