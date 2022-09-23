@@ -20,7 +20,7 @@ require (
 	github.com/h2non/filetype v1.1.3
 	github.com/k3s-io/helm-controller v0.12.1
 	github.com/kyokomi/emoji v2.2.4+incompatible
-	github.com/mattn/go-colorable v0.1.12
+	github.com/mattn/go-colorable v0.1.13
 	github.com/mattn/go-isatty v0.0.16
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.5.0
 	github.com/mholt/archiver/v3 v3.5.1
