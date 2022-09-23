@@ -36,7 +36,7 @@ func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 			config.Origin)
 	}
 
-	apiErr := DeleteBinding(ctx, cluster, namespace, appName, configurationName, username)
+	apiErr := DeleteBinding(ctx, cluster, namespace, appName, username, []string{configurationName})
 	if apiErr != nil {
 		return apiErr
 	}

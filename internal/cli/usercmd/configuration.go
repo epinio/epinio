@@ -182,16 +182,17 @@ func (c *EpinioClient) UnbindConfiguration(configurationName, appName string) er
 }
 
 // DeleteConfiguration deletes a configuration specified by name
-func (c *EpinioClient) DeleteConfiguration(name string, unbind bool) error {
+func (c *EpinioClient) DeleteConfiguration(names []string, unbind bool) error {
+	namesCSV := strings.Join(names, ", ")
 	log := c.Log.WithName("DeleteConfiguration").
-		WithValues("Name", name, "Namespace", c.Settings.Namespace)
+		WithValues("Names", namesCSV, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", name).
+		WithStringValue("Names", namesCSV).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Delete Configuration")
+		Msg("Delete Configurations")
 
 	if err := c.TargetOk(); err != nil {
 		return err
@@ -203,7 +204,7 @@ func (c *EpinioClient) DeleteConfiguration(name string, unbind bool) error {
 
 	var bound []string
 
-	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, name,
+	_, err := c.API.ConfigurationDelete(request, c.Settings.Namespace, names,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
 			if response.StatusCode != http.StatusBadRequest {
@@ -252,9 +253,9 @@ func (c *EpinioClient) DeleteConfiguration(name string, unbind bool) error {
 	}
 
 	c.ui.Success().
-		WithStringValue("Name", name).
+		WithStringValue("Name", strings.Join(names, ", ")).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Configuration Removed.")
+		Msg("Configurations Removed.")
 	return nil
 }
 

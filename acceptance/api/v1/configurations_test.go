@@ -35,8 +35,8 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 
 	AfterEach(func() {
 		env.TargetNamespace(namespace)
-		env.DeleteConfiguration(svc1)
-		env.DeleteConfiguration(svc2)
+		env.DeleteConfigurations(svc1)
+		env.DeleteConfigurations(svc2)
 		env.DeleteNamespace(namespace)
 	})
 
@@ -109,12 +109,12 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 
 		AfterEach(func() {
 			env.TargetNamespace(namespace2)
-			env.DeleteConfiguration(configuration1)
-			env.DeleteConfiguration(configuration2)
+			env.DeleteConfigurations(configuration1)
+			env.DeleteConfigurations(configuration2)
 
 			env.TargetNamespace(namespace1)
 			env.DeleteApp(app1)
-			env.DeleteConfiguration(configuration1)
+			env.DeleteConfigurations(configuration1)
 			env.DeleteNamespace(namespace1)
 			env.DeleteNamespace(namespace2)
 

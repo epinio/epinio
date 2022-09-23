@@ -72,7 +72,7 @@ var _ = Describe("Apps", func() {
 			})
 
 			AfterEach(func() {
-				env.DeleteConfigurationUnbind(configurationName)
+				env.DeleteConfigurationsUnbind(configurationName)
 				// env.DeleteApp see outer context
 			})
 
@@ -900,7 +900,7 @@ configuration:
 
 			AfterEach(func() {
 				env.DeleteApp(appName)
-				env.DeleteConfiguration(configurationName)
+				env.DeleteConfigurations(configurationName)
 			})
 
 			It("pushes an app with bound configurations", func() {
@@ -951,7 +951,7 @@ configuration:
 				return out
 			}, "1m").ShouldNot(ContainSubstring(appName))
 
-			env.DeleteConfiguration(configurationName)
+			env.DeleteConfigurations(configurationName)
 		})
 
 		Context("with explicit domain secret", func() {
@@ -1151,7 +1151,7 @@ configuration:
 
 			AfterEach(func() {
 				env.UnbindAppConfiguration(appName, configurationName, namespace)
-				env.DeleteConfiguration(configurationName)
+				env.DeleteConfigurations(configurationName)
 				// DeleteApp see outer context
 			})
 

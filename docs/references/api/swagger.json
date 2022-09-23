@@ -1191,6 +1191,32 @@
             "$ref": "#/responses/ConfigurationCreateResponse"
           }
         }
+      },
+      "delete": {
+        "summary": "Delete the named `Configurations` in the `Namespace`.",
+        "operationId": "ConfigurationBatchDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "in: url",
+            "name": "Configurations",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ConfigurationDeleteResponse"
+          }
+        }
       }
     },
     "/namespaces/{Namespace}/configurations/{Configuration}": {
@@ -2280,6 +2306,10 @@
       "description": "InfoResponse contains information about Epinio and its components",
       "type": "object",
       "properties": {
+        "default_builder_image": {
+          "type": "string",
+          "x-go-name": "DefaultBuilderImage"
+        },
         "kube_version": {
           "type": "string",
           "x-go-name": "KubeVersion"

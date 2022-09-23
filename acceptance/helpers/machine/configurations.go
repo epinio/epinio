@@ -2,6 +2,7 @@ package machine
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	. "github.com/onsi/gomega"
@@ -42,21 +43,21 @@ func (m *Machine) VerifyAppConfigurationBound(appName, configurationName, namesp
 	ExpectWithOffset(1, out).To(MatchRegexp("/configurations/" + configurationName))
 }
 
-func (m *Machine) DeleteConfiguration(configurationName string) {
-	m.DeleteConfigurationWithUnbind(configurationName, false)
+func (m *Machine) DeleteConfigurations(configurationNames ...string) {
+	m.DeleteConfigurationsWithUnbind(configurationNames, false)
 }
 
-func (m *Machine) DeleteConfigurationUnbind(configurationName string) {
-	m.DeleteConfigurationWithUnbind(configurationName, true)
+func (m *Machine) DeleteConfigurationsUnbind(configurationNames ...string) {
+	m.DeleteConfigurationsWithUnbind(configurationNames, true)
 }
 
-func (m *Machine) DeleteConfigurationWithUnbind(configurationName string, unbind bool) {
+func (m *Machine) DeleteConfigurationsWithUnbind(configurationNames []string, unbind bool) {
 	var err error
 	var out string
 	if unbind {
-		out, err = m.Epinio("", "configuration", "delete", configurationName, "--unbind")
+		out, err = m.Epinio("", "configuration", append([]string{"delete", "--unbind"}, configurationNames...)...)
 	} else {
-		out, err = m.Epinio("", "configuration", "delete", configurationName)
+		out, err = m.Epinio("", "configuration", append([]string{"delete"}, configurationNames...)...)
 	}
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
@@ -65,7 +66,7 @@ func (m *Machine) DeleteConfigurationWithUnbind(configurationName string, unbind
 		out, err = m.Epinio("", "configuration", "list")
 		Expect(err).ToNot(HaveOccurred(), out)
 		return out
-	}, "10m").ShouldNot(MatchRegexp(configurationName))
+	}, "10m").ShouldNot(MatchRegexp(strings.Join(configurationNames, "|")))
 }
 
 func (m *Machine) CleanupConfiguration(configurationName string) {
