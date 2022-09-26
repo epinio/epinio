@@ -108,10 +108,22 @@ func (c *DexClient) Login(loginURL, username, password string) (string, error) {
 		return "", err
 	}
 
-	// this is a very ugly/hacky way, but it's just for testing
+	// without adding a library to parse the HTML we are going to look for the first <input>,
+	// that will contain the authCode value:
+	//	 i.e.:	<input type="text" class="theme-form-input" value="c6ibus25hwnswxiv6z2wcip6p">
 	for _, line := range strings.Split(string(html), "\n") {
-		if strings.Contains(line, "value") {
-			return strings.Split(line, `"`)[5], nil
+		line = strings.TrimSpace(line)
+		if strings.Contains(line, "input") {
+			reg, err := regexp.Compile(`value="(.*)"`)
+			if err != nil {
+				return "", err
+			}
+
+			value := reg.FindStringSubmatch(line)
+			if value == nil {
+				return "", errors.Errorf("code not found in line [%s]", line)
+			}
+			return value[1], nil
 		}
 	}
 

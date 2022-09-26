@@ -53,11 +53,9 @@ func NewUserFromSecret(secret corev1.Secret) User {
 func NewUserFromIDToken(idToken *oidc.IDToken) (User, error) {
 	user := User{}
 
-	// TODO check which claims we need to get
 	var claims struct {
-		Email    string   `json:"email"`
-		Verified bool     `json:"email_verified"`
-		Groups   []string `json:"groups"`
+		Email  string   `json:"email"`
+		Groups []string `json:"groups"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return user, errors.Wrap(err, "parsing claims")

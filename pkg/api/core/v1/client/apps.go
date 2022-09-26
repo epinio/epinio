@@ -640,7 +640,6 @@ func (c *Client) AppPortForward(namespace string, appName, instance string, opts
 		PingPeriod: time.Second * 5,
 	})
 
-	// TODO: does it work?
 	wrapper := transport.NewBearerAuthRoundTripper(c.Settings.Token.AccessToken, upgradeRoundTripper)
 
 	dialer := gospdy.NewDialer(upgradeRoundTripper, &http.Client{Transport: wrapper}, "GET", portForwardURL)

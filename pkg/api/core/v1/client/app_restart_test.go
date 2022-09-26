@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ func DescribeAppRestart() {
 			fmt.Fprint(w, responseBody)
 		}))
 
-		epinioClient = client.New(&settings.Settings{API: srv.URL})
+		epinioClient = client.New(context.Background(), &settings.Settings{API: srv.URL})
 	})
 
 	When("app restart successfully", func() {

@@ -52,7 +52,7 @@ require (
 	k8s.io/utils v0.0.0-20220728103510-ee6ede2d64ed
 )
 
-require golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
+require golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
 
 require (
 	cloud.google.com/go/compute v1.6.1 // indirect

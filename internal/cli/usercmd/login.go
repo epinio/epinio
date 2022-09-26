@@ -2,6 +2,7 @@ package usercmd
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -18,7 +19,7 @@ import (
 )
 
 // Login will ask the user for a username and password, and then it will update the settings file accordingly
-func (c *EpinioClient) Login(username, password, address string, trustCA bool) error {
+func (c *EpinioClient) Login(ctx context.Context, username, password, address string, trustCA bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -54,7 +55,7 @@ func (c *EpinioClient) Login(username, password, address string, trustCA bool) e
 	}
 
 	// verify that settings are valid
-	err = verifyCredentials(updatedSettings)
+	err = verifyCredentials(ctx, updatedSettings)
 	if err != nil {
 		return errors.Wrap(err, "error verifying credentials")
 	}
@@ -250,8 +251,8 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	return epinioSettings, nil
 }
 
-func verifyCredentials(epinioSettings *settings.Settings) error {
-	apiClient := epinioapi.New(epinioSettings)
+func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings) error {
+	apiClient := epinioapi.New(ctx, epinioSettings)
 	_, err := apiClient.Namespaces()
 	return errors.Wrap(err, "error while connecting to the Epinio server")
 }

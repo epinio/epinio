@@ -60,6 +60,6 @@ var CmdLogin = &cobra.Command{
 		if oidc {
 			return client.LoginOIDC(cmd.Context(), address, trustCA, prompt)
 		}
-		return client.Login(username, password, address, trustCA)
+		return client.Login(cmd.Context(), username, password, address, trustCA)
 	},
 }

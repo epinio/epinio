@@ -54,8 +54,6 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	Expect(err).NotTo(HaveOccurred())
 	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password)
 
-	auth.InitUsers(&env, theSettings.API)
-
 	token, err := auth.GetToken(theSettings.API, "admin@epinio.io", "password")
 	Expect(err).NotTo(HaveOccurred())
 	env.EpinioToken = token

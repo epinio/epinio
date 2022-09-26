@@ -36,7 +36,6 @@ type EpinioEnv struct {
 	EpinioUser     string
 	EpinioPassword string
 	EpinioToken    string
-	EpinioTokenMap map[string]string
 }
 
 func New(nodeDir string, rootDir, username, password string) EpinioEnv {
@@ -45,13 +44,8 @@ func New(nodeDir string, rootDir, username, password string) EpinioEnv {
 		EpinioUser:     username,
 		EpinioPassword: password,
 		EpinioToken:    "",
-		EpinioTokenMap: map[string]string{},
 		Machine:        machine.New(nodeDir, username, password, root, EpinioBinaryPath()),
 	}
-}
-
-func (e *EpinioEnv) GetUserToken(user string) string {
-	return e.EpinioTokenMap[user]
 }
 
 // BinaryName returns the name of the epinio binary for the current platform

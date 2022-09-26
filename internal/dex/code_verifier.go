@@ -3,7 +3,6 @@ package dex
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"strings"
 
 	"github.com/dchest/uniuri"
 )
@@ -30,10 +29,5 @@ func (c *CodeVerifier) ChallengeS256() string {
 	h.Write([]byte(c.Value))
 	hash := h.Sum(nil)
 
-	encoded := base64.StdEncoding.EncodeToString(hash)
-	encoded = strings.Replace(encoded, "+", "-", -1)
-	encoded = strings.Replace(encoded, "/", "_", -1)
-	encoded = strings.Replace(encoded, "=", "", -1)
-
-	return encoded
+	return base64.RawURLEncoding.EncodeToString(hash)
 }

@@ -60,14 +60,13 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 		return errors.Wrap(err, "error while asking for token")
 	}
 
-	// TODO store also the RefreshToken and implement refresh flow
 	updatedSettings.Token.AccessToken = token.AccessToken
 	updatedSettings.Token.TokenType = token.TokenType
 	updatedSettings.Token.Expiry = token.Expiry
 	updatedSettings.Token.RefreshToken = token.RefreshToken
 
 	// verify that settings are valid
-	err = verifyCredentials(updatedSettings)
+	err = verifyCredentials(ctx, updatedSettings)
 	if err != nil {
 		return errors.Wrap(err, "error verifying credentials")
 	}

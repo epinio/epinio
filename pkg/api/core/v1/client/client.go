@@ -24,9 +24,8 @@ type Client struct {
 }
 
 // New returns a new Epinio API client
-func New(settings *epiniosettings.Settings) *Client {
+func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 	log := tracelog.NewLogger().WithName("EpinioApiClient").V(3)
-	ctx := context.Background()
 
 	if settings.Certs != "" {
 		auth.ExtendLocalTrust(settings.Certs)

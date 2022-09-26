@@ -170,7 +170,6 @@ var oidcProvider *dex.OIDCProvider
 
 // getOIDCProvider returns a lazy constructed OIDC provider
 func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
-	// TODO should this "expire" after a while (key rotations, other auth providers)?
 	if oidcProvider != nil {
 		return oidcProvider, nil
 	}
@@ -253,12 +252,6 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	logger := requestctx.Logger(reqCtx).WithName("oidcAuthentication")
 	logger.V(1).Info("starting OIDC Authentication")
 
-	// TODO:
-	// - [x] verify the validity of the token
-	// - [x] if the token is valid check if there is a "user" resource associated with it
-	// - [x] if not, create one, simple user no namespaces yet
-	// - [x] set the current user (so that authorization works)
-
 	oidcProvider, err := getOIDCProvider(ctx)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err, "error getting OIDC provider")
@@ -273,9 +266,8 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	}
 
 	var claims struct {
-		Email    string   `json:"email"`
-		Verified bool     `json:"email_verified"`
-		Groups   []string `json:"groups"`
+		Email  string   `json:"email"`
+		Groups []string `json:"groups"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
