@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CliClientSync downloads the epinio client binary matching the current OS and
+// ClientSync downloads the epinio client binary matching the current OS and
 // architecture and replaces the currently running one.
 func (c *EpinioClient) ClientSync() error {
 	log := c.Log.WithName("Client sync")

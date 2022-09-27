@@ -88,7 +88,6 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	router.Use(
 		ginLogger,
 		ginRecoveryLogger,
-		versionMiddleware,
 		initContextMiddleware(logger),
 	)
 
@@ -101,6 +100,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	{
 		apiRoutesGroup := router.Group(apiv1.Root,
 			authMiddleware,
+			versionMiddleware,
 			apiv1.NamespaceMiddleware,
 			apiv1.AuthorizationMiddleware,
 		)
@@ -111,6 +111,7 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 	{
 		wapiRoutesGroup := router.Group(apiv1.WsRoot,
 			tokenAuthMiddleware,
+			versionMiddleware,
 			apiv1.NamespaceMiddleware,
 			apiv1.AuthorizationMiddleware,
 		)
