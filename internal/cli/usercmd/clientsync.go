@@ -38,11 +38,11 @@ func getUpdater() (selfupdater.Updater, error) {
 	var updater selfupdater.Updater
 	switch os := runtime.GOOS; os {
 	case "darwin":
-		//updater = selfupdater.DarwinUpdater{}
+		updater = selfupdater.PosixUpdater{}
 	case "linux":
-		updater = selfupdater.LinuxUpdater{}
+		updater = selfupdater.PosixUpdater{}
 	case "windows":
-		//updater = selfupdater.WindowsUpdater{}
+		updater = selfupdater.WindowsUpdater{}
 	default:
 		return nil, errors.New("unknown operating system")
 	}

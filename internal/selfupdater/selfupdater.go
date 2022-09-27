@@ -3,6 +3,7 @@
 package selfupdater
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"io/fs"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/pkg/errors"
 	progressbar "github.com/schollz/progressbar/v3"
@@ -98,4 +100,54 @@ func currentBinaryInfo() (BinaryInfo, error) {
 	result.Permissions = info.Mode()
 
 	return result, nil
+}
+
+func validateFileChecksum(filePath, checksumFileURL, fileNamePattern string) error {
+	tmpFileChecksum, err := calculateChecksum(filePath)
+	if err != nil {
+		return errors.Wrap(err, "calculating binary file checksum")
+	}
+
+	tmpDir, err := ioutil.TempDir("", "epinio")
+	if err != nil {
+		return errors.Wrap(err, "creating temporary directory")
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmpChecksumFile, err := downloadFile(checksumFileURL, tmpDir)
+	if err != nil {
+		return errors.Wrap(err, "downloading checksum file")
+	}
+
+	checksumFileContents, err := os.ReadFile(tmpChecksumFile)
+	if err != nil {
+		return errors.Wrap(err, "reading the checksum file")
+	}
+
+	re := regexp.MustCompile(fmt.Sprintf(`([a-z,0-9]+)\s+%s`, fileNamePattern))
+	matches := re.FindStringSubmatch(string(checksumFileContents))
+	if len(matches) < 2 {
+		return errors.New("couldn't find a checksum for the given file")
+	}
+
+	if matches[1] != tmpFileChecksum {
+		return errors.New("file checksum invalid")
+	}
+
+	return nil
+}
+
+func calculateChecksum(filePath string) (string, error) {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", errors.Wrapf(err, "opening file %s", filePath)
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", errors.Wrap(err, "calculating checksum")
+	}
+
+	return fmt.Sprintf("%x", h.Sum(nil)), nil
 }
