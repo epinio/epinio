@@ -15,7 +15,10 @@ import (
 	progressbar "github.com/schollz/progressbar/v3"
 )
 
-const GithubBinaryURLFormat = "https://github.com/epinio/epinio/releases/download/%s/epinio-%s-%s"
+const (
+	GithubBinaryURLFormat   = "https://github.com/epinio/epinio/releases/download/%s/epinio-%s-%s"
+	GithubChecksumURLFormat = "https://github.com/epinio/epinio/releases/download/%s/epinio_%s_checksums.txt"
+)
 
 type BinaryInfo struct {
 	Path        string
@@ -38,9 +41,9 @@ type Updater interface {
 	Update(string) error
 }
 
-// downloadBinary downloads a remote file to the specified directory, using
+// downloadFile downloads a remote file to the specified directory, using
 // a "random" name. It returns the new file path and/or and error if one occurs.
-func downloadBinary(remoteURL, dir string) (string, error) {
+func downloadFile(remoteURL, dir string) (string, error) {
 	tmpFile, err := ioutil.TempFile(dir, "epinio")
 	if err != nil {
 		return "", errors.Wrap(err, "creating a temporary file")
