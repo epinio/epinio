@@ -42,11 +42,13 @@ var _ = BeforeSuite(func() {
 
 	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
-	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password)
 
-	token, err := auth.GetToken(theSettings.API, "admin@epinio.io", "password")
+	adminToken, err := auth.GetToken(theSettings.API, "admin@epinio.io", "password")
 	Expect(err).NotTo(HaveOccurred())
-	env.EpinioToken = token
+	userToken, err := auth.GetToken(theSettings.API, "epinio@epinio.io", "password")
+	Expect(err).NotTo(HaveOccurred())
+
+	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, adminToken, userToken)
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",

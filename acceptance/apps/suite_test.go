@@ -44,7 +44,7 @@ var _ = BeforeSuite(func() {
 	config, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	env = testenv.New(nodeTmpDir, testenv.Root(), config.User, config.Password)
+	env = testenv.New(nodeTmpDir, testenv.Root(), config.User, config.Password, "", "")
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",

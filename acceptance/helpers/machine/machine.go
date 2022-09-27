@@ -26,23 +26,22 @@ type Machine struct {
 	nodeTmpDir       string
 	user             string
 	password         string
-	token            string
+	adminToken       string
+	userToken        string
 	root             string
 	epinioBinaryPath string
 }
 
-func New(dir string, user string, password string, root string, epinioBinaryPath string) Machine {
+func New(dir, user, password, adminToken, userToken, root, epinioBinaryPath string) Machine {
 	return Machine{
 		nodeTmpDir:       dir,
 		user:             user,
 		password:         password,
+		adminToken:       adminToken,
+		userToken:        userToken,
 		root:             root,
 		epinioBinaryPath: epinioBinaryPath,
 	}
-}
-
-func (m *Machine) SetToken(token string) {
-	m.token = token
 }
 
 func (m *Machine) ShowStagingLogs(app string) {
