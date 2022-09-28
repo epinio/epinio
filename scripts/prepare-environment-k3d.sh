@@ -61,7 +61,7 @@ function deploy_epinio_latest_released {
   helm repo add epinio https://epinio.github.io/helm-charts
   helm repo update
   helm upgrade --wait --install -n epinio --create-namespace epinio epinio/epinio \
-       --set global.domain="$EPINIO_SYSTEM_DOMAIN"
+    --set global.domain="$EPINIO_SYSTEM_DOMAIN"
 }
 
 # Ensure we have a value for --system-domain

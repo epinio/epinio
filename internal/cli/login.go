@@ -14,10 +14,6 @@ func init() {
 }
 
 // CmdLogin implements the command: epinio login
-// It implements the "public client" flow of dex:
-// https://dexidp.io/docs/custom-scopes-claims-clients/#public-clients
-// https://github.com/dexidp/dex/issues/469
-// https://developers.google.com/identity/protocols/oauth2/native-app
 var CmdLogin = &cobra.Command{
 	Use:   "login [URL]",
 	Short: "Epinio login to the server",

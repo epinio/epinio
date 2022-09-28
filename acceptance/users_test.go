@@ -28,7 +28,6 @@ var _ = Describe("Users", func() {
 		BeforeEach(func() {
 			user, password = env.CreateEpinioUser("user", nil)
 		})
-
 		AfterEach(func() {
 			env.DeleteEpinioUser(user)
 		})
@@ -54,6 +53,11 @@ var _ = Describe("Users", func() {
 		BeforeEach(func() {
 			user, password = env.CreateEpinioUser("user", nil)
 			request.SetBasicAuth(user, password)
+		})
+
+		AfterEach(func() {
+			// Ensure it's deleted even if test fails
+			env.DeleteEpinioUser(user)
 		})
 
 		Specify("the user can no longer authenticate with basic auth", func() {
