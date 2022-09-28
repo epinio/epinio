@@ -2,6 +2,7 @@ package selfupdater
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -40,8 +41,23 @@ func (u PosixUpdater) Update(targetVersion string) error {
 		return errors.Wrap(err, "validating file checksum")
 	}
 
+	// https://github.com/flavio/kuberlr/blob/b4d047a69efec991a27133b5362443f48a9a1225/internal/downloader/download.go#L196
 	if err := os.Rename(tmpFile, binaryInfo.Path); err != nil {
-		return errors.Wrap(err, "moving the temporary file to its final location")
+		linkErr, ok := err.(*os.LinkError)
+		if ok {
+			fmt.Fprintf(os.Stderr, "Cross-device error trying to rename a file: %s -- will do a full copy\n", linkErr)
+			var tempInput []byte
+			tempInput, err = ioutil.ReadFile(tmpFile)
+			if err != nil {
+				return errors.Wrapf(err, "Error reading temporary file %s: %v", tmpFile)
+			}
+			err = ioutil.WriteFile(binaryInfo.Path, tempInput, binaryInfo.Permissions)
+			if err != nil {
+				return errors.Wrap(err, "copying new binary to its destination")
+			}
+		} else {
+			return errors.Wrap(err, "moving the temporary file to its final location")
+		}
 	}
 
 	err = os.Chmod(binaryInfo.Path, binaryInfo.Permissions)
