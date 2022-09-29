@@ -36,7 +36,7 @@ func (u PosixUpdater) Update(targetVersion string) error {
 	defer os.Remove(tmpFile)
 
 	checksumFileURL := fmt.Sprintf(GithubChecksumURLFormat, targetVersion, strings.TrimPrefix(targetVersion, "v"))
-	err = validateFileChecksum(tmpFile, checksumFileURL, fmt.Sprintf("epinio-linux-%s", URLArch))
+	err = validateFileChecksum(tmpFile, checksumFileURL, fmt.Sprintf("epinio-%s-%s", currentOS, URLArch))
 	if err != nil {
 		return errors.Wrap(err, "validating file checksum")
 	}
