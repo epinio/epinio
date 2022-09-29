@@ -23,7 +23,7 @@ func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return 0, err
 	}
 
-	result, err := strconv.Atoi(string(scaleSecret.Data[instanceKey])) // nolint:gosec // overflow blocked by guards
+	result, err := strconv.Atoi(string(scaleSecret.Data[instanceKey]))
 	if err != nil {
 		return 0, err
 	}
@@ -33,7 +33,7 @@ func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		result = 1
 	}
 
-	return int32(result), nil
+	return int32(result), nil // nolint:gosec // overflow blocked by guards
 }
 
 // ScalingSet sets the desired number of instances for the named application.

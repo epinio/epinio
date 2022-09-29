@@ -149,7 +149,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	reqLog.V(1).Info("request finished")
 
 	if serverVersion := response.Header.Get(api.VersionHeader); serverVersion != "" {
-		warnAboutVersionMismatch(reqLog, serverVersion)
+		warnAboutVersionMismatch(serverVersion)
 	}
 
 	bodyBytes, err := io.ReadAll(response.Body)
@@ -330,7 +330,7 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 	return nil
 }
 
-func warnAboutVersionMismatch(logger logr.Logger, serverVersion string) {
+func warnAboutVersionMismatch(serverVersion string) {
 	if serverVersion == version.Version {
 		return
 	}

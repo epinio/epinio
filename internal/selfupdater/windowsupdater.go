@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -44,7 +43,7 @@ func (u WindowsUpdater) Update(targetVersion string) error {
 		return errors.Wrap(err, "validating file checksum")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "epinio")
+	tmpDir, err := os.MkdirTemp("", "epinio")
 	if err != nil {
 		return errors.Wrap(err, "creating temporary directory")
 	}
@@ -89,14 +88,17 @@ func unzip(src, dest string) error {
 		}
 	}()
 
-	os.MkdirAll(dest, 0755)
+	err = os.MkdirAll(dest, 0755)
+	if err != nil {
+		return errors.Wrap(err, "creating the zip extracting destination directory")
+	}
 
 	// Closure to address file descriptors issue with all the deferred .Close() methods
 	extractAndWriteFile := func(f *zip.File) error {
-		path := filepath.Join(dest, f.Name)
 		// Check for ZipSlip: https://snyk.io/research/zip-slip-vulnerability
-		if !strings.HasPrefix(path, dest) {
-			return fmt.Errorf("%s: illegal file path", path)
+		destpath := filepath.Join(dest, f.Name) // nolint:gosec // Following code mitigates the issue
+		if !strings.HasPrefix(destpath, filepath.Clean(dest)+string(os.PathSeparator)) {
+			return fmt.Errorf("%s: illegal file path", f.Name)
 		}
 
 		rc, err := f.Open()
@@ -110,10 +112,16 @@ func unzip(src, dest string) error {
 		}()
 
 		if f.FileInfo().IsDir() {
-			os.MkdirAll(path, f.Mode())
+			err := os.MkdirAll(destpath, f.Mode())
+			if err != nil {
+				return errors.Wrap(err, "creating directory")
+			}
 		} else {
-			os.MkdirAll(filepath.Dir(path), f.Mode())
-			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			err := os.MkdirAll(filepath.Dir(destpath), f.Mode())
+			if err != nil {
+				return errors.Wrap(err, "creating directory")
+			}
+			f, err := os.OpenFile(destpath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				return err
 			}
@@ -123,9 +131,14 @@ func unzip(src, dest string) error {
 				}
 			}()
 
-			_, err = io.Copy(f, rc)
-			if err != nil {
-				return err
+			for {
+				_, err := io.CopyN(f, rc, 1024)
+				if err != nil {
+					if errors.Is(err, io.EOF) {
+						break
+					}
+					return err
+				}
 			}
 		}
 		return nil

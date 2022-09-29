@@ -2,7 +2,6 @@ package selfupdater
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strings"
@@ -47,11 +46,11 @@ func (u PosixUpdater) Update(targetVersion string) error {
 		if ok {
 			fmt.Fprintf(os.Stderr, "Cross-device error trying to rename a file: %s -- will do a full copy\n", linkErr)
 			var tempInput []byte
-			tempInput, err = ioutil.ReadFile(tmpFile)
+			tempInput, err = os.ReadFile(tmpFile)
 			if err != nil {
-				return errors.Wrapf(err, "Error reading temporary file %s: %v", tmpFile)
+				return errors.Wrapf(err, "Error reading temporary file %s", tmpFile)
 			}
-			err = ioutil.WriteFile(binaryInfo.Path, tempInput, binaryInfo.Permissions)
+			err = os.WriteFile(binaryInfo.Path, tempInput, binaryInfo.Permissions)
 			if err != nil {
 				return errors.Wrap(err, "copying new binary to its destination")
 			}

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -46,7 +45,7 @@ type Updater interface {
 // downloadFile downloads a remote file to the specified directory, using
 // a "random" name. It returns the new file path and/or and error if one occurs.
 func downloadFile(remoteURL, dir string) (string, error) {
-	tmpFile, err := ioutil.TempFile(dir, "epinio")
+	tmpFile, err := os.CreateTemp(dir, "epinio")
 	if err != nil {
 		return "", errors.Wrap(err, "creating a temporary file")
 	}
@@ -108,7 +107,7 @@ func validateFileChecksum(filePath, checksumFileURL, fileNamePattern string) err
 		return errors.Wrap(err, "calculating binary file checksum")
 	}
 
-	tmpDir, err := ioutil.TempDir("", "epinio")
+	tmpDir, err := os.MkdirTemp("", "epinio")
 	if err != nil {
 		return errors.Wrap(err, "creating temporary directory")
 	}
