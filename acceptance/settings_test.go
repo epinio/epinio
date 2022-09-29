@@ -78,7 +78,8 @@ var _ = Describe("Settings", func() {
 					WithRow("Current Namespace", ".*"),
 					WithRow("Default App Chart", ""),
 					WithRow("API User Name", env.EpinioUser),
-					WithRow("API Password", "[*]+"),
+					WithRow("API Password", "[*]*"),
+					WithRow("API Token", "[*]*"),
 					WithRow("API Url", "https://epinio.*"),
 					WithRow("WSS Url", "wss://epinio.*"),
 					WithRow("Certificates", "Present"),
@@ -97,6 +98,7 @@ var _ = Describe("Settings", func() {
 					WithRow("Default App Chart", ""),
 					WithRow("API User Name", ""),
 					WithRow("API Password", ""),
+					WithRow("API Token", ""),
 					WithRow("API Url", ""),
 					WithRow("WSS Url", ""),
 					WithRow("Certificates", "None defined"),
@@ -105,7 +107,8 @@ var _ = Describe("Settings", func() {
 		})
 
 		It("shows the settings with the password in plaintext", func() {
-			settings, err := env.Epinio("", "settings", "show", "--show-password")
+			settings, err := env.Epinio("", "settings", "show", "--show-password", "--show-token")
+
 			Expect(err).ToNot(HaveOccurred())
 			Expect(settings).To(
 				HaveATable(
@@ -115,6 +118,7 @@ var _ = Describe("Settings", func() {
 					WithRow("Certificates", "Present"),
 					WithRow("API User Name", env.EpinioUser),
 					WithRow("API Password", env.EpinioPassword),
+					WithRow("API Token", ".+"),
 					WithRow("API Url", "https://epinio.*"),
 					WithRow("WSS Url", "wss://epinio.*"),
 				),
@@ -143,12 +147,12 @@ var _ = Describe("Settings", func() {
 			Expect(newSettings.WSS).To(Equal(oldSettings.WSS))
 			Expect(newSettings.Certs).To(Equal(oldSettings.Certs))
 		})
+	})
+
+	Describe("Authorization settings", func() {
+		oldSettingsPath := testenv.EpinioYAML()
 
 		It("stores the password in base64", func() {
-			out, err := env.Epinio("", "settings", "update-ca", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(ContainSubstring(`Updating CA in the stored credentials`))
-
 			settings, err := env.GetSettingsFrom(oldSettingsPath)
 			Expect(err).ToNot(HaveOccurred())
 

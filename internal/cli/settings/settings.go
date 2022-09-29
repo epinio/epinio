@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/adrg/xdg"
 	"github.com/fatih/color"
@@ -26,19 +27,27 @@ var (
 
 // Settings represents a epinio settings
 type Settings struct {
-	Namespace string `mapstructure:"namespace"` // Currently targeted namespace
-	User      string `mapstructure:"user"`
-	Password  string `mapstructure:"pass"`
-	API       string `mapstructure:"api"`
-	WSS       string `mapstructure:"wss"`
-	Certs     string `mapstructure:"certs"`
-	Colors    bool   `mapstructure:"colors"`
-	AppChart  string `mapstructure:"appchart"` // Current default app chart (name)
+	Namespace string       `mapstructure:"namespace"` // Currently targeted namespace
+	User      string       `mapstructure:"user"`
+	Password  string       `mapstructure:"pass"`
+	Token     TokenSetting `mapstructure:"token"`
+	API       string       `mapstructure:"api"`
+	WSS       string       `mapstructure:"wss"`
+	Certs     string       `mapstructure:"certs"`
+	Colors    bool         `mapstructure:"colors"`
+	AppChart  string       `mapstructure:"appchart"` // Current default app chart (name)
 
 	Location string // Origin of data, file which was loaded
 
 	v   *viper.Viper
 	log logr.Logger
+}
+
+type TokenSetting struct {
+	AccessToken  string    `json:"accesstoken" mapstructure:"accesstoken"`
+	TokenType    string    `json:"tokentype,omitempty" mapstructure:"tokentype,omitempty"`
+	RefreshToken string    `json:"refreshtoken,omitempty" mapstructure:"refreshtoken,omitempty"`
+	Expiry       time.Time `json:"expiry,omitempty" mapstructure:"expiry,omitempty"`
 }
 
 // DefaultLocation returns the standard location for the settings file
@@ -137,11 +146,11 @@ func LoadFrom(file string) (*Settings, error) {
 	return cfg, nil
 }
 
-// Generates a string representation of the settings (for debugging)
+// String generates a string representation of the settings (for debugging)
 func (c *Settings) String() string {
 	return fmt.Sprintf(
-		"namespace=(%s), user=(%s), pass=(%s), api=(%s), wss=(%s), color=(%v), appchart=(%v), @(%s)",
-		c.Namespace, c.User, c.Password, c.API, c.WSS, c.Colors, c.AppChart, c.Location)
+		"namespace=(%s), user=(%s), pass=(%s), access_token=(%v), api=(%s), wss=(%s), color=(%v), appchart=(%v), @(%s)",
+		c.Namespace, c.User, c.Password, c.Token, c.API, c.WSS, c.Colors, c.AppChart, c.Location)
 }
 
 // Save saves the Epinio settings
@@ -150,6 +159,7 @@ func (c *Settings) Save() error {
 	c.v.Set("appchart", c.AppChart)
 	c.v.Set("user", c.User)
 	c.v.Set("pass", base64.StdEncoding.EncodeToString([]byte(c.Password)))
+	c.v.Set("token", c.Token)
 	c.v.Set("api", c.API)
 	c.v.Set("wss", c.WSS)
 	c.v.Set("certs", c.Certs)

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"math/rand"
+	"net/url"
 	"os/exec"
 	"strings"
 
+	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
@@ -47,7 +49,7 @@ var _ = Describe("Login", func() {
 			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(out).To(ContainSubstring(`Login to your Epinio cluster`))
-		Expect(out).To(ContainSubstring(`Trusting certificate...`))
+		Expect(out).To(ContainSubstring(`Trusting certificate`))
 		Expect(out).To(ContainSubstring(`Login successful`))
 
 		// check that the settings are now updated
@@ -106,7 +108,7 @@ var _ = Describe("Login", func() {
 
 		Expect(err).ToNot(HaveOccurred())
 		Expect(out.String()).To(ContainSubstring(`Login to your Epinio cluster`))
-		Expect(out.String()).To(ContainSubstring(`Trusting certificate...`))
+		Expect(out.String()).To(ContainSubstring(`Trusting certificate`))
 		Expect(out.String()).To(ContainSubstring(`Login successful`))
 
 		// check that the settings are now updated
@@ -120,6 +122,89 @@ var _ = Describe("Login", func() {
 				WithRow("Certificates", "Present"),
 			),
 		)
+	})
+
+	It("login with OIDC", func() {
+		// check that the initial settings are empty
+		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
+		Expect(err).ToNot(HaveOccurred(), settings)
+		Expect(settings).To(
+			HaveATable(
+				WithHeaders("KEY", "VALUE"),
+				WithRow("API User Name", ""),
+				WithRow("API Password", ""),
+				WithRow("API Token", ""),
+				WithRow("Certificates", "None defined"),
+			),
+		)
+
+		out := &bytes.Buffer{}
+		cmd := exec.Command(testenv.EpinioBinaryPath(), "login", "--prompt", "--oidc",
+			"--trust-ca", "--settings-file", tmpSettingsPath, serverURL)
+		cmd.Stdout = out
+		cmd.Stderr = out
+
+		stdinPipe, err := cmd.StdinPipe()
+		Expect(err).ToNot(HaveOccurred())
+
+		// run the epinio login and wait for the input of the authCode
+		go func() {
+			defer GinkgoRecover()
+
+			err = cmd.Run()
+			Expect(err).ToNot(HaveOccurred(), out.String())
+
+			// when the command terminates check that the login was successful
+			Expect(out.String()).To(ContainSubstring(`Login successful`))
+
+			// check that the settings are now updated
+			settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
+			Expect(err).ToNot(HaveOccurred(), settings)
+			Expect(settings).To(
+				HaveATable(
+					WithHeaders("KEY", "VALUE"),
+					WithRow("API User Name", ""),
+					WithRow("API Password", ""),
+					WithRow("API Token", "[*]+"),
+					WithRow("Certificates", "Present"),
+				),
+			)
+		}()
+
+		// read the full output, until the command asks you to paste the auth code
+		for {
+			if strings.Contains(out.String(), "paste the authorization code") {
+				break
+			}
+		}
+
+		fullOutput := out.String()
+
+		Expect(fullOutput).To(ContainSubstring(`Login to your Epinio cluster`))
+		Expect(fullOutput).To(ContainSubstring(`Trusting certificate`))
+
+		lines := strings.Split(fullOutput, "\n")
+
+		var authURL string
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "https://auth") {
+				authURL = line
+				break
+			}
+		}
+		Expect(authURL).ToNot(BeEmpty())
+
+		// authenticate with Dex, get the authCode and submit the input to the waiting command
+		u, err := url.Parse(authURL)
+		Expect(err).ToNot(HaveOccurred())
+		loginClient, err := auth.NewDexClient(fmt.Sprintf("%s://%s", u.Scheme, u.Host))
+		Expect(err).ToNot(HaveOccurred())
+
+		authCode, err := loginClient.Login(authURL, "admin@epinio.io", "password")
+		Expect(err).ToNot(HaveOccurred())
+		_, err = fmt.Fprintln(stdinPipe, authCode)
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	It("fails with a non existing user", func() {

@@ -40,8 +40,7 @@ var _ = Describe("Users", func() {
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 		})
 
-		Specify("cannot authenticate no credentials or cookie", func() {
-			// First request with basicauth to get the cookie
+		Specify("cannot authenticate no credentials", func() {
 			resp, err := env.Client().Do(request)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusUnauthorized))

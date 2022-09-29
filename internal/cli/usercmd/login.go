@@ -2,6 +2,7 @@ package usercmd
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -18,7 +19,7 @@ import (
 )
 
 // Login will ask the user for a username and password, and then it will update the settings file accordingly
-func (c *EpinioClient) Login(username, password, address string, trustCA bool) error {
+func (c *EpinioClient) Login(ctx context.Context, username, password, address string, trustCA bool) error {
 	var err error
 
 	log := c.Log.WithName("Login")
@@ -42,7 +43,7 @@ func (c *EpinioClient) Login(username, password, address string, trustCA bool) e
 	}
 
 	// check if the server has a trusted authority, or if we want to trust it anyway
-	serverCertificate, err := checkAndAskCA(c.ui, address, trustCA)
+	serverCertificate, err := checkAndAskCA(c.ui, []string{address}, trustCA)
 	if err != nil {
 		return errors.Wrap(err, "error while checking CA")
 	}
@@ -54,7 +55,7 @@ func (c *EpinioClient) Login(username, password, address string, trustCA bool) e
 	}
 
 	// verify that settings are valid
-	err = verifyCredentials(updatedSettings)
+	err = verifyCredentials(ctx, updatedSettings)
 	if err != nil {
 		return errors.Wrap(err, "error verifying credentials")
 	}
@@ -112,35 +113,59 @@ func readUserInput() (string, error) {
 
 // checkAndAskCA will check if the server has a trusted authority
 // if the authority is unknown then we will prompt the user if he wants to trust it anyway
-// and the func will return the PEM encoded certificate to trust
-func checkAndAskCA(ui *termui.UI, address string, trustCA bool) (string, error) {
-	var serverCertificate string
+// and the func will return a list of PEM encoded certificates to trust (separated by new lines)
+func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, error) {
+	var builder strings.Builder
 
-	cert, err := checkCA(address)
-	if err != nil {
-		// something bad happened while checking the certificates
-		if cert == nil {
-			return "", errors.Wrap(err, "error while checking CA")
-		}
-
-		// certificate is signed by unknown authority
-		// ask to the user if we want to trust it
-		if !trustCA {
-			trustCA, err = askTrustCA(ui, cert)
-			if err != nil {
-				return "", errors.Wrap(err, "error while asking for trusting the CA")
+	// get all the certs to check
+	certsToCheck := []*x509.Certificate{}
+	for _, address := range addresses {
+		cert, err := checkCA(address)
+		if err != nil {
+			// something bad happened while checking the certificates
+			if cert == nil {
+				return "", errors.Wrap(err, "error while checking CA")
 			}
 		}
+		certsToCheck = append(certsToCheck, cert)
+	}
 
-		// if yes then encode the certificate to PEM format and save it in the settings
-		if trustCA {
-			ui.Success().Msg("Trusting certificate...")
+	// in cert we trust!
+	if trustCA {
+		for i, cert := range certsToCheck {
+			ui.Success().Msgf("Trusting certificate for address %s...", addresses[i])
 			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
-			serverCertificate = string(pemCert)
+			builder.Write(pemCert)
+		}
+		return builder.String(), nil
+	}
+
+	trustedIssuersMap := map[string]bool{}
+
+	// let's prompt the user for every issuer
+	for i, cert := range certsToCheck {
+		var trustedCA, asked bool
+		var err error
+
+		trustedCA, asked = trustedIssuersMap[cert.Issuer.String()]
+
+		if !asked {
+			trustedCA, err = askTrustCA(ui, cert)
+			if err != nil {
+				return "", errors.Wrap(err, "error while asking to trust the CA")
+			}
+			trustedIssuersMap[cert.Issuer.String()] = trustedCA
+		}
+
+		// if the CA is trusted we can add the cert
+		if trustedCA {
+			ui.Success().Msgf("Trusting certificate for address %s...", addresses[i])
+			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+			builder.Write(pemCert)
 		}
 	}
 
-	return serverCertificate, nil
+	return builder.String(), nil
 }
 
 func checkCA(address string) (*x509.Certificate, error) {
@@ -226,8 +251,8 @@ func updateSettings(address, username, password, serverCertificate string) (*set
 	return epinioSettings, nil
 }
 
-func verifyCredentials(epinioSettings *settings.Settings) error {
-	apiClient := epinioapi.New(epinioSettings)
+func verifyCredentials(ctx context.Context, epinioSettings *settings.Settings) error {
+	apiClient := epinioapi.New(ctx, epinioSettings)
 	_, err := apiClient.Namespaces()
 	return errors.Wrap(err, "error while connecting to the Epinio server")
 }

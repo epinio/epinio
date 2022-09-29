@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -62,11 +63,22 @@ var _ = Describe("Epinio upgrade with running app", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 
+		By("Getting the old values ...")
+		out, err = proc.RunW("helm", "get", "values", "epinio",
+			"-n", "epinio", "-o", "yaml",
+		)
+		Expect(err).NotTo(HaveOccurred(), out)
+		tmpDir, err := os.MkdirTemp("", "helm")
+		Expect(err).ToNot(HaveOccurred())
+		err = os.WriteFile(path.Join(tmpDir, "values.yaml"), []byte(out), 0644)
+		Expect(err).ToNot(HaveOccurred())
+
 		// Upgrade Epinio using the fresh image
 		By("Upgrading ...")
-		out, err = proc.RunW("helm", "upgrade", "--reuse-values", "epinio",
+		out, err = proc.RunW("helm", "upgrade", "epinio",
 			"-n", "epinio",
 			"../../helm-charts/chart/epinio",
+			"-f", path.Join(tmpDir, "values.yaml"),
 			"--set", "image.epinio.registry=ghcr.io/",
 			"--set", fmt.Sprintf("image.epinio.tag=%s", tag),
 			"--wait",

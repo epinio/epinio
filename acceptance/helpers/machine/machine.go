@@ -26,12 +26,22 @@ type Machine struct {
 	nodeTmpDir       string
 	user             string
 	password         string
+	adminToken       string
+	userToken        string
 	root             string
 	epinioBinaryPath string
 }
 
-func New(dir string, user string, password string, root string, epinioBinaryPath string) Machine {
-	return Machine{dir, user, password, root, epinioBinaryPath}
+func New(dir, user, password, adminToken, userToken, root, epinioBinaryPath string) Machine {
+	return Machine{
+		nodeTmpDir:       dir,
+		user:             user,
+		password:         password,
+		adminToken:       adminToken,
+		userToken:        userToken,
+		root:             root,
+		epinioBinaryPath: epinioBinaryPath,
+	}
 }
 
 func (m *Machine) ShowStagingLogs(app string) {
@@ -66,7 +76,7 @@ func (m *Machine) SetupNamespace(namespace string) {
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
 	out, err = m.Epinio("", "namespace", "show", namespace)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(1, out).To(MatchRegexp("Name.*|.*" + namespace))
 }
 

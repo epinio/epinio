@@ -1,10 +1,12 @@
 package acceptance_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
 
+	"github.com/epinio/epinio/acceptance/helpers/auth"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 	"github.com/epinio/epinio/internal/cli/settings"
@@ -25,7 +27,34 @@ var (
 	env testenv.EpinioEnv
 )
 
-var _ = BeforeSuite(func() {
+// BeforeSuiteMessage is a serializable struct that can be passed through the SynchronizedBeforeSuite
+type BeforeSuiteMessage struct {
+	AdminToken string `json:"admin_token"`
+	UserToken  string `json:"user_token"`
+}
+
+var _ = SynchronizedBeforeSuite(func() []byte {
+	// login just once
+	globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
+	Expect(err).NotTo(HaveOccurred())
+
+	adminToken, err := auth.GetToken(globalSettings.API, "admin@epinio.io", "password")
+	Expect(err).NotTo(HaveOccurred())
+	userToken, err := auth.GetToken(globalSettings.API, "epinio@epinio.io", "password")
+	Expect(err).NotTo(HaveOccurred())
+
+	msg, err := json.Marshal(BeforeSuiteMessage{
+		AdminToken: adminToken,
+		UserToken:  userToken,
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	return msg
+}, func(msg []byte) {
+	var message BeforeSuiteMessage
+	err := json.Unmarshal(msg, &message)
+	Expect(err).NotTo(HaveOccurred())
+
 	fmt.Printf("Running tests on node %d\n", GinkgoParallelProcess())
 
 	testenv.SetRoot("..")
@@ -41,7 +70,8 @@ var _ = BeforeSuite(func() {
 
 	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
-	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password)
+
+	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, message.AdminToken, message.UserToken)
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",

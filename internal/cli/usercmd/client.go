@@ -4,6 +4,8 @@ package usercmd
 //go:generate go run github.com/maxbrunsfeld/counterfeiter/v6 -generate
 
 import (
+	"context"
+
 	"github.com/epinio/epinio/helpers/kubernetes/tailer"
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
@@ -105,7 +107,7 @@ func New() (*EpinioClient, error) {
 		return nil, errors.Wrap(err, "error loading settings")
 	}
 
-	apiClient := epinioapi.New(cfg)
+	apiClient := epinioapi.New(context.Background(), cfg)
 
 	return NewEpinioClient(cfg, apiClient)
 }
