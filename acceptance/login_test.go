@@ -121,8 +121,7 @@ var _ = Describe("Login", func() {
 
 	It("login with OIDC", func() {
 		// check that the initial settings are empty
-		settings, err := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-		Expect(err).ToNot(HaveOccurred(), settings)
+		settings := env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 		Expect(settings).To(
 			HaveATable(
 				WithHeaders("KEY", "VALUE"),
@@ -153,8 +152,7 @@ var _ = Describe("Login", func() {
 			Expect(out.String()).To(ContainSubstring(`Login successful`))
 
 			// check that the settings are now updated
-			settings, err = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
-			Expect(err).ToNot(HaveOccurred(), settings)
+			settings = env.Epinio("", "settings", "show", "--settings-file", tmpSettingsPath)
 			Expect(settings).To(
 				HaveATable(
 					WithHeaders("KEY", "VALUE"),
