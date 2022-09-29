@@ -12,9 +12,10 @@ import (
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/internal/services"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -22,6 +23,8 @@ func CreateCatalogService(catalogService models.CatalogService) {
 	CreateCatalogServiceInNamespace("epinio", catalogService)
 }
 
+// Create catalog service in the cluster. The catalog entry is applied via kubectl, after conversion
+// into a yaml file
 func CreateCatalogServiceInNamespace(namespace string, catalogService models.CatalogService) {
 	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
 	defer os.Remove(sampleServiceFilePath)
@@ -39,6 +42,7 @@ func DeleteCatalogServiceFromNamespace(namespace, name string) {
 	Expect(err).ToNot(HaveOccurred(), out)
 }
 
+// Create temp file to hold the catalog service formatted as yaml, and return the path
 func SampleServiceTmpFile(namespace string, catalogService models.CatalogService) string {
 	srv := epinioappv1.Service{
 		TypeMeta: metav1.TypeMeta{
@@ -75,76 +79,122 @@ func SampleServiceTmpFile(namespace string, catalogService models.CatalogService
 	return filePath
 }
 
-func HelmChartTmpFile(helmChart helmapiv1.HelmChart) string {
-	b, err := json.Marshal(helmChart)
-	Expect(err).ToNot(HaveOccurred())
+// Remove a service instance without going through epinio. Code is analogous though
+func DeleteService(name, namespace string) {
+	sname := names.GenerateResourceName("s", name)
 
-	filePath, err := helpers.CreateTmpFile(string(b))
-	Expect(err).ToNot(HaveOccurred())
-
-	return filePath
-}
-
-func WaitForHelmRelease(namespace, name string) {
-	// Wait for the chart release to exist.
-	cmd := func() (string, error) {
-		return proc.Run("", false, "helm", "get", "all", "-n", namespace, name)
-	}
-	Eventually(func() error {
-		_, err := cmd()
-		return err
-	}, "5m", "5s").Should(BeNil())
-
-	Eventually(func() string {
-		out, _ := cmd()
-		return out
-	}, "5m", "5s").ShouldNot(MatchRegexp(".*release: not found.*"))
-}
-
-func CreateHelmChart(helmChart helmapiv1.HelmChart, wait bool) {
-	sampleServiceFilePath := HelmChartTmpFile(helmChart)
-	defer os.Remove(sampleServiceFilePath)
-
-	out, err := proc.Kubectl("apply", "-f", sampleServiceFilePath)
+	out, err := proc.Kubectl("delete", "secret", "--namespace", namespace, sname)
 	Expect(err).ToNot(HaveOccurred(), out)
 
-	if wait {
-		WaitForHelmRelease(
-			helmChart.Spec.TargetNamespace,
-			helmChart.ObjectMeta.Name)
-	}
+	releaseName := names.ServiceReleaseName(name)
+
+	out, err = proc.RunW("helm", "uninstall", releaseName, "--namespace", namespace)
+	Expect(err).ToNot(HaveOccurred(), out)
 }
 
+// Create a service (instance) from a catalog entry, without going through epinio.  Although the
+// code is quite similar.
 func CreateService(name, namespace string, catalogService models.CatalogService) {
-	helmChart := helmapiv1.HelmChart{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "helm.cattle.io/v1",
-			Kind:       "HelmChart",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      names.ServiceHelmChartName(name, namespace),
-			Namespace: "epinio",
-			Labels: map[string]string{
-				services.CatalogServiceLabelKey:        catalogService.Meta.Name,
-				services.TargetNamespaceLabelKey:       namespace,
-				services.CatalogServiceVersionLabelKey: catalogService.AppVersion,
-				services.ServiceNameLabelKey:           name,
-			},
-		},
-		Spec: helmapiv1.HelmChartSpec{
-			TargetNamespace: namespace,
-			Chart:           catalogService.HelmChart,
-			Version:         catalogService.ChartVersion,
-			Repo:            catalogService.HelmRepo.URL,
-			ValuesContent:   catalogService.Values,
-		},
-	}
+	CreateServiceX(name, namespace, catalogService, true, false)
+}
 
-	if len(catalogService.SecretTypes) > 0 {
-		helmChart.ObjectMeta.Annotations = map[string]string{
-			services.CatalogServiceSecretTypesAnnotation: strings.Join(catalogService.SecretTypes, ","),
+func CreateUnlabeledService(name, namespace string, catalogService models.CatalogService) {
+	CreateServiceX(name, namespace, catalogService, false, false)
+}
+
+func CreateServiceWithoutCatalog(name, namespace string, catalogService models.CatalogService) {
+	CreateServiceX(name, namespace, catalogService, true, true)
+}
+
+// Create a service (instance) from a catalog entry, without going through epinio.  Although the
+// code is quite similar.
+func CreateServiceX(name, namespace string, catalogService models.CatalogService, label, broken bool) {
+	// Phases:
+	//   1. secret to represent the service instance
+	//   2. helm release representing the active element
+	//
+	// Effectively a replication of internal/services/instances.go:Create using kubectl and helm cli.
+
+	By("CS setup: " + name)
+
+	// Phase 1, Service Secret.
+
+	By("CS secret")
+
+	var labels map[string]string      // default: nil
+	var annotations map[string]string // default: nil
+
+	if label {
+		labels = map[string]string{
+			"application.epinio.io/catalog-service-name":    catalogService.Meta.Name,
+			"application.epinio.io/catalog-service-version": catalogService.AppVersion,
+			"application.epinio.io/service-name":            name,
+		}
+		if broken {
+			labels["application.epinio.io/catalog-service-name"] = "missing-catalog-service"
 		}
 	}
 
-	CreateHelmChart(helmChart, true)
+	if len(catalogService.SecretTypes) > 0 {
+		types := strings.Join(catalogService.SecretTypes, ",")
+		annotations = map[string]string{
+			"application.epinio.io/catalog-service-secret-types": types,
+		}
+	}
+
+	sname := names.GenerateResourceName("s", name)
+	secret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "Secret",
+			APIVersion: "v1",
+		},
+		Type: "Opaque",
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        sname,
+			Namespace:   namespace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+	}
+
+	secretTmpFile := NewTmpName("tmpUserFile") + `.json`
+	file, err := os.Create(secretTmpFile)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = json.NewEncoder(file).Encode(secret)
+	Expect(err).ToNot(HaveOccurred())
+	defer os.Remove(secretTmpFile)
+
+	out, err := proc.Kubectl("apply", "-f", secretTmpFile)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	// Phase 2, Helm Release.
+
+	By("CS release")
+
+	out, err = proc.RunW("helm", "repo", "add", "bitnami-nginx", catalogService.HelmRepo.URL)
+	Expect(err).ToNot(HaveOccurred(), out)
+
+	releaseName := names.ServiceReleaseName(name)
+
+	cmd := []string{
+		"upgrade",
+		releaseName,
+		"bitnami-nginx/" + catalogService.HelmChart,
+		"--install", "--namespace", namespace,
+	}
+	if catalogService.ChartVersion != "" {
+		cmd = append(cmd, "--version", catalogService.ChartVersion)
+	}
+	if catalogService.Values != "" {
+		filePath, err := helpers.CreateTmpFile(catalogService.Values)
+		Expect(err).ToNot(HaveOccurred())
+		cmd = append(cmd, "-f", filePath)
+		defer os.Remove(filePath)
+	}
+
+	out, err = proc.RunW("helm", cmd...)
+
+	By("CS post release")
+	Expect(err).ToNot(HaveOccurred(), out)
 }

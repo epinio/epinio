@@ -13,8 +13,6 @@ import (
 	v1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	helmapiv1 "github.com/k3s-io/helm-controller/pkg/apis/helm.cattle.io/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -78,39 +76,24 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 			})
 		})
 
-		When("helmchart exists", func() {
+		When("service exists", func() {
 			var serviceName string
-			var chartName string
+			var releaseName string
+			var secName string
 
 			BeforeEach(func() {
 				serviceName = catalog.NewServiceName()
-				chartName = names.ServiceHelmChartName(serviceName, namespace)
+				releaseName = names.ServiceReleaseName(serviceName)
+				secName = names.GenerateResourceName("s", serviceName)
 			})
 
-			When("helmchart is not labeled", func() {
+			When("service is not labeled", func() {
 				BeforeEach(func() {
-					helmChart := helmapiv1.HelmChart{
-						TypeMeta: metav1.TypeMeta{
-							APIVersion: "helm.cattle.io/v1",
-							Kind:       "HelmChart",
-						},
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      chartName,
-							Namespace: "epinio",
-						},
-						Spec: helmapiv1.HelmChartSpec{
-							TargetNamespace: namespace,
-							ValuesContent:   catalogService.Values,
-							Chart:           catalogService.HelmChart,
-							Repo:            catalogService.HelmRepo.URL,
-						},
-					}
-					catalog.CreateHelmChart(helmChart, true)
+					catalog.CreateUnlabeledService(serviceName, namespace, catalogService)
 				})
 
 				AfterEach(func() {
-					out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", chartName)
-					Expect(err).ToNot(HaveOccurred(), out)
+					catalog.DeleteService(serviceName, namespace)
 				})
 
 				It("returns 404", func() {
@@ -126,21 +109,29 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 				})
 			})
 
-			When("helmchart is labeled", func() {
+			When("service is labeled", func() {
 				BeforeEach(func() {
-					env.MakeServiceInstance(serviceName, catalogService.Meta.Name)
+					catalog.CreateService(serviceName, namespace, catalogService)
 
-					By(fmt.Sprintf("locate helm chart %s", chartName))
+					By("locate service secret: " + secName + ", for: " + serviceName)
+					Eventually(func() string {
+						out, err := proc.Kubectl("get", "secret", "--namespace", namespace, secName)
+						Expect(err).ToNot(HaveOccurred(), out)
+						return out
+					}, "3m", "5s").ShouldNot(MatchRegexp("No resources found"))
 
-					out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", chartName)
-					Expect(err).ToNot(HaveOccurred(), out)
-					Expect(out).ToNot(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
+					By("locate service helm release: " + releaseName + ", for: " + serviceName)
+					Eventually(func() string {
+						out, err := proc.Kubectl("get", "secret", "--namespace", namespace,
+							"--selector", "name="+releaseName)
+						Expect(err).ToNot(HaveOccurred(), out)
+						return out
+					}, "3m", "5s").ShouldNot(MatchRegexp("No resources found"))
 				})
 
-				It("deletes the helmchart", func() {
+				It("deletes the helm release", func() {
 					By("assemble url")
-					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s",
-						serverURL, v1.Root, namespace, serviceName)
+					endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/%s", serverURL, v1.Root, namespace, serviceName)
 
 					By(fmt.Sprintf("assemble request for %s", endpoint))
 					requestBody, err := json.Marshal(models.ServiceDeleteRequest{})
@@ -162,11 +153,12 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 					By("check status")
 					Expect(response.StatusCode).To(Equal(http.StatusOK), string(respBody))
 
-					By("check helm chart removal")
+					By("check helm release removal: " + releaseName)
 					Eventually(func() string {
-						out, _ := proc.Kubectl("get", "helmchart", "-n", "epinio", chartName)
+						out, err := proc.Kubectl("get", "secret", "--namespace", namespace, "--selector", "name="+releaseName)
+						Expect(err).ToNot(HaveOccurred(), out)
 						return out
-					}, "1m", "5s").Should(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
+					}, "1m", "5s").Should(MatchRegexp("No resources found"))
 				})
 			})
 
