@@ -38,7 +38,7 @@ env:
   GINKGO_NODES: 1
   FLAKE_ATTEMPTS: 1
   PUBLIC_CLOUD: 1
-  AWS_REGION: 'us-east-2'
+  AWS_REGION: 'eu-central-1'
   AWS_MACHINE_TYPE: 't3.xlarge'
   KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
 
