@@ -35,6 +35,8 @@ func GetToken(domain, email, password string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "error creating OIDC provider")
 	}
+	// ask a token for the 'epinio-api' client
+	oidcProvider.AddScopes("audience:server:client_id:epinio-api")
 
 	// getting login URL (with redirect)
 	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()

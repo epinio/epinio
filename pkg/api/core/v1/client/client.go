@@ -48,6 +48,8 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 		if err != nil {
 			log.Info("error creating the OIDC provider", "error", err.Error())
 		} else {
+			// ask a token for the 'epinio-api' client
+			oidcProvider.AddScopes("audience:server:client_id:epinio-api")
 			tokenSource = oidcProvider.Config.TokenSource(ctx, token)
 		}
 	}

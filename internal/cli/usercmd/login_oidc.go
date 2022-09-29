@@ -54,6 +54,8 @@ func (c *EpinioClient) LoginOIDC(ctx context.Context, address string, trustCA, p
 	if err != nil {
 		return errors.Wrap(err, "constructing dexProviderConfig")
 	}
+	// ask a token for the 'epinio-api' client
+	oidcProvider.AddScopes("audience:server:client_id:epinio-api")
 
 	token, err := c.generateToken(ctx, oidcProvider, prompt)
 	if err != nil {

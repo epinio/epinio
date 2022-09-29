@@ -63,6 +63,11 @@ func (pc *OIDCProvider) AuthCodeURLWithPKCE() (string, string) {
 	return authCodeURL, codeVerifier.Value
 }
 
+// AddScopes will add scopes to the OIDCProvider.Config.Scopes, extending the DefaultScopes
+func (pc *OIDCProvider) AddScopes(scopes ...string) {
+	pc.Config.Scopes = append(pc.Config.Scopes, scopes...)
+}
+
 // ExchangeWithPKCE will exchange the authCode with a token, checking if the codeVerifier is valid
 func (pc *OIDCProvider) ExchangeWithPKCE(ctx context.Context, authCode, codeVerifier string) (*oauth2.Token, error) {
 	token, err := pc.Config.Exchange(ctx, authCode, oauth2.SetAuthURLParam("code_verifier", codeVerifier))

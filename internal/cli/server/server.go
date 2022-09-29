@@ -180,7 +180,7 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 	}
 
 	issuer := fmt.Sprintf("https://auth.%s", mainDomain)
-	oidcProvider, err = dex.NewOIDCProvider(ctx, issuer, "epinio-cli")
+	oidcProvider, err = dex.NewOIDCProvider(ctx, issuer, "epinio-api")
 	return oidcProvider, errors.Wrap(err, "constructing dexProviderConfig")
 }
 
