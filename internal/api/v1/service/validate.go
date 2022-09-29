@@ -67,7 +67,7 @@ func ValidateService(
 
 	logger.Info("looking for service release")
 
-	releaseName := names.ServiceHelmChartName(service.Meta.Name, service.Namespace())
+	releaseName := names.ServiceReleaseName(service.Meta.Name)
 	srv, err := client.GetRelease(releaseName)
 	if err != nil {
 		if errors.Is(err, helmdriver.ErrReleaseNotFound) {

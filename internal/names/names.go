@@ -85,6 +85,11 @@ func ReleaseName(base string) string {
 	return GenerateResourceNameTruncated(base, 53)
 }
 
+// ReleaseName returns the name of a helm release derived from the base string.
+func ServiceReleaseName(base string) string {
+	return GenerateResourceNameTruncated(base, 43)
+}
+
 func ServiceHelmChartName(name, namespace string) string {
 	// The helm controller deploying the chart generates derived names for secrets and
 	// pods from the name of the chart, and __does not__ length limit them properly.
