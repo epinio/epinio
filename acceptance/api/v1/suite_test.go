@@ -31,12 +31,37 @@ var (
 	env testenv.EpinioEnv
 )
 
+// BeforeSuiteMessage is a serializable struct that can be passed through the SynchronizedBeforeSuite
+type BeforeSuiteMessage struct {
+	AdminToken string `json:"admin_token"`
+	UserToken  string `json:"user_token"`
+}
+
 var _ = SynchronizedBeforeSuite(func() []byte {
 	fmt.Println("Creating the minio helper pod")
 	createS3HelperPod()
 
-	return []byte{}
-}, func(_ []byte) {
+	// login just once
+	globalSettings, err := settings.LoadFrom(testenv.EpinioYAML())
+	Expect(err).NotTo(HaveOccurred())
+
+	adminToken, err := auth.GetToken(globalSettings.API, "admin@epinio.io", "password")
+	Expect(err).NotTo(HaveOccurred())
+	userToken, err := auth.GetToken(globalSettings.API, "epinio@epinio.io", "password")
+	Expect(err).NotTo(HaveOccurred())
+
+	msg, err := json.Marshal(BeforeSuiteMessage{
+		AdminToken: adminToken,
+		UserToken:  userToken,
+	})
+	Expect(err).NotTo(HaveOccurred())
+
+	return msg
+}, func(msg []byte) {
+	var message BeforeSuiteMessage
+	err := json.Unmarshal(msg, &message)
+	Expect(err).NotTo(HaveOccurred())
+
 	fmt.Printf("Running tests on node %d\n", GinkgoParallelProcess())
 
 	testenv.SetRoot("../../..")
@@ -53,12 +78,7 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	theSettings, err := settings.LoadFrom(nodeTmpDir + "/epinio.yaml")
 	Expect(err).NotTo(HaveOccurred())
 
-	adminToken, err := auth.GetToken(theSettings.API, "admin@epinio.io", "password")
-	Expect(err).NotTo(HaveOccurred())
-	userToken, err := auth.GetToken(theSettings.API, "epinio@epinio.io", "password")
-	Expect(err).NotTo(HaveOccurred())
-
-	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, adminToken, userToken)
+	env = testenv.New(nodeTmpDir, testenv.Root(), theSettings.User, theSettings.Password, message.AdminToken, message.UserToken)
 
 	out, err = proc.Run(testenv.Root(), false, "kubectl", "get", "ingress",
 		"--namespace", "epinio", "epinio",
