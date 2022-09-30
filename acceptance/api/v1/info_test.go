@@ -31,4 +31,14 @@ var _ = Describe("Info endpoint", func() {
 
 		Expect(info.DefaultBuilderImage).To(Equal("paketobuildpacks/builder:full"))
 	})
+
+	It("includes the epinio server version in a header", func() {
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/info", serverURL, v1.Root), nil)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(response).ToNot(BeNil())
+		defer response.Body.Close()
+		versionHeader := response.Header.Get(v1.VersionHeader)
+		Expect(versionHeader).ToNot(BeEmpty())
+		Expect(versionHeader).To(MatchRegexp(`v\d+\.\d+\.\d+.*`))
+	})
 })

@@ -12,6 +12,8 @@ import (
 	. "github.com/epinio/epinio/pkg/api/core/v1/errors"
 )
 
+const VersionHeader = "epinio-version"
+
 // Info handles the API endpoint /info.  It returns version
 // information for various epinio components.
 func Info(c *gin.Context) APIErrors {

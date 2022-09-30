@@ -88,6 +88,7 @@ func init() {
 	rootCmd.AddCommand(CmdCompletion)
 	rootCmd.AddCommand(CmdSettings)
 	rootCmd.AddCommand(CmdInfo)
+	rootCmd.AddCommand(CmdClientSync)
 	rootCmd.AddCommand(CmdNamespace)
 	rootCmd.AddCommand(CmdAppPush) // shorthand access to `app push`.
 	rootCmd.AddCommand(CmdApp)

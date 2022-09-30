@@ -13,7 +13,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/epinio/epinio/helpers/termui"
 	api "github.com/epinio/epinio/internal/api/v1"
+	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"golang.org/x/oauth2"
@@ -145,6 +147,10 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	}
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
+
+	if serverVersion := response.Header.Get(api.VersionHeader); serverVersion != "" {
+		warnAboutVersionMismatch(serverVersion)
+	}
 
 	bodyBytes, err := io.ReadAll(response.Body)
 	respLog := responseLogger(c.log, response, string(bodyBytes))
@@ -322,4 +328,15 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 		request.SetBasicAuth(c.Settings.User, c.Settings.Password)
 	}
 	return nil
+}
+
+func warnAboutVersionMismatch(serverVersion string) {
+	if serverVersion == version.Version {
+		return
+	}
+
+	ui := termui.NewUI()
+	ui.Exclamation().Msg(
+		fmt.Sprintf("Epinio server version (%s) doesn't match the client version (%s)", serverVersion, version.Version))
+	ui.Exclamation().Msg("Update the client manually or run `epinio client-sync`")
 }
