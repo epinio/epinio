@@ -61,6 +61,10 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != 200 {
+		return "", errors.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
 	fmt.Printf("Downloading file %s\n", remoteURL)
 	bar := progressbar.DefaultBytes(
 		resp.ContentLength,
@@ -70,10 +74,6 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	_, err = io.Copy(io.MultiWriter(tmpFile, bar), resp.Body)
 	if err != nil {
 		return "", errors.Wrap(err, "downloading the remote file")
-	}
-
-	if resp.StatusCode != 200 {
-		return "", errors.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	return tmpFile.Name(), nil
