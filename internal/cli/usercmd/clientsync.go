@@ -4,6 +4,7 @@ import (
 	"runtime"
 
 	"github.com/epinio/epinio/internal/selfupdater"
+	"github.com/epinio/epinio/internal/version"
 	"github.com/pkg/errors"
 )
 
@@ -17,6 +18,12 @@ func (c *EpinioClient) ClientSync() error {
 	v, err := c.API.Info()
 	if err != nil {
 		return err
+	}
+
+	if version.Version == v.Version {
+		c.ui.Success().Msgf("Client and server version are the same (%s). Nothing to do!", v.Version)
+
+		return nil
 	}
 
 	updater, err := getUpdater()
