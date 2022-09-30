@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	v1 "github.com/epinio/epinio/internal/api/v1"
 
@@ -14,8 +13,7 @@ import (
 
 var _ = Describe("Healthcheck endpoint", func() {
 	It("returns OK (HTTP 200) without authentication", func() {
-		request, err := http.NewRequest("GET", fmt.Sprintf("%s/ready",
-			serverURL), strings.NewReader(""))
+		request, err := http.NewRequest("GET", fmt.Sprintf("%s/ready", serverURL), nil)
 		Expect(err).ToNot(HaveOccurred())
 
 		response, err := env.Client().Do(request)
