@@ -2,7 +2,6 @@ package application
 
 import (
 	"context"
-	"math"
 	"strconv"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
@@ -23,17 +22,18 @@ func Scaling(ctx context.Context, cluster *kubernetes.Cluster, appRef models.App
 		return 0, err
 	}
 
-	result, err := strconv.Atoi(string(scaleSecret.Data[instanceKey]))
+	i, err := strconv.ParseInt(string(scaleSecret.Data[instanceKey]), 10, 32)
 	if err != nil {
 		return 0, err
 	}
+	result := int32(i)
 
 	// Reject bad values, and assume single instance - Return err better ? Save back, fix resource ?
-	if result < 0 || result > math.MaxInt32 {
+	if result < 0 {
 		result = 1
 	}
 
-	return int32(result), nil // nolint:gosec // overflow blocked by guards
+	return result, nil
 }
 
 // ScalingSet sets the desired number of instances for the named application.
