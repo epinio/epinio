@@ -33,8 +33,7 @@ var _ = Describe("Info endpoint", func() {
 	})
 
 	It("includes the epinio server version in a header", func() {
-		response, err := env.Curl("GET", fmt.Sprintf("%s%s/info",
-			serverURL, v1.Root), strings.NewReader(""))
+		response, err := env.Curl("GET", fmt.Sprintf("%s%s/info", serverURL, v1.Root), nil)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(response).ToNot(BeNil())
 		defer response.Body.Close()

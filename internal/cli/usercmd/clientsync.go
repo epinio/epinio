@@ -37,9 +37,7 @@ func (c *EpinioClient) ClientSync() error {
 func getUpdater() (selfupdater.Updater, error) {
 	var updater selfupdater.Updater
 	switch os := runtime.GOOS; os {
-	case "darwin":
-		updater = selfupdater.PosixUpdater{}
-	case "linux":
+	case "linux", "darwin":
 		updater = selfupdater.PosixUpdater{}
 	case "windows":
 		updater = selfupdater.WindowsUpdater{}

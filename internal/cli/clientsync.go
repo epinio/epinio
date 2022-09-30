@@ -8,7 +8,7 @@ import (
 
 var ()
 
-// CmdInfo implements the command: epinio info
+// CmdClientSync implements the command: epinio client-sync
 var CmdClientSync = &cobra.Command{
 	Use:   "client-sync",
 	Short: "Downloads a client binary matching the currently logged server",

@@ -71,7 +71,6 @@ func downloadFile(remoteURL, dir string) (string, error) {
 	if err != nil {
 		return "", errors.Wrap(err, "downloading the remote file")
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		return "", errors.Errorf("unexpected status code: %d", resp.StatusCode)

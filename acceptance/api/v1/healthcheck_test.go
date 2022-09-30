@@ -29,8 +29,7 @@ var _ = Describe("Healthcheck endpoint", func() {
 	})
 
 	It("doesn't include the epinio server version in a header (non-authenticated request)", func() {
-		request, err := http.NewRequest("GET", fmt.Sprintf("%s/ready",
-			serverURL), strings.NewReader(""))
+		request, err := http.NewRequest("GET", fmt.Sprintf("%s/ready", serverURL), nil)
 		Expect(err).ToNot(HaveOccurred())
 
 		response, err := env.Client().Do(request)
