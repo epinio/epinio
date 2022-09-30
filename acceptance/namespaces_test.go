@@ -42,7 +42,7 @@ var _ = Describe("Namespaces", func() {
 		It("rejects creating an existing namespace", func() {
 			env.SetupAndTargetNamespace(namespaceName)
 
-			out := env.Epinio("", "namespace", "create", namespaceName)
+			out := env.EpinioErr("", "namespace", "create", namespaceName)
 			Expect(out).To(ContainSubstring("namespace '%s' already exists", namespaceName))
 		})
 	})
@@ -81,7 +81,7 @@ var _ = Describe("Namespaces", func() {
 
 	Describe("namespace show", func() {
 		It("rejects showing an unknown namespace", func() {
-			out := env.Epinio("", "namespace", "show", "missing-namespace")
+			out := env.EpinioErr("", "namespace", "show", "missing-namespace")
 			Expect(out).To(ContainSubstring("namespace 'missing-namespace' does not exist"))
 		})
 
@@ -135,7 +135,7 @@ var _ = Describe("Namespaces", func() {
 
 	Describe("namespace target", func() {
 		It("rejects targeting an unknown namespace", func() {
-			out := env.Epinio("", "target", "missing-namespace")
+			out := env.EpinioErr("", "target", "missing-namespace")
 			Expect(out).To(ContainSubstring("namespace 'missing-namespace' does not exist"))
 		})
 

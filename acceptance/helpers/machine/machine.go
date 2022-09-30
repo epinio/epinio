@@ -49,12 +49,22 @@ func (m *Machine) ShowStagingLogs(app string) {
 }
 
 // Epinio invokes the `epinio` binary, running the specified command.
-// It returns the command output and/or error.
+// It returns the command output and it fails for an error.
 // dir parameter defines the directory from which the command should be run.
 // It defaults to the current dir if left empty.
 func (m *Machine) Epinio(dir, command string, arg ...string) string {
 	out, err := proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	return out
+}
+
+// EpinioErr invokes the `epinio` binary, running the specified command.
+// It returns the command output and/or error.
+// dir parameter defines the directory from which the command should be run.
+// It defaults to the current dir if left empty.
+func (m *Machine) EpinioErr(dir, command string, arg ...string) string {
+	out, err := proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
+	ExpectWithOffset(1, err).To(HaveOccurred(), out)
 	return out
 }
 
@@ -96,7 +106,7 @@ func (m *Machine) DeleteNamespace(namespace string) {
 	By(fmt.Sprintf("deleting a namespace: %s", namespace))
 
 	_ = m.Epinio("", "namespace", "delete", "-f", namespace)
-	out := m.Epinio("", "namespace", "show", namespace)
+	out := m.EpinioErr("", "namespace", "show", namespace)
 	ExpectWithOffset(1, out).To(MatchRegexp(".*Not Found: namespace '" + namespace + "' does not exist.*"))
 }
 

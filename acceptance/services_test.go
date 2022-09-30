@@ -107,7 +107,7 @@ var _ = Describe("Services", func() {
 		Expect(out).To(ContainSubstring("Service Removed"))
 
 		Eventually(
-			env.Epinio("", "service", "delete", service),
+			env.EpinioErr("", "service", "delete", service),
 			"1m",
 			"5s",
 		).Should(ContainSubstring("service '%s' does not exist", service))
@@ -371,7 +371,7 @@ var _ = Describe("Services", func() {
 			Expect(out).To(ContainSubstring("Service Removed"))
 
 			Eventually(
-				env.Epinio("", "service", "delete", service),
+				env.EpinioErr("", "service", "delete", service),
 				"1m",
 				"5s",
 			).Should(ContainSubstring("service '%s' does not exist", service))
@@ -460,7 +460,7 @@ var _ = Describe("Services", func() {
 			_ = env.Epinio("", "service", "delete", service)
 
 			Eventually(
-				env.Epinio("", "service", "delete", service),
+				env.EpinioErr("", "service", "delete", service),
 				"1m",
 				"5s",
 			).Should(ContainSubstring("service '%s' does not exist", service))
@@ -600,7 +600,7 @@ var _ = Describe("Services", func() {
 			Expect(out).To(ContainSubstring("Service Removed"))
 
 			Eventually(
-				env.Epinio("", "service", "delete", service),
+				env.EpinioErr("", "service", "delete", service),
 				"1m",
 				"5s",
 			).Should(ContainSubstring("service '%s' does not exist", service))
@@ -700,7 +700,7 @@ var _ = Describe("Services", func() {
 			Expect(out).To(ContainSubstring("Service Removed"))
 
 			Eventually(
-				env.Epinio("", "service", "delete", service),
+				env.EpinioErr("", "service", "delete", service),
 				"1m",
 				"5s",
 			).Should(ContainSubstring("service '%s' does not exist", service))
