@@ -95,6 +95,16 @@ func ServiceReleaseName(base string) string {
 	return GenerateResourceNameTruncated(base, 30)
 }
 
+// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
+func ServiceHelmChartName(name, namespace string) string {
+	// The helm controller deploying the chart generates derived names for secrets and
+	// pods from the name of the chart, and __does not__ length limit them properly.
+	// As one of the components is the name of the chart we cannot fully account for
+	// it here (*). We keep 33 under the limit for suitable space.
+	// (*) NOTE: While some places have the chart name available, others do not.
+	return GenerateResourceNameTruncated(fmt.Sprintf("%s-%s", namespace, name), 30)
+}
+
 // Truncate truncates the input string s to the maxLen, if
 // necessary. Shorter strings are passed through unchanged.
 func Truncate(s string, maxLen int) string {

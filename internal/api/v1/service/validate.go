@@ -70,10 +70,19 @@ func ValidateService(
 	releaseName := names.ServiceReleaseName(service.Meta.Name)
 	srv, err := client.GetRelease(releaseName)
 	if err != nil {
-		if errors.Is(err, helmdriver.ErrReleaseNotFound) {
-			return apierror.NewNotFoundError("release", releaseName).WithDetailsf(err.Error())
+		if !errors.Is(err, helmdriver.ErrReleaseNotFound) {
+			return apierror.InternalError(err)
 		}
-		return apierror.InternalError(err)
+
+		// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
+		releaseNameHC := names.ServiceHelmChartName(service.Meta.Name, service.Namespace())
+		srv, err = client.GetRelease(releaseNameHC)
+		if err != nil {
+			if errors.Is(err, helmdriver.ErrReleaseNotFound) {
+				return apierror.NewNotFoundError("release", releaseName).WithDetailsf(err.Error())
+			}
+			return apierror.InternalError(err)
+		}
 	}
 
 	if srv.Info.Status != helmrelease.StatusDeployed {

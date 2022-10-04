@@ -235,12 +235,15 @@ func (c *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 	return secret, nil
 }
 
-// ForService returns a slice of Secrets matching the given Service.
+// ForService returns a slice of configuration secrets matching the given Service.
 func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
 		ConfigurationLabelKey:        "true",
 		ConfigurationTypeLabelKey:    "service",
+		// The difference to `ForServiceUnlabeled` is here. We are explicitly looking for
+		// the labels attached to the secrets by `LabelServiceSecrets` as we want only
+		// proper configurations.
 	}).AsSelector()
 
 	listOptions := metav1.ListOptions{
@@ -251,34 +254,109 @@ func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *mo
 	if err != nil {
 		return nil, err
 	}
+
 	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
 
-	return filteredSecrets, nil
+	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
+	// Look for secrets referencing a (helm controller)-based service.
+
+	secretSelectorHC := labels.Set(map[string]string{
+		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+		ConfigurationLabelKey:        "true",
+		ConfigurationTypeLabelKey:    "service",
+	}).AsSelector()
+
+	listOptionsHC := metav1.ListOptions{
+		LabelSelector: secretSelectorHC.String(),
+	}
+
+	secretListHC, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptionsHC)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredSecretsHC := filterSecretsByType(secretListHC.Items, service.SecretTypes)
+
+	// Merge the two lists ...
+
+	if len(filteredSecrets) == 0 {
+		return filteredSecretsHC, nil
+	}
+
+	if len(filteredSecretsHC) == 0 {
+		return filteredSecrets, nil
+	}
+
+	// A merge is actually required.
+
+	return append(filteredSecrets, filteredSecretsHC...), nil
+}
+
+// ForServiceUnlabeled returns a slice of unlabeled secrets matching the given Service
+func ForServiceUnlabeled(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
+	secretSelector := labels.Set(map[string]string{
+		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
+		// The difference to `ForService` is here. Not looking for the labels attached to
+		// the secrets by `LabelServiceSecrets` to turn them into configurations.
+	}).AsSelector()
+
+	listOptions := metav1.ListOptions{
+		LabelSelector: secretSelector.String(),
+	}
+
+	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
+
+	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
+	// Look for secrets referencing a (helm controller)-based service.
+
+	secretSelectorHC := labels.Set(map[string]string{
+		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+	}).AsSelector()
+
+	listOptionsHC := metav1.ListOptions{
+		LabelSelector: secretSelectorHC.String(),
+	}
+
+	secretListHC, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptionsHC)
+	if err != nil {
+		return nil, err
+	}
+
+	filteredSecretsHC := filterSecretsByType(secretListHC.Items, service.SecretTypes)
+
+	// Merge the two lists ...
+
+	if len(filteredSecrets) == 0 {
+		return filteredSecretsHC, nil
+	}
+
+	if len(filteredSecretsHC) == 0 {
+		return filteredSecrets, nil
+	}
+
+	// A merge is actually required.
+
+	return append(filteredSecrets, filteredSecretsHC...), nil
 }
 
 // LabelServiceSecrets will look for the Opaque secrets released with a service, looking for the
 // app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
 func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
-	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
-	}).AsSelector()
-
-	listOptions := metav1.ListOptions{
-		LabelSelector: secretSelector.String(),
-	}
-
-	// Find all user credential secrets
-	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptions)
+	// Simplification - Get the secrets to handle via the helper above.
+	filteredSecrets, err := ForServiceUnlabeled(ctx, kubeClient, service)
 	if err != nil {
 		return nil, err
 	}
 
-	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
-
 	for _, secret := range filteredSecrets {
 		sec := secret
 
-		// set labels without override the old ones
+		// set labels without overriding the old ones
 		sec.GetLabels()[ConfigurationLabelKey] = "true"
 		sec.GetLabels()[ConfigurationTypeLabelKey] = "service"
 		sec.GetLabels()[ConfigurationOriginLabelKey] = service.Meta.Name
