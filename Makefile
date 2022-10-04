@@ -138,7 +138,7 @@ fmt:
 	go fmt ./...
 
 check:
-	golangci-lint run
+	golangci-lint run --skip-files docs.go
 
 patch-epinio-deployment:
 	@./scripts/patch-epinio-deployment.sh
