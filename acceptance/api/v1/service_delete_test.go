@@ -41,18 +41,7 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 			namespace = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespace)
 
-			catalogService = models.CatalogService{
-				Meta: models.MetaLite{
-					Name: catalog.NewCatalogServiceName(),
-				},
-				HelmChart: "nginx",
-				HelmRepo: models.HelmRepo{
-					Name: "",
-					URL:  "https://charts.bitnami.com/bitnami",
-				},
-				Values: "{'service': {'type': 'ClusterIP'}}",
-			}
-			catalog.CreateCatalogService(catalogService)
+			catalogService = catalog.CreateCatalogServiceNginx()
 		})
 
 		AfterEach(func() {

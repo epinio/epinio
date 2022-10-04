@@ -238,7 +238,7 @@ func (c *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 // ForService returns a slice of Secrets matching the given Service.
 func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
 		ConfigurationLabelKey:        "true",
 		ConfigurationTypeLabelKey:    "service",
 	}).AsSelector()
@@ -260,7 +260,7 @@ func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *mo
 // app.kubernetes.io/instance label, then it will add the Configuration labels to "create" the configurations
 func LabelServiceSecrets(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
 	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
 	}).AsSelector()
 
 	listOptions := metav1.ListOptions{

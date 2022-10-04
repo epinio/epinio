@@ -8,9 +8,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -82,12 +80,6 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 		var requestBody, serviceName string
 		var catalogService models.CatalogService
 
-		deleteService := func(name, namespace string) {
-			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio",
-				names.ServiceHelmChartName(name, namespace))
-			Expect(err).ToNot(HaveOccurred(), out)
-		}
-
 		BeforeEach(func() {
 			namespace = catalog.NewNamespaceName()
 			env.SetupAndTargetNamespace(namespace)
@@ -125,7 +117,7 @@ var _ = Describe("ServiceCreate Endpoint", func() {
 			endpoint := fmt.Sprintf("%s%s/namespaces/%s/services", serverURL, v1.Root, namespace)
 			response, err := env.Curl("POST", endpoint, strings.NewReader(requestBody))
 			Expect(err).ToNot(HaveOccurred())
-			defer deleteService(serviceName, namespace)
+			defer catalog.DeleteService(serviceName, namespace)
 
 			b, err := io.ReadAll(response.Body)
 			Expect(err).ToNot(HaveOccurred())

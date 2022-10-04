@@ -19,6 +19,24 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func CreateCatalogServiceNginx() models.CatalogService {
+	catalogService := models.CatalogService{
+		Meta: models.MetaLite{
+			Name: NewCatalogServiceName(),
+		},
+		HelmChart: "nginx",
+		HelmRepo: models.HelmRepo{
+			Name: "",
+			URL:  "https://charts.bitnami.com/bitnami",
+		},
+		Values: "{'service': {'type': 'ClusterIP'}}",
+	}
+
+	CreateCatalogService(catalogService)
+
+	return catalogService
+}
+
 func CreateCatalogService(catalogService models.CatalogService) {
 	CreateCatalogServiceInNamespace("epinio", catalogService)
 }

@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
@@ -42,7 +41,7 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 		env.MakeContainerImageApp(app, 1, containerImageURL)
 
 		serviceName = catalog.NewServiceName()
-		chartName = names.ServiceHelmChartName(serviceName, namespace)
+		chartName = names.ServiceReleaseName(serviceName)
 
 		catalog.CreateService(serviceName, namespace, catalogService)
 
@@ -57,9 +56,7 @@ var _ = Describe("ServiceUnbind Endpoint", func() {
 
 	AfterEach(func() {
 		env.DeleteApp(app)
-		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
-		Expect(err).ToNot(HaveOccurred(), out)
-
+		catalog.DeleteService(serviceName, namespace)
 		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(namespace)
 	})

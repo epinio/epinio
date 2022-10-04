@@ -22,19 +22,7 @@ var _ = Describe("ServiceShow Endpoint", func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
 
-		catalogService = models.CatalogService{
-			Meta: models.MetaLite{
-				Name: catalog.NewCatalogServiceName(),
-			},
-			AppVersion: "1.2.3",
-			HelmChart:  "nginx",
-			HelmRepo: models.HelmRepo{
-				Name: "",
-				URL:  "https://charts.bitnami.com/bitnami",
-			},
-			Values: "{'service': {'type': 'ClusterIP'}}",
-		}
-		catalog.CreateCatalogService(catalogService)
+		catalogService = catalog.CreateCatalogServiceNginx()
 	})
 
 	AfterEach(func() {

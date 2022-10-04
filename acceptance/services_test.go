@@ -506,7 +506,7 @@ var _ = Describe("Services", func() {
 				env.SetupAndTargetNamespace(namespace)
 
 				service = catalog.NewServiceName()
-				chart = names.ServiceHelmChartName(service, namespace)
+				chart = names.ServiceReleaseName(service)
 
 				By("create it")
 				out, err := env.Epinio("", "service", "create", "mysql-dev", service)
@@ -593,7 +593,7 @@ var _ = Describe("Services", func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
-			chart = names.ServiceHelmChartName(service, namespace)
+			chart = names.ServiceReleaseName(service)
 
 			By("create it")
 			out, err := env.Epinio("", "service", "create", "mysql-dev", service)
@@ -700,7 +700,7 @@ var _ = Describe("Services", func() {
 			env.SetupAndTargetNamespace(namespace)
 
 			service = catalog.NewServiceName()
-			chart = names.ServiceHelmChartName(service, namespace)
+			chart = names.ServiceReleaseName(service)
 
 			By("create it")
 			out, err := env.Epinio("", "service", "create", "mysql-dev", service)

@@ -85,18 +85,14 @@ func ReleaseName(base string) string {
 	return GenerateResourceNameTruncated(base, 53)
 }
 
-// ReleaseName returns the name of a helm release derived from the base string.
+// ServiceReleaseName returns the name of a helm release derived from the base string.
 func ServiceReleaseName(base string) string {
-	return GenerateResourceNameTruncated(base, 43)
-}
-
-func ServiceHelmChartName(name, namespace string) string {
-	// The helm controller deploying the chart generates derived names for secrets and
-	// pods from the name of the chart, and __does not__ length limit them properly.
-	// As one of the components is the name of the chart we cannot fully account for
-	// it here (*). We keep 33 under the limit for suitable space.
-	// (*) NOTE: While some places have the chart name available, others do not.
-	return GenerateResourceNameTruncated(fmt.Sprintf("%s-%s", namespace, name), 30)
+	// The integral helm client deploying the chart generates derived names for secrets and pods
+	// from the name of the chart, and __does not__ length limit them properly.  As one of the
+	// components is the name of the chart we cannot fully account for it here (*). We keep 33
+	// under the limit for suitable space.  (*) NOTE: While some places have the chart name
+	// available, others do not.
+	return GenerateResourceNameTruncated(base, 30)
 }
 
 // Truncate truncates the input string s to the maxLen, if

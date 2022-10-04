@@ -7,9 +7,7 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
-	"github.com/epinio/epinio/acceptance/helpers/proc"
 	v1 "github.com/epinio/epinio/internal/api/v1"
-	"github.com/epinio/epinio/internal/names"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -76,8 +74,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace2))
-				Expect(err).ToNot(HaveOccurred(), out)
+				catalog.DeleteService(serviceName1, namespace2)
 			})
 
 			It("returns an empty list", func() {
@@ -102,8 +99,7 @@ var _ = Describe("ServiceList Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace1))
-				Expect(err).ToNot(HaveOccurred(), out)
+				catalog.DeleteService(serviceName1, namespace1)
 			})
 
 			It("returns the list with the service", func() {
@@ -140,11 +136,8 @@ var _ = Describe("ServiceList Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace2))
-				Expect(err).ToNot(HaveOccurred(), out)
-
-				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName2, namespace2))
-				Expect(err).ToNot(HaveOccurred(), out)
+				catalog.DeleteService(serviceName1, namespace2)
+				catalog.DeleteService(serviceName2, namespace2)
 			})
 
 			It("returns an empty list", func() {
@@ -172,11 +165,8 @@ var _ = Describe("ServiceList Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace1))
-				Expect(err).ToNot(HaveOccurred(), out)
-
-				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName2, namespace2))
-				Expect(err).ToNot(HaveOccurred(), out)
+				catalog.DeleteService(serviceName1, namespace1)
+				catalog.DeleteService(serviceName2, namespace2)
 			})
 
 			It("returns a list with service1 in namespace1", func() {
@@ -219,11 +209,8 @@ var _ = Describe("ServiceList Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName1, namespace1))
-				Expect(err).ToNot(HaveOccurred(), out)
-
-				out, err = proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName2, namespace1))
-				Expect(err).ToNot(HaveOccurred(), out)
+				catalog.DeleteService(serviceName1, namespace1)
+				catalog.DeleteService(serviceName2, namespace1)
 			})
 
 			It("returns a list with both services", func() {

@@ -344,7 +344,7 @@ var _ = Describe("Configurations", func() {
 			By("make app: " + appName)
 			env.MakeContainerImageApp(appName, 1, containerImageURL)
 
-			chart = names.ServiceHelmChartName(service, namespace)
+			chart = names.ServiceReleaseName(service)
 			config = chart + "-mysql"
 
 			By("chart: " + chart)
