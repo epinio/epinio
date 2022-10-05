@@ -4,6 +4,7 @@ env:
   SETUP_GO_VERSION: '^1.18.2'
 
 on:
+  workflow_dispatch:
   schedule:
     - cron:  '0 5 * * *'
   pull_request:
