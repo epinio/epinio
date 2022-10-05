@@ -56,6 +56,17 @@ func (m *Machine) Epinio(dir, command string, arg ...string) (string, error) {
 	return proc.Run(dir, false, m.epinioBinaryPath, append([]string{command}, arg...)...)
 }
 
+func (m *Machine) Versions() {
+	out, err := m.Epinio("", "info")
+	Expect(err).ToNot(HaveOccurred(), out)
+	out = strings.ReplaceAll(out, "\n", " ")
+	out = strings.ReplaceAll(out, "    ", "")
+	out = strings.ReplaceAll(out, "Epinio ", "")
+	out = strings.ReplaceAll(out, "Environment Platform: ", "")
+	out = strings.ReplaceAll(out, "Version: ", "")
+	By(out)
+}
+
 const stagingError = "Failed to stage"
 
 // EpinioPush shows the staging log if the error indicates that staging

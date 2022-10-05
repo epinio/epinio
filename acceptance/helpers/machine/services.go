@@ -9,6 +9,20 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+func (m *Machine) HaveServiceInstance(serviceName string) {
+	By(fmt.Sprintf("HSI %s", serviceName))
+
+	// And check presence and readiness
+	out, err := m.Epinio("", "service", "show", serviceName)
+	Expect(err).ToNot(HaveOccurred(), out)
+	Expect(out).To(ContainSubstring(serviceName))
+	Expect(out).To(HaveATable(
+		WithHeaders("KEY", "VALUE"),
+		WithRow("Status", "deployed"),
+	))
+	By("HSI/ok")
+}
+
 func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
 	By(fmt.Sprintf("MSI %s -> %s", catalogService, serviceName))
 

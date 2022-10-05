@@ -19,10 +19,10 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func CreateCatalogServiceNginx() models.CatalogService {
-	catalogService := models.CatalogService{
+func NginxCatalogService(name string) models.CatalogService {
+	return models.CatalogService{
 		Meta: models.MetaLite{
-			Name: NewCatalogServiceName(),
+			Name: name,
 		},
 		HelmChart: "nginx",
 		HelmRepo: models.HelmRepo{
@@ -31,6 +31,10 @@ func CreateCatalogServiceNginx() models.CatalogService {
 		},
 		Values: "{'service': {'type': 'ClusterIP'}}",
 	}
+}
+
+func CreateCatalogServiceNginx() models.CatalogService {
+	catalogService := NginxCatalogService(NewCatalogServiceName())
 
 	CreateCatalogService(catalogService)
 

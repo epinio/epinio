@@ -19,6 +19,12 @@ func (m *Machine) MakeConfiguration(configurationName string) {
 	ExpectWithOffset(1, out).To(MatchRegexp(configurationName))
 }
 
+func (m *Machine) HaveConfiguration(configurationName string) {
+	out, err := m.Epinio("", "configuration", "list")
+	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(1, out).To(MatchRegexp(configurationName))
+}
+
 func (m *Machine) BindAppConfiguration(appName, configurationName, namespace string) {
 	out, err := m.Epinio("", "configuration", "bind", configurationName, appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
