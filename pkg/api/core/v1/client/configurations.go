@@ -97,7 +97,7 @@ func (c *Client) ConfigurationDelete(req models.ConfigurationDeleteRequest, name
 		return resp, nil
 	}
 
-	URL := constructBatchDeleteURL(namespace, names)
+	URL := constructConfigurationBatchDeleteURL(namespace, names)
 
 	data, err := c.doWithCustomErrorHandling(URL, "DELETE", string(b), f)
 	if err != nil {
@@ -226,7 +226,7 @@ func (c *Client) ConfigurationMatch(namespace, prefix string) (models.Configurat
 	return resp, nil
 }
 
-func constructBatchDeleteURL(namespace string, names []string) string {
+func constructConfigurationBatchDeleteURL(namespace string, names []string) string {
 	q := url.Values{}
 	for _, c := range names {
 		q.Add("configurations[]", c)

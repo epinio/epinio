@@ -890,6 +890,35 @@ configuration:
 			)
 		})
 
+		It("deletes a batch of applications", func() {
+			app1 := catalog.NewAppName()
+			env.MakeContainerImageApp(app1, 1, containerImageURL)
+			app2 := catalog.NewAppName()
+			env.MakeContainerImageApp(app2, 1, containerImageURL)
+
+			var out string
+			var err error
+			Eventually(func() error {
+				out, err = env.Epinio("", "app", "show", app1)
+				return err
+			}, "1m").ShouldNot(HaveOccurred(), out)
+
+			Eventually(func() error {
+				out, err = env.Epinio("", "app", "show", app2)
+				return err
+			}, "1m").ShouldNot(HaveOccurred(), out)
+
+			out, err = env.Epinio("", "app", "delete", app1, app2)
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			Eventually(func() string {
+				out, err = env.Epinio("", "app", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				return out
+			}, "1m").ShouldNot(MatchRegexp("%s|%s", app1, app2))
+		})
+
 		Context("with configuration", func() {
 			var configurationName string
 

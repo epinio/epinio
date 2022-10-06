@@ -10,9 +10,9 @@ var ()
 
 // CmdAppDelete implements the command: epinio app delete
 var CmdAppDelete = &cobra.Command{
-	Use:               "delete NAME",
-	Short:             "Deletes an application",
-	Args:              cobra.ExactArgs(1),
+	Use:               "delete NAME1 [NAME2 ...]",
+	Short:             "Deletes one or more applications",
+	Args:              cobra.MinimumNArgs(1),
 	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -22,7 +22,7 @@ var CmdAppDelete = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		err = client.Delete(cmd.Context(), args[0])
+		err = client.Delete(cmd.Context(), args)
 		if err != nil {
 			return errors.Wrap(err, "error deleting app")
 		}
