@@ -80,7 +80,7 @@ func makeDeleteRequest(namespace, requestBody string, configurationNames ...stri
 	defer response.Body.Close()
 	bodyBytes, err := io.ReadAll(response.Body)
 	Expect(err).ToNot(HaveOccurred())
-	Expect(response.StatusCode).To(Equal(http.StatusOK), bodyBytes)
+	Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
 
 	var responseData models.Response
 	err = json.Unmarshal(bodyBytes, &responseData)
