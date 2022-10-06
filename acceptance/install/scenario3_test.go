@@ -31,9 +31,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 		extraEnvValue     string
 		name_exists       bool
 		value_exists      bool
-		// testenv.New is not needed for VerifyAppConfigurationBound helper :shrug:
-		env          testenv.EpinioEnv
-		localpathURL = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
+		localpathURL      = "https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.20/deploy/local-path-storage.yaml"
 	)
 
 	BeforeEach(func() {
@@ -109,7 +107,7 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 			// Check that an IP address for LB is configured
 			status := &testenv.LoadBalancerHostname{}
 			err = json.Unmarshal([]byte(out), status)
-			Expect(err).NotTo(HaveOccurred())
+			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(status.Status.LoadBalancer.Ingress).To(HaveLen(1))
 			loadbalancer = status.Status.LoadBalancer.Ingress[0].IP
 			Expect(loadbalancer).ToNot(BeEmpty())
@@ -182,5 +180,9 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Or(ContainSubstring("Applications Removed")))
 		})
+
+		if os.Getenv("EPINIO_UPGRADED") == "true" {
+			UpgradeSequence(epinioHelper, domain)
+		}
 	})
 })

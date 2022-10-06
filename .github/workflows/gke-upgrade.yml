@@ -4,7 +4,7 @@ on:
     branches: [ main ]
     types: [ ready_for_review ]
     paths:
-      - 'acceptance/install/scenario1_upgrade_test.go'
+      - 'acceptance/install/scenario1_test.go'
       - 'acceptance/install/suite_test.go'
       - '.github/workflows/gke-upgrade.yml'
   schedule:
@@ -132,8 +132,8 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
-          EPINIO_RELEASED: true
-          REGEX: "Scenario1 Up"
+          EPINIO_UPGRADED: true
+          REGEX: "Scenario1"
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
           AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }}
@@ -145,7 +145,7 @@ jobs:
           # EXTRAENV_NAME: SESSION_KEY
           # EXTRAENV_VALUE: 12345
         run: |
-          # EPINIO_RELEASED triggers starting with a released epinio in suite setup
+          # EPINIO_UPGRADED triggers starting with a released epinio in suite setup, and the upgrade sequence
           echo "System Domain: $GKE_DOMAIN"
           export KUBECONFIG=$HOME/.kube/config
           export EPINIO_CURRENT_TAG="$(git describe --tags)"

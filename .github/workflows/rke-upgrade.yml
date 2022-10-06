@@ -4,7 +4,7 @@ on:
     branches: [ main ]
     types: [ ready_for_review ]
     paths:
-      - 'acceptance/install/scenario3_upgrade_test.go'
+      - 'acceptance/install/scenario3_test.go'
       - 'acceptance/install/suite_test.go'
       - '.github/workflows/rke-upgrade.yml'
   schedule:
@@ -124,8 +124,8 @@ jobs:
 
       - name: Installation Acceptance Tests
         env:
-          EPINIO_RELEASED: true
-          REGEX: "Scenario3 Up"
+          EPINIO_UPGRADED: true
+          REGEX: "Scenario3"
           PUBLIC_CLOUD: 1
           KUBECONFIG: /etc/rancher/rke2/rke2.yaml
           REGISTRY_USERNAME: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
@@ -134,7 +134,7 @@ jobs:
           # EXTRAENV_NAME: SESSION_KEY
           # EXTRAENV_VALUE: 12345
         run: |
-          # EPINIO_RELEASED triggers starting with a released epinio in suite setup
+          # EPINIO_UPGRADED triggers starting with a released epinio in suite setup, and the upgrade sequence
           # Get a free IP address on server's network
           export RANGE_IP="$(scripts/get-free-ip.sh)"
           export EPINIO_SYSTEM_DOMAIN="$(sed -e 's/-.*$//' <<< ${RANGE_IP}).omg.howdoi.website"

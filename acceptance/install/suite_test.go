@@ -2,9 +2,14 @@ package install_test
 
 import (
 	"fmt"
+	"net/http"
 	"os"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/epinio/epinio/acceptance/helpers/catalog"
+	"github.com/epinio/epinio/acceptance/helpers/epinio"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 
@@ -67,6 +72,143 @@ func InstallTraefik() {
 	Expect(err).NotTo(HaveOccurred(), out)
 }
 
+func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
+	By("Upgrading", func() {
+		var (
+			// after*  - after upgrade
+			// before* - before upgrade
+
+			afterApp     string // Application
+			afterCatalog string // Service Catalog
+			afterConfig  string // Configuration
+			afterRoute   string // App route
+			afterService string // Service
+
+			beforeApp     string // Same as above, before upgrade
+			beforeCatalog string
+			beforeConfig  string
+			beforeRoute   string
+			beforeService string
+
+			namespace string // Namespace (created before upgrade)
+			catentry  string // Service catalog entry to use
+		)
+
+		By("Setup And Checks Before Upgrade", func() {
+			catentry = "mysql-dev"
+			namespace = catalog.NewNamespaceName()
+
+			env.SetupAndTargetNamespace(namespace)
+
+			beforeApp = catalog.NewAppName()
+			afterApp = catalog.NewAppName()
+			afterService = catalog.NewServiceNamePrefixed("after")
+			beforeService = catalog.NewServiceNamePrefixed("before")
+			afterConfig = catalog.NewConfigurationName()
+			beforeConfig = catalog.NewConfigurationName()
+			beforeCatalog = catalog.NewCatalogServiceNamePrefixed("before")
+			afterCatalog = catalog.NewCatalogServiceNamePrefixed("after")
+
+			// Note current versions of client and server
+			By("Versions before upgrade")
+			env.Versions()
+
+			// Deploy a simple application before upgrading Epinio, check that it is reachable
+			By("Deploy application pre-upgrade")
+			env.MakeGolangApp(beforeApp, 1, true)
+			beforeRoute = fmt.Sprintf("https://%s.%s", beforeApp, domain)
+			By("Route: " + beforeRoute)
+			Eventually(func() int {
+				resp, err := env.Curl("GET", beforeRoute, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+
+			// Check that we can create a configuration before the upgrade
+			By("Create configuration pre-upgrade")
+			out, err := env.Epinio("", "configuration", "create", beforeConfig, "fox", "lair")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			// Check that we can create a service before the upgrade
+			By("Create service pre-upgrade")
+			env.MakeServiceInstance(beforeService, catentry)
+
+			// Check that a custom catalog entry is visible
+			By("Create custom catalog entry pre-upgrade")
+			catalog.CreateCatalogService(catalog.NginxCatalogService(beforeCatalog))
+			out, err = env.Epinio("", "service", "catalog")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring(beforeCatalog))
+		})
+
+		By("Upgrading actual", func() {
+			// Upgrade to current as found in checkout
+			epinioHelper.Upgrade()
+		})
+
+		By("Checks After Upgrade", func() {
+			// Note post-upgrade versions of client and server
+			By("Versions after upgrade")
+			env.Versions()
+
+			// Check that the before app is still reachable
+			By("Checking reachability ...")
+			Eventually(func() int {
+				resp, err := env.Curl("GET", beforeRoute, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+
+			// Check that the before configuration still exists
+			By("Checking configuration existence ...")
+			env.HaveConfiguration(beforeConfig)
+
+			// Check that the before service instance still exists
+			// -- TODO -- full incompatibility -- pre/post spike
+			//By("Checking service existence ...")
+			//env.HaveServiceInstance(beforeService)
+
+			By("Create configuration post-upgrade")
+			out, err := env.Epinio("", "configuration", "create", afterConfig, "dog", "house")
+			Expect(err).ToNot(HaveOccurred(), out)
+
+			By("Create service post-upgrade")
+			env.MakeServiceInstance(afterService, catentry)
+
+			By("Create custom catalog entry post-upgrade")
+			catalog.CreateCatalogService(catalog.NginxCatalogService(afterCatalog))
+			out, err = env.Epinio("", "service", "catalog")
+			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(out).To(ContainSubstring(afterCatalog))
+
+			// Check that we can create an application after the upgrade, incl. reachability
+			By("Create application post-upgrade")
+			env.MakeGolangApp(afterApp, 1, true)
+			afterRoute = fmt.Sprintf("https://%s.%s", afterApp, domain)
+			By("Route: " + afterRoute)
+			Eventually(func() int {
+				resp, err := env.Curl("GET", afterRoute, strings.NewReader(""))
+				Expect(err).ToNot(HaveOccurred())
+				return resp.StatusCode
+			}, 30*time.Second, 1*time.Second).Should(Equal(http.StatusOK))
+		})
+
+		By("Teardown After Upgrade", func() {
+			env.DeleteApp(beforeApp)
+			env.DeleteApp(afterApp)
+			// env.DeleteService(afterService)
+			// env.DeleteService(beforeService)
+			// env.DeleteService("nginxA-" + afterService)
+			// env.DeleteService("nginxB-" + afterService)
+			// env.DeleteConfiguration(afterConfig)
+			// env.DeleteConfiguration(beforeConfig)
+			catalog.DeleteCatalogService(afterCatalog)
+			catalog.DeleteCatalogService(beforeCatalog)
+			env.DeleteNamespace(namespace)
+		})
+	})
+}
+
 var _ = SynchronizedBeforeSuite(func() []byte {
 	ingressController := os.Getenv("INGRESS_CONTROLLER")
 
@@ -79,12 +221,16 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 
 	released := os.Getenv("EPINIO_RELEASED")
 	isreleased := released == "true"
-	if !isreleased {
+
+	upgraded := os.Getenv("EPINIO_UPGRADED")
+	isupgraded := upgraded == "true"
+
+	if isupgraded || isreleased {
+		By("Expecting a client binary")
+	} else {
 		By("Compiling Epinio", func() {
 			testenv.BuildEpinio()
 		})
-	} else {
-		By("Expecting a client binary")
 	}
 
 	By("Creating registry secret", func() {
