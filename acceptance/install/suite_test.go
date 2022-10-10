@@ -13,6 +13,7 @@ import (
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/testenv"
 
+	. "github.com/epinio/epinio/acceptance/helpers/matchers"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -163,10 +164,32 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 			By("Checking configuration existence ...")
 			env.HaveConfiguration(beforeConfig)
 
-			// Check that the before service instance still exists
-			// -- TODO -- full incompatibility -- pre/post spike
-			//By("Checking service existence ...")
-			//env.HaveServiceInstance(beforeService)
+			By("Checking usability of old service", func() {
+				// Check that the before service instance still exists
+				By("Checking service existence ...")
+				env.HaveServiceInstance(beforeService)
+
+				// Alternate check of the same using `service list` instead of `.. show`.
+				out, err := env.Epinio("", "service", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(ContainSubstring(beforeService))
+
+				// We should be able to bind and unbind the old service to/from an application.
+
+				out, err = env.Epinio("", "service", "bind", beforeService, beforeApp)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = env.Epinio("", "service", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(HaveATable(WithRow(beforeService, WithDate(), catentry, ".*", "deployed", beforeApp)))
+
+				out, err = env.Epinio("", "service", "unbind", beforeService, beforeApp)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				out, err = env.Epinio("", "service", "list")
+				Expect(err).ToNot(HaveOccurred(), out)
+				Expect(out).To(HaveATable(WithRow(beforeService, WithDate(), catentry, ".*", "deployed", "")))
+			})
 
 			By("Create configuration post-upgrade")
 			out, err := env.Epinio("", "configuration", "create", afterConfig, "dog", "house")
@@ -196,12 +219,10 @@ func UpgradeSequence(epinioHelper epinio.Epinio, domain string) {
 		By("Teardown After Upgrade", func() {
 			env.DeleteApp(beforeApp)
 			env.DeleteApp(afterApp)
-			// env.DeleteService(afterService)
-			// env.DeleteService(beforeService)
-			// env.DeleteService("nginxA-" + afterService)
-			// env.DeleteService("nginxB-" + afterService)
-			// env.DeleteConfiguration(afterConfig)
-			// env.DeleteConfiguration(beforeConfig)
+			env.DeleteService(afterService)
+			env.DeleteService(beforeService)
+			env.DeleteConfigurations(afterConfig)
+			env.DeleteConfigurations(beforeConfig)
 			catalog.DeleteCatalogService(afterCatalog)
 			catalog.DeleteCatalogService(beforeCatalog)
 			env.DeleteNamespace(namespace)
