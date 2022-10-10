@@ -45,7 +45,6 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	}
 
 	var configurationObjects []*configurations.Configuration
-	// TODO: Append all errors or fail early?
 	for _, cName := range configurationNames {
 		configuration, err := configurations.Lookup(ctx, cluster, namespace, cName)
 		if err != nil && err.Error() == "configuration not found" {
@@ -94,7 +93,6 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 			// Note that we reach this location only when the [SERVICE] check above
 			// failed, i.e. the configuration is standalone.
 
-			// TODO: Handle the case when configuration is set instead of the slice
 			apiErr := configurationbinding.DeleteBinding(ctx, cluster, namespace, appName, username, cNames)
 			if apiErr != nil {
 				return apiErr
