@@ -10,7 +10,7 @@ The current setup of this registry evolved under the following constraints:
 
      It cannot be configured to use an unsecured channel.
 
-     See paketo ticket https://github.com/buildpacks/lifecycle/issues/524
+     See [Paketo Ticket #524](https://github.com/buildpacks/lifecycle/issues/524)
      for a request to change this.
 
   2. For the application pods to use a TLS-secured channel for access to the registry it is necesssary to either
@@ -22,6 +22,8 @@ The current setup of this registry evolved under the following constraints:
      Neither was desired, leaving the last option to "... not encrypt the communication at all".
 
   3. No way was found to configure the registry itself to allow both secured and unsecured access.
+
+  4. See also [Chart PR #125](https://github.com/epinio/helm-charts/pull/125)
 
 The result is shown below
 
