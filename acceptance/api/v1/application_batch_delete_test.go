@@ -61,12 +61,8 @@ func makeApplicationDeleteRequest(namespace, requestBody string, applicationName
 
 	defer response.Body.Close()
 	bodyBytes, err := io.ReadAll(response.Body)
-	Expect(err).ToNot(HaveOccurred())
+	Expect(err).ToNot(HaveOccurred(), string(bodyBytes))
 	Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
-
-	var responseData models.Response
-	err = json.Unmarshal(bodyBytes, &responseData)
-	Expect(err).ToNot(HaveOccurred())
 
 	return bodyBytes
 }
