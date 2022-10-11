@@ -68,12 +68,10 @@ func makeApplicationDeleteRequest(namespace, requestBody string, applicationName
 }
 
 func validateApplicationDeletionResponse(bodyBytes []byte, configurationNames ...string) {
-	var resp map[string][]string
+	var resp models.ApplicationDeleteResponse
 	err := json.Unmarshal(bodyBytes, &resp)
 	Expect(err).ToNot(HaveOccurred())
-	Expect(resp).To(HaveLen(1))
-	Expect(resp).To(HaveKey("unboundconfigurations"))
-	Expect(resp["unboundconfigurations"]).To(ContainElements(configurationNames))
+	Expect(resp.UnboundConfigurations).To(ContainElements(configurationNames))
 }
 
 func verifyApplicationsDeleted(namespace string, applicationsNames ...string) {
