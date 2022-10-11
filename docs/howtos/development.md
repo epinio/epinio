@@ -45,6 +45,15 @@ For the following steps to work, `KUBECONFIG` needs to be exported as so:
 export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
 ```
 
+Alternatively, the following command will merge the current context in the current
+configuration and make it the default context (don't set the `KUBECONFIG`
+variable with the above command if you want to update the default configuration).
+This way, `KUBECONFIG` variable won't have to be exported in every virtual terminal.
+
+```
+k3d kubeconfig merge -d epinio-acceptance
+```
+
 ### Install cert-manager
 
 [Cert Manager](https://cert-manager.io/) is an external dependency of Epinio and
