@@ -898,16 +898,6 @@ configuration:
 
 			var out string
 			var err error
-			Eventually(func() error {
-				out, err = env.Epinio("", "app", "show", app1)
-				return err
-			}, "1m").ShouldNot(HaveOccurred(), out)
-
-			Eventually(func() error {
-				out, err = env.Epinio("", "app", "show", app2)
-				return err
-			}, "1m").ShouldNot(HaveOccurred(), out)
-
 			out, err = env.Epinio("", "app", "delete", app1, app2)
 			Expect(err).ToNot(HaveOccurred(), out)
 

@@ -32,7 +32,7 @@ var _ = Describe("AppBatchDelete Endpoint", func() {
 
 			configurationName := *a + "-conf"
 			env.MakeConfiguration(configurationName)
-			env.BindAppConfiguration(app1, configurationName, namespace)
+			env.BindAppConfiguration(*a, configurationName, namespace)
 		}
 	})
 
