@@ -5,12 +5,11 @@ set -e
 timeout=480s
 
 # This script should be used while doing development on Epinio.
-# When running `epinio install`, the Epinio Deployment will try to apply
-# this file: assets/embedded-files/epinio/server.yaml . This file assumes an image
+# When installing epinio, Helm will try to apply this file:
+# assets/embedded-files/epinio/server.yaml . This file assumes an image
 # with the current binary has been built and pushed to Dockerhub. While developing
 # though, we don't always build and push such an image so the deployment will fail.
-# By setting EPINIO_DONT_WAIT_FOR_DEPLOYMENT we allow the installation to continue
-# and by calling `make patch-epinio-deployment` (which calls this script), we
+# By calling `make patch-epinio-deployment` (which calls this script), we
 # fix the deployment as this:
 # - We use an image that exists (the base image used when building the final image)
 # - We create a PVC and a dummy pod that mounts that PVC.
