@@ -2,7 +2,7 @@
 
 ## Local development environment
 
-An Epinio installation consists various components which are usually deployed
+An Epinio installation consists of various components which are usually deployed
 using the [official Epinio helm chart](https://github.com/epinio/helm-charts/tree/main/chart/epinio).
 For convenience and in order to be able to point to a specific commit of the helm-chart
 repository, one that works with the current commit in the `epinio/epinio` repository,
@@ -48,7 +48,7 @@ export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
 Alternatively, the following command will merge the current context in the current
 configuration and make it the default context (don't set the `KUBECONFIG`
 variable with the above command if you want to update the default configuration).
-This way, `KUBECONFIG` variable won't have to be exported in every virtual terminal.
+This way, the `KUBECONFIG` variable won't have to be exported in every virtual terminal.
 
 ```
 k3d kubeconfig merge -d epinio-acceptance
@@ -76,7 +76,7 @@ make prepare_environment_k3d
 ### Run the current development build
 
 Every time a change is made in the Epinio source code, the binary running inside
-the epinio-server Pod need to be replaced with a freshly compiled one. This can
+the epinio-server Pod has to be replaced with a freshly compiled one. This can
 be achieved by running the following command:
 
 ```
