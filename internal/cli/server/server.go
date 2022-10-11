@@ -6,17 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/epinio/epinio/helpers/authtoken"
+	"github.com/epinio/epinio/helpers/kubernetes"
 	apiv1 "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/auth"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/dex"
 	"github.com/epinio/epinio/internal/domain"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/version"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/pkg/errors"
@@ -177,13 +180,23 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 		return oidcProvider, nil
 	}
 
-	mainDomain, err := domain.MainDomain(ctx)
+	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting main domain")
+		return nil, errors.Wrap(err, "failed to get access to a kube client")
 	}
 
-	issuer := fmt.Sprintf("https://auth.%s", mainDomain)
-	oidcProvider, err = dex.NewOIDCProvider(ctx, issuer, "epinio-api")
+	secret, err := cluster.GetSecret(ctx, helmchart.Namespace(), "dex-config")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get dex-config secret")
+	}
+
+	issuer := string(secret.Data["issuer"])
+	endpoint, err := url.Parse(string(secret.Data["endpoint"]))
+	if err != nil {
+		return nil, errors.Wrap(err, "parsing the issuer URL")
+	}
+
+	oidcProvider, err := dex.NewOIDCProviderWithEndpoint(ctx, issuer, "epinio-api", endpoint)
 	return oidcProvider, errors.Wrap(err, "constructing dexProviderConfig")
 }
 
