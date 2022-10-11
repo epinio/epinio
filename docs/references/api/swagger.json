@@ -427,6 +427,32 @@
             "$ref": "#/responses/AppCreateResponse"
           }
         }
+      },
+      "delete": {
+        "summary": "Delete the named `Applications` in the `Namespace`.",
+        "operationId": "AppBatchDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "in: url",
+            "name": "Applications",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/AppDeleteResponse"
+          }
+        }
       }
     },
     "/namespaces/{Namespace}/applications/{App}": {

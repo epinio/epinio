@@ -447,24 +447,25 @@ func (c *EpinioClient) AppPortForward(ctx context.Context, appName, instance str
 }
 
 // Delete removes the named application from the cluster
-func (c *EpinioClient) Delete(ctx context.Context, appname string) error {
-	log := c.Log.WithName("Delete").WithValues("Application", appname)
+func (c *EpinioClient) Delete(ctx context.Context, appNames []string) error {
+	namesCSV := strings.Join(appNames, ", ")
+	log := c.Log.WithName("Delete").WithValues("Applications", namesCSV)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", appname).
+		WithStringValue("Names", namesCSV).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Deleting application...")
+		Msg("Deleting applications...")
 
 	if err := c.TargetOk(); err != nil {
 		return err
 	}
 
-	s := c.ui.Progressf("Deleting %s in %s", appname, c.Settings.Namespace)
+	s := c.ui.Progressf("Deleting %s in %s", appNames, c.Settings.Namespace)
 	defer s.Stop()
 
-	response, err := c.API.AppDelete(c.Settings.Namespace, appname)
+	response, err := c.API.AppDelete(c.Settings.Namespace, appNames)
 	if err != nil {
 		return err
 	}

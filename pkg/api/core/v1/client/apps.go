@@ -242,10 +242,12 @@ func (c *Client) AppMatch(namespace, prefix string) (models.AppMatchResponse, er
 }
 
 // AppDelete deletes an app
-func (c *Client) AppDelete(namespace string, name string) (models.ApplicationDeleteResponse, error) {
+func (c *Client) AppDelete(namespace string, names []string) (models.ApplicationDeleteResponse, error) {
 	resp := models.ApplicationDeleteResponse{}
 
-	data, err := c.delete(api.Routes.Path("AppDelete", namespace, name))
+	URL := constructApplicationBatchDeleteURL(namespace, names)
+
+	data, err := c.delete(URL)
 	if err != nil {
 		return resp, err
 	}
@@ -674,4 +676,16 @@ func (c *Client) AppRestart(namespace string, appName string) error {
 	}
 
 	return nil
+}
+
+func constructApplicationBatchDeleteURL(namespace string, names []string) string {
+	q := url.Values{}
+	for _, c := range names {
+		q.Add("applications[]", c)
+	}
+	URLParams := q.Encode()
+
+	URL := api.Routes.Path("AppBatchDelete", namespace)
+
+	return fmt.Sprintf("%s?%s", URL, URLParams)
 }

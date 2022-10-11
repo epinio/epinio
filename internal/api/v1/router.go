@@ -84,6 +84,7 @@ var Routes = routes.NamedRoutes{
 	"AppShow":         get("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Show)),
 	"StagingComplete": get("/namespaces/:namespace/staging/:stage_id/complete", errorHandler(application.Controller{}.Staged)), // See stage.go
 	"AppDelete":       delete("/namespaces/:namespace/applications/:app", errorHandler(application.Controller{}.Delete)),
+	"AppBatchDelete":  delete("/namespaces/:namespace/applications", errorHandler(application.Controller{}.Delete)),
 	"AppDeploy":       post("/namespaces/:namespace/applications/:app/deploy", errorHandler(application.Controller{}.Deploy)),
 	"AppImportGit":    post("/namespaces/:namespace/applications/:app/import-git", errorHandler(application.Controller{}.ImportGit)),
 	"AppPart":         get("/namespaces/:namespace/applications/:app/part/:part", errorHandler(application.Controller{}.GetPart)),

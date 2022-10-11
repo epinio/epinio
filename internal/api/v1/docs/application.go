@@ -196,6 +196,11 @@ type StagingCompleteResponse struct {
 	Body models.Response
 }
 
+// swagger:route DELETE /namespaces/{Namespace}/applications AppBatchDelete
+// Delete the named `Applications` in the `Namespace`.
+// responses:
+//   200: AppDeleteResponse
+
 // swagger:route DELETE /namespaces/{Namespace}/applications/{App} application AppDelete
 // Delete the named `App` in the `Namespace`.
 // responses:
@@ -207,6 +212,14 @@ type AppDeleteParam struct {
 	Namespace string
 	// in: path
 	App string
+}
+
+// swagger:parameters AppBatchDelete
+type AppBatchDeleteParam struct {
+	// in: path
+	Namespace string
+	// in: url
+	Applications []string
 }
 
 // swagger:response AppDeleteResponse

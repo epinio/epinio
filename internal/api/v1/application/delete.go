@@ -14,35 +14,46 @@ import (
 func (hc Controller) Delete(c *gin.Context) apierror.APIErrors {
 	ctx := c.Request.Context()
 	namespace := c.Param("namespace")
+
 	appName := c.Param("app")
+
+	var applicationNames []string
+	applicationNames, found := c.GetQueryArray("applications[]")
+	if !found {
+		applicationNames = append(applicationNames, appName)
+	}
 
 	cluster, err := kubernetes.GetCluster(ctx)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	app := models.NewAppRef(appName, namespace)
+	boundConfigurations := []string{}
+	for _, appName := range applicationNames {
+		appRef := models.NewAppRef(appName, namespace)
 
-	found, err := application.Exists(ctx, cluster, app)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-	if !found {
-		return apierror.AppIsNotKnown(appName)
-	}
+		found, err := application.Exists(ctx, cluster, appRef)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		if !found {
+			return apierror.AppIsNotKnown(appName)
+		}
 
-	configurations, err := application.BoundConfigurationNames(ctx, cluster, app)
-	if err != nil {
-		return apierror.InternalError(err)
+		configurations, err := application.BoundConfigurationNames(ctx, cluster, appRef)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+		boundConfigurations = append(boundConfigurations, configurations...)
+
+		err = application.Delete(ctx, cluster, appRef)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
 	}
 
 	resp := models.ApplicationDeleteResponse{
-		UnboundConfigurations: configurations,
-	}
-
-	err = application.Delete(ctx, cluster, app)
-	if err != nil {
-		return apierror.InternalError(err)
+		UnboundConfigurations: boundConfigurations,
 	}
 
 	response.OKReturn(c, resp)
