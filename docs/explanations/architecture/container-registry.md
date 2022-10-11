@@ -25,7 +25,7 @@ The current setup of this registry evolved under the following constraints:
 
 The result is shown below
 
-<img src="./container-registry.svg" align="right" width="200" height="50%">
+<img src="./container-registry.svg" align="right">
 
 The registry is exposed through two k8s services, one for direct secure access by staging, the other
 for indirect unsecured access by application pods.
