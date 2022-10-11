@@ -38,7 +38,7 @@ make acceptance-cluster-setup
 (as the name also implies, this target is also used to prepare a cluster for the acceptance test suite in CI)
 
 This command writes the kubeconfig file to talk to the cluster in `tmp/acceptance-kubeconfig`.
-For the next steps to work, `KUBECONFIG` needs to be exported as so:
+For the following steps to work, `KUBECONFIG` needs to be exported as so:
 
 
 ```
@@ -48,7 +48,7 @@ export KUBECONFIG=$PWD/tmp/acceptance-kubeconfig
 ### Install cert-manager
 
 [Cert Manager](https://cert-manager.io/) is an external dependency of Epinio and
-it's not installed by the official helm-chart. There is a `make` target that will
+is not installed by the official helm-chart. There is a `make` target that will
 install cert-manager on the cluster to be used by the Epinio installation later:
 
 ```
@@ -57,7 +57,7 @@ make install-cert-manager
 
 ### Install Epinio
 
-The following make target will use the helm-chart form the git submodule directory,
+The following make target will use the helm-chart from the git submodule directory,
 to install Epinio on the cluster:
 
 ```
@@ -74,7 +74,7 @@ be achieved by running the following command:
 make && make patch-epinio-deployment
 ```
 
-(first compiles a new binary locally and the replaces the one running inside the Pod)
+This first compiles a new binary locally and then replaces the one running inside the Pod with it.
 
 If the cluster is not running on linux-amd64 it will be necessary to set
 `EPINIO_BINARY_PATH` to the correct binary to place into the epinio server
