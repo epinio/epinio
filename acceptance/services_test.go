@@ -109,7 +109,7 @@ var _ = Describe("Services", func() {
 
 		out, err := env.Epinio("", "service", "delete", service)
 		Expect(err).ToNot(HaveOccurred(), out)
-		Expect(out).To(ContainSubstring("Service Removed"))
+		Expect(out).To(ContainSubstring("Services Removed"))
 
 		Eventually(func() string {
 			out, _ := env.Epinio("", "service", "delete", service)
@@ -382,7 +382,7 @@ var _ = Describe("Services", func() {
 			By("delete it")
 			out, err := env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Service Removed"))
+			Expect(out).To(ContainSubstring("Services Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
@@ -546,7 +546,7 @@ var _ = Describe("Services", func() {
 				By("delete it")
 				out, err = env.Epinio("", "service", "delete", service)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring("Service Removed"))
+				Expect(out).To(ContainSubstring("Services Removed"))
 
 				Eventually(func() string {
 					out, _ := env.Epinio("", "service", "delete", service)
@@ -558,7 +558,7 @@ var _ = Describe("Services", func() {
 			It("unbinds and deletes a bound service when forced", func() {
 				out, err := env.Epinio("", "service", "delete", "--unbind", service)
 				Expect(err).ToNot(HaveOccurred(), out)
-				Expect(out).To(ContainSubstring("Service Removed"))
+				Expect(out).To(ContainSubstring("Services Removed"))
 
 				Eventually(func() string {
 					out, _ := env.Epinio("", "service", "delete", service)
@@ -618,7 +618,7 @@ var _ = Describe("Services", func() {
 			By("delete it")
 			out, err = env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Service Removed"))
+			Expect(out).To(ContainSubstring("Services Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
@@ -725,7 +725,7 @@ var _ = Describe("Services", func() {
 			By("delete it")
 			out, err := env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Service Removed"))
+			Expect(out).To(ContainSubstring("Services Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)
