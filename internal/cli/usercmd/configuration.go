@@ -181,7 +181,7 @@ func (c *EpinioClient) UnbindConfiguration(configurationName, appName string) er
 	return nil
 }
 
-// DeleteConfiguration deletes a configuration specified by name
+// DeleteConfiguration deletes one or more configurations, specified by name
 func (c *EpinioClient) DeleteConfiguration(names []string, unbind bool) error {
 	namesCSV := strings.Join(names, ", ")
 	log := c.Log.WithName("DeleteConfiguration").
@@ -192,7 +192,7 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind bool) error {
 	c.ui.Note().
 		WithStringValue("Names", namesCSV).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Delete Configurations")
+		Msg("Deleting Configurations...")
 
 	if err := c.TargetOk(); err != nil {
 		return err
@@ -253,7 +253,7 @@ func (c *EpinioClient) DeleteConfiguration(names []string, unbind bool) error {
 	}
 
 	c.ui.Success().
-		WithStringValue("Name", strings.Join(names, ", ")).
+		WithStringValue("Names", namesCSV).
 		WithStringValue("Namespace", c.Settings.Namespace).
 		Msg("Configurations Removed.")
 	return nil
