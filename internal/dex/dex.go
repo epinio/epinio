@@ -3,6 +3,7 @@ package dex
 import (
 	"context"
 	"net/url"
+	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/dchest/uniuri"
@@ -45,7 +46,7 @@ func NewOIDCProviderWithEndpoint(ctx context.Context, issuer, clientID string, e
 	// With this differentiation the Epinio server can reach the Dex service through the Kubernetes DNS
 	// instead of the external URL. This was causing issues when the host was going to be resolved as a local IP (i.e: Rancher Desktop).
 	// - https://github.com/epinio/epinio/issues/1781
-	if issuer != endpoint.String() {
+	if issuer != endpoint.String() && strings.HasSuffix(endpoint.Hostname(), ".svc.cluster.local") {
 		ctx = oidc.InsecureIssuerURLContext(ctx, issuer)
 	}
 
