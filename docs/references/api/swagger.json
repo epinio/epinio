@@ -1441,6 +1441,32 @@
             "$ref": "#/responses/ServiceCreateResponse"
           }
         }
+      },
+      "delete": {
+        "summary": "Delete the named `Services` in the `Namespace`.",
+        "operationId": "ServiceBatchDelete",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "Namespace",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "in: url",
+            "name": "Services",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/responses/ServiceDeleteResponse"
+          }
+        }
       }
     },
     "/namespaces/{Namespace}/services/{Service}": {
