@@ -79,6 +79,7 @@ var CmdEnvSet = &cobra.Command{
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		app.API.DisableVersionWarning()
 
 		// #args == 0: application name.
 		matches := app.AppsMatching(toComplete)
@@ -117,6 +118,7 @@ var CmdEnvShow = &cobra.Command{
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		app.API.DisableVersionWarning()
 
 		if len(args) == 1 {
 			// #args == 1: environment variable name (in application)
@@ -142,7 +144,6 @@ var CmdEnvUnset = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		client, err := usercmd.New()
-
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

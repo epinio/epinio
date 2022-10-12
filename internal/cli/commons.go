@@ -55,8 +55,8 @@ func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-
 	app.API.DisableVersionWarning()
+
 	matches := app.AppsMatching(toComplete)
 
 	return matches, cobra.ShellCompDirectiveNoFileComp
@@ -72,8 +72,8 @@ func matchingNamespaceFinder(cmd *cobra.Command, args []string, toComplete strin
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-
 	app.API.DisableVersionWarning()
+
 	matches := app.NamespacesMatching(toComplete)
 
 	return matches, cobra.ShellCompDirectiveNoFileComp
@@ -89,8 +89,8 @@ func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) (
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-
 	app.API.DisableVersionWarning()
+
 	// #args == 0: chart name.
 	matches := app.ChartMatching(toComplete)
 
@@ -107,8 +107,8 @@ func matchingServiceFinder(cmd *cobra.Command, args []string, toComplete string)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-
 	app.API.DisableVersionWarning()
+
 	matches := app.ServiceMatching(toComplete)
 
 	return matches, cobra.ShellCompDirectiveNoFileComp
@@ -124,8 +124,8 @@ func matchingCatalogFinder(cmd *cobra.Command, args []string, toComplete string)
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-
 	app.API.DisableVersionWarning()
+
 	matches := app.CatalogMatching(toComplete)
 
 	return matches, cobra.ShellCompDirectiveNoFileComp

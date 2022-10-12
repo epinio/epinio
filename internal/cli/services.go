@@ -202,6 +202,7 @@ func findServiceApp(cmd *cobra.Command, args []string, toComplete string) ([]str
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
+	app.API.DisableVersionWarning()
 
 	if len(args) == 1 {
 		// #args == 1: app name.
