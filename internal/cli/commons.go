@@ -45,7 +45,8 @@ func CreateKubeClient(configPath string) kubernetes.Interface {
 	return clientset
 }
 
-// matchingAppsFinder returns a list of matching apps from the provided partial command
+// matchingAppsFinder returns a list of matching apps from the provided partial command. It only
+// matches for the first command argument.
 func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) != 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -62,7 +63,8 @@ func matchingAppsFinder(cmd *cobra.Command, args []string, toComplete string) ([
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
-// matchingNamespaceFinder returns a list of matching namespaces from the provided partial command
+// matchingNamespaceFinder returns a list of matching namespaces from the provided partial
+// command. It only matches for the first command argument.
 func matchingNamespaceFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) != 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -97,7 +99,8 @@ func matchingChartFinder(cmd *cobra.Command, args []string, toComplete string) (
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
-// matchingServiceFinder returns a list of matching services from the provided partial command
+// matchingServiceFinder returns a list of matching services from the provided partial command. It
+// only matches for the first command argument.
 func matchingServiceFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) != 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -114,7 +117,8 @@ func matchingServiceFinder(cmd *cobra.Command, args []string, toComplete string)
 	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
-// matchingCatalogFinder returns a list of matching catalogs from the provided partial command
+// matchingCatalogFinder returns a list of matching catalogs from the provided partial command. It
+// only matches for the first command argument.
 func matchingCatalogFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) != 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
