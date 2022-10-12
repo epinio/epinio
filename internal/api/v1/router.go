@@ -151,11 +151,12 @@ var Routes = routes.NamedRoutes{
 	// Services
 	"ServiceApps": get("/namespaces/:namespace/serviceapps", errorHandler(service.Controller{}.ServiceApps)),
 	//
-	"AllServices":   get("/services", errorHandler(service.Controller{}.FullIndex)),
-	"ServiceCreate": post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
-	"ServiceList":   get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
-	"ServiceShow":   get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
-	"ServiceDelete": delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
+	"AllServices":        get("/services", errorHandler(service.Controller{}.FullIndex)),
+	"ServiceCreate":      post("/namespaces/:namespace/services", errorHandler(service.Controller{}.Create)),
+	"ServiceList":        get("/namespaces/:namespace/services", errorHandler(service.Controller{}.List)),
+	"ServiceShow":        get("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Show)),
+	"ServiceDelete":      delete("/namespaces/:namespace/services/:service", errorHandler(service.Controller{}.Delete)),
+	"ServiceBatchDelete": delete("/namespaces/:namespace/services", errorHandler(service.Controller{}.Delete)),
 
 	"ServiceMatch":  get("/namespaces/:namespace/servicesmatches/:pattern", errorHandler(service.Controller{}.Match)),
 	"ServiceMatch0": get("/namespaces/:namespace/servicesmatches", errorHandler(service.Controller{}.Match)),
