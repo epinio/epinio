@@ -37,15 +37,14 @@ func wrapResponseError(err error, code int) *responseError {
 }
 
 func (c *Client) DisableVersionWarning() {
-	value := false
-	c.versionWarning = &value
+	c.noVersionWarning = true
 }
 
 // VersionWarningEnabled returns true if versionWarning field is either not
 // set of true. That makes "true" the default value unless DisableVersionWarning
 // is called.
 func (c *Client) VersionWarningEnabled() bool {
-	return c.versionWarning == nil || *c.versionWarning
+	return !c.noVersionWarning
 }
 
 func (c *Client) get(endpoint string) ([]byte, error) {

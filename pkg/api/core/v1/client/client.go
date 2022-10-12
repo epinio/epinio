@@ -18,10 +18,10 @@ import (
 // Client provides functionality for talking to an Epinio API
 // server
 type Client struct {
-	log            logr.Logger
-	Settings       *epiniosettings.Settings
-	HttpClient     *http.Client
-	versionWarning *bool
+	log              logr.Logger
+	Settings         *epiniosettings.Settings
+	HttpClient       *http.Client
+	noVersionWarning bool
 }
 
 // New returns a new Epinio API client
