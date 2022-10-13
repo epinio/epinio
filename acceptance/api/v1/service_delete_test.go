@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/catalog"
@@ -63,12 +64,14 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 
 		When("service instance doesn't exist", func() {
 			It("returns 404", func() {
-				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/notexists", serverURL, v1.Root, namespace)
+				endpoint := fmt.Sprintf("%s%s/namespaces/%s/services/notexists",
+					serverURL, v1.Root, namespace)
 
 				requestBody, err := json.Marshal(models.ServiceDeleteRequest{})
 				Expect(err).ToNot(HaveOccurred())
 
-				response, err := env.Curl("DELETE", endpoint, strings.NewReader(string(requestBody)))
+				response, err := env.Curl("DELETE", endpoint,
+					strings.NewReader(string(requestBody)))
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(response.StatusCode).To(Equal(http.StatusNotFound))
@@ -166,6 +169,80 @@ var _ = Describe("ServiceDelete Endpoint", func() {
 					}, "1m", "5s").Should(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
 				})
 			})
+
+			Context("multi service deletion", func() {
+				var svc1, svc2 string
+				var requestBody string
+
+				BeforeEach(func() {
+					svc1 = catalog.NewServiceName()
+					svc2 = catalog.NewServiceName()
+
+					env.MakeServiceInstance(svc1, catalogService.Meta.Name)
+					env.MakeServiceInstance(svc2, catalogService.Meta.Name)
+
+					requestBody = `{ "unbind": false }`
+				})
+
+				It("deletes multiple services", func() {
+					makeServiceDeleteRequest(namespace, requestBody, svc1, svc2)
+					verifyServicesDeleted(namespace, svc1, svc2)
+				})
+			})
 		})
 	})
 })
+
+func makeServiceDeleteRequest(namespace, requestBody string, serviceNames ...string) {
+	By(fmt.Sprintf("Deleting services  %+v", serviceNames))
+
+	q := url.Values{}
+	for _, c := range serviceNames {
+		q.Add("services[]", c)
+	}
+	URLParams := q.Encode()
+
+	response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/services?%s",
+		serverURL, v1.Root, namespace, URLParams), strings.NewReader(requestBody))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response).ToNot(BeNil())
+
+	defer response.Body.Close()
+	bodyBytes, err := io.ReadAll(response.Body)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+	By(fmt.Sprintf("__Response: %s", string(bodyBytes)))
+
+	var responseData models.Response
+	err = json.Unmarshal(bodyBytes, &responseData)
+	Expect(err).ToNot(HaveOccurred())
+}
+
+func verifyServicesDeleted(namespace string, serviceNames ...string) {
+	By(fmt.Sprintf("Verifying deletion %+v", serviceNames))
+
+	Eventually(func() []string {
+		// 1. List services
+		responseGet, err := env.Curl("GET", fmt.Sprintf("%s%s/namespaces/%s/services",
+			serverURL, v1.Root, namespace), strings.NewReader(""))
+		Expect(err).ToNot(HaveOccurred())
+		Expect(responseGet).ToNot(BeNil())
+		defer responseGet.Body.Close()
+		bodyBytesGet, err := io.ReadAll(responseGet.Body)
+		Expect(err).ToNot(HaveOccurred())
+		Expect(responseGet.StatusCode).To(Equal(http.StatusOK))
+
+		var data models.ServiceList
+		err = json.Unmarshal(bodyBytesGet, &data)
+		Expect(err).ToNot(HaveOccurred())
+
+		var existingServices []string
+		for _, conf := range data {
+			existingServices = append(existingServices, conf.Meta.Name)
+		}
+
+		return existingServices
+		// 2. Check that listing does not contain the removed ones
+	}, "2m").ShouldNot(ContainElements(serviceNames))
+}
