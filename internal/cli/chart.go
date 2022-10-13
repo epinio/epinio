@@ -83,7 +83,6 @@ var CmdAppChartShow = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		client, err := usercmd.New()
-
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

@@ -99,6 +99,9 @@ type APIClient interface {
 	ChartList() ([]models.AppChart, error)
 	ChartShow(name string) (models.AppChart, error)
 	ChartMatch(prefix string) (models.ChartMatchResponse, error)
+
+	DisableVersionWarning()
+	VersionWarningEnabled() bool
 }
 
 func New() (*EpinioClient, error) {

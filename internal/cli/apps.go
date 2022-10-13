@@ -93,7 +93,6 @@ var CmdAppCreate = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		client, err := usercmd.New()
-
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -129,7 +128,6 @@ var CmdAppShow = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		client, err := usercmd.New()
-
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -150,7 +148,6 @@ var CmdAppExport = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		client, err := usercmd.New()
-
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -262,7 +259,6 @@ var CmdAppUpdate = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		client, err := usercmd.New()
-
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -298,7 +294,6 @@ var CmdAppManifest = &cobra.Command{
 		cmd.SilenceUsage = true
 
 		client, err := usercmd.New()
-
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

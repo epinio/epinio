@@ -58,6 +58,7 @@ var CmdConfigurationShow = &cobra.Command{
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		app.API.DisableVersionWarning()
 
 		matches := app.ConfigurationMatching(context.Background(), toComplete)
 
@@ -103,6 +104,7 @@ var CmdConfigurationDelete = &cobra.Command{
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		epinioClient.API.DisableVersionWarning()
 
 		matches := epinioClient.ConfigurationMatching(context.Background(), toComplete)
 
@@ -126,6 +128,7 @@ var CmdConfigurationBind = &cobra.Command{
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		app.API.DisableVersionWarning()
 
 		if len(args) == 1 {
 			// #args == 1: app name.
@@ -157,6 +160,7 @@ var CmdConfigurationUnbind = &cobra.Command{
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
+		app.API.DisableVersionWarning()
 
 		if len(args) == 1 {
 			// #args == 1: app name.

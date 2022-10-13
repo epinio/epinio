@@ -36,6 +36,17 @@ func wrapResponseError(err error, code int) *responseError {
 	return &responseError{error: err, statusCode: code}
 }
 
+func (c *Client) DisableVersionWarning() {
+	c.noVersionWarning = true
+}
+
+// VersionWarningEnabled returns true if versionWarning field is either not
+// set of true. That makes "true" the default value unless DisableVersionWarning
+// is called.
+func (c *Client) VersionWarningEnabled() bool {
+	return !c.noVersionWarning
+}
+
 func (c *Client) get(endpoint string) ([]byte, error) {
 	return c.do(endpoint, "GET", "")
 }
@@ -148,7 +159,7 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	if serverVersion := response.Header.Get(api.VersionHeader); serverVersion != "" {
+	if serverVersion := response.Header.Get(api.VersionHeader); c.VersionWarningEnabled() && serverVersion != "" {
 		warnAboutVersionMismatch(serverVersion)
 	}
 

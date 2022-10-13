@@ -463,6 +463,10 @@ type FakeAPIClient struct {
 		result1 models.ConfigurationResponseList
 		result2 error
 	}
+	DisableVersionWarningStub        func()
+	disableVersionWarningMutex       sync.RWMutex
+	disableVersionWarningArgsForCall []struct {
+	}
 	EnvListStub        func(string, string) (models.EnvVariableMap, error)
 	envListMutex       sync.RWMutex
 	envListArgsForCall []struct {
@@ -759,6 +763,16 @@ type FakeAPIClient struct {
 	stagingCompleteReturnsOnCall map[int]struct {
 		result1 models.Response
 		result2 error
+	}
+	VersionWarningEnabledStub        func() bool
+	versionWarningEnabledMutex       sync.RWMutex
+	versionWarningEnabledArgsForCall []struct {
+	}
+	versionWarningEnabledReturns struct {
+		result1 bool
+	}
+	versionWarningEnabledReturnsOnCall map[int]struct {
+		result1 bool
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
@@ -2867,6 +2881,30 @@ func (fake *FakeAPIClient) ConfigurationsReturnsOnCall(i int, result1 models.Con
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) DisableVersionWarning() {
+	fake.disableVersionWarningMutex.Lock()
+	fake.disableVersionWarningArgsForCall = append(fake.disableVersionWarningArgsForCall, struct {
+	}{})
+	stub := fake.DisableVersionWarningStub
+	fake.recordInvocation("DisableVersionWarning", []interface{}{})
+	fake.disableVersionWarningMutex.Unlock()
+	if stub != nil {
+		fake.DisableVersionWarningStub()
+	}
+}
+
+func (fake *FakeAPIClient) DisableVersionWarningCallCount() int {
+	fake.disableVersionWarningMutex.RLock()
+	defer fake.disableVersionWarningMutex.RUnlock()
+	return len(fake.disableVersionWarningArgsForCall)
+}
+
+func (fake *FakeAPIClient) DisableVersionWarningCalls(stub func()) {
+	fake.disableVersionWarningMutex.Lock()
+	defer fake.disableVersionWarningMutex.Unlock()
+	fake.DisableVersionWarningStub = stub
+}
+
 func (fake *FakeAPIClient) EnvList(arg1 string, arg2 string) (models.EnvVariableMap, error) {
 	fake.envListMutex.Lock()
 	ret, specificReturn := fake.envListReturnsOnCall[len(fake.envListArgsForCall)]
@@ -4262,6 +4300,59 @@ func (fake *FakeAPIClient) StagingCompleteReturnsOnCall(i int, result1 models.Re
 	}{result1, result2}
 }
 
+func (fake *FakeAPIClient) VersionWarningEnabled() bool {
+	fake.versionWarningEnabledMutex.Lock()
+	ret, specificReturn := fake.versionWarningEnabledReturnsOnCall[len(fake.versionWarningEnabledArgsForCall)]
+	fake.versionWarningEnabledArgsForCall = append(fake.versionWarningEnabledArgsForCall, struct {
+	}{})
+	stub := fake.VersionWarningEnabledStub
+	fakeReturns := fake.versionWarningEnabledReturns
+	fake.recordInvocation("VersionWarningEnabled", []interface{}{})
+	fake.versionWarningEnabledMutex.Unlock()
+	if stub != nil {
+		return stub()
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *FakeAPIClient) VersionWarningEnabledCallCount() int {
+	fake.versionWarningEnabledMutex.RLock()
+	defer fake.versionWarningEnabledMutex.RUnlock()
+	return len(fake.versionWarningEnabledArgsForCall)
+}
+
+func (fake *FakeAPIClient) VersionWarningEnabledCalls(stub func() bool) {
+	fake.versionWarningEnabledMutex.Lock()
+	defer fake.versionWarningEnabledMutex.Unlock()
+	fake.VersionWarningEnabledStub = stub
+}
+
+func (fake *FakeAPIClient) VersionWarningEnabledReturns(result1 bool) {
+	fake.versionWarningEnabledMutex.Lock()
+	defer fake.versionWarningEnabledMutex.Unlock()
+	fake.VersionWarningEnabledStub = nil
+	fake.versionWarningEnabledReturns = struct {
+		result1 bool
+	}{result1}
+}
+
+func (fake *FakeAPIClient) VersionWarningEnabledReturnsOnCall(i int, result1 bool) {
+	fake.versionWarningEnabledMutex.Lock()
+	defer fake.versionWarningEnabledMutex.Unlock()
+	fake.VersionWarningEnabledStub = nil
+	if fake.versionWarningEnabledReturnsOnCall == nil {
+		fake.versionWarningEnabledReturnsOnCall = make(map[int]struct {
+			result1 bool
+		})
+	}
+	fake.versionWarningEnabledReturnsOnCall[i] = struct {
+		result1 bool
+	}{result1}
+}
+
 func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
@@ -4331,6 +4422,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.configurationUpdateMutex.RUnlock()
 	fake.configurationsMutex.RLock()
 	defer fake.configurationsMutex.RUnlock()
+	fake.disableVersionWarningMutex.RLock()
+	defer fake.disableVersionWarningMutex.RUnlock()
 	fake.envListMutex.RLock()
 	defer fake.envListMutex.RUnlock()
 	fake.envMatchMutex.RLock()
@@ -4375,6 +4468,8 @@ func (fake *FakeAPIClient) Invocations() map[string][][]interface{} {
 	defer fake.serviceUnbindMutex.RUnlock()
 	fake.stagingCompleteMutex.RLock()
 	defer fake.stagingCompleteMutex.RUnlock()
+	fake.versionWarningEnabledMutex.RLock()
+	defer fake.versionWarningEnabledMutex.RUnlock()
 	copiedInvocations := map[string][][]interface{}{}
 	for key, value := range fake.invocations {
 		copiedInvocations[key] = value
