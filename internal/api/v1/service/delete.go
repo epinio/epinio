@@ -15,6 +15,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
 
+	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
@@ -26,7 +27,16 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 	username := requestctx.User(ctx).Username
 
 	namespace := c.Param("namespace")
+
+	// TODO: We keep this parameter for now, to not break the API.  We can remove it as soon as
+	// all front ends are adapted to the array parameter below.
 	serviceName := c.Param("service")
+
+	var serviceNames []string
+	serviceNames, found := c.GetQueryArray("services[]")
+	if !found {
+		serviceNames = append(serviceNames, serviceName)
+	}
 
 	var deleteRequest models.ServiceDeleteRequest
 	err := c.BindJSON(&deleteRequest)
@@ -39,47 +49,74 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
-	service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
-	if apiErr != nil {
-		return apiErr
+	// Collect and validate the referenced services
+
+	theServices := []*models.Service{}
+	for _, serviceName := range serviceNames {
+		service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
+		if apiErr != nil {
+			return apiErr
+		}
+
+		apiErr = ValidateService(ctx, cluster, logger, service)
+		if apiErr != nil {
+			return apiErr
+		}
+
+		theServices = append(theServices, service)
 	}
 
-	apiErr = ValidateService(ctx, cluster, logger, service)
-	if apiErr != nil {
-		return apiErr
+	// Collect the configurations per service, and record per bound app the service/config
+	// information
+	//
+	// A service has one or more associated secrets containing its attributes.  Binding turned
+	// these secrets into configurations and bound them to the application.  Unbinding simply
+	// unbound them.  We may think that this means that we only have to look for the first
+	// configuration to determine what apps the service is bound to. Not so. With the secrets
+	// visible as configurations an adventurous user may have unbound them in part, and left in
+	// part. So, check everything, and then de-duplicate.
+
+	type appInfo struct {
+		service string
+		config  v1.Secret
 	}
 
-	// A service has one or more associated secrets containing its attributes.
-	// Binding turned these secrets into configurations and bound them to the
-	// application.  Unbinding simply unbound them.  We may think that this means that
-	// we only have to look for the first configuration to determine what apps the
-	// service is bound to. Not so. With the secrets visible as configurations an
-	// adventurous user may have unbound them in part, and left in part. So, check
-	// everything, and then de-duplicate.
-
+	appConfigurationsMap := make(map[string][]appInfo)
 	boundAppNames := []string{}
 
-	serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
-	if err != nil {
-		return apierror.InternalError(err)
-	}
-
-	logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
-
-	for _, secret := range serviceConfigurations {
-		bound, err := application.BoundAppsNamesFor(ctx, cluster, namespace, secret.Name)
+	for _, service := range theServices {
+		serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
 		if err != nil {
 			return apierror.InternalError(err)
 		}
 
-		boundAppNames = append(boundAppNames, bound...)
+		logger.Info(fmt.Sprintf("configurationSecrets found %+v\n", serviceConfigurations))
+
+		for _, secret := range serviceConfigurations {
+			bound, err := application.BoundAppsNamesFor(ctx, cluster, namespace, secret.Name)
+			if err != nil {
+				return apierror.InternalError(err)
+			}
+
+			// inverted lookup map:{ appName: [info1, info2,...] }
+			//
+			// Note that the configs for a service are spread over the collected appInfos.
+			// They are properly merged later, when it comes to actual automatic unbinding.
+			for _, appName := range boundAppNames {
+				appConfigurationsMap[appName] = append(appConfigurationsMap[appName], appInfo{
+					service: service.Meta.Name,
+					config:  secret,
+				})
+			}
+			boundAppNames = append(boundAppNames, bound...)
+		}
 	}
 
 	boundAppNames = helpers.UniqueStrings(boundAppNames)
 
-	// Verify that the service is unbound. IOW not bound to any application.
-	// If it is, and automatic unbind was requested, do that.
-	// Without automatic unbind such applications are reported as error.
+	// Verify that the services are unbound. IOW not bound to any application.  If they are, and
+	// automatic unbind was requested, do that.  Without automatic unbind such applications are
+	// reported as error.
 
 	if len(boundAppNames) > 0 {
 		if !deleteRequest.Unbind {
@@ -87,27 +124,42 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 				WithDetails(strings.Join(boundAppNames, ","))
 		}
 
-		// Unbind all the services' configurations from the found applications.
-		for _, appName := range boundAppNames {
-			apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName, appName, username, serviceConfigurations)
-			if apiErr != nil {
-				return apiErr
+		// Unbind all the services' configurations from the found applications.  Using the
+		// inverted map holding the service/config information per app
+		for appName, infos := range appConfigurationsMap {
+			// Note: Merge the configs per service
+			infoMap := make(map[string][]v1.Secret)
+			for _, info := range infos {
+				infoMap[info.service] = append(infoMap[info.service], info.config)
+			}
+
+			// ... And run the unbind per app and service.
+			for serviceName, serviceConfigurations := range infoMap {
+				apiErr := UnbindService(ctx, cluster, logger, namespace, serviceName,
+					appName, username, serviceConfigurations)
+				if apiErr != nil {
+					return apiErr
+				}
 			}
 		}
 	}
+
+	// Finally, delete the services
 
 	kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
 	if err != nil {
 		return apierror.InternalError(err)
 	}
 
-	err = kubeServiceClient.Delete(ctx, namespace, serviceName)
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return apierror.NewNotFoundError("service", serviceName).WithDetailsf(err.Error())
-		}
+	for _, serviceName := range serviceNames {
+		err = kubeServiceClient.Delete(ctx, namespace, serviceName)
+		if err != nil {
+			if k8serrors.IsNotFound(err) {
+				return apierror.NewNotFoundError("service", serviceName).WithDetailsf(err.Error())
+			}
 
-		return apierror.InternalError(err)
+			return apierror.InternalError(err)
+		}
 	}
 
 	response.OKReturn(c, models.ServiceDeleteResponse{

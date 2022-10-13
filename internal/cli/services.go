@@ -101,10 +101,20 @@ var CmdServiceShow = &cobra.Command{
 }
 
 var CmdServiceDelete = &cobra.Command{
-	Use:               "delete SERVICENAME",
-	Short:             "Delete service SERVICENAME",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: matchingServiceFinder,
+	Use:   "delete SERVICENAME1 [SERVICENAME2 ...]",
+	Short: "Delete one or more services",
+	Args:  cobra.MinimumNArgs(1),
+	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		app, err := usercmd.New()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		app.API.DisableVersionWarning()
+		matches := app.ServiceMatching(toComplete)
+
+		return matches, cobra.ShellCompDirectiveNoFileComp
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -118,9 +128,7 @@ var CmdServiceDelete = &cobra.Command{
 			return errors.Wrap(err, "error initializing cli")
 		}
 
-		serviceName := args[0]
-
-		err = client.ServiceDelete(serviceName, unbind)
+		err = client.ServiceDelete(args, unbind)
 		return errors.Wrap(err, "error deleting service")
 	},
 }

@@ -123,16 +123,18 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	return nil
 }
 
-// ServiceDelete deletes a service
-func (c *EpinioClient) ServiceDelete(name string, unbind bool) error {
-	log := c.Log.WithName("ServiceDelete")
+// ServiceDelete deletes one or more services, specified by name
+func (c *EpinioClient) ServiceDelete(serviceNames []string, unbind bool) error {
+	namesCSV := strings.Join(serviceNames, ", ")
+	log := c.Log.WithName("DeleteService").
+		WithValues("Services", namesCSV, "Namespace", c.Settings.Namespace)
 	log.Info("start")
 	defer log.Info("return")
 
 	c.ui.Note().
-		WithStringValue("Name", name).
+		WithStringValue("Names", namesCSV).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Deleting Service...")
+		Msg("Deleting Services...")
 
 	if err := c.TargetOk(); err != nil {
 		return err
@@ -144,17 +146,15 @@ func (c *EpinioClient) ServiceDelete(name string, unbind bool) error {
 
 	var bound []string
 
-	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, name,
+	_, err := c.API.ServiceDelete(request, c.Settings.Namespace, serviceNames,
 		func(response *http.Response, bodyBytes []byte, err error) error {
 			// nothing special for internal errors and the like
 			if response.StatusCode != http.StatusBadRequest {
 				return err
 			}
 
-			// A bad request happens when the configuration is
-			// still bound to one or more applications,
-			// and the response contains an array of their
-			// names.
+			// A bad request happens when the configuration is still bound to one or
+			// more applications, and the response contains an array of their names.
 
 			var apiError apierrors.ErrorResponse
 			if err := json.Unmarshal(bodyBytes, &apiError); err != nil {
@@ -185,9 +185,9 @@ func (c *EpinioClient) ServiceDelete(name string, unbind bool) error {
 	}
 
 	c.ui.Success().
-		WithStringValue("Name", name).
+		WithStringValue("Names", namesCSV).
 		WithStringValue("Namespace", c.Settings.Namespace).
-		Msg("Service Removed.")
+		Msg("Services Removed.")
 	return nil
 }
 

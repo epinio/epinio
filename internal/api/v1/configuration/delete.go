@@ -65,8 +65,8 @@ func (sc Controller) Delete(c *gin.Context) apierror.APIErrors {
 		configurationObjects = append(configurationObjects, configuration)
 	}
 
-	// Verify that the configuration is unbound. IOW not bound to any application.
-	// If it is, and automatic unbind was requested, do that.
+	// Verify that the configurations are unbound. IOW not bound to any application.
+	// If they are, and automatic unbind was requested, do that.
 	// Without automatic unbind such applications are reported as error.
 
 	appConfigurationsMap := make(map[string][]string)

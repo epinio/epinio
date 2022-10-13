@@ -379,7 +379,7 @@ var _ = Describe("Configurations", func() {
 
 			out, err := env.Epinio("", "service", "delete", service)
 			Expect(err).ToNot(HaveOccurred(), out)
-			Expect(out).To(ContainSubstring("Service Removed"))
+			Expect(out).To(ContainSubstring("Services Removed"))
 
 			Eventually(func() string {
 				out, _ := env.Epinio("", "service", "delete", service)

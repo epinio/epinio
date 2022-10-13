@@ -20,6 +20,7 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 	Describe("DELETE /api/v1/namespaces/:namespace/configurations", func() {
 		var namespace string
 		var svc1, svc2 string
+		var requestBody string
 
 		BeforeEach(func() {
 			namespace = catalog.NewNamespaceName()
@@ -30,16 +31,23 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 
 			env.MakeConfiguration(svc1)
 			env.MakeConfiguration(svc2)
-		})
 
-		var requestBody string
-
-		BeforeEach(func() {
 			requestBody = `{ "unbind": false }`
 		})
 
+		When("namespace doesn't exist", func() {
+			It("returns 404", func() {
+				endpoint := fmt.Sprintf("%s%s/namespaces/notexists/configurations/whatever",
+					serverURL, api.Root)
+				response, err := env.Curl("DELETE", endpoint,
+					strings.NewReader(string(requestBody)))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(response.StatusCode).To(Equal(http.StatusNotFound))
+			})
+		})
+
 		It("deletes multiple configurations", func() {
-			makeDeleteRequest(namespace, requestBody, svc1, svc2)
+			makeConfigurationDeleteRequest(namespace, requestBody, svc1, svc2)
 			verifyConfigurationsDeleted(namespace, svc1, svc2)
 		})
 
@@ -58,14 +66,14 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			})
 
 			It("deletes and unbinds them", func() {
-				makeDeleteRequest(namespace, requestBody, svc1, svc2)
+				makeConfigurationDeleteRequest(namespace, requestBody, svc1, svc2)
 				verifyConfigurationsDeleted(namespace, svc1, svc2)
 			})
 		})
 	})
 })
 
-func makeDeleteRequest(namespace, requestBody string, configurationNames ...string) {
+func makeConfigurationDeleteRequest(namespace, requestBody string, configurationNames ...string) {
 	q := url.Values{}
 	for _, c := range configurationNames {
 		q.Add("configurations[]", c)
@@ -107,7 +115,5 @@ func verifyConfigurationsDeleted(namespace string, configurationNames ...string)
 		existingConfigurations = append(existingConfigurations, conf.Meta.Name)
 	}
 
-	for _, c := range configurationNames {
-		Expect(existingConfigurations).ToNot(ContainElement(c))
-	}
+	Expect(existingConfigurations).ToNot(ContainElements(configurationNames))
 }

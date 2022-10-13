@@ -2,6 +2,8 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/url"
 
 	"github.com/pkg/errors"
 
@@ -119,7 +121,7 @@ func (c *Client) ServiceMatch(namespace, prefix string) (models.ServiceMatchResp
 	return resp, nil
 }
 
-func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, name string, f ErrorFunc) (models.ServiceDeleteResponse, error) {
+func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string, names []string, f ErrorFunc) (models.ServiceDeleteResponse, error) {
 
 	resp := models.ServiceDeleteResponse{}
 
@@ -128,9 +130,9 @@ func (c *Client) ServiceDelete(req models.ServiceDeleteRequest, namespace string
 		return resp, nil
 	}
 
-	data, err := c.doWithCustomErrorHandling(
-		api.Routes.Path("ServiceDelete", namespace, name),
-		"DELETE", string(b), f)
+	URL := constructServiceBatchDeleteURL(namespace, names)
+
+	data, err := c.doWithCustomErrorHandling(URL, "DELETE", string(b), f)
 	if err != nil {
 		if err.Error() != "Bad Request" {
 			return resp, err
@@ -201,4 +203,16 @@ func (c *Client) ServiceApps(namespace string) (models.ServiceAppsResponse, erro
 	c.log.V(1).Info("response decoded", "response", resp)
 
 	return resp, nil
+}
+
+func constructServiceBatchDeleteURL(namespace string, names []string) string {
+	q := url.Values{}
+	for _, c := range names {
+		q.Add("services[]", c)
+	}
+	URLParams := q.Encode()
+
+	URL := api.Routes.Path("ServiceBatchDelete", namespace)
+
+	return fmt.Sprintf("%s?%s", URL, URLParams)
 }

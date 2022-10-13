@@ -136,6 +136,11 @@ type ServiceMatchResponse struct {
 // responses:
 //   200: ServiceDeleteResponse
 
+// swagger:route DELETE /namespaces/{Namespace}/services ServiceBatchDelete
+// Delete the named `Services` in the `Namespace`.
+// responses:
+//   200: ServiceDeleteResponse
+
 // swagger:parameters ServiceDelete
 type ServiceDeleteParam struct {
 	// in: path
@@ -144,6 +149,14 @@ type ServiceDeleteParam struct {
 	Service string
 	// in: body
 	Body models.ServiceDeleteRequest
+}
+
+// swagger:parameters ServiceBatchDelete
+type ServiceBatchDeleteParam struct {
+	// in: path
+	Namespace string
+	// in: url
+	Services []string
 }
 
 // swagger:response ServiceDeleteResponse
