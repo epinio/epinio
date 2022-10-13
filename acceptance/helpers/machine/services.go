@@ -42,6 +42,7 @@ func (m *Machine) DeleteService(serviceName string) {
 	By("deleting a service")
 	out, err := m.Epinio("", "service", "delete", serviceName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+	Expect(out).To(ContainSubstring("Services Removed"))
 
 	EventuallyWithOffset(1, func() string {
 		out, err := m.Epinio("", "service", "list")

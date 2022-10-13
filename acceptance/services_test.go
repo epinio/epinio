@@ -106,16 +106,7 @@ var _ = Describe("Services", func() {
 
 	deleteServiceFromNamespace := func(namespace, service string) {
 		env.TargetNamespace(namespace)
-
-		out, err := env.Epinio("", "service", "delete", service)
-		Expect(err).ToNot(HaveOccurred(), out)
-		Expect(out).To(ContainSubstring("Services Removed"))
-
-		Eventually(func() string {
-			out, _ := env.Epinio("", "service", "delete", service)
-			return out
-		}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
-
+		env.DeleteService(service)
 	}
 
 	Describe("Show", func() {
@@ -479,6 +470,30 @@ var _ = Describe("Services", func() {
 				out, _ := env.Epinio("", "service", "delete", service)
 				return out
 			}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+		})
+
+		Context("bulk deletion", func() {
+			var service2 string
+
+			BeforeEach(func() {
+				service2 = catalog.NewServiceName()
+				env.MakeServiceInstance(service2, catalogService.Meta.Name)
+			})
+
+			It("deletes multiple services", func() {
+				out, err := env.Epinio("", "service", "delete", service, service2)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					out, _ := env.Epinio("", "service", "show", service)
+					return out
+				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service))
+
+				Eventually(func() string {
+					out, _ := env.Epinio("", "service", "show", service2)
+					return out
+				}, "1m", "5s").Should(ContainSubstring("service '%s' does not exist", service2))
+			})
 		})
 
 		When("bound to an app", func() {
