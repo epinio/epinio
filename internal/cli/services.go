@@ -110,6 +110,7 @@ var CmdServiceDelete = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
+		app.API.DisableVersionWarning()
 		matches := app.ServiceMatching(toComplete)
 
 		return matches, cobra.ShellCompDirectiveNoFileComp
