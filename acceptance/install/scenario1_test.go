@@ -146,7 +146,7 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 		By("Delete an app", func() {
 			out, err := epinioHelper.Run("apps", "delete", appName)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Application deleted")))
+			Expect(out).To(Or(ContainSubstring("Applications Removed")))
 		})
 
 		By("Cleaning DNS Entries", func() {

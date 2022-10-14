@@ -195,7 +195,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 		By("Delete an app", func() {
 			out, err := epinioHelper.Run("apps", "delete", appName)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Application deleted")))
+			Expect(out).To(Or(ContainSubstring("Applications Removed")))
 		})
 
 		By("Cleaning DNS Entries", func() {
