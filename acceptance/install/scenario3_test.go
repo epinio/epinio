@@ -178,7 +178,13 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 		By("Delete an app", func() {
 			out, err := epinioHelper.Run("apps", "delete", appName)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Applications Removed")))
+
+			// We check for both bulk deletion response and old response. Because with
+			// upgrade testing the pre-upgrade binary may be without bulk deletion
+			// support.
+			Expect(out).To(Or(
+				ContainSubstring("Applications Removed"),
+				ContainSubstring("Application deleted")))
 		})
 
 		if os.Getenv("EPINIO_UPGRADED") == "true" {
