@@ -1,0 +1,37 @@
+<svg xmlns='http://www.w3.org/2000/svg' class="pikchr" viewBox="0 0 832.032 220.32">
+<path d="M9,74L181,74L181,2L9,2Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="95" y="18" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">Service</text>
+<text x="95" y="38" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">registry-node @30500</text>
+<text x="95" y="58" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">nodeport 30500</text>
+<path d="M181,74L325,74L325,2L181,2Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="253" y="18" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">Container</text>
+<text x="253" y="38" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">registry.nginx</text>
+<text x="253" y="58" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">@30500</text>
+<polygon points="541,38 530,42 530,33" style="fill:rgb(0,0,0)"/>
+<path d="M325,38L536,38"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="433" y="26" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">https://localhost:5000</text>
+<text x="433" y="49" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central"></text>
+<path d="M541,74L685,74L685,2L541,2Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="613" y="18" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">Service</text>
+<text x="613" y="38" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">registry @5000</text>
+<text x="613" y="58" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">5000</text>
+<path d="M685,74L829,74L829,2L685,2Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="757" y="18" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">Container</text>
+<text x="757" y="38" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">registry.registry</text>
+<text x="757" y="58" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">@5000</text>
+<polygon points="95,74 99,85 91,85" style="fill:rgb(0,0,0)"/>
+<path d="M95,79L95,146"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="95" y="110" text-anchor="start" fill="rgb(0,0,0)" dominant-baseline="central">  http</text>
+<path d="M23,218L167,218L167,146L23,146Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="95" y="162" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">App Pod</text>
+<text x="95" y="182" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">workspace/fox</text>
+<text x="95" y="202" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">127.0.0.1:30500/...</text>
+<polygon points="613,74 618,85 609,85" style="fill:rgb(0,0,0)"/>
+<path d="M613,79L613,146"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="613" y="110" text-anchor="start" fill="rgb(0,0,0)" dominant-baseline="central">  https</text>
+<path d="M469,218L757,218L757,146L469,146Z"  style="fill:none;stroke-width:2.16;stroke:rgb(0,0,0);" />
+<text x="613" y="162" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">Staging</text>
+<text x="613" y="182" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">workspace/fox</text>
+<text x="613" y="202" text-anchor="middle" fill="rgb(0,0,0)" dominant-baseline="central">registry.epinio.svc.cluster.local:5000</text>
+</svg>
+

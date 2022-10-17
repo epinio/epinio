@@ -1,0 +1,19 @@
+
+O: box "Service" "registry-node @30500" "nodeport 30500" width 1.2
+
+box "Container" "registry.nginx" "@30500" width 1
+
+arrow "https://localhost:5000" "" right 1.5
+
+I: box "Service" "registry @5000" "5000" width 1
+
+box "Container" "registry.registry" "@5000" width 1
+
+line down from O.s <- "  http" ljust
+box "App Pod" "workspace/fox" "127.0.0.1:30500/..." \
+    with .n at last line .s width 1
+
+line down from I.s <- "  https" ljust
+box "Staging" "workspace/fox" "registry.epinio.svc.cluster.local:5000" \
+    with .n at last line .s width 2
+
