@@ -35,6 +35,10 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 			requestBody = `{ "unbind": false }`
 		})
 
+		AfterEach(func() {
+			env.DeleteNamespace(namespace)
+		})
+
 		When("namespace doesn't exist", func() {
 			It("returns 404", func() {
 				endpoint := fmt.Sprintf("%s%s/namespaces/notexists/configurations/whatever",
@@ -49,6 +53,24 @@ var _ = Describe("Configurations API Application Endpoints", func() {
 		It("deletes multiple configurations", func() {
 			makeConfigurationDeleteRequest(namespace, requestBody, svc1, svc2)
 			verifyConfigurationsDeleted(namespace, svc1, svc2)
+		})
+
+		It("deletes a single configuration using the old style", func() {
+			response, err := env.Curl("DELETE", fmt.Sprintf("%s%s/namespaces/%s/configurations/%s",
+				serverURL, api.Root, namespace, svc1), strings.NewReader(requestBody))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response).ToNot(BeNil())
+
+			defer response.Body.Close()
+			bodyBytes, err := io.ReadAll(response.Body)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK), string(bodyBytes))
+
+			var responseData models.Response
+			err = json.Unmarshal(bodyBytes, &responseData)
+			Expect(err).ToNot(HaveOccurred())
+
+			verifyConfigurationsDeleted(namespace, svc1)
 		})
 
 		When("the configurations are bound to applications", func() {
