@@ -66,3 +66,12 @@ body:
         - label: >
             **( 📝 Manual step )** Check the `epinio/docs` pull requests for the latest update, then merge the PR.
             [LINK](https://github.com/epinio/docs/pulls?q=is:pr+author:app/github-actions)
+
+  - type: checkboxes
+    id: others-checklist
+    attributes:
+      label: Others
+      options:
+        - label: >
+            **( 📝 Manual step )** Bump the helm chart versions in `epinio/extension-docker-desktop` by creating a pull requests, then merge the PR and create a new tag.
+            [LINK](https://github.com/epinio/extension-docker-desktop/actions/workflows/image.yml)
