@@ -20,6 +20,7 @@ import (
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/selection"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -237,85 +238,43 @@ func (c *Configuration) GetSecret(ctx context.Context) (*v1.Secret, error) {
 
 // ForService returns a slice of configuration secrets matching the given Service.
 func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
+	// The difference to `ForServiceUnlabeled` is here. We are explicitly looking for the labels
+	// attached to the secrets by `LabelServiceSecrets` as we want only proper configurations.
 	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
-		ConfigurationLabelKey:        "true",
-		ConfigurationTypeLabelKey:    "service",
-		// The difference to `ForServiceUnlabeled` is here. We are explicitly looking for
-		// the labels attached to the secrets by `LabelServiceSecrets` as we want only
-		// proper configurations.
+		ConfigurationLabelKey:     "true",
+		ConfigurationTypeLabelKey: "service",
 	}).AsSelector()
 
-	listOptions := metav1.ListOptions{
-		LabelSelector: secretSelector.String(),
-	}
-
-	secretList, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptions)
-	if err != nil {
-		return nil, err
-	}
-
-	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
-
-	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
-	// Look for secrets referencing a (helm controller)-based service.
-
-	secretSelectorHC := labels.Set(map[string]string{
-		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
-		ConfigurationLabelKey:        "true",
-		ConfigurationTypeLabelKey:    "service",
-	}).AsSelector()
-
-	listOptionsHC := metav1.ListOptions{
-		LabelSelector: secretSelectorHC.String(),
-	}
-
-	secretListHC, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptionsHC)
-	if err != nil {
-		return nil, err
-	}
-
-	filteredSecretsHC := filterSecretsByType(secretListHC.Items, service.SecretTypes)
-
-	// Merge the two lists ...
-
-	if len(filteredSecrets) == 0 {
-		return filteredSecretsHC, nil
-	}
-
-	if len(filteredSecretsHC) == 0 {
-		return filteredSecrets, nil
-	}
-
-	// A merge is actually required.
-
-	return append(filteredSecrets, filteredSecretsHC...), nil
+	return forService(ctx, kubeClient, service, secretSelector)
 }
 
 // ForServiceUnlabeled returns a slice of unlabeled secrets matching the given Service
 func ForServiceUnlabeled(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
-	// Note: Based on review comments an experiment was made to use the set-based `in` operator
-	// for label selection. Roughly like
-	//
-	//	multiLabel, err := labels.NewRequirement(
-	//		"app.kubernetes.io/instance",
-	//		selection.In,
-	//		[]string{
-	//			names.ServiceReleaseName(service.Meta.Name),
-	//			names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
-	//		},
-	//	)
-	//	secretSelector.Add(*multiLabel)
-	//
-	// This experiment failed. The operator does not seem be applied. The selection result looks
-	// to be the list of all secrets in the namespace, not just secrets referring to a service
-	// instance. This completely breaks labeling of secrets as configurations for a service.
+	// The difference to `ForService` is here. Not looking for the labels attached to the
+	// secrets by `LabelServiceSecrets` to turn them into configurations.
+	return forService(ctx, kubeClient, service, labels.NewSelector())
+}
 
-	secretSelector := labels.Set(map[string]string{
-		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
-		// The difference to `ForService` is here. Not looking for the labels attached to
-		// the secrets by `LabelServiceSecrets` to turn them into configurations.
-	}).AsSelector()
+func forService(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service, secretSelector labels.Selector) ([]v1.Secret, error) {
+	// Note how we search here for both regular and old-style secrets in one set-based selector
+	// and call to come. No need to perform two requests and merge the results.
+	//
+	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
+	// Look for secrets referencing a (helm controller)-based service.
+
+	multiLabel, err := labels.NewRequirement(
+		"app.kubernetes.io/instance",
+		selection.In,
+		[]string{
+			names.ServiceReleaseName(service.Meta.Name),
+			names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	secretSelector = secretSelector.Add(*multiLabel)
 
 	listOptions := metav1.ListOptions{
 		LabelSelector: secretSelector.String(),
@@ -328,37 +287,7 @@ func ForServiceUnlabeled(ctx context.Context, kubeClient *kubernetes.Cluster, se
 
 	filteredSecrets := filterSecretsByType(secretList.Items, service.SecretTypes)
 
-	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
-	// Look for secrets referencing a (helm controller)-based service.
-
-	secretSelectorHC := labels.Set(map[string]string{
-		"app.kubernetes.io/instance": names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
-	}).AsSelector()
-
-	listOptionsHC := metav1.ListOptions{
-		LabelSelector: secretSelectorHC.String(),
-	}
-
-	secretListHC, err := kubeClient.Kubectl.CoreV1().Secrets(service.Meta.Namespace).List(ctx, listOptionsHC)
-	if err != nil {
-		return nil, err
-	}
-
-	filteredSecretsHC := filterSecretsByType(secretListHC.Items, service.SecretTypes)
-
-	// Merge the two lists ...
-
-	if len(filteredSecrets) == 0 {
-		return filteredSecretsHC, nil
-	}
-
-	if len(filteredSecretsHC) == 0 {
-		return filteredSecrets, nil
-	}
-
-	// A merge is actually required.
-
-	return append(filteredSecrets, filteredSecretsHC...), nil
+	return filteredSecrets, nil
 }
 
 // LabelServiceSecrets will look for the Opaque secrets released with a service, looking for the
