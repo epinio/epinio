@@ -211,15 +211,11 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 	serviceList := models.ServiceList{}
 
 	listOpts := metav1.ListOptions{}
-	if namespace == "" {
-		listOpts.LabelSelector = fmt.Sprintf("%s,%s", ServiceNameLabelKey, CatalogServiceLabelKey)
-	} else {
-		listOpts.LabelSelector = fmt.Sprintf(
-			"%s,%s",
-			ServiceNameLabelKey,
-			CatalogServiceLabelKey,
-		)
-	}
+	listOpts.LabelSelector = fmt.Sprintf(
+		"%s,%s",
+		ServiceNameLabelKey,
+		CatalogServiceLabelKey,
+	)
 
 	services, err := s.kubeClient.Kubectl.CoreV1().Secrets(namespace).List(ctx, listOpts)
 
