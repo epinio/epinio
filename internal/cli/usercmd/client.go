@@ -104,13 +104,13 @@ type APIClient interface {
 	VersionWarningEnabled() bool
 }
 
-func New() (*EpinioClient, error) {
+func New(ctx context.Context) (*EpinioClient, error) {
 	cfg, err := settings.Load()
 	if err != nil {
 		return nil, errors.Wrap(err, "error loading settings")
 	}
 
-	apiClient := epinioapi.New(context.Background(), cfg)
+	apiClient := epinioapi.New(ctx, cfg)
 
 	return NewEpinioClient(cfg, apiClient)
 }

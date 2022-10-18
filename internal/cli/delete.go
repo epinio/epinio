@@ -14,7 +14,7 @@ var CmdAppDelete = &cobra.Command{
 	Short: "Deletes one or more applications",
 	Args:  cobra.MinimumNArgs(1),
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		epinioClient, err := usercmd.New()
+		epinioClient, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -26,7 +26,7 @@ var CmdAppDelete = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New()
+		client, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
