@@ -36,7 +36,7 @@ func bindOption(cmd *cobra.Command) {
 
 			ctx := cmd.Context()
 
-			app, err := usercmd.New()
+			app, err := usercmd.New(cmd.Context())
 			if err != nil {
 				return nil, cobra.ShellCompDirectiveNoFileComp
 			}

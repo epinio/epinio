@@ -54,7 +54,7 @@ var CmdConfigurationShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := usercmd.New()
+		app, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -100,7 +100,7 @@ var CmdConfigurationDelete = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	RunE:  ConfigurationDelete,
 	ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-		epinioClient, err := usercmd.New()
+		epinioClient, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -124,7 +124,7 @@ var CmdConfigurationBind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := usercmd.New()
+		app, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -156,7 +156,7 @@ var CmdConfigurationUnbind = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := usercmd.New()
+		app, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -187,7 +187,7 @@ var CmdConfigurationList = &cobra.Command{
 func ConfigurationShow(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New()
+	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -204,7 +204,7 @@ func ConfigurationShow(cmd *cobra.Command, args []string) error {
 func ConfigurationList(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New()
+	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -226,7 +226,7 @@ func ConfigurationList(cmd *cobra.Command, args []string) error {
 func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New()
+	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -243,7 +243,7 @@ func ConfigurationCreate(cmd *cobra.Command, args []string) error {
 func ConfigurationUpdate(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New()
+	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -286,7 +286,7 @@ func ConfigurationDelete(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "error reading option --unbind")
 	}
 
-	client, err := usercmd.New()
+	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -303,7 +303,7 @@ func ConfigurationDelete(cmd *cobra.Command, args []string) error {
 func ConfigurationBind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New()
+	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}
@@ -320,7 +320,7 @@ func ConfigurationBind(cmd *cobra.Command, args []string) error {
 func ConfigurationUnbind(cmd *cobra.Command, args []string) error {
 	cmd.SilenceUsage = true
 
-	client, err := usercmd.New()
+	client, err := usercmd.New(cmd.Context())
 	if err != nil {
 		return errors.Wrap(err, "error initializing cli")
 	}

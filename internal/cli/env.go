@@ -32,7 +32,7 @@ var CmdEnvList = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New()
+		client, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}
@@ -55,7 +55,7 @@ var CmdEnvSet = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New()
+		client, err := usercmd.New(cmd.Context())
 
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -75,7 +75,7 @@ var CmdEnvSet = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := usercmd.New()
+		app, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -96,7 +96,7 @@ var CmdEnvShow = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New()
+		client, err := usercmd.New(cmd.Context())
 
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
@@ -114,7 +114,7 @@ var CmdEnvShow = &cobra.Command{
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		app, err := usercmd.New()
+		app, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
@@ -143,7 +143,7 @@ var CmdEnvUnset = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
-		client, err := usercmd.New()
+		client, err := usercmd.New(cmd.Context())
 		if err != nil {
 			return errors.Wrap(err, "error initializing cli")
 		}

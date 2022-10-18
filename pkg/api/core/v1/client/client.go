@@ -2,9 +2,8 @@
 package client
 
 import (
-	"net/http"
-
 	"context"
+	"net/http"
 	"regexp"
 
 	"github.com/epinio/epinio/helpers/tracelog"
