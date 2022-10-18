@@ -32,7 +32,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// COMPATIBILITY SUPPORT - Retry for (helm controller)-based service.
-			return s.GetHC(ctx, namespace, name)
+			return s.GetForHelmController(ctx, namespace, name)
 		}
 		return nil, errors.Wrap(err, "fetching the service instance")
 	}
@@ -144,7 +144,7 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			// COMPATIBILITY SUPPORT - Retry for (helm controller)-based service
-			return s.DeleteHC(ctx, namespace, name)
+			return s.DeleteForHelmController(ctx, namespace, name)
 		}
 		return errors.Wrap(err, "error deleting service secret")
 	}
@@ -192,7 +192,7 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 	}
 
 	// COMPATIBILITY SUPPORT - Remove all (helm controller)-based services too.
-	return s.DeleteAllHC(ctx, namespace)
+	return s.DeleteAllForHelmController(ctx, namespace)
 }
 
 // ListAll will return all the Epinio Service instances
@@ -276,7 +276,7 @@ func (s *ServiceClient) list(ctx context.Context, namespace string) (models.Serv
 	}
 
 	// COMPATIBILITY SUPPORT - List (helm controller)-based services too.
-	serviceListHC, err := s.listHC(ctx, namespace)
+	serviceListHC, err := s.listForHelmController(ctx, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "listing the (helm controller)-based service instances")
 	}
@@ -291,15 +291,15 @@ func serviceResourceName(name string) string {
 // -----------------------------------------------------------------------------------------------
 // COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
 //
-// This is essentially all of the old Get/Delete(All)/List* functions, renamed with an added `HC`
-// suffix (for Helm Controller). The new functions run them in appropriate places.
+// This is essentially all of the old Get/Delete(All)/List* functions, renamed with an added
+// `HelmController` suffix. The new functions run them in appropriate places.
 //
 // NOTE that `Create` is NOT in this list. We do not create (helm controller)-based services anymore.
 //
 
-// GetHC returns a Service "instance" object if one is exist, or nil otherwise.  Also returns an
-// error if one occurs.
-func (s *ServiceClient) GetHC(ctx context.Context, namespace, name string) (*models.Service, error) {
+// GetForHelmController returns a Service "instance" object if one is exist, or nil otherwise.  Also
+// returns an error if one occurs.
+func (s *ServiceClient) GetForHelmController(ctx context.Context, namespace, name string) (*models.Service, error) {
 	var service models.Service
 
 	helmChartName := names.ServiceHelmChartName(name, namespace)
@@ -369,9 +369,9 @@ func (s *ServiceClient) GetHC(ctx context.Context, namespace, name string) (*mod
 	return &service, nil
 }
 
-// DeleteHC deletes the helmcharts that matches the given service which is installed on the
-// namespace (that's the targetNamespace).
-func (s *ServiceClient) DeleteHC(ctx context.Context, namespace, service string) error {
+// DeleteForHelmController deletes the helmcharts that matches the given service which is installed
+// on the namespace (that's the targetNamespace).
+func (s *ServiceClient) DeleteForHelmController(ctx context.Context, namespace, service string) error {
 	err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).Delete(ctx,
 		names.ServiceHelmChartName(service, namespace),
 		metav1.DeleteOptions{},
@@ -380,10 +380,11 @@ func (s *ServiceClient) DeleteHC(ctx context.Context, namespace, service string)
 	return errors.Wrap(err, "error deleting helm charts")
 }
 
-// DeleteAllHC deletes all helmcharts installed on the specified namespace.  It is used to cleanup
-// before a namespace is deleted.  The targetNamespace is not the namespace where the helmchart
-// resource resides (that would be `epinio`) but the `targetNamespace` field of the helmchart.
-func (s *ServiceClient) DeleteAllHC(ctx context.Context, targetNamespace string) error {
+// DeleteAllForHelmController deletes all helmcharts installed on the specified namespace.  It is
+// used to cleanup before a namespace is deleted.  The targetNamespace is not the namespace where
+// the helmchart resource resides (that would be `epinio`) but the `targetNamespace` field of the
+// helmchart.
+func (s *ServiceClient) DeleteAllForHelmController(ctx context.Context, targetNamespace string) error {
 	err := s.helmChartsKubeClient.Namespace(helmchart.Namespace()).DeleteCollection(ctx,
 		metav1.DeleteOptions{},
 		metav1.ListOptions{
@@ -394,9 +395,9 @@ func (s *ServiceClient) DeleteAllHC(ctx context.Context, targetNamespace string)
 	return errors.Wrap(err, "error deleting helm charts")
 }
 
-// listHC will return all the Epinio Services available in the targeted namespace.
+// listForHelmController will return all the Epinio Services available in the targeted namespace.
 // If the namespace is blank it will return all the instances from all the namespaces
-func (s *ServiceClient) listHC(ctx context.Context, namespace string) (models.ServiceList, error) {
+func (s *ServiceClient) listForHelmController(ctx context.Context, namespace string) (models.ServiceList, error) {
 	serviceList := models.ServiceList{}
 
 	listOpts := metav1.ListOptions{}
