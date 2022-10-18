@@ -159,8 +159,9 @@ func (c *Client) do(endpoint, method, requestBody string) ([]byte, error) {
 	defer response.Body.Close()
 	reqLog.V(1).Info("request finished")
 
-	if serverVersion := response.Header.Get(api.VersionHeader); c.VersionWarningEnabled() && serverVersion != "" {
-		warnAboutVersionMismatch(serverVersion)
+	serverVersion := response.Header.Get(api.VersionHeader)
+	if c.VersionWarningEnabled() && serverVersion != "" {
+		c.warnAboutVersionMismatch(serverVersion)
 	}
 
 	bodyBytes, err := io.ReadAll(response.Body)
@@ -341,10 +342,11 @@ func (c *Client) handleAuthorization(request *http.Request) error {
 	return nil
 }
 
-func warnAboutVersionMismatch(serverVersion string) {
+func (c *Client) warnAboutVersionMismatch(serverVersion string) {
 	if serverVersion == version.Version {
 		return
 	}
+	c.DisableVersionWarning()
 
 	ui := termui.NewUI()
 	ui.Exclamation().Msg(
