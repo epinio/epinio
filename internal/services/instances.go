@@ -149,8 +149,8 @@ func (s *ServiceClient) Delete(ctx context.Context, namespace, name string) erro
 		return errors.Wrap(err, "error deleting service secret")
 	}
 
-	err = helm.RemoveService(s.kubeClient,
-		requestctx.Logger(ctx),
+	err = helm.RemoveService(requestctx.Logger(ctx),
+		s.kubeClient,
 		models.NewAppRef(name, namespace))
 
 	return errors.Wrap(err, "error deleting service helm release")
@@ -183,8 +183,8 @@ func (s *ServiceClient) DeleteAll(ctx context.Context, namespace string) error {
 
 		service := srv.GetLabels()[ServiceNameLabelKey]
 
-		err = helm.RemoveService(s.kubeClient,
-			requestctx.Logger(ctx),
+		err = helm.RemoveService(requestctx.Logger(ctx),
+			s.kubeClient,
 			models.NewAppRef(service, srv.ObjectMeta.Namespace))
 		if err != nil {
 			return errors.Wrap(err, "error deleting service helm release")

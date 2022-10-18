@@ -85,13 +85,14 @@ func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) 
 	return client.UninstallReleaseByName(names.ReleaseName(app.Name))
 }
 
-func RemoveService(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) error {
+func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) error {
 	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "create a helm client")
 	}
 
-	return client.UninstallReleaseByName(names.ServiceReleaseName(app.Name))
+	// err == nil => passed through unchanged
+	return errors.Wrap(client.UninstallReleaseByName(names.ServiceReleaseName(app.Name)), "cleaning up release")
 }
 
 func DeployService(logger logr.Logger, parameters ServiceParameters) error {
