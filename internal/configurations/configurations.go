@@ -294,6 +294,23 @@ func ForService(ctx context.Context, kubeClient *kubernetes.Cluster, service *mo
 
 // ForServiceUnlabeled returns a slice of unlabeled secrets matching the given Service
 func ForServiceUnlabeled(ctx context.Context, kubeClient *kubernetes.Cluster, service *models.Service) ([]v1.Secret, error) {
+	// Note: Based on review comments an experiment was made to use the set-based `in` operator
+	// for label selection. Roughly like
+	//
+	//	multiLabel, err := labels.NewRequirement(
+	//		"app.kubernetes.io/instance",
+	//		selection.In,
+	//		[]string{
+	//			names.ServiceReleaseName(service.Meta.Name),
+	//			names.ServiceHelmChartName(service.Meta.Name, service.Meta.Namespace),
+	//		},
+	//	)
+	//	secretSelector.Add(*multiLabel)
+	//
+	// This experiment failed. The operator does not seem be applied. The selection result looks
+	// to be the list of all secrets in the namespace, not just secrets refering to a service
+	// instance. This completely breaks labeling of secrets as configurations for a service.
+
 	secretSelector := labels.Set(map[string]string{
 		"app.kubernetes.io/instance": names.ServiceReleaseName(service.Meta.Name),
 		// The difference to `ForService` is here. Not looking for the labels attached to
