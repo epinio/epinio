@@ -308,7 +308,7 @@ func ForServiceUnlabeled(ctx context.Context, kubeClient *kubernetes.Cluster, se
 	//	secretSelector.Add(*multiLabel)
 	//
 	// This experiment failed. The operator does not seem be applied. The selection result looks
-	// to be the list of all secrets in the namespace, not just secrets refering to a service
+	// to be the list of all secrets in the namespace, not just secrets referring to a service
 	// instance. This completely breaks labeling of secrets as configurations for a service.
 
 	secretSelector := labels.Set(map[string]string{
