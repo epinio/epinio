@@ -88,9 +88,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 		})
 
 		AfterEach(func() {
-			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
-			Expect(err).ToNot(HaveOccurred(), out)
-
+			catalog.DeleteService(serviceName, namespace)
 			catalog.DeleteCatalogService(catalogService.Meta.Name)
 		})
 
@@ -122,7 +120,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 
 			app = catalog.NewAppName()
 			serviceName = catalog.NewServiceName()
-			chartName = names.ServiceHelmChartName(serviceName, namespace)
+			chartName = names.ServiceReleaseName(serviceName)
 
 			env.MakeContainerImageApp(app, 1, containerImageURL)
 			catalog.CreateService(serviceName, namespace, catalogService)
@@ -130,9 +128,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 
 		AfterEach(func() {
 			env.DeleteApp(app)
-			out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
-			Expect(err).ToNot(HaveOccurred(), out)
-
+			catalog.DeleteService(serviceName, namespace)
 			catalog.DeleteCatalogService(catalogService.Meta.Name)
 		})
 
@@ -170,7 +166,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			catalogService.Values = ""
 
 			serviceName = catalog.NewServiceName()
-			chartName = names.ServiceHelmChartName(serviceName, namespace)
+			chartName = names.ServiceReleaseName(serviceName)
 		})
 
 		AfterEach(func() {
@@ -185,9 +181,7 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
-				Expect(err).ToNot(HaveOccurred(), out)
-
+				catalog.DeleteService(serviceName, namespace)
 				catalog.DeleteCatalogService(catalogService.Meta.Name)
 			})
 
@@ -232,12 +226,10 @@ var _ = Describe("ServiceBind Endpoint", func() {
 			})
 
 			AfterEach(func() {
-				out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", chartName)
-				Expect(err).ToNot(HaveOccurred(), out)
-
+				catalog.DeleteService(serviceName, namespace)
 				catalog.DeleteCatalogService(catalogService.Meta.Name)
 
-				out, err = proc.Kubectl("delete", "secret", "-n", namespace, basicAuthSecretName)
+				out, err := proc.Kubectl("delete", "secret", "-n", namespace, basicAuthSecretName)
 				Expect(err).ToNot(HaveOccurred(), out)
 
 				out, err = proc.Kubectl("delete", "secret", "-n", namespace, customSecretName)

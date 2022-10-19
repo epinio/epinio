@@ -28,6 +28,16 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+type ServiceParameters struct {
+	models.AppRef                     // Service: name & namespace
+	Context       context.Context     // Operation context
+	Cluster       *kubernetes.Cluster // Cluster to talk to.
+	Chart         string              // Name of helm chart to deploy
+	Version       string              // Version of helm chart to deploy
+	Repository    string              // Helm repository holding the chart to deploy
+	Values        string              // Chart customization (YAML-formatted string)
+}
+
 type ChartParameters struct {
 	models.AppRef                        // Application: name & namespace
 	Context        context.Context       // Operation context
@@ -73,6 +83,60 @@ func Remove(cluster *kubernetes.Cluster, logger logr.Logger, app models.AppRef) 
 	}
 
 	return client.UninstallReleaseByName(names.ReleaseName(app.Name))
+}
+
+func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) error {
+	client, err := GetHelmClient(cluster.RestConfig, logger, app.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "create a helm client")
+	}
+
+	// err == nil => passed through unchanged
+	return errors.Wrap(client.UninstallReleaseByName(names.ServiceReleaseName(app.Name)), "cleaning up release")
+}
+
+func DeployService(logger logr.Logger, parameters ServiceParameters) error {
+	logger.Info("service helm setup", "parameters", parameters)
+
+	client, err := GetHelmClient(parameters.Cluster.RestConfig, logger, parameters.Namespace)
+	if err != nil {
+		return errors.Wrap(err, "create a helm client")
+	}
+
+	helmChart := parameters.Chart
+	helmVersion := parameters.Version
+	releaseName := names.ServiceReleaseName(parameters.Name)
+
+	if parameters.Repository != "" {
+		name := names.GenerateResourceName("hr-" + base64.StdEncoding.EncodeToString([]byte(parameters.Repository)))
+		if err := client.AddOrUpdateChartRepo(repo.Entry{
+			Name: name,
+			URL:  parameters.Repository,
+		}); err != nil {
+			return errors.Wrap(err, "creating the chart repository")
+		}
+
+		helmChart = fmt.Sprintf("%s/%s", name, helmChart)
+	}
+	err = cleanupReleaseIfNeeded(logger, client, releaseName)
+	if err != nil {
+		return errors.Wrap(err, "cleaning up release")
+	}
+
+	chartSpec := hc.ChartSpec{
+		ReleaseName: releaseName,
+		ChartName:   helmChart,
+		Version:     helmVersion,
+		Namespace:   parameters.Namespace,
+		Atomic:      true,
+		ValuesYaml:  string(parameters.Values),
+		Timeout:     duration.ToDeployment(),
+		ReuseValues: true,
+	}
+
+	_, err = client.InstallOrUpgradeChart(parameters.Context, &chartSpec, nil)
+
+	return err
 }
 
 func Deploy(logger logr.Logger, parameters ChartParameters) error {

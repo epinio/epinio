@@ -34,9 +34,11 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 		epinioHelper = epinio.NewEpinioHelper(testenv.EpinioBinaryPath())
 
 		domain = os.Getenv("EPINIO_SYSTEM_DOMAIN")
+		By("Domain: " + domain)
 		Expect(domain).ToNot(BeEmpty())
 
 		zoneID = os.Getenv("AWS_ZONE_ID")
+		By("Zone:   " + zoneID)
 		Expect(zoneID).ToNot(BeEmpty())
 
 		flags = []string{
@@ -55,7 +57,7 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 		Expect(err).NotTo(HaveOccurred(), out)
 	})
 
-	It("Installs with loadbalancer IP, custom domain and pushes an app", func() {
+	It("Installs with loadbalancer IP, custom domain, and pushes an app", func() {
 		By("Checking LoadBalancer IP", func() {
 			// Ensure that Traefik LB is not in Pending state anymore, could take time
 			Eventually(func() string {
@@ -132,7 +134,7 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 			out, err := epinioHelper.Run("push",
 				"--name", appName,
 				"--path", testenv.AssetPath("sample-app"))
-			Expect(err).ToNot(HaveOccurred(), out)
+			Expect(err).NotTo(HaveOccurred(), out)
 
 			// Verify cluster_issuer is used
 			out, err = proc.RunW("kubectl", "get", "certificate",
@@ -146,8 +148,18 @@ var _ = Describe("<Scenario1> GKE, epinio-ca", func() {
 		By("Delete an app", func() {
 			out, err := epinioHelper.Run("apps", "delete", appName)
 			Expect(err).NotTo(HaveOccurred(), out)
-			Expect(out).To(Or(ContainSubstring("Applications Removed")))
+
+			// We check for both bulk deletion response and old response. Because with
+			// upgrade testing the pre-upgrade binary may be without bulk deletion
+			// support.
+			Expect(out).To(Or(
+				ContainSubstring("Applications Removed"),
+				ContainSubstring("Application deleted")))
 		})
+
+		if os.Getenv("EPINIO_UPGRADED") == "true" {
+			UpgradeSequence(epinioHelper, domain)
+		}
 
 		By("Cleaning DNS Entries", func() {
 			change := route53.A(domain, loadbalancer, "DELETE")

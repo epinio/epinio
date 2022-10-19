@@ -7,8 +7,9 @@ import (
 )
 
 type ServiceClient struct {
-	kubeClient           *kubernetes.Cluster
-	serviceKubeClient    dynamic.NamespaceableResourceInterface
+	kubeClient        *kubernetes.Cluster
+	serviceKubeClient dynamic.NamespaceableResourceInterface
+	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
 	helmChartsKubeClient dynamic.NamespaceableResourceInterface
 }
 
@@ -23,6 +24,7 @@ func NewKubernetesServiceClient(kubeClient *kubernetes.Cluster) (*ServiceClient,
 		Version:  "v1",
 		Resource: "services",
 	}
+	// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
 	helmChartsGroupVersion := schema.GroupVersionResource{
 		Group:    "helm.cattle.io",
 		Version:  "v1",
@@ -30,8 +32,9 @@ func NewKubernetesServiceClient(kubeClient *kubernetes.Cluster) (*ServiceClient,
 	}
 
 	return &ServiceClient{
-		kubeClient:           kubeClient,
-		serviceKubeClient:    dynamicKubeClient.Resource(serviceGroupVersion),
+		kubeClient:        kubeClient,
+		serviceKubeClient: dynamicKubeClient.Resource(serviceGroupVersion),
+		// COMPATIBILITY SUPPORT for services from before https://github.com/epinio/epinio/issues/1704 fix
 		helmChartsKubeClient: dynamicKubeClient.Resource(helmChartsGroupVersion),
 	}, nil
 }

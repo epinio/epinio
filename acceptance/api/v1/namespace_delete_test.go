@@ -60,9 +60,7 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 	})
 
 	AfterEach(func() {
-		out, err := proc.Kubectl("delete", "helmchart", "-n", "epinio", names.ServiceHelmChartName(otherService, otherNamespace))
-		Expect(err).ToNot(HaveOccurred(), out)
-
+		catalog.DeleteService(otherService, otherNamespace)
 		catalog.DeleteCatalogService(catalogService.Meta.Name)
 		env.DeleteNamespace(otherNamespace)
 	})
@@ -79,16 +77,16 @@ var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
 		Expect(string(bodyBytes)).To(Equal(jsOK))
 
 		env.VerifyNamespaceNotExist(namespace)
-		out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(serviceName, namespace))
+		out, err := proc.Kubectl("get", "secret", "-n", namespace, names.GenerateResourceName("s", serviceName))
 		Expect(err).To(HaveOccurred(), out)
-		Expect(out).To(MatchRegexp("helmcharts.helm.cattle.io.*not found"))
+		Expect(out).To(MatchRegexp("not found"))
 
 		// Doesn't delete service from other namespace
 		Consistently(func() string {
-			out, err := proc.Kubectl("get", "helmchart", "-n", "epinio", names.ServiceHelmChartName(otherService, otherNamespace))
+			out, err := proc.Kubectl("get", "secret", "-n", otherNamespace, names.GenerateResourceName("s", otherService))
 			Expect(err).ToNot(HaveOccurred(), out)
 			return out
-		}, "1m", "5s").Should(MatchRegexp(names.ServiceHelmChartName(otherService, otherNamespace))) // Expect not deleted
+		}, "1m", "5s").Should(MatchRegexp(names.GenerateResourceName("s", otherService))) // Expect not deleted
 
 	})
 })

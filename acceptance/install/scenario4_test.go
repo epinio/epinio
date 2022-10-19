@@ -164,7 +164,7 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			out, err := epinioHelper.Run("service", "bind", serviceName, appName)
 			Expect(err).ToNot(HaveOccurred(), out)
 
-			chart := names.ServiceHelmChartName(serviceName, testenv.DefaultWorkspace)
+			chart := names.ServiceReleaseName(serviceName)
 
 			Eventually(func() string {
 				out, err := epinioHelper.Run("app", "show", appName)

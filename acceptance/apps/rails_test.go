@@ -116,9 +116,13 @@ var _ = Describe("RubyOnRails", func() {
 		out, err = env.Epinio("", "service", "bind", serviceName, rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
+		// See the configuration
+		out, err = env.Epinio("", "configurations", "list")
+		Expect(err).ToNot(HaveOccurred(), out)
+
 		// Update the configuration
 		configurationName = fmt.Sprintf("%s-postgresql",
-			names.ServiceHelmChartName(serviceName, rails.Namespace))
+			names.ServiceReleaseName(serviceName))
 		newHost = fmt.Sprintf("%s.%s.svc.cluster.local", configurationName, rails.Namespace)
 
 		out, err = env.Epinio("", "configurations", "update", configurationName,
