@@ -329,11 +329,15 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 		WithStringValue("Namespace", c.Settings.Namespace).
 		WithStringValue("Application", appName)
 
-	if len(appConfig.Routes) > 0 {
-		msg = msg.WithStringValue("Routes", "")
-		sort.Strings(appConfig.Routes)
-		for i, d := range appConfig.Routes {
-			msg = msg.WithStringValue(strconv.Itoa(i+1), d)
+	if appConfig.Routes != nil {
+		if len(appConfig.Routes) == 0 {
+			msg = msg.WithStringValue("Routes", "<clearing all>")
+		} else {
+			msg = msg.WithStringValue("Routes", "")
+			sort.Strings(appConfig.Routes)
+			for i, d := range appConfig.Routes {
+				msg = msg.WithStringValue(strconv.Itoa(i+1), d)
+			}
 		}
 	}
 

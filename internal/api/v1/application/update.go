@@ -64,7 +64,7 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		len(updateRequest.Environment) == 0 &&
 		len(updateRequest.Settings) == 0 &&
 		updateRequest.Configurations == nil &&
-		len(updateRequest.Routes) == 0 &&
+		updateRequest.Routes == nil &&
 		updateRequest.AppChart == "" {
 		response.OK(c)
 		return nil
@@ -185,9 +185,10 @@ func (hc Controller) Update(c *gin.Context) apierror.APIErrors { // nolint:gocyc
 		}
 	}
 
-	// Only update the app if routes have been set, otherwise just leave it
-	// as it is.
-	if len(updateRequest.Routes) > 0 {
+	// Only update the app if routes have been set, otherwise just leave it as it is.
+	// Note that an empty slice is setting routes, i.e. removing all!
+	// No change is signaled by a nil slice.
+	if updateRequest.Routes != nil {
 		client, err := cluster.ClientApp()
 		if err != nil {
 			return apierror.InternalError(err)
