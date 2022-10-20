@@ -127,22 +127,14 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.StatusMessage,
 				)
 			} else {
-				sort.Strings(app.Workload.Routes)
 				sort.Strings(app.Configuration.Configurations)
-
-				var routes string
-				if len(app.Workload.Routes) > 0 {
-					routes = strings.Join(app.Workload.Routes, ", ")
-				} else {
-					routes = "<<none>>"
-				}
 
 				msg = msg.WithTableRow(
 					app.Meta.Namespace,
 					app.Meta.Name,
 					app.Meta.CreatedAt.String(),
 					app.Workload.Status,
-					routes,
+					formatRoutes(app.Workload.Routes),
 					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
@@ -162,21 +154,13 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.StatusMessage,
 				)
 			} else {
-				sort.Strings(app.Workload.Routes)
 				sort.Strings(app.Configuration.Configurations)
-
-				var routes string
-				if len(app.Workload.Routes) > 0 {
-					routes = strings.Join(app.Workload.Routes, ", ")
-				} else {
-					routes = "<<none>>"
-				}
 
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Meta.CreatedAt.String(),
 					app.Workload.Status,
-					routes,
+					formatRoutes(app.Workload.Routes),
 					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
@@ -647,4 +631,13 @@ func (c *EpinioClient) AppRestage(appName string) error {
 	// blocking function that wait until the staging is done
 	_, err = c.API.StagingComplete(app.Meta.Namespace, stageID)
 	return errors.Wrap(err, "waiting for staging failed")
+}
+
+func formatRoutes(routes []string) string {
+	if len(routes) > 0 {
+		sort.Strings(routes)
+		return strings.Join(routes, ", ")
+	} else {
+		return "<<none>>"
+	}
 }
