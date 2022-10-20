@@ -87,6 +87,8 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		for i, d := range params.Configuration.Routes {
 			msg = msg.WithStringValue(strconv.Itoa(i+1), d)
 		}
+	} else {
+		msg = msg.WithStringValue("Routes", "<<none>>")
 	}
 
 	msg.Msg("About to push an application with the given setup")

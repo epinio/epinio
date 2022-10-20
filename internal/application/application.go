@@ -92,6 +92,10 @@ func Create(ctx context.Context, cluster *kubernetes.Cluster, app models.AppRef,
 	us.SetKind("App")
 	us.SetName(app.Name)
 
+	// [NO-ROUTES] Note: An empty routes slice is not stored in the app kube resource.
+	// (`omitempty`!) See `DesiredRoutes` for the converse. Treat missing field as empty
+	// slice. Same marker as here.
+
 	_, err = client.Namespace(app.Namespace).Create(ctx, us, metav1.CreateOptions{})
 	return err
 }

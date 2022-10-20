@@ -15,6 +15,7 @@ func instancesOption(cmd *cobra.Command) {
 }
 
 func routeOption(cmd *cobra.Command) {
+	cmd.Flags().BoolP("clear-routes", "z", false, "clear routes / no routes")
 	cmd.Flags().StringSliceP("route", "r", []string{}, "Custom route to use for the application (a subdomain of the default domain will be used if this is not set). Can be set multiple times to use multiple routes with the same application.")
 }
 

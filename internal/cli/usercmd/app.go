@@ -129,12 +129,20 @@ func (c *EpinioClient) Apps(all bool) error {
 			} else {
 				sort.Strings(app.Workload.Routes)
 				sort.Strings(app.Configuration.Configurations)
+
+				var routes string
+				if len(app.Workload.Routes) == 0 {
+					routes = strings.Join(app.Workload.Routes, ", ")
+				} else {
+					routes = "<<none>>"
+				}
+
 				msg = msg.WithTableRow(
 					app.Meta.Namespace,
 					app.Meta.Name,
 					app.Meta.CreatedAt.String(),
 					app.Workload.Status,
-					strings.Join(app.Workload.Routes, ", "),
+					routes,
 					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
@@ -525,12 +533,14 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 			msg = msg.WithTableRow("Status", "not deployed, staging failed")
 			msg = msg.WithTableRow("Last StageId", app.StageID)
 		}
-		msg = msg.WithTableRow("Desired Routes", "")
 
 		if len(app.Configuration.Routes) > 0 {
+			msg = msg.WithTableRow("Desired Routes", "")
 			for _, route := range app.Configuration.Routes {
 				msg = msg.WithTableRow("", route)
 			}
+		} else {
+			msg = msg.WithTableRow("Desired Routes", "<<none>>")
 		}
 	}
 

@@ -60,8 +60,12 @@ func (hc Controller) Deploy(c *gin.Context) apierror.APIErrors {
 	}
 
 	desiredRoutes, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "routes")
-	if err != nil || !found {
+	if err != nil {
 		return apierror.InternalError(err, "failed to get the application routes")
+	}
+	if !found {
+		// [NO-ROUTES] See other places bearing this marker for explanations.
+		desiredRoutes = []string{}
 	}
 
 	apierr := validateRoutes(ctx, cluster, name, namespace, desiredRoutes)

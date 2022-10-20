@@ -40,8 +40,6 @@ func init() {
 	CmdAppCreate.Flags().String("app-chart", "", "App chart to use for deployment")
 	CmdAppUpdate.Flags().String("app-chart", "", "App chart to use for deployment")
 
-	CmdAppUpdate.Flags().BoolP("clear-routes", "z", false, "clear routes")
-
 	CmdApp.AddCommand(CmdAppCreate)
 	CmdApp.AddCommand(CmdAppChart) // See chart.go for implementation
 	CmdApp.AddCommand(CmdAppEnv)   // See env.go for implementation
