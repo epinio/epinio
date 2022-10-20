@@ -79,6 +79,11 @@ spec:
 EOF
 
 echo "Waiting for dummy pod to be ready"
+sleep 60
+echo "DEBUG epinio-copier logs here:"
+kubectl logs -n epinio epinio-copier
+echo "DEBUG epinio-copier describe here:"
+kubectl describe pod -n epinio epinio-copier
 kubectl wait --for=condition=ready --timeout=$timeout pod -n epinio epinio-copier
 
 echo "Copying the binary on the PVC"
