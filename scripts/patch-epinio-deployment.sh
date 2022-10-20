@@ -81,7 +81,7 @@ EOF
 echo "Waiting for dummy pod to be ready"
 sleep 100
 echo "DEBUG check pv, pvc, sc here:"
-kubectl get pv,pvc,sc -n epinio
+kubectl get pv,pvc,sc -A
 echo "DEBUG epinio-copier logs here:"
 kubectl logs -n epinio epinio-copier
 echo "DEBUG epinio-copier describe here:"
