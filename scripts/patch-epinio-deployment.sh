@@ -38,6 +38,10 @@ if [ -z "$EPINIO_BINARY_TAG" ]; then
   exit 1
 fi
 
+echo "Installing the EBS CSI driver:"
+kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.12"
+kubectl wait --for=condition=ready --timeout=$timeout deployment.apps/ebs-csi-controller -n kube-system || true # do not fail
+
 echo "Creating the PVC"
 cat <<EOF | kubectl apply -f -
 ---
@@ -82,6 +86,10 @@ echo "Waiting for dummy pod to be ready"
 sleep 100
 echo "DEBUG check pv, pvc, sc here:"
 kubectl get pv,pvc,sc -A
+echo "DEBUG pvc:"
+kubectl describe pvc -n epinio epinio-binary
+echo "DEBUG list all pods to see provisioner is installed:"
+kubectl get pods -A
 echo "DEBUG epinio-copier logs here:"
 kubectl logs -n epinio epinio-copier
 echo "DEBUG epinio-copier describe here:"
