@@ -131,7 +131,7 @@ func (c *EpinioClient) Apps(all bool) error {
 				sort.Strings(app.Configuration.Configurations)
 
 				var routes string
-				if len(app.Workload.Routes) == 0 {
+				if len(app.Workload.Routes) > 0 {
 					routes = strings.Join(app.Workload.Routes, ", ")
 				} else {
 					routes = "<<none>>"
@@ -164,11 +164,19 @@ func (c *EpinioClient) Apps(all bool) error {
 			} else {
 				sort.Strings(app.Workload.Routes)
 				sort.Strings(app.Configuration.Configurations)
+
+				var routes string
+				if len(app.Workload.Routes) > 0 {
+					routes = strings.Join(app.Workload.Routes, ", ")
+				} else {
+					routes = "<<none>>"
+				}
+
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Meta.CreatedAt.String(),
 					app.Workload.Status,
-					strings.Join(app.Workload.Routes, ", "),
+					routes,
 					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
