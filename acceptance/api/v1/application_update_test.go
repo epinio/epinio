@@ -184,6 +184,11 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			out, err := proc.Kubectl("get", "apps", "-n", namespaceName, appName, "-o", "jsonpath={.spec.routes[*]}")
 			Expect(err).ToNot(HaveOccurred(), out)
 			appRoutes := deleteEmpty(strings.Split(strings.TrimSpace(out), " "))
+
+			if appRoutes == nil {
+				appRoutes = []string{}
+			}
+
 			Expect(appRoutes).To(Equal(routes))
 		}
 
@@ -221,7 +226,43 @@ var _ = Describe("AppUpdate Endpoint", func() {
 			checkCertificateDNSNames(app, namespace, newRoutes...)
 			checkSecretsForCerts(app, namespace, newRoutes...)
 		})
+
+		It("synchronizes the ingresses of the application with a new empty routes list", func() {
+			app := catalog.NewAppName()
+			env.MakeContainerImageApp(app, 1, containerImageURL)
+			defer env.DeleteApp(app)
+
+			defaultRoute, err := domain.AppDefaultRoute(context.Background(), app, namespace)
+			Expect(err).ToNot(HaveOccurred())
+
+			checkRoutesOnApp(app, namespace, defaultRoute)
+			checkIngresses(app, namespace, defaultRoute)
+			checkCertificateDNSNames(app, namespace, defaultRoute)
+			checkSecretsForCerts(app, namespace, defaultRoute)
+
+			appObj := appFromAPI(namespace, app)
+			Expect(appObj.Workload.Status).To(Equal("1/1"))
+
+			newRoutes := []string{}
+			data, err := json.Marshal(models.ApplicationUpdateRequest{
+				Routes: newRoutes,
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			response, err := env.Curl("PATCH",
+				fmt.Sprintf("%s%s/namespaces/%s/applications/%s",
+					serverURL, v1.Root, namespace, app),
+				strings.NewReader(string(data)))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(response.StatusCode).To(Equal(http.StatusOK))
+
+			checkRoutesOnApp(app, namespace, newRoutes...)
+			checkIngresses(app, namespace, newRoutes...)
+			checkCertificateDNSNames(app, namespace, newRoutes...)
+			checkSecretsForCerts(app, namespace, newRoutes...)
+		})
 	})
+
 	Describe("configuration bindings", func() {
 		var (
 			app                           string
