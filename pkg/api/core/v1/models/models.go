@@ -224,11 +224,12 @@ type EnvMatchResponse struct {
 
 // ConfigurationShowResponse contains details about a configuration
 type ConfigurationShowResponse struct {
-	Username  string            `json:"user"`
-	Details   map[string]string `json:"details,omitempty"`
-	BoundApps []string          `json:"boundapps"`
-	Type      string            `json:"type,omitempty"`
-	Origin    string            `json:"origin,omitempty"`
+	Username  string            `json:"user"`               // Name of user creating it
+	Details   map[string]string `json:"details,omitempty"`  // Main information, key/value map
+	BoundApps []string          `json:"boundapps"`          // Names of the apps using it
+	Type      string            `json:"type,omitempty"`     // User or service-created configuration
+	Origin    string            `json:"origin,omitempty"`   // Name of service it came from, if any
+	Siblings  []string          `json:"siblings,omitempty"` // Name of other configs from same service, if any
 }
 
 // ConfigurationMatchResponse contains the list of names for matching configurations

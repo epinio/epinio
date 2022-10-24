@@ -1418,6 +1418,7 @@ configuration:
   tuning: speed
 epinio:
   appName: %s
+  configpaths: []
   configurations: []
   env: []
   imageURL: splatform/sample-app
@@ -1476,6 +1477,7 @@ userConfig:
 				Expect(err).ToNot(HaveOccurred(), string(values))
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
   appName: %s
+  configpaths: []
   configurations: []
   env: []
   imageURL: splatform/sample-app
@@ -1518,6 +1520,7 @@ userConfig:
 
 				Expect(string(values)).To(Equal(fmt.Sprintf(`epinio:
   appName: %s
+  configpaths: []
   configurations: []
   env:
   - name: complex

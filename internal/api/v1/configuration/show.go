@@ -5,6 +5,7 @@ import (
 	"github.com/epinio/epinio/internal/api/v1/response"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/configurations"
+	"github.com/epinio/epinio/internal/services"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -42,6 +43,31 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// For service-based configuration, fetch and record siblings. Itself excluded, of course.
+	siblings := []string{}
+	if configuration.Origin != "" {
+		kubeServiceClient, err := services.NewKubernetesServiceClient(cluster)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		service, err := kubeServiceClient.Get(ctx, namespace, configuration.Origin)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		serviceConfigurations, err := configurations.ForService(ctx, cluster, service)
+		if err != nil {
+			return apierror.InternalError(err)
+		}
+
+		for _, secret := range serviceConfigurations {
+			if secret.Name != configuration.Name {
+				siblings = append(siblings, secret.Name)
+			}
+		}
+	}
+
 	response.OKReturn(c, models.ConfigurationResponse{
 		Meta: models.ConfigurationRef{
 			Meta: models.Meta{
@@ -56,6 +82,7 @@ func (sc Controller) Show(c *gin.Context) apierror.APIErrors {
 			BoundApps: appNames,
 			Type:      configuration.Type,
 			Origin:    configuration.Origin,
+			Siblings:  siblings,
 		},
 	})
 	return nil

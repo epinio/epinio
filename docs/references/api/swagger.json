@@ -2212,6 +2212,13 @@
           "type": "string",
           "x-go-name": "Origin"
         },
+        "siblings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Siblings"
+        },
         "type": {
           "type": "string",
           "x-go-name": "Type"

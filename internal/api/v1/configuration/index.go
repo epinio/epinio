@@ -2,6 +2,7 @@ package configuration
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -47,6 +48,19 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 
 	response := models.ConfigurationResponseList{}
 
+	// All the possible siblings of a configuration are present in the configuration list.
+	//
+	// Simply iterate and sort them into buckets by service origin. Note that the namespace has
+	// to be part of the key. Non-service configurations are ignored.
+
+	siblingMap := map[string][]string{}
+	for _, configuration := range configurations {
+		if configuration.Origin != "" {
+			key := fmt.Sprintf("n%s/o%s", configuration.Namespace(), configuration.Origin)
+			siblingMap[key] = append(siblingMap[key], configuration.Name)
+		}
+	}
+
 	for _, configuration := range configurations {
 		configurationDetails, err := configuration.Details(ctx)
 		if err != nil {
@@ -59,6 +73,18 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 
 		key := application.ConfigurationKey(configuration.Name, configuration.Namespace())
 		appNames := appsOf[key]
+
+		// For service-based configuration, pull siblings out of the map. Itself excluded, of course.
+
+		siblings := []string{}
+		if configuration.Origin != "" {
+			key := fmt.Sprintf("n%s/o%s", configuration.Namespace(), configuration.Origin)
+			for _, maybeSibling := range siblingMap[key] {
+				if maybeSibling != configuration.Name {
+					siblings = append(siblings, maybeSibling)
+				}
+			}
+		}
 
 		response = append(response, models.ConfigurationResponse{
 			Meta: models.ConfigurationRef{
@@ -74,6 +100,7 @@ func makeResponse(ctx context.Context, appsOf map[string][]string, configuration
 				BoundApps: appNames,
 				Type:      configuration.Type,
 				Origin:    configuration.Origin,
+				Siblings:  siblings,
 			},
 		})
 	}
