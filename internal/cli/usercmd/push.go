@@ -259,17 +259,16 @@ func (c *EpinioClient) stageLogs(appRef models.AppRef, stageID string) {
 
 func routeMessage(msg *termui.Message, routes []string) *termui.Message {
 	if routes == nil {
-		if len(routes) > 0 {
-			msg = msg.WithStringValue("Routes", "")
-			sort.Strings(routes)
-			for i, d := range routes {
-				msg = msg.WithStringValue(strconv.Itoa(i+1), d)
-			}
-		} else {
-			msg = msg.WithStringValue("Routes", "<<none>>")
-		}
-	} else {
-		msg = msg.WithStringValue("Routes", "<<default>>")
+		return msg.WithStringValue("Routes", "<<default>>")
+	}
+	if len(routes) == 0 {
+		return msg.WithStringValue("Routes", "<<none>>")
+	}
+
+	msg = msg.WithStringValue("Routes", "")
+	sort.Strings(routes)
+	for i, d := range routes {
+		msg = msg.WithStringValue(strconv.Itoa(i+1), d)
 	}
 
 	return msg
