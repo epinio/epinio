@@ -38,9 +38,15 @@ if [ -z "$EPINIO_BINARY_TAG" ]; then
   exit 1
 fi
 
-echo "Installing the EBS CSI driver:"
-kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.12"
-kubectl wait --for=condition=ready --timeout=$timeout deployment.apps/ebs-csi-controller -n kube-system || true # do not fail
+#echo "Installing the EBS CSI driver:"
+#kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.12"
+#kubectl wait --for=condition=ready --timeout=$timeout deployment.apps/ebs-csi-controller -n kube-system || true # do not fail
+echo "Installing the EBS CSI driver from helm chart:"
+helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+helm repo update
+helm upgrade --install aws-ebs-csi-driver --namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver --wait
+sleep 120
+
 
 echo "Creating the PVC"
 cat <<EOF | kubectl apply -f -
