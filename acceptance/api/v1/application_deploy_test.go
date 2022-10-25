@@ -26,7 +26,7 @@ var _ = Describe("AppDeploy Endpoint", func() {
 		appName = catalog.NewAppName()
 
 		By("creating application resource first")
-		_, err := createApplication(appName, namespace, []string{})
+		_, err := createApplication(appName, namespace, nil)
 		Expect(err).ToNot(HaveOccurred())
 	})
 

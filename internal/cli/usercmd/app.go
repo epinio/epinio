@@ -127,14 +127,14 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.StatusMessage,
 				)
 			} else {
-				sort.Strings(app.Workload.Routes)
 				sort.Strings(app.Configuration.Configurations)
+
 				msg = msg.WithTableRow(
 					app.Meta.Namespace,
 					app.Meta.Name,
 					app.Meta.CreatedAt.String(),
 					app.Workload.Status,
-					strings.Join(app.Workload.Routes, ", "),
+					formatRoutes(app.Workload.Routes),
 					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
@@ -154,13 +154,13 @@ func (c *EpinioClient) Apps(all bool) error {
 					app.StatusMessage,
 				)
 			} else {
-				sort.Strings(app.Workload.Routes)
 				sort.Strings(app.Configuration.Configurations)
+
 				msg = msg.WithTableRow(
 					app.Meta.Name,
 					app.Meta.CreatedAt.String(),
 					app.Workload.Status,
-					strings.Join(app.Workload.Routes, ", "),
+					formatRoutes(app.Workload.Routes),
 					strings.Join(app.Configuration.Configurations, ", "),
 					app.StatusMessage,
 				)
@@ -329,11 +329,15 @@ func (c *EpinioClient) AppUpdate(appName string, appConfig models.ApplicationUpd
 		WithStringValue("Namespace", c.Settings.Namespace).
 		WithStringValue("Application", appName)
 
-	if len(appConfig.Routes) > 0 {
-		msg = msg.WithStringValue("Routes", "")
-		sort.Strings(appConfig.Routes)
-		for i, d := range appConfig.Routes {
-			msg = msg.WithStringValue(strconv.Itoa(i+1), d)
+	if appConfig.Routes != nil {
+		if len(appConfig.Routes) == 0 {
+			msg = msg.WithStringValue("Routes", "<clearing all>")
+		} else {
+			msg = msg.WithStringValue("Routes", "")
+			sort.Strings(appConfig.Routes)
+			for i, d := range appConfig.Routes {
+				msg = msg.WithStringValue(strconv.Itoa(i+1), d)
+			}
 		}
 	}
 
@@ -521,12 +525,14 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 			msg = msg.WithTableRow("Status", "not deployed, staging failed")
 			msg = msg.WithTableRow("Last StageId", app.StageID)
 		}
-		msg = msg.WithTableRow("Desired Routes", "")
 
 		if len(app.Configuration.Routes) > 0 {
+			msg = msg.WithTableRow("Desired Routes", "")
 			for _, route := range app.Configuration.Routes {
 				msg = msg.WithTableRow("", route)
 			}
+		} else {
+			msg = msg.WithTableRow("Desired Routes", "<<none>>")
 		}
 	}
 
@@ -625,4 +631,13 @@ func (c *EpinioClient) AppRestage(appName string) error {
 	// blocking function that wait until the staging is done
 	_, err = c.API.StagingComplete(app.Meta.Namespace, stageID)
 	return errors.Wrap(err, "waiting for staging failed")
+}
+
+func formatRoutes(routes []string) string {
+	if len(routes) > 0 {
+		sort.Strings(routes)
+		return strings.Join(routes, ", ")
+	} else {
+		return "<<none>>"
+	}
 }

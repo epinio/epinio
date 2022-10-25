@@ -6,6 +6,7 @@ import (
 	"path"
 	"strconv"
 
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
@@ -18,6 +19,8 @@ func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bo
 }
 
 func (m *Machine) MakeContainerImageApp(appName string, instances int, containerImageURL string) string {
+	By("making a container app:" + appName)
+
 	pushOutput, err := m.Epinio("", "apps", "push",
 		"--name", appName,
 		"--container-image-url", containerImageURL,

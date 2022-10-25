@@ -29,6 +29,15 @@ func UpdateRoutes(manifest models.ApplicationManifest, cmd *cobra.Command) (mode
 		manifest.Configuration.Routes = routes
 	}
 
+	clearRoutes, err := cmd.Flags().GetBool("clear-routes")
+	if err != nil {
+		return manifest, errors.Wrap(err, "could not read option --clear-routes")
+	}
+	if clearRoutes {
+		// Note: This is not the nil slice.
+		manifest.Configuration.Routes = []string{}
+	}
+
 	return manifest, nil
 }
 

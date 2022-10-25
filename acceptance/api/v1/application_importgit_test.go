@@ -18,18 +18,12 @@ import (
 
 var _ = Describe("AppImportGit Endpoint", func() {
 	var (
-		appName   string
 		namespace string
 	)
 
 	BeforeEach(func() {
 		namespace = catalog.NewNamespaceName()
 		env.SetupAndTargetNamespace(namespace)
-		appName = catalog.NewAppName()
-
-		By("creating application resource first")
-		_, err := createApplication(appName, namespace, []string{})
-		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {

@@ -307,6 +307,33 @@ configuration:
 				)
 			})
 
+			It("respects route changes", func() {
+				route := "mycustomdomain.org/api"
+
+				out, err := env.Epinio("", "app", "update", appName, "-r", route)
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "show", appName)
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(HaveATable(WithRow(".*", route)))
+			})
+
+			It("respects complete route removal", func() {
+				out, err := env.Epinio("", "app", "update", appName, "--clear-routes")
+				Expect(err).ToNot(HaveOccurred(), out)
+
+				Eventually(func() string {
+					out, err := env.Epinio("", "app", "list")
+					ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+					return out
+				}, "1m").Should(HaveATable(
+					WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+					WithRow(appName, WithDate(), "1/1", "<<none>>", "", ""),
+				))
+			})
+
 			Context("app charts", func() {
 				var chartName string
 				var tempFile string
@@ -467,6 +494,39 @@ configuration:
 				"-o", `jsonpath={.items[*].spec.template.metadata.labels.app\.kubernetes\.io/name}`)
 			Expect(err).NotTo(HaveOccurred(), out)
 			Expect(out).To(Equal(appName))
+		})
+	})
+
+	When("pushing with --clear-routes flag (= no routes)", func() {
+		AfterEach(func() {
+			env.DeleteApp(appName)
+		})
+
+		It("creates no ingresses", func() {
+			pushOutput, err := env.Epinio("", "apps", "push",
+				"--name", appName,
+				"--container-image-url", containerImageURL,
+				"--clear-routes",
+			)
+			Expect(err).ToNot(HaveOccurred(), pushOutput)
+
+			Eventually(func() string {
+				out, err := env.Epinio("", "app", "list")
+				ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
+				return out
+			}, "1m").Should(HaveATable(
+				WithHeaders("NAME", "CREATED", "STATUS", "ROUTES", "CONFIGURATIONS", "STATUS DETAILS"),
+				WithRow(appName, WithDate(), "1/1", "<<none>>", "", ""),
+			))
+
+			Consistently(func() string {
+				out, err := proc.Kubectl("get", "ingress",
+					"--namespace", namespace,
+					"--selector=app.kubernetes.io/name="+appName,
+				)
+				Expect(err).NotTo(HaveOccurred(), out)
+				return out
+			}, 1*time.Minute, 5*time.Second).Should(ContainSubstring("No resources found"))
 		})
 	})
 

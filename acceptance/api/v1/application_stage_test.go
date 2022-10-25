@@ -33,7 +33,7 @@ var _ = Describe("AppStage Endpoint", func() {
 		appName = catalog.NewAppName()
 
 		By("creating application resource first")
-		_, err := createApplication(appName, namespace, []string{})
+		_, err := createApplication(appName, namespace, nil)
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -49,7 +49,7 @@ var _ = Describe("AppStage Endpoint", func() {
 			appName2 = catalog.NewAppName()
 
 			By("creating the other application resource first")
-			_, err := createApplication(appName2, namespace, []string{})
+			_, err := createApplication(appName2, namespace, nil)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("uploading the code of the other")

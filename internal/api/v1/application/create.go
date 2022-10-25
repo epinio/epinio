@@ -76,7 +76,8 @@ func (hc Controller) Create(c *gin.Context) apierror.APIErrors {
 	}
 
 	var routes []string
-	if len(createRequest.Configuration.Routes) > 0 {
+	if createRequest.Configuration.Routes != nil {
+		// Note: Routes can be empty here!
 		routes = createRequest.Configuration.Routes
 	} else {
 		route, err := domain.AppDefaultRoute(ctx, createRequest.Name, namespace)

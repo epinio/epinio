@@ -7,7 +7,6 @@ import (
 	"github.com/epinio/epinio/internal/routes"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/pkg/errors"
 	networkingv1 "k8s.io/api/networking/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,9 +27,10 @@ func DesiredRoutes(ctx context.Context, cluster *kubernetes.Cluster, appRef mode
 	}
 
 	desiredRoutes, found, err := unstructured.NestedStringSlice(applicationCR.Object, "spec", "routes")
-
 	if !found {
-		return []string{}, errors.New("couldn't parse the Application for Routes")
+		// [NO-ROUTES] Not an error. Signal that there are no desired routes.  See `Create`
+		// for the converse. An empty slice becomes an omitted field. Same marker as here.
+		return []string{}, nil
 	}
 	if err != nil {
 		return []string{}, err

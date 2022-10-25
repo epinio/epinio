@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/epinio/epinio/helpers"
+	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 )
@@ -81,13 +82,8 @@ func (c *EpinioClient) Push(ctx context.Context, params PushParams) error { // n
 		msg = msg.WithStringValue("Configurations",
 			strings.Join(params.Configuration.Configurations, ", "))
 	}
-	if len(params.Configuration.Routes) > 0 {
-		msg = msg.WithStringValue("Routes", "")
-		sort.Strings(params.Configuration.Routes)
-		for i, d := range params.Configuration.Routes {
-			msg = msg.WithStringValue(strconv.Itoa(i+1), d)
-		}
-	}
+
+	msg = routeMessage(msg, params.Configuration.Routes)
 
 	msg.Msg("About to push an application with the given setup")
 
@@ -259,6 +255,23 @@ func (c *EpinioClient) stageLogs(appRef models.AppRef, stageID string) {
 			c.ui.Problem().Msg(fmt.Sprintf("failed to tail logs: %s", err.Error()))
 		}
 	}()
+}
+
+func routeMessage(msg *termui.Message, routes []string) *termui.Message {
+	if routes == nil {
+		return msg.WithStringValue("Routes", "<<default>>")
+	}
+	if len(routes) == 0 {
+		return msg.WithStringValue("Routes", "<<none>>")
+	}
+
+	msg = msg.WithStringValue("Routes", "")
+	sort.Strings(routes)
+	for i, d := range routes {
+		msg = msg.WithStringValue(strconv.Itoa(i+1), d)
+	}
+
+	return msg
 }
 
 func (c *EpinioClient) reportOK(appRef models.AppRef, builder string, routes []string) {
