@@ -631,8 +631,6 @@ configuration:
 					return err
 				}
 
-				By("ZZZ JSON: ((" + statusJSON + "))")
-
 				var status map[string]string
 				err = json.Unmarshal([]byte(statusJSON), &status)
 				if err != nil {
