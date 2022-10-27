@@ -131,8 +131,11 @@ var _ = Describe("RubyOnRails", func() {
 			"--set", "username=myuser")
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		// Change Rails database configuration to match the configuration name
-		out, err = proc.Run(rails.Dir, false, "sed", "-i", fmt.Sprintf("s/mydb/%s/", configurationName), "config/database.yml")
+		// Change Rails database configuration to have the correct mount point in the access paths.
+		// For 1.22 this was the configuration name
+		// For 1.23+ it is the service name instead
+		out, err = proc.Run(rails.Dir, false, "sed", "-i", fmt.Sprintf("s/mydb/%s/", serviceName),
+			"config/database.yml")
 		Expect(err).ToNot(HaveOccurred(), out)
 	})
 

@@ -54,6 +54,6 @@ var _ = Describe("ChartList Endpoint", func() {
 		Expect(short).Should(ContainElements(
 			"Epinio standard deployment"))
 		Expect(chart).Should(ContainElements(
-			"https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.22/epinio-application-0.1.22.tgz"))
+			"https://github.com/epinio/helm-charts/releases/download/epinio-application-0.1.23/epinio-application-0.1.23.tgz"))
 	})
 })
