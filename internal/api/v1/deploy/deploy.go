@@ -78,6 +78,14 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 				service[config.Origin] = serial
 				path = fmt.Sprintf("%s-%d", config.Origin, serial)
 			}
+
+			// ATTENTION: we are creating a mount for the old path as well, for backward
+			// compatibility.
+
+			bound = append(bound, helm.ConfigParameter{
+				Name: configName,
+				Path: configName,
+			})
 		}
 
 		// Record for passing into the helm core

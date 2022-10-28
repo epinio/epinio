@@ -185,9 +185,18 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 	// Fill values.yaml structure
 
+	// ATTENTION: The Configurations slice may contain multiple mount points for the same
+	// configuration, for backward compatibility. We dedup this to have only one volume per
+	// config.
+
 	configurationNames := []string{}
+	have := map[string]bool{}
 	for _, c := range parameters.Configurations {
+		if _, found := have[c.Name]; found {
+			continue
+		}
 		configurationNames = append(configurationNames, c.Name)
+		have[c.Name] = true
 	}
 
 	params := chartParam{
