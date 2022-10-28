@@ -1,12 +1,15 @@
 package application
 
 import (
+	"bufio"
 	"context"
 	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/api/v1/response"
@@ -14,7 +17,9 @@ import (
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/epinio/epinio/internal/helm"
+	"github.com/epinio/epinio/internal/helmchart"
 	"github.com/epinio/epinio/internal/names"
+	"github.com/epinio/epinio/internal/registry"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
 	"github.com/gin-gonic/gin"
@@ -22,7 +27,16 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/repo"
+	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
+	"k8s.io/utils/pointer"
+)
+
+const (
+	SkopeoImage   = "quay.io/skopeo/stable"
+	SkopeoVersion = "v1.10"
 )
 
 // GetPart handles the API endpoint GET /namespaces/:namespace/applications/:app/part/:part
@@ -63,7 +77,7 @@ func (hc Controller) GetPart(c *gin.Context) apierror.APIErrors {
 	case "chart":
 		return fetchAppChart(c, ctx, logger, cluster, app.Meta)
 	case "image":
-		return fetchAppImage(c)
+		return fetchAppImage(c, ctx, logger, cluster, app.Meta)
 	case "values":
 		return fetchAppValues(c, logger, cluster, app.Meta)
 	}
@@ -111,12 +125,153 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		"origin", c.Request.URL.String(),
 		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
 	)
-	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, nil)
+	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, map[string]string{
+		"X-Content-Length": strconv.FormatInt(response.ContentLength, 10),
+	})
 	return nil
 }
 
-func fetchAppImage(c *gin.Context) apierror.APIErrors {
-	return apierror.NewBadRequestError("image part not yet supported")
+func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, cluster *kubernetes.Cluster, appRef models.AppRef) apierror.APIErrors {
+	logger.Info("fetching app image")
+
+	// Get application
+	theApp, err := application.Lookup(ctx, cluster, appRef.Namespace, appRef.Name)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
+	jobName := fmt.Sprintf("image-export-job-%s-%s-%s", appRef.Namespace, appRef.Name, theApp.StageID)
+	imageOutputFilename := fmt.Sprintf("%s-%s-%s.tar", appRef.Namespace, appRef.Name, theApp.StageID)
+
+	logger.Info("got app chart", "chart image", theApp.ImageURL)
+
+	err = runDownloadImageJob(ctx, cluster, jobName, theApp.ImageURL, imageOutputFilename)
+	if err != nil {
+		return apierror.NewInternalError("failed to create job", "error", err.Error())
+	}
+
+	file, err := getFileImageAndJobCleanup(ctx, cluster, jobName, imageOutputFilename)
+	if err != nil {
+		return apierror.NewInternalError("failed waiting for job done", "error", err.Error())
+	}
+
+	defer func() {
+		err := os.Remove("/image-export/" + imageOutputFilename)
+		if err != nil {
+			logger.Info("error cleaning up image file", "filename", imageOutputFilename, "error", err.Error())
+		}
+	}()
+
+	fileInfo, err := file.Stat()
+	if err != nil {
+		return apierror.NewInternalError("failed to get file info", "error", err.Error())
+	}
+
+	c.DataFromReader(http.StatusOK, fileInfo.Size(), "application/x-tar", bufio.NewReader(file), map[string]string{
+		"X-Content-Length": strconv.FormatInt(fileInfo.Size(), 10),
+	})
+
+	return nil
+}
+
+func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobName, imageURL, imageOutputFilename string) error {
+	labels := map[string]string{
+		"app.kubernetes.io/name":       jobName,
+		"app.kubernetes.io/part-of":    helmchart.Namespace(),
+		"app.kubernetes.io/managed-by": "epinio",
+		"app.kubernetes.io/component":  "staging",
+	}
+
+	job := &batchv1.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        jobName,
+			Labels:      labels,
+			Annotations: map[string]string{},
+		},
+		Spec: batchv1.JobSpec{
+			BackoffLimit: pointer.Int32(0),
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels:      labels,
+					Annotations: map[string]string{},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:    "skopeo",
+							Image:   fmt.Sprintf("%s:%s", SkopeoImage, SkopeoVersion),
+							Command: []string{"skopeo"},
+							Args: []string{
+								"copy",
+								"--src-authfile=/root/containers/auth.json",
+								"docker://" + imageURL,
+								"docker-archive:/tmp/" + imageOutputFilename,
+							},
+							VolumeMounts: []corev1.VolumeMount{{
+								Name:      "image-export-volume",
+								MountPath: "/tmp/",
+							}, {
+								Name:      "registry-cert-volume",
+								MountPath: "/etc/ssl/certs/",
+							}, {
+								Name:      "registry-creds-volume",
+								MountPath: "/root/containers/",
+							}},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+					Volumes: []corev1.Volume{{
+						Name: "image-export-volume",
+						VolumeSource: corev1.VolumeSource{
+							PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+								ClaimName: "image-export-pvc",
+							},
+						},
+					}, {
+						Name: "registry-cert-volume",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: "epinio-registry-tls",
+							},
+						},
+					}, {
+						Name: "registry-creds-volume",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: registry.CredentialsSecretName,
+								Items: []corev1.KeyToPath{
+									{
+										Key:  ".dockerconfigjson",
+										Path: "auth.json",
+									},
+								},
+							},
+						},
+					}},
+				},
+			},
+		},
+	}
+
+	return cluster.CreateJob(ctx, helmchart.Namespace(), job)
+}
+
+func getFileImageAndJobCleanup(ctx context.Context, cluster *kubernetes.Cluster, jobName, imageOutputFilename string) (*os.File, error) {
+	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Second*30)
+	if err != nil {
+		return nil, errors.Wrapf(err, "error waiting for job done %s", jobName)
+	}
+
+	// check for file existence
+	file, err := os.Open("/image-export/" + imageOutputFilename)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open tar file")
+	}
+
+	err = cluster.DeleteJob(ctx, helmchart.Namespace(), jobName)
+
+	return file, errors.Wrapf(err, "error deleting job %s", jobName)
+
 }
 
 func fetchAppValues(c *gin.Context, logger logr.Logger, cluster *kubernetes.Cluster, app models.AppRef) apierror.APIErrors {

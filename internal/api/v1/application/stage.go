@@ -479,7 +479,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			Name: "registry-creds",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName:  "registry-creds",
+					SecretName:  registry.CredentialsSecretName,
 					DefaultMode: pointer.Int32(420),
 					Items: []corev1.KeyToPath{
 						{

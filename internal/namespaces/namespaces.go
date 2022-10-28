@@ -8,6 +8,7 @@ import (
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/duration"
+	"github.com/epinio/epinio/internal/registry"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -135,7 +136,7 @@ func createServiceAccount(ctx context.Context, kubeClient *kubernetes.Cluster, t
 				Name: targetNamespace,
 			},
 			ImagePullSecrets: []corev1.LocalObjectReference{
-				{Name: "registry-creds"},
+				{Name: registry.CredentialsSecretName},
 			},
 			AutomountServiceAccountToken: &automountServiceAccountToken,
 		}, metav1.CreateOptions{})

@@ -227,12 +227,19 @@ func (c *EpinioClient) AppExport(appName string, directory string) error {
 		return errors.Wrapf(err, "failed to create export directory '%s'", directory)
 	}
 
+	fmt.Println()
+
 	err = c.API.AppGetPart(c.Settings.Namespace, appName, "values", filepath.Join(directory, "values.yaml"))
 	if err != nil {
 		return err
 	}
 
 	err = c.API.AppGetPart(c.Settings.Namespace, appName, "chart", filepath.Join(directory, "app-chart.tar.gz"))
+	if err != nil {
+		return err
+	}
+
+	err = c.API.AppGetPart(c.Settings.Namespace, appName, "image", filepath.Join(directory, "app-image.tar"))
 	if err != nil {
 		return err
 	}
