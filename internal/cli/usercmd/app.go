@@ -558,6 +558,10 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 
 	msg.Msg("Details:")
 
+	if len(app.Configuration.Configurations) > 0 {
+		c.ui.Exclamation().Msg("Attention: Migrate bound configurations derived from services to new access paths")
+	}
+
 	return nil
 }
 

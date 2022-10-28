@@ -57,24 +57,38 @@ func (c *EpinioClient) Configurations(all bool) error {
 		msg = msg.WithTable("Namespace", "Name", "Created", "Type", "Origin", "Applications")
 
 		for _, configuration := range configurations {
+			apps := strings.Join(configuration.Configuration.BoundApps, ", ")
+
+			if configuration.Configuration.Origin != "" &&
+				len(configuration.Configuration.BoundApps) > 0 {
+				apps = fmt.Sprintf("%s (migrate to new mounts)", apps)
+			}
+
 			msg = msg.WithTableRow(
 				configuration.Meta.Namespace,
 				configuration.Meta.Name,
 				configuration.Meta.CreatedAt.String(),
 				configuration.Configuration.Type,
 				configuration.Configuration.Origin,
-				strings.Join(configuration.Configuration.BoundApps, ", "))
+				apps)
 		}
 	} else {
 		msg = msg.WithTable("Name", "Created", "Type", "Origin", "Applications")
 
 		for _, configuration := range configurations {
+			apps := strings.Join(configuration.Configuration.BoundApps, ", ")
+
+			if configuration.Configuration.Origin != "" &&
+				len(configuration.Configuration.BoundApps) > 0 {
+				apps = fmt.Sprintf("%s (migrate to new access paths)", apps)
+			}
+
 			msg = msg.WithTableRow(
 				configuration.Meta.Name,
 				configuration.Meta.CreatedAt.String(),
 				configuration.Configuration.Type,
 				configuration.Configuration.Origin,
-				strings.Join(configuration.Configuration.BoundApps, ", "))
+				apps)
 		}
 	}
 
@@ -390,6 +404,10 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		WithStringValue("Used-By", strings.Join(boundApps, ", ")).
 		WithStringValue("Siblings", strings.Join(siblings, ", ")).
 		Msg("")
+
+	if resp.Configuration.Origin != "" && len(boundApps) > 0 {
+		c.ui.Exclamation().Msg("Attention: Migrate bound apps to new access paths")
+	}
 
 	msg := c.ui.Success()
 
