@@ -2535,6 +2535,10 @@
           "type": "string",
           "x-go-name": "CatalogServiceVersion"
         },
+        "hcmanaged": {
+          "type": "boolean",
+          "x-go-name": "ManagedByHelmController"
+        },
         "meta": {
           "$ref": "#/definitions/Meta"
         },

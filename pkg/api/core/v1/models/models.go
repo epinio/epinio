@@ -328,12 +328,13 @@ type ServiceShowRequest struct {
 }
 
 type Service struct {
-	Meta                  Meta          `json:"meta,omitempty"`
-	SecretTypes           []string      `json:"secretTypes,omitempty"`
-	CatalogService        string        `json:"catalog_service,omitempty"`
-	CatalogServiceVersion string        `json:"catalog_service_version,omitempty"`
-	Status                ServiceStatus `json:"status,omitempty"`
-	BoundApps             []string      `json:"boundapps"`
+	Meta                    Meta          `json:"meta,omitempty"`
+	SecretTypes             []string      `json:"secretTypes,omitempty"`
+	CatalogService          string        `json:"catalog_service,omitempty"`
+	CatalogServiceVersion   string        `json:"catalog_service_version,omitempty"`
+	Status                  ServiceStatus `json:"status,omitempty"`
+	BoundApps               []string      `json:"boundapps"`
+	ManagedByHelmController bool          `json:"hcmanaged"`
 }
 
 func (s Service) Namespace() string {

@@ -6,8 +6,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/epinio/epinio/helpers/termui"
 	apierrors "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	"github.com/kyokomi/emoji"
 	"github.com/pkg/errors"
 )
 
@@ -111,14 +113,24 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	boundApps := service.BoundApps
 	sort.Strings(boundApps)
 
-	c.ui.Success().WithTable("Key", "Value").
+	var msg *termui.Message
+	var m string
+	if service.ManagedByHelmController {
+		msg = c.ui.Exclamation()
+		m = "Managed by HelmController. Recreate to remove this dependency"
+	} else {
+		msg = c.ui.Success()
+		m = "Details:"
+	}
+
+	msg.WithTable("Key", "Value").
 		WithTableRow("Name", service.Meta.Name).
 		WithTableRow("Created", service.Meta.CreatedAt.String()).
 		WithTableRow("Catalog Service", service.CatalogService).
 		WithTableRow("Version", service.CatalogServiceVersion).
 		WithTableRow("Status", service.Status.String()).
 		WithTableRow("Used-By", strings.Join(boundApps, ", ")).
-		Msg("Details:")
+		Msg(m)
 
 	return nil
 }
@@ -244,20 +256,46 @@ func (c *EpinioClient) ServiceList() error {
 		return nil
 	}
 
+	notes := false
+	for _, service := range services {
+		notes = notes || service.ManagedByHelmController
+	}
+
 	sort.Sort(services)
 
-	msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Version", "Status", "Applications")
-	for _, service := range services {
-		msg = msg.WithTableRow(
-			service.Meta.Name,
-			service.Meta.CreatedAt.String(),
-			service.CatalogService,
-			service.CatalogServiceVersion,
-			service.Status.String(),
-			strings.Join(service.BoundApps, ", "),
-		)
+	if notes {
+		msg := c.ui.Exclamation().WithTable("", "Name", "Created", "Catalog Service", "Version", "Status", "Applications")
+		for _, service := range services {
+			note := ""
+			if service.ManagedByHelmController {
+				note = emoji.Sprintf(":warning: Recreate")
+			}
+
+			msg = msg.WithTableRow(
+				note,
+				service.Meta.Name,
+				service.Meta.CreatedAt.String(),
+				service.CatalogService,
+				service.CatalogServiceVersion,
+				service.Status.String(),
+				strings.Join(service.BoundApps, ", "),
+			)
+		}
+		msg.Msg("Recreate services managed by HelmController to remove this dependency")
+	} else {
+		msg := c.ui.Success().WithTable("Name", "Created", "Catalog Service", "Version", "Status", "Applications")
+		for _, service := range services {
+			msg = msg.WithTableRow(
+				service.Meta.Name,
+				service.Meta.CreatedAt.String(),
+				service.CatalogService,
+				service.CatalogServiceVersion,
+				service.Status.String(),
+				strings.Join(service.BoundApps, ", "),
+			)
+		}
+		msg.Msg("Details:")
 	}
-	msg.Msg("Details:")
 
 	return nil
 }
