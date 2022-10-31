@@ -35,13 +35,14 @@ jobs:
         id: configfile
         run: |
           if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "::set-output name=file::.golangci.yml"
+            echo "file=.golangci.yml" >> $GITHUB_OUTPUT
+
           else
-            echo "::set-output name=file::.golangci-schedule.yml"
+            echo "file=.golangci-schedule.yml" >> $GITHUB_OUTPUT
           fi
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3.2.0
+        uses: golangci/golangci-lint-action@v3.3.0
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.49
