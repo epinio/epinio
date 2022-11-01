@@ -46,7 +46,7 @@ require (
 	helm.sh/helm/v3 v3.10.0
 	k8s.io/api v0.25.2
 	k8s.io/apiextensions-apiserver v0.25.2
-	k8s.io/apimachinery v0.25.2
+	k8s.io/apimachinery v0.25.3
 	k8s.io/apiserver v0.25.2
 	k8s.io/client-go v0.25.2
 	k8s.io/kubectl v0.25.2
