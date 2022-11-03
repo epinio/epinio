@@ -345,9 +345,10 @@ func (s *ServiceClient) GetForHelmController(ctx context.Context, namespace, nam
 			Namespace: targetNamespace,
 			CreatedAt: srv.GetCreationTimestamp(),
 		},
-		SecretTypes:           secretTypes,
-		CatalogService:        fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
-		CatalogServiceVersion: catalogServiceVersion,
+		SecretTypes:             secretTypes,
+		CatalogService:          fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
+		CatalogServiceVersion:   catalogServiceVersion,
+		ManagedByHelmController: true,
 	}
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
@@ -445,8 +446,9 @@ func (s *ServiceClient) listForHelmController(ctx context.Context, namespace str
 				Namespace: srv.GetLabels()[TargetNamespaceLabelKey],
 				CreatedAt: srv.GetCreationTimestamp(),
 			},
-			CatalogService:        catalogServiceName,
-			CatalogServiceVersion: srv.GetLabels()[CatalogServiceVersionLabelKey],
+			CatalogService:          catalogServiceName,
+			CatalogServiceVersion:   srv.GetLabels()[CatalogServiceVersionLabelKey],
+			ManagedByHelmController: true,
 		}
 
 		logger := tracelog.NewLogger().WithName("ServiceStatus")

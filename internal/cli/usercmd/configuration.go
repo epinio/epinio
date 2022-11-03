@@ -57,24 +57,38 @@ func (c *EpinioClient) Configurations(all bool) error {
 		msg = msg.WithTable("Namespace", "Name", "Created", "Type", "Origin", "Applications")
 
 		for _, configuration := range configurations {
+			apps := strings.Join(configuration.Configuration.BoundApps, ", ")
+
+			if configuration.Configuration.Origin != "" &&
+				len(configuration.Configuration.BoundApps) > 0 {
+				apps = fmt.Sprintf("%s (migrate to new mounts)", apps)
+			}
+
 			msg = msg.WithTableRow(
 				configuration.Meta.Namespace,
 				configuration.Meta.Name,
 				configuration.Meta.CreatedAt.String(),
 				configuration.Configuration.Type,
 				configuration.Configuration.Origin,
-				strings.Join(configuration.Configuration.BoundApps, ", "))
+				apps)
 		}
 	} else {
 		msg = msg.WithTable("Name", "Created", "Type", "Origin", "Applications")
 
 		for _, configuration := range configurations {
+			apps := strings.Join(configuration.Configuration.BoundApps, ", ")
+
+			if configuration.Configuration.Origin != "" &&
+				len(configuration.Configuration.BoundApps) > 0 {
+				apps = fmt.Sprintf("%s (migrate to new access paths)", apps)
+			}
+
 			msg = msg.WithTableRow(
 				configuration.Meta.Name,
 				configuration.Meta.CreatedAt.String(),
 				configuration.Configuration.Type,
 				configuration.Configuration.Origin,
-				strings.Join(configuration.Configuration.BoundApps, ", "))
+				apps)
 		}
 	}
 
@@ -377,8 +391,10 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 	}
 	configurationDetails := resp.Configuration.Details
 	boundApps := resp.Configuration.BoundApps
+	siblings := resp.Configuration.Siblings
 
 	sort.Strings(boundApps)
+	sort.Strings(siblings)
 
 	c.ui.Note().
 		WithStringValue("Created", resp.Meta.CreatedAt.String()).
@@ -386,12 +402,40 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		WithStringValue("Type", resp.Configuration.Type).
 		WithStringValue("Origin", resp.Configuration.Origin).
 		WithStringValue("Used-By", strings.Join(boundApps, ", ")).
+		WithStringValue("Siblings", strings.Join(siblings, ", ")).
 		Msg("")
+
+	if resp.Configuration.Origin != "" && len(boundApps) > 0 {
+		c.ui.Exclamation().Msg("Attention: Migrate bound apps to new access paths")
+	}
 
 	msg := c.ui.Success()
 
 	if len(configurationDetails) > 0 {
 		msg = msg.WithTable("Parameter", "Value", "Access Path")
+
+		path := name
+		if resp.Configuration.Origin != "" {
+			path = resp.Configuration.Origin
+
+			// Use the configuration's siblings (and itself) to determine if
+			// disambiguation is needed and if yes, where in the total order this
+			// configuration falls. See [CS-DISAMBI].
+			if len(siblings) > 0 {
+				siblings = append(siblings, name)
+				sort.Strings(siblings)
+				serial := 0
+				for idx, cName := range siblings {
+					serial = idx
+					if cName == name {
+						break
+					}
+				}
+				if serial > 1 {
+					path = fmt.Sprintf("%s-%d", path, serial)
+				}
+			}
+		}
 
 		keys := make([]string, 0, len(configurationDetails))
 		for k := range configurationDetails {
@@ -400,7 +444,7 @@ func (c *EpinioClient) ConfigurationDetails(name string) error {
 		sort.Strings(keys)
 		for _, k := range keys {
 			msg = msg.WithTableRow(k, configurationDetails[k],
-				fmt.Sprintf("/configurations/%s/%s", name, k))
+				fmt.Sprintf("/configurations/%s/%s", path, k))
 		}
 
 		msg.Msg("")

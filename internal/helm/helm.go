@@ -38,6 +38,11 @@ type ServiceParameters struct {
 	Values        string              // Chart customization (YAML-formatted string)
 }
 
+type ConfigParameter struct {
+	Name string `yaml:"name"` // Configuration name
+	Path string `yaml:"path"` // Mounting path for configuration
+}
+
 type ChartParameters struct {
 	models.AppRef                        // Application: name & namespace
 	Context        context.Context       // Operation context
@@ -48,7 +53,7 @@ type ChartParameters struct {
 	Instances      int32                 // Number Of Desired Replicas
 	StageID        string                // Stage ID that produced ImageURL
 	Environment    models.EnvVariableMap // App Environment
-	Configurations []string              // Bound Configurations (list of names)
+	Configurations []ConfigParameter     // Bound Configurations (list of names and paths)
 	Routes         []string              // Desired application routes
 	Domains        domain.DomainMap      // Map of domains with secrets covering them
 	Start          *int64                // Nano-epoch of deployment. Optional. Used to force a restart, even when nothing else has changed.
@@ -161,6 +166,7 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 	type epinioParam struct {
 		AppName        string               `yaml:"appName"`
 		Configurations []string             `yaml:"configurations"`
+		ConfigPaths    []ConfigParameter    `yaml:"configpaths"`
 		Env            []models.EnvVariable `yaml:"env"`
 		ImageUrl       string               `yaml:"imageURL"`
 		Ingress        string               `yaml:"ingress,omitempty"`
@@ -179,13 +185,28 @@ func Deploy(logger logr.Logger, parameters ChartParameters) error {
 
 	// Fill values.yaml structure
 
+	// ATTENTION: The Configurations slice may contain multiple mount points for the same
+	// configuration, for backward compatibility. We dedup this to have only one volume per
+	// config.
+
+	configurationNames := []string{}
+	have := map[string]bool{}
+	for _, c := range parameters.Configurations {
+		if _, found := have[c.Name]; found {
+			continue
+		}
+		configurationNames = append(configurationNames, c.Name)
+		have[c.Name] = true
+	}
+
 	params := chartParam{
 		Epinio: epinioParam{
 			AppName:        parameters.Name,
 			Env:            parameters.Environment.List(),
 			ImageUrl:       parameters.ImageURL,
 			ReplicaCount:   parameters.Instances,
-			Configurations: parameters.Configurations,
+			Configurations: configurationNames,
+			ConfigPaths:    parameters.Configurations,
 			StageID:        parameters.StageID,
 			TlsIssuer:      viper.GetString("tls-issuer"),
 			Username:       parameters.Username,

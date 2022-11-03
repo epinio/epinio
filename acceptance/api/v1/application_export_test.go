@@ -52,6 +52,7 @@ var _ = Describe("AppPart Endpoint", func() {
 
 		Expect(string(bodyBytes)).To(Equal(fmt.Sprintf(`epinio:
   appName: %s
+  configpaths: []
   configurations: []
   env: []
   imageURL: splatform/sample-app

@@ -3,6 +3,8 @@ package deploy
 
 import (
 	"context"
+	"fmt"
+	"sort"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -10,6 +12,7 @@ import (
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/application"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
+	"github.com/epinio/epinio/internal/configurations"
 	"github.com/epinio/epinio/internal/domain"
 	"github.com/epinio/epinio/internal/helm"
 	"github.com/epinio/epinio/internal/helmchart"
@@ -40,6 +43,58 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 			WithDetailsf("expectedStageID: [%s] - stageID: [%s]", expectedStageID, stageID)
 	}
 
+	// Iterate over the bound configurations to determine their mount path ...
+
+	// (**) See below for explanation
+	sort.Strings(appObj.Configuration.Configurations)
+
+	bound := []helm.ConfigParameter{} // Configurations and their mount paths
+	service := map[string]int{}       // Seen services, and count of their configurations
+
+	for _, configName := range appObj.Configuration.Configurations {
+		config, err := configurations.Lookup(ctx, cluster, app.Namespace, configName)
+		if err != nil {
+			return nil, apierror.InternalError(err)
+		}
+
+		// Default path is config name itself
+		path := configName
+
+		// For configurations originating in a service, use the service name instead,
+		// possible extended to disambiguate multiple configurations of a single service.
+		if config.Origin != "" {
+			if serial, ok := service[config.Origin]; !ok {
+				path = config.Origin
+				service[config.Origin] = 1
+			} else {
+				// [CS-DISAMBI] With more than one configuration from the same service
+				// disambiguate using a serial number
+				//
+				// Attention! Having sorted the full set of configuration names (see
+				// above (**)), the various configurations of the service will
+				// always have the same serial (or none, for the first).
+
+				serial = serial + 1
+				service[config.Origin] = serial
+				path = fmt.Sprintf("%s-%d", config.Origin, serial)
+			}
+
+			// ATTENTION: we are creating a mount for the old path as well, for backward
+			// compatibility.
+
+			bound = append(bound, helm.ConfigParameter{
+				Name: configName,
+				Path: configName,
+			})
+		}
+
+		// Record for passing into the helm core
+		bound = append(bound, helm.ConfigParameter{
+			Name: configName,
+			Path: path,
+		})
+	}
+
 	imageURL := appObj.ImageURL
 	routes := appObj.Configuration.Routes
 	chartName := appObj.Configuration.AppChart
@@ -58,7 +113,7 @@ func DeployApp(ctx context.Context, cluster *kubernetes.Cluster, app models.AppR
 		AppRef:         app,
 		Chart:          chartName,
 		Environment:    appObj.Configuration.Environment,
-		Configurations: appObj.Configuration.Configurations,
+		Configurations: bound,
 		Instances:      *appObj.Configuration.Instances,
 		ImageURL:       imageURL,
 		Username:       username,

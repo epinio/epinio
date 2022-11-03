@@ -2212,6 +2212,13 @@
           "type": "string",
           "x-go-name": "Origin"
         },
+        "siblings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "Siblings"
+        },
         "type": {
           "type": "string",
           "x-go-name": "Type"
@@ -2527,6 +2534,10 @@
         "catalog_service_version": {
           "type": "string",
           "x-go-name": "CatalogServiceVersion"
+        },
+        "hcmanaged": {
+          "type": "boolean",
+          "x-go-name": "ManagedByHelmController"
         },
         "meta": {
           "$ref": "#/definitions/Meta"
