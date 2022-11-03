@@ -1372,7 +1372,7 @@ configuration:
 			})
 
 			Context("exporting customized", func() {
-				var domain, chartName, tempFile, app, exportPath, exportValues, exportChart string
+				var domain, chartName, tempFile, app, exportPath, exportValues, exportChart, exportImage string
 
 				BeforeEach(func() {
 					domain = catalog.NewTmpName("exportdomain-") + ".org"
@@ -1384,6 +1384,7 @@ configuration:
 					exportPath = catalog.NewTmpName(app + "-export")
 					exportValues = path.Join(exportPath, "values.yaml")
 					exportChart = path.Join(exportPath, "app-chart.tar.gz")
+					exportImage = path.Join(exportPath, "app-image.tar")
 
 					env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain,
 						"--app-chart", chartName,
@@ -1405,11 +1406,12 @@ configuration:
 
 					exported, err := filepath.Glob(exportPath + "/*")
 					Expect(err).ToNot(HaveOccurred(), exported)
-					Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+					Expect(exported).To(ConsistOf([]string{exportValues, exportChart, exportImage}))
 
 					Expect(exportPath).To(BeADirectory())
 					Expect(exportValues).To(BeARegularFile())
 					Expect(exportChart).To(BeARegularFile())
+					Expect(exportImage).To(BeARegularFile())
 
 					values, err := os.ReadFile(exportValues)
 					Expect(err).ToNot(HaveOccurred(), string(values))
@@ -1441,7 +1443,7 @@ userConfig:
 		})
 
 		Context("exporting", func() {
-			var domain, app, exportPath, exportValues, exportChart string
+			var domain, app, exportPath, exportValues, exportChart, exportImage string
 
 			BeforeEach(func() {
 				domain = catalog.NewTmpName("exportdomain-") + ".org"
@@ -1450,6 +1452,7 @@ userConfig:
 				exportPath = catalog.NewTmpName(app + "-export")
 				exportValues = path.Join(exportPath, "values.yaml")
 				exportChart = path.Join(exportPath, "app-chart.tar.gz")
+				exportImage = path.Join(exportPath, "app-image.tar")
 
 				env.MakeRoutedContainerImageApp(app, 1, containerImageURL, domain)
 			})
@@ -1467,11 +1470,12 @@ userConfig:
 
 				exported, err := filepath.Glob(exportPath + "/*")
 				Expect(err).ToNot(HaveOccurred(), exported)
-				Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+				Expect(exported).To(ConsistOf([]string{exportValues, exportChart, exportImage}))
 
 				Expect(exportPath).To(BeADirectory())
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
+				Expect(exportImage).To(BeARegularFile())
 
 				values, err := os.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))
@@ -1509,11 +1513,12 @@ userConfig:
 
 				exported, err := filepath.Glob(exportPath + "/*")
 				Expect(err).ToNot(HaveOccurred(), exported)
-				Expect(exported).To(ConsistOf([]string{exportValues, exportChart}))
+				Expect(exported).To(ConsistOf([]string{exportValues, exportChart, exportImage}))
 
 				Expect(exportPath).To(BeADirectory())
 				Expect(exportValues).To(BeARegularFile())
 				Expect(exportChart).To(BeARegularFile())
+				Expect(exportImage).To(BeARegularFile())
 
 				values, err := os.ReadFile(exportValues)
 				Expect(err).ToNot(HaveOccurred(), string(values))

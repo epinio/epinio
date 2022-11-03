@@ -136,7 +136,7 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.InternalError(err)
 	}
 
-	jobName := fmt.Sprintf("image-export-job-%s-%s-%s", appRef.Namespace, appRef.Name, theApp.StageID)
+	jobName := names.GenerateResourceName("image-export-job", appRef.Namespace, appRef.Name, theApp.StageID)
 	imageOutputFilename := fmt.Sprintf("%s-%s-%s.tar", appRef.Namespace, appRef.Name, theApp.StageID)
 
 	logger.Info("got app chart", "chart image", theApp.ImageURL)
@@ -174,7 +174,7 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 	appImageExporter := viper.GetString("app-image-exporter")
 
 	labels := map[string]string{
-		"app.kubernetes.io/name":       jobName,
+		"app.kubernetes.io/name":       names.Truncate(jobName, 63),
 		"app.kubernetes.io/part-of":    helmchart.Namespace(),
 		"app.kubernetes.io/managed-by": "epinio",
 		"app.kubernetes.io/component":  "staging",
