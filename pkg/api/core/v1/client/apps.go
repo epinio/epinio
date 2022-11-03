@@ -193,16 +193,16 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 	}
 	defer out.Close()
 
-	contentLenght := response.ContentLength
+	contentLength := response.ContentLength
 	if response.Header.Get("X-Content-Length") != "" {
-		xContentLenght, err := strconv.ParseInt(response.Header.Get("X-Content-Length"), 10, 64)
+		xContentLength, err := strconv.ParseInt(response.Header.Get("X-Content-Length"), 10, 64)
 		if err == nil {
-			contentLenght = xContentLenght
+			contentLength = xContentLength
 		}
 	}
 
 	bar := progressbar.DefaultBytes(
-		contentLenght,
+		contentLength,
 		fmt.Sprintf("Downloading app %s to '%s'", part, destinationPath),
 	)
 
