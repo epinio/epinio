@@ -25,6 +25,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
+	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 	"helm.sh/helm/v3/pkg/repo"
 	batchv1 "k8s.io/api/batch/v1"
@@ -32,11 +33,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
-)
-
-const (
-	SkopeoImage   = "quay.io/skopeo/stable"
-	SkopeoVersion = "v1.10"
 )
 
 // GetPart handles the API endpoint GET /namespaces/:namespace/applications/:app/part/:part
@@ -175,6 +171,8 @@ func fetchAppImage(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 }
 
 func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobName, imageURL, imageOutputFilename string) error {
+	appImageExporter := viper.GetString("app-image-exporter")
+
 	labels := map[string]string{
 		"app.kubernetes.io/name":       jobName,
 		"app.kubernetes.io/part-of":    helmchart.Namespace(),
@@ -199,7 +197,7 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 					Containers: []corev1.Container{
 						{
 							Name:    "skopeo",
-							Image:   fmt.Sprintf("%s:%s", SkopeoImage, SkopeoVersion),
+							Image:   appImageExporter,
 							Command: []string{"skopeo"},
 							Args: []string{
 								"copy",
