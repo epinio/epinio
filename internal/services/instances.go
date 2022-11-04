@@ -374,7 +374,13 @@ func (s *ServiceClient) DeleteForHelmController(ctx context.Context, namespace, 
 		metav1.DeleteOptions{},
 	)
 
-	return errors.Wrap(err, "error deleting helm charts")
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			fmt.Printf("XXX 1\nXXX %s/%s: %s\nXXX\n", namespace, service, err)
+		}
+	}
+
+	return errors.Wrap(err, "error deleting helm chart @"+namespace+"/"+service)
 }
 
 // DeleteAllForHelmController deletes all helmcharts installed on the specified namespace.  It is
@@ -389,7 +395,13 @@ func (s *ServiceClient) DeleteAllForHelmController(ctx context.Context, targetNa
 		},
 	)
 
-	return errors.Wrap(err, "error deleting helm charts")
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			fmt.Printf("XXX 2\nXXX %s: %s\nXXX\n", targetNamespace, err)
+		}
+	}
+
+	return errors.Wrap(err, "error deleting helm charts in "+targetNamespace)
 }
 
 // listForHelmController will return all the Epinio Services available in the targeted namespace.
