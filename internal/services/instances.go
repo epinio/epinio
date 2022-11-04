@@ -376,7 +376,7 @@ func (s *ServiceClient) DeleteForHelmController(ctx context.Context, namespace, 
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			fmt.Printf("XXX 1\nXXX %s/%s: %s\nXXX\n", namespace, service, err)
+			return nil
 		}
 	}
 
@@ -397,7 +397,7 @@ func (s *ServiceClient) DeleteAllForHelmController(ctx context.Context, targetNa
 
 	if err != nil {
 		if apierrors.IsNotFound(err) {
-			fmt.Printf("XXX 2\nXXX %s: %s\nXXX\n", targetNamespace, err)
+			return nil
 		}
 	}
 

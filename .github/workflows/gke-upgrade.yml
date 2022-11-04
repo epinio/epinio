@@ -1,6 +1,4 @@
-
 name: GKE-CI-UPGRADE
-
 on:
   pull_request:
     branches: [ main ]
