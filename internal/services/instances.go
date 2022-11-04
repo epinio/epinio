@@ -374,10 +374,8 @@ func (s *ServiceClient) DeleteForHelmController(ctx context.Context, namespace, 
 		metav1.DeleteOptions{},
 	)
 
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
+	if apierrors.IsNotFound(err) {
+		return nil
 	}
 
 	return errors.Wrap(err, "error deleting helm chart @"+namespace+"/"+service)
@@ -395,10 +393,8 @@ func (s *ServiceClient) DeleteAllForHelmController(ctx context.Context, targetNa
 		},
 	)
 
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil
-		}
+	if apierrors.IsNotFound(err) {
+		return nil
 	}
 
 	return errors.Wrap(err, "error deleting helm charts in "+targetNamespace)
