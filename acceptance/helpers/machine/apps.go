@@ -19,7 +19,7 @@ func (m *Machine) MakeApp(appName string, instances int, deployFromCurrentDir bo
 }
 
 func (m *Machine) MakeContainerImageApp(appName string, instances int, containerImageURL string) string {
-	By("making a container app:" + appName)
+	By("making a container app: " + appName)
 
 	pushOutput, err := m.Epinio("", "apps", "push",
 		"--name", appName,
@@ -37,6 +37,8 @@ func (m *Machine) MakeContainerImageApp(appName string, instances int, container
 }
 
 func (m *Machine) MakeRoutedContainerImageApp(appName string, instances int, containerImageURL, route string, more ...string) string {
+	By("making a routed container app: " + appName)
+
 	pushOutput, err := m.Epinio("", "apps", append([]string{
 		"push",
 		"--name", appName,
@@ -64,6 +66,8 @@ func (m *Machine) MakeGolangApp(appName string, instances int, deployFromCurrent
 }
 
 func (m *Machine) MakeAppWithDir(appName string, instances int, deployFromCurrentDir bool, appDir string) string {
+	By("creating app " + appName)
+
 	var pushOutput string
 	var err error
 
@@ -125,6 +129,8 @@ func (m *Machine) MakeAppWithDirSimple(appName string, deployFromCurrentDir bool
 }
 
 func (m *Machine) DeleteApp(appName string) {
+	By("deleting app " + appName)
+
 	out, err := m.Epinio("", "app", "delete", appName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
