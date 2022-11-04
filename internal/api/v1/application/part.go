@@ -255,7 +255,7 @@ func runDownloadImageJob(ctx context.Context, cluster *kubernetes.Cluster, jobNa
 }
 
 func getFileImageAndJobCleanup(ctx context.Context, cluster *kubernetes.Cluster, jobName, imageOutputFilename string) (*os.File, error) {
-	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Second*30)
+	err := cluster.WaitForJobDone(ctx, helmchart.Namespace(), jobName, time.Minute*2)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error waiting for job done %s", jobName)
 	}
