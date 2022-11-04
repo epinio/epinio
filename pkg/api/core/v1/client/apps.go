@@ -27,6 +27,7 @@ import (
 	api "github.com/epinio/epinio/internal/api/v1"
 	"github.com/epinio/epinio/internal/duration"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
+	progressbar "github.com/schollz/progressbar/v3"
 	kubectlterm "k8s.io/kubectl/pkg/util/term"
 )
 
@@ -192,8 +193,21 @@ func (c *Client) AppGetPart(namespace, appName, part, destinationPath string) er
 	}
 	defer out.Close()
 
+	contentLength := response.ContentLength
+	if response.Header.Get("X-Content-Length") != "" {
+		xContentLength, err := strconv.ParseInt(response.Header.Get("X-Content-Length"), 10, 64)
+		if err == nil {
+			contentLength = xContentLength
+		}
+	}
+
+	bar := progressbar.DefaultBytes(
+		contentLength,
+		fmt.Sprintf("Downloading app %s to '%s'", part, destinationPath),
+	)
+
 	// copy response body to file
-	_, err = io.Copy(out, response.Body)
+	_, err = io.Copy(io.MultiWriter(out, bar), response.Body)
 
 	c.log.V(1).Info("response stored")
 

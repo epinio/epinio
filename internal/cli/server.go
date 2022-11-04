@@ -57,6 +57,10 @@ func init() {
 	flags.String("ingress-class-name", "", "(INGRESS_CLASS_NAME) Name of the ingress class to use for apps. Leave empty to add no ingressClassName to the ingress.")
 	viper.BindPFlag("ingress-class-name", flags.Lookup("ingress-class-name"))
 	viper.BindEnv("ingress-class-name", "INGRESS_CLASS_NAME")
+
+	flags.String("app-image-exporter", "", "(APP_IMAGE_EXPORTER) Name of the container image used to download the application image from the 'export' API.")
+	viper.BindPFlag("app-image-exporter", flags.Lookup("app-image-exporter"))
+	viper.BindEnv("app-image-exporter", "APP_IMAGE_EXPORTER")
 }
 
 // CmdServer implements the command: epinio server
