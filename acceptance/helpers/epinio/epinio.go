@@ -87,6 +87,24 @@ func (e *Epinio) Upgrade() {
 }
 
 func (e *Epinio) Install(args ...string) (string, error) {
+
+	// Default is install from local chart
+	chart := "helm-charts/chart/epinio"
+
+	// If requested by the environment, switch to latest release instead, which is older
+	released := os.Getenv("EPINIO_RELEASED")
+	isreleased := released == "true"
+	upgraded := os.Getenv("EPINIO_UPGRADED")
+	isupgraded := upgraded == "true"
+
+	if isupgraded || isreleased {
+		out, err := proc.RunW("helm", "repo", "add", "epinio", "https://epinio.github.io/helm-charts")
+		if err != nil {
+			return out, err
+		}
+		chart = "epinio/epinio"
+	}
+
 	// Update helm repos -- Assumes existence of helm repository providing the helm charts
 	out, err := proc.RunW("helm", "repo", "update")
 	if err != nil {
@@ -100,7 +118,7 @@ func (e *Epinio) Install(args ...string) (string, error) {
 		"epinio",
 		"--create-namespace",
 		"epinio",
-		"helm-charts/chart/epinio",
+		chart,
 		"--wait",
 	}
 
