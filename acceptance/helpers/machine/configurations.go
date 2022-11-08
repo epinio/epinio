@@ -34,6 +34,7 @@ func (m *Machine) BindAppConfiguration(appName, configurationName, namespace str
 }
 
 func (m *Machine) VerifyAppConfigurationBound(appName, configurationName, namespace string, offset int) {
+	// Retrieve and check for the expected volume
 	out, err := proc.Kubectl("get", "deployments",
 		"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
 		"--namespace", namespace,
@@ -41,12 +42,13 @@ func (m *Machine) VerifyAppConfigurationBound(appName, configurationName, namesp
 	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
 	ExpectWithOffset(offset, out).To(MatchRegexp(configurationName))
 
+	// Retrieve and check for the expected volume mount
 	out, err = proc.Kubectl("get", "deployments",
 		"-l", fmt.Sprintf("app.kubernetes.io/name=%s,app.kubernetes.io/part-of=%s", appName, namespace),
 		"--namespace", namespace,
 		"-o", "jsonpath={.items[].spec.template.spec.containers[0].volumeMounts}")
-	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
-	ExpectWithOffset(1, out).To(MatchRegexp("/configurations/" + configurationName))
+	ExpectWithOffset(offset, err).ToNot(HaveOccurred(), out)
+	ExpectWithOffset(offset, out).To(MatchRegexp("/configurations/" + configurationName))
 }
 
 func (m *Machine) DeleteConfigurations(configurationNames ...string) {

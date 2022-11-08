@@ -152,6 +152,8 @@ var _ = Describe("<Scenario3> RKE, Private CA, Configuration, on External Regist
 				out, _ := epinioHelper.Run("info")
 				return out
 			}, "2m", "2s").Should(ContainSubstring("Epinio Server Version:"))
+
+			env.Versions()
 		})
 
 		By("Creating a configuration and pushing an app", func() {
