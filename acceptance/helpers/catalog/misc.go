@@ -48,6 +48,8 @@ func CreateCatalogService(catalogService models.CatalogService) {
 // Create catalog service in the cluster. The catalog entry is applied via kubectl, after conversion
 // into a yaml file
 func CreateCatalogServiceInNamespace(namespace string, catalogService models.CatalogService) {
+	By("creating catalog entry in " + namespace + ": " + catalogService.Meta.Name)
+
 	sampleServiceFilePath := SampleServiceTmpFile(namespace, catalogService)
 	defer os.Remove(sampleServiceFilePath)
 
@@ -60,6 +62,8 @@ func DeleteCatalogService(name string) {
 }
 
 func DeleteCatalogServiceFromNamespace(namespace, name string) {
+	By("deleting catalog entry in " + namespace + ": " + name)
+
 	out, err := proc.Kubectl("delete", "-n", namespace, "services.application.epinio.io", name)
 	Expect(err).ToNot(HaveOccurred(), out)
 }

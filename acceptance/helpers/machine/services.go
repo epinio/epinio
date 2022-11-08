@@ -24,7 +24,7 @@ func (m *Machine) HaveServiceInstance(serviceName string) {
 }
 
 func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
-	By(fmt.Sprintf("MSI %s -> %s", catalogService, serviceName))
+	By(fmt.Sprintf("creating service %s -> %s", catalogService, serviceName))
 
 	out, err := m.Epinio("", "service", "create", catalogService, serviceName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
@@ -49,11 +49,12 @@ func (m *Machine) MakeServiceInstance(serviceName, catalogService string) {
 		}(),
 	)
 
-	By("MSI/ok")
+	By("CSI/ok")
 }
 
 func (m *Machine) DeleteService(serviceName string) {
-	By("deleting a service")
+	By("deleting service " + serviceName)
+
 	out, err := m.Epinio("", "service", "delete", serviceName)
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 	Expect(out).To(ContainSubstring("Services Removed"))

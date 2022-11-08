@@ -5,10 +5,14 @@ import (
 	"strings"
 
 	"github.com/epinio/epinio/acceptance/helpers/proc"
+
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
 func (m *Machine) MakeConfiguration(configurationName string) {
+	By("creating configuration " + configurationName)
+
 	out, err := m.Epinio("", "configuration", "create", configurationName, "username", "epinio-user")
 	ExpectWithOffset(1, err).ToNot(HaveOccurred(), out)
 
@@ -60,6 +64,8 @@ func (m *Machine) DeleteConfigurationsUnbind(configurationNames ...string) {
 }
 
 func (m *Machine) DeleteConfigurationsWithUnbind(configurationNames []string, unbind bool) {
+	By(fmt.Sprintf("deleting configurations %+v", configurationNames))
+
 	var err error
 	var out string
 	if unbind {
