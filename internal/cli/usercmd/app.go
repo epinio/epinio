@@ -517,6 +517,7 @@ func (c *EpinioClient) printAppDetails(app models.App) error {
 			WithTableRow("Running StageId", app.Workload.StageID).
 			WithTableRow("Last StageId", app.StageID).
 			WithTableRow("Age", time.Since(createdAt).Round(time.Second).String()).
+			WithTableRow("Internal Route", app.Workload.Name+".workspace.svc.cluster.local").
 			WithTableRow("Active Routes", "")
 
 		if len(app.Workload.Routes) > 0 {
