@@ -96,8 +96,10 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	// err == nil => passed through unchanged
-	return errors.Wrap(client.UninstallReleaseByName(names.ServiceReleaseName(app.Name)), "cleaning up release")
+	// Ignore errors. The release may not be present (for example due to an aborted deployment)
+
+	_ = client.UninstallReleaseByName(names.ServiceReleaseName(app.Name))
+	return nil
 }
 
 func DeployService(logger logr.Logger, parameters ServiceParameters) error {
