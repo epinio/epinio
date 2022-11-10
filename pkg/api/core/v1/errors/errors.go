@@ -109,7 +109,8 @@ func NewBadRequestError(msg string) APIError {
 	return NewAPIError(msg, http.StatusBadRequest)
 }
 
-// NewBadRequestErrorf constructs an API error for general issues with a request, with a formatted message
+// NewBadRequestErrorf constructs an API error for general issues with a request, with a formatted
+// message
 func NewBadRequestErrorf(format string, values ...any) APIError {
 	return NewAPIError(fmt.Sprintf(format, values...), http.StatusBadRequest)
 }
@@ -153,7 +154,8 @@ func ServiceIsNotKnown(service string) APIError {
 	return NewNotFoundError("service", service)
 }
 
-// ConfigurationIsNotKnown constructs an API error for when the desired configuration instance does not exist
+// ConfigurationIsNotKnown constructs an API error for when the desired configuration instance does
+// not exist
 func ConfigurationIsNotKnown(configuration string) APIError {
 	return NewNotFoundError("configuration", configuration)
 }
@@ -174,12 +176,20 @@ func AppAlreadyKnown(app string) APIError {
 	return NewConflictError("application", app)
 }
 
-// NamespaceAlreadyKnown constructs an API error for when we have a conflict with an existing namespace
+// NamespaceAlreadyKnown constructs an API error for when we have a conflict with an existing
+// namespace
 func NamespaceAlreadyKnown(namespace string) APIError {
 	return NewConflictError("namespace", namespace)
 }
 
-// ConfigurationAlreadyKnown constructs an API error for when we have a conflict with an existing configuration instance
+// ConfigurationAlreadyKnown constructs an API error for when we have a conflict with an existing
+// configuration instance
 func ConfigurationAlreadyKnown(configuration string) APIError {
 	return NewConflictError("configuration", configuration)
+}
+
+// ServiceAlreadyKnown constructs an API error for when we have a conflict with an existing service
+// instance
+func ServiceAlreadyKnown(service string) APIError {
+	return NewConflictError("service", service)
 }
