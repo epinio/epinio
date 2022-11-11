@@ -56,7 +56,7 @@ func (ctr Controller) Delete(c *gin.Context) apierror.APIErrors {
 		// Note: Validation of the service, i.e. checking for their helm release is
 		// (unfortunately) a step to far in checking. Doing so prevents us from deleting
 		// partially created services, i.e. those whose deployment was interupted after
-		// creastion of the main structure, before the creation of the helm release.
+		// creation of the main structure, before the creation of the helm release.
 
 		service, apiErr := GetService(ctx, cluster, logger, namespace, serviceName)
 		if apiErr != nil {
