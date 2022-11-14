@@ -96,6 +96,8 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 		return errors.Wrap(err, "create a helm client")
 	}
 
+	err = client.UninstallReleaseByName(names.ServiceReleaseName(app.Name))
+
 	// Ignore errors. The release may not be present. For example due to an aborted
 	// deployment. Note that a multitude of different errors was seen for essentially the same
 	// thing, depending on exact timing of deletion to partial creation. Just ignoring a
@@ -103,8 +105,6 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 	if err != nil {
 		logger.Info("release deletion issue", "error", err)
 	}
-
-	_ = client.UninstallReleaseByName(names.ServiceReleaseName(app.Name))
 	return nil
 }
 
