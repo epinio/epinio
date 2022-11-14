@@ -137,12 +137,12 @@ jobs:
           REGEX: Scenario4
           REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
-          AWS_ZONE_ID: ${{ github.events.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
+          AWS_ZONE_ID: ${{ github.event.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
           AWS_ACCESS_KEY_ID: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
           # Use a random host name, so we don't collide with our workflows on EKS
-          AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aws_domain || secrets.AWS_DOMAIN }}
-          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.events.inputs.aws_domain || secrets.AWS_DOMAIN }}
+          AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aws_domain || secrets.AWS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aws_domain || secrets.AWS_DOMAIN }}
           EPINIO_TIMEOUT_MULTIPLIER: 3
           INGRESS_CONTROLLER: nginx
           # EXTRAENV_NAME: SESSION_KEY
