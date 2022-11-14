@@ -96,8 +96,16 @@ func RemoveService(logger logr.Logger, cluster *kubernetes.Cluster, app models.A
 		return errors.Wrap(err, "create a helm client")
 	}
 
-	// err == nil => passed through unchanged
-	return errors.Wrap(client.UninstallReleaseByName(names.ServiceReleaseName(app.Name)), "cleaning up release")
+	err = client.UninstallReleaseByName(names.ServiceReleaseName(app.Name))
+
+	// Ignore errors. The release may not be present. For example due to an aborted
+	// deployment. Note that a multitude of different errors was seen for essentially the same
+	// thing, depending on exact timing of deletion to partial creation. Just ignoring a
+	// specific one is fraught. Report, in case we were to generous and debugging is required.
+	if err != nil {
+		logger.Info("release deletion issue", "error", err)
+	}
+	return nil
 }
 
 func DeployService(logger logr.Logger, parameters ServiceParameters) error {

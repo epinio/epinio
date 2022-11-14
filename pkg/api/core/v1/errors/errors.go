@@ -183,3 +183,8 @@ func NamespaceAlreadyKnown(namespace string) APIError {
 func ConfigurationAlreadyKnown(configuration string) APIError {
 	return NewConflictError("configuration", configuration)
 }
+
+// ServiceAlreadyKnown constructs an API error for when we have a conflict with an existing service instance
+func ServiceAlreadyKnown(service string) APIError {
+	return NewConflictError("service", service)
+}

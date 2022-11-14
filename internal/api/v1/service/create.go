@@ -31,6 +31,16 @@ func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// Ensure that the service to be created does not yet exist
+	service, err := kubeServiceClient.Get(ctx, namespace, createRequest.Name)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+	if service != nil {
+		return apierror.ServiceAlreadyKnown(createRequest.Name)
+	}
+
+	// Ensure that the requested catalog service does exist
 	catalogService, err := kubeServiceClient.GetCatalogService(ctx, createRequest.CatalogService)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
@@ -40,6 +50,7 @@ func (ctr Controller) Create(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	// Now we can (attempt to) create the desired service
 	err = kubeServiceClient.Create(ctx, namespace, createRequest.Name, *catalogService)
 	if err != nil {
 		return apierror.InternalError(err)
