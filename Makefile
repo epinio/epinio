@@ -85,6 +85,7 @@ FLAKE_ATTEMPTS ?= 2
 GINKGO_NODES ?= 2
 GINKGO_SLOW_TRESHOLD ?= 200
 REGEX ?= ""
+STANDARD_TEST_OPTIONS= -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending
 
 acceptance-cluster-delete:
 	k3d cluster delete epinio-acceptance
@@ -100,19 +101,37 @@ acceptance-cluster-setup-kind:
 	@./scripts/acceptance-cluster-setup-kind.sh
 
 test-acceptance: showfocus
-	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/. acceptance/api/v1/. acceptance/apps/.
+	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/. acceptance/api/v1/. acceptance/apps/.
 
 test-acceptance-api: showfocus
-	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/api/v1/.
+	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/api/v1/.
+
+test-acceptance-api-apps: showfocus
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "application" acceptance/api/v1/.
+
+test-acceptance-api-services: showfocus
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "service" acceptance/api/v1/.
+
+test-acceptance-api-other: showfocus
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "!application && !service" acceptance/api/v1/.
 
 test-acceptance-apps: showfocus
-	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/apps/.
+	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/apps/.
 
 test-acceptance-cli: showfocus
-	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/.
+	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/.
+
+test-acceptance-cli-apps: showfocus
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "application" acceptance/.
+
+test-acceptance-cli-services: showfocus
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "service" acceptance/.
+
+test-acceptance-cli-other: showfocus
+	ginkgo ${STANDARD_TEST_OPTIONS} --label-filter "!application && !service" acceptance/.
 
 test-acceptance-upgrade: showfocus
-	ginkgo -v --nodes ${GINKGO_NODES} --slow-spec-threshold ${GINKGO_SLOW_TRESHOLD}s --randomize-all --flake-attempts=${FLAKE_ATTEMPTS} --fail-on-pending acceptance/upgrade/.
+	ginkgo ${STANDARD_TEST_OPTIONS} acceptance/upgrade/.
 
 test-acceptance-install: showfocus
 	# TODO support for labels is coming in ginkgo v2

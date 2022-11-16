@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppLogs Endpoint", func() {
+var _ = Describe("AppLogs Endpoint", LApplication, func() {
 	var (
 		namespace string
 		logLength int

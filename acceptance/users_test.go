@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Users", func() {
+var _ = Describe("Users", LMisc, func() {
 	var request *http.Request
 	var err error
 	var uri string

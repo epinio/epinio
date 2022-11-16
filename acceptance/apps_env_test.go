@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("apps env", func() {
+var _ = Describe("apps env", LApplication, func() {
 	var (
 		namespace string
 		appName   string

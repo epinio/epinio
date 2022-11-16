@@ -9,7 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Configurations", func() {
+var _ = Describe("Configurations", LConfiguration, func() {
 	var namespace string
 	var configurationName1 string
 	var configurationName2 string

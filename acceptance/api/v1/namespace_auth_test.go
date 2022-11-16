@@ -13,7 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Users Namespace", func() {
+var _ = Describe("Users Namespace", LNamespace, func() {
 	var request *http.Request
 	var err error
 

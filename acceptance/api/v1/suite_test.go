@@ -25,6 +25,15 @@ func TestAPI(t *testing.T) {
 }
 
 var (
+	// Labels for test sections.
+	LService       = Label("service")
+	LAppchart      = Label("appchart")
+	LApplication   = Label("application")
+	LConfiguration = Label("configuration")
+	LNamespace     = Label("namespace")
+	LMisc          = Label("misc")
+
+	// Test configuration and state
 	nodeSuffix, nodeTmpDir  string
 	serverURL, websocketURL string
 

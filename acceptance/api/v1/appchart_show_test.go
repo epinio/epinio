@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ChartShow Endpoint", func() {
+var _ = Describe("ChartShow Endpoint", LAppchart, func() {
 	It("lists the details of the app chart", func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/appcharts/standard",
 			serverURL, v1.Root), strings.NewReader(""))

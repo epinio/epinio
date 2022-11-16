@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Info endpoint", func() {
+var _ = Describe("Info endpoint", LMisc, func() {
 	It("includes the default builder image in the response", func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/info",
 			serverURL, v1.Root), strings.NewReader(""))

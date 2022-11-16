@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServiceCatalog Match Endpoint", func() {
+var _ = Describe("ServiceCatalog Match Endpoint", LService, func() {
 	It("lists all catalog entries for empty prefix", func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/catalogservicesmatches",
 			serverURL, v1.Root),

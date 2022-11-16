@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppRestart Endpoint", func() {
+var _ = Describe("AppRestart Endpoint", LApplication, func() {
 	var (
 		namespace string
 		app1      string

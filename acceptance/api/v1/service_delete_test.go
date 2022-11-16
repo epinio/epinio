@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServiceDelete Endpoint", func() {
+var _ = Describe("ServiceDelete Endpoint", LService, func() {
 	var namespace string
 	var catalogService models.CatalogService
 

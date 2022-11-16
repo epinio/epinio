@@ -13,7 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServiceList Endpoint", func() {
+var _ = Describe("ServiceList Endpoint", LService, func() {
 	var namespace1, namespace2 string
 	var catalogService models.CatalogService
 

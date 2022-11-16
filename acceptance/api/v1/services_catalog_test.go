@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServiceCatalog Endpoint", func() {
+var _ = Describe("ServiceCatalog Endpoint", LService, func() {
 	var catalogService models.CatalogService
 
 	catalogResponse := func() models.CatalogServices {

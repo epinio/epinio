@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ChartMatch Endpoints", func() {
+var _ = Describe("ChartMatch Endpoints", LAppchart, func() {
 
 	It("lists the app chart names matching the prefix, none", func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/appchartsmatch/fox",

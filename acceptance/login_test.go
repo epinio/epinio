@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Login", func() {
+var _ = Describe("Login", LMisc, func() {
 	var tmpSettingsPath string
 
 	BeforeEach(func() {

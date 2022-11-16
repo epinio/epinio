@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppCreate Endpoint", func() {
+var _ = Describe("AppCreate Endpoint", LApplication, func() {
 	var (
 		namespace string
 		appName   string

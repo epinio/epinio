@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Bounds between Apps & Configurations", func() {
+var _ = Describe("Bounds between Apps & Configurations", LApplication, func() {
 	var namespace string
 	containerImageURL := "splatform/sample-app"
 

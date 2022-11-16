@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ChartList Endpoint", func() {
+var _ = Describe("ChartList Endpoint", LAppchart, func() {
 
 	It("lists the known app charts", func() {
 		response, err := env.Curl("GET", fmt.Sprintf("%s%s/appcharts",

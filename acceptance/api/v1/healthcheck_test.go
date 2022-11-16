@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Healthcheck endpoint", func() {
+var _ = Describe("Healthcheck endpoint", LMisc, func() {
 	It("returns OK (HTTP 200) without authentication", func() {
 		request, err := http.NewRequest("GET", fmt.Sprintf("%s/ready", serverURL), nil)
 		Expect(err).ToNot(HaveOccurred())

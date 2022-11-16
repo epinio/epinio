@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("apps chart", func() {
+var _ = Describe("apps chart", LAppchart, func() {
 	var chartName string
 	var tempFile string
 

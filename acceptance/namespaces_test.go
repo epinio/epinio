@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Namespaces", func() {
+var _ = Describe("Namespaces", LNamespace, func() {
 	It("has a default namespace", func() {
 		out, err := env.Epinio("", "namespace", "list")
 		Expect(err).ToNot(HaveOccurred())

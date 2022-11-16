@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServiceMatch Endpoint", func() {
+var _ = Describe("ServiceMatch Endpoint", LService, func() {
 	var namespace string
 
 	When("namespace doesn't exist", func() {
