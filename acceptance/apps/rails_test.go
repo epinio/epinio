@@ -156,7 +156,7 @@ var _ = FDescribe("RubyOnRails", func() {
 			"--name", rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		x, e := env.Epinio("", app, "app", "logs", "--staging", rails.Name)
+		x, e := env.Epinio("", rails.Name, "app", "logs", "--staging", rails.Name)
 		Expect(e).ToNot(HaveOccurred(), x)
 		By(x)
 
