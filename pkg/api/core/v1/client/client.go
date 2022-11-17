@@ -50,7 +50,7 @@ func New(ctx context.Context, settings *epiniosettings.Settings) *Client {
 		} else {
 			// ask a token for the 'epinio-api' client
 			oidcProvider.AddScopes("audience:server:client_id:epinio-api")
-			tokenSource = oidcProvider.Config.TokenSource(ctx, token)
+			tokenSource = oidcProvider.Config.Oauth2.TokenSource(ctx, token)
 		}
 	}
 

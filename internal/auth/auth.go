@@ -86,7 +86,7 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 			Namespace: "epinio",
 			Labels: map[string]string{
 				"epinio.io/api-user-credentials": "true",
-				"epinio.io/role":                 "user",
+				"epinio.io/role":                 user.Role,
 			},
 		},
 		StringData: map[string]string{
