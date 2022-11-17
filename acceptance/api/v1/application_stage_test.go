@@ -18,7 +18,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppStage Endpoint", func() {
+var _ = Describe("AppStage Endpoint", LApplication, func() {
 	var (
 		url       string
 		body      string

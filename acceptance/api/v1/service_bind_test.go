@@ -19,7 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var _ = Describe("ServiceBind Endpoint", func() {
+var _ = Describe("ServiceBind Endpoint", LService, func() {
 	var namespace, containerImageURL string
 	var catalogService models.CatalogService
 

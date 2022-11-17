@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppBatchDelete Endpoint", func() {
+var _ = Describe("AppBatchDelete Endpoint", LApplication, func() {
 	var (
 		namespace, app1, app2 string
 	)

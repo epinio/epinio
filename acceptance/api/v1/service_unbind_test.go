@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ServiceUnbind Endpoint", func() {
+var _ = Describe("ServiceUnbind Endpoint", LService, func() {
 	var namespace, containerImageURL, app, serviceName, chartName string
 	var catalogService models.CatalogService
 

@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Namespaces API Application Endpoints", func() {
+var _ = Describe("Namespaces API Application Endpoints", LNamespace, func() {
 	var namespace string
 	const jsOK = `{"status":"ok"}`
 

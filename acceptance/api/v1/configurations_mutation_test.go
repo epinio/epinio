@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Configurations API Application Endpoints, Mutations", func() {
+var _ = Describe("Configurations API Application Endpoints, Mutations", LConfiguration, func() {
 	var namespace string
 	const jsOK = `{"status":"ok"}`
 	containerImageURL := "splatform/sample-app"

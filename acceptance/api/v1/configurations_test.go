@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Configurations API Application Endpoints", func() {
+var _ = Describe("Configurations API Application Endpoints", LConfiguration, func() {
 	containerImageURL := "splatform/sample-app"
 
 	var namespace string

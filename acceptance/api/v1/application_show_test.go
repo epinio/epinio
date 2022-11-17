@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppShow Endpoint", func() {
+var _ = Describe("AppShow Endpoint", LApplication, func() {
 	var (
 		namespace string
 	)

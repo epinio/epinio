@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("DELETE /api/v1/namespaces/:namespace", func() {
+var _ = Describe("DELETE /api/v1/namespaces/:namespace", LNamespace, func() {
 	const jsOK = `{"status":"ok"}`
 	var namespace, otherNamespace, serviceName, otherService, containerImageURL string
 	var catalogService models.CatalogService

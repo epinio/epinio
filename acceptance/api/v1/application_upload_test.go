@@ -15,7 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppUpload Endpoint", func() {
+var _ = Describe("AppUpload Endpoint", LApplication, func() {
 	var (
 		namespace string
 		url       string

@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppDelete Endpoint", func() {
+var _ = Describe("AppDelete Endpoint", LApplication, func() {
 	var (
 		namespace string
 	)

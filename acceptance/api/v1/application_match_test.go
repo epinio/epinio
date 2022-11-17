@@ -14,7 +14,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("ApplicationMatch Endpoint", func() {
+var _ = Describe("ApplicationMatch Endpoint", LApplication, func() {
 	var namespace string
 
 	When("namespace doesn't exist", func() {

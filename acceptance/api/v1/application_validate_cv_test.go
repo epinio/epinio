@@ -16,7 +16,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppValidateCV Endpoint", func() {
+var _ = Describe("AppValidateCV Endpoint", LApplication, func() {
 	var (
 		chartName string
 		tempFile  string

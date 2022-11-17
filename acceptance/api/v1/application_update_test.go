@@ -21,7 +21,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("AppUpdate Endpoint", func() {
+var _ = Describe("AppUpdate Endpoint", LApplication, func() {
 	var (
 		namespace, containerImageURL string
 	)

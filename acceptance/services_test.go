@@ -16,7 +16,7 @@ import (
 
 const mysqlVersion = "8.0.29" // Doesn't change too often
 
-var _ = Describe("Services", func() {
+var _ = Describe("Services", LService, func() {
 	var catalogService models.CatalogService
 
 	BeforeEach(func() {
