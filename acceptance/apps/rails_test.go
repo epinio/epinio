@@ -62,7 +62,7 @@ func (r *RailsApp) CreateDir() error {
 	return nil
 }
 
-var _ = Describe("RubyOnRails", func() {
+var _ = FDescribe("RubyOnRails", func() {
 	var rails RailsApp
 	var serviceName string
 	var catalogName string
@@ -155,6 +155,7 @@ var _ = Describe("RubyOnRails", func() {
 		out, err := env.EpinioPush(rails.Dir, rails.Name,
 			"--name", rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
+		env.ShowStagingLogs(rails.Name)
 
 		route := testenv.AppRouteFromOutput(out)
 		Expect(route).ToNot(BeEmpty())
