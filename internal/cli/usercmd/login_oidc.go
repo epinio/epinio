@@ -127,7 +127,7 @@ func (c *EpinioClient) getAuthCodeAndVerifierWithServer(ctx context.Context, oid
 	if err != nil {
 		return "", "", errors.Wrap(err, "creating listener")
 	}
-	oidcProvider.Config.RedirectURL = fmt.Sprintf("http://localhost:%d", listener.Addr().(*net.TCPAddr).Port)
+	oidcProvider.Config.Oauth2.RedirectURL = fmt.Sprintf("http://localhost:%d", listener.Addr().(*net.TCPAddr).Port)
 
 	authCodeURL, codeVerifier := oidcProvider.AuthCodeURLWithPKCE()
 

@@ -2,12 +2,12 @@ package dex
 
 import (
 	"context"
-	"net/url"
 	"strings"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/dchest/uniuri"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/slices"
 	"golang.org/x/oauth2"
 )
 
@@ -19,52 +19,49 @@ const (
 var (
 	// "openid" is a required scope for OpenID Connect flows.
 	// Other scopes, such as "groups" can be requested.
-	DefaultScopes = []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile", "email", "groups"}
+	DefaultScopes = []string{oidc.ScopeOpenID, oidc.ScopeOfflineAccess, "profile", "email", "groups", "federated:id"}
 )
 
 // OIDCProvider wraps an oidc.Provider and its Configuration
 type OIDCProvider struct {
-	Issuer   string
-	Endpoint *url.URL
+	Config Config
+
 	Provider *oidc.Provider
-	Config   *oauth2.Config
 }
 
-// NewOIDCProvider construct an OIDCProvider fetching its configuration
+// NewOIDCProvider construct an OIDCProvider loading the configuration from the issuer URL
 func NewOIDCProvider(ctx context.Context, issuer, clientID string) (*OIDCProvider, error) {
-	endpoint, err := url.Parse(issuer)
+	config, err := NewConfig(issuer, clientID)
 	if err != nil {
-		return nil, errors.Wrap(err, "parsing the issuer URL")
+		return nil, errors.Wrap(err, "creating dex configuration")
 	}
 
-	return NewOIDCProviderWithEndpoint(ctx, issuer, clientID, endpoint)
+	return NewOIDCProviderWithConfig(ctx, config)
 }
 
-// NewOIDCProviderWithEndpoint construct an OIDCProvider fetching its configuration from the endpoint URL
-func NewOIDCProviderWithEndpoint(ctx context.Context, issuer, clientID string, endpoint *url.URL) (*OIDCProvider, error) {
+// NewOIDCProviderWithConfig construct an OIDCProvider with the provided configuration
+func NewOIDCProviderWithConfig(ctx context.Context, config Config) (*OIDCProvider, error) {
 	// If the issuer is different from the endpoint we need to set it in the context.
 	// With this differentiation the Epinio server can reach the Dex service through the Kubernetes DNS
 	// instead of the external URL. This was causing issues when the host was going to be resolved as a local IP (i.e: Rancher Desktop).
 	// - https://github.com/epinio/epinio/issues/1781
-	if issuer != endpoint.String() && strings.HasSuffix(endpoint.Hostname(), ".svc.cluster.local") {
-		ctx = oidc.InsecureIssuerURLContext(ctx, issuer)
+	if config.Issuer != config.Endpoint.String() && strings.HasSuffix(config.Endpoint.Hostname(), ".svc.cluster.local") {
+		ctx = oidc.InsecureIssuerURLContext(ctx, config.Issuer)
 	}
 
-	provider, err := oidc.NewProvider(ctx, endpoint.String())
+	provider, err := oidc.NewProvider(ctx, config.Endpoint.String())
 	if err != nil {
 		return nil, errors.Wrap(err, "creating the provider")
 	}
 
-	config := &oauth2.Config{
+	config.Oauth2 = &oauth2.Config{
 		Endpoint:    provider.Endpoint(),
-		ClientID:    clientID,
+		ClientID:    config.ClientID,
 		RedirectURL: OutOfBrowserURN,
 		Scopes:      DefaultScopes,
 	}
 
 	return &OIDCProvider{
-		Issuer:   issuer,
-		Endpoint: endpoint,
 		Provider: provider,
 		Config:   config,
 	}, nil
@@ -77,7 +74,7 @@ func (pc *OIDCProvider) AuthCodeURLWithPKCE() (string, string) {
 	state := uniuri.NewLen(32)
 	codeVerifier := NewCodeVerifier()
 
-	authCodeURL := pc.Config.AuthCodeURL(
+	authCodeURL := pc.Config.Oauth2.AuthCodeURL(
 		state,
 		oauth2.SetAuthURLParam("code_verifier", codeVerifier.Value),
 		oauth2.SetAuthURLParam("code_challenge", codeVerifier.ChallengeS256()),
@@ -89,12 +86,12 @@ func (pc *OIDCProvider) AuthCodeURLWithPKCE() (string, string) {
 
 // AddScopes will add scopes to the OIDCProvider.Config.Scopes, extending the DefaultScopes
 func (pc *OIDCProvider) AddScopes(scopes ...string) {
-	pc.Config.Scopes = append(pc.Config.Scopes, scopes...)
+	pc.Config.Oauth2.Scopes = append(pc.Config.Oauth2.Scopes, scopes...)
 }
 
 // ExchangeWithPKCE will exchange the authCode with a token, checking if the codeVerifier is valid
 func (pc *OIDCProvider) ExchangeWithPKCE(ctx context.Context, authCode, codeVerifier string) (*oauth2.Token, error) {
-	token, err := pc.Config.Exchange(ctx, authCode, oauth2.SetAuthURLParam("code_verifier", codeVerifier))
+	token, err := pc.Config.Oauth2.Exchange(ctx, authCode, oauth2.SetAuthURLParam("code_verifier", codeVerifier))
 	if err != nil {
 		return nil, errors.Wrap(err, "exchanging code for token")
 	}
@@ -103,12 +100,36 @@ func (pc *OIDCProvider) ExchangeWithPKCE(ctx context.Context, authCode, codeVeri
 
 // Verify will verify the token, and it will return an oidc.IDToken
 func (pc *OIDCProvider) Verify(ctx context.Context, rawIDToken string) (*oidc.IDToken, error) {
-	keySet := oidc.NewRemoteKeySet(ctx, pc.Endpoint.String()+"/keys")
-	verifier := oidc.NewVerifier(pc.Issuer, keySet, &oidc.Config{ClientID: pc.Config.ClientID})
+	keySet := oidc.NewRemoteKeySet(ctx, pc.Config.Endpoint.String()+"/keys")
+	verifier := oidc.NewVerifier(pc.Config.Issuer, keySet, &oidc.Config{ClientID: pc.Config.Oauth2.ClientID})
 
 	token, err := verifier.Verify(ctx, rawIDToken)
 	if err != nil {
 		return nil, errors.Wrap(err, "verifying rawIDToken")
 	}
 	return token, nil
+}
+
+// GetProviderGroups returns the ProviderGroups of the specified provider
+func (pc *OIDCProvider) GetProviderGroups(providerID string) (*ProviderGroups, error) {
+	for _, pg := range pc.Config.ProvidersGroups {
+		if pg.ConnectorID == providerID {
+			return &pg, nil
+		}
+	}
+
+	return nil, errors.Errorf("provider '%s' not found", providerID)
+}
+
+// GetRoleFromGroups returns the roles matching the provided groups
+func (pg *ProviderGroups) GetRolesFromGroups(groupIDs ...string) []string {
+	roles := []string{}
+
+	for _, g := range pg.Groups {
+		if slices.Contains(groupIDs, g.ID) {
+			roles = append(roles, g.Role)
+		}
+	}
+
+	return roles
 }

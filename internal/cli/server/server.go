@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -190,14 +189,17 @@ func getOIDCProvider(ctx context.Context) (*dex.OIDCProvider, error) {
 		return nil, errors.Wrap(err, "failed to get dex-config secret")
 	}
 
-	issuer := string(secret.Data["issuer"])
-	endpoint, err := url.Parse(string(secret.Data["endpoint"]))
+	config, err := dex.NewConfigFromSecretData("epinio-api", secret.Data)
 	if err != nil {
 		return nil, errors.Wrap(err, "parsing the issuer URL")
 	}
 
-	oidcProvider, err := dex.NewOIDCProviderWithEndpoint(ctx, issuer, "epinio-api", endpoint)
-	return oidcProvider, errors.Wrap(err, "constructing dexProviderConfig")
+	oidcProvider, err := dex.NewOIDCProviderWithConfig(ctx, config)
+	if err != nil {
+		return nil, errors.Wrap(err, "constructing dexProviderConfig")
+	}
+
+	return oidcProvider, nil
 }
 
 func versionMiddleware(ctx *gin.Context) {
@@ -286,21 +288,57 @@ func oidcAuthentication(ctx *gin.Context) (auth.User, apierrors.APIErrors) {
 	}
 
 	var claims struct {
-		Email  string   `json:"email"`
-		Groups []string `json:"groups"`
+		Email           string   `json:"email"`
+		Groups          []string `json:"groups"`
+		FederatedClaims struct {
+			ConnectorID string `json:"connector_id"`
+		} `json:"federated_claims"`
 	}
 	if err := idToken.Claims(&claims); err != nil {
 		return auth.User{}, apierrors.NewAPIError(errors.Wrap(err, "error parsing claims").Error(), http.StatusUnauthorized)
 	}
 
-	user, err := getOrCreateUserByEmail(ctx, claims.Email)
+	role := getRoleFromProviderGroups(logger, oidcProvider, claims.FederatedClaims.ConnectorID, claims.Groups)
+
+	user, err := getOrCreateUserByEmail(ctx, claims.Email, role)
 	if err != nil {
 		return auth.User{}, apierrors.InternalError(err, "getting/creating user with email")
 	}
 
-	logger.V(1).Info("verified token", "token", string(token), "user", fmt.Sprintf("%#v", user))
+	logger.V(1).Info("token verified", "user", fmt.Sprintf("%#v", user))
 
 	return user, nil
+}
+
+// getRoleFromProviderGroups returns the user role, looking for it in the groups defined for the provider.
+// If there are no groups that matches then the default role 'user' is returned.
+// If a user has more than one group matching, the first from the Dex Configuration will be returned.
+func getRoleFromProviderGroups(logger logr.Logger, oidcProvider *dex.OIDCProvider, providerID string, groups []string) string {
+	defaultRole := "user"
+
+	pg, err := oidcProvider.GetProviderGroups(providerID)
+	if err != nil {
+		logger.Info(
+			"error getting provider groups",
+			"provider", providerID,
+		)
+
+		return defaultRole
+	}
+
+	roles := pg.GetRolesFromGroups(groups...)
+	if len(roles) == 0 {
+		logger.Info(
+			"no matching groups found in provider groups",
+			"provider", providerID,
+			"providerGroups", pg,
+			"groups", strings.Join(groups, ","),
+		)
+
+		return defaultRole
+	}
+
+	return roles[0]
 }
 
 func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
@@ -322,7 +360,7 @@ func loadUsersMap(ctx context.Context) (map[string]auth.User, error) {
 	return userMap, nil
 }
 
-func getOrCreateUserByEmail(ctx context.Context, email string) (auth.User, error) {
+func getOrCreateUserByEmail(ctx context.Context, email, role string) (auth.User, error) {
 	user := auth.User{}
 	var err error
 
@@ -338,6 +376,7 @@ func getOrCreateUserByEmail(ctx context.Context, email string) (auth.User, error
 		}
 
 		user.Username = email
+		user.Role = role
 		user, err = authService.SaveUser(ctx, user)
 		if err != auth.ErrUserNotFound {
 			return user, errors.Wrap(err, "couldn't create user")
