@@ -85,8 +85,8 @@ func (s *AuthService) SaveUser(ctx context.Context, user User) (User, error) {
 			Name:      userSecretName,
 			Namespace: "epinio",
 			Labels: map[string]string{
-				"epinio.io/api-user-credentials": "true",
-				"epinio.io/role":                 user.Role,
+				kubernetes.EpinioAPISecretLabelKey:     "true",
+				kubernetes.EpinioAPISecretRoleLabelKey: user.Role,
 			},
 		},
 		StringData: map[string]string{
