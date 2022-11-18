@@ -123,7 +123,7 @@ jobs:
           echo "ID=$id" >> $GITHUB_OUTPUT
           eksctl create cluster --name=epinio-ci$id \
           --region=${{ env.AWS_REGION }} \
-          --nodes=2 \
+          --nodes=1 \
           --node-type=${{ env.AWS_MACHINE_TYPE }} \
           --node-volume-size=40 \
           --managed \
@@ -173,10 +173,6 @@ jobs:
           echo "System Domain: $AWS_DOMAIN"
           export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
           make test-acceptance-install
-
-      - name: DEBUG pause
-        if: always()
-        run: sleep 2h
 
       - name: Delete EKS cluster
         # We always tear down the cluster, to avoid costs. Except when running
