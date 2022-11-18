@@ -45,7 +45,7 @@ func New(dir, user, password, adminToken, userToken, root, epinioBinaryPath stri
 }
 
 func (m *Machine) ShowStagingLogs(app string) {
-	_, _ = m.Epinio("", app, "app", "logs", "--staging", app)
+	_, _ = m.Epinio("", "app", "logs", "--staging", app)
 }
 
 // Epinio invokes the `epinio` binary, running the specified command.
