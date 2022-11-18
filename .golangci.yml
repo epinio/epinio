@@ -17,8 +17,6 @@ linters-settings:
     rules:
     - name: blank-imports
       severity: warning
-    - name: unexported-return
-      severity: warning
   funlen:
     # Checks the number of lines in a function. Default: 60
     lines: 270
@@ -37,30 +35,26 @@ issues:
     - errcheck
     - gosec
     path: _test\.go
-  # Exclude unparam warning for handleError()
-  - linters:
-    - unparam
-    text: "handleError"
 
 linters:
   disable-all: true
   enable:
-  - misspell
-  - structcheck
-  - govet
-  - staticcheck
-  - deadcode
+  # default linters
   - errcheck
-  - varcheck
-  - unparam
-  - ineffassign
-  - nakedret
-  - gocyclo
-  - dupl
-  - goimports
-  - revive
-  - gosec
   - gosimple
+  - govet
+  - ineffassign
+  - staticcheck
   - typecheck
   - unused
+  
+  # extra
+  - dupl
   - funlen
+  - gocyclo
+  - goimports
+  - gosec
+  - misspell
+  - nakedret
+  - revive
+  - unparam

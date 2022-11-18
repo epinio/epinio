@@ -2,6 +2,7 @@ name: golangci-lint
 
 env:
   SETUP_GO_VERSION: '^1.18.2'
+  GOLANGCI_LINT_VERSION: v1.50
 
 on:
   workflow_dispatch:
@@ -31,23 +32,12 @@ jobs:
         run: |
           export PATH=$PATH:/home/runner/go/bin/
 
-      - name: Configfile
-        id: configfile
-        run: |
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "file=.golangci.yml" >> $GITHUB_OUTPUT
-
-          else
-            echo "file=.golangci-schedule.yml" >> $GITHUB_OUTPUT
-          fi
-
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v3.3.0
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
-          version: v1.49
-
-          args: --timeout=10m --config=${{ steps.configfile.outputs.file }} --skip-files docs.go
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          args: --timeout=10m --skip-files docs.go
 
           # Optional: show only new issues if it's a pull request. The default value is `false`.
           # The condition sets this to true for PR events.
