@@ -89,7 +89,11 @@ var _ = Describe("RubyOnRails", func() {
 		out, err := env.Epinio("", "apps", "create", rails.Name)
 		Expect(err).ToNot(HaveOccurred(), out)
 
-		// Set the RAILS_MASTER_KEY env variable
+		// Force node version used by buildpack to 16.x
+		out, err = env.Epinio("", "apps", "env", "set", rails.Name, "BP_NODE_VERSION", "16.*")
+		Expect(err).ToNot(HaveOccurred(), out)
+
+		// Provide the expected RAILS_MASTER_KEY to buildpack and application
 		out, err = env.Epinio("", "apps", "env", "set", rails.Name, "RAILS_MASTER_KEY", rails.MasterKey)
 		Expect(err).ToNot(HaveOccurred(), out)
 
