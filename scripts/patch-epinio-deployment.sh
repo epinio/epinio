@@ -65,6 +65,16 @@ metadata:
   annotations:
     linkerd.io/inject: disabled
 spec:
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/component
+            operator: In
+            values:
+            - epinio-server
+        topologyKey: kubernetes.io/hostname
   volumes:
     - name: epinio-binary
       persistentVolumeClaim:
