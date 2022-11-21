@@ -4,6 +4,7 @@ package cli
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 
@@ -63,7 +64,8 @@ func init() {
 		}
 	}
 	pf.StringVarP(&flagSettingsFile, "settings-file", "", settingsLocation, "set path of settings file")
-	viper.BindPFlag("settings-file", pf.Lookup("settings-file"))
+	err = viper.BindPFlag("settings-file", pf.Lookup("settings-file"))
+	checkErr(err)
 	argToEnv["settings-file"] = "EPINIO_SETTINGS"
 
 	config.KubeConfigFlags(pf, argToEnv)
@@ -71,15 +73,18 @@ func init() {
 	duration.Flags(pf, argToEnv)
 
 	pf.IntP("verbosity", "", 0, "Only print progress messages at or above this level (0 or 1, default 0)")
-	viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
+	err = viper.BindPFlag("verbosity", pf.Lookup("verbosity"))
+	checkErr(err)
 	argToEnv["verbosity"] = "VERBOSITY"
 
 	pf.BoolP("skip-ssl-verification", "", false, "Skip the verification of TLS certificates")
-	viper.BindPFlag("skip-ssl-verification", pf.Lookup("skip-ssl-verification"))
+	err = viper.BindPFlag("skip-ssl-verification", pf.Lookup("skip-ssl-verification"))
+	checkErr(err)
 	argToEnv["skip-ssl-verification"] = "SKIP_SSL_VERIFICATION"
 
 	pf.BoolP("no-colors", "", false, "Suppress colorized output")
-	viper.BindPFlag("no-colors", pf.Lookup("no-colors"))
+	err = viper.BindPFlag("no-colors", pf.Lookup("no-colors"))
+	checkErr(err)
 	// Environment variable EPINIO_COLORS is handled in settings/settings.go,
 	// as part of handling the settings file.
 
@@ -110,4 +115,10 @@ var cmdVersion = &cobra.Command{
 		fmt.Printf("Epinio Version: %s\n", version.Version)
 		fmt.Printf("Go Version: %s\n", runtime.Version())
 	},
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }

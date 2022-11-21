@@ -25,10 +25,6 @@ linters-settings:
 
 issues:
   exclude-rules:
-  # TODO convert the regex to errcheck's new ignore file
-  - linters: [errcheck]
-    text: "Error return value of .((os\\.)?std(out|err)\\..*|.*Close|.*Flush|os\\.Remove(All)?|.*printf?|os\\.(Un)?Setenv|viper.BindPFlag|viper.BindEnv). is not checked"
-  # Exclude some linters from running on tests files.
   - linters:
     - gocyclo
     - dupl

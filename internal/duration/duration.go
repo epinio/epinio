@@ -3,6 +3,7 @@
 package duration
 
 import (
+	"log"
 	"time"
 
 	flag "github.com/spf13/pflag"
@@ -27,7 +28,10 @@ const (
 // Flags adds to viper flags
 func Flags(pf *flag.FlagSet, argToEnv map[string]string) {
 	pf.IntP("timeout-multiplier", "", 1, "Multiply timeouts by this factor")
-	viper.BindPFlag("timeout-multiplier", pf.Lookup("timeout-multiplier"))
+	err := viper.BindPFlag("timeout-multiplier", pf.Lookup("timeout-multiplier"))
+	if err != nil {
+		log.Fatal(err)
+	}
 	argToEnv["timeout-multiplier"] = "EPINIO_TIMEOUT_MULTIPLIER"
 }
 

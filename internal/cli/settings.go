@@ -35,13 +35,17 @@ var CmdSettings = &cobra.Command{
 func init() {
 	flags := CmdSettingsUpdateCA.Flags()
 	flags.StringP("namespace", "n", "epinio", "(NAMESPACE) The namespace to use")
-	viper.BindPFlag("namespace", flags.Lookup("namespace"))
-	viper.BindEnv("namespace", "NAMESPACE")
+	err := viper.BindPFlag("namespace", flags.Lookup("namespace"))
+	checkErr(err)
+	err = viper.BindEnv("namespace", "NAMESPACE")
+	checkErr(err)
 
 	CmdSettingsShow.Flags().Bool("show-password", false, "Show hidden password")
-	viper.BindPFlag("show-password", CmdSettingsShow.Flags().Lookup("show-password"))
+	err = viper.BindPFlag("show-password", CmdSettingsShow.Flags().Lookup("show-password"))
+	checkErr(err)
 	CmdSettingsShow.Flags().Bool("show-token", false, "Show access token")
-	viper.BindPFlag("show-token", CmdSettingsShow.Flags().Lookup("show-token"))
+	err = viper.BindPFlag("show-token", CmdSettingsShow.Flags().Lookup("show-token"))
+	checkErr(err)
 
 	CmdSettings.AddCommand(CmdSettingsUpdateCA)
 	CmdSettings.AddCommand(CmdSettingsShow)
