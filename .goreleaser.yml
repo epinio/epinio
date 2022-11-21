@@ -225,3 +225,46 @@ brews:
 release:
   extra_files:
     - glob: ./helm-charts/chart/epinio/crds/*
+
+# Based on https://blog.goreleaser.com/goreleaser-and-software-supply-chain-security-e8917b26924b
+##
+
+# creates SBOMs of all archives and the source tarball using syft
+# https://goreleaser.com/customization/sbom
+# Two different sbom configurations need two different IDs
+
+sboms:
+  - id: archive 
+    artifacts: archive
+  - id: source
+    artifacts: source
+
+# signs our docker images
+# https://goreleaser.com/customization/docker_sign
+
+docker_signs:
+  - cmd: cosign
+    env:
+    - COSIGN_EXPERIMENTAL=1
+    artifacts: images
+    output: true
+    args:
+    - 'sign'
+    - '${artifact}'
+
+# signs the checksum file and other blobs. all files (including the sboms) are included in the
+# checksum, so we don't need to sign each one if we don't want to
+# https://goreleaser.com/customization/sign
+
+signs:
+- cmd: cosign
+  env:
+  - COSIGN_EXPERIMENTAL=1
+  certificate: '${artifact}.pem'
+  args:
+    - sign-blob
+    - '--output-certificate=${certificate}'
+    - '--output-signature=${signature}'
+    - '${artifact}'
+  artifacts: checksum
+  output: true
