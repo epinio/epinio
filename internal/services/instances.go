@@ -61,17 +61,9 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		secretTypes = strings.Split(secretTypesAnnotationValue, ",")
 	}
 
-	// find the internal routes from the kubernetes services of the Helm release
-	servicesList, err := s.kubeClient.Kubectl.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{
-		LabelSelector: "app.kubernetes.io/instance=" + names.ServiceReleaseName(name),
-	})
+	internalRoutes, err := s.GetInternalRoutes(ctx, namespace, name)
 	if err != nil {
 		return nil, errors.Wrap(err, "fetching the services")
-	}
-
-	internalRoutes := []string{}
-	for _, s := range servicesList.Items {
-		internalRoutes = append(internalRoutes, fmt.Sprintf("%s.%s.svc.cluster.local", s.Name, s.Namespace))
 	}
 
 	service = models.Service{
@@ -99,6 +91,29 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 	service.Status = models.NewServiceStatusFromHelmRelease(serviceStatus)
 
 	return &service, nil
+}
+
+// GetInternalRoutes returns the internal routes of the service, finding them from the kubernetes services of the Helm release
+func (s *ServiceClient) GetInternalRoutes(ctx context.Context, namespace, name string) ([]string, error) {
+	servicesList, err := s.kubeClient.Kubectl.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/instance=" + names.ServiceReleaseName(name),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching the services")
+	}
+
+	internalRoutes := []string{}
+	for _, s := range servicesList.Items {
+		route := fmt.Sprintf("%s.%s.svc.cluster.local", s.Name, s.Namespace)
+		for _, port := range s.Spec.Ports {
+			if port.Port != 80 {
+				route += fmt.Sprintf(":%d", port.Port)
+			}
+		}
+		internalRoutes = append(internalRoutes, route)
+	}
+
+	return internalRoutes, nil
 }
 
 func (s *ServiceClient) Create(ctx context.Context, namespace, name string, catalogService models.CatalogService) error {
