@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/kubernetes"
@@ -50,4 +51,10 @@ func (e *checkConfigError) Error() string {
 func checkServerVersion(d discovery.ServerVersionInterface) error {
 	_, err := d.ServerVersion()
 	return err
+}
+
+func checkErr(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }

@@ -10,7 +10,9 @@ import (
 // AddEnvToUsage adds env variables to help
 func AddEnvToUsage(cmd *cobra.Command, argToEnv map[string]string) {
 	for arg, env := range argToEnv {
-		viper.BindEnv(arg, env)
+		err := viper.BindEnv(arg, env)
+		checkErr(err)
+
 		flag := cmd.Flag(arg)
 
 		if flag != nil {
