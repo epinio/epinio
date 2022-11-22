@@ -29,6 +29,7 @@ func NewEpinioCLI() *cobra.Command {
 }
 
 var rootCmd = &cobra.Command{
+	Args:          cobra.MaximumNArgs(0),
 	Use:           "epinio",
 	Short:         "Epinio cli",
 	Long:          `epinio cli is the official command line interface for Epinio PaaS `,
