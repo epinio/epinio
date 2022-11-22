@@ -50,10 +50,10 @@ var _ = Describe("Epinio upgrade with running app", func() {
 
 	AfterEach(func() {
 		// After upgrade ...
-		// env.DeleteApp(appName)
-		// env.DeleteApp(appAfter)
-		// env.DeleteService(service)
-		// env.DeleteNamespace(namespace)
+		env.DeleteApp(appName)
+		env.DeleteApp(appAfter)
+		env.DeleteService(service)
+		env.DeleteNamespace(namespace)
 	})
 
 	It("can upgrade epinio", func() {
@@ -122,7 +122,7 @@ var _ = Describe("Epinio upgrade with running app", func() {
 		// environment vars or configurations
 	})
 
-	FIt("Can upgrade epinio binded to a custom service", func() {
+	It("Can upgrade epinio binded to a custom service", func() {
 		// Test variables
 		var myService = "mycustom-service"
 
