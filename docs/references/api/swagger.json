@@ -2539,6 +2539,13 @@
           "type": "boolean",
           "x-go-name": "ManagedByHelmController"
         },
+        "internal_routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "x-go-name": "InternalRoutes"
+        },
         "meta": {
           "$ref": "#/definitions/Meta"
         },

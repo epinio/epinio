@@ -61,6 +61,19 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		secretTypes = strings.Split(secretTypesAnnotationValue, ",")
 	}
 
+	// find the internal routes from the kubernetes services of the Helm release
+	servicesList, err := s.kubeClient.Kubectl.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{
+		LabelSelector: "app.kubernetes.io/instance=" + names.ServiceReleaseName(name),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "fetching the services")
+	}
+
+	internalRoutes := []string{}
+	for _, s := range servicesList.Items {
+		internalRoutes = append(internalRoutes, fmt.Sprintf("%s.%s.svc.cluster.local", s.Name, s.Namespace))
+	}
+
 	service = models.Service{
 		Meta: models.Meta{
 			Name:      name,
@@ -70,6 +83,7 @@ func (s *ServiceClient) Get(ctx context.Context, namespace, name string) (*model
 		SecretTypes:           secretTypes,
 		CatalogService:        fmt.Sprintf("%s%s", catalogServicePrefix, catalogServiceName),
 		CatalogServiceVersion: catalogServiceVersion,
+		InternalRoutes:        internalRoutes,
 	}
 
 	logger := tracelog.NewLogger().WithName("ServiceStatus")
