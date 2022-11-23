@@ -113,6 +113,9 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 	boundApps := service.BoundApps
 	sort.Strings(boundApps)
 
+	internalRoutes := service.InternalRoutes
+	sort.Strings(internalRoutes)
+
 	var msg *termui.Message
 	var m string
 	if service.ManagedByHelmController {
@@ -130,6 +133,7 @@ func (c *EpinioClient) ServiceShow(serviceName string) error {
 		WithTableRow("Version", service.CatalogServiceVersion).
 		WithTableRow("Status", service.Status.String()).
 		WithTableRow("Used-By", strings.Join(boundApps, ", ")).
+		WithTableRow("Internal Routes", strings.Join(internalRoutes, ", ")).
 		Msg(m)
 
 	return nil

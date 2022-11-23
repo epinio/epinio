@@ -335,6 +335,7 @@ type Service struct {
 	Status                  ServiceStatus `json:"status,omitempty"`
 	BoundApps               []string      `json:"boundapps"`
 	ManagedByHelmController bool          `json:"hcmanaged"`
+	InternalRoutes          []string      `json:"internal_routes,omitempty"`
 }
 
 func (s Service) Namespace() string {
