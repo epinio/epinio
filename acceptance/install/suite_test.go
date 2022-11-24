@@ -59,7 +59,7 @@ func InstallNginx() {
 }
 
 func InstallTraefik() {
-	out, err := proc.RunW("helm", "repo", "add", "traefik", "https://helm.traefik.io/traefik")
+	out, err := proc.RunW("helm", "repo", "add", "traefik", "https://traefik.github.io/charts", "--force-update")
 	Expect(err).NotTo(HaveOccurred(), out)
 	out, err = proc.RunW("helm", "repo", "update")
 	Expect(err).NotTo(HaveOccurred(), out)
@@ -69,6 +69,9 @@ func InstallTraefik() {
 		"--set", "ports.web.redirectTo=websecure",
 		"--set", "ingressClass.enabled=true",
 		"--set", "ingressClass.isDefaultClass=true",
+		// Workaround for https://github.com/traefik/traefik-helm-chart/issues/741
+		"--set", "metrics.prometheus.addEntryPointsLabels=false",
+		"--set", "metrics.prometheus.addServicesLabels=false",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
 }
