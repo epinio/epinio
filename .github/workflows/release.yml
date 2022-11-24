@@ -11,6 +11,8 @@ permissions:
 jobs:
   release:
     runs-on: self-hosted
+    permissions:
+      id-token: write   # This is the key for OIDC!
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -35,6 +37,10 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: anchore/sbom-action/download-syft@v0.13.1
+
+      - uses: sigstore/cosign-installer@v2.8.1
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3

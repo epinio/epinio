@@ -14,6 +14,8 @@ permissions:
 jobs:
   release:
     runs-on: self-hosted
+    permissions:
+      id-token: write   # This is the key for OIDC!
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -39,10 +41,16 @@ jobs:
           username: ${{ secrets.CFCIBOT_DOCKERHUB_USERNAME }}
           password: ${{ secrets.CFCIBOT_DOCKERHUB_PASSWORD }}
 
+      - uses: anchore/sbom-action/download-syft@v0.13.1
+
+      - uses: sigstore/cosign-installer@v2.8.1
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
           distribution: goreleaser
           version: 1.11.4
           args: release --rm-dist --skip-publish --snapshot
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}

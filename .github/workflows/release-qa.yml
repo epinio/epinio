@@ -8,6 +8,8 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest 
+    permissions:
+      id-token: write   # This is the key for OIDC!
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -41,11 +43,16 @@ jobs:
           username: ${{ secrets.JUADK_DOCKERHUB_USERNAME }}
           password: ${{ secrets.JUADK_DOCKERHUB_PASSWORD }}
 
+      - uses: anchore/sbom-action/download-syft@v0.13.1
+
+      - uses: sigstore/cosign-installer@v2.8.1
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
           distribution: goreleaser
           version: 1.11.4
-          args: release --skip-announce --skip-validate --skip-sign --config .goreleaser-qa.yml
+          args: release --skip-announce --skip-validate --config .goreleaser-qa.yml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
