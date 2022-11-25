@@ -134,7 +134,6 @@ jobs:
   acceptance-cli-apps:
     needs:
       - linter
-      - acceptance-api-services
     runs-on: self-hosted
 
     env:
@@ -279,6 +278,7 @@ jobs:
   acceptance-api:
     needs:
       - linter
+      - acceptance-api-services
     runs-on: self-hosted
 
     env:
