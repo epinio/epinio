@@ -3,87 +3,55 @@
 During the last release we have faced some issues, and we would like to have a smoother process.  
 This is a RFC to see which could be the best release process.
 
-## Automation
-
-Since we are using tags to define the releases then the tagging action should be starting point.  
-We could use different tags to define nightly builds and release candidates.
-
-Ideally all the steps should be automated, awaiting for a final check.  
-
-## Overview
-
-This is an overview of the release process. In the next sections we are going to detail it a bit more.
-
-Everyone MUST be able to do a release. We could eventually enforce this practice switching person (this is called sometimes the "Release Captain").
-
-Every release needs to have a Release Notes. This is the entrypoint. A Release Draft will be already available, automatically generated from the merged PR, issues and labels (releasedrafter?). We should be careful about labeling issues/PRs and use clear titles, to avoid confusions while preparing the Release Notes. The publishing of the Release Notes will tag the repository and will start the release process. The artifacts will be built and added to the Release. If there are other components that needs to be notified about the update, then automated PRs should be opened (updatecli?), and added in the Release Checklist as comments, so we could track the progress of them.
-
-![release](release.png)
-
-
-## Components
-
-Epinio is made up of two main components: the `epinio` binary (the CLI and the server backend) and the `epinio-ui`.
-The Helm charts are the supported and suggested way to deploy Epinio.  
-
-### Epinio
-
-The Epinio repository is the main one. It contains the code regarding the server and the `epinio` CLI.
-
-### Epinio UI
-
-The Epinio UI is made up of the `ui-backend` and the `dashboard`. The first one is a proxy for the JS frontend, that is a component that is reused in the Rancher dashboard as well.
-
 ## Release
 
-The Epinio server and the Epinio UI releases could diverge. A fix or improvement on only one component should be possible.
-Also the Helm charts could not be aligned with the Epinio or Epinio UI releases. An external dependency could be updated without the need of updating the Epinio components.
+We need to clarify what is a release. We can identify different types of releases, but the one that we care the most is probably the **Product Release**. This is what we are showing to our customers.
 
-After the merge of a PR in the main branch a draft of the Release Changelog will be prepared.  
-When we are ready to make a release we can __manually__ check and edit the Release Notes and publish it. This will create a new tag and start the release process.
+The **Product Release** should not be tight to a Epinio tag. This is probably the most controversial point and the biggest source of confusion. Epinio is made of different components, and we could decide to make a Product Release without actually bumping the `epinio` server, maybe bumping only a dependency or the UI.
 
-This should:
+A Product Release should be prepared manually, but an automatically generated draft could be already available.  
+Clear titles and labels will be helpful on preparing the draft.  
+Everyone should be able to do a release. Ideally most of the steps should be automated. We have prepared an ISSUE_TEMPLATE with a "Release Checklist" that should be easy to follow, highlighting all the steps and useful links.
 
-- start the build
-- preparing and push the images
-- publish the artifacts in the release notes
-- notify all the interested repositories about the new build (the PRs could open an issue in the epinio repository that will track the external issues, or comment in the "Release checklist" about them)
-  - Docs: automated PR
-  - Helm Charts: automated PR
+The Product Release should contain important notes, the changelog with the list of new features, bug fixes and the corresponding links to PRs and issues.
+It should also contains a reference to the Helm Charts, images and binaries previously released and built.
 
+The publishing of the Product Release Notes is a manual step.  
 
-In the same fashion the `epinio-ui` should start from a tag.
-
-Currently the frontend of the UI is in the `epinio-dev` branch of the `rancher/dashboard` repository. This frontend is bundled with the `ui-backend`.
-
-Every merged PR in the Dashboard or the UI backend should draft a release notes.
-
-Tagging the `ui-backend` should:
-- start the build, with the latest dashboard
-- preparing and push the images
-- publish the artifacts in the release notes
-- copy/publish the release notes in the Epinio repository
-- notify all the interested repositories about the new build
-  - Helm Charts: automated PR
-
-
-Since the Helm charts are the way on how we install Epinio all the marketplaces depends on it. After a release:
-- notify all the interested repositories about the new build
-  - Marketplaces:
-    - Docker extension: automated PR
-    - CIVO marketplace: automated PR
-    - Rancher (?)
-
-#### Note
-
-Since the Epinio repository is the entrypoint (the one with most visibility, and containing the core of Epinio) the release notes should be collected there.
-
-### Proposal
-
-###
-For every merged PR in the 
 
 ## Current state
+
+Epinio is made up of different components.
+
+The [`epinio/epinio`](https://github.com/epinio/epinio) repository contains the code used to build the binary of the `epinio` CLI and the `epinio-server` image.
+
+The Epinio UI image is made from the [`ui-backend`](https://github.com/epinio/ui-backend) (a proxy for the [`dashboard`](https://github.com/epinio/ui). The dashboard is hosted in the `epinio-dev` branch of the [`rancher/dashboard`](https://github.com/rancher/dashboard) repository.
+
+The [`helm-charts`](https://github.com/epinio/helm-charts) are the suggested and supported was to deploy Epinio. They are wrapping the [`epinio`](https://artifacthub.io/packages/helm/epinio/epinio) charts, the [`epinio-ui`](https://artifacthub.io/packages/helm/epinio/epinio-ui) charts, and the dependencies.
+
+
+### Release flow
+
+The following diagram is showing the current release flow. The entrypoint is the Product Release. The publishing of the release will tag `epinio` repository triggering a build. This build will prepare the binaries and images. It will also notify external repositories about this new version. Please note that the Epinio Helm Charts are not released yet, and so even if we published a new release it won't be available until we release them.  
+
+Also the Epinio UI is a chart dependency of the Epinio Helm Chart, and it's following an indipendent release. But since the Product Release is tight to a Epinio release in order to update the UI we still need to tag `epinio`.
+
+![current-release](current-release.png)
+
+
+## Proposal
+
+The version of the Product Release could diverge from the `epinio` or `epinio-ui` versions. It could be aligned with the Helm Charts version because they are the way on how we are supporting the Epinio deployment.
+
+Indipendent releases and tags of the different components should be possible.
+
+This diagram tries to show a cleaner release flow.
+
+![future-release](future-release.png)
+
+The `epinio` and `epinio-ui` components are built from tags. This process should be completely automated. The new available images should trigger a PR on the Helm Charts. When ready we could manually trigger an Helm Chart release to publish the new charts with the new images. This release could prepare the draft for the Product Release.
+
+After a cleanup of the Product Release we can publish it. This will trigger and notify all the external components about the new available version.
 
 ## Known Issues / Questions
 
