@@ -55,7 +55,8 @@ var _ = Describe("<Scenario4> EKS, epinio-ca, on S3 storage", func() {
 			"--set", "minio.enabled=false",
 			"--set", "s3.useSSL=true",
 			"--set", "s3.bucket=epinio-ci",
-			"--set", "s3.endpoint=s3.amazonaws.com",
+			"--set", "s3.endpoint=s3.eu-central-1.amazonaws.com",
+			"--set", "s3.region=eu-central-1",
 			"--set", "s3.accessKeyID=" + accessKeyID,
 			"--set", "s3.secretAccessKey=" + secretAccessKey,
 		}
