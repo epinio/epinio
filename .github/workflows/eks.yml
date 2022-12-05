@@ -182,5 +182,8 @@ jobs:
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
         run: |
+          # Deleting namespaces will also remove PVs from EC2/EBS
           id="${{ steps.create-cluster.outputs.ID }}"
+          kubectl delete namespace epinio || true
+          kubectl delete namespace workspace || true
           eksctl delete cluster --region=${{ env.AWS_REGION }} --name=epinio-ci$id
