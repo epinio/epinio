@@ -43,7 +43,7 @@ Also the Epinio UI is a chart dependency of the Epinio Helm Chart, and it's foll
 
 The version of the Product Release could diverge from the `epinio` or `epinio-ui` versions. It could be aligned with the Helm Charts version because they are the way on how we are supporting the Epinio deployment.
 
-Indipendent releases and tags of the different components should be possible.
+Independent releases and tags of the different components should be possible.
 
 This diagram tries to show a cleaner release flow.
 
