@@ -103,3 +103,8 @@ Epinio follows [semantic versioning](https://semver.org/).
 This does not cover other tools included in Epinio.
 Kubernetes has its own [release versioning](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/release/versioning.md#kubernetes-release-versioning)
 scheme that looks like SemVer but is semantically different.
+
+## Coding Style
+
+Epinio follows the guidelines at [Effective Go](https://go.dev/doc/effective_go) and expects code to
+be formatted with `go fmt`.
