@@ -27,14 +27,14 @@ The [`epinio/epinio`](https://github.com/epinio/epinio) repository contains the 
 
 The Epinio UI image is made from the [`ui-backend`](https://github.com/epinio/ui-backend) (a proxy for the [`dashboard`](https://github.com/epinio/ui). The dashboard is hosted in the `epinio-dev` branch of the [`rancher/dashboard`](https://github.com/rancher/dashboard) repository.
 
-The [`helm-charts`](https://github.com/epinio/helm-charts) are the suggested and supported was to deploy Epinio. They are wrapping the [`epinio`](https://artifacthub.io/packages/helm/epinio/epinio) charts, the [`epinio-ui`](https://artifacthub.io/packages/helm/epinio/epinio-ui) charts, and the dependencies.
+The [`helm-charts`](https://github.com/epinio/helm-charts) are the suggested and supported way to deploy Epinio. They are wrapping the [`epinio`](https://artifacthub.io/packages/helm/epinio/epinio) charts, the [`epinio-ui`](https://artifacthub.io/packages/helm/epinio/epinio-ui) charts, and the dependencies.
 
 
 ### Release flow
 
 The following diagram is showing the current release flow. The entrypoint is the Product Release. The publishing of the release will tag `epinio` repository triggering a build. This build will prepare the binaries and images. It will also notify external repositories about this new version. Please note that the Epinio Helm Charts are not released yet, and so even if we published a new release it won't be available until we release them.  
 
-Also the Epinio UI is a chart dependency of the Epinio Helm Chart, and it's following an indipendent release. But since the Product Release is tight to a Epinio release in order to update the UI we still need to tag `epinio`.
+Also the Epinio UI is a chart dependency of the Epinio Helm Chart, and it's following an [independent release](https://github.com/epinio/ui/tree/dev/docs/developer#standalone-1). But since the Product Release is tight to a Epinio release in order to update the UI we still need to tag `epinio`.
 
 ![current-release](current-release.png)
 
@@ -49,11 +49,6 @@ This diagram tries to show a cleaner release flow.
 
 ![future-release](future-release.png)
 
-The `epinio` and `epinio-ui` components are built from tags. This process should be completely automated. The new available images should trigger a PR on the Helm Charts. When ready we could manually trigger an Helm Chart release to publish the new charts with the new images. This release could prepare the draft for the Product Release.
+The `epinio` and `epinio-ui` components are built from tags, and the two should be completely independent and automated. The new available images should trigger a PR on the Helm Charts. When ready we could manually trigger an Helm Chart release to publish the new charts with the new images. This release could prepare the draft for the Product Release.
 
 After a cleanup of the Product Release we can publish it. This will trigger and notify all the external components about the new available version.
-
-## Known Issues / Questions
-
-- `-next` and "moving tags"
-- Epinio UI charts?
