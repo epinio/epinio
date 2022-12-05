@@ -106,5 +106,10 @@ scheme that looks like SemVer but is semantically different.
 
 ## Coding Style
 
-Epinio follows the guidelines at [Effective Go](https://go.dev/doc/effective_go) and expects code to
-be formatted with `go fmt`.
+Epinio expects its Go code to be formatted with `go fmt`.
+
+Epinio further follows the style guidelines at
+
+  - [Effective Go](https://go.dev/doc/effective_go) and
+  - [Go Wiki Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments)
+  - [Go Style At Google](https://google.github.io/styleguide/go/guide)
