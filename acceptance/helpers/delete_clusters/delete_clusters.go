@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/helpers/route53"
+        "github.com/epinio/epinio/acceptance/testenv"
 	"os"
 )
 
