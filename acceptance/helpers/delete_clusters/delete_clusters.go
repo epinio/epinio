@@ -10,7 +10,6 @@ import (
 func main() {
 	runID := os.Getenv("RUN_ID")
 	pcp := os.Getenv("RUN_PCP")
-	nodeTmpDir := ""
 
 	DeleteCluster(runID, pcp)
 }
@@ -25,6 +24,7 @@ func CleanupDNS(zoneID string, domainname string) {
 			fmt.Println("Error: ", err)
 		}
 		if Name != "Clean" {
+			nodeTmpDir := ""
 			switch Type {
 			case "A":
 				change := route53.A(Name, Record, "DELETE")
