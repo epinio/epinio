@@ -1,5 +1,5 @@
 
-name: AKS-CI
+name: TEST-AKS-CI
 
 on:
   pull_request:
