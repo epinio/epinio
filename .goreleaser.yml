@@ -200,6 +200,14 @@ docker_manifests:
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-arm64v8"
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-armv7"
     - "ghcr.io/epinio/epinio-server:{{ .Tag }}-s390x"
+  -
+    name_template: "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}"
+    image_templates:
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
+  -
+    name_template: "ghcr.io/epinio/epinio-unpacker:latest"
+    image_templates:
+    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
 
 brews:
   - name: epinio
