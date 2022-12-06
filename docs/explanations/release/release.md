@@ -49,6 +49,6 @@ This diagram tries to show a cleaner release flow.
 
 ![future-release](future-release.png)
 
-The `epinio` and `epinio-ui` components are built from tags, and the two should be completely independent and automated. The new available images should trigger a PR on the Helm Charts. When ready we could manually trigger an Helm Chart release to publish the new charts with the new images. This release could prepare the draft for the Product Release.
+The `epinio` and `epinio-ui` components are built from tags, and the two should be completely independent and automated. The new available images should trigger a PR on the Helm Charts. When ready we could manually trigger a Helm Chart release to publish the new charts with the new images. This release could prepare the draft for the Product Release.
 
 After a cleanup of the Product Release we can publish it. This will trigger and notify all the external components about the new available version.
