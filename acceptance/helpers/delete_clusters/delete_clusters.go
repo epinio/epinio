@@ -4,18 +4,13 @@ import (
 	"fmt"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/helpers/route53"
-        "github.com/epinio/epinio/acceptance/testenv"
 	"os"
-)
-
-var (
-        nodeTmpDir string
-        env testenv.EpinioEnv
 )
 
 func main() {
 	runID := os.Getenv("RUN_ID")
 	pcp := os.Getenv("RUN_PCP")
+	nodeTmpDir := ""
 
 	DeleteCluster(runID, pcp)
 }
@@ -119,7 +114,7 @@ func DeleteCluster(runID string, pcp string) {
 		domainname := "id" + runID + "-" + aks_domain
 		CleanupDNS(aws_zone_id, domainname)
 		exists := ListCluster(runID, pcp)
-		if exists == true {
+		if exists {
 			fmt.Println("Deleting AKS cluster ...")
 			out, err := proc.RunW("az", "aks", "delete", "--resource-group", aks_resource_group, "--name", aks_resource_group+runID, "--yes")
 			if err != nil {
@@ -132,7 +127,7 @@ func DeleteCluster(runID string, pcp string) {
 		domainname := "id" + runID + "-" + eks_domain
 		CleanupDNS(aws_zone_id, domainname)
 		exists := ListCluster(runID, pcp)
-		if exists == true {
+		if exists {
 			fmt.Println("Deleting EKS cluster ...")
 			out, err := proc.RunW("eksctl", "delete", "cluster", "--region="+eks_region, "--name=epinio-ci"+runID)
 			if err != nil {
@@ -145,7 +140,7 @@ func DeleteCluster(runID string, pcp string) {
 		domainname := "id" + runID + "-" + gke_domain
 		CleanupDNS(aws_zone_id, domainname)
 		exists := ListCluster(runID, pcp)
-		if exists == true {
+		if exists {
 			fmt.Println("Deleting GKE cluster ...")
 			out, err := proc.RunW("gcloud", "container", "clusters", "delete", "epinioci"+runID, "--zone", gke_zone, "--quiet")
 			if err != nil {
