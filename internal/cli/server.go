@@ -26,6 +26,7 @@ import (
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
+	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 
@@ -116,6 +117,18 @@ var CmdServer = &cobra.Command{
 		ui.Normal().Msg("Epinio version: " + version.Version)
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 		ui.Normal().Msg("listening on localhost on port " + listeningPort)
+
+		trackingEnabled := true
+		if trackingEnabled {
+			upgraderHost := "http://upgrade-responder:8314"
+			checker, err := upgraderesponder.NewChecker(context.Background(), logger, upgraderHost)
+			if err != nil {
+				return errors.Wrap(err, "error creating listener")
+			}
+
+			checker.Start()
+			defer checker.Stop()
+		}
 
 		return startServerGracefully(listener, handler)
 	},

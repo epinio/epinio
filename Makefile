@@ -217,6 +217,12 @@ install-cert-manager:
 install-epinio-ui:
 	@./scripts/install-epinio-ui.sh
 
+install-upgrade-responder:
+	@./scripts/install-upgrade-responder.sh
+
+uninstall-upgrade-responder:
+	helm uninstall --namespace epinio upgrade-responder
+
 prepare_environment_k3d: build-linux-amd64 build-images
 	@./scripts/prepare-environment-k3d.sh
 
