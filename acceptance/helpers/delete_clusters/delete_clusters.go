@@ -8,6 +8,11 @@ import (
 	"os"
 )
 
+var (
+        nodeTmpDir string
+        env testenv.EpinioEnv
+)
+
 func main() {
 	runID := os.Getenv("RUN_ID")
 	pcp := os.Getenv("RUN_PCP")
