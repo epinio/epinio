@@ -91,6 +91,12 @@ func init() {
 	checkErr(err)
 	err = viper.BindEnv("app-image-exporter", "APP_IMAGE_EXPORTER")
 	checkErr(err)
+
+	flags.Bool("disable-tracking", false, "(DISABLE_TRACKING) Disable tracking of the running Epinio and Kubernetes versions")
+	err = viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking"))
+	checkErr(err)
+	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
+	checkErr(err)
 }
 
 // CmdServer implements the command: epinio server
@@ -118,10 +124,11 @@ var CmdServer = &cobra.Command{
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 		ui.Normal().Msg("listening on localhost on port " + listeningPort)
 
-		trackingEnabled := true
-		if trackingEnabled {
-			upgraderHost := "http://upgrade-responder:8314"
-			checker, err := upgraderesponder.NewChecker(context.Background(), logger, upgraderHost)
+		trackingDisabled := viper.GetBool("disable-tracking")
+		logger.Info("Checking upgrade-responder tracking", "disabled", trackingDisabled)
+
+		if !trackingDisabled {
+			checker, err := upgraderesponder.NewChecker(context.Background(), logger)
 			if err != nil {
 				return errors.Wrap(err, "error creating listener")
 			}

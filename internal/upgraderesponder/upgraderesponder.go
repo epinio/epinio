@@ -2,7 +2,6 @@ package upgraderesponder
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/epinio/epinio/helpers/kubernetes"
 	"github.com/epinio/epinio/internal/version"
@@ -10,7 +9,11 @@ import (
 	"github.com/longhorn/upgrade-responder/client"
 )
 
-func NewChecker(ctx context.Context, logger logr.Logger, host string) (*client.UpgradeChecker, error) {
+const (
+	upgradeResponderAddress = "http://upgrade-responder:8314/v1/checkupgrade"
+)
+
+func NewChecker(ctx context.Context, logger logr.Logger) (*client.UpgradeChecker, error) {
 	logger = logger.WithName("UpgradeChecker")
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -23,9 +26,7 @@ func NewChecker(ctx context.Context, logger logr.Logger, host string) (*client.U
 		return nil, err
 	}
 
-	address := fmt.Sprintf("%s/v1/checkupgrade", host)
-
-	return client.NewUpgradeChecker(address, &EpinioUpgradeRequester{
+	return client.NewUpgradeChecker(upgradeResponderAddress, &EpinioUpgradeRequester{
 		Logger:             logger,
 		EpinioVersion:      version.Version,
 		KubernetesPlatform: cluster.GetPlatform().String(),
