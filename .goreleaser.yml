@@ -47,6 +47,7 @@ changelog:
 
 env:
   - CGO_ENABLED=0
+  - DOCKER_CLI_EXPERIMENTAL=enabled
 
 snapshot:
   name_template: "{{ .Tag }}-next"
@@ -304,7 +305,7 @@ docker_signs:
   - cmd: cosign
     env:
     - COSIGN_EXPERIMENTAL=1
-    artifacts: images
+    artifacts: all
     output: true
     args:
     - 'sign'

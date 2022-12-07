@@ -1,5 +1,7 @@
 ---
-# This file builds and pushes a draft binaries to make smoke tests like upgrade
+# This file builds and pushes draft binaries to make smoke tests
+# like upgrade
+
 project_name: epinio-qa
 
 archives:
@@ -23,13 +25,24 @@ builds:
       - -w -s
       - -X "github.com/epinio/epinio/internal/version.Version={{ .Tag }}"
     goos:
+      - darwin
       - linux
+      - windows
     goarch:
       - amd64
+      - arm64
+      - arm
+      - s390x
     goarm:
       - "7"
     targets:
+    - darwin_amd64
+    - darwin_arm64
     - linux_amd64_v1
+    - linux_arm64
+    - linux_arm_7
+    - linux_s390x
+    - windows_amd64
 
 changelog:
   ## Delegate Changelog to release-drafter
@@ -37,8 +50,78 @@ changelog:
 
 env:
   - CGO_ENABLED=0
+  - DOCKER_CLI_EXPERIMENTAL=enabled
 
 dockers:
+  -
+    use: buildx
+    goos: linux
+    goarch: amd64
+    image_templates:
+    - "epinioteam/epinio-unpacker-qa:{{ .Tag }}-amd64"
+
+    # Skips the docker push.
+    #skip_push: "true"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: images/unpacker-Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--platform=linux/amd64"
+
+  -
+    use: buildx
+    goos: linux
+    goarch: arm64
+    image_templates:
+    - "epinioteam/epinio-unpacker-qa:{{ .Tag }}-arm64v8"
+
+    # Skips the docker push.
+    #skip_push: "true"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: images/unpacker-Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--platform=linux/arm64/v8"
+
+  -
+    use: buildx
+    goos: linux
+    goarch: s390x
+    image_templates:
+    - "epinioteam/epinio-unpacker-qa:{{ .Tag }}-s390x"
+
+    # Skips the docker push.
+    #skip_push: "true"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: images/unpacker-Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--platform=linux/s390x"
+
   -
     use: buildx
 
@@ -84,6 +167,70 @@ dockers:
     # and use wildcards when you `COPY`/`ADD` in your Dockerfile.
     extra_files: [ "docs/references/api/swagger.json" ]
 
+  -
+    use: buildx
+    goos: linux
+    goarch: arm64
+    ids:
+    - epinio
+    image_templates:
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-arm64v8"
+    dockerfile: images/Dockerfile
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--build-arg=DIST_BINARY=epinio"
+    - "--platform=linux/arm64/v8"
+
+    extra_files: [ "docs/references/api/swagger.json" ]
+
+  -
+    use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "7"
+    ids:
+    - epinio
+    image_templates:
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-armv7"
+    dockerfile: images/Dockerfile
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--build-arg=DIST_BINARY=epinio"
+    - "--platform=linux/arm/v7"
+
+    extra_files: [ "docs/references/api/swagger.json" ]
+
+  -
+    use: buildx
+    goos: linux
+    goarch: s390x
+    ids:
+    - epinio
+    image_templates:
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-s390x"
+    dockerfile: images/Dockerfile
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--build-arg=DIST_BINARY=epinio"
+    - "--platform=linux/s390x"
+
+    extra_files: [ "docs/references/api/swagger.json" ]
+
 release:
   disable: true
 
@@ -93,6 +240,15 @@ docker_manifests:
     name_template: "epinioteam/epinio-server-qa:latest"
     image_templates:
     - "epinioteam/epinio-server-qa:{{ .Tag }}-amd64"
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-arm64v8"
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-armv7"
+    - "epinioteam/epinio-server-qa:{{ .Tag }}-s390x"
+  -
+    name_template: "epinioteam/epinio-unpacker-qa:latest"
+    image_templates:
+    - "epinioteam/epinio-unpacker-qa:{{ .Tag }}-amd64"
+    - "epinioteam/epinio-unpacker-qa:{{ .Tag }}-arm64v8"
+    - "epinioteam/epinio-unpacker-qa:{{ .Tag }}-s390x"
 
 # Based on https://blog.goreleaser.com/goreleaser-and-software-supply-chain-security-e8917b26924b
 ##
@@ -114,7 +270,7 @@ docker_signs:
   - cmd: cosign
     env:
     - COSIGN_EXPERIMENTAL=1
-    artifacts: images
+    artifacts: all
     output: true
     args:
     - 'sign'
