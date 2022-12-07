@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path"
-        "strings"
+	"strings"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 )
 
