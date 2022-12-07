@@ -30,6 +30,6 @@ jobs:
           push: true
           context: images/.
           file: images/unpacker-Dockerfile
-          tags: ghcr.io/epinio/epinio-unpacker:1.0
+          tags: ghcr.io/epinio/epinio-unpacker:1.0.1
           build-args: |
-            VERSION=1.0
+            VERSION=1.0.1
