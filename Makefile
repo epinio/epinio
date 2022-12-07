@@ -221,7 +221,7 @@ install-upgrade-responder:
 	@./scripts/install-upgrade-responder.sh
 
 uninstall-upgrade-responder:
-	helm uninstall --namespace epinio upgrade-responder
+	helm uninstall -n epinio upgrade-responder --wait || true
 
 prepare_environment_k3d: build-linux-amd64 build-images
 	@./scripts/prepare-environment-k3d.sh

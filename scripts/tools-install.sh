@@ -10,34 +10,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-function colorize {
-    local color=$1
-    local text=$2
-
-    # COLOR defaults to true if stdout is a tty.
-    if [[ -z "${COLOR:-}" && -t 1 ]]; then
-        COLOR=true
-    fi
-
-    # XXX Does not really work correctly for `COLOR= make ...`
-    if [ -z "${COLOR:-}" ]; then
-        printf "%b\n" "${text}"
-    else
-        printf "\033[${color}m%b\033[0m\n" "${text}"
-    fi
-}
-
-function green() {
-    colorize 32 "$1"
-}
-
-function red() {
-    colorize 31 "$1"
-}
-
-function blue() {
-    colorize 34 "$1"
-}
+source "$SCRIPT_DIR/helpers.sh"
 
 function cleanup {
   rm -rf "$TMP_DIR"
