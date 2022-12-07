@@ -77,6 +77,76 @@ dockers:
 
   -
     use: buildx
+    goos: linux
+    goarch: arm64
+    image_templates:
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-arm64v8"
+
+    # Skips the docker push.
+    #skip_push: "true"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: images/unpacker-Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--platform=linux/arm64/v8"
+
+  -
+    use: buildx
+    goos: linux
+    goarch: arm
+    goarm: "7"
+    image_templates:
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-armv7"
+
+    # Skips the docker push.
+    #skip_push: "true"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: images/unpacker-Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--platform=linux/arm/v7"
+
+  -
+    use: buildx
+    goos: linux
+    goarch: s390x
+    image_templates:
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-s390x"
+
+    # Skips the docker push.
+    #skip_push: "true"
+
+    # Path to the Dockerfile (from the project root).
+    dockerfile: images/unpacker-Dockerfile
+
+    # Template of the docker build flags.
+    build_flag_templates:
+    - "--pull"
+    - "--label=org.opencontainers.image.created={{.Date}}"
+    - "--label=org.opencontainers.image.title={{.ProjectName}}"
+    - "--label=org.opencontainers.image.revision={{.FullCommit}}"
+    - "--label=org.opencontainers.image.version={{.Version}}"
+    - "--label=org.opencontainers.image.source=https://github.com/epinio/epinio"
+    - "--platform=linux/s390x"
+
+  -
+    use: buildx
 
     # GOOS of the built binaries/packages that should be used.
     goos: linux
@@ -203,11 +273,17 @@ docker_manifests:
   -
     name_template: "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}"
     image_templates:
-    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-amd64"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-arm64v8"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-armv7"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-s390x"
   -
     name_template: "ghcr.io/epinio/epinio-unpacker:latest"
     image_templates:
-    - "ghcr.io/epinio/epinio-server:{{ .Tag }}-amd64"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-amd64"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-arm64v8"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-armv7"
+    - "ghcr.io/epinio/epinio-unpacker:{{ .Tag }}-s390x"
 
 brews:
   - name: epinio
