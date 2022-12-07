@@ -8,7 +8,7 @@ on:
     paths:
       - 'acceptance/install/scenario6_test.go'
       - '.github/workflows/aks.yml'
-      - 'acceptance/helpers/delete_clusters/delete_clusters.go'
+      - 'acceptance/delete_clusters/delete_clusters.go'
   schedule:
     - cron:  '0 0 * * *'
   workflow_dispatch:
