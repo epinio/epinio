@@ -26,31 +26,3 @@ function prepare_system_domain {
   echo -e "Using \e[32m${EPINIO_SYSTEM_DOMAIN}\e[0m for Epinio domain"
 }
 
-function colorize {
-    local color=$1
-    local text=$2
-
-    # COLOR defaults to true if stdout is a tty.
-    if [[ -z "${COLOR:-}" && -t 1 ]]; then
-        COLOR=true
-    fi
-
-    # XXX Does not really work correctly for `COLOR= make ...`
-    if [ -z "${COLOR:-}" ]; then
-        printf "%b\n" "${text}"
-    else
-        printf "\033[${color}m%b\033[0m\n" "${text}"
-    fi
-}
-
-function green() {
-    colorize 32 "$1"
-}
-
-function red() {
-    colorize 31 "$1"
-}
-
-function blue() {
-    colorize 34 "$1"
-}

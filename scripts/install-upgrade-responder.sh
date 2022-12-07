@@ -10,14 +10,15 @@ source "$SCRIPT_DIR/helpers.sh"
 # Ensure we have a value for domain
 prepare_system_domain
 
-blue "Installing upgrade-responder"
+echo "Installing upgrade-responder"
 helm upgrade --install upgrade-responder --create-namespace -n epinio  \
   --set "applicationName=epinio" \
   --set "grafana.ingress.hosts[0]=grafana.$EPINIO_SYSTEM_DOMAIN" \
   "$SCRIPT_DIR/../helm-charts/chart/upgrade-responder" \
   --wait
 
-blue "Preparing InfluxDB"
+echo
+echo "Preparing InfluxDB"
 
 INFLUXDB_POD_NAME=$(kubectl get pod -n epinio -l app.kubernetes.io/name=influxdb -o jsonpath="{.items[0].metadata.name}")
 # Setup the upgrade-responder Kubernetes Version query
@@ -28,8 +29,9 @@ QUERY='CREATE CONTINUOUS QUERY "cq_by_kubernetes_platform_down_sampling" ON "epi
 kubectl exec -n epinio $INFLUXDB_POD_NAME -- influx -execute "$QUERY"
 
 # Changing Grafana password
-blue "Preparing Grafana"
+echo "Preparing Grafana"
+
 kubectl patch secret --namespace epinio upgrade-responder-grafana -p='{"data":{"admin-password": "cGFzc3dvcmQ="}}' > /dev/null
 kubectl delete pod -n epinio -l app.kubernetes.io/name=grafana > /dev/null
 
-green "You can access your Grafana instance from 'https://grafana.$EPINIO_SYSTEM_DOMAIN' with admin/password"
+echo "You can access your Grafana instance from 'https://grafana.$EPINIO_SYSTEM_DOMAIN' with admin/password"
