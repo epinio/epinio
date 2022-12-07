@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"github.com/epinio/epinio/acceptance/helpers/proc"
 	"github.com/epinio/epinio/acceptance/helpers/route53"
-	"os"
 )
 
 func main() {
