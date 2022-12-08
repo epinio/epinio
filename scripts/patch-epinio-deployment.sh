@@ -120,6 +120,10 @@ if [ -n "$EPINIO_COVERAGE" ]; then
   helper=',{"name": "tools", "image": "alpine", "command": ["sleep","9000"], "volumeMounts": [{"mountPath": "/tmp", "name": "tmp-volume"}]}'
 fi
 
+# Due to PV Multi-Attach Error on AKS the RollingUpdate strategy is needed.
+# It will remove the original epinio-server pod immediatelly after patching.
+# Note: Scaling deployment to 0 replicas and then back to 1 after patching would work similarly.
+# Ref. https://github.com/andyzhangx/demo/blob/master/issues/azuredisk-issues.md#25-multi-attach-error
 echo "Patching the epinio-server deployment to use the copied binary"
 PATCH=$(cat <<EOF
 { "spec": { "template": {
@@ -151,6 +155,13 @@ PATCH=$(cat <<EOF
           ]
         }$helper]
       }
+    },
+    "strategy": {
+      "rollingUpdate": {
+        "maxSurge": 0,
+        "maxUnavailable": 1
+      },
+      "type": "RollingUpdate"
     }
   }
 }
