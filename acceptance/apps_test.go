@@ -185,7 +185,7 @@ configuration:
 				"--name", appName,
 				"--git", wordpress,
 				"-e", "BP_PHP_WEB_DIR=wordpress",
-				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_VERSION=8.0.x",
 				"-e", "BP_PHP_SERVER=nginx")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
@@ -211,7 +211,7 @@ configuration:
 				"--name", appName,
 				"--git", wordpress+",main",
 				"-e", "BP_PHP_WEB_DIR=wordpress",
-				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_VERSION=8.0.x",
 				"-e", "BP_PHP_SERVER=nginx")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
@@ -237,7 +237,7 @@ configuration:
 				"--name", appName,
 				"--git", wordpress+",68af5bad11d8f3b95bdf547986fe3348324919c5",
 				"-e", "BP_PHP_WEB_DIR=wordpress",
-				"-e", "BP_PHP_VERSION=7.4.x",
+				"-e", "BP_PHP_VERSION=8.0.x",
 				"-e", "BP_PHP_SERVER=nginx")
 			Expect(err).ToNot(HaveOccurred(), pushLog)
 
@@ -264,7 +264,7 @@ configuration:
 					"--name", appName,
 					"--git", wordpress+",main",
 					"-e", "BP_PHP_WEB_DIR=wordpress",
-					"-e", "BP_PHP_VERSION=7.4.x",
+					"-e", "BP_PHP_VERSION=8.0.x",
 					"-e", "BP_PHP_SERVER=nginx")
 				Expect(err).ToNot(HaveOccurred(), pushLog)
 
