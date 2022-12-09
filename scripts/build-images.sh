@@ -3,7 +3,9 @@
 set -e
 
 version="$(git describe --tags)"
-image="ghcr.io/epinio/epinio-server"
+imageEpServer="ghcr.io/epinio/epinio-server"
+imageUnpacker="ghcr.io/epinio/epinio-unpacker"
 
-# Build image
-docker build -t "${image}:${version}" -t "${image}:latest" -f images/Dockerfile .
+# Build images
+docker build -t "${imageEpServer}:${version}" -t "${imageEpServer}:latest" -f images/Dockerfile .
+docker build -t "${imageUnpacker}:${version}" -t "${imageUnpacker}:latest" -f images/unpacker-Dockerfile .
