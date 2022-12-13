@@ -41,34 +41,58 @@ func (e *Epinio) Upgrade() {
 	// server image to be assembled in the coming step below. Not doing so causes the new server
 	// image to contain the old binary.
 
+	tag := os.Getenv("EPINIO_CURRENT_TAG")
+	By("Tag: " + tag)
+
 	By("Building server image ...")
 	out, err := proc.Run("../..", false, "docker", "build", "-t", "epinio/epinio-server",
 		"-f", "images/Dockerfile", ".")
 	Expect(err).NotTo(HaveOccurred(), out)
 	By(out)
 
-	tag := os.Getenv("EPINIO_CURRENT_TAG")
-	By("Tag: " + tag)
+	By("Building unpacker image ...")
+	out, err = proc.Run("../..", false, "docker", "build", "-t", "epinio/epinio-unpacker",
+		"-f", "images/unpacker-Dockerfile", ".")
+	Expect(err).NotTo(HaveOccurred(), out)
+	By(out)
 
 	local := "epinio/epinio-server"
 	remote := fmt.Sprintf("ghcr.io/%s:%s", local, tag)
+
+	localPacker := "epinio/epinio-unpacker"
+	remotePacker := fmt.Sprintf("ghcr.io/%s:%s", localPacker, tag)
+
 	By("Image: " + remote)
+	By("Image: " + remotePacker)
 
 	if os.Getenv("PUBLIC_CLOUD") == "" {
-		// Local k3ds/k3d-based cluster. Talk directly to it. Import the new image into k3d
+		// Local k3ds/k3d-based cluster. Talk directly to it. Import the new images into k3d
 		By("Importing server image ...")
 		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance", remote)
+		Expect(err).NotTo(HaveOccurred(), out)
+		By(out)
+
+		By("Importing unpacker image ...")
+		out, err = proc.RunW("k3d", "image", "import", "-c", "epinio-acceptance", remotePacker)
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 	} else {
 		By("Pushing server image to GHCR ...")
 		// PUBLIC_CLOUD is present
-		// Pushing new image into ghcr for the public cluster to pull from
+		// Pushing new images into ghcr for the public cluster to pull from
 		out, err = proc.RunW("docker", "tag", local+":latest", remote)
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 
 		out, err = proc.RunW("docker", "push", remote)
+		Expect(err).NotTo(HaveOccurred(), out)
+		By(out)
+
+		out, err = proc.RunW("docker", "tag", localPacker+":latest", remotePacker)
+		Expect(err).NotTo(HaveOccurred(), out)
+		By(out)
+
+		out, err = proc.RunW("docker", "push", remotePacker)
 		Expect(err).NotTo(HaveOccurred(), out)
 		By(out)
 	}
@@ -79,6 +103,7 @@ func (e *Epinio) Upgrade() {
 		"../../helm-charts/chart/epinio",
 		"--set", "image.epinio.registry=ghcr.io/",
 		"--set", fmt.Sprintf("image.epinio.tag=%s", tag),
+		"--set", fmt.Sprintf("image.bash.tag=%s", tag),
 		"--wait",
 	)
 	Expect(err).NotTo(HaveOccurred(), out)
