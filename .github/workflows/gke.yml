@@ -120,6 +120,9 @@ jobs:
           --zone ${{ env.GKE_ZONE }}
 
       - name: Get kubeconfig file from GKE
+        env:
+          # Prevents using deprecated auth method in generated kubeconfig
+          USE_GKE_GCLOUD_AUTH_PLUGIN: True
         run: |
           id="${{ steps.create-cluster.outputs.ID }}"
           gcloud container clusters get-credentials epinioci$id --zone ${{ env.GKE_ZONE }} --project ${{ secrets.EPCI_GKE_PROJECT }}
