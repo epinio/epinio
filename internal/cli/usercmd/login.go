@@ -126,8 +126,9 @@ func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, err
 			if cert == nil {
 				return "", errors.Wrap(err, "error while checking CA")
 			}
+			// add the untrusted certificate
+			certsToCheck = append(certsToCheck, cert)
 		}
-		certsToCheck = append(certsToCheck, cert)
 	}
 
 	// in cert we trust!
@@ -168,6 +169,8 @@ func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, err
 	return builder.String(), nil
 }
 
+// checkCA will check if the address has a trusted certificate.
+// If not trusted it returns the untrusted certificate and an error, otherwise if trusted then no error will be returned
 func checkCA(address string) (*x509.Certificate, error) {
 	parsedURL, err := url.Parse(address)
 	if err != nil {
