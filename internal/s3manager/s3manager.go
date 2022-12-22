@@ -76,6 +76,11 @@ func New(connectionDetails ConnectionDetails) (*Manager, error) {
 		Region:    connectionDetails.Location,
 	}
 
+	// if no credentials are provided then we are going to try to connect with the IAM Role
+	if connectionDetails.AccessKeyID == "" && connectionDetails.SecretAccessKey == "" {
+		opts.Creds = credentials.NewIAM("")
+	}
+
 	if len(connectionDetails.CA) > 0 {
 		rootCAs := x509.NewCertPool()
 		if ok := rootCAs.AppendCertsFromPEM(connectionDetails.CA); !ok {
