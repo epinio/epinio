@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-	description: "id - The plain random number from CI cluster creation, found in the respective acceptance-scenario* logs (e.g. 1234)"
+	description: "id - The plain random number from CI cluster creation, found in the respective acceptance-scenario logs (e.g. 1234)"
 	required: true
 	default: ""
       pcp:
