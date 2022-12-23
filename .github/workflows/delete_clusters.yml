@@ -1,0 +1,78 @@
+
+name: DELETE-CI-ACCEPTANCE-TEST-CLUSTER
+
+# This workflow_dispatch only, is intended to be used to cleanup a kubernetes cluster
+# after using keep_cluster, by just providing the acceptance test run-id and the PCP flavor
+# !!! This will currently only work with the respective test branch svollath-test-cluster-deletion !!!
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "id - The plain random number from CI cluster creation, found in the respective acceptance-scenario logs (e.g. 1234)"
+        required: true
+        default: ""
+      pcp:
+        description: "Public Cloud Provider Kubernetes service (enter AKS, EKS or GKE)"
+        required: true
+        default: ""
+
+env:
+  SETUP_GO_VERSION: '^1.18'
+  AWS_ZONE_ID: ${{ secrets.AWS_ZONE_ID }} 
+  AKS_DOMAIN: ${{ secrets.AKS_DOMAIN }}
+  AKS_RESOURCE_GROUP: ${{ secrets.AKS_RESOURCE_GROUP }}
+  EKS_DOMAIN: ${{ secrets.EKS_DOMAIN }}
+  EKS_REGION: ${{ secrets.EKS_REGION }}
+  GKE_DOMAIN: ${{ secrets.GKE_DOMAIN }}
+  GKE_ZONE: ${{ secrets.GKE_ZONE }}
+  EPCI_GKE_PROJECT: ${{ secrets.EPCI_GKE_PROJECT }}
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci' 
+
+jobs:
+  delete-ci-acceptance-test-cluster:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      # The system domain is managed by route53, login to delete
+      # DNS records and for the EKS deletion case
+      - name: Configure AWS credentials for Route53
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Login to Azure for the AKS deletion case
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ github.events.inputs.azure_credentials || secrets.AZURE_CREDENTIALS }}
+
+      # Login to gcloud for the GKE case
+      - name: Authenticate to GCP
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: ${{ secrets.EPCI_GCP_CREDENTIALS }}
+
+      - name: Install gcloud kubectl version
+        run: gcloud components install kubectl
+
+      # Delete PVCs, DNS records and Public Cloud Providers cluster
+      - name: Delete PCP Clusters and Resources
+        shell: bash
+        run: |
+          RUN_ID=${{ github.event.inputs.run_id }}
+          RUN_PCP=${{ github.event.inputs.pcp }}
+          go run acceptance/helpers/delete_clusters/delete_clusters.go

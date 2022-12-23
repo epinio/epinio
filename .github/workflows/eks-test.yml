@@ -1,0 +1,168 @@
+
+name: TEST-EKS-CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws_domain:
+        description: "AWS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
+        required: false
+        default: ""
+      aws_zone_id:
+        description: "AWS_ZONE_ID"
+        required: false
+        default: ""
+      keep_cluster:
+        description: "Keep the cluster afterwards? (empty/yes)"
+        required: false
+        default: ""
+
+env:
+  SETUP_GO_VERSION: '^1.18'
+  GINKGO_NODES: 1
+  FLAKE_ATTEMPTS: 1
+  PUBLIC_CLOUD: 1
+  EKS_REGION: ${{ secrets.EKS_REGION }}
+  AWS_MACHINE_TYPE: 't3.xlarge'
+  KUBECONFIG_NAME: 'kubeconfig-epinio-ci'
+
+jobs:
+  linter:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Cache Tools
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/tools
+          key: ${{ runner.os }}-tools
+
+      - name: Install Tools
+        run: make tools-install
+
+      - name: Add Tools to PATH
+        run: |
+          echo "`pwd`/output/bin" >> $GITHUB_PATH
+
+      - name: Lint Epinio
+        run: make lint
+
+      - name: Clean all
+        if: always()
+        uses: colpal/actions-clean@v1
+
+  acceptance-scenario4:
+    needs:
+      - linter
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ env.SETUP_GO_VERSION }}
+
+      - name: Setup Ginkgo Test Framework
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
+
+      - name: Install Dependencies
+        run: |
+          brew install kubernetes-cli coreutils
+
+      - name: Install EKSCTL
+        run: |
+          # Better to always use the latest eksctl binary to avoid API version issue
+          EKSCTL_GH=https://github.com/weaveworks/eksctl/releases/latest/download
+          curl --location ${EKSCTL_GH}/eksctl_$(uname -s)_amd64.tar.gz | tar xz -C .
+          chmod +x eksctl
+          sudo mv eksctl /usr/local/bin
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1.7.0
+        with:
+          aws-access-key-id: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.EKS_REGION }}
+
+      - name: Create EKS cluster
+        id: create-cluster
+        run: |
+          id=$RANDOM
+          echo "ID=$id" >> $GITHUB_OUTPUT
+          eksctl create cluster --name=epinio-ci$id \
+          --region=${{ env.EKS_REGION }} \
+          --nodes=2 \
+          --node-type=${{ env.AWS_MACHINE_TYPE }} \
+          --node-volume-size=40 \
+          --managed \
+          --kubeconfig=kubeconfig-epinio-ci
+
+      - name: Configure EKS EBS CSI storage
+        id: configure-storage
+        run: |
+          id="${{ steps.create-cluster.outputs.ID }}"
+          # Get AWS Account ID
+          AWS_ACCOUNT_ID=$(aws sts get-caller-identity | jq -r '.Account')
+          # Assign OIDC provider to the cluster
+          eksctl utils associate-iam-oidc-provider --cluster=epinio-ci$id --approve
+          # Assign existing policy Amazon_EBS_CSI_Driver to the cluster's serviceAccount via a new Role
+          eksctl create iamserviceaccount --cluster=epinio-ci$id \
+            --name=ebs-csi-controller-sa \
+            --namespace=kube-system \
+            --attach-policy-arn=arn:aws:iam::$AWS_ACCOUNT_ID:policy/Amazon_EBS_CSI_Driver \
+            --approve \
+            --role-only \
+            --role-name=AmazonEKS_epinio-ci$id-EBS_CSI_DriverRole
+          # Install the driver addon and use the Role
+          eksctl create addon --name=aws-ebs-csi-driver \
+            --cluster=epinio-ci$id \
+            --service-account-role-arn=arn:aws:iam::$AWS_ACCOUNT_ID:role/AmazonEKS_epinio-ci$id-EBS_CSI_DriverRole \
+            --force
+
+      - name: Installation Acceptance Tests
+        env:
+          REGEX: Scenario4
+          REGISTRY_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          REGISTRY_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          AWS_ZONE_ID: ${{ github.event.inputs.aws_zone_id || secrets.AWS_ZONE_ID }}
+          AWS_ACCESS_KEY_ID: ${{ github.event.inputs.aws_id || secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ github.event.inputs.aws_key || secrets.AWS_SECRET_ACCESS_KEY }}
+          # Use a random host name, so we don't collide with our workflows on EKS
+          AWS_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aws_domain || secrets.AWS_DOMAIN }}
+          EPINIO_SYSTEM_DOMAIN: id${{ steps.create-cluster.outputs.ID }}-${{ github.event.inputs.aws_domain || secrets.AWS_DOMAIN }}
+          EPINIO_TIMEOUT_MULTIPLIER: 3
+          INGRESS_CONTROLLER: nginx
+          # EXTRAENV_NAME: SESSION_KEY
+          # EXTRAENV_VALUE: 12345
+        run: |
+          echo "System Domain: $AWS_DOMAIN"
+          export KUBECONFIG=$PWD/${{ env.KUBECONFIG_NAME }}
+          make test-acceptance-install
+
+      - name: Delete EKS cluster
+        # We always tear down the cluster, to avoid costs. Except when running
+        # manually and keep_cluster was set to a non-empty string, like "yes"
+        # TODO this was not called, when scheduled and tests failed
+        if: ${{ always() && !github.event.inputs.keep_cluster }}
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
+        run: |
+          RUN_ID=${{ steps.create-cluster.outputs.ID }}
+          RUN_PCP="EKS"
+          go run acceptance/helpers/delete_clusters/delete_clusters.go
