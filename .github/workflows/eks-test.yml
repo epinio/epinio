@@ -4,14 +4,6 @@ name: TEST-EKS-CI
 on:
   workflow_dispatch:
     inputs:
-      aws_id:
-        description: "AWS_ACCESS_KEY_ID"
-        required: false
-        default: ""
-      aws_key:
-        description: "AWS_SECRET_ACCESS_KEY"
-        required: false
-        default: ""
       aws_domain:
         description: "AWS_DOMAIN to use, managed via Route53's AWS_ZONE_ID"
         required: false
