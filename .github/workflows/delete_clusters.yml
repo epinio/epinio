@@ -9,13 +9,13 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-	description: "id - The plain random number from CI cluster creation, found in the respective acceptance-scenario logs, e.g. 1234"
-	required: true
-	default: ""
+        description: "id - The plain random number from CI cluster creation, found in the respective acceptance-scenario logs (e.g. 1234)"
+        required: true
+        default: ""
       pcp:
-	description: "Public Cloud Provider Kubernetes service, e.g. AKS, EKS or GKE"
-	required: true
-	default: ""
+        description: "Public Cloud Provider Kubernetes service (enter AKS, EKS or GKE)"
+        required: true
+        default: ""
 
 env:
   SETUP_GO_VERSION: '^1.18'
