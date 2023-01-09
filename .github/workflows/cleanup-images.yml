@@ -5,6 +5,9 @@ on:
   schedule:
     - cron: "0 6 1 * *"  # every day at 6 in the morning
 
+permissions:
+  packages: write
+
 jobs:
   clean-ghcr:
     name: Delete old unused container images
