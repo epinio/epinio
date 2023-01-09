@@ -20,4 +20,4 @@ jobs:
           keep-at-least: 1
           filter-tags: v*-[0-9]*-g*
           filter-include-untagged: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.IMG_CLEANUP_TOKEN }}
