@@ -397,11 +397,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 
 	volumeMounts := []corev1.VolumeMount{
 		{
-			Name:      "s3-creds",
-			MountPath: "/root/.aws",
-			ReadOnly:  true,
-		},
-		{
 			Name:      "source",
 			SubPath:   "source",
 			MountPath: "/workspace/source",
@@ -425,6 +420,15 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 			MountPath: "/workspace/source/appenv",
 			ReadOnly:  true,
 		},
+	}
+
+	// mount AWS credentials secret only if the credentials are provided
+	if app.S3ConnectionDetails.AccessKeyID != "" && app.S3ConnectionDetails.SecretAccessKey != "" {
+		volumeMounts = append(volumeMounts, corev1.VolumeMount{
+			Name:      "s3-creds",
+			MountPath: "/root/.aws",
+			ReadOnly:  true,
+		})
 	}
 
 	cacheClaim := &corev1.PersistentVolumeClaimVolumeSource{
