@@ -10,7 +10,7 @@ jobs:
     name: Delete old unused container images
     runs-on: ubuntu-latest
     steps:
-      - name: Delete untagged and dev containers older than a week
+      - name: Delete dev containers older than a week
         uses: snok/container-retention-policy@v1.5.1
         with:
           image-names: epinio-server, epinio-unpacker
@@ -21,3 +21,13 @@ jobs:
           filter-tags: v*-[0-9]*-g*
           filter-include-untagged: true
           token: ${{ secrets.IMG_CLEANUP_TOKEN }}
+      - name: Delete untagged containers older than a week
+        uses: snok/container-retention-policy@v1.5.1
+        with:
+          image-names: epinio-server, epinio-unpacker
+          cut-off: A week ago UTC
+          account-type: org
+          org-name: epinio
+          keep-at-least: 1
+          token: ${{ secrets.IMG_CLEANUP_TOKEN }}
+          untagged-only: true
