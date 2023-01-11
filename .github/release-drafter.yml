@@ -1,31 +1,28 @@
 categories:
   - title: '🚀 Features'
     labels:
-      - 'feature'
-      - 'enhancement'
+      - 'kind/enhancement'
   - title: '🐛 Bug Fixes'
     labels:
-      - 'fix'
-      - 'bugfix'
-      - 'bug'
+      - 'kind/bug'
   - title: '🧰 Maintenance'
     labels:
-      - 'chore'
-      - '🤖 dependencies'
+      - 'kind/chore'
+      - 'kind/dependencies'
 
 exclude-labels:
-  - apparently external cause
-  - devops admin
-  - duplicate
-  - invalid
-  - later
-  - overcome by events
-  - spike
-  - wontfix
-  - do not log
-  - question
-  - QA
-  - skip-changelog
+  - 'area/QA'
+  - 'kind/question'
+  - 'kind/spike'
+  - 'status/apparently external cause'
+  - 'status/devops admin'
+  - 'status/do not log'
+  - 'status/duplicate'
+  - 'status/invalid'
+  - 'status/later'
+  - 'status/overcome by events'
+  - 'status/skip-changelog'
+  - 'status/wontfix'
 
 change-template: '- $TITLE (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
@@ -50,13 +47,13 @@ version-resolver:
     labels:
       - 'minor'
       - 'feature'
-      - 'enhancement'
-      - 'dependencies'
+      - 'kind/enhancement'
+      - 'kind/dependencies'
   patch:
     labels:
       - 'patch'
       - 'fix'
       - 'bugfix'
-      - 'bug'
-      - 'chore'
+      - 'kind/bug'
+      - 'kind/chore'
   default: patch
