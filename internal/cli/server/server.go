@@ -93,8 +93,21 @@ func NewHandler(logger logr.Logger) (*gin.Engine, error) {
 		initContextMiddleware(logger),
 	)
 
-	err := auth.ExtendLocalTrustFromFile("/etc/ssl/certs/dex-tls.pem")
-	if err != nil {
+	// Dex or no dex ?
+
+	dexPEMPath := "/etc/ssl/certs/dex-tls.pem"
+
+	if _, err := os.Stat(dexPEMPath); err == nil {
+		// dex secret is present, load contained cert
+
+		err := auth.ExtendLocalTrustFromFile(dexPEMPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "extending local trust with dex")
+		}
+	} else if errors.Is(err, os.ErrNotExist) {
+		// No dex secret/file, do nothing
+	} else {
+		// Some other Stat error, report
 		return nil, errors.Wrap(err, "extending local trust with dex")
 	}
 
