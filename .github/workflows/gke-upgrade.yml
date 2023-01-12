@@ -100,7 +100,7 @@ jobs:
           aws-region: us-east-2
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
 
       - name: Authenticate to GCP
         uses: 'google-github-actions/auth@v1'
