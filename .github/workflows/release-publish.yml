@@ -1,5 +1,5 @@
-# This action will be triggered when the 'Product Release' will be published.
-# This will notify the external repositories about the new Epinio version
+# This action will be triggered when the 'Product Release' is published.
+# It notifies the external repositories about the new Epinio version
 name: Release Published
 
 on:
