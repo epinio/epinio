@@ -91,7 +91,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.1.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
 
       # The system domain is managed by route53, we need credentials to update
       # it to the loadbalancer's IP
