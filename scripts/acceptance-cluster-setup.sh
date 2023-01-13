@@ -7,7 +7,7 @@ NETWORK_NAME=epinio-acceptance
 MIRROR_NAME=epinio-acceptance-registry-mirror
 CLUSTER_NAME=epinio-acceptance
 export KUBECONFIG=$SCRIPT_DIR/../tmp/acceptance-kubeconfig
-K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.20.11-k3s2}
+K3S_IMAGE=${K3S_IMAGE:-rancher/k3s:v1.25.4-k3s1}
 
 check_deps() {
   if ! command -v k3d &> /dev/null
