@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/epinio/epinio/internal/api/v1/namespace"
+	apinamespace "github.com/epinio/epinio/internal/api/v1/namespace"
 	"github.com/epinio/epinio/internal/api/v1/namespace/namespacefakes"
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	"github.com/gin-gonic/gin"
@@ -22,7 +22,7 @@ import (
 var _ = Describe("Namespace Controller", func() {
 	var c *gin.Context
 	var w *httptest.ResponseRecorder
-	var controller *Controller
+	var controller *apinamespace.Controller
 
 	var fakeNamespaceService *namespacefakes.FakeNamespaceService
 	var fakeAuthService *namespacefakes.FakeAuthService
@@ -31,7 +31,7 @@ var _ = Describe("Namespace Controller", func() {
 		rand.Seed(time.Now().UnixNano())
 		fakeNamespaceService = &namespacefakes.FakeNamespaceService{}
 		fakeAuthService = &namespacefakes.FakeAuthService{}
-		controller = NewController(fakeNamespaceService, fakeAuthService)
+		controller = apinamespace.NewController(fakeNamespaceService, fakeAuthService)
 
 		gin.SetMode(gin.TestMode)
 		w = httptest.NewRecorder()
