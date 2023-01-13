@@ -5,7 +5,6 @@ import (
 	"github.com/epinio/epinio/internal/cli/server/requestctx"
 	apierror "github.com/epinio/epinio/pkg/api/core/v1/errors"
 	"github.com/epinio/epinio/pkg/api/core/v1/models"
-	"github.com/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
