@@ -88,4 +88,4 @@ body:
             **( 📝 Manual step )** CIVO marketplace: open a PR in the [CIVO Marketplace](https://github.com/civo/kubernetes-marketplace) bumping the helm chart version in our fork `epinio/kubernetes-marketplace`
             [LINK](https://github.com/epinio/kubernetes-marketplace)
         - label: >
-            **( 📝 Manual step )** Rancher marketplace: open a PR in the [Rancher Helm Chart repository](https://github.com/rancher/charts)
+            **( 📝 Manual step )** [optional] Rancher marketplace: open a PR in the [Rancher Helm Chart repository](https://github.com/rancher/charts)
