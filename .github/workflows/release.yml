@@ -14,6 +14,10 @@ permissions:
 jobs:
   release:
     runs-on: self-hosted
+    permissions:
+      id-token: write   # This is the key for OIDC!
+      contents: write
+      packages: write
 
     steps:
       - name: Checkout
@@ -44,6 +48,10 @@ jobs:
 
       - uses: sigstore/cosign-installer@v2.8.1
 
+      - name: Get latest tag
+        id: get_latest_tag
+        run: echo "LATEST_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_OUTPUT
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v4
         with:
@@ -58,8 +66,19 @@ jobs:
         id: get_tag
         run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
 
-      # Allow to release Epinio Helm chart automatically when we release Epinio.
-      # The latest tag is sent to the Helm chart repo.
+      - name: Verify signatures on the generated docker images and manifests
+        id: verify_signatures
+        run: |
+          cosign verify ghcr.io/epinio/epinio-server:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
+          cosign verify ghcr.io/epinio/epinio-unpacker:${{ steps.get_latest_tag.outputs.LATEST_TAG }}
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+          COSIGN_EXPERIMENTAL: 1
+
+      # Trigger automatic release of the Epinio Helm chart when we release
+      # Epinio, by posting an event to the helm chart repository. This event
+      # contains epinio's latest tag.
+
       - name: epinio/helm-charts Repository Dispatch
         uses: peter-evans/repository-dispatch@v2
         with:
