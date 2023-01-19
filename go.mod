@@ -55,30 +55,20 @@ require (
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	helm.sh/helm/v3 v3.10.3
-	k8s.io/api v0.25.4
-	k8s.io/apiextensions-apiserver v0.25.3
-	k8s.io/apimachinery v0.25.4
-	k8s.io/apiserver v0.25.4
-	k8s.io/client-go v0.25.4
+	k8s.io/api v0.26.1
+	k8s.io/apiextensions-apiserver v0.26.1
+	k8s.io/apimachinery v0.26.1
+	k8s.io/apiserver v0.26.1
+	k8s.io/client-go v0.26.1
 	k8s.io/kubectl v0.25.4
 	k8s.io/metrics v0.25.4
-	k8s.io/utils v0.0.0-20221101230645-61b03e2f6476
+	k8s.io/utils v0.0.0-20221107191617-1a15be271d1d
 )
 
-require (
-	cloud.google.com/go/compute/metadata v0.2.1 // indirect
-	go.etcd.io/etcd/api/v3 v3.5.5 // indirect
-)
+require go.etcd.io/etcd/api/v3 v3.5.5 // indirect
 
 require (
-	cloud.google.com/go/compute v1.12.1 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
-	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
-	github.com/Azure/go-autorest/autorest v0.11.28 // indirect
-	github.com/Azure/go-autorest/autorest/adal v0.9.21 // indirect
-	github.com/Azure/go-autorest/autorest/date v0.3.0 // indirect
-	github.com/Azure/go-autorest/logger v0.2.1 // indirect
-	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/MakeNowJust/heredoc v1.0.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -185,7 +175,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.0.6 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pierrec/lz4/v4 v4.1.17 // indirect
-	github.com/prometheus/client_golang v1.13.1 // indirect
+	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
@@ -230,7 +220,7 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/cli-runtime v0.25.4 // indirect
-	k8s.io/component-base v0.25.4 // indirect
+	k8s.io/component-base v0.26.1 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
 	oras.land/oras-go v1.2.1 // indirect
