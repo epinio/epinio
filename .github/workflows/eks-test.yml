@@ -173,7 +173,7 @@ jobs:
         if: ${{ always() && !github.event.inputs.keep_cluster }}
         env:
           KUBECONFIG: ${{ env.KUBECONFIG_NAME }}
+          RUN_ID: ${{ github.event.inputs.run_id }}
+          RUN_PCP: ${{ github.event.inputs.pcp }}
         run: |
-          RUN_ID=${{ steps.create-cluster.outputs.ID }}
-          RUN_PCP="EKS"
           go run acceptance/helpers/delete_clusters/delete_clusters.go
