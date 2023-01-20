@@ -150,7 +150,8 @@ jobs:
 
       - name: Delete GKE cluster
         if: ${{ always() && !github.event.inputs.keep_cluster }}
+        env:
+          RUN_ID: ${{ github.event.inputs.run_id }}
+          RUN_PCP: ${{ github.event.inputs.pcp }}
         run: |
-          RUN_ID=${{ steps.create-cluster.outputs.ID }}
-          RUN_PCP="GKE"
           go run acceptance/helpers/delete_clusters/delete_clusters.go

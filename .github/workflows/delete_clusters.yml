@@ -63,7 +63,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ env.EKS_REGION }}
 
       # Login to Azure for the AKS deletion case
       - name: Login to Azure
@@ -83,7 +83,8 @@ jobs:
       # Delete PVCs, DNS records and Public Cloud Providers cluster
       - name: Delete PCP Clusters and Resources
         shell: bash
+	env:
+          RUN_ID: ${{ github.event.inputs.run_id }}
+          RUN_PCP: ${{ github.event.inputs.pcp }}
         run: |
-          RUN_ID=${{ github.event.inputs.run_id }}
-          RUN_PCP=${{ github.event.inputs.pcp }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
