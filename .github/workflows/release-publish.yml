@@ -47,16 +47,3 @@ jobs:
             Created by https://github.com/mislav/bump-homebrew-formula-action
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
-
-      - name: Bump Homebrew Epinio tap
-        uses: mislav/bump-homebrew-formula-action@v2
-        if: "!contains(github.ref, '-')" # skip prereleases
-        with:
-          homebrew-tap: epinio/homebrew-tap
-          download-url: https://github.com/epinio/epinio/archive/refs/tags/${{ steps.get_tag.outputs.TAG }}.tar.gz
-          commit-message: |
-            {{formulaName}} {{version}}
-
-            Created by https://github.com/mislav/bump-homebrew-formula-action
-        env:
-          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
