@@ -93,8 +93,10 @@ body:
       label: Others
       options:
         - label: >
-            **( 📝 Manual step )** Docker Extension: bump the helm chart versions in `epinio/extension-docker-desktop` by creating a pull requests, then merge the PR and create a new tag.
-            [LINK](https://github.com/epinio/extension-docker-desktop/actions/workflows/image.yml)
+            **( 📝 Manual step )** Docker Extension: check the `epinio/extension-docker-desktop` pull requests for the latest update, then merge the PR.
+            [LINK](https://github.com/epinio/extension-docker-desktop/pulls)
+            Tag the repository with the next version. [LINK](https://github.com/epinio/extension-docker-desktop/tags)
+            Check the result of the action. [LINK](https://github.com/epinio/extension-docker-desktop/actions/workflows/image.yml)
         - label: >
             **( 📝 Manual step )** CIVO marketplace: open a PR in the [CIVO Marketplace](https://github.com/civo/kubernetes-marketplace) bumping the helm chart version in our fork `epinio/kubernetes-marketplace`
             [LINK](https://github.com/epinio/kubernetes-marketplace)
