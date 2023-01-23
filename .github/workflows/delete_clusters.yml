@@ -83,8 +83,7 @@ jobs:
       # Delete PVCs, DNS records and Public Cloud Providers cluster
       - name: Delete PCP Clusters and Resources
         shell: bash
-	env:
-          RUN_ID: ${{ github.event.inputs.run_id }}
-          RUN_PCP: ${{ github.event.inputs.pcp }}
         run: |
+          export RUN_ID=${{ github.event.inputs.run_id }}
+          export RUN_PCP=${{ github.event.inputs.pcp }}
           go run acceptance/helpers/delete_clusters/delete_clusters.go
