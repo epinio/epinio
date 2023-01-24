@@ -10,10 +10,10 @@ import (
 )
 
 const (
-	upgradeResponderAddress = "http://upgrade-responder:8314/v1/checkupgrade"
+	UpgradeResponderAddress = "https://epinio.version.rancher.io/v1/checkupgrade"
 )
 
-func NewChecker(ctx context.Context, logger logr.Logger) (*client.UpgradeChecker, error) {
+func NewChecker(ctx context.Context, logger logr.Logger, upgradeResponderAddress string) (*client.UpgradeChecker, error) {
 	logger = logger.WithName("UpgradeChecker")
 
 	cluster, err := kubernetes.GetCluster(ctx)
@@ -27,18 +27,20 @@ func NewChecker(ctx context.Context, logger logr.Logger) (*client.UpgradeChecker
 	}
 
 	return client.NewUpgradeChecker(upgradeResponderAddress, &EpinioUpgradeRequester{
-		Logger:             logger,
-		EpinioVersion:      version.Version,
-		KubernetesPlatform: cluster.GetPlatform().String(),
-		KubernetesVersion:  kubeVersion,
+		Logger:              logger,
+		EpinioVersion:       version.ChartVersion,
+		EpinioServerVersion: version.Version,
+		KubernetesPlatform:  cluster.GetPlatform().String(),
+		KubernetesVersion:   kubeVersion,
 	}), nil
 }
 
 type EpinioUpgradeRequester struct {
-	Logger             logr.Logger
-	EpinioVersion      string
-	KubernetesPlatform string
-	KubernetesVersion  string
+	Logger              logr.Logger
+	EpinioVersion       string
+	EpinioServerVersion string
+	KubernetesPlatform  string
+	KubernetesVersion   string
 }
 
 func (e *EpinioUpgradeRequester) GetCurrentVersion() string {
@@ -47,8 +49,9 @@ func (e *EpinioUpgradeRequester) GetCurrentVersion() string {
 
 func (e *EpinioUpgradeRequester) GetExtraInfo() map[string]string {
 	return map[string]string{
-		"kubernetesVersion":  e.KubernetesVersion,
-		"kubernetesPlatform": e.KubernetesPlatform,
+		"epinioServerVersion": e.EpinioServerVersion,
+		"kubernetesVersion":   e.KubernetesVersion,
+		"kubernetesPlatform":  e.KubernetesPlatform,
 	}
 }
 

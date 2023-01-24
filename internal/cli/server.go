@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -97,6 +98,17 @@ func init() {
 	checkErr(err)
 	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
 	checkErr(err)
+
+	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
+	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
+	checkErr(err)
+	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
+	checkErr(err)
+
+	version.ChartVersion = os.Getenv("CHART_VERSION")
+	if !strings.HasPrefix(version.ChartVersion, "v") {
+		version.ChartVersion = "v" + version.ChartVersion
+	}
 }
 
 // CmdServer implements the command: epinio server
@@ -125,10 +137,11 @@ var CmdServer = &cobra.Command{
 		ui.Normal().Msg("listening on localhost on port " + listeningPort)
 
 		trackingDisabled := viper.GetBool("disable-tracking")
-		logger.Info("Checking upgrade-responder tracking", "disabled", trackingDisabled)
+		upgradeResponderAddress := viper.GetString("upgrade-responder-address")
+		logger.Info("Checking upgrade-responder tracking", "disabled", trackingDisabled, "upgradeResponderAddress", upgradeResponderAddress)
 
 		if !trackingDisabled {
-			checker, err := upgraderesponder.NewChecker(context.Background(), logger)
+			checker, err := upgraderesponder.NewChecker(context.Background(), logger, upgradeResponderAddress)
 			if err != nil {
 				return errors.Wrap(err, "error creating listener")
 			}

@@ -16,3 +16,7 @@ package version
 // the code is just a placeholder for the actual value inserted when
 // building the client. See the LDFLAGS variable in the Makefile.
 var Version = "v0.0.0-dev"
+
+// ChartVersion contains the version of the Helm Chart used to release Epinio.
+// It's the Product Release version, and it matches the Epinio Github Release.
+var ChartVersion = "v0.0.0-dev"
