@@ -6,7 +6,7 @@ The Epinio instance is running at https://version.rancher.io
 
 ## Local installation
 
-To deploy a development instance of the Upgrade Responder you can run a `make install-upgrade-responder` (and `make uninstall-upgrade-responder` to remove it).
+To deploy a development instance of the Upgrade Responder you can run `make install-upgrade-responder` (and `make uninstall-upgrade-responder` to remove it).
 
 
 The upgrade responder will be configured using the Epinio Releases with this command:
