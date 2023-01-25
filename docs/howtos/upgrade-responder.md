@@ -2,7 +2,9 @@
 
 The [Longhorn Upgrade Responder](https://github.com/longhorn/upgrade-responder) can be used to check when a new version of your application is available, and it can be used to collect some information about the client who made the request.
 
-The Epinio instance is running at https://version.rancher.io
+The Epinio dashboard is available at https://version.rancher.io.  
+
+After the login you can find it under the `General` folder, or [here](https://version.rancher.io/d/Epinio-1/epinio-upgrade-responder).
 
 ## Local installation
 
