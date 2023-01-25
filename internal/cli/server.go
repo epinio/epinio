@@ -20,12 +20,14 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/epinio/epinio/helpers/termui"
 	"github.com/epinio/epinio/helpers/tracelog"
 	"github.com/epinio/epinio/internal/cli/server"
+	"github.com/epinio/epinio/internal/upgraderesponder"
 	"github.com/epinio/epinio/internal/version"
 	"github.com/gin-gonic/gin"
 
@@ -90,6 +92,23 @@ func init() {
 	checkErr(err)
 	err = viper.BindEnv("app-image-exporter", "APP_IMAGE_EXPORTER")
 	checkErr(err)
+
+	flags.Bool("disable-tracking", false, "(DISABLE_TRACKING) Disable tracking of the running Epinio and Kubernetes versions")
+	err = viper.BindPFlag("disable-tracking", flags.Lookup("disable-tracking"))
+	checkErr(err)
+	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
+	checkErr(err)
+
+	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
+	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
+	checkErr(err)
+	err = viper.BindEnv("upgrade-responder-address", "UPGRADE_RESPONDER_ADDRESS")
+	checkErr(err)
+
+	version.ChartVersion = os.Getenv("CHART_VERSION")
+	if !strings.HasPrefix(version.ChartVersion, "v") {
+		version.ChartVersion = "v" + version.ChartVersion
+	}
 }
 
 // CmdServer implements the command: epinio server
@@ -116,6 +135,20 @@ var CmdServer = &cobra.Command{
 		ui.Normal().Msg("Epinio version: " + version.Version)
 		listeningPort := strconv.Itoa(listener.Addr().(*net.TCPAddr).Port)
 		ui.Normal().Msg("listening on localhost on port " + listeningPort)
+
+		trackingDisabled := viper.GetBool("disable-tracking")
+		upgradeResponderAddress := viper.GetString("upgrade-responder-address")
+		logger.Info("Checking upgrade-responder tracking", "disabled", trackingDisabled, "upgradeResponderAddress", upgradeResponderAddress)
+
+		if !trackingDisabled {
+			checker, err := upgraderesponder.NewChecker(context.Background(), logger, upgradeResponderAddress)
+			if err != nil {
+				return errors.Wrap(err, "error creating listener")
+			}
+
+			checker.Start()
+			defer checker.Stop()
+		}
 
 		return startServerGracefully(listener, handler)
 	},

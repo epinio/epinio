@@ -71,7 +71,8 @@ function deploy_epinio_latest_released {
   helm repo add epinio https://epinio.github.io/helm-charts
   helm repo update
   helm upgrade --wait --install -n epinio --create-namespace epinio epinio/epinio \
-    --set global.domain="$EPINIO_SYSTEM_DOMAIN"
+    --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
+    --set server.disableTracking="true"
 }
 
 # Ensure we have a value for --system-domain
@@ -97,6 +98,7 @@ else
     --set global.domain="$EPINIO_SYSTEM_DOMAIN" \
     --set image.epinio.tag="${IMAGE_TAG}" \
     --set image.bash.tag="${IMAGE_TAG}" \
+    --set server.disableTracking="true" \
     epinio helm-charts/chart/epinio --wait "$@"
 
   # compile coverage binary and add required env var
