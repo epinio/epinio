@@ -35,6 +35,11 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 		return apierror.InternalError(err)
 	}
 
+	clientSetHTTP1, err := kubernetes.GetHTTP1Client(ctx)
+	if err != nil {
+		return apierror.InternalError(err)
+	}
+
 	app, err := application.Lookup(ctx, cluster, namespace, appName)
 	if err != nil {
 		return apierror.InternalError(err)
@@ -75,7 +80,7 @@ func (hc Controller) PortForward(c *gin.Context) apierror.APIErrors {
 		podToConnect = podNames[0]
 	}
 
-	forwardRequest(c.Writer, c.Request, podToConnect, namespace, cluster.Kubectl)
+	forwardRequest(c.Writer, c.Request, podToConnect, namespace, clientSetHTTP1)
 
 	return nil
 }
