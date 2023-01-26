@@ -11,12 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -o nounset
-set -o errexit
+set -euo pipefail
 
 K8S_NAMESPACE=${K8S_NAMESPACE}
+EKS_ENDPOINT=${EKS_ENDPOINT}
+
 COGNITO_USERNAME=${COGNITO_USERNAME}
 COGNITO_PASSWORD=${COGNITO_PASSWORD}
+COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
