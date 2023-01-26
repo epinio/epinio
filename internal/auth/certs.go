@@ -42,7 +42,7 @@ func ExtendLocalTrust(certs string) {
 	}
 
 	http.DefaultTransport.(*http.Transport).TLSClientConfig = config
-	websocket.DefaultDialer.TLSClientConfig = config
+	websocket.DefaultDialer.TLSClientConfig = config.Clone()
 
 	// See https://github.com/gorilla/websocket/issues/601 for
 	// what this is a work around for.
