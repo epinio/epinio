@@ -137,6 +137,25 @@ echo -n "Trying to getting info"
 retry 5 1 "${EPINIO_BINARY} info"
 echo "-------------------------------------"
 
+# Check no tls-dex cert conflict issue 
+
+# Check the pod name
+target_cert_manager_pod=`kubectl get pods -n cert-manager -o name --no-headers=true |  grep -vE 'webhook|cainjector' | cut -b 5-`
+
+# Counting logs of undesired message
+check_dex_log=`kubectl logs ${target_cert_manager_pod} -n cert-manager | grep '"secret"="dex-tls" "message"="unexpected managed Secret Owner Reference field on Secret --enable-certificate-owner-ref=true"' | wc -l`
+
+# Exiting with count of bad logs if more than 10 are found
+if [ $check_dex_log -gt 10 ]; then
+ echo
+ echo "-------------------------------------"
+ echo "Warning: 'dex-tls' secrets may be be updated many times a second."
+ echo "More than '${check_dex_log}' logs found in pod '${target_cert_manager_pod}' with entry = '"secret"="dex-tls" "message"="unexpected managed Secret Owner Reference field on Secret --enable-certificate-owner-ref=true"'"
+ echo "Exiting installation"
+ echo "-------------------------------------" 
+ exit 1
+fi
+
 ${EPINIO_BINARY} info
 
 echo
