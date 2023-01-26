@@ -14,11 +14,14 @@
 set -euo pipefail
 
 K8S_NAMESPACE=${K8S_NAMESPACE}
+K8S_DRY_RUN=${K8S_DRY_RUN:-none}
 EKS_ENDPOINT=${EKS_ENDPOINT}
 
 COGNITO_USERNAME=${COGNITO_USERNAME}
 COGNITO_PASSWORD=${COGNITO_PASSWORD}
 COGNITO_CLIENT_ID=${COGNITO_CLIENT_ID}
+
+COMMITTER_TOKEN=${COMMITTER_TOKEN}
 
 SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
@@ -28,7 +31,19 @@ source "${SCRIPT_DIR}/cognito-login.sh"
 # Ref: https://github.com/longhorn/upgrade-responder#response-json-config-example
 function UpgradeResponderResponseJSON
 {
-  curl -s https://api.github.com/repos/epinio/epinio/releases | \
+  http_code=$(
+    curl -s -o /tmp/epinio_releases.json -w '%{http_code}' \
+    --header "Authorization: token ${COMMITTER_TOKEN}" \
+      https://api.github.com/repos/epinio/epinio/releases;
+  )
+
+  if [[ $http_code -ne 200 ]]; then
+    echo "Error calling the Github APIs. Code: $http_code" > /dev/stderr
+    echo "Response: $(cat /tmp/epinio_releases.json)" > /dev/stderr
+    exit 1
+  fi
+
+  cat /tmp/epinio_releases.json | \
   jq '.[] | {
     Name: (.name | split(" ")[0]),
     ReleaseDate: .published_at,
@@ -53,4 +68,5 @@ UPGRADE_RESPONDER_RESPONSE_JSON=$(echo ${UPGRADE_RESPONDER_RESPONSE_JSON} | jq -
 
 kubectl get configmap configmap-upgrade-responder --namespace ${K8S_NAMESPACE} \
     --context epinio.version.rancher.io -o json | \
-    jq --arg add ${UPGRADE_RESPONDER_RESPONSE_JSON} '.data["upgrade-responder-config.json"] = $add' # | kubectl apply -f -
+    jq --arg add ${UPGRADE_RESPONDER_RESPONSE_JSON} '.data["upgrade-responder-config.json"] = $add' | \
+    kubectl apply --dry-run=${K8S_DRY_RUN} --context epinio.version.rancher.io -f -
