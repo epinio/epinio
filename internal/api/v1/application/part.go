@@ -118,8 +118,38 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		return apierror.InternalError(err)
 	}
 
+	logger.Info("input", "chart archive", chartArchive)
+
+	// Try to read the archive as local path first, before falling back to retrieval via http.
+
+	file, err := os.Open(chartArchive)
+	if err == nil {
+		logger.Info("input", "chart archive", "is file")
+
+		fileInfo, err := file.Stat()
+		if err == nil {
+			logger.Info("input", "chart archive", "has stat")
+
+			contentLength := fileInfo.Size()
+			contentType := "application/x-gzip"
+
+			logger.Info("input", "chart archive", "returning file")
+
+			c.DataFromReader(http.StatusOK, contentLength, contentType, bufio.NewReader(file),
+				map[string]string{
+					"X-Content-Length": strconv.FormatInt(contentLength, 10),
+				})
+
+			return nil
+		}
+	}
+
+	logger.Info("input", "chart archive", "retrieving by http")
+
 	response, err := http.Get(chartArchive) // nolint:gosec // app chart repo ref
 	if err != nil || response.StatusCode != http.StatusOK {
+		logger.Info("fail, http issue")
+
 		c.Status(http.StatusServiceUnavailable)
 		return nil
 	}
@@ -133,7 +163,7 @@ func fetchAppChart(c *gin.Context, ctx context.Context, logger logr.Logger, clus
 		"returning", fmt.Sprintf("%d bytes %s as is", contentLength, contentType),
 	)
 	c.DataFromReader(http.StatusOK, contentLength, contentType, reader, map[string]string{
-		"X-Content-Length": strconv.FormatInt(response.ContentLength, 10),
+		"X-Content-Length": strconv.FormatInt(contentLength, 10),
 	})
 	return nil
 }
