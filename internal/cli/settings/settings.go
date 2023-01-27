@@ -132,13 +132,11 @@ func LoadFrom(file string) (*Settings, error) {
 			}
 
 			http.DefaultTransport.(*http.Transport).TLSClientConfig = tlsInsecure
-			websocket.DefaultDialer.TLSClientConfig = tlsInsecure
 		} else {
 			// nolint:gosec // Controlled by user option
 			http.DefaultTransport.(*http.Transport).TLSClientConfig.InsecureSkipVerify = true
-			// websocket.DefaultDialer.TLSClientConfig refers to the same structure,
-			// and the assignment has modified it also.
 		}
+		websocket.DefaultDialer.TLSClientConfig = http.DefaultTransport.(*http.Transport).TLSClientConfig.Clone()
 	}
 
 	if !cfg.Colors || viper.GetBool("no-colors") {
