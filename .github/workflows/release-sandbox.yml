@@ -65,3 +65,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+
+      - name: Update Upgrade Responder Response JSON config (dry run)
+        run: ./scripts/upgrade-responder-release-update.sh
+        env:
+          COGNITO_USERNAME: ${{ secrets.UPGRADE_RESPONDER_COGNITO_USERNAME }}
+          COGNITO_PASSWORD: ${{ secrets.UPGRADE_RESPONDER_COGNITO_PASSWORD }}
+          COGNITO_CLIENT_ID: ${{ secrets.UPGRADE_RESPONDER_COGNITO_CLIENT_ID }}
+          EKS_ENDPOINT: ${{ secrets.UPGRADE_RESPONDER_EKS_ENDPOINT }}
+          K8S_NAMESPACE: epinio
+          K8S_DRY_RUN: client
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}

@@ -47,3 +47,13 @@ jobs:
             Created by https://github.com/mislav/bump-homebrew-formula-action
         env:
           COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
+
+      - name: Update Upgrade Responder Response JSON config
+        run: ./scripts/upgrade-responder-release-update.sh
+        env:
+          COGNITO_USERNAME: ${{ secrets.UPGRADE_RESPONDER_COGNITO_USERNAME }}
+          COGNITO_PASSWORD: ${{ secrets.UPGRADE_RESPONDER_COGNITO_PASSWORD }}
+          COGNITO_CLIENT_ID: ${{ secrets.UPGRADE_RESPONDER_COGNITO_CLIENT_ID }}
+          EKS_ENDPOINT: ${{ secrets.UPGRADE_RESPONDER_EKS_ENDPOINT }}
+          K8S_NAMESPACE: epinio
+          COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
