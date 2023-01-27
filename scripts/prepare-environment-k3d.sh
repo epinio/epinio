@@ -137,6 +137,22 @@ echo -n "Trying to getting info"
 retry 5 1 "${EPINIO_BINARY} info"
 echo "-------------------------------------"
 
+# Check no tls-dex cert conflict issue
+# Counting logs of undesired message
+message_dex_tls="unexpected managed Secret Owner Reference field on Secret --enable-certificate-owner-ref=true"
+check_dex_log_count=$(kubectl logs  -n cert-manager -lapp=cert-manager --tail=-1 | grep "${message_dex_tls}"  | wc -l)
+
+# Exiting with count of bad logs if more than 10 are found
+if [ $check_dex_log_count -gt 10 ]; then
+ echo
+ echo "-------------------------------------"
+ echo "Warning: 'dex-tls' secrets may be be updated many times a second."
+ echo "More than '${check_dex_log_count}' logs found in 'cert-manager/cert-manager' pod with entry = '${message_dex_tls}'"
+ echo "Exiting installation"
+ echo "-------------------------------------" 
+ exit 1
+fi
+
 ${EPINIO_BINARY} info
 
 echo
