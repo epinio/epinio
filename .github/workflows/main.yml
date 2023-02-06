@@ -29,7 +29,7 @@ on:
     - cron:  '0 0 * * *'
 
 env:
-  SETUP_GO_VERSION: '^1.18'
+  SETUP_GO_VERSION: '^1.19'
   GINKGO_NODES: 8
   INGRESS_CONTROLLER: traefik
 
