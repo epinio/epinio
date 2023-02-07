@@ -20,7 +20,7 @@ require (
 	github.com/briandowns/spinner v1.19.0
 	github.com/coreos/go-oidc/v3 v3.4.0
 	github.com/epinio/application v0.0.0-20220901082113-1f9503b4ae5a
-	github.com/fatih/color v1.13.0
+	github.com/fatih/color v1.14.1
 	github.com/gin-gonic/gin v1.8.2
 	github.com/go-git/go-git/v5 v5.4.2
 	github.com/go-logr/logr v1.2.3
@@ -33,7 +33,7 @@ require (
 	github.com/k3s-io/helm-controller v0.13.0
 	github.com/kyokomi/emoji v2.2.4+incompatible
 	github.com/mattn/go-colorable v0.1.13
-	github.com/mattn/go-isatty v0.0.16
+	github.com/mattn/go-isatty v0.0.17
 	github.com/maxbrunsfeld/counterfeiter/v6 v6.5.0
 	github.com/mholt/archiver/v3 v3.5.1
 	github.com/minio/minio-go/v7 v7.0.47
