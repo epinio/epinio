@@ -40,7 +40,7 @@ require (
 	github.com/mittwald/go-helm-client v0.11.5
 	github.com/novln/docker-parser v1.0.0
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/onsi/ginkgo/v2 v2.7.0
+	github.com/onsi/ginkgo/v2 v2.8.0
 	github.com/onsi/gomega v1.26.0
 	github.com/panjf2000/ants/v2 v2.7.1
 	github.com/pkg/errors v0.9.1
@@ -211,7 +211,7 @@ require (
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/time v0.1.0 // indirect
-	golang.org/x/tools v0.4.0 // indirect
+	golang.org/x/tools v0.5.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/genproto v0.0.0-20221027153422-115e99e71e1c // indirect
 	google.golang.org/grpc v1.50.1 // indirect
