@@ -43,6 +43,8 @@ type ConfigurationBatchDeleteParam struct {
 	Namespace string
 	// in: url
 	Configurations []string
+	// in: body
+	Body models.ConfigurationDeleteRequest
 }
 
 // swagger:response ConfigurationDeleteResponse
