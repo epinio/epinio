@@ -32,7 +32,7 @@ jobs:
         id: get_tag
         run: echo ::set-output name=TAG::${GITHUB_REF/refs\/tags\//}
 
-      # Allow to automate documentation update related to Epinio releases.
+      # Automate documentation update related to Epinio releases.
       # The latest tag is sent to the documentation repository.
       - name: epinio/docs Repository Dispatch
         uses: peter-evans/repository-dispatch@v2
@@ -42,7 +42,7 @@ jobs:
           event-type: epinio-release
           client-payload: '{"ref": "${{ steps.get_tag.outputs.TAG }}"}'
 
-      # Allow to automate Docker extension update related to Epinio releases.
+      # Automate Docker extension update related to Epinio releases.
       # The latest tag is sent to the extension-docker-desktop repository.
       - name: epinio/extension-docker-desktop Repository Dispatch
         uses: peter-evans/repository-dispatch@v2
