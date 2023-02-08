@@ -1236,6 +1236,13 @@
             "description": "in: url",
             "name": "Configurations",
             "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ConfigurationDeleteRequest"
+            }
           }
         ],
         "responses": {
@@ -1460,6 +1467,13 @@
             "description": "in: url",
             "name": "Services",
             "in": "query"
+          },
+          {
+            "name": "Body",
+            "in": "body",
+            "schema": {
+              "$ref": "#/definitions/ServiceDeleteRequest"
+            }
           }
         ],
         "responses": {

@@ -168,6 +168,8 @@ type ServiceBatchDeleteParam struct {
 	Namespace string
 	// in: url
 	Services []string
+	// in: body
+	Body models.ServiceDeleteRequest
 }
 
 // swagger:response ServiceDeleteResponse

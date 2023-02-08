@@ -9,14 +9,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Test Release
+name: Release Sandbox
 
 on:
+  workflow_dispatch:
+  pull_request:
   push:
     branches:
       - "main"
-  pull_request:
-  workflow_dispatch:
 
 permissions:
   contents: read
