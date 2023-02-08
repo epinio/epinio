@@ -39,6 +39,9 @@ body:
         - label: >
             Check the release page for the latest assets and changelog.
             [LINK](https://github.com/epinio/epinio/releases)
+        - label: >
+            Check the `epinio/homebrew-tap` for the latest version.
+            [LINK](https://github.com/epinio/homebrew-tap/blob/main/Formula/epinio.rb)
           
   - type: checkboxes
     id: helm-charts-checklist
@@ -71,9 +74,6 @@ body:
         - label: >
             Check the release published action.
             [LINK](https://github.com/epinio/epinio/actions/workflows/release-publish.yml)
-        - label: >
-            **( 📝 Manual step )** Check the `epinio/homebrew-tap` pull requests for the latest update, then merge the PR.
-            [LINK](https://github.com/epinio/homebrew-tap/blob/main/Formula/epinio.rb)
         - label: >
             Check that the `Homebrew/homebrew-core` has an open (or already closed) PR with the latest Epinio version.
             [LINK](https://github.com/Homebrew/homebrew-core/pulls?q=is%3Apr+epinio)
