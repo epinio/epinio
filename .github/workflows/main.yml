@@ -50,7 +50,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Lint Epinio
         run: make lint
@@ -91,7 +91,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -163,7 +163,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -235,7 +235,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -308,7 +308,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -381,7 +381,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -453,7 +453,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Cache Tools
         uses: actions/cache@v3
@@ -526,7 +526,7 @@ jobs:
           go-version: ${{ env.SETUP_GO_VERSION }}
 
       - name: Setup Ginkgo Test Framework
-        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.6.1
+        run: go install github.com/onsi/ginkgo/v2/ginkgo@v2.8.0
 
       - name: Cache Tools
         uses: actions/cache@v3
