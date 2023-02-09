@@ -54,7 +54,7 @@ jobs:
           username: ${{ secrets.JUADK_DOCKERHUB_USERNAME }}
           password: ${{ secrets.JUADK_DOCKERHUB_PASSWORD }}
 
-      - uses: anchore/sbom-action/download-syft@v0.13.1
+      - uses: anchore/sbom-action/download-syft@v0.13.3
 
       - uses: sigstore/cosign-installer@v2.8.1
 
