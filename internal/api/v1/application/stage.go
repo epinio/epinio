@@ -48,6 +48,7 @@ type stageParam struct {
 	BuilderImage        string
 	DownloadImage       string
 	UnpackImage         string
+	ServiceAccountName  string
 	Environment         models.EnvVariableList
 	Owner               metav1.OwnerReference
 	RegistryURL         string
@@ -218,11 +219,14 @@ func (hc Controller) Stage(c *gin.Context) apierror.APIErrors {
 		}
 	}
 
+	serviceAccountName := viper.GetString("staging-service-account-name")
+
 	params := stageParam{
 		AppRef:              req.App,
 		BuilderImage:        builderImage,
 		DownloadImage:       downloadImage,
 		UnpackImage:         unpackImage,
+		ServiceAccountName:  serviceAccountName,
 		BlobUID:             blobUID,
 		Environment:         environment.List(),
 		Owner:               owner,
@@ -360,11 +364,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	previous := app
 	previous.Stage = models.NewStage(app.PreviousStageID)
 
-	protocol := "http"
-	if app.S3ConnectionDetails.UseSSL {
-		protocol = "https"
-	}
-
 	// TODO: Simplify env setup -- https://github.com/epinio/epinio/issues/1176
 
 	// Note: `source` is required because the mounted files are not executable.
@@ -379,32 +378,19 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 	buildpackScript := fmt.Sprintf(`source /stage-support/%s`, helmchart.EpinioStageBuild)
 
 	// build configuration
-	stageEnv := []corev1.EnvVar{
-		{
-			Name:  "PROTOCOL",
-			Value: protocol,
-		},
-		{
-			Name:  "ENDPOINT",
-			Value: app.S3ConnectionDetails.Endpoint,
-		},
-		{
-			Name:  "BUCKET",
-			Value: app.S3ConnectionDetails.Bucket,
-		},
-		{
-			Name:  "BLOBID",
-			Value: app.BlobUID,
-		},
-		{
-			Name:  "PREIMAGE",
-			Value: previous.ImageURL(previous.RegistryURL),
-		},
-		{
-			Name:  "APPIMAGE",
-			Value: app.ImageURL(app.RegistryURL),
-		},
+	stageEnv := []corev1.EnvVar{}
+
+	protocol := "http"
+	if app.S3ConnectionDetails.UseSSL {
+		protocol = "https"
 	}
+	stageEnv = appendEnvVar(stageEnv, "PROTOCOL", protocol)
+
+	stageEnv = appendEnvVar(stageEnv, "ENDPOINT", app.S3ConnectionDetails.Endpoint)
+	stageEnv = appendEnvVar(stageEnv, "BUCKET", app.S3ConnectionDetails.Bucket)
+	stageEnv = appendEnvVar(stageEnv, "BLOBID", app.BlobUID)
+	stageEnv = appendEnvVar(stageEnv, "PREIMAGE", previous.ImageURL(previous.RegistryURL))
+	stageEnv = appendEnvVar(stageEnv, "APPIMAGE", app.ImageURL(app.RegistryURL))
 
 	volumeMounts := []corev1.VolumeMount{
 		{
@@ -442,11 +428,6 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		})
 	}
 
-	cacheClaim := &corev1.PersistentVolumeClaimVolumeSource{
-		ClaimName: app.MakePVCName(),
-		ReadOnly:  false,
-	}
-
 	volumes := []corev1.Volume{
 		{
 			Name: "staging",
@@ -472,7 +453,10 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 		{
 			Name: "cache",
 			VolumeSource: corev1.VolumeSource{
-				PersistentVolumeClaim: cacheClaim,
+				PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+					ClaimName: app.MakePVCName(),
+					ReadOnly:  false,
+				},
 			},
 		},
 		{
@@ -573,6 +557,7 @@ func newJobRun(app stageParam) (*batchv1.Job, *corev1.Secret) {
 					},
 				},
 				Spec: corev1.PodSpec{
+					ServiceAccountName: app.ServiceAccountName,
 					InitContainers: []corev1.Container{
 						{
 							Name:         "download-s3-blob",
@@ -790,4 +775,8 @@ func mountRegistryCerts(app stageParam, volumes []corev1.Volume, volumeMounts []
 	}
 
 	return volumes, volumeMounts
+}
+
+func appendEnvVar(envs []corev1.EnvVar, name, value string) []corev1.EnvVar {
+	return append(envs, corev1.EnvVar{Name: name, Value: value})
 }

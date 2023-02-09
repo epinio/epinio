@@ -99,6 +99,12 @@ func init() {
 	err = viper.BindEnv("disable-tracking", "DISABLE_TRACKING")
 	checkErr(err)
 
+	flags.String("staging-service-account-name", "", "(STAGING_SERVICE_ACCOUNT_NAME)")
+	err = viper.BindPFlag("staging-service-account-name", flags.Lookup("staging-service-account-name"))
+	checkErr(err)
+	err = viper.BindEnv("staging-service-account-name", "STAGING_SERVICE_ACCOUNT_NAME")
+	checkErr(err)
+
 	flags.String("upgrade-responder-address", upgraderesponder.UpgradeResponderAddress, "(UPGRADE_RESPONDER_ADDRESS) Disable tracking of the running Epinio and Kubernetes versions")
 	err = viper.BindPFlag("upgrade-responder-address", flags.Lookup("upgrade-responder-address"))
 	checkErr(err)

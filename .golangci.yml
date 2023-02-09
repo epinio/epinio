@@ -30,7 +30,7 @@ linters-settings:
       severity: warning
   funlen:
     # Checks the number of lines in a function. Default: 60
-    lines: 270
+    lines: 250
     # Checks the number of statements in a function. Default: 40
     statements: 110
 
