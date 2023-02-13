@@ -137,8 +137,13 @@ func checkAndAskCA(ui *termui.UI, addresses []string, trustCA bool) (string, err
 			if cert == nil {
 				return "", errors.Wrap(err, "error while checking CA")
 			}
-			// add the untrusted certificate
+			// add the untrusted certificate to the list to check
 			certsToCheck = append(certsToCheck, cert)
+		} else {
+			// and regularly trusted certs go directly into the result
+			// This was missing in PR #1964, and demonstrated as bug with issue #2003
+			pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+			builder.Write(pemCert)
 		}
 	}
 
