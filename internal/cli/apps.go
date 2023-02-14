@@ -96,10 +96,9 @@ var CmdAppList = &cobra.Command{
 
 // CmdAppCreate implements the command: epinio apps create
 var CmdAppCreate = &cobra.Command{
-	Use:               "create NAME",
-	Short:             "Create just the app, without creating a workload",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: matchingAppsFinder,
+	Use:   "create NAME",
+	Short: "Create just the app, without creating a workload",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -171,9 +170,10 @@ var CmdAppExport = &cobra.Command{
 
 // CmdAppLogs implements the command: epinio apps logs
 var CmdAppLogs = &cobra.Command{
-	Use:   "logs NAME",
-	Short: "Streams the logs of the application",
-	Args:  cobra.ExactArgs(1),
+	Use:               "logs NAME",
+	Short:             "Streams the logs of the application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -208,9 +208,10 @@ var CmdAppLogs = &cobra.Command{
 
 // CmdAppExec implements the command: epinio apps exec
 var CmdAppExec = &cobra.Command{
-	Use:   "exec NAME",
-	Short: "creates a shell to the application",
-	Args:  cobra.ExactArgs(1),
+	Use:               "exec NAME",
+	Short:             "creates a shell to the application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
@@ -238,9 +239,10 @@ var (
 
 // CmdAppPortForward implements the command: epinio apps port-forward
 var CmdAppPortForward = &cobra.Command{
-	Use:   "port-forward NAME [LOCAL_PORT:]REMOTE_PORT [...[LOCAL_PORT_N:]REMOTE_PORT_N]",
-	Short: "forward one or more local ports to a pod",
-	Args:  cobra.MinimumNArgs(2),
+	Use:               "port-forward NAME [LOCAL_PORT:]REMOTE_PORT [...[LOCAL_PORT_N:]REMOTE_PORT_N]",
+	Short:             "forward one or more local ports to a pod",
+	Args:              cobra.MinimumNArgs(2),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 

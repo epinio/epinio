@@ -12,6 +12,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -54,6 +55,24 @@ func CreateKubeClient(configPath string) kubernetes.Interface {
 	ExitfIfError(err, "an unexpected error occurred")
 
 	return clientset
+}
+
+// matchingConfigurationFinder returns a list of configurations whose names match the provided
+// partial command. It only matches for the first command argument
+func matchingConfigurationFinder(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+
+	app, err := usercmd.New(cmd.Context())
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	app.API.DisableVersionWarning()
+
+	matches := app.ConfigurationMatching(context.Background(), toComplete)
+
+	return matches, cobra.ShellCompDirectiveNoFileComp
 }
 
 // matchingAppsFinder returns a list of matching apps from the provided partial command. It only
