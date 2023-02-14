@@ -96,10 +96,9 @@ var CmdAppList = &cobra.Command{
 
 // CmdAppCreate implements the command: epinio apps create
 var CmdAppCreate = &cobra.Command{
-	Use:               "create NAME",
-	Short:             "Create just the app, without creating a workload",
-	Args:              cobra.ExactArgs(1),
-	ValidArgsFunction: matchingAppsFinder,
+	Use:   "create NAME",
+	Short: "Create just the app, without creating a workload",
+	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
