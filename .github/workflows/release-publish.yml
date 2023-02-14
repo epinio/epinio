@@ -51,6 +51,16 @@ jobs:
           repository: epinio/extension-docker-desktop
           event-type: epinio-release
           client-payload: '{"ref": "${{ steps.get_tag.outputs.TAG }}"}'
+      
+      # Automate CIVO marketplace update related to Epinio releases.
+      # The latest tag is sent to the kubernetes-marketplace repository.
+      - name: epinio/kubernetes-marketplace Repository Dispatch
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.CHART_REPO_ACCESS_TOKEN }}
+          repository: epinio/kubernetes-marketplace
+          event-type: epinio-release
+          client-payload: '{"ref": "${{ steps.get_tag.outputs.TAG }}"}'
 
       - name: Bump Homebrew formula
         uses: mislav/bump-homebrew-formula-action@v2

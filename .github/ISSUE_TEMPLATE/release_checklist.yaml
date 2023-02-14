@@ -98,7 +98,8 @@ body:
             Tag the repository with the next version. [LINK](https://github.com/epinio/extension-docker-desktop/tags)
             Check the result of the action. [LINK](https://github.com/epinio/extension-docker-desktop/actions/workflows/image.yml)
         - label: >
-            **( 📝 Manual step )** CIVO marketplace: open a PR in the [CIVO Marketplace](https://github.com/civo/kubernetes-marketplace) bumping the helm chart version in our fork `epinio/kubernetes-marketplace`
-            [LINK](https://github.com/epinio/kubernetes-marketplace)
+            **( 📝 Manual step )** CIVO marketplace: check the [updatecli action](https://github.com/epinio/kubernetes-marketplace/actions/workflows/updatecli.yml).
+            It should have pushed a new branch in the repo. [LINK](https://github.com/epinio/kubernetes-marketplace)
+            From this new branch open a PR to the upstream repository. [CIVO Marketplace](https://github.com/civo/kubernetes-marketplace)
         - label: >
             **( 📝 Manual step )** [optional] Rancher marketplace: open a PR in the [Rancher Helm Chart repository](https://github.com/rancher/charts)
