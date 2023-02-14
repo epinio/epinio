@@ -171,9 +171,10 @@ var CmdAppExport = &cobra.Command{
 
 // CmdAppLogs implements the command: epinio apps logs
 var CmdAppLogs = &cobra.Command{
-	Use:   "logs NAME",
-	Short: "Streams the logs of the application",
-	Args:  cobra.ExactArgs(1),
+	Use:               "logs NAME",
+	Short:             "Streams the logs of the application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
