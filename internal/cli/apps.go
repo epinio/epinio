@@ -208,9 +208,10 @@ var CmdAppLogs = &cobra.Command{
 
 // CmdAppExec implements the command: epinio apps exec
 var CmdAppExec = &cobra.Command{
-	Use:   "exec NAME",
-	Short: "creates a shell to the application",
-	Args:  cobra.ExactArgs(1),
+	Use:               "exec NAME",
+	Short:             "creates a shell to the application",
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
