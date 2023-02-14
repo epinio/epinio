@@ -240,9 +240,10 @@ var (
 
 // CmdAppPortForward implements the command: epinio apps port-forward
 var CmdAppPortForward = &cobra.Command{
-	Use:   "port-forward NAME [LOCAL_PORT:]REMOTE_PORT [...[LOCAL_PORT_N:]REMOTE_PORT_N]",
-	Short: "forward one or more local ports to a pod",
-	Args:  cobra.MinimumNArgs(2),
+	Use:               "port-forward NAME [LOCAL_PORT:]REMOTE_PORT [...[LOCAL_PORT_N:]REMOTE_PORT_N]",
+	Short:             "forward one or more local ports to a pod",
+	Args:              cobra.MinimumNArgs(2),
+	ValidArgsFunction: matchingAppsFinder,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
 
