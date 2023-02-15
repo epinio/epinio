@@ -108,10 +108,24 @@ func (e *Epinio) Upgrade() {
 		By(out)
 	}
 
+	// If the chart has new defaults Helm will not get these values when using --set and --reuse-values
+	// To get the new defaults, the previous values and the --set we need to fetch the values and pass them.
+	// See: https://shipmight.com/blog/understanding-helm-upgrade-reset-reuse-values
+	// also: https://github.com/helm/helm/issues/8085
+
+	By("Get old Helm values")
+	prevValuesFile := "prev-values.yaml"
+
+	out, err = proc.RunW("helm", "get", "values", "epinio", "-n", "epinio")
+	Expect(err).NotTo(HaveOccurred(), out)
+	err = os.WriteFile(prevValuesFile, []byte(out), 0600)
+	Expect(err).NotTo(HaveOccurred(), out)
+
 	By("Upgrading server side")
-	out, err = proc.RunW("helm", "upgrade", "--reuse-values", "epinio",
+	out, err = proc.RunW("helm", "upgrade", "epinio",
 		"-n", "epinio",
 		"../../helm-charts/chart/epinio",
+		"--values", prevValuesFile,
 		"--set", "image.epinio.registry=ghcr.io/",
 		"--set", fmt.Sprintf("image.epinio.tag=%s", tag),
 		"--set", fmt.Sprintf("image.bash.tag=%s", tag),
