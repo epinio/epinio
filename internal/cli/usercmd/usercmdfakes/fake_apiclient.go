@@ -13,6 +13,7 @@
 package usercmdfakes
 
 import (
+	"context"
 	"net/http"
 	"sync"
 
@@ -101,13 +102,14 @@ type FakeAPIClient struct {
 		result1 *models.DeployResponse
 		result2 error
 	}
-	AppExecStub        func(string, string, string, term.TTY) error
+	AppExecStub        func(context.Context, string, string, string, term.TTY) error
 	appExecMutex       sync.RWMutex
 	appExecArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
 		arg3 string
-		arg4 term.TTY
+		arg4 string
+		arg5 term.TTY
 	}
 	appExecReturns struct {
 		result1 error
@@ -1156,21 +1158,22 @@ func (fake *FakeAPIClient) AppDeployReturnsOnCall(i int, result1 *models.DeployR
 	}{result1, result2}
 }
 
-func (fake *FakeAPIClient) AppExec(arg1 string, arg2 string, arg3 string, arg4 term.TTY) error {
+func (fake *FakeAPIClient) AppExec(arg1 context.Context, arg2 string, arg3 string, arg4 string, arg5 term.TTY) error {
 	fake.appExecMutex.Lock()
 	ret, specificReturn := fake.appExecReturnsOnCall[len(fake.appExecArgsForCall)]
 	fake.appExecArgsForCall = append(fake.appExecArgsForCall, struct {
-		arg1 string
+		arg1 context.Context
 		arg2 string
 		arg3 string
-		arg4 term.TTY
-	}{arg1, arg2, arg3, arg4})
+		arg4 string
+		arg5 term.TTY
+	}{arg1, arg2, arg3, arg4, arg5})
 	stub := fake.AppExecStub
 	fakeReturns := fake.appExecReturns
-	fake.recordInvocation("AppExec", []interface{}{arg1, arg2, arg3, arg4})
+	fake.recordInvocation("AppExec", []interface{}{arg1, arg2, arg3, arg4, arg5})
 	fake.appExecMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2, arg3, arg4)
+		return stub(arg1, arg2, arg3, arg4, arg5)
 	}
 	if specificReturn {
 		return ret.result1
@@ -1184,17 +1187,17 @@ func (fake *FakeAPIClient) AppExecCallCount() int {
 	return len(fake.appExecArgsForCall)
 }
 
-func (fake *FakeAPIClient) AppExecCalls(stub func(string, string, string, term.TTY) error) {
+func (fake *FakeAPIClient) AppExecCalls(stub func(context.Context, string, string, string, term.TTY) error) {
 	fake.appExecMutex.Lock()
 	defer fake.appExecMutex.Unlock()
 	fake.AppExecStub = stub
 }
 
-func (fake *FakeAPIClient) AppExecArgsForCall(i int) (string, string, string, term.TTY) {
+func (fake *FakeAPIClient) AppExecArgsForCall(i int) (context.Context, string, string, string, term.TTY) {
 	fake.appExecMutex.RLock()
 	defer fake.appExecMutex.RUnlock()
 	argsForCall := fake.appExecArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5
 }
 
 func (fake *FakeAPIClient) AppExecReturns(result1 error) {
