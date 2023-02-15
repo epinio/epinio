@@ -157,7 +157,8 @@ configuration:
   routes:
   - %s\..*
   appchart: standard
-`, appName, configurationName, appName)))
+(?s:.*)namespace: %s
+`, appName, configurationName, appName, namespace)))
 				})
 			})
 		})

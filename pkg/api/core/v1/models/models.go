@@ -107,13 +107,14 @@ type BindResponse struct {
 }
 
 // ApplicationManifest represents and contains the data of an application's manifest file,
-// plus some auxiliary data never (un)marshaled. Namely, the file's location, and origin
+// plus some auxiliary data never (un)marshalled. Namely, the file's location, and origin
 // type tag.
 type ApplicationManifest struct {
 	ApplicationCreateRequest `yaml:",inline"`
 	Self                     string            `yaml:"-"` // Hidden from yaml. The file's location.
 	Origin                   ApplicationOrigin `yaml:"origin,omitempty"`
 	Staging                  ApplicationStage  `yaml:"staging,omitempty"`
+	Namespace                string            `yaml:"namespace,omitempty"`
 }
 
 // ApplicationStage is the part of the manifest holding information
